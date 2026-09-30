@@ -1,0 +1,1093 @@
+<title>Alpha Workspace</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
+<style>
+:root {
+  --bg: #fafbfc; --surface: #ffffff; --surface-2: #f3f5f7; --text: #1a2b3c; --text-2: #4b5a6a; --text-3: #8a96a3;
+  --border: #e3e6ea; --line: #f1f3f5; --hover: #eef1f4; --primary: #4d7ea8; --primary-ink: #ffffff; --primary-soft: #e4edf5;
+  --good: #4f7a52; --good-soft: #e5eee5; --warn: #a97a3e; --warn-soft: #f6eee2; --bad: #b4413a; --bad-soft: #f6e5e3;
+  --navy: #1a2b3c;
+  --shadow: 0 1px 2px rgba(26, 43, 60, 0.06), 0 8px 24px rgba(26, 43, 60, 0.06);
+  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --font-ed: "Source Serif 4", Georgia, serif;
+  --focus-ring: 0 0 0 2px var(--primary-soft), 0 0 0 4px var(--primary);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f151c; --surface: #161e27; --surface-2: #1c2530; --text: #e6ebf0; --text-2: #b4bec9; --text-3: #7c8894;
+    --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
+    --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220;
+    --navy: #e6ebf0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f151c; --surface: #161e27; --surface-2: #1c2530; --text: #e6ebf0; --text-2: #b4bec9; --text-3: #7c8894;
+  --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
+  --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220;
+  --navy: #e6ebf0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.45; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+h1, h2, h3 { margin: 0; font-family: var(--font-ed); font-weight: 500; color: var(--navy); text-wrap: balance; }
+h1 { font-size: 30px; line-height: 1.15; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+a { color: var(--primary); }
+.muted { color: var(--text-2); }
+.faint { color: var(--text-3); font-size: 12px; }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); font-weight: 600; }
+
+/* ---------- frame ---------- */
+.app { --rail-w: 224px; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr) 380px; height: 100%; min-height: 100vh; }
+.app--assistant-hidden { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+.app--rail-collapsed { --rail-w: 60px; }
+.rail { border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 14px; }
+.brand__mark { width: 28px; height: 28px; border-radius: 8px; background: var(--navy); color: var(--bg); display: grid; place-items: center; font-family: var(--font-ed); font-weight: 600; }
+.brand b { font-weight: 600; }
+.rail__fold { margin-left: auto; width: 26px; height: 26px; color: var(--text-3); }
+.rail__group { margin-top: 10px; padding: 6px 8px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.navbtn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: 8px; text-align: left; color: var(--text-2); background: none; border: 0; }
+.navbtn:hover { background: var(--hover); color: var(--text); }
+.navbtn--current { background: var(--primary-soft); color: var(--text); font-weight: 500; }
+.navbtn__ico { width: 18px; text-align: center; flex: none; color: var(--text-3); font-size: 14px; }
+.navbtn--current .navbtn__ico { color: var(--primary); }
+.navbtn__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navbtn__count { font-size: 11px; font-weight: 600; background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 0 7px; }
+.navbtn--new { color: var(--primary); font-weight: 500; }
+.navbtn--nested { padding-left: 26px; font-size: 13px; }
+.rail__spacer { flex: 1; }
+.theme { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
+.theme button { padding: 4px 9px; border-radius: 6px; font-size: 12px; color: var(--text-2); background: none; border: 0; }
+.theme button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(26, 43, 60, 0.12); font-weight: 500; }
+.rail__status { font-size: 11px; color: var(--text-3); padding: 8px 10px; display: flex; gap: 6px; align-items: center; }
+.rail__status i { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+.rail--collapsed { padding-left: 8px; padding-right: 8px; }
+.rail--collapsed .brand { justify-content: center; padding: 6px 0 12px; flex-wrap: wrap; gap: 6px; }
+.rail--collapsed .brand b, .rail--collapsed .navbtn__text, .rail--collapsed .rail__group, .rail--collapsed .rail__status span, .rail--collapsed .navbtn__count, .rail--collapsed .theme { display: none; }
+.rail--collapsed .rail__fold { margin-left: 0; }
+.rail--collapsed .navbtn { justify-content: center; padding: 9px 0; gap: 0; }
+.rail--collapsed .navbtn--nested { padding-left: 0; }
+.rail--collapsed .rail__status { justify-content: center; padding: 8px 0; }
+
+.main { min-width: 0; height: 100vh; overflow: auto; }
+.page { padding: 22px 28px 40px; max-width: 1480px; width: 100%; margin: 0 auto; }
+.proto { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 6px 28px; font-size: 11.5px; color: var(--text-3); background: var(--bg); border-bottom: 1px dashed var(--border); }
+.proto .search { max-width: 360px; }
+.proto .iconbtn { margin-left: auto; display: none; }
+
+/* ---------- common pieces ---------- */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.card--pad { padding: 16px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 500; color: var(--text); }
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn--primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.btn--primary:hover:not(:disabled) { background: var(--primary); filter: brightness(1.06); }
+.btn--sm { padding: 4px 9px; font-size: 12px; }
+.btn--ghost { border-color: transparent; background: transparent; color: var(--text-2); }
+.iconbtn { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; color: var(--text-2); background: none; border: 0; }
+.iconbtn:hover { background: var(--hover); color: var(--text); }
+.iconbtn svg { width: 16px; height: 16px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1.6; white-space: nowrap; }
+.pill--good { background: var(--good-soft); color: var(--good); }
+.pill--warn { background: var(--warn-soft); color: var(--warn); }
+.pill--bad { background: var(--bad-soft); color: var(--bad); }
+.pill--info { background: var(--primary-soft); color: var(--primary); }
+.pill--gray { background: var(--surface-2); color: var(--text-2); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.section { margin-top: 22px; }
+.section__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.section__head h2 { font-size: 18px; }
+.section__right { margin-left: auto; display: flex; gap: 8px; }
+.two { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
+@media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
+.search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; background: var(--surface); flex: 1; min-width: 160px; max-width: 320px; color: var(--text-3); text-align: left; }
+.search input { border: 0; background: transparent; flex: 1; min-width: 0; color: var(--text); }
+.search kbd { font: 11px var(--font-ui); color: var(--text-3); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin-left: auto; }
+.switch { width: 34px; height: 20px; border-radius: 999px; background: var(--good); position: relative; flex: none; border: 0; padding: 0; }
+.switch--off { background: var(--text-3); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 16px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.switch--off::after { left: 2px; }
+
+/* ---------- home ---------- */
+.home__head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.today { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0 26px; }
+.tile { padding: 14px 16px; }
+.tile__lab { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.tile__big { font-family: var(--font-ed); font-size: 26px; margin-top: 4px; color: var(--navy); }
+.tile__sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.modgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.modcard { padding: 18px; display: flex; flex-direction: column; gap: 10px; min-height: 150px; text-align: left; }
+.modcard__top { display: flex; align-items: center; gap: 10px; }
+.modcard__ico { width: 34px; height: 34px; border-radius: 9px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none; font-size: 17px; }
+.modcard p { margin: 0; color: var(--text-2); font-size: 13px; }
+.modcard__foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-3); gap: 8px; }
+.modcard--new { border-style: dashed; justify-content: center; align-items: flex-start; gap: 8px; background: transparent; }
+.modcard--new b { font-family: var(--font-ed); font-size: 18px; font-weight: 500; color: var(--navy); }
+
+/* needs-you cards and the brief */
+.needs { display: flex; flex-direction: column; gap: 10px; }
+.need { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-left: 3px solid var(--warn); }
+.need h3 { font-size: 16px; }
+.need .ev { display: flex; flex-direction: column; gap: 3px; color: var(--text-2); font-size: 13px; }
+.need .ev li::before { content: "·"; margin-right: 6px; color: var(--text-3); }
+.because { font-size: 13px; color: var(--text-2); }
+.because b { color: var(--text); font-weight: 500; }
+.draft { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; line-height: 1.5; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--text-3); }
+.kv dd { margin: 0; }
+.done-line { display: flex; align-items: center; gap: 8px; color: var(--good); font-weight: 500; }
+.brief { padding: 0; overflow: hidden; }
+.brief__head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.brief__head h3 { font-size: 16px; }
+.brief__sec { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.brief__sec:last-of-type { border-bottom: 0; }
+.brief__sec h4 { margin: 0; font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.bitem { display: flex; align-items: flex-start; gap: 10px; }
+.bitem .t { flex: 1; min-width: 0; }
+.bitem .ops { display: flex; gap: 4px; align-items: center; flex: none; }
+.why { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; font-size: 13px; color: var(--text-2); }
+.why b { color: var(--text); font-weight: 500; display: block; margin-bottom: 2px; }
+.thumbs { display: inline-flex; gap: 2px; }
+.thumbs button { width: 28px; height: 28px; border-radius: 6px; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; }
+.thumbs button:hover, .thumbs button[aria-pressed="true"] { background: var(--hover); color: var(--text); }
+.thumbs svg { width: 14px; height: 14px; }
+.brief__foot { padding: 10px 16px; font-size: 12px; color: var(--text-3); background: var(--surface-2); }
+
+/* ---------- module page ---------- */
+.modhead { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.modhead__title { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 280px; }
+.modhead__title h1 { font-size: 26px; }
+.modhead__title .faint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modhead__ico { width: 36px; height: 36px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: 18px; flex: none; }
+.toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; margin-left: auto; }
+.toggle button { padding: 6px 14px; border-radius: 7px; font-size: 13px; color: var(--text-2); background: none; border: 0; }
+.toggle button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(26, 43, 60, 0.12); font-weight: 500; }
+.toggle--views { margin-left: 0; }
+.toggle--views button { padding: 4px 10px; font-size: 12px; }
+.subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; }
+.subtabs button { padding: 8px 14px; font-size: 13px; color: var(--text-2); background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.subtabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--primary); font-weight: 500; }
+.blocks { display: flex; flex-direction: column; gap: 14px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.metric { padding: 16px; }
+.metric__lab { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.metric__big { font-family: var(--font-ed); font-size: 26px; margin-top: 4px; color: var(--navy); }
+.metric__big small { font-size: 14px; color: var(--text-3); font-family: var(--font-ui); }
+.metric__sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.metric__sub--up { color: var(--good); }
+.goalbar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 10px 0 6px; }
+.goalbar i { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.stackbar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
+.stackbar i { display: block; height: 100%; }
+.textblock { padding: 16px 18px; font-size: 14px; color: var(--text-2); }
+.textblock h3 { margin-bottom: 6px; }
+
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.toolbar--page { gap: 6px; }
+.toolbar--page .spacer { flex: 1; }
+.toolbar__hint { margin-left: auto; font-size: 12px; color: var(--text-3); }
+.chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; text-align: left; color: var(--text-2); }
+.chip:hover, .chip[aria-pressed="true"] { background: var(--primary-soft); border-color: var(--primary); color: var(--text); }
+.tablewrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+.table td { padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.table tbody tr:hover td { background: var(--hover); }
+.table .r { text-align: right; }
+.table td.editable { cursor: text; }
+.table td.editable:hover { box-shadow: inset 0 0 0 1px var(--border); border-radius: 4px; }
+.table td.editable[contenteditable="true"] { box-shadow: inset 0 0 0 1px var(--primary); border-radius: 4px; background: var(--surface); white-space: normal; }
+.row--open { cursor: pointer; }
+.row--current td { background: var(--primary-soft); }
+.est { font-size: 11px; color: var(--warn); margin-left: 3px; cursor: help; vertical-align: super; line-height: 1; }
+.match { display: inline-block; width: 56px; height: 6px; background: var(--surface-2); border-radius: 99px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.match i { display: block; height: 100%; background: var(--primary); }
+.pager { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 12px; color: var(--text-3); }
+.pager .spacer { flex: 1; }
+.drawer { border-top: 1px solid var(--border); padding: 12px 14px 14px; background: var(--surface-2); }
+.drawer__head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.drawer__head h3 { margin: 0; font-size: 15px; }
+.drawer .kv { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 18px; }
+.drawer .kv div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.drawer .kv dt { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.drawer .kv dd { font-size: 13px; overflow-wrap: anywhere; white-space: normal; }
+
+.list { display: flex; flex-direction: column; }
+.item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+.item--top { align-items: flex-start; }
+.item__ico { width: 30px; height: 30px; border-radius: 8px; background: var(--surface-2); display: grid; place-items: center; color: var(--text-2); flex: none; font-size: 14px; }
+.item__ico--alpha { background: var(--primary-soft); color: var(--primary); font-family: var(--font-ed); font-weight: 600; }
+.item__ico--person { border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-size: 11px; font-weight: 600; }
+.item__body { flex: 1; min-width: 0; }
+.item__body b { font-weight: 500; }
+.item__sub { font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
+.item__when { font-size: 12px; color: var(--text-3); width: 72px; flex: none; }
+.item--btn { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); }
+.item--btn:hover { background: var(--hover); }
+.list .day { padding: 8px 16px 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.detail { padding: 4px 16px 14px 100px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.check { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+.check li { display: flex; gap: 8px; align-items: flex-start; }
+.check .m { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none; }
+.m--y { background: var(--good-soft); color: var(--good); } .m--q { background: var(--warn-soft); color: var(--warn); } .m--n { background: var(--bad-soft); color: var(--bad); }
+.badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; }
+.badge--succeeded { color: var(--good); background: var(--good-soft); }
+.badge--failed { color: var(--bad); background: var(--bad-soft); }
+.badge--waiting { color: var(--warn); background: var(--warn-soft); }
+.badge--running { color: var(--primary); background: var(--primary-soft); }
+
+/* ---------- people ---------- */
+.facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.fact { position: relative; }
+.fact > .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); }
+.fact > .chip .faint { font-size: 11px; }
+.fact > .chip--suggested { border-style: dashed; color: var(--text-2); }
+.prov { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; width: 270px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 5px; color: var(--text-2); }
+.prov b { color: var(--text); font-weight: 500; }
+.prov .row { margin-top: 4px; }
+.tl { display: grid; grid-template-columns: 82px 30px 1fr; gap: 0 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); align-items: start; }
+.tl:last-child { border-bottom: 0; }
+.tl .item__when { padding-top: 6px; width: auto; }
+.tl .t p { font-size: 13.5px; }
+.tl .t .item__sub { display: block; margin-top: 2px; }
+.rel { display: flex; flex-direction: column; gap: 6px; }
+.rel a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 13px; }
+.rel a:hover { background: var(--hover); }
+.rel a .pill, .rel a .faint { margin-left: auto; }
+
+/* ---------- intelligence ---------- */
+.intel { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.intel__card { min-width: 0; }
+.intel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.intel__facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px 16px; margin: 0; }
+.intel__facts div { min-width: 0; }
+.intel__facts dt { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.intel__facts dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.skill__meta { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+.sentence { background: var(--surface-2); border-radius: 6px; padding: 5px 10px; font-size: 13px; display: inline-block; }
+.notes { font-size: 13px; border: 1px dashed var(--border); border-radius: 10px; padding: 8px 12px; }
+.notes p { margin: 6px 0 0; color: var(--text-2); }
+
+/* ---------- assistant ---------- */
+.assist { border-left: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; min-width: 0; overflow: hidden; }
+.assist__head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.assist__mark { width: 30px; height: 30px; border-radius: 9px; background: var(--navy); color: var(--bg); display: grid; place-items: center; font-family: var(--font-ed); flex: none; }
+.assist__ctx { font-size: 12px; color: var(--text-3); }
+.assist__body { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 94%; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+.msg--user { align-self: flex-end; background: var(--primary-soft); border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.msg--ai { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; }
+.msg__label { font-size: 11px; color: var(--text-3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.msg__cite { display: block; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.creation { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; text-align: left; background: var(--surface); width: 100%; }
+.creation:hover { background: var(--hover); }
+.creation__title { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.creation__title .badge { margin-left: auto; }
+.stages { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.stages__done { color: var(--good); }
+.stages__current { font-weight: 600; }
+.stages__next { color: var(--text-3); }
+.composer { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.composer__box { display: flex; align-items: flex-end; gap: 6px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 8px 8px 12px; background: var(--surface); }
+.composer textarea { flex: 1; border: 0; background: transparent; resize: none; min-height: 40px; max-height: 140px; outline: none; font-size: 14px; }
+.composer__row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); }
+.assist__back { display: flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--text-2); padding: 0; font-size: 13px; }
+.assist__back:hover { color: var(--text); }
+.assist__fab { position: fixed; right: 16px; bottom: 16px; z-index: 5; box-shadow: var(--shadow); display: none; }
+
+/* ---------- companion (the avatar window: blob, bubble, panel) ---------- */
+.avatar { position: fixed; right: 20px; bottom: 20px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.avatar__panel { width: 300px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25); overflow: hidden; }
+.avatar__bubble { max-width: 300px; min-width: 120px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 14px 14px 4px 14px; padding: 8px 12px; font-size: 13px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+.avatar__button { background: none; border: 0; padding: 0; border-radius: 50%; line-height: 0; filter: drop-shadow(0 6px 14px rgba(20, 30, 80, 0.35)); transition: transform 160ms ease; }
+.avatar__button:hover { transform: translateY(-2px) scale(1.03); }
+.avatar__button.is-needs svg { outline: 3px solid var(--warn); outline-offset: 2px; border-radius: 50%; }
+.avatar__button.is-working svg { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 50%; }
+.avatar__button.is-listening svg { outline: 3px solid var(--bad); outline-offset: 2px; border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) { .avatar__button { transition: none; } }
+.avatar__head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.avatar__head .faint { flex: 1; font-size: 12px; }
+.runs .day { background: none; border: 0; padding: 12px 2px 6px; }
+.runs .item--btn { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); margin-bottom: 10px; align-items: flex-start; }
+.runs .item--btn[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
+.runs .detail { border: 1px solid var(--border); border-top: 0; border-radius: 0 0 12px 12px; background: var(--surface); margin-bottom: 10px; padding: 8px 16px 14px 100px; }
+.runs .item__sub::before { content: "▸ Details · "; color: var(--text-3); }
+.presence { width: 10px; height: 10px; border-radius: 50%; background: var(--text-3); flex: none; position: relative; }
+.presence--listening { background: var(--bad); }
+.presence--working { background: var(--primary); }
+.presence--working::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--primary); opacity: .5; animation: pulse 1.4s ease-out infinite; }
+.presence--needs { background: var(--warn); }
+@keyframes pulse { from { transform: scale(.6); opacity: .6; } to { transform: scale(1.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .presence--working::after { animation: none; } }
+.avatar__line { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.avatar__turns { max-height: 220px; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.avatar__said { align-self: flex-end; background: var(--primary); color: var(--primary-ink); border-radius: 12px 12px 4px 12px; padding: 6px 10px; font-size: 13px; max-width: 90%; }
+.avatar__reply { align-self: flex-start; background: var(--hover); border-radius: 12px 12px 12px 4px; padding: 6px 10px; font-size: 13px; max-width: 92%; }
+.avatar__ask { display: flex; align-items: center; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+.avatar__ask input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--bg); }
+.avatar__foot { border-top: 1px solid var(--border); padding: 6px 12px; display: flex; align-items: center; gap: 8px; background: var(--surface-2); font-size: 11px; color: var(--text-3); }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-left: auto; }
+.seg button { padding: 3px 8px; font-size: 11px; color: var(--text-2); background: none; border: 0; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); font-weight: 600; }
+
+/* ---------- command palette, toast ---------- */
+.cmdk { position: fixed; inset: 0; background: rgba(26, 43, 60, .35); z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 16px; }
+.cmdk .box { width: 100%; max-width: 560px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.cmdk input { width: 100%; font: 16px var(--font-ui); padding: 14px 16px; border: 0; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.cmdk ul { padding: 6px; }
+.cmdk li button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border-radius: 7px; background: none; border: 0; }
+.cmdk li button:hover { background: var(--hover); }
+.cmdk li .faint { margin-left: auto; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: var(--bg); padding: 9px 14px; border-radius: 9px; font-size: 13px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); z-index: 40; }
+.toast button { color: inherit; font-weight: 600; text-decoration: underline; background: none; border: 0; padding: 0; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .app, .app--assistant-hidden { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  .assist { position: fixed; right: 0; top: 0; width: min(380px, 100%); z-index: 10; box-shadow: var(--shadow); }
+  .app--assistant-hidden .assist { display: none; }
+  .app--assistant-hidden .assist__fab { display: inline-flex; }
+  .proto .iconbtn { display: grid; }
+}
+@media (max-width: 760px) {
+  .app, .app--assistant-hidden { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+  .rail { position: static; height: auto; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); gap: 2px; }
+  .rail__group, .rail__spacer, .rail__status, .rail__fold, .theme { display: none; }
+  .navbtn { width: auto; padding: 6px 10px; }
+  .navbtn--nested { padding-left: 10px; }
+  .main { height: auto; }
+  .page { padding: 16px; padding-bottom: 150px; }
+  .proto { padding: 6px 16px; }
+  .today { grid-template-columns: 1fr; }
+  .toggle { margin-left: 0; }
+  .avatar__panel { left: 12px; right: 12px; bottom: 12px; width: auto; }
+  .detail { padding-left: 16px; }
+  .tl { grid-template-columns: 30px 1fr; }
+  .tl .item__when { grid-column: 2; padding-top: 0; }
+  .bitem { flex-wrap: wrap; }
+}
+</style>
+
+<div class="app" id="app">
+  <nav class="rail" id="rail" aria-label="Alpha">
+    <div class="brand">
+      <div class="brand__mark" aria-hidden="true">A</div>
+      <b>Alpha</b>
+      <button type="button" class="iconbtn rail__fold" id="rail-fold" aria-label="Collapse the sidebar" aria-expanded="true"><span aria-hidden="true">«</span></button>
+    </div>
+    <button type="button" class="navbtn navbtn--current" data-nav="home" aria-current="page"><span class="navbtn__ico" aria-hidden="true">⌂</span><span class="navbtn__text">Home</span><span class="navbtn__count" id="needs-badge">3</span></button>
+    <button type="button" class="navbtn" data-nav="activity"><span class="navbtn__ico" aria-hidden="true">◷</span><span class="navbtn__text">Activity</span></button>
+    <div class="rail__group">Projects</div>
+    <button type="button" class="navbtn" data-nav="jobs"><span class="navbtn__ico" aria-hidden="true">◇</span><span class="navbtn__text">Next role</span></button>
+    <button type="button" class="navbtn navbtn--nested" data-nav="jobs"><span class="navbtn__ico" aria-hidden="true">▦</span><span class="navbtn__text">Job search</span></button>
+    <button type="button" class="navbtn navbtn--nested" data-nav="jobs"><span class="navbtn__ico" aria-hidden="true">▦</span><span class="navbtn__text">Cold calls</span></button>
+    <div class="rail__group">Other modules</div>
+    <button type="button" class="navbtn" data-nav="food"><span class="navbtn__ico" aria-hidden="true">▦</span><span class="navbtn__text">Food</span></button>
+    <button type="button" class="navbtn" data-nav="food"><span class="navbtn__ico" aria-hidden="true">▦</span><span class="navbtn__text">Workouts</span></button>
+    <button type="button" class="navbtn navbtn--new"><span class="navbtn__ico" aria-hidden="true" style="color: var(--primary)">+</span><span class="navbtn__text">New</span></button>
+    <div class="rail__spacer"></div>
+    <div style="padding: 4px 10px 8px">
+      <div class="theme" role="group" aria-label="Theme">
+        <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+        <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+        <button type="button" data-theme-set="system" aria-pressed="true">System</button>
+      </div>
+    </div>
+    <button type="button" class="navbtn" data-nav="people"><span class="navbtn__ico" aria-hidden="true">☺</span><span class="navbtn__text">People &amp; Companies</span></button>
+    <button type="button" class="navbtn" data-nav="intel"><span class="navbtn__ico" aria-hidden="true">◈</span><span class="navbtn__text">Intelligence</span></button>
+    <button type="button" class="navbtn" data-nav="intel" data-itab-open="know"><span class="navbtn__ico" aria-hidden="true">☺</span><span class="navbtn__text">About you</span></button>
+    <button type="button" class="navbtn" data-nav="intel" data-itab-open="conns"><span class="navbtn__ico" aria-hidden="true">⛓</span><span class="navbtn__text">Connections</span></button>
+    <div class="rail__status" role="status"><i aria-hidden="true"></i><span>Runtime connected</span></div>
+  </nav>
+
+  <main class="main">
+    <div class="proto">
+      <button type="button" class="search" id="open-cmdk" aria-label="Search or ask anything"><span>⌕</span><span>Search or ask anything</span><kbd>⌘K</kbd></button>
+      <span>Prototype · example data, invented names</span>
+      <button type="button" class="iconbtn" id="assist-open" aria-label="Open the assistant"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></svg></button>
+    </div>
+
+    <!-- HOME -->
+    <div class="page" id="view-home" data-scope="Everything">
+      <div class="home__head"><h1>Good morning</h1><span class="muted">Tuesday 30 September</span></div>
+      <div class="today">
+        <div class="card tile"><div class="tile__lab">Needs you</div><div class="tile__big num" id="needs-tile">3</div><div class="tile__sub">A message, a merge and a calendar entry</div></div>
+        <div class="card tile"><div class="tile__lab">Ran today</div><div class="tile__big num">6</div><div class="tile__sub">2 checks, 1 email update, 1 repair, 2 estimates</div></div>
+        <div class="card tile"><div class="tile__lab">Next brief</div><div class="tile__big">18:00</div><div class="tile__sub">Morning brief below · 3 items open</div></div>
+      </div>
+
+      <div class="section" style="margin-top: 0">
+        <div class="section__head"><h2>Needs you</h2><span class="faint">Alpha never sends, merges or changes your calendar without a yes</span></div>
+        <div class="needs">
+          <article class="card need" id="card-priya">
+            <h3>Send Priya Raman a message on LinkedIn?</h3>
+            <div class="draft">Hi Priya, I saw Lumen Analytics opened a Senior Backend Engineer role and I applied yesterday. Would you have ten minutes this week? I'd value your view of the team.</div>
+            <ul class="ev"><li>You are connected on LinkedIn since 2023</li><li>Lumen Analytics posted the opening on 28 September</li><li>Your application went in yesterday</li></ul>
+            <p class="because"><b>Because</b> you asked me to find people you know at companies you apply to.</p>
+            <div class="row"><button type="button" class="btn btn--primary" data-act="sent">Send</button><button type="button" class="btn">Change</button><button type="button" class="btn btn--ghost" data-act="later">Not now</button><span class="faint">A sent message can't be undone.</span></div>
+          </article>
+          <article class="card need" id="card-merge">
+            <h3>Two records look like the same person</h3>
+            <dl class="kv"><dt>From LinkedIn</dt><dd>Mark Ellis · Head of Data, Northwind</dd><dt>From email</dt><dd>M. Ellis &lt;m.ellis@northwind.example&gt;</dd></dl>
+            <p class="because"><b>Because</b> a wrong merge would mix two people's history, I only merge on your say-so.</p>
+            <div class="row"><button type="button" class="btn btn--primary" data-act="merged">Same person</button><button type="button" class="btn" data-act="separate">Different</button><button type="button" class="btn btn--ghost" data-act="later">Not sure</button></div>
+          </article>
+          <article class="card need" id="card-cal">
+            <h3>Add Thursday's call with Dana Okafor to your calendar?</h3>
+            <ul class="ev"><li>Dana's email this morning: "Thursday at 3 works for me"</li><li>Your Thursday 15:00 is free</li></ul>
+            <p class="because"><b>Because</b> an email with a time and a name becomes a calendar suggestion.</p>
+            <div class="row"><button type="button" class="btn btn--primary" data-act="added">Add it</button><button type="button" class="btn">Change</button><button type="button" class="btn btn--ghost" data-act="later">Not now</button><span class="faint">Undo for 7 days.</span></div>
+          </article>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section__head"><h2>Morning brief</h2><span class="faint">08:00 · clears at 18:00 unless you keep an item</span></div>
+        <div class="card brief">
+          <div class="brief__sec">
+            <h4>Top actions</h4>
+            <div class="bitem"><div class="t"><p>Follow up with Northwind: nine days since Mark said "next week".</p><span class="item__sub">Job search · Application</span></div><div class="ops"><button type="button" class="btn btn--sm btn--primary" data-act="drafted">Draft a reply</button><button type="button" class="btn btn--sm btn--ghost" data-act="dismiss">Done</button></div></div>
+            <div class="bitem"><div class="t"><p>Confirm the Lumen interview time. Priya suggested Wednesday or Friday.</p><span class="item__sub">Job search · Application</span></div><div class="ops"><button type="button" class="btn btn--sm" data-nav="jobs">Open</button><button type="button" class="btn btn--sm btn--ghost" data-act="dismiss">Done</button></div></div>
+            <div class="bitem"><div class="t"><p>Nothing logged after 14:00 yesterday. Add dinner?</p><span class="item__sub">Food</span></div><div class="ops"><button type="button" class="btn btn--sm" data-nav="food">Log it</button><button type="button" class="btn btn--sm btn--ghost" data-act="dismiss">Skip</button></div></div>
+          </div>
+          <div class="brief__sec">
+            <h4>Calendar</h4>
+            <div class="bitem"><div class="t"><p><span class="num">10:30</span> Weekly with Sam · 30 min</p></div></div>
+            <div class="bitem"><div class="t"><p><span class="num">13:00</span> Free until 15:00, a good slot for the Northwind reply</p></div></div>
+            <div class="bitem"><div class="t"><p><span class="num">16:00</span> Dentist</p></div></div>
+          </div>
+          <div class="brief__sec">
+            <h4>Alpha noticed</h4>
+            <div class="bitem">
+              <div class="t"><p>You've logged four workouts this week, but your protein target is set for rest days. Raise it to 130 g on training days?</p><span class="item__sub">Food and Workouts, last 7 days</span>
+                <div class="why" id="why-protein" hidden><b>Why I'm suggesting this</b>Workouts: Mon, Tue, Thu, Sat this week (Workouts module). Protein target: 100 g every day, set 12 September. Common guidance for training days is 1.6–2 g per kg; at 78 kg that's 125–156 g.</div></div>
+              <div class="ops"><button type="button" class="btn btn--sm btn--primary" data-act="raised">Yes</button><button type="button" class="btn btn--sm" data-why="why-protein">Why?</button><span class="thumbs"><button type="button" aria-label="Useful" data-thumb><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 7v6H2.5V7zM5 7l3-5c1 0 1.8.8 1.6 1.8L9 6h3.5c.9 0 1.5.8 1.3 1.6l-1 4.4c-.2.6-.7 1-1.3 1H5"/></svg></button><button type="button" aria-label="Not useful" data-thumb><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 9V3h2.5v6zM11 9l-3 5c-1 0-1.8-.8-1.6-1.8L7 10H3.5c-.9 0-1.5-.8-1.3-1.6l1-4.4c.2-.6.7-1 1.3-1H11"/></svg></button></span></div>
+            </div>
+            <div class="bitem"><div class="t"><p>Three openings this week mention Kafka; your resume doesn't. Want a line about the Northwind pipeline work?</p><span class="item__sub">Job search · 3 openings</span></div><div class="ops"><button type="button" class="btn btn--sm" data-act="drafted">Show me</button><button type="button" class="btn btn--sm btn--ghost" data-act="dismiss">Not now</button></div></div>
+          </div>
+          <div class="brief__foot">Items you dismiss don't come back. Thumbs teach Alpha what belongs in your brief.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section__head"><h2>Your modules</h2><span class="faint">Made from what you asked for; each grows as you use it</span></div>
+        <div class="modgrid">
+          <div class="card modcard"><div class="modcard__top"><div class="modcard__ico" aria-hidden="true">▦</div><div style="min-width:0"><h3>Job search</h3><div class="faint">4 tables · 3 runs on its own</div></div><span class="pill pill--good" style="margin-left:auto">Active</span></div><p>61 openings, 11 applications, 3 interviewing. Watches LinkedIn and We Work Remotely twice a day and scores each opening against your resume.</p><div class="modcard__foot"><span>Last ran 10:12</span><button type="button" class="btn btn--sm" data-nav="jobs">Open</button></div></div>
+          <div class="card modcard"><div class="modcard__top"><div class="modcard__ico" aria-hidden="true">▦</div><div style="min-width:0"><h3>Cold calls</h3><div class="faint">2 tables · 1 paused</div></div><span class="pill pill--good" style="margin-left:auto">Active</span></div><p>14 calls this week, 3 callbacks due. The Friday summary is paused.</p><div class="modcard__foot"><span>Last ran yesterday</span><button type="button" class="btn btn--sm" data-nav="jobs">Open</button></div></div>
+          <div class="card modcard"><div class="modcard__top"><div class="modcard__ico" aria-hidden="true">▦</div><div style="min-width:0"><h3>Food</h3><div class="faint">3 tables · reads Workouts</div></div><span class="pill pill--good" style="margin-left:auto">Active</span></div><p>1,450 of 2,000 kcal today, 96 g protein. Estimates from what you say; targets follow your training days.</p><div class="modcard__foot"><span>Last ran 13:10</span><button type="button" class="btn btn--sm" data-nav="food">Open</button></div></div>
+          <div class="card modcard"><div class="modcard__top"><div class="modcard__ico" aria-hidden="true">▦</div><div style="min-width:0"><h3>Workouts</h3><div class="faint">2 tables</div></div><span class="pill pill--good" style="margin-left:auto">Active</span></div><p>4 sessions this week. Next planned: Thursday, legs.</p><div class="modcard__foot"><span>Last ran Monday</span><button type="button" class="btn btn--sm" data-nav="food">Open</button></div></div>
+          <div class="card modcard modcard--new"><div class="eyebrow">New</div><b>Describe what you want</b><p>"Track what I eat", "watch a page for price drops", "keep an eye on Lumen jobs". Alpha asks a couple of questions, then builds it here and grows it as you use it.</p><a href="#" class="faint" style="color:var(--primary);font-size:13px;font-weight:500">Start a new module →</a></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODULE: JOB SEARCH -->
+    <div class="page" id="view-jobs" data-scope="Job search" hidden>
+      <div class="modhead">
+        <div class="modhead__title"><div class="modhead__ico" aria-hidden="true">▦</div><div style="min-width:0"><h1>Job search</h1><div class="faint">Backend roles in London or remote · goal: an offer by December · in Next role</div></div></div>
+        <div class="toggle" role="tablist" aria-label="Section"><button type="button" role="tab" aria-selected="true" data-sec="app">App</button><button type="button" role="tab" aria-selected="false" data-sec="activity">Activity</button><button type="button" role="tab" aria-selected="false" data-sec="settings">Settings</button></div>
+      </div>
+
+      <div data-secpane="app">
+        <div class="subtabs" role="tablist"><button type="button" role="tab" aria-selected="true" data-tab="summary">Summary</button><button type="button" role="tab" aria-selected="false" data-tab="openings">Openings</button><button type="button" role="tab" aria-selected="false" data-tab="applications">Applications</button><button type="button" role="tab" aria-selected="false" data-tab="contacts">Contacts</button></div>
+
+        <div id="tab-summary" class="blocks">
+          <div class="metrics">
+            <div class="card metric"><div class="metric__lab">Openings this week</div><div class="metric__big num">23</div><div class="metric__sub metric__sub--up">+7 since Monday</div></div>
+            <div class="card metric"><div class="metric__lab">Applications</div><div class="metric__big num">11</div><div class="stackbar" aria-hidden="true"><i style="width:55%;background:var(--primary)"></i><i style="width:27%;background:var(--warn)"></i><i style="width:18%;background:var(--text-3)"></i></div><div class="metric__sub">6 applied · 3 interviewing · 2 closed</div></div>
+            <div class="card metric"><div class="metric__lab">Replies</div><div class="metric__big num">4 <small>of 11</small></div><div class="metric__sub">Median 6 days</div></div>
+            <div class="card metric"><div class="metric__lab">Next check</div><div class="metric__big">14:00</div><div class="metric__sub">LinkedIn, We Work Remotely</div></div>
+          </div>
+          <div class="card textblock"><h3>This week</h3><p>Seven new openings since Monday, three scoring high. Lumen moved to Interviewing this morning from Priya's email. Northwind has gone quiet for nine days; a follow-up is in your brief. Three openings mention Kafka, which your resume doesn't.</p></div>
+        </div>
+
+        <div id="tab-openings" class="card" hidden>
+          <div class="toolbar toolbar--page">
+            <div class="search"><span>⌕</span><input type="text" placeholder="Search openings" aria-label="Search openings"></div>
+            <div class="toggle toggle--views" role="tablist" aria-label="View"><button type="button" aria-selected="true">Table</button><button type="button" aria-selected="false">Board</button><button type="button" aria-selected="false">List</button><button type="button" aria-selected="false">Calendar</button><button type="button" aria-selected="false">Chart</button></div>
+            <button type="button" class="chip" aria-pressed="true">New</button><button type="button" class="chip">Saved</button><button type="button" class="chip">High match</button><button type="button" class="chip">Remote</button>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn--sm">Add</button>
+            <span class="toolbar__hint">Click a cell to edit · click a row for its page</span>
+          </div>
+          <div class="tablewrap">
+            <table class="table">
+              <thead><tr><th>Title</th><th>Company</th><th>Match</th><th>Seen</th><th>Status</th><th>Salary</th></tr></thead>
+              <tbody>
+                <tr class="row--open" data-open="1"><td class="editable" tabindex="0">Senior Backend Engineer</td><td>Lumen Analytics</td><td><span class="match"><i style="width:88%"></i></span><span class="num">88</span></td><td class="num">28 Sep</td><td><span class="pill pill--warn">Interviewing</span></td><td class="num">£95k</td></tr>
+                <tr class="row--open"><td class="editable" tabindex="0">Staff Engineer, Platform</td><td>Northwind</td><td><span class="match"><i style="width:81%"></i></span><span class="num">81</span></td><td class="num">21 Sep</td><td><span class="pill pill--good">Applied</span></td><td class="num">£110k</td></tr>
+                <tr class="row--open"><td class="editable" tabindex="0">Backend Engineer (Go)</td><td>Harbourline</td><td><span class="match"><i style="width:74%"></i></span><span class="num">74</span></td><td class="num">Today</td><td><span class="pill pill--info">New</span></td><td class="num">£85k<span class="est" title="Estimated from similar roles">~</span></td></tr>
+                <tr class="row--open"><td class="editable" tabindex="0">Senior Software Engineer, Data</td><td>Fieldnote</td><td><span class="match"><i style="width:69%"></i></span><span class="num">69</span></td><td class="num">Today</td><td><span class="pill pill--info">New</span></td><td class="num">—</td></tr>
+                <tr class="row--open"><td class="editable" tabindex="0">Principal Engineer</td><td>Aster Health</td><td><span class="match"><i style="width:52%"></i></span><span class="num">52</span></td><td class="num">Yesterday</td><td><span class="pill pill--gray">Skipped</span></td><td class="num">£120k</td></tr>
+                <tr class="row--open"><td class="editable" tabindex="0">Backend Developer</td><td>Cobalt Freight</td><td><span class="match"><i style="width:46%"></i></span><span class="num">46</span></td><td class="num">Yesterday</td><td><span class="pill pill--info">New</span></td><td class="num">£70k</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="drawer" id="drawer-lumen" hidden>
+            <div class="drawer__head"><h3>Senior Backend Engineer · Lumen Analytics</h3><span class="faint" style="margin-left:auto">Added 28 Sep · last changed today 10:12 by Alpha</span></div>
+            <dl class="kv">
+              <div><dt>Match</dt><dd>88 — Go, Postgres and event pipelines match; they ask for Kafka, which your resume doesn't mention.</dd></div>
+              <div><dt>Source</dt><dd><a href="#">LinkedIn listing</a>, read 28 Sep 08:00 in your Chrome</dd></div>
+              <div><dt>Contacts there</dt><dd><a href="#" data-nav="person">Priya Raman</a>, connected since 2023</dd></div>
+              <div><dt>Application</dt><dd>Interviewing · Priya replied today 07:52</dd></div>
+            </dl>
+            <div class="row" style="margin-top:10px"><button type="button" class="btn btn--sm">Save for later</button><button type="button" class="btn btn--sm btn--ghost">Skip</button><span class="faint">Applying is something Alpha asks you about first.</span></div>
+          </div>
+          <div class="pager"><span>61 openings · showing 6</span><span class="spacer"></span><span>Sorted by match</span></div>
+        </div>
+
+        <div id="tab-applications" class="card" hidden>
+          <div class="toolbar toolbar--page"><div class="search"><span>⌕</span><input type="text" placeholder="Search applications" aria-label="Search applications"></div><div class="toggle toggle--views" role="tablist" aria-label="View"><button type="button" aria-selected="true">Table</button><button type="button" aria-selected="false">Board</button><button type="button" aria-selected="false">List</button></div><span class="spacer"></span><button type="button" class="btn btn--sm">Add</button></div>
+          <div class="tablewrap"><table class="table">
+            <thead><tr><th>Company</th><th>Role</th><th>Applied</th><th>Last update</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="row--open"><td>Lumen Analytics</td><td>Senior Backend Engineer</td><td class="num">29 Sep</td><td>Priya replied · today</td><td><span class="pill pill--warn">Interviewing</span></td></tr>
+              <tr class="row--open"><td>Northwind</td><td>Staff Engineer, Platform</td><td class="num">21 Sep</td><td>"Next week" · 9 days ago</td><td><span class="pill pill--bad">Waiting on them</span></td></tr>
+              <tr class="row--open"><td>Fieldnote</td><td>Senior Software Engineer</td><td class="num">24 Sep</td><td>Interview Wed 11:00</td><td><span class="pill pill--warn">Interviewing</span></td></tr>
+              <tr class="row--open"><td>Aster Health</td><td>Principal Engineer</td><td class="num">15 Sep</td><td>Declined · 26 Sep</td><td><span class="pill pill--gray">Closed</span></td></tr>
+            </tbody></table></div>
+          <div class="pager"><span>11 applications</span></div>
+        </div>
+
+        <div id="tab-contacts" class="card list" hidden>
+          <button type="button" class="item item--btn" data-nav="person"><span class="item__ico item__ico--person" aria-hidden="true">PR</span><span class="item__body"><b>Priya Raman</b><div class="item__sub">Engineering Manager, Lumen Analytics · replied today</div></span><span class="pill pill--warn">Interviewing</span></button>
+          <button type="button" class="item item--btn"><span class="item__ico item__ico--person" aria-hidden="true">ME</span><span class="item__body"><b>Mark Ellis</b><div class="item__sub">Head of Data, Northwind · "next week", 9 days ago</div></span><span class="pill pill--bad">Follow up</span></button>
+          <button type="button" class="item item--btn"><span class="item__ico item__ico--person" aria-hidden="true">DO</span><span class="item__body"><b>Dana Okafor</b><div class="item__sub">Recruiter, Fieldnote · call Thursday 15:00</div></span></button>
+        </div>
+      </div>
+
+      <div data-secpane="activity" hidden>
+        <div class="section" style="margin-top:0">
+          <div class="section__head"><h2>What runs on its own</h2><span class="faint">Switch any off; Alpha then says it isn't running</span></div>
+          <div class="card list">
+            <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Daily check"></button><div class="item__body">Every day at 08:00 and 14:00, check LinkedIn and We Work Remotely for backend openings in London or remote, and score them against your resume.<div class="item__sub">Next: today 14:00 · last found 7</div></div></div>
+            <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Email updates"></button><div class="item__body">When an email arrives from a company you applied to, update that application and tell you in the brief.<div class="item__sub">Last: today 10:12 (Lumen)</div></div></div>
+            <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Contacts"></button><div class="item__body">When you apply somewhere, look for people you know there and suggest one to reach out to.<div class="item__sub">Asks before any message is sent</div></div></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section__head"><h2>What Alpha did here</h2></div>
+          <div class="card list">
+            <div class="item"><span class="item__when">10:12</span><span class="badge badge--succeeded">Done</span><div class="item__body"><b>Set Lumen Analytics to Interviewing</b><div class="item__sub">From Priya's email · because you asked me to update applications from mail</div></div><button type="button" class="btn btn--sm" data-undo>Undo</button></div>
+            <div class="item"><span class="item__when">08:00</span><span class="badge badge--succeeded">Done</span><div class="item__body"><b>Checked LinkedIn and We Work Remotely: 7 new openings</b><div class="item__sub">Read 6 pages in your Chrome · nothing to undo</div></div></div>
+            <div class="item"><span class="item__when">Yesterday</span><span class="badge badge--succeeded">Fixed</span><div class="item__body"><b>Repaired the We Work Remotely reader after the page changed</b><div class="item__sub">The 14:30 check found 0 of 12 listings; re-read the page, fixed the reader, re-ran: 12 found, 2 new. Nothing was lost.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div data-secpane="settings" hidden>
+        <div class="section" style="margin-top:0">
+          <div class="section__head"><h2>What it can reach</h2></div>
+          <div class="card list">
+            <div class="item"><div class="item__ico" aria-hidden="true">◎</div><div class="item__body"><b>Your Chrome, signed in as you</b><div class="item__sub">LinkedIn and We Work Remotely, read the way you would; never posts or messages without your yes</div></div><span class="pill pill--good">Allowed</span></div>
+            <div class="item"><div class="item__ico" aria-hidden="true">▤</div><div class="item__body"><b>Documents/Job search</b><div class="item__sub">Your resume and cover letters, as they change</div></div><span class="pill pill--good">Allowed</span></div>
+            <div class="item"><div class="item__ico" aria-hidden="true">✉</div><div class="item__body"><b>Email from companies you applied to</b><div class="item__sub">Reads only those; never sends</div></div><span class="pill pill--warn">Needs your OK</span><button type="button" class="btn btn--sm btn--primary">Allow</button></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section__head"><h2>Reads from other modules</h2></div>
+          <div class="card list"><div class="item"><div class="item__ico" aria-hidden="true">⇄</div><div class="item__body"><b>Cold calls</b><div class="item__sub">Companies you've called, so an opening at one is flagged</div></div><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Cold calls"></button></div></div>
+        </div>
+        <div class="section">
+          <div class="section__head"><h2>Alpha's note on this module</h2></div>
+          <div class="notes"><b>Job search</b><p>Made 28 Sep from your request. Boards: LinkedIn, We Work Remotely. Salary floor £85k added 30 Sep; 23 openings state none and are flagged rather than hidden. Open: you haven't said whether contract roles count.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODULE: FOOD -->
+    <div class="page" id="view-food" data-scope="Food" hidden>
+      <div class="modhead">
+        <div class="modhead__title"><div class="modhead__ico" aria-hidden="true">▦</div><div style="min-width:0"><h1>Food</h1><div class="faint">Calories and macros · targets from your height, weight and training days</div></div></div>
+        <div class="toggle" role="tablist" aria-label="Section"><button type="button" role="tab" aria-selected="true">App</button><button type="button" role="tab" aria-selected="false">Activity</button><button type="button" role="tab" aria-selected="false">Settings</button></div>
+      </div>
+      <div class="subtabs" role="tablist"><button type="button" role="tab" aria-selected="true">Summary</button><button type="button" role="tab" aria-selected="false">Entries</button><button type="button" role="tab" aria-selected="false">Week</button><button type="button" role="tab" aria-selected="false">Targets</button></div>
+      <div class="blocks">
+        <div class="metrics">
+          <div class="card metric"><div class="metric__lab">Today</div><div class="metric__big num">1,450 <small>/ 2,000 kcal</small></div><div class="goalbar" aria-hidden="true"><i style="width:72%"></i></div></div>
+          <div class="card metric"><div class="metric__lab">Protein</div><div class="metric__big num">96 <small>/ 130 g</small></div><div class="goalbar" aria-hidden="true"><i style="width:74%"></i></div><div class="metric__sub">Training-day target</div></div>
+          <div class="card metric"><div class="metric__lab">Fibre</div><div class="metric__big num">18 <small>/ 30 g</small></div><div class="goalbar" aria-hidden="true"><i style="width:60%"></i></div></div>
+          <div class="card metric"><div class="metric__lab">Logged</div><div class="metric__big num">12 <small>days in a row</small></div></div>
+        </div>
+        <div class="card">
+          <div class="toolbar toolbar--page"><div class="search"><span>⌕</span><input type="text" placeholder="Search entries" aria-label="Search entries"></div><div class="toggle toggle--views" role="tablist" aria-label="View"><button type="button" aria-selected="true">Table</button><button type="button" aria-selected="false">Calendar</button><button type="button" aria-selected="false">Chart</button></div><span class="spacer"></span><button type="button" class="btn btn--sm">Add</button><span class="toolbar__hint">~ marks an estimate</span></div>
+          <div class="tablewrap"><table class="table">
+            <thead><tr><th>Time</th><th>Food</th><th class="r">kcal</th><th class="r">Protein</th><th>How Alpha got it</th></tr></thead>
+            <tbody>
+              <tr><td class="num">13:10</td><td class="editable" tabindex="0">Chicken salad, large</td><td class="r num">520<span class="est" title="Estimated">~</span></td><td class="r num">42 g</td><td class="muted">Estimated from your description</td></tr>
+              <tr><td class="num">10:40</td><td class="editable" tabindex="0">Flat white</td><td class="r num">120</td><td class="r num">6 g</td><td class="muted">Saved product</td></tr>
+              <tr><td class="num">08:05</td><td class="editable" tabindex="0">Two boiled eggs, toast</td><td class="r num">310<span class="est" title="Estimated">~</span></td><td class="r num">19 g</td><td class="muted">Estimated · said by voice</td></tr>
+              <tr><td class="num">07:30</td><td class="editable" tabindex="0">Protein shake</td><td class="r num">180</td><td class="r num">29 g</td><td class="muted">Saved product</td></tr>
+              <tr><td class="num">Yesterday</td><td class="editable" tabindex="0">Lunch: burrito bowl</td><td class="r num">720<span class="est" title="Estimated">~</span></td><td class="r num">38 g</td><td class="muted">Estimated</td></tr>
+            </tbody></table></div>
+          <div class="pager"><span>312 entries · showing today and yesterday</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PEOPLE -->
+    <div class="page" id="view-people" data-scope="People" hidden>
+      <div class="home__head"><h1>People &amp; Companies</h1><span class="muted">Everyone Alpha has seen across your mail, calendar, LinkedIn and modules</span></div>
+      <div class="card" style="margin-top:18px">
+        <div class="toolbar toolbar--page"><div class="search"><span>⌕</span><input type="text" placeholder="Search people and companies" aria-label="Search people"></div><button type="button" class="chip" aria-pressed="true">People</button><button type="button" class="chip">Companies</button><button type="button" class="chip">Recently active</button><button type="button" class="chip">Due a follow-up</button></div>
+        <div class="list">
+          <button type="button" class="item item--btn" data-nav="person"><span class="item__ico item__ico--person" aria-hidden="true">PR</span><span class="item__body"><b>Priya Raman</b><div class="item__sub">Engineering Manager, Lumen Analytics · email today · LinkedIn</div></span><span class="pill pill--warn">Interviewing</span></button>
+          <button type="button" class="item item--btn"><span class="item__ico item__ico--person" aria-hidden="true">ME</span><span class="item__body"><b>Mark Ellis</b><div class="item__sub">Head of Data, Northwind · 9 days since last reply</div></span><span class="pill pill--bad">Follow up</span></button>
+          <button type="button" class="item item--btn"><span class="item__ico item__ico--person" aria-hidden="true">DO</span><span class="item__body"><b>Dana Okafor</b><div class="item__sub">Recruiter, Fieldnote · call Thursday</div></span></button>
+          <button type="button" class="item item--btn"><span class="item__ico item__ico--person" aria-hidden="true">SK</span><span class="item__body"><b>Sam Kowalski</b><div class="item__sub">Your manager · weekly at 10:30</div></span></button>
+          <button type="button" class="item item--btn"><span class="item__ico" aria-hidden="true">▣</span><span class="item__body"><b>Lumen Analytics</b><div class="item__sub">Company · 1 opening, 1 application, 2 contacts</div></span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERSON -->
+    <div class="page" id="view-person" data-scope="Priya Raman" hidden>
+      <div class="modhead">
+        <div class="modhead__title"><div class="modhead__ico" aria-hidden="true" style="border-radius:50%;font-size:14px;font-weight:600">PR</div><div style="min-width:0"><h1>Priya Raman</h1><div class="faint">Engineering Manager, Lumen Analytics · London · connected since 2023</div></div></div>
+        <div class="row"><button type="button" class="btn btn--sm">Draft a message</button><button type="button" class="btn btn--sm btn--ghost">Merge with…</button></div>
+      </div>
+      <div class="facts" style="margin-bottom:16px">
+        <div class="fact"><button type="button" class="chip" data-fact>Engineering Manager <span class="faint">LinkedIn</span></button><div class="prov" hidden><b>Role: Engineering Manager</b><span>From her LinkedIn profile, seen 12 September</span><span>Valid since March 2024 (before: Senior Engineer)</span><div class="row"><button type="button" class="btn btn--sm">Wrong?</button><button type="button" class="btn btn--sm btn--ghost">Forget</button></div></div></div>
+        <div class="fact"><button type="button" class="chip" data-fact>Lumen Analytics <span class="faint">LinkedIn</span></button><div class="prov" hidden><b>Company: Lumen Analytics</b><span>From LinkedIn, seen 12 September; matches her email domain</span><div class="row"><button type="button" class="btn btn--sm">Wrong?</button></div></div></div>
+        <div class="fact"><button type="button" class="chip" data-fact>priya@lumen.example <span class="faint">Email</span></button><div class="prov" hidden><b>Email address</b><span>From her email of 28 September</span><span>This is how Alpha knows the LinkedIn Priya and the email Priya are the same person.</span></div></div>
+        <div class="fact"><button type="button" class="chip" data-fact>London <span class="faint">LinkedIn</span></button><div class="prov" hidden><b>Location: London</b><span>From LinkedIn, seen 12 September</span></div></div>
+        <div class="fact"><button type="button" class="chip chip--suggested" data-fact>Prefers mornings? <span class="faint">inferred</span></button><div class="prov" hidden><b>Suggested: prefers mornings</b><span>All three of her emails arrived between 07:40 and 09:10. Not recorded yet; is it right?</span><div class="row"><button type="button" class="btn btn--sm btn--primary">Yes</button><button type="button" class="btn btn--sm">No</button></div></div></div>
+      </div>
+      <div class="two">
+        <div>
+          <div class="section__head"><h2>Timeline</h2><span class="faint">every source</span></div>
+          <div class="card list">
+            <div class="tl"><span class="item__when">Today 10:12</span><span class="item__ico item__ico--alpha" aria-hidden="true">A</span><div class="t"><p>Alpha set your Lumen application to Interviewing.</p><span class="item__sub">From her email · because you asked me to track applications from mail · undo for 7 days</span></div></div>
+            <div class="tl"><span class="item__when">Today 07:52</span><span class="item__ico" aria-hidden="true">✉</span><div class="t"><p>Email: "Re: Senior Backend Engineer" — suggests Wednesday or Friday for a first conversation.</p><span class="item__sub">Read by Alpha · <a href="#">open the email</a></span></div></div>
+            <div class="tl"><span class="item__when">28 Sep</span><span class="item__ico item__ico--alpha" aria-hidden="true">A</span><div class="t"><p>Alpha linked Priya to the Lumen opening and drafted a message for you.</p><span class="item__sub">Waiting for your yes on Home</span></div></div>
+            <div class="tl"><span class="item__when">28 Sep</span><span class="item__ico" aria-hidden="true">◎</span><div class="t"><p>Page read: Lumen Analytics careers, Senior Backend Engineer.</p><span class="item__sub">In your Chrome, while signed in</span></div></div>
+            <div class="tl"><span class="item__when">12 Sep</span><span class="item__ico" aria-hidden="true">☺</span><div class="t"><p>LinkedIn: title changed to Engineering Manager.</p></div></div>
+            <div class="tl"><span class="item__when">May 2023</span><span class="item__ico" aria-hidden="true">☺</span><div class="t"><p>Connected on LinkedIn.</p></div></div>
+          </div>
+        </div>
+        <div class="stack">
+          <div>
+            <div class="section__head"><h2>Related</h2></div>
+            <div class="rel">
+              <a href="#" data-nav="jobs"><span>Application · Lumen Analytics</span><span class="pill pill--warn">Interviewing</span></a>
+              <a href="#" data-nav="jobs"><span>Opening · Senior Backend Engineer</span><span class="pill pill--info">88 match</span></a>
+              <a href="#"><span>Lumen Analytics</span><span class="faint">2 contacts</span></a>
+              <a href="#" data-nav="jobs"><span>Module · Job search</span></a>
+            </div>
+          </div>
+          <div class="card card--pad"><div class="eyebrow">Keep in touch</div><p class="muted" style="margin-top:4px;font-size:13px">Last contact today. Nothing due. Alpha mentions it in the brief if a month goes by.</p></div>
+          <div class="notes"><b>Alpha's note</b><p>Warm contact; replies quickly; hiring manager for the role you applied to. Best asked for a short call rather than a referral.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTELLIGENCE -->
+    <div class="page" id="view-intel" data-scope="Intelligence" hidden>
+      <div class="home__head"><h1>Intelligence</h1><span class="muted">Everything Alpha can do, runs on its own, reaches, and knows</span></div>
+      <div class="subtabs" role="tablist" style="margin-top:16px"><button type="button" role="tab" aria-selected="true" data-itab="skills">Skills</button><button type="button" role="tab" aria-selected="false" data-itab="autos">Automations</button><button type="button" role="tab" aria-selected="false" data-itab="conns">Connections</button><button type="button" role="tab" aria-selected="false" data-itab="know">Knowledge</button></div>
+
+      <div id="itab-skills">
+        <div class="row" style="margin-bottom:12px"><span class="faint">Things Alpha learned to do. Say "remember how I do this" to teach one.</span><button type="button" class="btn btn--sm" style="margin-left:auto">Remember how I do this</button></div>
+        <div class="intel">
+          <div class="card card--pad intel__card"><div class="intel__head"><h3>Estimate calories and macros from a food description</h3><button type="button" class="btn btn--sm">Run</button></div><p class="muted">Used by Food. You corrected 4 of the last 50 estimates; Alpha adjusts for that.</p><div class="skill__meta"><span class="faint">212 runs</span><span class="faint">Last today 13:10</span></div></div>
+          <div class="card card--pad intel__card"><div class="intel__head"><h3>Score a job opening against your resume</h3><button type="button" class="btn btn--sm">Run</button></div><p class="muted">Used by Job search. Reads Documents/Resume 2026.pdf.</p><div class="skill__meta"><span class="faint">84 runs</span><span class="faint">Last today 08:00</span></div></div>
+          <div class="card card--pad intel__card"><div class="intel__head"><h3>Find people you know at a company</h3><button type="button" class="btn btn--sm">Run</button></div><p class="muted">Used by Job search. LinkedIn through your Chrome, at your pace.</p><div class="skill__meta"><span class="faint">9 runs</span><span class="faint">Last 28 Sep</span></div></div>
+          <div class="card card--pad intel__card"><div class="intel__head"><h3>Read a LinkedIn jobs search page</h3><button type="button" class="btn btn--sm btn--ghost">Retire</button></div><p class="muted">Learned 28 Sep from a run that worked; repaired once when the page changed.</p><div class="skill__meta"><span class="faint">Site procedure</span><span class="faint">Last today 08:00</span></div></div>
+          <div class="card card--pad intel__card"><div class="intel__head"><h3>Draft a follow-up in your voice</h3><button type="button" class="btn btn--sm">Run</button></div><p class="muted">Learned from six emails you sent. Never sends on its own.</p><div class="skill__meta"><span class="faint">17 runs</span><span class="faint">Last yesterday</span></div></div>
+        </div>
+      </div>
+
+      <div id="itab-autos" hidden>
+        <div class="card list">
+          <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Daily job check"></button><div class="item__body">Every day at 08:00 and 14:00, check LinkedIn and We Work Remotely for new backend openings and score them.<div class="item__sub">Job search · next today 14:00</div></div></div>
+          <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Application updates"></button><div class="item__body">When an email arrives from a company you applied to, update the application.<div class="item__sub">Job search · last today 10:12</div></div></div>
+          <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Evening food reminder"></button><div class="item__body">Each evening at 21:00, mention it in the brief if nothing was logged after 14:00.<div class="item__sub">Food</div></div></div>
+          <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Training targets"></button><div class="item__body">On days with a workout logged, use training-day targets.<div class="item__sub">Food, reads Workouts</div></div></div>
+          <div class="item item--top"><button type="button" class="switch switch--off" role="switch" aria-checked="false" aria-label="Weekly cold call summary"></button><div class="item__body">Every Friday at 16:00, summarise the week's cold calls.<div class="item__sub">Cold calls · paused by you on 26 Sep</div></div></div>
+          <div class="item item--top"><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Briefs"></button><div class="item__body">Twice a day, at 08:00 and 18:00, put together the brief.<div class="item__sub">Shown at the first pause after those times</div></div></div>
+        </div>
+      </div>
+
+      <div id="itab-conns" hidden>
+        <div class="card list">
+          <div class="item"><div class="item__ico" aria-hidden="true">◎</div><div class="item__body"><b>Chrome, signed in as you</b><div class="item__sub">Reads LinkedIn and We Work Remotely pages the way you would; never posts or messages without your yes · used by Job search, Cold calls</div></div><span class="pill pill--good">Connected</span></div>
+          <div class="item"><div class="item__ico" aria-hidden="true">▦</div><div class="item__body"><b>Calendar</b><div class="item__sub">Reads your calendars; adds events when you say yes · used on Home</div></div><span class="pill pill--good">Connected</span></div>
+          <div class="item"><div class="item__ico" aria-hidden="true">▤</div><div class="item__body"><b>Files · Documents/Job search</b><div class="item__sub">Reads your resume and cover letters as they change · used by Job search</div></div><span class="pill pill--good">Connected</span></div>
+          <div class="item"><div class="item__ico" aria-hidden="true">✉</div><div class="item__body"><b>Email</b><div class="item__sub">Reads mail from companies you applied to; never sends · used by Job search</div></div><span class="pill pill--warn">Needs your OK</span><button type="button" class="btn btn--sm btn--primary">Allow</button></div>
+        </div>
+      </div>
+
+      <div id="itab-know" hidden>
+        <div class="intel">
+          <div class="card card--pad intel__card">
+            <div class="intel__head"><h3>About you</h3><span class="faint">tap a fact for its source</span></div>
+            <div class="facts">
+              <div class="fact"><button type="button" class="chip" data-fact>Senior backend engineer <span class="faint">you</span></button><div class="prov" hidden><b>Role</b><span>You told Alpha on 26 September</span><div class="row"><button type="button" class="btn btn--sm">Wrong?</button></div></div></div>
+              <div class="fact"><button type="button" class="chip" data-fact>London <span class="faint">you</span></button><div class="prov" hidden><b>Location</b><span>You told Alpha on 26 September</span></div></div>
+              <div class="fact"><button type="button" class="chip" data-fact>178 cm · 78 kg <span class="faint">you</span></button><div class="prov" hidden><b>Height and weight</b><span>Given for the Food targets, 12 September</span></div></div>
+              <div class="fact"><button type="button" class="chip" data-fact>Trains 4 days a week <span class="faint">Workouts</span></button><div class="prov" hidden><b>Training</b><span>From the Workouts module, last 6 weeks</span></div></div>
+            </div>
+          </div>
+          <div class="card card--pad intel__card">
+            <div class="intel__head"><h3>Standing instructions</h3><button type="button" class="btn btn--sm btn--ghost">Add</button></div>
+            <div class="stack"><span class="sentence">Ask before sending anything to anyone.</span><span class="sentence">Metric units.</span><span class="sentence">Don't interrupt before 9 in the morning.</span></div>
+          </div>
+          <div class="card card--pad intel__card">
+            <div class="intel__head"><h3>What Alpha may do without asking</h3></div>
+            <div class="stack">
+              <div class="row"><span class="sentence">Add calendar events I've said yes to in the brief.</span><span class="faint">learned 29 Sep after three yeses</span><button type="button" class="btn btn--sm btn--ghost">Stop</button></div>
+              <div class="row"><span class="sentence">Update an application's status from an email.</span><span class="faint">asked for when Job search was made</span><button type="button" class="btn btn--sm btn--ghost">Stop</button></div>
+            </div>
+          </div>
+          <div class="card card--pad intel__card">
+            <div class="intel__head"><h3>Goals</h3></div>
+            <div class="stack">
+              <div><b style="font-weight:500">An offer for a backend role in London or remote by December.</b><div class="item__sub">11 applications · 3 interviewing · Job search, Cold calls</div></div>
+              <div><b style="font-weight:500">Under 2,000 kcal on weekdays, 130 g protein on training days.</b><div class="item__sub">12-day streak · Food, Workouts</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVITY -->
+    <div class="page" id="view-activity" data-scope="Activity" hidden>
+      <div class="home__head"><h1>Activity</h1><span class="muted">What ran, what it produced, what needs you, and how to undo it</span></div>
+      <div style="margin-top:18px">
+        <div class="card toolbar toolbar--page" style="border-radius:12px;margin-bottom:8px"><div class="search"><span>⌕</span><input type="text" placeholder="Search everything that happened — 'what did Priya say about Friday'" aria-label="Search activity"></div><button type="button" class="chip" aria-pressed="true">All</button><button type="button" class="chip">Waiting for you</button><button type="button" class="chip">Failed</button><button type="button" class="chip">Job search</button></div>
+        <div class="runs">
+          <div class="day">Today</div>
+          <button type="button" class="item item--btn" data-expand aria-expanded="false"><span class="item__when num">10:12</span><span class="badge badge--succeeded">Done</span><span class="item__body"><b>Set the Lumen Analytics application to Interviewing</b><div class="item__sub">Because you asked me to update applications from email · from Priya's message at 07:52</div></span></button>
+          <div class="detail" hidden>
+            <ul class="check"><li><span class="m m--y">✓</span><span>Read Priya's email and matched it to the Lumen application</span></li><li><span class="m m--y">✓</span><span>Changed the status from Applied to Interviewing</span></li><li><span class="m m--q">?</span><span>She suggested Wednesday or Friday; Alpha didn't pick one. It's in your brief.</span></li></ul>
+            <p class="faint"><b>Assumed:</b> "first conversation" means an interview stage.</p>
+            <div class="row"><button type="button" class="btn btn--sm" data-undo>Undo</button><span class="faint">Undo for 7 days</span><button type="button" class="btn btn--sm btn--ghost">Show the 4 steps</button></div>
+          </div>
+          <button type="button" class="item item--btn" data-expand aria-expanded="false"><span class="item__when num">08:00</span><span class="badge badge--succeeded">Done</span><span class="item__body"><b>Checked LinkedIn and We Work Remotely: 7 new openings, 3 scored high</b><div class="item__sub">Daily check · read 6 pages in your Chrome</div></span></button>
+          <div class="detail" hidden><ul class="check"><li><span class="m m--y">✓</span><span>LinkedIn: 2 search pages, 19 listings, 5 new</span></li><li><span class="m m--y">✓</span><span>We Work Remotely: 1 page, 2 new</span></li><li><span class="m m--y">✓</span><span>Scored all 7 against your resume in one pass</span></li></ul><span class="faint">Nothing to undo: this only read pages.</span></div>
+          <button type="button" class="item item--btn" data-expand aria-expanded="false"><span class="item__when num">07:55</span><span class="badge badge--waiting">Waiting</span><span class="item__body"><b>Drafted a LinkedIn message to Priya Raman</b><div class="item__sub">Waiting for your yes on Home</div></span></button>
+          <div class="detail" hidden><span class="faint">Nothing has been sent. The draft is on Home under Needs you.</span></div>
+          <div class="day">Yesterday</div>
+          <button type="button" class="item item--btn" data-expand aria-expanded="false"><span class="item__when num">14:41</span><span class="badge badge--succeeded">Fixed</span><span class="item__body"><b>Fixed the We Work Remotely reader after the page changed</b><div class="item__sub">The 14:30 check found no listings on a page that had 12</div></span></button>
+          <div class="detail" hidden><ul class="check"><li><span class="m m--n">✗</span><span>14:30: the check read the page and found 0 listings (it had 12)</span></li><li><span class="m m--y">✓</span><span>14:41: looked at the page again, found the new layout, updated the reader, re-ran the check: 12 found, 2 new</span></li></ul><p class="faint"><b>Assumed:</b> the site changed, not your search. You didn't need to do anything.</p></div>
+          <button type="button" class="item item--btn" data-expand aria-expanded="false"><span class="item__when num">14:30</span><span class="badge badge--failed">Failed</span><span class="item__body"><b>Checked We Work Remotely: found nothing</b><div class="item__sub">Fixed at 14:41</div></span></button>
+          <div class="detail" hidden><span class="faint">See the repair above.</span></div>
+          <div class="day">28 September</div>
+          <button type="button" class="item item--btn" data-expand aria-expanded="false"><span class="item__when num">19:20</span><span class="badge badge--succeeded">Done</span><span class="item__body"><b>Made the Job search module</b><div class="item__sub">From "I want a job tracker; senior backend engineer in London, open to remote; watch LinkedIn and We Work Remotely" · 4 tables, 3 automations, 31 real runs</div></span></button>
+          <div class="detail" hidden><ul class="check"><li><span class="m m--y">✓</span><span>Watches LinkedIn and We Work Remotely twice a day</span></li><li><span class="m m--y">✓</span><span>Scores openings against Documents/Resume 2026.pdf</span></li><li><span class="m m--y">✓</span><span>Tracks applications and updates them from email</span></li><li><span class="m m--y">✓</span><span>Finds people you know at companies you apply to</span></li><li><span class="m m--q">?</span><span>Salary: you didn't say, so there was no salary filter. Added 30 Sep when you asked.</span></li></ul><p class="faint"><b>Assumed:</b> senior level, London or fully remote, English-language boards only.</p><div class="row"><button type="button" class="btn btn--sm btn--ghost">Show the 31 runs</button></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="assist" id="assist" aria-label="Assistant">
+    <div id="stream-view" style="display:flex;flex-direction:column;min-height:0;flex:1">
+      <div class="assist__head"><div class="assist__mark" aria-hidden="true">A</div><div style="min-width:0"><b style="font-weight:500">Assistant</b><div class="assist__ctx" id="scope">Home</div></div><button type="button" class="btn btn--sm" style="margin-left:auto" data-thread>Threads · 1</button><button type="button" class="iconbtn" aria-label="More"><span aria-hidden="true">≡</span></button><button type="button" class="iconbtn" id="assist-close" aria-label="Close the assistant"><span aria-hidden="true">›</span></button></div>
+      <div class="assist__body" id="stream">
+        <div class="msg msg--ai" id="scope-intro" hidden></div>
+        <div class="msg msg--user">log two boiled eggs and toast</div>
+        <div class="msg msg--ai">Logged: two boiled eggs and toast, about 310 kcal and 19 g protein. 1,450 of 2,000 today, 96 g protein of 130.<span class="msg__cite">Food · Entries</span></div>
+        <div class="msg msg--user">keep an eye on lumen analytics jobs</div>
+        <div class="msg msg--ai">Done. Lumen Analytics is watched with your daily check now; there's one opening, the one you applied to.<span class="msg__cite">Job search · runs on its own</span></div>
+        <button type="button" class="creation" data-thread><h3 class="creation__title">Job search · salary column<span class="badge badge--running">Working</span></h3><div class="stages"><span class="stages__done">✓ Added a Salary column to Openings</span><span class="stages__done">✓ Read the 61 openings for a salary; 38 state one</span><span class="stages__current">Adding the filter "at or above £85k"</span><span class="stages__next">Re-scoring the 23 without a stated salary</span></div><span class="faint">Its own thread; open it to reply there</span></button>
+        <div class="msg msg--user">did priya reply?</div>
+        <div class="msg msg--ai">Yes, at 07:52. She suggests Wednesday or Friday for a first conversation, and the application is now Interviewing. Want me to answer with Wednesday 11:00, when you're free?<span class="msg__cite">Priya Raman · Email 07:52 · Calendar</span></div>
+      </div>
+      <div class="composer">
+        <div class="composer__box"><textarea id="composer" rows="1" placeholder="Ask, tell, or log anything" aria-label="Message Alpha"></textarea><button type="button" class="iconbtn" aria-label="Speak"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2"/></svg></button><button type="button" class="btn btn--primary btn--sm" id="send">Send</button></div>
+        <div class="composer__row"><span>Uses your Claude subscription</span><span style="margin-left:auto">⌘⏎ to send</span></div>
+      </div>
+    </div>
+    <div id="thread-view" style="display:flex;flex-direction:column;min-height:0;flex:1" hidden>
+      <div class="assist__head"><button type="button" class="assist__back" data-thread-back>‹ Back</button><div style="min-width:0"><b style="font-weight:500">Job search · salary column</b><div class="assist__ctx">Thread · working · 3 of 5 steps</div></div></div>
+      <div class="assist__body" id="thread-stream">
+        <div class="creation"><div class="stages"><span class="stages__done">✓ Added a Salary column to Openings</span><span class="stages__done">✓ Read the 61 openings for a salary; 38 state one</span><span class="stages__current">Adding the filter "at or above £85k"</span><span class="stages__next">Re-scoring the 23 without a stated salary</span><span class="stages__next">Showing you the result</span></div></div>
+        <div class="msg msg--ai">Of the 61 openings, 38 state a salary. For the 23 that don't, I'll keep them visible but flag them; a floor only hides what states a lower figure. OK?</div>
+        <div class="msg msg--user">yes, flag them</div>
+        <div class="msg msg--ai">Doing that. This thread stays here; your conversation is untouched.</div>
+      </div>
+      <div class="composer"><div class="composer__box"><textarea id="thread-composer" rows="1" placeholder="Reply in this thread" aria-label="Reply in this thread"></textarea><button type="button" class="btn btn--primary btn--sm" id="thread-send">Send</button></div></div>
+    </div>
+  </aside>
+  <button type="button" class="btn btn--primary assist__fab" id="assist-fab">Ask Alpha</button>
+</div>
+
+<!-- COMPANION (the avatar window: blob, bubble, panel) -->
+<div class="avatar" id="companion" aria-label="Alpha companion">
+  <div class="avatar__panel" id="comp-panel" hidden>
+    <div class="avatar__head"><span class="presence presence--needs" id="presence"></span><span class="faint" id="presence-label">Needs you</span><button type="button" class="iconbtn" id="comp-close" aria-label="Close"><span aria-hidden="true">›</span></button></div>
+    <div class="avatar__turns" id="comp-stream"><div class="avatar__said">did priya reply?</div><div class="avatar__reply">Yes, at 07:52. Wednesday or Friday. Want me to answer with Wednesday 11:00?</div></div>
+    <div class="avatar__ask"><input type="text" id="comp-composer" placeholder="Ask, tell, or log anything" aria-label="Message Alpha from the companion"><button type="button" class="iconbtn" aria-label="Speak"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2"/></svg></button></div>
+  </div>
+  <div class="avatar__bubble" id="comp-bubble"><p>Priya replied. Answer with Wednesday 11:00?</p><div class="row" style="margin-top:6px"><button type="button" class="btn btn--sm btn--primary" data-comp-yes>Yes</button><button type="button" class="btn btn--sm btn--ghost" data-nav="home">Open</button></div></div>
+  <button type="button" class="avatar__button is-needs" id="comp-blob" aria-label="Ask Alpha" aria-expanded="false"><svg width="72" height="72" viewBox="0 0 96 96" aria-hidden="true"><defs><radialGradient id="blob-g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#9dbbff"/><stop offset="1" stop-color="#3b5fd0"/></radialGradient></defs><path d="M48 8a40 40 0 1 1-20 74.6L14 90l6-16A40 40 0 0 1 48 8z" fill="url(#blob-g)"/><circle cx="38" cy="44" r="4" fill="#0d1220"/><circle cx="58" cy="44" r="4" fill="#0d1220"/><path d="M38 58q10 8 20 0" stroke="#0d1220" stroke-width="3" fill="none" stroke-linecap="round"/></svg></button>
+  <div class="avatar__foot" style="border:1px solid var(--border);border-radius:8px"><span>Prototype · state</span><span class="seg" role="group" aria-label="Companion state (prototype control)"><button type="button" data-state="idle" aria-pressed="false">Idle</button><button type="button" data-state="listening" aria-pressed="false">Listening</button><button type="button" data-state="working" aria-pressed="false">Working</button><button type="button" data-state="needs" aria-pressed="true">Needs you</button></span></div>
+</div>
+
+<div class="cmdk" id="cmdk" hidden>
+  <div class="box" role="dialog" aria-label="Search or ask">
+    <input id="cmdk-input" type="text" placeholder="Search everything, or say what you want" aria-label="Search or ask">
+    <ul>
+      <li><button type="button" data-nav="jobs"><span>Job search</span><span class="faint">Module</span></button></li>
+      <li><button type="button" data-nav="food"><span>Food</span><span class="faint">Module</span></button></li>
+      <li><button type="button" data-nav="person"><span>Priya Raman</span><span class="faint">Person</span></button></li>
+      <li><button type="button" data-nav="activity"><span>What did Priya say about Friday</span><span class="faint">Search</span></button></li>
+      <li><button type="button" data-nav="food"><span>Log lunch</span><span class="faint">Ask Alpha</span></button></li>
+      <li><button type="button" data-nav="intel"><span>What can Alpha reach?</span><span class="faint">Intelligence · Connections</span></button></li>
+    </ul>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toast-text"></span><button type="button" id="toast-undo">Undo</button></div>
+
+<script>
+(function(){
+  var $ = function(s, r){ return (r||document).querySelector(s); };
+  var $$ = function(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+  var views = { home:'view-home', jobs:'view-jobs', food:'view-food', people:'view-people', person:'view-person', intel:'view-intel', activity:'view-activity' };
+
+  function show(key){
+    Object.keys(views).forEach(function(k){ var el = document.getElementById(views[k]); if (el) el.hidden = (k !== key); });
+    $$('.rail .navbtn').forEach(function(b){
+      var nav = b.getAttribute('data-nav');
+      var active = nav === key || (key === 'person' && nav === 'people');
+      b.classList.toggle('navbtn--current', active);
+      if (active) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current');
+    });
+    var names = { home:'Home', jobs:'Job search', food:'Food', people:'People & Companies', person:'Priya Raman', intel:'Intelligence', activity:'Activity' };
+    $('#scope').textContent = names[key] || 'Home';
+    var intros = {
+      jobs: "I'm looking at Job search. Ask about it, tell me to run something, or describe a change; a change opens its own thread so it stays out of your way.",
+      food: "I'm looking at Food. Say what you ate and I'll log it; ask for totals or targets.",
+      person: "I'm looking at Priya Raman. Ask what she said, or have me draft a message; sending waits for your yes."
+    };
+    var intro = $('#scope-intro'); intro.hidden = !intros[key]; if (intros[key]) intro.textContent = intros[key];
+    $('.main').scrollTop = 0;
+    closeCmdk();
+    try { localStorage.setItem('alpha-proto-view', key); } catch(e){}
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-nav]');
+    if (t) {
+      e.preventDefault(); show(t.getAttribute('data-nav'));
+      var open = t.getAttribute('data-itab-open');
+      if (open) { var tab = document.querySelector('[data-itab="' + open + '"]'); if (tab) tab.click(); }
+    }
+  });
+
+  // rail fold
+  $('#rail-fold').addEventListener('click', function(){
+    var app = $('#app'), rail = $('#rail');
+    var collapsed = app.classList.toggle('app--rail-collapsed');
+    rail.classList.toggle('rail--collapsed', collapsed);
+    this.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    this.querySelector('span').textContent = collapsed ? '»' : '«';
+  });
+  // theme
+  function setTheme(t){
+    if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+    $$('[data-theme-set]').forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-theme-set') === t ? 'true' : 'false'); });
+    try { localStorage.setItem('alpha-proto-theme', t); } catch(e){}
+  }
+  document.addEventListener('click', function(e){ var b = e.target.closest('[data-theme-set]'); if (b) setTheme(b.getAttribute('data-theme-set')); });
+
+  // module sections (App / Activity / Settings) and subtabs
+  document.addEventListener('click', function(e){
+    var s = e.target.closest('[data-sec]');
+    if (!s) return;
+    var page = s.closest('.page');
+    $$('[data-sec]', page).forEach(function(b){ b.setAttribute('aria-selected', b === s ? 'true' : 'false'); });
+    $$('[data-secpane]', page).forEach(function(p){ p.hidden = p.getAttribute('data-secpane') !== s.getAttribute('data-sec'); });
+  });
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-tab],[data-itab]');
+    if (!t) return;
+    var isI = t.hasAttribute('data-itab');
+    var key = t.getAttribute(isI ? 'data-itab' : 'data-tab');
+    $$('button', t.parentElement).forEach(function(b){ b.setAttribute('aria-selected', b === t ? 'true' : 'false'); });
+    var prefix = isI ? 'itab-' : 'tab-';
+    $$('[id^="'+prefix+'"]').forEach(function(p){ p.hidden = (p.id !== prefix + key); });
+  });
+  // view toggles and chips (visual only)
+  document.addEventListener('click', function(e){
+    var v = e.target.closest('.toggle--views button');
+    if (v) { $$('button', v.parentElement).forEach(function(b){ b.setAttribute('aria-selected', b === v ? 'true' : 'false'); }); toast('Prototype: the ' + v.textContent.toLowerCase() + ' view is the same data drawn differently.', false); }
+    var c = e.target.closest('.chip:not([data-fact])');
+    if (c && c.parentElement.classList.contains('toolbar')) { $$('.chip', c.parentElement).forEach(function(x){ x.removeAttribute('aria-pressed'); }); c.setAttribute('aria-pressed','true'); }
+  });
+
+  // toast
+  var toastTimer;
+  function toast(text, undoable){
+    $('#toast-text').textContent = text; $('#toast-undo').hidden = !undoable; $('#toast').hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ $('#toast').hidden = true; }, 3800);
+  }
+  $('#toast-undo').addEventListener('click', function(){ $('#toast').hidden = true; toast('Undone.', false); });
+
+  // inline edit
+  document.addEventListener('click', function(e){
+    var td = e.target.closest('td.editable');
+    if (!td) return;
+    e.stopPropagation();
+    if (td.getAttribute('contenteditable') === 'true') return;
+    td.setAttribute('contenteditable','true'); td.dataset.before = td.textContent; td.focus();
+  });
+  document.addEventListener('focusout', function(e){
+    var td = e.target.closest && e.target.closest('td.editable');
+    if (!td || td.getAttribute('contenteditable') !== 'true') return;
+    td.removeAttribute('contenteditable');
+    if (td.textContent !== td.dataset.before) toast('Saved.', true);
+  });
+  document.addEventListener('keydown', function(e){
+    var td = e.target.closest && e.target.closest('td.editable');
+    if (td && e.key === 'Enter') { e.preventDefault(); td.blur(); }
+    if (td && e.key === 'Escape') { td.textContent = td.dataset.before; td.blur(); }
+  });
+  // row → record drawer
+  document.addEventListener('click', function(e){
+    var tr = e.target.closest('tr[data-open]');
+    if (!tr || e.target.closest('td.editable[contenteditable="true"]')) return;
+    var d = $('#drawer-lumen'); d.hidden = !d.hidden; tr.classList.toggle('row--current', !d.hidden);
+  });
+
+  // needs-you actions
+  function needs(delta){
+    var t = $('#needs-tile'); var n = Math.max(0, parseInt(t.textContent,10) + delta); t.textContent = n;
+    var b = $('#needs-badge'); b.textContent = n; b.hidden = n === 0;
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act');
+    var card = b.closest('.need'); var item = b.closest('.bitem');
+    var msgs = {
+      sent: "Sent to Priya Raman. This one can't be undone; it's in Activity.",
+      merged: 'Merged. Mark Ellis has one record with both sources. Undo for 30 days.',
+      separate: "Kept separate. Alpha won't ask about these two again.",
+      added: 'Added Thursday 15:00 with Dana Okafor. Undo for 7 days.',
+      later: 'Not now. It comes back in the 18:00 brief.',
+      dismiss: "Done. It won't come back.",
+      drafted: "Drafted. It's on Home under Needs you for your yes.",
+      raised: 'Protein target is 130 g on training days from now. Undo for 30 days.'
+    };
+    var undoable = (act === 'merged' || act === 'added' || act === 'raised');
+    if (card) {
+      card.innerHTML = '<div class="done-line">✓ <span></span></div>';
+      card.querySelector('span').textContent = msgs[act] || 'Done.';
+      card.style.borderLeftColor = 'var(--good)';
+      needs(-1);
+      setTimeout(function(){ card.style.display = 'none'; }, 2600);
+    } else if (item) { item.style.opacity = '.45'; $$('.btn', item).forEach(function(x){ x.disabled = true; }); }
+    toast(msgs[act] || 'Done.', undoable);
+  });
+  document.addEventListener('click', function(e){
+    var w = e.target.closest('[data-why]'); if (!w) return;
+    var el = document.getElementById(w.getAttribute('data-why')); el.hidden = !el.hidden;
+  });
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-thumb]'); if (!t) return;
+    $$('[data-thumb]', t.parentElement).forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+    t.setAttribute('aria-pressed','true');
+    toast(t.getAttribute('aria-label') === 'Useful' ? 'Noted. More like this.' : 'Noted. Fewer of these, and not this one again.', false);
+  });
+  document.addEventListener('click', function(e){
+    var u = e.target.closest('[data-undo]'); if (!u) return;
+    toast('Undone. Lumen Analytics is back to Applied.', false); u.disabled = true;
+  });
+  // switches
+  document.addEventListener('click', function(e){
+    var s = e.target.closest('.switch'); if (!s) return;
+    var on = s.getAttribute('aria-checked') === 'true';
+    s.setAttribute('aria-checked', on ? 'false' : 'true'); s.classList.toggle('switch--off', on);
+    toast(on ? "Paused. It won't run until you switch it on." : 'On. Next run as shown.', false);
+  });
+  // facts
+  document.addEventListener('click', function(e){
+    var f = e.target.closest('[data-fact]'); var inside = e.target.closest('.prov');
+    if (!f && !inside) { $$('.prov').forEach(function(p){ p.hidden = true; }); return; }
+    if (f) { var prov = f.parentElement.querySelector('.prov'); var open = !prov.hidden; $$('.prov').forEach(function(p){ p.hidden = true; }); prov.hidden = open; }
+  });
+  // activity expand
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-expand]'); if (!b) return;
+    var d = b.nextElementSibling; d.hidden = !d.hidden; b.setAttribute('aria-expanded', d.hidden ? 'false' : 'true');
+  });
+  // threads
+  document.addEventListener('click', function(e){
+    if (e.target.closest('[data-thread]')) { $('#stream-view').hidden = true; $('#thread-view').hidden = false; }
+    if (e.target.closest('[data-thread-back]')) { $('#thread-view').hidden = true; $('#stream-view').hidden = false; }
+  });
+  // assistant open/close at narrow widths
+  function assist(open){ $('#app').classList.toggle('app--assistant-hidden', !open); }
+  $('#assist-open').addEventListener('click', function(){ assist(true); });
+  $('#assist-fab').addEventListener('click', function(){ assist(true); });
+  $('#assist-close').addEventListener('click', function(){ assist(false); });
+
+  // composers with a canned reply
+  function reply(input, streamSel, userCls, aiCls){
+    var text = input.value.trim(); if (!text) return;
+    var stream = $(streamSel);
+    var me = document.createElement('div'); me.className = userCls; me.textContent = text; stream.appendChild(me);
+    var lower = text.toLowerCase();
+    var ans = /log|ate|eat/.test(lower) ? 'Logged. Want the running total?' :
+              /job|opening|apply/.test(lower) ? 'Three new high-match openings since this morning; the Harbourline one fits best. Open Job search?' :
+              /priya|reply/.test(lower) ? 'Priya replied at 07:52 and suggested Wednesday or Friday.' :
+              "On it. If this turns into a build, I'll open a thread so it stays out of your way.";
+    var a = document.createElement('div'); a.className = aiCls; a.textContent = ans; stream.appendChild(a);
+    input.value = ''; stream.scrollTop = stream.scrollHeight;
+  }
+  $('#send').addEventListener('click', function(){ reply($('#composer'), '#stream', 'msg msg--user', 'msg msg--ai'); });
+  $('#composer').addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); reply(this, '#stream', 'msg msg--user', 'msg msg--ai'); } });
+  $('#thread-send').addEventListener('click', function(){ reply($('#thread-composer'), '#thread-stream', 'msg msg--user', 'msg msg--ai'); });
+  $('#thread-composer').addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); reply(this, '#thread-stream', 'msg msg--user', 'msg msg--ai'); } });
+  $('#comp-composer').addEventListener('keydown', function(e){ if (e.key === 'Enter') reply(this, '#comp-stream', 'avatar__said', 'avatar__reply'); });
+
+  // companion
+  var labels = { idle:'Idle', listening:'Listening…', working:'Working on the salary column', needs:'Needs you' };
+  function setState(s){
+    $('#presence').className = 'presence presence--' + s; $('#presence-label').textContent = labels[s];
+    $$('[data-state]').forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-state') === s ? 'true' : 'false'); });
+    $('#comp-bubble').hidden = (s !== 'needs');
+    $('#comp-blob').className = 'avatar__button is-' + s;
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-state]'); if (b) setState(b.getAttribute('data-state'));
+    if (e.target.closest('[data-comp-yes]')) { toast('Replied to Priya: Wednesday 11:00. Added to your calendar. Undo for 7 days.', true); setState('idle'); }
+  });
+  $('#comp-blob').addEventListener('click', function(){
+    var p = $('#comp-panel'); p.hidden = !p.hidden; this.setAttribute('aria-expanded', p.hidden ? 'false' : 'true');
+  });
+  $('#comp-close').addEventListener('click', function(){ $('#comp-panel').hidden = true; $('#comp-blob').setAttribute('aria-expanded','false'); });
+
+  // command palette
+  function openCmdk(){ $('#cmdk').hidden = false; setTimeout(function(){ $('#cmdk-input').focus(); }, 0); }
+  function closeCmdk(){ $('#cmdk').hidden = true; }
+  $('#open-cmdk').addEventListener('click', openCmdk);
+  $('#cmdk').addEventListener('click', function(e){ if (e.target === this) closeCmdk(); });
+  document.addEventListener('keydown', function(e){
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openCmdk(); }
+    if (e.key === 'Escape') { closeCmdk(); $$('.prov').forEach(function(p){ p.hidden = true; }); }
+  });
+
+  // restore
+  var last = null, theme = null;
+  try { last = localStorage.getItem('alpha-proto-view'); theme = localStorage.getItem('alpha-proto-theme'); } catch(e){}
+  if (theme) setTheme(theme);
+  if (last && views[last]) show(last);
+})();
+</script>

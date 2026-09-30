@@ -1,0 +1,265 @@
+# Alpha as a second brain — design proposal
+
+30 September 2026, revised the same evening after discussion (sessions → one stream with threads; modules stay first-class; Intelligence stays; interrupts at boundaries, not idleness; explicit asks skip the ladder). Written for Kenil to tear apart. Nothing in it is built.
+
+**How to read.** Numbered principles are the test for every later decision. Evidence is cited inline (arXiv ids, product docs); the three research reports behind it and the Jev notes are in `design/research/`. **Q1–Q11** at the end are the decisions only you can make, each with my recommendation.
+
+---
+
+## 1. What we are building
+
+Alpha is an agent that lives on a person's Mac, learns their world from what they say and what it can reach, holds that world in a structure it owns, acts for them through connectors, and becomes more useful the longer it runs — without the person ever designing anything. The companion is the product; the workspace is the window onto what Alpha holds and does.
+
+Principles:
+
+1. **Generic.** Nothing in the system knows what a calorie or a job is. Domains are data Alpha designs; the loop is the same for all of them.
+2. **One world per person.** All data in one store, cross-linked. No islands, no declared bridges between modules.
+3. **One way in.** You say what you want; Alpha works out whether it is an answer, an action, a change, or something worth keeping.
+4. **Do now, deepen later.** A bare ask is never blocked by research or building.
+5. **Reads are free once connected; anything that leaves the machine asks first** (automation of writes comes later, per kind, learned from your answers).
+6. **Quiet by default.** Most proactive work happens while you are away and is shown at a good moment. Interrupting is the exception.
+7. **No knobs.** Cost and risk are bounded by behaviour, never by a setting the person meets.
+8. **Local-first.** The store is on the device. Where a model or a token must leave the device, Alpha says so.
+9. **Evidence over cleverness.** Verbatim over extraction; fixed rhythms over adaptive timing; verify before keeping.
+
+---
+
+## 2. Vocabulary
+
+| Internal | What the person sees |
+|---|---|
+| World (the store) | "What Alpha knows" |
+| Journal | Activity |
+| Entities: people, organisations, places, documents, messages, calendar events | People & Companies |
+| Collections | Tables (pages) |
+| Modules | Modules: a bundle of tables, skills, automations and a note around a goal |
+| Facts, standing instructions and permissions, notes, goals | Knowledge (in Intelligence) |
+| Connectors | Connections (in Intelligence) |
+| Skills, workflows, automations | Skills and Automations (in Intelligence) |
+| Notices, asks, digest | Today |
+| Stream and threads | The conversation |
+
+---
+
+## 3. The world model (memory and context)
+
+This is the layer you called make-or-break. The research ranked three options; the recommendation is the middle one: a **verbatim-first typed world model in SQLite**, with the simpler "notes + full-text search" design as its first milestone rather than its destination, and embeddings only if a measured need appears.
+
+### 3.1 Six layers
+
+1. **Journal** — an append-only verbatim log. Every turn (what you said, what Alpha said), every source item as received (an email, a calendar event, a page read, a file change), every action Alpha took (connector, input, output, who approved it), every notice or proposal and its fate. Immutable, provenance on every row, FTS5 over the text. **This is the source of truth; every other layer is derivable from it.** Deleting something means a tombstone and a re-projection, so the clean-removal rule still holds.
+2. **Entities** — a registry of people, organisations, places, documents, messages and calendar events, with canonical name, aliases and hard keys (email address, LinkedIn URL, phone, file path, calendar UID). Resolution: auto-merge on hard keys only, zero model calls; soft candidates (same name and company) go through a three-way judgement — same / needs you / different — and only "same" merges (the asymmetry: a wrong merge poisons linked facts, a missed one only leaves a duplicate). Wrong merges are undoable because the journal keeps the sources. These kinds are generic — the primitives of anyone's world, not use cases.
+3. **Facts** — claims about you and about entities: subject, predicate, value, valid-from/valid-to (world time), recorded-at/superseded-by (system time), the journal row they came from, confidence, state (accepted / suggested / rejected). **Update-on-write:** a new hard-key fact supersedes the old one, so "works at A" → "works at B" keeps history and never has both live. Genuinely conflicting soft facts are kept side by side and Alpha asks. This is today's `profile.py` idea, generalised from "the person" to every entity.
+4. **Collections** — tables Alpha designs per topic (food entries, targets, openings, applications, cold calls): typed fields, relation fields to entities and to other collections, drawn by the derived pages we already have. Owned by you, grouped into modules only for display. Creating or editing a record is itself a journal event.
+5. **Notes** — Markdown Alpha writes and maintains: a profile summary, your standing instructions, one page per module ("what this is for, what is in it, what I have tried, what is open"). A bounded index (the Claude Code pattern: about 200 lines) is loaded on every turn; pages are read on demand. You can read, edit and delete every note.
+6. **Goals** — durable intentions with state ("a backend job in London by December", "under 2,000 kcal on weekdays"). Proactivity is organised around active goals; an ask that attaches to a goal is standing by default.
+
+**Why this shape.** Verbatim text beats extracted facts by 16–22 points, and extraction should be added beside text, never substituted for it (arXiv 2601.00821). Mutable facts need update-on-write: on changed facts, embedding retrieval scored 0.30–0.95 across seeds, a structured fact store 0.75–1.00, and hybrids were *worse* than the fact store alone (MERIT, 2609.05441); Mem0's own tracker shows an accumulate-only store keeping "works at A" and "works at B" both live (mem0 #4956). Notes-only memory decays with tenure — 96% at three weeks, 72% at nine — while provenance-typed structure rises (2607.21962). A compact behavioural spec kept apart from facts beat four memory products on interpretation at 25× less context (2605.28969). The products that survived (Claude Code, OpenClaw, ChatGPT's profile) all pair a small always-loaded index with on-demand reads and idle-time consolidation. And the signature move — a recruiter's email → the application it concerns → the contact at that company — is a two-hop join on an entity registry with hard keys: relational, no graph database (graphs only pay off for multi-hop synthesis; GraphRAG-Bench 2506.05690).
+
+### 3.2 How context reaches the model
+
+Two mechanisms, in this order:
+
+1. **Pre-pack** — deterministic, zero model calls, two to four thousand tokens: who you are and your standing instructions (capped); active goals; the notes index; entity cards for anything the sentence or the event names (matched by key or name); the last N journal lines; full-text hits for the sentence's terms; today's calendar; pending asks and notices; connection state. Every line names its source.
+2. **Agentic retrieval** — the model has tools: search the journal (FTS5 with time and kind filters), query collections, look up an entity and its facts, read a note or a document, read a source item verbatim. It decides what else it needs, in as many steps as it needs. Results come back inline, not as files: grep beat vector search on every harness when results were inline and lost when they were delivered as files (2605.15184).
+
+**Embeddings: not at launch.** The journal's chunk ids and a fusion hook are designed now so an embedding column (sqlite-vec plus a small local MLX/ONNX model) can be added as one more signal later — but only after a personal evaluation (tasks that succeed with history and fail without) shows full-text plus structured recall is the bottleneck. Published rankings flip on the embedding model alone (±6 points, 2606.29914); vendor numbers should not drive this.
+
+### 3.3 When memory changes
+
+- **At write:** hard-key facts supersede; entities resolve on hard keys; structured sources (calendar, LinkedIn rows, email headers) need no model at all.
+- **Per turn:** nothing is rewritten. The turn is journaled; anything Alpha learned about you is recorded as a suggested fact.
+- **Sleep time** (nightly, and after a long idle): one bounded pass reads the journal since last time; updates module notes and the profile summary; promotes suggested facts that have enough evidence; writes "tried / failed"; links entities across sources; looks for patterns across modules (this is where "you started running, so your protein target should move" is found); prepares tomorrow (meetings, due follow-ups); assembles the digest; and retires what has gone unused. Generative Agents' reflection and OpenClaw's "dreaming", with a cap.
+- **Before compaction** of a long session: flush facts and notes first, then summarise.
+- **Recall is not use.** Agents acted on a correctly retrieved value only 55% of the time (MERIT), and sixteen systems passed recall tests while failing the matching behaviour tests (2607.29433). So the pre-pack states the facts that matter as instructions in context ("calorie target 2,000; 1,450 so far today"), and every action's result is checked against them.
+
+### 3.4 Size and locality
+
+Tens of thousands of journal rows and records are small for SQLite and FTS5 (milliseconds at millions of rows). One database per person, on the device; encryption at rest later.
+
+---
+
+## 4. Capabilities — the code Alpha owns
+
+Four kinds. Each is a first-class object with provenance (which runs made it), a test, a description written to trigger well, and a usage record; each is visible in the workspace and removable cleanly.
+
+**Connector** — reaches an outside system. The shape the industry has converged on: a skill directory with a manifest.
+
+```
+connectors/<name>/
+  connector.yaml   identity (origin: builtin | leveraged | alpha-built)
+                   transport: mcp | native-macos | http-api | browser
+                   auth: none | tcc:<service> | oauth{provider, scopes, custody} | browser-session | api-key, + status
+                   tools[]:     name, input schema, effect: read | write   (write ⇒ ask first)
+                   resources[]: views Alpha syncs into collections, with cursor and freshness
+                   triggers[]:  poll | webhook | fsevents | browser-observe
+                   health:      last success, failures, repair policy
+  SKILL.md         how to use it: quirks of the site or service, recorded procedures
+  scripts/         tool implementations or recorded steps
+  references/      API notes, selectors, samples
+```
+
+An MCP server maps one-to-one; a native macOS framework is tools and resources with `auth: tcc`; an Alpha-built site connector is `transport: browser` with recorded steps in `scripts/` and, once discovered, the site's underlying request cached as an `http-api` tool (the Browser Use "money request" pattern). This is the Agent Skills format that Claude Code loads natively, so on the subscription route connectors and skills need no loader of ours.
+
+**Skill** — a reusable procedure: instructions plus the tools it uses (model-driven), or code (deterministic). Alpha writes them only from verified successful runs (§6).
+
+**Automation** — a skill plus a trigger (schedule, source event, data condition) plus approval gates set at creation. OpenClaw's "standing order" fields: scope, trigger, gates, escalation.
+
+**Module** — a named bundle of collections, skills, automations, connections and a note, around a goal. Made in seconds; no code, no build, no versions. The tool the person works in; first-class in the workspace.
+
+### 4.1 First sources, as the research ranked them
+
+- **Browser.** Leverage Claude in Chrome through `claude --chrome` now: the real signed-in profile, per-site permissions, pauses on login and CAPTCHA, zero build — subscription-only. Later, a thin fallback on Google's sanctioned Chrome 144 remote-debugging route (reuse `chrome-devtools-mcp`, Apache-2.0) so the API route also has a browser. Site procedures are recorded as connector skills after a successful run, so the second run is cheap and deterministic with the agent as fallback. Never raw CDP on the real profile (blocked since Chrome 136) and never a copied profile.
+- **Files.** Build: an FSEvents watcher plus MarkItDown for Office files and pypdf/pdfplumber (or Docling) for PDF, into the journal and FTS5. No AGPL parsers in a closed product.
+- **Calendar.** EventKit, natively: Google, iCloud and Exchange calendars all appear once synced into macOS Calendar; no OAuth, no Google verification, nothing leaves the device. Requires the app bundle to carry the Calendar usage key, a stable code signature, and the Python core running as a child of the app (macOS attributes permission to the responsible process).
+- **Email, later.** Mail.app locally (its SQLite index and `.emlx` files, Full Disk Access) for Apple Mail users; Anthropic's Gmail connector while on the subscription (available in Claude Code sessions with a claude.ai login; the token lives with Anthropic); our own Google app plus a CASA assessment (about $1k a year, weeks of process) when we move to the API. Gmail read is a Google "restricted" scope; Calendar and Contacts are only "sensitive". Unverified apps hit a permanent 100-user cap, so shipping unverified is not a bridge.
+- **Contacts, Notes, Messages.** Native, cheap, later.
+- **Screen capture.** Not in v1. Every consumer product that shipped continuous capture was killed or forced opt-in (Rewind's capture ended December 2025, Limitless was sold, Recall was redesigned); the one research system that made it work (GUM) did so for five people behind a strict utility gate. Revisit once the connector-only brain is trusted.
+
+### 4.2 Leverage, build, avoid
+
+- **Leverage:** Claude in Chrome; Anthropic's connectors on the subscription; the Agent Skills format; the MCP Filesystem server; `chrome-devtools-mcp` later; pyobjc; MarkItDown and pypdf.
+- **Build:** the connector manifest and registry; the native macOS connectors as one signed, permission-correct bundle (nobody ships these); the procedure-recording layer; the repair hook.
+- **Avoid as the auth layer:** Composio, Nango, Pipedream, Arcade (tokens held in their clouds, no production escape from Google's verification, per-call metering); Zapier MCP (task-metered); Merge, Unified, Paragon (B2B pricing); Unipile (unofficial LinkedIn access).
+- **LinkedIn.** The official API exposes no connections, jobs or messaging. §8.2 of the user agreement forbids bots that download contacts or send messages, and vendors report about 40% of accounts on non-compliant tools restricted in Q1 2026. The lowest-risk posture is: Alpha reads pages in your own Chrome at human pace, proposes outreach, and you send. (Q3)
+
+---
+
+## 5. The agent
+
+One loop with four entry points, each strictly cheaper than the one above it.
+
+**Entry 1 — a turn** (companion or workspace). Pre-pack → the model acts with tools (query the world, run a skill, use a connector, make a collection or module, record a fact, propose, ask) → reply → journal.
+
+The person sees **one stream**; the model's context is not one. A **thread** opens automatically the moment Alpha starts making something — a module, a skill, an automation, a connector, a research pass, any long-running job — and all the to-and-fro about that work lives in the thread with its **own model context** (its own Claude Code session on the subscription route). The stream only holds the ask, a card, and the outcome. A message about an open piece of work, wherever it is typed, is routed into its thread (a System One choice over the open threads) and the reply shows where it went ("in: Job tracker build"). A thread can also be opened deliberately for a long to-and-fro that is not a build. The stream's own context is the pre-pack plus the recent stream turns relevant to the ask — never everything since morning. Nobody chooses a session before speaking, and no session holds memory: the world does. Forty turns of building a flow never sit in the prompt when the next ask is how much protein is left.
+
+**Entry 2 — sensors** (no model). Connector deltas (a new email, a calendar change, a file change, a page visited), schedule ticks, collection changes (a value crossing a target), person-context signals (idle start, app switch, a gap in the calendar, day start and end). Each becomes a typed journal event.
+
+**Entry 3 — triage, then deliberation.** Triage runs rules first and then the System One seam (below), bounded to about two thousand tokens per event, and answers *discard*, *record silently* or *escalate*. Standing intents (keyword or structural matches; no model) live here. Only an escalation reaches deliberation: an isolated model run with a compact situation packet — the event, the standing things that care, the relevant goals and facts, the last digest — never a whole conversation. OpenClaw resends about 100k tokens of context per heartbeat and one idle session burned 47.6M tokens in a day (openclaw #21597). Hard caps on tool calls and wall-clock; a run never schedules another run.
+
+**Entry 4 — sleep time** (nightly; after long idle). The consolidation in §3.3, the deepen work queued during the day (research a new module and propose what else it should track; build a skill from a verified run), and the digest.
+
+**The System One seam.** Every small judgement — is this urgent; which module does it belong to; which of these forty records is it about; is this the same person; is this action within a standing permission; is this the same kind of task as last week; which of two hundred candidate memories matter here — is expressed as `(state, typed questions) → answers with confidence`, never as free text. It is answered by rules where rules suffice, by Claude (batched, structured) on the subscription route, and later by Jev (cloud, ~100 ms, $0.04 per million input tokens) or Laya (local, Apache-2.0). Nothing else changes when the answerer changes. Two rules from Jev's own weakness list apply whoever answers: send only filtered state (irrelevant state distracts), and treat source content as untrusted (injected text steers).
+
+**Speaking up is an expected-utility gate, not a vibe.** Every candidate carries a confidence, a benefit, an interruption cost and a decay horizon, and is placed on a ladder relative to the next scheduled digest:
+
+- *prepare* — silent: draft it, precompute it, update a page;
+- *digest* — two fixed times a day;
+- *workspace card* — shown the next time you are at a breakpoint;
+- *notification* — only when it would expire before the next digest, confidence is high and missing it is costly; delivered at a **task boundary** (an app switch, a calendar gap, the end of a piece of work — not idleness: idleness-triggered interventions were ineffective while boundary ones were engaged 53% of the time, CHI 2025, 2502.18658) and limited by a small daily bucket.
+
+Evidence: 97.8% of people accepted imperfect help done while they were away versus 26.7% for correct-but-intrusive help, and one misaligned interruption cost more trust than several good ones won back (Proactivity-Gym, 2609.37267, 29 Sept 2026); acceptance was 52% at workflow boundaries against 38% mid-task (2601.10253); a consistent, predictable agent was rated a better partner than an adaptive one (CUI 2024). Feedback is implicit: dismissed or ignored means rejected, and a miss raises the bar for that class of notice more than a hit lowers it.
+
+**Cost without knobs.** No model call without an event or a scheduled slot (a heartbeat is a deterministic health check, never a model turn); tiered answerers by layer; isolated, packet-sized runs; per-run caps; an internal daily budget that degrades behaviour (batch more, speculate less) instead of alerting anyone; a scheduled run is skipped when nothing changed.
+
+---
+
+## 6. When something becomes standing
+
+Your point 3: the decision of when a one-off is worth turning into a tracker, a watcher, a connector or a workflow. Designed as a mechanism, not a heuristic.
+
+**Three origins.** An **explicit ask** ("I want a calorie and nutrition tracker", "build me a…") *is* the decision and skips the ladder below: the module, a goal and the first tables exist within seconds and the first entry works at once; a deepen thread starts immediately in the background — research what such a thing usually does, combine it with what Alpha already knows (facts, other modules — a workouts module gets linked), build to the product-person bar (sources resolved by name, a page per thing, targets, freshness, filters) — and asks only where an answer changes the shape and is not already known (height and weight for targets, say). The result is shown with a remove affordance: "I added protein, fibre and a weekly view." A **goal-attached or recurrence-worded ask** ("keep an eye on", "every week", "track") is standing at once and deepened in the background. Only a need **inferred from repetition** goes through the ladder and ends in a proposal.
+
+**Signals**, all cheap and journaled per request: (1) the ask's own words — recurrence ("every", "keep", "whenever", "track", "watch"), targets, scope; (2) repetition — count and periodicity of the same intent class (verb + object kind + connector); (3) hand cost — Alpha's effort on the last run (tool calls, seconds) and yours if observed; (4) substrate — does a connector exist, was the last run deterministic or exploratory; (5) goal attachment; (6) risk — outbound writes, money, third parties; (7) outcome — did the last run verifiably succeed, did you correct it.
+
+**The ladder.**
+
+- **Level 0 — do it.** First occurrence, no recurrence language, no goal: do it in the simplest durable form (a row in a collection Alpha creates on the spot — never a loose note) and journal the trajectory. "Log two eggs" with no diet module anywhere → a food-log table exists two seconds later with one row, and nothing else.
+- **Level 1 — candidate.** Recurrence language, or a second occurrence, or a goal attachment: the run is recorded as a parametrised template with its variable slots identified. Nothing is visible.
+- **Level 2 — standing.** Promote when (a) expected occurrences × hand cost clearly exceeds build plus upkeep, (b) at least one verified successful run exists — Voyager's rule, verify before you store — and (c) the abstraction is supported by two instances or an explicit recurrence ask. Procedures mined from behaviour without outcome verification transfer *negatively* (44.2% against 55.8% zero-shot, 2606.20363), so Alpha never keeps anything it has not seen work.
+  The kind follows the substrate: a repeated conversational procedure → **Skill**; deterministic steps across apps → **Workflow** (deterministic replay with the agent as fallback and self-repair — the workflow-use / Stagehand pattern, about 10× faster and 90% cheaper than re-running the agent); ownerless recurring work with a trigger → **Automation**; data that must persist and be seen → **Module** with collections and targets.
+- **Propose or just do.** A standing ask that only reads ("watch LinkedIn for backend jobs") → build it and show it, with one line and a remove affordance. Derived from repetition → propose in the digest or at a breakpoint, with the evidence ("you have logged meals six times this week — want targets and a weekly view?"). Anything that will write outbound → always propose, gates set at creation.
+- **Deepen.** When a module comes from a standing ask, a background pass researches what such a thing usually does and proposes the additions — never blocking the first entry. This is your diet example end to end: the table now; "protein, fibre, targets from height and weight?" later, as a card; and, weeks on, the sleep-time pass noticing workout entries in another module and proposing a target change.
+- **Junk avoidance.** Create only from verified runs; abstract, never clone (dedupe by behavioural equivalence); every artifact carries provenance, a test and a triggering description; unused for N cycles → demoted to candidate; failing twice → fallback and a repair task, never silent retries; a rejected proposal suppresses that class for a long cooldown; removal deletes everything related.
+
+---
+
+## 7. Trust and governance
+
+- Every action is journaled: connector, tool, input, output, who approved, what changed. That *is* Activity, and it is the audit.
+- Outbound writes are pending actions the companion shows; your yes runs them. Standing permissions arrive later, per kind ("you can always update an application's status"), learned from your answers and gated by confidence through the System One seam.
+- Undo where the connector allows; where it does not, the journal shows exactly what was sent.
+- An Access page: every connection, what it reaches and at what level, every grant to a skill.
+- Source content is data, never instruction: an email cannot tell Alpha what to do.
+
+---
+
+## 8. Workspace and companion
+
+The workspace is where the person *works* — their tables, their flows, their connected apps in one place — with the companion beside it; it is also where they check what Alpha did. Alpha is a work tool with a companion, not a personal assistant with a window. Every surface answers one of three questions: what needs me, what do I have, what did Alpha do and why. (Research: `design/research/workspace-ui.md`.)
+
+**Rail:** Today · Modules (listed directly, grouped by project when there is one) · People & Companies · Intelligence · Activity. Search everything with ⌘K. Gone: the Home wizard, the technical Settings groups, the session switcher.
+
+- **Today** — two lanes. *Needs you*: outbound actions, questions, drafts — each card is the action in plain words, the evidence it rests on, one line of "because…", and Yes / Change / Not now; decide-once for recurring senders and sources. Approval is per action; a plan preview exists only for multi-step work and still gates the consequential step — plan approval was found to lower scrutiny during execution: of problematic actions that reached execution, users blocked only 21% (2604.04918). *Digest*: the twice-daily brief as sectioned cards (top actions, calendar, follow-ups, noticed), each with thumbs and "why am I seeing this", expiring at the next digest unless kept — a destination that resets, never a feed (the one proactive UI that survived with users, ChatGPT Pulse). Badge only for Needs-you. Onboarding is Today's empty state.
+- **Module** — 2–4 summary cards Alpha chose; the derived views we already have (table, board, list, calendar, chart; inline edit; record panel; saved lists as named filters); "What runs here" (its automations as sentences with next run) and "Recent changes" (Alpha's edits, each undoable); the conversation scoped to it, with its threads.
+- **Person / Company** — facts with a provenance popover (source, date seen, valid from/until) and an inline "wrong?"; a cross-source timeline (emails, meetings, messages, pages read, turns that mention them, Alpha's actions about them — the personal-CRM pattern of Clay, Folk and Attio); related records and modules; keep-in-touch as a card, never a setting.
+- **Intelligence** — *Skills*: what Alpha can do, each a plain description, runnable from there, with its runs and evidence; "remember how I do this" makes one. *Automations*: every flow across modules as a sentence with its trigger and next run, on/off. *Connections*: every app and site — connected / needs your OK / broken, fixing — what each can reach and which modules use it. *Knowledge*: facts with provenance, standing instructions and standing permissions as editable sentences, goals, Alpha's notes. Everything here is a sentence that can be switched or corrected in plain words; no configuration forms.
+- **Activity** — what Alpha did, chronological, filterable by module or person; statuses only Done / Waiting for you / Stopped / Failed; each row: what, because of which instruction, evidence, Undo with a stated window or "cannot be undone" said before the yes. Opening a row shows *what was asked, what was done, what was assumed* as a checklist (✓ done / ? unknown / ✗ contradicted) before any trace: reviewers shown action traces missed errors in 50–83% of tasks, while the checklist-plus-assumptions view reached 77% accuracy against 57–63% (2602.16844). The verbatim journal lives here, search-first and grouped by day, with per-source "forget this" — not a scrubbable timeline (Rewind's lesson, Recall's backlash).
+- **Conversation** — one stream on the right, collapsible, scoped by the page; threads as cards; answers cite the records they used. Nothing requires it: the rail and ⌘K are sufficient.
+- **Companion** — a non-activating floating panel on all Spaces showing a presence state (idle / listening / working / needs you — a visible state cut disruption 4.6→3.8 in CHI 2025), at most one line and one action, deep-linking to the exact card in the window; the same stream and threads; a keyboard path for every voice action.
+- **Visual** — light, native and spatially stable (Things 3 / Craft rather than developer-tool density): system font, two panes, optimistic updates with undo, motion only for state change, light and dark from day one. Nothing technical shows anywhere.
+
+**Layout and look stay as they are today** (Kenil, 1 October, after seeing a lighter redesign: "keep it similar to current alpha"): the 224px rail with the brand mark, Home, Activity, projects, modules, New and the theme control; serif headings and metric numbers; the module page with its App · Activity · Settings toggle and subtabs; the table toolbar with view toggles and the record drawer; the 380px assistant panel with its header and "uses your Claude subscription" footer; the blob companion with its bubble. The new content (Needs you, the brief, People, threads, provenance, undo, Knowledge) is placed inside that structure. Prototype: https://claude.ai/artifact/5xNamEYxSyYRoGtnX7bQyQ.
+
+---
+
+## 9. Model route
+
+- **Now:** Claude Code sessions on your subscription, with Alpha's world exposed as an MCP server (tools: search, query, entity, facts, notes, collections, skills, connectors, propose, ask, journal). Claude Code brings agentic retrieval, compaction, skills, Claude in Chrome and Anthropic's Gmail and Calendar connectors at no extra cost. A turn is `claude -p` with the pre-pack; background runs are isolated sessions; sleep time is one session.
+- **Later:** the Anthropic API behind the same tool surface with our own loop; Jev or Laya at the System One seam.
+- **Planned to break on the switch:** Claude in Chrome (→ the Chrome 144 bridge) and Anthropic's connectors (→ our own Google app, CASA for Gmail).
+
+---
+
+## 10. Repository and what we carry
+
+A new repository. Suggested shape:
+
+```
+core/        world store (journal, entities, facts, collections, notes, goals),
+             sensors, triage, scheduler, connector registry, runtime, HTTP API
+mcp/         the world as tools for the model
+connectors/  built-in: browser, files, calendar; later mail, contacts, notes
+skills/      built-in procedures
+desktop/     Tauri + React: companion and workspace
+tests/  docs/
+```
+
+Carried over with their tests, and only where the design calls for that exact thing: `browser_session.mjs`; `voice.tsx`; `avatar/*`; `DataPage.tsx` re-fitted to one store; the record store's compare-and-swap writes and provenance; `sessions.py` (verbatim turns with FTS5); `profile.py` generalised into facts; `scheduler.py`; `harness_claude_cli.py`; `models/gateway` and `structured`. Never the app contract, the build pipeline, the planner, the verifier, the workers, or per-module stores.
+
+**Order of work** (no dates): (1) the world store — journal, notes, collections, goals — the MCP server, the stream with threads, and a companion turn that does Level 0; this is the notes-first milestone inside the full design and gives a working companion first. (2) Browser, files and calendar connectors, and the derived pages in the workspace. (3) Sensors, triage, the sleep-time pass, the digest, the Inbox. (4) The entity registry and bi-temporal facts across sources. (5) The standing-things ladder with promotion from verified runs. (6) Pending actions and Access. Then email, contacts, the Chrome 144 bridge and the API route. The two judging journeys — diet; LinkedIn and jobs — are run through the system at every step and never wired into it.
+
+---
+
+## 11. Decisions
+
+**Decided 30 September 2026:** Kenil accepted every recommendation below except Q1. No Apple Developer ID for now; local builds are signed with a self-signed certificate so macOS permission grants survive rebuilds, and a Developer ID is taken up only when the app is distributed.
+
+| | Decision | My recommendation |
+|---|---|---|
+| **Q1** | Get an Apple Developer ID now ($99/yr)? Without a stable signature, every Calendar, Contacts and Full-Disk grant is lost on each rebuild. | Yes, now. |
+| **Q2** | Process topology: the Python core as a child of the Tauri app (inherits permissions; the app is the always-on process, launched at login with a menu-bar item) or a separate daemon. | Child of the app. |
+| **Q3** | LinkedIn: read in your own Chrome at human pace, propose outreach, you send — or bulk export and automated outreach, the pattern LinkedIn enforces against. | The first. |
+| **Q4** | Google: keep Gmail out of scope until a Google app and CASA are justified; use Anthropic's Gmail connector on the subscription meanwhile. | Agree. |
+| **Q5** | Low-stakes facts (units, quiet hours): may Alpha accept them silently with a visible trail, asking only for facts that change behaviour? | Silent for low-stakes. |
+| **Q6** | Digest rhythm: two fixed times a day, set once by you. | Fixed, not learned. |
+| **Q7** | First weeks: digest and cards only, no notifications until trust is built. | Yes. |
+| **Q8** | May Alpha make read-only standing things (a watcher, a table) unasked at Level 2 and just show them, or must it always propose first? | Make-and-show for read-only; propose for everything else. |
+| **Q9** | Screen capture: confirm not in v1. | Not in v1. |
+| **Q10** | The internal daily compute budget: a hidden policy (Alpha batches more and says nothing) or may Alpha mention it? | Hidden. |
+| **Q11** | Names: is the About-you material called "Knowledge" inside Intelligence, and are "Today" and "Activity" the right words? | Your call. |
+| **Q12** | Standing permissions as learned, editable *sentences* in Knowledge ("you can always add calendar events") — behaviour, not a settings matrix — or a fresh yes for every outbound action, forever? | Sentences, learned from your answers. |
+| **Q13** | Undo: state the window on every action; irreversible ones (a sent message) say so before the yes. | Yes. |
+| **Q14** | The verbatim journal: search-first with day grouping inside Activity, or a browsable timeline? | Search-first. |
+| **Q15** | Correcting a fact or merging two people: inline on the page *and* by telling the companion? | Both. |
+| **Q16** | Digest: two fixed times, each shown at the first task boundary after it. | Yes. |
+
+---
+
+### Appendix — research behind this
+
+- `design/research/memory-and-context.md` — 19 systems compared; eight strongest findings; three candidate architectures and the ranking.
+- `design/research/connectors-and-sources.md` — connector platforms, browser control options, macOS native sources, the connector shape, build vs leverage.
+- `design/research/proactivity-and-standing-things.md` — 17 proactive products, interruption evidence, the four-layer mechanism, the standing-things ladder.
+- `design/research/workspace-ui.md` — 25 second-brain products and 20 agent workspaces compared; the review, approval and explanation evidence; the recommended information architecture.
+- Jev / System One models: TypeSafe docs and cookbooks, arXiv 2609.30216, the Laya comparison (summarised in the chat of 30 Sept 2026).

@@ -1,0 +1,20 @@
+[project]
+name = "alpha"
+version = "0.1.0"
+description = "Alpha's core: the world store, the pre-pack, the turn runtime and the MCP server that hands the world to the model."
+requires-python = "==3.13.9"
+dependencies = [
+    "fastmcp==4.0.10",
+    "mcp==2.2.0",
+    "pydantic==2.13.5",
+]
+
+[project.scripts]
+alpha = "alpha.cli:main"
+
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["alpha"]

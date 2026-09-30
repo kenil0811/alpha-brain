@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.alpha/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.DS_Store
+node_modules/
+dist/

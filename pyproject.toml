@@ -1,0 +1,40 @@
+[project]
+name = "alpha-brain-workspace"
+version = "0.1.0"
+description = "Alpha: an agentic second brain. Workspace root (uv), not a distributable package."
+requires-python = "==3.13.9"
+dependencies = ["alpha"]
+
+[tool.uv]
+required-version = "==0.12.17"
+package = false
+
+[tool.uv.workspace]
+members = ["core"]
+
+[tool.uv.sources]
+alpha = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.16.9",
+    "mypy==2.3.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["core/alpha", "core/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["core/tests"]
+addopts = "-p no:cacheprovider"
