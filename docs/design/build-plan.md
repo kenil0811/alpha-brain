@@ -26,8 +26,9 @@ what the first slice is exactly, and what follows.
   structure. Clickable prototype: https://claude.ai/artifact/5xNamEYxSyYRoGtnX7bQyQ (version 2);
   its source is `alpha-workspace.html` in the session scratchpad and should be copied into
   `desktop/` when the shell is ported.
-- **This repository** was created on 1 Oct with the scaffold only (pyproject, justfile, docs).
-  No core code exists yet; the first slice below is the next thing to build.
+- **This repository** was created on 1 Oct. **Slice 1 is built** (1 Oct, see §3.9 for what ran):
+  world store, pre-pack, the `claude -p` runtime, the MCP server with 31 tools, the turn, the
+  CLI; 25 tests, ruff and mypy strict clean. Next is slice 2.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -164,7 +165,8 @@ claude -p <sentence>
   --mcp-config <tmpfile.json> --strict-mcp-config
   --allowedTools mcp__alpha WebSearch WebFetch
   --disallowedTools Bash Edit Write NotebookEdit
-  --permission-mode default --permission-prompts none
+  --permission-mode dontAsk --permission-prompts none   ("default" is not a mode in 2.1.278;
+                                                          dontAsk refuses anything not allowed)
   --setting-sources ""
   --model $ALPHA_MODEL (default "sonnet")
   --max-turns 20
@@ -243,6 +245,19 @@ config). `ALPHA_HOME` overrides the data directory; `ALPHA_MODEL` the model alia
 - **Acceptance is a real run**, never a surrogate (the rule from 30 Sept): `just ask "log two
   boiled eggs"` on the subscription, then `just ask "how much have I eaten today"`, with the
   actual replies and `alpha show food` pasted into the commit message or the direction log.
+
+### 3.9 What ran (1 Oct 2026, 00:33–00:34 local, Sonnet on the subscription, scratch world)
+
+| Said | Steps · time | What Alpha did | Reply (verbatim, trimmed) |
+|---|---|---|---|
+| log two boiled eggs | 5 · 13.8 s | made the module Food and the table Food Log (date, item, quantity, unit, calories, protein_g, carbs_g, fat_g, notes); added the row, estimated | "Logged 2 boiled eggs (~156 kcal, 12g protein, 11g fat, 1g carb — estimated) in the new Food module's Food Log table." |
+| had a flat white and a chicken salad for lunch | 5 · 9.6 s | added two rows to the existing table, estimated | "Logged lunch: flat white (~130 kcal) and chicken salad (~400 kcal) … today's total so far to ~686 kcal across 4 items." |
+| how much have I eaten today, and how much protein | 4 · 11.4 s | aggregated the table | "Today you've had ~686 kcal and ~53g protein across 3 entries …" |
+| I want to properly track my calories and nutrition. I'm 178 cm and 78 kg, and I want to stay under 2000 kcal on weekdays. | 7 · 18.7 s | accepted facts height_cm 178, weight_kg 78; goal "Stay under 2000 kcal on weekdays"; opened a deepen thread; reused the table | "Saved your height … set an active goal … opened a thread to flesh out the tracking further … Everything lives in the Food module." |
+
+Every change is in the journal with its turn (`alpha journal`). Found: the second reply said
+"4 items" for 3 rows (it counted the two eggs); the deepen thread opens but nothing runs it yet
+(slice 3); the per-turn cost estimate the CLI reports is about $0.02–0.05 on Sonnet.
 
 ## 4. What follows (from the design's order of work)
 

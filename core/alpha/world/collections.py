@@ -1,0 +1,443 @@
+"""Collections: the tables Alpha designs per topic. The records in them are the person's data.
+
+A collection has typed fields; values are validated on every write so a table stays usable by
+pages, queries and other modules. Writes are compare-and-swap on the record's revision: zero
+affected rows is a conflict, never a silent success. A schema may only grow (new optional fields,
+wider choices) so saved records never lose meaning.
+"""
+
+from __future__ import annotations
+
+import re
+import sqlite3
+from datetime import date, datetime
+from typing import Any
+
+from alpha.world.store import Problem, Store, dumps, fts_query, loads, new_id, now
+
+FIELD_KINDS = {
+    "text",
+    "long_text",
+    "number",
+    "date",
+    "datetime",
+    "bool",
+    "choice",
+    "multichoice",
+    "status",
+    "url",
+    "relation",
+}
+NAME = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
+SYSTEM_FIELDS = {"id", "created_at", "updated_at"}
+OPS = {"eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "is_null"}
+AGGREGATES = {"count", "sum", "avg", "min", "max"}
+
+
+def _check_name(name: str, what: str) -> None:
+    if not NAME.match(name):
+        raise Problem(
+            f"'{name}' can't be a {what} name: use lower-case letters, digits and underscores,"
+            " starting with a letter (e.g. food_log)."
+        )
+
+
+def normalise_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not fields:
+        raise Problem("A table needs at least one field.")
+    seen: set[str] = set()
+    out = []
+    for raw in fields:
+        name = str(raw.get("name", ""))
+        _check_name(name, "field")
+        if name in SYSTEM_FIELDS:
+            raise Problem(f"'{name}' is kept for every record already; pick another field name.")
+        if name in seen:
+            raise Problem(f"The field '{name}' appears twice.")
+        seen.add(name)
+        kind = str(raw.get("kind", "text"))
+        if kind not in FIELD_KINDS:
+            raise Problem(f"'{kind}' is not a field kind; use one of {sorted(FIELD_KINDS)}.")
+        field: dict[str, Any] = {"name": name, "kind": kind}
+        if raw.get("label"):
+            field["label"] = str(raw["label"])
+        if raw.get("unit"):
+            field["unit"] = str(raw["unit"])
+        if raw.get("required"):
+            field["required"] = True
+        if kind in {"choice", "multichoice", "status"}:
+            choices = [str(c) for c in raw.get("choices") or []]
+            if not choices:
+                raise Problem(f"The {kind} field '{name}' needs its choices.")
+            field["choices"] = choices
+            if kind == "status" and raw.get("done_choices"):
+                field["done_choices"] = [str(c) for c in raw["done_choices"]]
+        if kind == "relation":
+            target = raw.get("relation")
+            if not target:
+                raise Problem(
+                    f"The relation field '{name}' needs 'relation': a collection name or"
+                    " 'entity:person' / 'entity:organisation'."
+                )
+            field["relation"] = str(target)
+        out.append(field)
+    return out
+
+
+def _coerce(field: dict[str, Any], value: Any) -> Any:
+    name, kind = field["name"], field["kind"]
+    if value is None:
+        return None
+    try:
+        if kind in {"text", "long_text", "url", "relation"}:
+            text = str(value)
+            if kind == "url" and not re.match(r"^https?://", text):
+                raise ValueError("a web address starting with http:// or https://")
+            return text
+        if kind == "number":
+            if isinstance(value, bool):
+                raise ValueError("a number")
+            number = float(value)
+            return int(number) if number.is_integer() else number
+        if kind == "bool":
+            if isinstance(value, bool):
+                return value
+            if str(value).lower() in {"true", "yes", "1"}:
+                return True
+            if str(value).lower() in {"false", "no", "0"}:
+                return False
+            raise ValueError("true or false")
+        if kind == "date":
+            return date.fromisoformat(str(value)[:10]).isoformat()
+        if kind == "datetime":
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00")).isoformat()
+        if kind in {"choice", "status"}:
+            text = str(value)
+            if text not in field["choices"]:
+                raise ValueError(f"one of {field['choices']}")
+            return text
+        if kind == "multichoice":
+            items = [str(v) for v in (value if isinstance(value, list) else [value])]
+            bad = [v for v in items if v not in field["choices"]]
+            if bad:
+                raise ValueError(f"values from {field['choices']}")
+            return items
+    except ValueError as e:
+        raise Problem(f"'{name}' must be {e.args[0] if e.args else kind}; got {value!r}.") from e
+    return value
+
+
+def _search_text(values: dict[str, Any]) -> str:
+    parts = []
+    for v in values.values():
+        if isinstance(v, str):
+            parts.append(v)
+        elif isinstance(v, list):
+            parts.extend(str(x) for x in v)
+    return " ".join(parts)
+
+
+def record_view(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "revision": row["revision"],
+        **loads(row["values"], {}),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "_provenance": loads(row["provenance"], {}),
+    }
+
+
+class Collections:
+    def __init__(self, store: Store) -> None:
+        self.store = store
+
+    # ---- tables ----
+
+    def create(
+        self,
+        name: str,
+        title: str,
+        fields: list[dict[str, Any]],
+        *,
+        module: str | None = None,
+        title_field: str | None = None,
+    ) -> dict[str, Any]:
+        _check_name(name, "table")
+        if self.store.one("SELECT 1 FROM collections WHERE name = ?", (name,)):
+            raise Problem(f"A table named '{name}' exists already; describe it or add fields.")
+        schema = {"fields": normalise_fields(fields)}
+        names = [f["name"] for f in schema["fields"]]
+        if title_field is None:
+            title_field = next(
+                (f["name"] for f in schema["fields"] if f["kind"] == "text"), names[0]
+            )
+        elif title_field not in names:
+            raise Problem(f"The title field '{title_field}' is not one of the fields {names}.")
+        stamp = now()
+        with self.store.tx() as db:
+            db.execute(
+                "INSERT INTO collections (name, module, title, schema, title_field, created_at,"
+                " updated_at) VALUES (?,?,?,?,?,?,?)",
+                (name, module, title, dumps(schema), title_field, stamp, stamp),
+            )
+        return self.describe(name)
+
+    def add_fields(self, name: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
+        """Grow a table. New fields are optional, so existing records stay valid."""
+        current = self._schema(name)
+        existing = {f["name"] for f in current["fields"]}
+        added = normalise_fields(fields)
+        for f in added:
+            if f["name"] in existing:
+                raise Problem(f"'{name}' already has a field '{f['name']}'.")
+            f.pop("required", None)
+        current["fields"].extend(added)
+        with self.store.tx() as db:
+            db.execute(
+                "UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
+                (dumps(current), now(), name),
+            )
+        return self.describe(name)
+
+    def describe(self, name: str) -> dict[str, Any]:
+        row = self.store.one("SELECT * FROM collections WHERE name = ?", (name,))
+        if row is None:
+            raise Problem(f"There is no table '{name}'. Existing tables: {self.names()}.")
+        count = self.store.one(
+            "SELECT COUNT(*) AS n FROM records WHERE collection = ? AND deleted_at IS NULL",
+            (name,),
+        )
+        return {
+            "name": row["name"],
+            "title": row["title"],
+            "module": row["module"],
+            "title_field": row["title_field"],
+            "fields": loads(row["schema"])["fields"],
+            "records": count["n"] if count else 0,
+            "created_at": row["created_at"],
+        }
+
+    def names(self) -> list[str]:
+        return [r["name"] for r in self.store.all("SELECT name FROM collections ORDER BY name")]
+
+    def overview(self, module: str | None = None) -> list[dict[str, Any]]:
+        rows = self.store.all(
+            "SELECT c.name, c.title, c.module, COUNT(r.id) AS n FROM collections c"
+            " LEFT JOIN records r ON r.collection = c.name AND r.deleted_at IS NULL"
+            + (" WHERE c.module = ?" if module is not None else "")
+            + " GROUP BY c.name ORDER BY c.module, c.name",
+            (module,) if module is not None else (),
+        )
+        return [
+            {"name": r["name"], "title": r["title"], "module": r["module"], "records": r["n"]}
+            for r in rows
+        ]
+
+    def _schema(self, name: str) -> dict[str, Any]:
+        row = self.store.one("SELECT schema FROM collections WHERE name = ?", (name,))
+        if row is None:
+            raise Problem(f"There is no table '{name}'. Existing tables: {self.names()}.")
+        schema: dict[str, Any] = loads(row["schema"])
+        return schema
+
+    def _validate(
+        self, name: str, values: dict[str, Any], *, partial: bool
+    ) -> dict[str, Any]:
+        fields = {f["name"]: f for f in self._schema(name)["fields"]}
+        unknown = [k for k in values if k not in fields]
+        if unknown:
+            raise Problem(
+                f"'{name}' has no field {unknown}; its fields are {list(fields)}."
+                " Add a field first if it is needed."
+            )
+        clean = {k: _coerce(fields[k], v) for k, v in values.items()}
+        if not partial:
+            missing = [f for f, spec in fields.items() if spec.get("required") and
+                       clean.get(f) in (None, "", [])]
+            if missing:
+                raise Problem(f"'{name}' needs {missing} for every record.")
+        return clean
+
+    # ---- records ----
+
+    def add(
+        self, name: str, values: dict[str, Any], provenance: dict[str, Any]
+    ) -> dict[str, Any]:
+        clean = self._validate(name, values, partial=False)
+        rid = new_id("r")
+        stamp = now()
+        with self.store.tx() as db:
+            db.execute(
+                'INSERT INTO records (collection, id, revision, "values", provenance, created_at,'
+                " updated_at) VALUES (?,?,?,?,?,?,?)",
+                (name, rid, 1, dumps(clean), dumps(provenance), stamp, stamp),
+            )
+            db.execute(
+                "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
+                (name, rid, _search_text(clean)),
+            )
+        return self.get(name, rid)
+
+    def get(self, name: str, rid: str) -> dict[str, Any]:
+        row = self.store.one(
+            "SELECT * FROM records WHERE collection = ? AND id = ? AND deleted_at IS NULL",
+            (name, rid),
+        )
+        if row is None:
+            raise Problem(f"There is no record {rid} in '{name}'.")
+        return record_view(row)
+
+    def update(
+        self,
+        name: str,
+        rid: str,
+        values: dict[str, Any],
+        revision: int,
+        provenance: dict[str, Any],
+    ) -> dict[str, Any]:
+        clean = self._validate(name, values, partial=True)
+        current = self.get(name, rid)
+        merged = {k: v for k, v in current.items() if k not in SYSTEM_FIELDS | {"revision",
+                                                                                "_provenance"}}
+        merged.update(clean)
+        with self.store.tx() as db:
+            cur = db.execute(
+                'UPDATE records SET "values" = ?, revision = revision + 1, provenance = ?,'
+                " updated_at = ? WHERE collection = ? AND id = ? AND revision = ?"
+                " AND deleted_at IS NULL",
+                (dumps(merged), dumps(provenance), now(), name, rid, revision),
+            )
+            if cur.rowcount == 0:
+                raise Problem(
+                    f"Record {rid} changed since revision {revision}; read it again and retry."
+                )
+            db.execute(
+                "DELETE FROM records_fts WHERE collection = ? AND record_id = ?", (name, rid)
+            )
+            db.execute(
+                "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
+                (name, rid, _search_text(merged)),
+            )
+        return self.get(name, rid)
+
+    def delete(self, name: str, rid: str, revision: int) -> None:
+        with self.store.tx() as db:
+            cur = db.execute(
+                "UPDATE records SET deleted_at = ? WHERE collection = ? AND id = ?"
+                " AND revision = ? AND deleted_at IS NULL",
+                (now(), name, rid, revision),
+            )
+            if cur.rowcount == 0:
+                raise Problem(
+                    f"Record {rid} changed since revision {revision} or is gone; read it again."
+                )
+            db.execute(
+                "DELETE FROM records_fts WHERE collection = ? AND record_id = ?", (name, rid)
+            )
+
+    # ---- reading ----
+
+    def _where(
+        self, name: str, where: dict[str, Any] | None
+    ) -> tuple[str, list[Any]]:
+        fields = {f["name"]: f for f in self._schema(name)["fields"]}
+        clauses = ["collection = ?", "deleted_at IS NULL"]
+        args: list[Any] = [name]
+        for key, cond in (where or {}).items():
+            if key in {"created_at", "updated_at"}:
+                expr = key
+            elif key in fields:
+                expr = f"json_extract(\"values\", '$.{key}')"
+            else:
+                raise Problem(f"'{name}' has no field '{key}' to filter on.")
+            conds = cond if isinstance(cond, dict) else {"eq": cond}
+            for op, value in conds.items():
+                if op not in OPS:
+                    raise Problem(f"'{op}' is not a filter; use one of {sorted(OPS)}.")
+                if op == "is_null":
+                    clauses.append(f"{expr} IS {'NULL' if value else 'NOT NULL'}")
+                elif op == "contains":
+                    clauses.append(f"LOWER({expr}) LIKE ?")
+                    args.append(f"%{str(value).lower()}%")
+                elif op == "in":
+                    items = value if isinstance(value, list) else [value]
+                    clauses.append(f"{expr} IN ({','.join('?' * len(items))})")
+                    args.extend(items)
+                else:
+                    sql_op = {"eq": "=", "ne": "!=", "gt": ">", "gte": ">=", "lt": "<",
+                              "lte": "<="}[op]
+                    clauses.append(f"{expr} {sql_op} ?")
+                    args.append(value)
+        return " AND ".join(clauses), args
+
+    def query(
+        self,
+        name: str,
+        where: dict[str, Any] | None = None,
+        order: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        clause, args = self._where(name, where)
+        fields = {f["name"] for f in self._schema(name)["fields"]}
+        order_sql = "created_at DESC"
+        if order:
+            desc = order.startswith("-")
+            key = order.lstrip("-")
+            if key in {"created_at", "updated_at"}:
+                col = key
+            elif key in fields:
+                col = f"json_extract(\"values\", '$.{key}')"
+            else:
+                raise Problem(f"'{name}' has no field '{key}' to sort by.")
+            order_sql = f"{col} {'DESC' if desc else 'ASC'}"
+        rows = self.store.all(
+            f"SELECT * FROM records WHERE {clause} ORDER BY {order_sql} LIMIT ?",
+            (*args, max(1, min(limit, 500))),
+        )
+        return [record_view(r) for r in rows]
+
+    def aggregate(
+        self,
+        name: str,
+        op: str,
+        field: str | None = None,
+        where: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if op not in AGGREGATES:
+            raise Problem(f"'{op}' is not an aggregate; use one of {sorted(AGGREGATES)}.")
+        clause, args = self._where(name, where)
+        if op == "count":
+            row = self.store.one(f"SELECT COUNT(*) AS v FROM records WHERE {clause}", tuple(args))
+            return {"op": op, "value": row["v"] if row else 0}
+        fields = {f["name"]: f for f in self._schema(name)["fields"]}
+        if field not in fields or fields[field]["kind"] != "number":
+            raise Problem(f"'{op}' needs a number field of '{name}'; got {field!r}.")
+        row = self.store.one(
+            f"SELECT {op.upper()}(CAST(json_extract(\"values\", '$.{field}') AS REAL)) AS v,"
+            f" COUNT(*) AS n FROM records WHERE {clause}",
+            tuple(args),
+        )
+        value = row["v"] if row else None
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        elif isinstance(value, float):
+            value = round(value, 2)
+        return {"op": op, "field": field, "value": value, "records": row["n"] if row else 0}
+
+    def search(self, text: str, limit: int = 10) -> list[dict[str, Any]]:
+        query = fts_query(text)
+        if query is None:
+            return []
+        rows = self.store.all(
+            "SELECT f.collection, f.record_id, snippet(records_fts, 2, '[', ']', '…', 12) AS snip,"
+            " r.updated_at FROM records_fts f JOIN records r ON r.collection = f.collection"
+            " AND r.id = f.record_id WHERE records_fts MATCH ? AND r.deleted_at IS NULL"
+            " ORDER BY bm25(records_fts), r.updated_at DESC LIMIT ?",
+            (query, max(1, min(limit, 100))),
+        )
+        return [
+            {"collection": r["collection"], "id": r["record_id"], "snippet": r["snip"],
+             "updated_at": r["updated_at"]}
+            for r in rows
+        ]
