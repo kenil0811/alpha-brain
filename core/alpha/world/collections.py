@@ -279,6 +279,79 @@ class Collections:
             )
         return self.get(name, rid)
 
+    def upsert(
+        self, name: str, key: str, rows: list[dict[str, Any]], provenance: dict[str, Any],
+        *, fill_only: set[str] | None = None,
+    ) -> dict[str, Any]:
+        """Add or update many records at once, matching on `key` (e.g. a URL). A record whose
+        values didn't change is left alone. Fields in `fill_only` are written only where the
+        record has no value yet, so the person's own edits (tags, notes) are never overwritten.
+        Returns counts and the ids touched."""
+        fields = {f["name"] for f in self._schema(name)["fields"]}
+        if key not in fields:
+            raise Problem(f"'{name}' has no field '{key}' to match records on.")
+        existing: dict[str, sqlite3.Row] = {}
+        for row in self.store.all(
+            'SELECT * FROM records WHERE collection = ? AND deleted_at IS NULL', (name,)
+        ):
+            value = loads(row["values"], {}).get(key)
+            if value is not None:
+                existing[str(value)] = row
+        counts = {"added": 0, "updated": 0, "unchanged": 0, "skipped": 0}
+        touched: list[str] = []
+        seen: set[str] = set()
+        stamp = now()
+        for raw in rows:
+            match = raw.get(key)
+            if match in (None, "") or str(match) in seen:
+                counts["skipped"] += 1
+                continue
+            seen.add(str(match))
+            clean = self._validate(name, raw, partial=True)
+            prior = existing.get(str(match))
+            if prior is None:
+                clean = self._validate(name, raw, partial=False)
+                rid = new_id("r")
+                with self.store.tx() as db:
+                    db.execute(
+                        'INSERT INTO records (collection, id, revision, "values", provenance,'
+                        " created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                        (name, rid, 1, dumps(clean), dumps(provenance), stamp, stamp),
+                    )
+                    db.execute(
+                        "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
+                        (name, rid, _search_text(clean)),
+                    )
+                counts["added"] += 1
+                touched.append(rid)
+                continue
+            current = loads(prior["values"], {})
+            merged = dict(current)
+            for k, v in clean.items():
+                if fill_only and k in fill_only and current.get(k) not in (None, "", []):
+                    continue
+                merged[k] = v
+            if merged == current:
+                counts["unchanged"] += 1
+                continue
+            with self.store.tx() as db:
+                db.execute(
+                    'UPDATE records SET "values" = ?, revision = revision + 1, provenance = ?,'
+                    " updated_at = ? WHERE collection = ? AND id = ?",
+                    (dumps(merged), dumps(provenance), stamp, name, prior["id"]),
+                )
+                db.execute(
+                    "DELETE FROM records_fts WHERE collection = ? AND record_id = ?",
+                    (name, prior["id"]),
+                )
+                db.execute(
+                    "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
+                    (name, prior["id"], _search_text(merged)),
+                )
+            counts["updated"] += 1
+            touched.append(prior["id"])
+        return {**counts, "ids": touched}
+
     def get(self, name: str, rid: str) -> dict[str, Any]:
         row = self.store.one(
             "SELECT * FROM records WHERE collection = ? AND id = ? AND deleted_at IS NULL",

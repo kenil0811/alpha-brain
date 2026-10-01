@@ -186,6 +186,79 @@ class Tools:
         return rec
 
     @tool
+    def records_upsert(
+        self, collection: str, key_field: str, rows: list[dict[str, Any]],
+        keep_person_fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Add or update many records in one call, matching on key_field (e.g. url or email):
+        new ones are added, changed ones updated, unchanged ones left alone. Use it for
+        anything synced from a source. keep_person_fields: fields only written where the record
+        has none yet (tags, notes, priority the person sets), so syncs never overwrite them."""
+        result = self.world.collections.upsert(
+            collection, key_field, rows, {"by": "alpha", "turn": self.turn},
+            fill_only=set(keep_person_fields or []),
+        )
+        desc = self.world.collections.describe(collection)
+        self._did(
+            "did",
+            f"Synced {desc['title']}: {result['added']} new, {result['updated']} updated,"
+            f" {result['unchanged']} unchanged.",
+            {"collection": collection, **{k: v for k, v in result.items() if k != "ids"}},
+            desc["module"],
+        )
+        return {k: v for k, v in result.items() if k != "ids"}
+
+    @tool
+    def page_to_table(
+        self,
+        url: str,
+        link_contains: str,
+        collection: str,
+        fields: dict[str, str],
+        to_end: bool = True,
+        keep_person_fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Read a list page (through the person's sign-in where they connected the site), take
+        one item per distinct link whose address contains link_contains (e.g. "/in/" for
+        people on LinkedIn, "/jobs/view/" for openings), and save every item into a table in
+        one go, matched on its link so repeat runs update rather than duplicate. fields maps
+        table fields to what to take from each item: "url", "text" (the link's words, e.g. a
+        name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
+        words, e.g. a headline). The url-mapped field is the key. Use it for any list that
+        should be kept whole and current; then refine individual rows if needed."""
+        sources = {"url", "text", "near", "near_without_text"}
+        bad = [v for v in fields.values() if v not in sources]
+        if bad:
+            raise Problem(f"fields must map to one of {sorted(sources)}; got {bad}.")
+        key = next((f for f, src in fields.items() if src == "url"), None)
+        if key is None:
+            raise Problem("Map one table field to \"url\"; it is how items are matched.")
+        page = Browser(self.world).items(url, link_contains=link_contains, to_end=to_end,
+                                         turn=self.turn, module=self.module)
+        if page["needs_signin"]:
+            return {"needs_signin": True, "items": 0,
+                    "note": "The site asked for a sign-in; offer browser_signin."}
+        rows = [{f: item[src] for f, src in fields.items() if item.get(src)}
+                for item in page["items"]]
+        result = self.world.collections.upsert(
+            collection, key, rows, {"by": "alpha", "turn": self.turn, "source": url},
+            fill_only=set(keep_person_fields or []),
+        )
+        desc = self.world.collections.describe(collection)
+        self._did(
+            "did",
+            f"Read {len(page['items'])} from {page['title'] or url} into {desc['title']}:"
+            f" {result['added']} new, {result['updated']} updated, {result['unchanged']}"
+            " unchanged.",
+            {"collection": collection, "url": url, "items": len(page["items"]),
+             **{k: v for k, v in result.items() if k != "ids"}},
+            desc["module"],
+        )
+        return {"items": len(page["items"]), "signed_in": page["signed_in"],
+                **{k: v for k, v in result.items() if k != "ids"},
+                "sample": rows[:3]}
+
+    @tool
     def records_update(
         self, collection: str, id: str, values: dict[str, Any], revision: int
     ) -> dict[str, Any]:
@@ -381,13 +454,13 @@ class Tools:
 
     @tool
     def threads_list(self, state: str | None = None) -> list[dict[str, Any]]:
-        """Open pieces of work (builds, deepen passes, research, long jobs, topics)."""
+        """Open pieces of work (builds, research, automations running, topics)."""
         return self.world.modules.threads(state)
 
     @tool
     def thread_open(self, title: str, kind: str, module: str | None = None) -> dict[str, Any]:
         """Open a thread for work that will take more than this turn or a long to-and-fro:
-        kind build, deepen, research, job or topic. The person sees it as a card; its
+        kind build, research, job or topic. The person sees it as a card; its
         conversation stays out of the main stream."""
         module_id = self.world.modules.get(module)["id"] if module else None
         thread = self.world.modules.open_thread(title, kind, module_id)
@@ -470,6 +543,45 @@ class Tools:
         """Events overlapping start..end (ISO times, UTC or with an offset), each with
         attendees linked to person entities."""
         return Calendar(self.world).between(start, end)
+
+    # ---- automations ----
+
+    @tool
+    def automation_create(
+        self, title: str, schedule: str, procedure: str, module: str | None = None
+    ) -> dict[str, Any]:
+        """Make something run on its own from now on. title: the sentence the person reads,
+        e.g. "Every morning at 08:00, read your LinkedIn connections and update Network ›
+        LinkedIn Connections". schedule: "every 6h", "every 30m", "daily 08:00" or "weekly mon
+        08:00" (local time). procedure: exact instructions you will follow on each run, with
+        the tools, the URL, the table and the key field to use, and what counts as worth
+        telling the person. Do the first run yourself now, in this turn, before creating it.
+        Only things that read and update Alpha's own tables; never anything that sends,
+        posts or submits."""
+        module_id = self.world.modules.get(module)["id"] if module else self.module
+        thread = self.world.modules.open_thread(title, "job", module_id)
+        self.world.modules.update_thread(thread["id"], state="done")
+        auto = self.world.automations.create(title, schedule, procedure, module=module_id,
+                                             thread=thread["id"])
+        self._did("made", f"Set up: {title} ({auto['when']}).", {"automation": auto["id"]},
+                  module_id)
+        return auto
+
+    @tool
+    def automations_list(self) -> list[dict[str, Any]]:
+        """Everything that runs on its own, with when it runs next and how its last run went."""
+        return self.world.automations.all()
+
+    @tool
+    def automation_update(self, id: str, enabled: bool | None = None,
+                          schedule: str | None = None, procedure: str | None = None,
+                          title: str | None = None) -> dict[str, Any]:
+        """Change an automation: switch it off or on, change when it runs or what it does."""
+        auto = self.world.automations.update(id, enabled=enabled, schedule=schedule,
+                                             procedure=procedure, title=title)
+        self._did("changed", f"Changed: {auto['title']} ({'on' if auto['enabled'] else 'off'},"
+                  f" {auto['when']}).", {"automation": id}, auto["module"])
+        return auto
 
     # ---- the person ----
 

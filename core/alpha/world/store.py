@@ -193,6 +193,22 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_start ON events(starts_at);
 
+CREATE TABLE IF NOT EXISTS automations (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    module TEXT,
+    thread TEXT,
+    schedule TEXT NOT NULL,
+    procedure TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    next_run_at TEXT,
+    last_run_at TEXT,
+    last_result TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,

@@ -6,6 +6,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import type { Client, Connection, Intelligence as Data, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
+import { AutomationList } from "./Automations";
 
 export type IntelTab = "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
@@ -262,9 +263,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
           </div>
         </div>
       ) : tab === "automations" ? (
-        <div className="card">
-          <p className="empty">Nothing runs on its own yet. Ask Alpha to check something every morning, or to update a table when something changes, and it appears here as a sentence with a switch.</p>
-        </div>
+        <AutomationList client={client} items={data.automations} onChanged={onChanged} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />
       ) : (

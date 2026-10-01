@@ -109,6 +109,7 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   activity: JournalEntry[];
   note: Note | null;
   goals: Goal[];
+  automations: Automation[];
 }
 
 export interface NeedItem {
@@ -194,15 +195,31 @@ export interface Skill {
 
 export interface Intelligence {
   skills: Skill[];
-  automations: unknown[];
+  automations: Automation[];
   connections: Connection[];
   knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[] };
+}
+
+export interface Automation {
+  id: string;
+  title: string;
+  module: string | null;
+  thread: string | null;
+  schedule: string;
+  when: string;
+  procedure: string;
+  enabled: boolean;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_result: string | null;
+  last_error: string | null;
 }
 
 export interface Turn {
   id: string;
   state: "running" | "done" | "failed";
   text: string;
+  steps?: { at: string; kind: string; text: string }[];
   reply?: string;
   said?: string;
   replied?: string;
@@ -302,7 +319,10 @@ export class Client {
     return turn;
   }
 
-  answerAsk = (id: string, text: string) => this.call<{ answered: string }>("POST", `/api/asks/${id}/answer`, { text });
+  switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
+  runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
+
+  answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }

@@ -162,9 +162,23 @@ export function AssistantPanel({
       </button>
     );
   }
+  const steps = pending?.steps ?? [];
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status">
-      Working on it… <span className="faint">{elapsed} s</span>
+      <div>
+        Working on it… <span className="faint">{elapsed} s</span>
+      </div>
+      {steps.length ? (
+        <ul className="stages">
+          {steps.slice(-8).map((s, i) => (
+            <li key={`${s.at}-${i}`} className="stages__done">
+              ✓ {s.text}
+            </li>
+          ))}
+        </ul>
+      ) : elapsed > 8 ? (
+        <span className="faint">Researching and deciding; steps show here as they happen.</span>
+      ) : null}
     </div>
   ) : null;
 

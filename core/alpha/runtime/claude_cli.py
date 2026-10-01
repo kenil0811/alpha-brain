@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_MODEL = "sonnet"
-TIMEOUT_S = 300
-MAX_TURNS = 30
+TIMEOUT_S = 900
+MAX_TURNS = 80
 ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
 DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
 

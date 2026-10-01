@@ -7,6 +7,7 @@ import type { Client, ModuleDetail } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
+import { AutomationList } from "../shell/Automations";
 
 type Section = "app" | "activity" | "settings";
 
@@ -98,6 +99,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
                   </div>
                 ))}
               </div>
+              {detail.automations.length ? <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="" /> : null}
               {detail.note ? (
                 <div className="card textblock">
                   <h3>Alpha's note</h3>
@@ -129,9 +131,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
             <div className="section__head">
               <h2>What runs on its own</h2>
             </div>
-            <div className="card">
-              <p className="empty">Nothing runs on its own here yet. Ask Alpha to check or update something on a schedule and it shows up here with a switch.</p>
-            </div>
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here yet. Ask Alpha to keep something here current and it shows up with a switch." />
           </div>
           <div className="section">
             <div className="section__head">

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from alpha.world.automations import Automations
 from alpha.world.collections import Collections
 from alpha.world.entities import Entities
 from alpha.world.journal import Journal
@@ -35,6 +36,7 @@ class World:
         self.knowledge = Knowledge(self.store)
         self.entities = Entities(self.store)
         self.modules = Modules(self.store)
+        self.automations = Automations(self.store)
 
     def close(self) -> None:
         self.store.close()

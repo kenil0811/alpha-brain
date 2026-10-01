@@ -30,8 +30,8 @@ from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.runtime import deepen
 from alpha.runtime import turn as turns
+from alpha.runtime.automation import Scheduler
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
@@ -66,6 +66,10 @@ class SiteBody(BaseModel):
     site: str
 
 
+class SwitchBody(BaseModel):
+    enabled: bool
+
+
 class NoteBody(BaseModel):
     scope: str
     title: str
@@ -88,24 +92,19 @@ class Turns:
                                "started_at": datetime.now(UTC).isoformat()}
 
         def work() -> None:
+            def said(jid: str) -> None:
+                with self.lock:
+                    self.state[key]["said"] = jid
+
             try:
-                kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread}
+                kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread,
+                                          "on_said": said}
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
-                if body.thread:
-                    # Talking inside a thread is talking about that work; what they say
-                    # answers whatever the thread was waiting on.
-                    kwargs["rules"] = deepen.CONTINUE_RULES
-                    for a in self.world.journal.open_asks():
-                        if a["thread"] == body.thread:
-                            self.world.journal.append("answered", body.text, actor="person",
-                                                      data={"ask": a["id"]}, thread=body.thread)
                 out = turns.ask(self.world, body.text, **kwargs)
-                for tid in deepen.deepen_threads(self.world, out.opened):
-                    deepen.start(self.world, tid, **self._runner())
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
-                          "duration_ms": out.result.duration_ms, "opened": out.opened}
+                          "duration_ms": out.result.duration_ms}
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
             except Exception as e:
@@ -117,14 +116,18 @@ class Turns:
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
 
-    def _runner(self) -> dict[str, Any]:
-        return {"runner": self.runner} if self.runner is not None else {}
-
     def get(self, key: str) -> dict[str, Any]:
         with self.lock:
             if key not in self.state:
                 raise Problem(f"There is no turn {key}.")
-            return dict(self.state[key])
+            out = dict(self.state[key])
+        said = out.get("said")
+        out["steps"] = [
+            {"at": e["at"], "kind": e["kind"], "text": e["text"]}
+            for e in self.world.journal.recent(200)
+            if said and e["data"].get("turn") == said and e["kind"] != "replied"
+        ]
+        return out
 
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
@@ -182,6 +185,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     world = world or World()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     running = Turns(world, runner)
+    scheduler = Scheduler(world, runner)
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager
@@ -201,6 +205,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
             threading.Thread(target=poll, daemon=True, name="calendar-poll").start()
             stops.append(stop_calendar.set)
+            scheduler.start()
+            stops.append(scheduler.stop)
         yield
         for stop in stops:
             stop()
@@ -261,9 +267,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
-        if asked["thread"]:
-            deepen.continue_with_answer(world, asked["thread"], body.text, **running._runner())
-        return {"answered": jid, "continues": asked["thread"]}
+        # The answer is also the person's next message: Alpha carries on with it.
+        started = running.start(AskBody(text=body.text, module=asked["module"],
+                                        thread=asked["thread"]))
+        return {"answered": jid, "turn": started}
 
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
@@ -293,6 +300,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["activity"] = list(reversed(world.journal.recent(60, module=m["id"])))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
+        card["automations"] = world.automations.all(m["id"])
         return card
 
     @app.get("/api/tables/{name}", dependencies=[api])
@@ -376,7 +384,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             "skills": [{"name": m["name"], "title": m.get("title", m["name"]),
                         "description": m.get("description"), "tools": m.get("tools", []),
                         "origin": m.get("origin")} for m in manifests()],
-            "automations": [],
+            "automations": world.automations.all(),
             "connections": Connections(world.store).all(),
             "knowledge": {
                 "facts": world.knowledge.facts("person"),
@@ -415,6 +423,24 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if conn["connector"] == "browser":
             return Browser(world).refresh(conn["target"])
         raise Problem(f"Nothing to sync for {conn['connector']}.")
+
+    # ---- automations ----
+
+    @app.get("/api/automations", dependencies=[api])
+    def automations() -> list[dict[str, Any]]:
+        return world.automations.all()
+
+    @app.patch("/api/automations/{aid}", dependencies=[api])
+    def switch_automation(aid: str, body: SwitchBody) -> dict[str, Any]:
+        auto = world.automations.update(aid, enabled=body.enabled)
+        world.journal.append("changed", f"You switched {'on' if body.enabled else 'off'}:"
+                             f" {auto['title']}.", actor="person", module=auto["module"])
+        return auto
+
+    @app.post("/api/automations/{aid}/run", dependencies=[api])
+    def run_automation(aid: str) -> dict[str, Any]:
+        scheduler.run_now(aid)
+        return world.automations.get(aid)
 
     # ---- Activity, search, the conversation, turns, threads ----
 
