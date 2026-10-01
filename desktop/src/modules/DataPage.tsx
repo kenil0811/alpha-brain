@@ -19,9 +19,9 @@ const VIEWS: { id: PageView; label: string }[] = [
 ];
 /** Rows per page: by default as many as fit the window; the person can pick a fixed size, and
  * that choice becomes their default for every table. */
-type PageSize = "fit" | number;
-const PAGE_SIZES = [25, 50, 100, 250];
-const PAGE_SIZE_KEY = "alpha.rows-per-page";
+export type PageSize = "fit" | number;
+export const PAGE_SIZES = [25, 50, 100, 250];
+export const PAGE_SIZE_KEY = "alpha.rows-per-page";
 const FEWEST_ROWS = 5;
 
 interface SavedList {

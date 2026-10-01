@@ -12,8 +12,9 @@ import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { ModulePage } from "./modules/ModulePage";
+import { ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
-import type { ModuleCard } from "./core/client";
+import type { ClaudeStatus, ModuleCard } from "./core/client";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
@@ -48,6 +49,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
+  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
 
   const setSurface = useCallback((next: Surface) => {
     setSurfaceState(next);
@@ -106,6 +108,16 @@ export function App({ client: injected }: { client?: Client } = {}) {
     };
   }, [client, version]);
 
+  // Whether Alpha can think: checked at start and every minute (the person may sign Claude
+  // Code in or out elsewhere).
+  useEffect(() => {
+    if (!client) return;
+    const check = () => client.claude().then(setClaude).catch(() => undefined);
+    check();
+    const timer = setInterval(check, 60_000);
+    return () => clearInterval(timer);
+  }, [client]);
+
   // The companion hands things over through shared storage: open a module, the conversation.
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -139,16 +151,29 @@ export function App({ client: injected }: { client?: Client } = {}) {
 
   const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : "Intelligence";
+    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : "Intelligence";
 
   return (
     <div className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}`}>
-      <Rail surface={surface} modules={modules} needs={needs} runtime={runtime.kind} onGo={setSurface} onNew={startNew} theme={theme} onTheme={setTheme} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
+      <Rail surface={surface} modules={modules} needs={needs} runtime={runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
       <main className="main">
         {!panelOpen && runtime.kind === "connected" ? (
           <button type="button" className="btn btn--primary assist__reopen" onClick={() => togglePanel(true)}>
             Ask Alpha
           </button>
+        ) : null}
+        {runtime.kind === "connected" && claude && !claude.signed_in && surface.kind !== "settings" ? (
+          <div className="page firstrun">
+            <div className="card firstrun__card">
+              <div className="firstrun__head">
+                <h2>Connect Claude to start</h2>
+                <span className="muted">Alpha thinks with your Claude account. It takes a minute, once.</span>
+              </div>
+              <div className="list">
+                <ClaudeRow client={runtime.client} status={claude} onStatus={setClaude} />
+              </div>
+            </div>
+          </div>
         ) : null}
         {runtime.kind !== "connected" ? (
           <div className="page">
@@ -171,6 +196,8 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft(text); togglePanel(true); }} onNew={startNew} />
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
+        ) : surface.kind === "settings" ? (
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} />
         ) : (

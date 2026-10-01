@@ -31,8 +31,10 @@ from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
+from alpha.runtime import claude_account
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
+from alpha.world import backup
 from alpha.world.purge import remove_connection
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
@@ -454,6 +456,32 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if conn["connector"] == "browser":
             return Browser(world).refresh(conn["target"])
         raise Problem(f"Nothing to sync for {conn['connector']}.")
+
+    # ---- settings: the person's Claude and their data ----
+
+    @app.get("/api/claude", dependencies=[api])
+    def claude_status() -> dict[str, Any]:
+        return claude_account.status()
+
+    @app.post("/api/claude/install", dependencies=[api])
+    def claude_install() -> dict[str, Any]:
+        return claude_account.install()
+
+    @app.post("/api/claude/signin", dependencies=[api])
+    def claude_sign_in() -> dict[str, Any]:
+        return claude_account.sign_in()
+
+    @app.post("/api/claude/signout", dependencies=[api])
+    def claude_sign_out() -> dict[str, Any]:
+        return claude_account.sign_out()
+
+    @app.get("/api/data", dependencies=[api])
+    def data_info() -> dict[str, Any]:
+        return backup.describe(world)
+
+    @app.post("/api/data/backup", dependencies=[api])
+    def data_backup() -> dict[str, Any]:
+        return backup.back_up(world)
 
     @app.get("/api/connections/{cid}/removal", dependencies=[api])
     def connection_removal(cid: str) -> dict[str, Any]:

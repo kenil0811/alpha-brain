@@ -301,6 +301,15 @@ class Store:
         with self._lock:
             return list(self.db.execute(sql, args).fetchall())
 
+    def backup_to(self, path: Path) -> None:
+        """A consistent copy of the whole file, safe while Alpha runs."""
+        copy = sqlite3.connect(path)
+        try:
+            with self._lock:
+                self.db.backup(copy)
+        finally:
+            copy.close()
+
     def close(self) -> None:
         with self._lock:
             self.db.close()

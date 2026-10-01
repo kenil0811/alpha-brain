@@ -191,6 +191,21 @@ export interface EntityDetail extends Entity {
   maybe_same: Entity[];
 }
 
+/** Whether Alpha can think: Claude Code on this Mac, signed in to the person's Claude. */
+export interface ClaudeStatus {
+  installed: boolean;
+  signed_in: boolean;
+  email?: string | null;
+  plan?: string | null;
+  via?: "subscription" | "console";
+}
+
+export interface DataInfo {
+  folder: string;
+  size: number;
+  backups: { name: string; size: number; at: string }[];
+}
+
 export interface ConnectionRemoval {
   connector: string;
   target: string;
@@ -313,6 +328,12 @@ export class Client {
   }
 
   health = () => this.call<{ ok: boolean; world: string }>("GET", "/api/health");
+  claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
+  installClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/install");
+  signInClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/signin");
+  signOutClaude = () => this.call<ClaudeStatus>("POST", "/api/claude/signout");
+  dataInfo = () => this.call<DataInfo>("GET", "/api/data");
+  backUp = () => this.call<DataInfo>("POST", "/api/data/backup");
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);

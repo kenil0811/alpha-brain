@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from alpha.runtime import claude_account
+
 DEFAULT_MODEL = "sonnet"
 TIMEOUT_S = 900
 MAX_TURNS = 80
@@ -113,7 +115,7 @@ def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = No
         config_path.write_text(json.dumps(mcp_config(req)))
         try:
             done = subprocess.run(
-                argv(req, config_path, binary or os.environ.get("ALPHA_CLAUDE") or "claude"),
+                argv(req, config_path, binary or claude_account.binary() or "claude"),
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -124,7 +126,8 @@ def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = No
         except subprocess.TimeoutExpired:
             return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.")
         except FileNotFoundError:
-            return RunResult(reply="", ok=False, error="The claude command is not installed.")
+            return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
+                             " connect Claude in Settings.")
     return parse(done.stdout, done.stderr, done.returncode)
 
 

@@ -1,10 +1,10 @@
 import type { ModuleCard } from "../core/client";
-import { ThemeControl, type Theme } from "./theme";
 
 export type Surface =
   | { kind: "home" }
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string }
+  | { kind: "settings" }
   | { kind: "module"; id: string };
 
 /** Whether rail item `b` is the current place `a`. */
@@ -17,7 +17,7 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || (s.kind === "module" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || (s.kind === "module" && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -28,8 +28,6 @@ export function Rail({
   runtime,
   onGo,
   onNew,
-  theme,
-  onTheme,
   collapsed,
   onToggleCollapsed,
 }: {
@@ -39,8 +37,6 @@ export function Rail({
   runtime: "connecting" | "connected" | "unavailable";
   onGo: (surface: Surface) => void;
   onNew: () => void;
-  theme: Theme;
-  onTheme: (next: Theme) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }) {
@@ -81,12 +77,8 @@ export function Rail({
         <span className="navbtn__text">New</span>
       </button>
       <div className="rail__spacer" />
-      {collapsed ? null : (
-        <div style={{ padding: "4px 10px 8px" }}>
-          <ThemeControl theme={theme} onChange={onTheme} compact />
-        </div>
-      )}
       {item({ kind: "intelligence" }, "◈", "Intelligence")}
+      {item({ kind: "settings" }, "⚙", "Settings")}
       <div className={`rail__status rail__status--${runtime}`} role="status" title={collapsed ? status : undefined}>
         <i aria-hidden="true" />
         <span className="rail__status-text">{status}</span>

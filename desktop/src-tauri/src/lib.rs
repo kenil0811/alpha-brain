@@ -243,6 +243,17 @@ fn avatar_is_visible(app: AppHandle) -> Result<bool, String> {
     window.is_visible().map_err(|e| e.to_string())
 }
 
+/// Open the folder that holds the person's world in Finder.
+#[tauri::command]
+fn reveal_data() -> Result<(), String> {
+    let dir = DATA_DIR.get().ok_or("Alpha's data folder isn't set yet")?;
+    Command::new("/usr/bin/open")
+        .arg(dir)
+        .status()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 fn show_main(app: AppHandle) -> Result<(), String> {
     show_main_window(&app);
@@ -453,7 +464,8 @@ pub fn run() {
             avatar_hot_areas,
             avatar_visible,
             avatar_is_visible,
-            show_main
+            show_main,
+            reveal_data
         ])
         .setup(|app| {
             let handle = app.handle().clone();

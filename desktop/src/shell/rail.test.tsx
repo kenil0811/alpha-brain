@@ -12,11 +12,13 @@ describe("the rail", () => {
 
   it("lists the modules and what needs the person", () => {
     render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} theme="dark" onTheme={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
+      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
     );
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
+    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
     expect(screen.queryByRole("button", { name: "People & Companies" })).toBeNull();
     expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
