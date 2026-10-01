@@ -96,26 +96,38 @@ async function read(job) {
     await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
     let scrolls = 0;
     if (job.scroll_to_end) {
-      // Read a long list to its end: scroll, press a "Show more" style button when the page
-      // offers one (paging only; nothing else is ever clicked), stop when nothing new appears.
-      const more = /^\s*(show|see|load|view) more( results| connections| items)?\s*$/i;
+      // Read a long list to its end. Many sites load more rows inside an inner list rather than
+      // growing the page, so each round brings the last link into view (which scrolls whatever
+      // holds it), wheels over the middle of the window, and presses a "Show more" style button
+      // when one is there (paging only; nothing else is ever clicked). It stops when no new links
+      // have appeared for a few rounds.
+      const more = /^\s*(show|see|load|view) more( results| connections| items| jobs)?\s*$/i;
+      const countLinks = () => page.evaluate(() => document.querySelectorAll("a[href]").length);
+      await page.mouse.move(640, 450);
       let still = 0;
-      let last = await page.evaluate(() => document.body ? document.body.scrollHeight : 0);
-      for (let i = 0; i < (job.max_scrolls || 120) && still < 3; i += 1) {
-        await page.mouse.wheel(0, 3000);
-        await page.waitForTimeout(700);
+      let last = await countLinks();
+      for (let i = 0; i < (job.max_scrolls || 400) && still < 4; i += 1) {
+        await page.evaluate(() => {
+          const links = document.querySelectorAll("a[href]");
+          const end = links[links.length - 1];
+          if (end) end.scrollIntoView({ block: "end" });
+          window.scrollBy(0, 2400);
+        });
+        await page.mouse.wheel(0, 2400);
+        await page.waitForTimeout(800);
         const buttons = await page.locator("button, [role=button]").filter({ hasText: more }).all();
-        for (const button of buttons.slice(0, 1)) {
+        for (const button of buttons.slice(-1)) {
           const label = ((await button.innerText().catch(() => "")) || "").trim();
           if (more.test(label) && (await button.isVisible().catch(() => false))) {
+            await button.scrollIntoViewIfNeeded().catch(() => {});
             await button.click({ timeout: 3000 }).catch(() => {});
-            await page.waitForTimeout(1200);
+            await page.waitForTimeout(1500);
           }
         }
         scrolls += 1;
-        const height = await page.evaluate(() => document.body ? document.body.scrollHeight : 0);
-        still = height > last ? 0 : still + 1;
-        last = Math.max(last, height);
+        const now = await countLinks();
+        still = now > last ? 0 : still + 1;
+        last = Math.max(last, now);
       }
     } else {
       for (let i = 0; i < (job.scroll || 0); i += 1) {
