@@ -7,9 +7,11 @@
  *           title, readable text and links. Never clicks, types or submits anything.
  *   script: load a page the same way, optionally read it to its end, then run Alpha's own
  *           JavaScript in it and return what the script returns (JSON).
- * Read and script sessions are read-only by mechanism: every request that could change data on
- * the site (anything but GET, HEAD and OPTIONS) is blocked at the network, so neither a script
- * nor anything on the page can send, post or submit while Alpha reads.
+ * Alpha's own code never changes anything on a site: while its script runs, every request other
+ * than GET, HEAD and OPTIONS is blocked at the network. Loading and reading a page to its end are
+ * done by this driver alone (it only scrolls and presses "Show more" style paging buttons), and
+ * the page may use any request it needs for that, because many sites load the next page of a
+ * list with a POST that only reads.
  *   status: whether a profile holds cookies for a site.
  */
 import { chromium } from "playwright-core";
@@ -48,6 +50,7 @@ function cookieMatches(cookie, site) {
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+/** From the moment this is called, block every request that could change data on a site. */
 async function readOnly(context) {
   let blocked = 0;
   await context.route("**/*", (route) => {
@@ -107,7 +110,7 @@ async function read(job) {
     browser = await chromium.launch(launchOptions(job, true));
     context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT });
   }
-  const blockedCount = await readOnly(context);
+  let blockedCount = () => 0;
   try {
     const page = context.pages()[0] || (await context.newPage());
     const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: job.timeout_ms || 30000 });
@@ -155,7 +158,8 @@ async function read(job) {
     }
     if (job.op === "script") {
       // Alpha's own code, run in the page: a function body that may use `document` and must
-      // return something JSON can carry (a list of rows, usually).
+      // return something JSON can carry (a list of rows, usually). Writes are blocked first.
+      blockedCount = await readOnly(context);
       const value = await page.evaluate(async (body) => {
         const fn = new Function(`return (async () => { ${body} })();`);
         return await fn();
