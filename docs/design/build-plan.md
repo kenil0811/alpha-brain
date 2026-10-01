@@ -1,7 +1,7 @@
 # Build plan
 
-1 October 2026. Written so that any session (or person) can continue from here without the
-conversation that produced it. The design it implements is `alpha-second-brain-design.md` in this
+1 October 2026; brought up to date 2 October 2026 (§1, §4.2–§4.5). Written so that any session
+(or person) can continue from here without the conversation that produced it. The design it implements is `alpha-second-brain-design.md` in this
 folder; read that first. This document is the engineering side: what is decided, what is verified,
 what the first slice is exactly, and what follows.
 
@@ -17,6 +17,9 @@ what the first slice is exactly, and what follows.
 - **Sessions** are one visible stream plus threads with their own model context, opened
   automatically for any work item; no session picker; memory lives in the world, never in a
   session.
+- **Building happens in the one conversation** (Kenil, 1 Oct): an explicit "I want to build…" is
+  researched, decided and built in the same conversation, even when it takes minutes; the
+  separate deepen threads were removed. Threads remain for automations (each has its own).
 - **Modules stay first-class.** Alpha is a work tool with a companion, not a personal assistant
   with a window. Intelligence stays as a rail item (Skills · Automations · Connections ·
   Knowledge).
@@ -30,7 +33,11 @@ what the first slice is exactly, and what follows.
   world store, pre-pack, the `claude -p` runtime, the MCP server with 31 tools, the turn, the
   CLI; 25 tests, ruff and mypy strict clean. **Slice 2 is built** (1 Oct, §4.1): the files,
   browser and calendar connectors, the core's HTTP API, and the desktop app (workspace and
-  companion) hosting the core. Next is slice 3.
+  companion) hosting the core. **After slice 2** (1 Oct, §4.2): one-conversation building,
+  automations, the capability model (platform hands vs Alpha's know-how) with readers Alpha writes
+  and repairs, complete removal that keeps the audit, paginated tables, Settings with the Claude
+  connection. 25 commits; 76 core + 3 desktop tests. **Where we stand and what is open: §4.3–§4.5**
+  (the recon of 2 Oct). Slices 3–6 of the order of work have not started.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -44,6 +51,9 @@ what the first slice is exactly, and what follows.
 | pnpm | 10.34.5 (per the old repo's pins) | old repo memory |
 | Tauri | 2.11.6, rustc 1.98.1 | old repo memory |
 | Fonts used by the shell | Geist (UI), Source Serif 4 (headings), both on Google Fonts | `apps/desktop/src/styles/app.css` |
+| Claude Code sign-in | `claude auth status` prints JSON (`loggedIn`, `authMethod` "claude.ai", `email`, `subscriptionType`) and exits 0 signed in, 1 not; `claude auth login [--claudeai\|--console]`; `claude auth logout`; installer `curl -fsSL https://claude.ai/install.sh \| bash` (per user, `~/.local/bin/claude`, no admin) | run here 1 Oct; code.claude.com docs |
+| Subscription in a product | Agent SDK docs: "Unless previously approved, Anthropic does not allow third party developers to offer claude.ai login or rate limits for their products, including agents built on the Claude Agent SDK." Fine for Kenil's own use; anyone else needs approval or API keys | code.claude.com/docs/en/agent-sdk/getting-started.md, 1 Oct |
+| Playwright / browser | `playwright-core` 1.62.0 driving the installed Google Chrome (`channel: "chrome"`), per-sign-in persistent profiles | `connectors/browser` |
 
 **CLI flags that exist in 2.1.278 and matter to us** (from `claude --help` and the old harness
 `services/core/alpha/builds/harness_claude_cli.py`, which runs in production today):
@@ -171,13 +181,13 @@ claude -p <sentence>
                                                           dontAsk refuses anything not allowed)
   --setting-sources ""
   --model $ALPHA_MODEL (default "sonnet")
-  --max-turns 20
+  --max-turns 20                        (now 80; see §4.2)
   [--no-session-persistence]            stream turns are stateless; the pre-pack carries context
   [--resume <session_id>]               a thread resumes its own session
 ```
 
 MCP config file: `{"mcpServers":{"alpha":{"command": sys.executable, "args": ["-m","alpha.mcp.server"], "env": {"ALPHA_WORLD": <store path>}}}}`.
-Environment: inherit, ensure `USER`, never set `CLAUDE_CONFIG_DIR`. Timeout 300 s; on timeout
+Environment: inherit, ensure `USER`, never set `CLAUDE_CONFIG_DIR`. Timeout 300 s (now 900 s); on timeout
 the process is killed and the turn is journaled as `failed`. The JSON result's `result` is the
 reply; `session_id` is stored on the thread when a thread runs.
 
@@ -307,18 +317,123 @@ Every change is in the journal with its turn (`alpha journal`). Found: the secon
   macOS prompt, from Intelligence › Connections › Connect calendars in the app.
 
 
-2. Browser, files and calendar connectors as skill directories with `connector.yaml`
-   (`design/research/connectors-and-sources.md` §5); the derived pages and the workspace ported
-   from the current shell into `desktop/`; the companion (avatar window) ported.
-3. Sensors, triage (rules first, System One seam second), the sleep-time pass, the digest, the
-   Inbox lanes on Home; explicit asks deepen at once in a thread.
-4. The entity registry and bi-temporal facts across sources (built minimal in slice 1, filled by
-   connectors here).
-5. The standing-things ladder with promotion from verified runs; skills and automations as
-   objects; Intelligence tabs.
-6. Pending actions and Access; per-kind standing permissions as sentences.
-Then email (Mail.app locally; Anthropic's Gmail connector on the subscription), contacts, the
-Chrome 144 bridge and the API route.
+### 4.2 After slice 2: what was built (1 Oct 2026, 10:13–23:44, 20 commits)
+
+Most of it came from using the app on the two judging journeys and from Kenil's reviews.
+
+- **One conversation, building in it** (`d4fa35d`, `98dd953`). An explicit "I want to build…"
+  is researched and built in the same conversation; Alpha's questions are closed by the person's
+  next message. The deepen side threads were removed.
+- **Automations** (`98dd953`): `automation_create/list/update` tools; schedules "every Nh/Nm",
+  "daily HH:MM", "weekly mon HH:MM"; a scheduler in the core (`runtime/automation.py`, checks
+  every 30 s, claims a run before starting it); each automation has its own thread and runs with
+  AUTOMATION_RULES; "worth telling" lines become `noticed` entries. Intelligence › Automations and
+  module Settings show a sentence, a switch and Run now with live steps; a run's note is shown
+  only when it failed (`9f561bf`).
+- **The capability model** (design §4.0, `1eee620`): the platform builds a few universal *hands*
+  and the guardrails, which Alpha can't change; Alpha writes, tests and repairs the *know-how*
+  (site readers, app connectors); effects are classed read / write inside Alpha / write outward
+  (asks first) / never (passwords, money, permanent deletion), enforced in the process boundary;
+  a gap is a hand (system owner for now), access (the person) or know-how (Alpha).
+- **Browser hand** (`1c9e60c`, `1f7fccb`, `f5993a0`, `bf2a5e8`, `afa8f11`): `page_script` runs
+  Alpha's own JavaScript in a page; reading to the end scrolls until four rounds bring no new
+  links; non-GET requests are blocked *only while Alpha's script runs* (LinkedIn pages its list
+  with a read-only POST, so blocking by method during loading cut the list to 10). A sign-in
+  covers every site its window passed through (gmail.com → google.com), recorded in
+  `alpha-signin.json` next to its profile; when a page asks for a sign-in no sign-in covers,
+  Alpha first tries the sign-ins it holds and records the one that works.
+- **Readers** (`1f7fccb`, `4582db8`, `world/readers.py`): `reader_save`/`reader_run`; a reader is
+  health-checked before it writes (no rows; under 0.5× the last good run; under 0.75× the rows
+  the table holds; required fields missing on over 20%) and a broken one is repaired by Alpha in
+  the automation's run. `page_to_table` is refused inside automations. Connector `SKILL.md`
+  bodies now reach the model (`skills_text()`).
+- **Workspace from Kenil's review** (`1eee620`, `8aeb7ea`): People & Companies removed (generic
+  only), connections only in Intelligence, module Activity shows everything 50 at a time, the
+  schedule lives in module Settings, no About-you page, no sample rows in Summary, the "Ask
+  Alpha" tab on the right edge.
+- **Tables** (`2ac0cf0`, `48c7c90`): the page loads every row (the model still reads 500 at a
+  time) and pages them itself; rows per page default to what fits the window, a fixed size can
+  be chosen; rows scroll inside the table with the header and totals held; totals and the
+  module summary count every row.
+- **Companion** (`48c7c90`): the page reports where it is drawn and the host lets clicks
+  through everywhere else (its transparent corners covered the workspace's pager).
+- **Removal and the audit** (`98ee832`, `bf2a5e8`, `485657d`, `8823e34`; `world/purge.py`):
+  `remove_module` and `remove_connection` delete the thing and what exists because of it
+  (tables and rows, readers, automations, notes, goals; a sign-in's browser profile on disk,
+  documents, events) but **never the journal**: each removal is journaled ("Removed X: …" with
+  `data.removed`), threads keep their record but lose the resumable session, open questions
+  close, and `Journal.mark_removed` marks history about removed things wherever Alpha reads it
+  (search, journal tools, pre-pack), with a rule that the journal is history.
+  `clear_conversation` deletes said/replied by design. Connection removal confirms in its own
+  row in the same words Activity records.
+- **Questions** (`9e444b5`): every Needs-you question can be dismissed; sign-in requests close
+  themselves when signed in or asked again.
+- **Settings** (`08ad89b`): Claude (status, Install, Sign in through Claude Code's browser
+  login, Sign out), companion and appearance (the theme left the rail), your data (folder, Show
+  in Finder, Back up now via SQLite's backup), defaults (rows per page); "Connect Claude to
+  start" on every page while Claude Code is missing or signed out.
+- **Runtime values now**: `--max-turns 80`, timeout 900 s, Sonnet; stream turns stateless,
+  automation threads resume their own session.
+
+### 4.3 Where we stand (recon, 2 Oct 2026)
+
+Against the design's order of work:
+
+| Step | State |
+|---|---|
+| 1. World store, MCP server, stream, companion | Done |
+| 2. Browser, files, calendar; derived pages | Done, plus §4.2. Calendar's real first read still not run |
+| 3. Sensors, triage, sleep-time pass, digest, Inbox | Not started |
+| 4. Entities and bi-temporal facts across sources | Partial: the layers exist; turns don't link people at scale (1,548 connections are rows, not people) |
+| 5. Standing-things ladder, promotion from verified runs | Partial: automations exist; no ladder, no promotion |
+| 6. Pending actions and Access | Not started: every outward write is refused |
+
+Proven on real runs (the person's own world, the subscription): LinkedIn connections read in
+the person's session (1,548 rows, daily at 07:00, Alpha's own reader); Gmail read through the
+browser (tracking and shipment details from the last 100 emails; then emails from LinkedIn
+connections in the last 24 hours and what one of them said, the first answer joining two
+sources); Nutrition (tables plus a weekly review automation). Proven only by tests: the calendar
+connect, Install and Sign in from Settings on a fresh Mac, the try-the-sign-ins-you-hold path.
+
+### 4.4 What the recon flagged
+
+1. **Gmail went against decision Q4** ("keep Gmail out of scope until a Google app is justified;
+   use Anthropic's Gmail connector meanwhile"). It is now read by driving a signed-in browser:
+   it works, it is the access path Google likes least, and it is the most sensitive source
+   Alpha reads. Needs a deliberate decision.
+2. **LinkedIn reads the whole list daily.** Q3 said "at human pace". A full scroll of 1,548
+   connections every morning is closer to what LinkedIn acts against; reading only what is new
+   would be gentler.
+3. **The make-or-break hasn't moved since slice 1.** Memory and context: beliefs going stale in
+   resumed threads (Alpha "concluded" LinkedIn caps the list and carried it), no sense of time
+   ("yesterday"), no sleep-time pass, people not linked across sources. The Gmail × LinkedIn
+   answer came from the model's cleverness in the moment, not from Alpha knowing the person.
+4. **Proactivity is close to zero**: apart from automations' notes Alpha never brings anything
+   to the person; no digest, no notifications.
+5. **The last stretch was reactive polish** (about 10 of 25 commits fixed what Kenil found
+   while using the app). Valuable, but away from the thesis.
+6. **Not shippable to anyone else**: the app runs Python from this repository's `.venv`;
+   self-signed; the subscription login needs Anthropic's approval for other users; first run on
+   a fresh Mac untested; a repository on the Desktop makes the first launch wait on macOS.
+7. **Loose ends**: desktop-control and app-scripting hands not built; how hand gaps are
+   collected across many users (Adobe) is open; `page_to_table` still carries site knowledge in
+   the platform (reduce it to a first look); the photo-vs-name half of the LinkedIn driver fix
+   sits in `git stash` as know-how Alpha should learn; whether the Python Agent SDK (which
+   bundles Claude Code) supports every flag in §3.4 is unverified, so the runtime stays on the
+   CLI.
+
+### 4.5 What next (proposed 2 Oct, for Kenil to choose)
+
+- **A. Sessions and memory** (Kenil wanted to think this through): stale beliefs, time sense,
+  what a resumed thread may carry, linking people across sources, the sleep-time pass. The
+  thesis, and where both real failures live.
+- **B. Slice 3, proactivity**: triage of new data, the digest, the Inbox on Home.
+- **C. The Gmail decision**: keep it in the browser with an explicit yes, move to the
+  connector, or drop it for now.
+- **D. A working rule**: three or four standing real journeys (LinkedIn, Gmail × network,
+  nutrition, one new) that every change is judged against, instead of what was last noticed.
+
+Recommended order: C quickly, then A, then B, with D throughout.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
