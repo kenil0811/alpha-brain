@@ -86,6 +86,14 @@ def test_decisions(world: World) -> None:
     assert c.get("/api/home").json()["needs_you"] == []
 
 
+def test_an_ask_can_be_dismissed_without_running_anything(world: World) -> None:
+    ask = world.journal.append("asked", "A window is open on example.com: sign in there.")
+    c = client(world)
+    c.post(f"/api/asks/{ask}/dismiss")
+    assert c.get("/api/home").json()["needs_you"] == []
+    assert world.journal.recent(5, kinds=["said"]) == []
+
+
 def test_ask_runs_a_turn_in_the_background(world: World) -> None:
     def runner(req: TurnRequest) -> RunResult:
         return RunResult(reply="Logged two eggs.", ok=True, duration_ms=1200)

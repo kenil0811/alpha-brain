@@ -291,6 +291,11 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                                         thread=asked["thread"]))
         return {"answered": jid, "turn": started}
 
+    @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
+    def dismiss(ask_id: str) -> dict[str, Any]:
+        # Closed without an answer: nothing runs.
+        return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
+
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)

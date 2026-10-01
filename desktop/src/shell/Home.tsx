@@ -55,6 +55,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
               </button>
             </>
           )}
+          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.dismissAsk(item.id), "Dismissed.")}>
+            Dismiss
+          </button>
         </form>
         {error ? <p className="notice">{error}</p> : null}
       </article>

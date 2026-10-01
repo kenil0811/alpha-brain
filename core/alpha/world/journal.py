@@ -154,3 +154,18 @@ class Journal:
             " AND json_extract(b.data, '$.ask') = a.id) ORDER BY a.at"
         )
         return [entry(r) for r in rows]
+
+    def close_ask(self, ask_id: str, words: str, *, actor: str = "person",
+                  closed: str = "dismissed") -> str:
+        """Close a question without answering it: the person dismissed it, or Alpha no longer
+        needs it (`closed` says which)."""
+        asked = self.read(ask_id)
+        return self.append("answered", words, actor=actor, data={"ask": ask_id, "closed": closed},
+                           module=asked["module"], thread=asked["thread"])
+
+    def close_asks_about(self, connection: str, words: str, closed: str) -> int:
+        """Close the open questions a connection asked (a sign-in that is done or asked again)."""
+        open_ones = [a for a in self.open_asks() if a["data"].get("connection") == connection]
+        for a in open_ones:
+            self.close_ask(a["id"], words, actor="alpha", closed=closed)
+        return len(open_ones)

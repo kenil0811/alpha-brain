@@ -105,6 +105,8 @@ class Browser:
         status = "connected" if result.get("signed_in") else "needs_ok"
         conn = self.connections.upsert("browser", site, status=status,
                                        config={"profile": str(profile_dir(site))})
+        if status == "connected":
+            self.world.journal.close_asks_about(conn["id"], f"Signed in to {site}.", "done")
         self.world.journal.append(
             "made" if status == "connected" else "noticed",
             f"Signed in to {site} in Alpha's browser." if status == "connected"
@@ -131,6 +133,7 @@ class Browser:
         proc.stdin.close()
         conn = self.connections.upsert("browser", site, status="needs_ok",
                                        config={"profile": str(profile_dir(site))})
+        self.world.journal.close_asks_about(conn["id"], "Asked again.", "replaced")
         self.world.journal.append(
             "asked", f"A window is open on {site}: sign in there, then close it.",
             data={"connection": conn["id"]}, source="connector:browser",
@@ -146,7 +149,10 @@ class Browser:
         result = self.runner({"op": "status", "site": site, "profile": str(profile_dir(site)),
                               "channel": "chrome"}, 60)
         status = "connected" if result.get("signed_in") else "needs_ok"
-        return self.connections.upsert("browser", site, status=status, config=conn["config"])
+        conn = self.connections.upsert("browser", site, status=status, config=conn["config"])
+        if status == "connected":
+            self.world.journal.close_asks_about(conn["id"], f"Signed in to {site}.", "done")
+        return conn
 
     def read(self, url: str, *, to_end: bool = False, signed_in: bool | None = None,
              max_chars: int = 60_000, turn: str | None = None,

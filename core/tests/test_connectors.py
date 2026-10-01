@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -112,6 +113,24 @@ def test_read_uses_the_signin_and_journals(world: World) -> None:
     conn = Connections(world.store).find("browser", "linkedin.com")
     assert conn is not None and conn["status"] == "connected"
     assert "signed in" in world.journal.recent(1)[0]["text"]
+
+
+def test_a_signin_ask_closes_when_asked_again_and_when_signed_in(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Window:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            self.stdin = io.StringIO()
+
+    monkeypatch.setenv("ALPHA_NODE", "node")
+    monkeypatch.setattr("alpha.connectors.browser.subprocess.Popen", Window)
+    browser = Browser(world, lambda job, timeout: {"signed_in": True})
+    browser.start_signin("gmail.com")
+    browser.start_signin("gmail.com")
+    asks = world.journal.open_asks()
+    assert len(asks) == 1 and "gmail.com" in asks[0]["text"]
+    browser.refresh("gmail.com")
+    assert world.journal.open_asks() == []
 
 
 def test_read_refuses_local_addresses(world: World) -> None:

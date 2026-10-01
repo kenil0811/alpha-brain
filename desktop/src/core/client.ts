@@ -355,6 +355,7 @@ export class Client {
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
+  dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }
