@@ -310,7 +310,7 @@ export class Client {
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
   async table(name: string): Promise<{ table: TableDesc; records: RecordRow[] }> {
-    const data = await this.call<{ table: TableDesc; records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}?limit=500`);
+    const data = await this.call<{ table: TableDesc; records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
     return { table: data.table, records: data.records.map(toRow) };
   }
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));

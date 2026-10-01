@@ -4,7 +4,7 @@
  * click away; a saved list is a filter plus the columns shown. Edits here are the person's own
  * and are journaled as theirs.
  */
-import { type DragEvent, type FormEvent, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type DragEvent, type FormEvent, type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Client, RecordRow, TableDesc } from "../core/client";
 import { DATE_KINDS, coerce, editText, firstOfKind, inputType, isNumeric, openChoices, showValue, titleFieldOf, type FieldInfo } from "./fields";
 import { formatNumber, humanize } from "./format";
@@ -17,7 +17,12 @@ const VIEWS: { id: PageView; label: string }[] = [
   { id: "calendar", label: "Calendar" },
   { id: "chart", label: "Chart" },
 ];
-const PAGE = 100;
+/** Rows per page: by default as many as fit the window; the person can pick a fixed size, and
+ * that choice becomes their default for every table. */
+type PageSize = "fit" | number;
+const PAGE_SIZES = [25, 50, 100, 250];
+const PAGE_SIZE_KEY = "alpha.rows-per-page";
+const FEWEST_ROWS = 5;
 
 interface SavedList {
   id: string;
@@ -79,6 +84,10 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   }, [fields, hidden, order]);
   const [all, setAll] = useState<RecordRow[] | null>(null);
   const [pageAt, setPageAt] = useState(0);
+  const [pageSize, setPageSize] = useState<PageSize>(() => remembered<PageSize>(PAGE_SIZE_KEY, "fit"));
+  const [fit, setFit] = useState(20);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -95,6 +104,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   useEffect(() => remember(`${key}.order`, order), [key, order]);
   useEffect(() => remember(`${key}.widths`, widths), [key, widths]);
   useEffect(() => remember(`${key}.lists`, lists), [key, lists]);
+  useEffect(() => remember(PAGE_SIZE_KEY, pageSize), [pageSize]);
   const moveColumn = (name: string, by: -1 | 1) =>
     setOrder(() => {
       const current = [...columns];
@@ -134,7 +144,43 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
     return out;
   }, [all, search, searchable, filters, hideDone, statusField, sort]);
   useEffect(() => setPageAt(0), [search, filters, hideDone, sort]);
-  const shownRows = rows ? rows.slice(pageAt * PAGE, pageAt * PAGE + PAGE) : null;
+
+  // Fit to window: the rows that fit between the top of the table's body and the bottom of the
+  // window, leaving room for what sits below it (totals, pager). Measured when the page first
+  // shows rows and when the window changes size, not as rows come and go.
+  const loaded = all !== null;
+  const measure = useCallback(() => {
+    const body = bodyRef.current;
+    const card = cardRef.current;
+    if (!body || !card) return;
+    const main = card.closest<HTMLElement>(".main");
+    const bodyBox = body.getBoundingClientRect();
+    const first = body.firstElementChild as HTMLElement | null;
+    const rowHeight = first?.getBoundingClientRect().height || 34;
+    const scroller = main ?? document.documentElement;
+    const top = bodyBox.top - (main ? main.getBoundingClientRect().top : 0) + scroller.scrollTop;
+    const below = card.getBoundingClientRect().bottom - bodyBox.bottom + parseFloat(getComputedStyle(scroller).paddingBottom || "0");
+    const visible = Math.min(scroller.clientHeight, window.innerHeight);
+    setFit(Math.max(FEWEST_ROWS, Math.floor((visible - top - below) / rowHeight)));
+  }, []);
+  useLayoutEffect(() => {
+    if (loaded) measure();
+  }, [loaded, view, table.name, measure]);
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+
+  const paged = view === "table" || view === "list";
+  const size = pageSize === "fit" ? fit : pageSize;
+  const pages = rows ? Math.max(1, Math.ceil(rows.length / size)) : 1;
+  const at = Math.min(pageAt, pages - 1);
+  const shownRows = rows ? rows.slice(at * size, at * size + size) : null;
+  function choosePageSize(next: PageSize) {
+    const nextSize = next === "fit" ? fit : next;
+    setPageAt(Math.floor((at * size) / nextSize));
+    setPageSize(next);
+  }
 
   async function run(work: () => Promise<unknown>, words: string): Promise<boolean> {
     setStatus(null);
@@ -188,11 +234,19 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const shownColumns = columns.filter((c) => byName.has(c));
   const openRow = openId ? (all?.find((r) => r.id === openId) ?? null) : null;
   const filtered = Boolean(search || Object.values(filters).some(Boolean) || hideDone);
-  const pages = rows ? Math.max(1, Math.ceil(rows.length / PAGE)) : 1;
+  const count = (n: number) => n.toLocaleString();
+  const rowsWord = (n: number) => (n === 1 ? "row" : "rows");
+  const counted = !rows
+    ? "Loading…"
+    : paged && rows.length > size
+      ? `${count(at * size + 1)}–${count(Math.min(rows.length, at * size + size))} of ${count(rows.length)} ${filtered ? `matching · ${count(all?.length ?? 0)} in all` : rowsWord(rows.length)}`
+      : rows.length === all?.length
+        ? `${count(rows.length)} ${rowsWord(rows.length)}`
+        : `${count(rows.length)} of ${count(all?.length ?? 0)} rows`;
 
   return (
     <div className="stack" aria-label={table.title}>
-      <div className="card">
+      <div className="card" ref={cardRef}>
         <div className="toolbar toolbar--page">
           {searchable.length ? (
             <div className="search">
@@ -297,33 +351,52 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
           </p>
         ) : null}
         {view === "table" ? (
-          <TableView rows={shownRows ?? []} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
+          <TableView rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
         ) : null}
         {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
-        {view === "list" ? <ListView rows={shownRows ?? []} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
+        {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
         {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={setOpenId} /> : null}
         {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
         {openRow ? <RecordPanel row={openRow} fields={fields} titleField={titleField} onClose={() => setOpenId(null)} onCommit={(field, text) => commit(openRow, field, text)} onRemove={() => remove(openRow)} /> : null}
         <div className="pager">
-          <span>{rows ? (rows.length === all?.length ? `${rows.length} ${rows.length === 1 ? "row" : "rows"}` : `${rows.length} of ${all?.length ?? 0} rows`) : "Loading…"}</span>
+          <span className="num">{counted}</span>
           {status ? (
             <span className={status.ok ? "notice notice--ok" : "notice"} role="status">
               {status.text}
             </span>
           ) : null}
           <span className="spacer" />
-          {pages > 1 ? (
-            <>
-              <button type="button" className="btn btn--sm" disabled={pageAt === 0} onClick={() => setPageAt((n) => n - 1)}>
+          {paged && rows?.length ? (
+            <label className="pager__size">
+              Rows per page
+              <select className="btn btn--sm" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
+                <option value="fit">Fit to window{pageSize === "fit" ? ` (${fit})` : ""}</option>
+                {PAGE_SIZES.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {paged && pages > 1 ? (
+            <span className="pager__pages">
+              <button type="button" className="btn btn--sm btn--ghost" aria-label="First page" disabled={at === 0} onClick={() => setPageAt(0)}>
+                «
+              </button>
+              <button type="button" className="btn btn--sm" disabled={at === 0} onClick={() => setPageAt(at - 1)}>
                 Previous
               </button>
-              <span>
-                {pageAt + 1} of {pages}
+              <span className="num">
+                Page {count(at + 1)} of {count(pages)}
               </span>
-              <button type="button" className="btn btn--sm" disabled={pageAt >= pages - 1} onClick={() => setPageAt((n) => n + 1)}>
+              <button type="button" className="btn btn--sm" disabled={at >= pages - 1} onClick={() => setPageAt(at + 1)}>
                 Next
               </button>
-            </>
+              <button type="button" className="btn btn--sm btn--ghost" aria-label="Last page" disabled={at >= pages - 1} onClick={() => setPageAt(pages - 1)}>
+                »
+              </button>
+            </span>
           ) : null}
         </div>
       </div>
@@ -333,8 +406,8 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
 
 // ---------- table ----------
 
-function TableView({ rows, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty }: { rows: RecordRow[]; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
-  const totals = columns.filter((c) => isNumeric(byName.get(c)?.kind ?? "")).map((c) => ({ field: c, value: rows.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
+function TableView({ rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty }: { rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+  const totals = columns.filter((c) => isNumeric(byName.get(c)?.kind ?? "")).map((c) => ({ field: c, value: totalOf.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
   return (
     <div className="tablewrap">
       <table className="table" aria-label={undefined}>
@@ -375,7 +448,7 @@ function TableView({ rows, fields, columns, byName, widths, onWidth, sort, onSor
             <th aria-label="Actions" />
           </tr>
         </thead>
-        <tbody>
+        <tbody ref={(el) => { bodyRef.current = el; }}>
           {rows.map((row) => (
             <tr key={row.id} className={`row--open${openId === row.id ? " row--current" : ""}`} onClick={() => onOpen(row.id)} aria-label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`}>
               {columns.map((c) => (
@@ -394,7 +467,7 @@ function TableView({ rows, fields, columns, byName, widths, onWidth, sort, onSor
             </tr>
           ) : null}
         </tbody>
-        {totals.length && rows.length > 1 ? (
+        {totals.length && totalOf.length > 1 ? (
           <tfoot>
             <tr>
               {columns.map((c, i) => {
@@ -588,11 +661,11 @@ function BoardView({ rows, field, titleField, fields, onOpen, onMove }: { rows: 
 
 // ---------- list ----------
 
-function ListView({ rows, titleField, columns, byName, onOpen }: { rows: RecordRow[]; titleField: string | undefined; columns: string[]; byName: Map<string, FieldInfo>; onOpen: (id: string) => void }) {
+function ListView({ rows, bodyRef, titleField, columns, byName, onOpen }: { rows: RecordRow[]; bodyRef: { current: HTMLElement | null }; titleField: string | undefined; columns: string[]; byName: Map<string, FieldInfo>; onOpen: (id: string) => void }) {
   const secondary = columns.filter((c) => c !== titleField).slice(0, 3);
   if (!rows.length) return <p className="empty">Nothing here yet.</p>;
   return (
-    <div className="list">
+    <div className="list" ref={(el) => { bodyRef.current = el; }}>
       {rows.map((row) => (
         <button key={row.id} type="button" className="list__row" onClick={() => onOpen(row.id)}>
           <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>

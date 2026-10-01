@@ -38,7 +38,7 @@ def _round(value: float) -> float | int:
 def table_summary(world: World, name: str) -> dict[str, Any]:
     desc = world.collections.describe(name)
     fields = desc["fields"]
-    rows = world.collections.query(name, limit=500)
+    rows = world.collections.query(name, limit=None)
     today = datetime.now().astimezone().date()
     week_start = today - timedelta(days=today.weekday())
     date_field = next((f["name"] for f in fields if f["kind"] in {"date", "datetime"}), None)

@@ -328,7 +328,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.get("/api/tables/{name}", dependencies=[api])
     def table(name: str, q: str | None = None, order: str | None = None,
-              limit: int = 200) -> dict[str, Any]:
+              limit: int | None = None) -> dict[str, Any]:
+        # Every row by default: the page filters, sorts and pages them itself.
         desc = world.collections.describe(name)
         records = world.collections.query(name, None, order, limit)
         if q:

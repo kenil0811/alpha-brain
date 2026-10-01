@@ -72,6 +72,15 @@ def test_create_add_query_aggregate(world: World) -> None:
     assert world.collections.describe("food_log")["records"] == 3
 
 
+def test_the_model_reads_500_at_a_time_and_the_page_reads_every_row(world: World) -> None:
+    food_table(world)
+    rows = [{"food": f"Item {i}", "kcal": i} for i in range(620)]
+    world.collections.upsert("food_log", "food", rows, {"by": "alpha"})
+    assert len(world.collections.query("food_log", limit=1000)) == 500
+    every = world.collections.query("food_log", {"kcal": {"gte": 10}}, order="kcal", limit=None)
+    assert len(every) == 610 and every[0]["kcal"] == 10
+
+
 def test_validation_speaks_plainly(world: World) -> None:
     food_table(world)
     with pytest.raises(Problem, match="kcal"):

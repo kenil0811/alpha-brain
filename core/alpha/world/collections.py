@@ -457,8 +457,10 @@ class Collections:
         name: str,
         where: dict[str, Any] | None = None,
         order: str | None = None,
-        limit: int = 50,
+        limit: int | None = 50,
     ) -> list[dict[str, Any]]:
+        """Rows that match, newest first unless `order` says otherwise. The model reads at most
+        500 at a time; `limit=None` is every row, for the person's own page of the table."""
         clause, args = self._where(name, where)
         fields = {f["name"] for f in self._schema(name)["fields"]}
         order_sql = "created_at DESC"
@@ -472,10 +474,11 @@ class Collections:
             else:
                 raise Problem(f"'{name}' has no field '{key}' to sort by.")
             order_sql = f"{col} {'DESC' if desc else 'ASC'}"
-        rows = self.store.all(
-            f"SELECT * FROM records WHERE {clause} ORDER BY {order_sql} LIMIT ?",
-            (*args, max(1, min(limit, 500))),
-        )
+        sql = f"SELECT * FROM records WHERE {clause} ORDER BY {order_sql}"
+        if limit is not None:
+            sql += " LIMIT ?"
+            args.append(max(1, min(limit, 500)))
+        rows = self.store.all(sql, tuple(args))
         return [record_view(r) for r in rows]
 
     def aggregate(
