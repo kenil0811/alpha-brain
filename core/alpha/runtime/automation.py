@@ -27,9 +27,11 @@ If reader_run says a reader is broken, repair it in this run: look at the page a
 (page_script returning the HTML of one item, or page_read), rewrite the reader's script, try it \
 with page_script, save it with reader_save under the same name, then reader_run again. If the \
 procedure itself is what's wrong (it relies on something that isn't true, or a step that \
-cannot scale), fix it with automation_update so the next run is right. Never conclude that a \
-site has a limit from one failed attempt: check it with page_script first, and correct any note \
-or procedure that says otherwise.
+cannot scale), fix it with automation_update so the next run is right. Never update rows one \
+by one after a sync: anything a new row should start with (a status, a tag) goes into the \
+reader's rows, protected with keep_person_fields so it is only filled where empty. Never \
+conclude that a site has a limit from one failed attempt: check it with page_script first, \
+and correct any note or procedure that says otherwise.
 
 If a site asks for a sign-in or the run cannot be done, don't retry in a loop: say so in one \
 line, and call ask_person once with what the person needs to do (for example "sign in to \

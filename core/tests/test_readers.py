@@ -141,3 +141,16 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
     while time.time() < end and c.get("/api/automations").json()[0]["running"]:
         time.sleep(0.05)
     assert c.get("/api/automations").json()[0]["last_result"] == "Synced."
+
+
+def test_an_automation_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:
+    table(world)
+    auto = Tools(world).automation_create("Sync", "every 1h", "page_to_table …")
+    inside = Tools(world, thread=auto["thread"])
+    out = inside.page_to_table(URL, "/in/", "connections", {"name": "text", "linkedin_url": "url"})
+    assert "write a reader" in out["error"].lower() or "Write a reader" in out["error"]
+
+
+def test_a_reader_reading_part_of_a_list_the_table_holds_is_broken() -> None:
+    problem = health_problem(people(10), last_ok=None, held=20)
+    assert problem and "table already holds 20" in problem and "to_end" in problem

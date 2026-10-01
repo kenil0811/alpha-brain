@@ -68,6 +68,12 @@ class Tools:
             thread=self.thread,
         )
 
+    def _in_automation(self) -> bool:
+        if not self.thread:
+            return False
+        return self.world.store.one(
+            "SELECT 1 FROM automations WHERE thread = ?", (self.thread,)) is not None
+
     def _module_of(self, collection: str) -> str | None:
         module: str | None = self.world.collections.describe(collection)["module"]
         return module
@@ -229,6 +235,13 @@ class Tools:
         name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
         words, e.g. a headline). The url-mapped field is the key. Use it for any list that
         should be kept whole and current; then refine individual rows if needed."""
+        if self._in_automation():
+            raise Problem(
+                "page_to_table is only a first look; it isn't how a list is kept. Write a reader "
+                "for this page (page_script to look at the page and try, reader_save), use "
+                "reader_run here, and change this automation's procedure to reader_run with "
+                "automation_update so every run uses it."
+            )
         sources = {"url", "text", "near", "near_without_text"}
         bad = [v for v in fields.values() if v not in sources]
         if bad:
@@ -257,9 +270,13 @@ class Tools:
              **{k: v for k, v in result.items() if k != "ids"}},
             desc["module"],
         )
+        held = desc["records"]
+        warning = (f"Only {len(page['items'])} items came back where the table holds {held}: "
+                   "the page probably wasn't read to its end or this isn't the whole list."
+                   if held and len(page["items"]) < held * 0.5 else None)
         return {"items": len(page["items"]), "signed_in": page["signed_in"],
                 **{k: v for k, v in result.items() if k != "ids"},
-                "sample": rows[:3]}
+                "sample": rows[:3], **({"warning": warning} if warning else {})}
 
     @tool
     def records_update(
@@ -583,7 +600,8 @@ class Tools:
         desc = self.world.collections.describe(collection)
         required = [f["name"] for f in desc["fields"] if f.get("required")]
         problem = health_problem(rows, last_ok=reader["last_ok_count"],
-                                 required=sorted(set(required + [key_field])))
+                                 required=sorted(set(required + [key_field])),
+                                 held=desc["records"])
         count = len(rows) if isinstance(rows, list) else 0
         if problem:
             self.world.readers.ran(name, count=count, problem=problem)
