@@ -19,15 +19,17 @@ journal *ARGS:
 serve:
     uv run alpha serve
 
-# The desktop app: the workspace and the companion, hosting the core.
+# The desktop app: the workspace and the companion, hosting the core. Builds are signed with
+# the local "Alpha Local Signing" certificate so macOS keeps Alpha's permissions across rebuilds;
+# /usr/bin comes first because a python.org xattr without -r shadows the system one.
 app-web:
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && pnpm dev
 
 app-dev:
-    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:$PATH && cd desktop && pnpm tauri dev
+    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH && cd desktop && pnpm tauri dev
 
 app:
-    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:$PATH && cd desktop && pnpm install && pnpm tauri build --debug --bundles app && open src-tauri/target/debug/bundle/macos/Alpha.app
+    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH && cd desktop && pnpm install && pnpm tauri build --debug --bundles app && open src-tauri/target/debug/bundle/macos/Alpha.app
 
 test-desktop:
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && pnpm typecheck && pnpm test

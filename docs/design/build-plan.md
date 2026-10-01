@@ -289,6 +289,14 @@ Every change is in the journal with its turn (`alpha journal`). Found: the secon
   in under a second after the first launch, a turn typed in the app's own panel answered).
   Real connector runs: a watched folder summarised (10.6 s); We Work Remotely read into Job
   Search › Openings with fit scores (91 s, 18 steps).
+- **Signing** (1 Oct, Q1): local builds are signed with a self-signed certificate "Alpha Local
+  Signing" in the login keychain (SHA-1 1AD9A7DC…5FDB31, valid to 2036; untrusted, which is fine
+  for signing). The designated requirement is `identifier "com.alpha.brain" and certificate root
+  = H"1ad9a7dc…"`, so macOS keeps Alpha's permissions across rebuilds: verified by rebuilding with
+  a code change (new CDHash) and relaunching, core ready in 1 s, no prompt. `tauri.conf.json`
+  names the identity; builds put `/usr/bin` first on PATH because a python.org `xattr` without
+  `-r` shadows the system one and breaks Tauri's signing step. On another Mac, make the same
+  certificate (openssl, codeSigning EKU, `security import … -T /usr/bin/codesign`).
 - **Found**: (1) the first launch from a repository on the Desktop waits on macOS's
   Desktop-folder prompt (about four minutes here) and left the workspace window blank until a
   relaunch; the cure is the bundled runtime (core outside the Desktop folder) or moving the

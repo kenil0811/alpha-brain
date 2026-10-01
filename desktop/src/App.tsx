@@ -149,6 +149,11 @@ export function App({ client: injected }: { client?: Client } = {}) {
         {runtime.kind !== "connected" ? (
           <div className="page">
             <h1>{runtime.kind === "connecting" ? "Starting Alpha…" : "Alpha's core isn't running"}</h1>
+            {runtime.kind === "connecting" ? (
+              <p className="muted" style={{ marginTop: 8 }}>
+                This takes a second or two. If macOS is asking whether Alpha may access a folder, allow it and Alpha carries on.
+              </p>
+            ) : null}
             {runtime.kind === "unavailable" ? (
               <p className="muted" style={{ marginTop: 8 }}>
                 {runtime.reason}{" "}
