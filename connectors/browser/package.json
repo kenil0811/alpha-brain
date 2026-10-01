@@ -1,0 +1,10 @@
+{
+  "name": "@alpha/connector-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Alpha's browser session driver: reads pages in a Chrome profile Alpha keeps, signed in by the person; never clicks, types or submits (paging buttons only).",
+  "dependencies": {
+    "playwright-core": "1.62.0"
+  }
+}

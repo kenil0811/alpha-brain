@@ -1,0 +1,15 @@
+name: browser
+title: Browser
+description: Web pages read the way the person sees them, including sites they signed into in Alpha's browser.
+provider: chrome
+version: 1
+origin: builtin
+transport: browser
+auth:
+  kind: browser-session
+  profile: per-site, under the data directory; the person signs in themselves
+tools:
+  - {name: page_read, effect: read, description: Read a page (title, text, links); signed in when the person connected the site.}
+  - {name: browser_signin, effect: read, description: Open a window on a site so the person can sign in.}
+triggers: []
+health: {repair: re-observe-page}

@@ -1,0 +1,19 @@
+name: files
+title: Files
+description: Folders on this Mac the person asked Alpha to read; documents become searchable and linkable.
+provider: macos-files
+version: 1
+origin: builtin
+transport: native-macos
+auth:
+  kind: tcc:files-and-folders
+tools:
+  - {name: folder_watch, effect: read, description: Start reading a folder and everything in it.}
+  - {name: files_sync, effect: read, description: Read new and changed documents now.}
+  - {name: documents_list, effect: read, description: Documents Alpha has read, newest first.}
+  - {name: document_read, effect: read, description: The text of one document, in pages.}
+resources:
+  - {name: documents, freshness: live}
+triggers:
+  - {kind: fsevents, description: A change in a watched folder syncs it within seconds while Alpha runs.}
+health: {repair: re-sync}

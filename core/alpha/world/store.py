@@ -135,6 +135,64 @@ CREATE TABLE IF NOT EXISTS modules (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS connections (
+    id TEXT PRIMARY KEY,
+    connector TEXT NOT NULL,
+    target TEXT NOT NULL,
+    status TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    last_sync TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (connector, target)
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    entity_id TEXT NOT NULL REFERENCES entities(id),
+    connection TEXT,
+    path TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    text TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    modified_at TEXT NOT NULL,
+    indexed_at TEXT NOT NULL,
+    removed_at TEXT
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+    title, text, content='documents', content_rowid='rowid', tokenize='porter unicode61'
+);
+CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
+    INSERT INTO documents_fts(rowid, title, text) VALUES (new.rowid, new.title, new.text);
+END;
+CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
+    INSERT INTO documents_fts(documents_fts, rowid, title, text)
+        VALUES ('delete', old.rowid, old.title, old.text);
+    INSERT INTO documents_fts(rowid, title, text) VALUES (new.rowid, new.title, new.text);
+END;
+
+CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    entity_id TEXT NOT NULL REFERENCES entities(id),
+    connection TEXT,
+    uid TEXT NOT NULL UNIQUE,
+    calendar TEXT,
+    title TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    all_day INTEGER NOT NULL DEFAULT 0,
+    location TEXT,
+    notes TEXT,
+    url TEXT,
+    organiser TEXT,
+    attendees TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL,
+    removed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS events_start ON events(starts_at);
+
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,

@@ -1,0 +1,18 @@
+name: calendar
+title: Calendar
+description: The person's calendars as macOS Calendar sees them (Google, iCloud, Exchange once added there).
+provider: macos-eventkit
+version: 1
+origin: builtin
+transport: native-macos
+auth:
+  kind: tcc:calendar
+tools:
+  - {name: calendar_connect, effect: read, description: Ask macOS for access to the calendars and read them.}
+  - {name: calendar_events, effect: read, description: Events between two times, with attendees.}
+  - {name: calendar_sync, effect: read, description: Read changes now.}
+resources:
+  - {name: events, window: 30 days back, 60 days ahead}
+triggers:
+  - {kind: poll, description: Re-read every few minutes while Alpha runs.}
+health: {repair: re-sync}
