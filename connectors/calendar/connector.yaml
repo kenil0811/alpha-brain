@@ -1,6 +1,6 @@
 name: calendar
 title: Calendar
-description: The person's calendars as macOS Calendar sees them (Google, iCloud, Exchange once added there).
+description: Your calendars as macOS Calendar sees them (Google, iCloud and Exchange once added there).
 provider: macos-eventkit
 version: 1
 origin: builtin

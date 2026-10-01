@@ -28,7 +28,9 @@ what the first slice is exactly, and what follows.
   `desktop/` when the shell is ported.
 - **This repository** was created on 1 Oct. **Slice 1 is built** (1 Oct, see §3.9 for what ran):
   world store, pre-pack, the `claude -p` runtime, the MCP server with 31 tools, the turn, the
-  CLI; 25 tests, ruff and mypy strict clean. Next is slice 2.
+  CLI; 25 tests, ruff and mypy strict clean. **Slice 2 is built** (1 Oct, §4.1): the files,
+  browser and calendar connectors, the core's HTTP API, and the desktop app (workspace and
+  companion) hosting the core. Next is slice 3.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -260,6 +262,42 @@ Every change is in the journal with its turn (`alpha journal`). Found: the secon
 (slice 3); the per-turn cost estimate the CLI reports is about $0.02–0.05 on Sonnet.
 
 ## 4. What follows (from the design's order of work)
+
+### 4.1 Slice 2 as built (1 Oct 2026)
+
+- **Connectors** (`connectors/<name>/connector.yaml` + `SKILL.md`, Python in
+  `core/alpha/connectors/`): *files* (watched folders → documents, PDF/Word/Excel/PowerPoint/
+  text, document entities keyed by path, live through watchdog); *browser* (the old read-only
+  Playwright driver unchanged, on the installed Chrome, per-site profiles the person signs into,
+  non-blocking sign-in); *calendar* (EventKit, 30 days back / 60 ahead, attendees resolve to
+  people by email). A connection is a row (`connections`), shown in Intelligence.
+- **Core API** (`alpha serve`, `core/alpha/api/server.py`): loopback, bearer token from the host;
+  Home, modules, tables (person edits journaled as theirs), people + timeline, Intelligence,
+  Activity, search, conversation, background turns, threads, connections. Prints
+  `ALPHA_CORE_READY {"port": …}` for the host.
+- **Desktop** (`desktop/`, Tauri 2.11.6 + React 19, the old shell's look): the host launches
+  `<repo>/.venv/bin/python -m alpha.cli serve --port 0` with HOME/USER/PATH for the Claude CLI,
+  `ALPHA_HOME` = `~/Library/Application Support/com.alpha.brain`, `ALPHA_TOKEN`; companion window
+  (always on top, all Spaces) and tray; Info.plist carries the calendar, microphone and speech
+  usage strings. Pages: Home (needs you, threads, coming up, modules), module (App · Activity ·
+  Settings, Summary + a derived page per table), People & Person, Intelligence (Skills,
+  Automations, Connections with connect forms, Knowledge), Activity; the conversation panel
+  with thread cards and their own view; the companion with presence, bubble and panel.
+- **Verified**: 43 core tests + 3 desktop tests; in the browser pane against the scratch world
+  (every page renders, an inline edit saved and journaled as the person's, a turn from the
+  panel answered "~53 g protein today" in 6 s); in the native app on the real world (core ready
+  in under a second after the first launch, a turn typed in the app's own panel answered).
+  Real connector runs: a watched folder summarised (10.6 s); We Work Remotely read into Job
+  Search › Openings with fit scores (91 s, 18 steps).
+- **Found**: (1) the first launch from a repository on the Desktop waits on macOS's
+  Desktop-folder prompt (about four minutes here) and left the workspace window blank until a
+  relaunch; the cure is the bundled runtime (core outside the Desktop folder) or moving the
+  repository, plus showing "waiting for macOS" in the window. (2) Turns don't yet link companies
+  and people as entities when they read pages (People stayed empty after the job search). (3) The
+  `Cargo.lock` must be kept: without it cargo resolves companion crates that don't build with
+  tauri 2.11.6. (4) The calendar's real first read is still to run; it is the person's own
+  macOS prompt, from Intelligence › Connections › Connect calendars in the app.
+
 
 2. Browser, files and calendar connectors as skill directories with `connector.yaml`
    (`design/research/connectors-and-sources.md` §5); the derived pages and the workspace ported

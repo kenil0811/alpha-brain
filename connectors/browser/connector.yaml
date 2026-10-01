@@ -1,6 +1,6 @@
 name: browser
 title: Browser
-description: Web pages read the way the person sees them, including sites they signed into in Alpha's browser.
+description: Web pages read the way you see them, including sites you signed into in Alpha's browser.
 provider: chrome
 version: 1
 origin: builtin

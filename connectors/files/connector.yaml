@@ -1,6 +1,6 @@
 name: files
 title: Files
-description: Folders on this Mac the person asked Alpha to read; documents become searchable and linkable.
+description: Folders on this Mac you asked Alpha to read; your documents become searchable and linked to the rest.
 provider: macos-files
 version: 1
 origin: builtin

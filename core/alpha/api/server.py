@@ -440,8 +440,25 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     return app
 
 
+READY_PREFIX = "ALPHA_CORE_READY "
+
+
 def serve(port: int = 53900) -> None:
+    """Listen on 127.0.0.1 (port 0 picks a free one) and say so on one stdout line,
+    `ALPHA_CORE_READY {"port": …}`, which the app's host waits for."""
+    import json
+    import socket
+    import sys
+
     import uvicorn
 
-    logging.basicConfig(level=logging.INFO)
-    uvicorn.run(create_app(), host="127.0.0.1", port=port, log_level="warning")
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("127.0.0.1", port))
+    sock.listen(128)
+    world = World()
+    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid()}
+    print(READY_PREFIX + json.dumps(ready), flush=True)
+    config = uvicorn.Config(create_app(world), log_level="warning")
+    uvicorn.Server(config).run(sockets=[sock])
