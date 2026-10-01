@@ -244,7 +244,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
             <div key={s.name} className="card card--pad intel__card">
               <div className="intel__head">
                 <h3>{s.title}</h3>
-                <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Learned"}</span>
+                <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
               </div>
               <p className="muted">{s.description}</p>
               <div className="skill__meta">
@@ -255,6 +255,19 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
                   </span>
                 ))}
               </div>
+            </div>
+          ))}
+          {data.readers.map((r) => (
+            <div key={r.name} className="card card--pad intel__card">
+              <div className="intel__head">
+                <h3>{r.description}</h3>
+                <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
+              </div>
+              <p className="muted">
+                Alpha made this to read {r.site}. Version {r.version}
+                {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
+              </p>
+              {r.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{r.last_problem}</p> : null}
             </div>
           ))}
           <div className="card card--pad intel__card modcard--new">

@@ -45,6 +45,18 @@ def manifests() -> list[dict[str, Any]]:
     return [yaml.safe_load(p.read_text()) for p in sorted(root.glob("*/connector.yaml"))]
 
 
+def skills_text() -> str:
+    """How to use each connector (its SKILL.md without the front matter), for the model."""
+    parts = []
+    root = connectors_dir()
+    for path in sorted(root.glob("*/SKILL.md")) if root.exists() else []:
+        text = path.read_text()
+        if text.startswith("---"):
+            text = text.split("---", 2)[2]
+        parts.append(text.strip())
+    return "\n\n".join(parts)
+
+
 def _row(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
     out["config"] = loads(row["config"], {})

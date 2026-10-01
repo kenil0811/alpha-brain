@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from alpha.connectors.base import skills_text
 from alpha.context import prepack
 from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
@@ -46,10 +47,14 @@ the module's note (note_write scope "module:<name>", title "<name>": what it is 
 in it and why, how to use it, sources, what is open).
    d. Fill it from where the data already lives, and keep it current yourself: if the source \
 is a site the person uses (LinkedIn, a job board, a dashboard), read it through their sign-in \
-(page_to_table for whole lists, page_read for single pages; browser_signin when the site needs \
-a sign-in) and set up an automation (automation_create) that keeps it current on a sensible \
-schedule, after doing the first run yourself. Never ask the person to export, copy or paste \
-something you can read yourself, and never propose a reminder for a chore you can do.
+(browser_signin when the site needs one). For a list you will keep, write a reader: look at \
+the real page with page_script (return the HTML of one or two items to see its structure), \
+write a script that returns clean rows (names, titles, dates already separated and tidy), try \
+it with page_script, keep it with reader_save, fill the table with reader_run, then set up an \
+automation (automation_create) whose procedure is reader_run with the table and key. Never \
+clean rows one by one after a sync; make the reader return them clean. Never ask the person \
+to export, copy or paste something you can read, and never propose a reminder for a chore you \
+can do. Never conclude a site has a limit from one failed attempt: check it with page_script.
    e. Decide the details a good product person would decide; ask only what truly depends on \
 the person, all together at the end of your reply, numbered.
    If the site needs a sign-in first, start browser_signin, build everything else, and tell \
@@ -137,7 +142,7 @@ def ask(
     context = prepack.build(world, sentence, module=module_id)
     request = TurnRequest(
         sentence=sentence,
-        system=f"{rules}\n\n{context}",
+        system=f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}\n\n{context}",
         world_path=world.path,
         turn_id=said,
         thread_id=thread,

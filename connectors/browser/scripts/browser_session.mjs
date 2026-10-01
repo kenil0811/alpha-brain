@@ -5,6 +5,11 @@
  *           resolves when they close the window. Alpha never reads what they type.
  *   read:   load a page headless (with a profile, or none), let scripts run, and return its
  *           title, readable text and links. Never clicks, types or submits anything.
+ *   script: load a page the same way, optionally read it to its end, then run Alpha's own
+ *           JavaScript in it and return what the script returns (JSON).
+ * Read and script sessions are read-only by mechanism: every request that could change data on
+ * the site (anything but GET, HEAD and OPTIONS) is blocked at the network, so neither a script
+ * nor anything on the page can send, post or submit while Alpha reads.
  *   status: whether a profile holds cookies for a site.
  */
 import { chromium } from "playwright-core";
@@ -39,6 +44,18 @@ function launchOptions(job, headless) {
 function cookieMatches(cookie, site) {
   const domain = String(cookie.domain || "").replace(/^\./, "").toLowerCase();
   return domain === site || domain.endsWith("." + site);
+}
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+async function readOnly(context) {
+  let blocked = 0;
+  await context.route("**/*", (route) => {
+    if (SAFE_METHODS.has(route.request().method())) return route.continue();
+    blocked += 1;
+    return route.abort("blockedbyclient");
+  });
+  return () => blocked;
 }
 
 async function cookiesFor(job) {
@@ -90,6 +107,7 @@ async function read(job) {
     browser = await chromium.launch(launchOptions(job, true));
     context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT });
   }
+  const blockedCount = await readOnly(context);
   try {
     const page = context.pages()[0] || (await context.newPage());
     const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: job.timeout_ms || 30000 });
@@ -134,6 +152,25 @@ async function read(job) {
         await page.mouse.wheel(0, 2400);
         await page.waitForTimeout(500);
       }
+    }
+    if (job.op === "script") {
+      // Alpha's own code, run in the page: a function body that may use `document` and must
+      // return something JSON can carry (a list of rows, usually).
+      const value = await page.evaluate(async (body) => {
+        const fn = new Function(`return (async () => { ${body} })();`);
+        return await fn();
+      }, job.script);
+      const finalUrl = page.url();
+      const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
+      return {
+        status: response ? response.status() : 0,
+        final_url: finalUrl,
+        title: await page.title(),
+        blocked: wall.test(finalUrl) && !wall.test(job.url),
+        result: value === undefined ? null : value,
+        scrolls,
+        writes_blocked: blockedCount(),
+      };
     }
     const data = await page.evaluate((limit) => {
       const links = [];
@@ -183,6 +220,7 @@ async function read(job) {
       blocked,
       html: html ? html.slice(0, 3000000) : null,
       scrolls,
+      writes_blocked: blockedCount(),
     };
   } finally {
     await context.close().catch(() => {});
@@ -201,7 +239,7 @@ rl.once("line", async (line) => {
   }
   try {
     if (job.op === "signin") await out(await signin(job));
-    else if (job.op === "read") await out(await read(job));
+    else if (job.op === "read" || job.op === "script") await out(await read(job));
     else if (job.op === "status") await out(await status(job));
     else await out({ error: `unknown job ${job.op}` });
   } catch (error) {

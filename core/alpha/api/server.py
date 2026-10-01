@@ -160,6 +160,24 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     return items
 
 
+def automation_views(world: World, scheduler: Scheduler,
+                     module: str | None = None) -> list[dict[str, Any]]:
+    """Automations with whether one is running now and, if so, what it has done so far."""
+    out = []
+    for a in world.automations.all(module):
+        running = a["id"] in scheduler.running
+        steps: list[dict[str, Any]] = []
+        if running and a["thread"]:
+            entries = world.journal.recent(80, thread=a["thread"])
+            starts = [i for i, e in enumerate(entries) if e["kind"] == "did"
+                      and e["text"].startswith("Run the automation")]
+            current = entries[starts[-1] + 1:] if starts else entries
+            steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in current
+                     if e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
+        out.append({**a, "running": running, "steps": steps[-8:]})
+    return out
+
+
 def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
     tables = world.collections.overview(m["id"])
     last = world.store.one(
@@ -301,7 +319,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["activity"] = list(reversed(world.journal.recent(500, module=m["id"])))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
-        card["automations"] = world.automations.all(m["id"])
+        card["automations"] = automation_views(world, scheduler, m["id"])
         return card
 
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
@@ -389,7 +407,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             "skills": [{"name": m["name"], "title": m.get("title", m["name"]),
                         "description": m.get("description"), "tools": m.get("tools", []),
                         "origin": m.get("origin")} for m in manifests()],
-            "automations": world.automations.all(),
+            "automations": automation_views(world, scheduler),
+            "readers": world.readers.all(),
             "connections": Connections(world.store).all(),
             "knowledge": {
                 "facts": world.knowledge.facts("person"),
@@ -433,7 +452,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.get("/api/automations", dependencies=[api])
     def automations() -> list[dict[str, Any]]:
-        return world.automations.all()
+        return automation_views(world, scheduler)
 
     @app.patch("/api/automations/{aid}", dependencies=[api])
     def switch_automation(aid: str, body: SwitchBody) -> dict[str, Any]:
@@ -445,7 +464,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/automations/{aid}/run", dependencies=[api])
     def run_automation(aid: str) -> dict[str, Any]:
         scheduler.run_now(aid)
-        return world.automations.get(aid)
+        return next(a for a in automation_views(world, scheduler) if a["id"] == aid)
 
     # ---- Activity, search, the conversation, turns, threads ----
 

@@ -213,6 +213,7 @@ export interface Skill {
 export interface Intelligence {
   skills: Skill[];
   automations: Automation[];
+  readers: Reader[];
   connections: Connection[];
   knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[] };
 }
@@ -230,6 +231,20 @@ export interface Automation {
   last_run_at: string | null;
   last_result: string | null;
   last_error: string | null;
+  running?: boolean;
+  steps?: { at: string; kind: string; text: string }[];
+}
+
+export interface Reader {
+  name: string;
+  site: string;
+  url: string;
+  description: string;
+  version: number;
+  health: "ok" | "broken";
+  last_problem: string | null;
+  last_run_at: string | null;
+  last_count: number | null;
 }
 
 export interface Turn {

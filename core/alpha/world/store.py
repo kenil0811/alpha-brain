@@ -209,6 +209,23 @@ CREATE TABLE IF NOT EXISTS automations (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS readers (
+    name TEXT PRIMARY KEY,
+    site TEXT NOT NULL,
+    url TEXT NOT NULL,
+    script TEXT NOT NULL,
+    to_end INTEGER NOT NULL DEFAULT 0,
+    description TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    health TEXT NOT NULL DEFAULT 'ok',
+    last_problem TEXT,
+    last_run_at TEXT,
+    last_count INTEGER,
+    last_ok_count INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,

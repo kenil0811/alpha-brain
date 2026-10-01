@@ -286,7 +286,8 @@ class Collections:
         """Add or update many records at once, matching on `key` (e.g. a URL). A record whose
         values didn't change is left alone. Fields in `fill_only` are written only where the
         record has no value yet, so the person's own edits (tags, notes) are never overwritten.
-        Returns counts and the ids touched."""
+        Rows that don't fit the table are set aside, counted as `invalid` with the first few
+        reasons in `problems`, and the rest are saved. Returns counts and the ids touched."""
         fields = {f["name"] for f in self._schema(name)["fields"]}
         if key not in fields:
             raise Problem(f"'{name}' has no field '{key}' to match records on.")
@@ -297,20 +298,27 @@ class Collections:
             value = loads(row["values"], {}).get(key)
             if value is not None:
                 existing[str(value)] = row
-        counts = {"added": 0, "updated": 0, "unchanged": 0, "skipped": 0}
+        counts = {"added": 0, "updated": 0, "unchanged": 0, "skipped": 0, "invalid": 0}
         touched: list[str] = []
         seen: set[str] = set()
         stamp = now()
+        problems: list[str] = []
         for raw in rows:
             match = raw.get(key)
             if match in (None, "") or str(match) in seen:
                 counts["skipped"] += 1
                 continue
             seen.add(str(match))
-            clean = self._validate(name, raw, partial=True)
             prior = existing.get(str(match))
+            # One bad row never sinks the batch: it is set aside and reported.
+            try:
+                clean = self._validate(name, raw, partial=prior is not None)
+            except Problem as e:
+                counts["invalid"] += 1
+                if len(problems) < 5:
+                    problems.append(f"{match}: {e}")
+                continue
             if prior is None:
-                clean = self._validate(name, raw, partial=False)
                 rid = new_id("r")
                 with self.store.tx() as db:
                     db.execute(
@@ -350,7 +358,7 @@ class Collections:
                 )
             counts["updated"] += 1
             touched.append(prior["id"])
-        return {**counts, "ids": touched}
+        return {**counts, "ids": touched, "problems": problems}
 
     def get(self, name: str, rid: str) -> dict[str, Any]:
         row = self.store.one(

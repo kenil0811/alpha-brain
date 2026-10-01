@@ -11,6 +11,7 @@ from alpha.world.entities import Entities
 from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
 from alpha.world.modules import Modules
+from alpha.world.readers import Readers
 from alpha.world.store import Store
 
 
@@ -37,6 +38,7 @@ class World:
         self.entities = Entities(self.store)
         self.modules = Modules(self.store)
         self.automations = Automations(self.store)
+        self.readers = Readers(self.store)
 
     def close(self) -> None:
         self.store.close()

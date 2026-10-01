@@ -631,3 +631,5 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .assist__reopen { position: fixed; top: 18px; right: 24px; z-index: 6; box-shadow: var(--shadow); }
 .activity__text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7.5em; overflow: hidden; }
 .avatar__bubble p { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.run__live { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.run__live .stages li { font-size: 12.5px; color: var(--text-2); }
