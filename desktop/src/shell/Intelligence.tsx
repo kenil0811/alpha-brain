@@ -4,7 +4,7 @@
  * read, switch or correct, never a configuration form.
  */
 import { type FormEvent, useEffect, useState } from "react";
-import type { Client, Connection, Intelligence as Data, Note } from "../core/client";
+import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
 
@@ -29,11 +29,40 @@ const STATUS: Record<Connection["status"], { pill: string; words: string }> = {
   off: { pill: "pill--gray", words: "Off" },
 };
 
+function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** What removing a connection takes with it, in a sentence the person reads before saying yes. */
+function removalWords(plan: ConnectionRemoval): string {
+  const goes: string[] = [];
+  if (plan.connector === "browser") goes.push(plan.signin ? "Alpha's sign-in (you'd sign in again to reconnect)" : "the connection");
+  if (plan.readers.length) goes.push(`the ${plan.readers.length === 1 ? "reader" : "readers"} Alpha wrote for it`);
+  if (plan.automations.length) goes.push(`the ${plan.automations.length === 1 ? "automation" : "automations"} ${plan.automations.map((t) => `“${t}”`).join(", ")}`);
+  if (plan.documents) goes.push(`${plural(plan.documents, "document")} read from it`);
+  if (plan.events) goes.push(`${plural(plan.events, "event")} read from it`);
+  goes.push("Alpha's record of reading it");
+  const list = goes.length > 1 ? `${goes.slice(0, -1).join(", ")} and ${goes[goes.length - 1]}` : goes[0];
+  const kept = plan.connector === "files" ? " Your files aren't touched." : " What it already put in your tables stays.";
+  return `This deletes ${list}.${kept}`;
+}
+
 function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
   const [folder, setFolder] = useState("");
   const [site, setSite] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [removing, setRemoving] = useState<{ id: string; plan: ConnectionRemoval | null } | null>(null);
+  function askRemove(id: string) {
+    setRemoving({ id, plan: null });
+    client
+      .connectionRemoval(id)
+      .then((plan) => setRemoving((r) => (r?.id === id ? { id, plan } : r)))
+      .catch((e: unknown) => {
+        setRemoving(null);
+        setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      });
+  }
   async function run(label: string, work: () => Promise<unknown>, ok: string) {
     setBusy(label);
     setMessage(null);
@@ -72,6 +101,30 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
               <button type="button" className="btn btn--sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
                 {c.connector === "browser" ? "Check" : "Read now"}
               </button>
+              <button type="button" className="btn btn--sm btn--ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
+                Remove
+              </button>
+              {removing?.id === c.id ? (
+                <div className="removal" role="alertdialog" aria-label={`Remove ${meta.label(c)}`}>
+                  {removing.plan ? (
+                    <>
+                      <p>
+                        <b>Remove {c.connector === "browser" ? c.target : meta.label(c)}?</b> {removalWords(removing.plan)}
+                      </p>
+                      <div className="row">
+                        <button type="button" className="btn btn--sm btn--danger" disabled={busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
+                          Remove
+                        </button>
+                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => setRemoving(null)}>
+                          Keep it
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="muted">Working out what goes with it…</p>
+                  )}
+                </div>
+              ) : null}
             </div>
           );
         })}

@@ -3,8 +3,10 @@
 A public page is read headless with scripts run. A site the person signed into is read through
 a Chrome profile Alpha keeps for that site under the data directory: the person signs in
 themselves in a window Alpha opens (Alpha never sees what they type), and the connection is then
-"connected". Reading only: the driver never clicks, types or submits (it presses "Show more"
-style paging buttons when asked to read a list to its end). Every page read is journaled.
+"connected". A sign-in covers every site its window passed through (one that starts at gmail.com
+ends at google.com), so a page on any of them is read through that profile. Reading only: the
+driver never clicks, types or submits (it presses "Show more" style paging buttons when asked to
+read a list to its end). Every page read is journaled.
 
 The driver is `connectors/browser/scripts/browser_session.mjs` (Playwright, pinned), run with
 Node 24.
@@ -61,6 +63,30 @@ def driver() -> Path:
 
 def profile_dir(site: str) -> Path:
     return alpha_home() / "browser" / site
+
+
+SIGNIN_RECORD = "alpha-signin.json"
+
+
+def profile_of(conn: dict[str, Any]) -> Path:
+    return Path(conn["config"].get("profile") or profile_dir(conn["target"]))
+
+
+def signin_sites(conn: dict[str, Any]) -> list[str]:
+    """The sites a sign-in covers: the one it started on and every site its window visited."""
+    sites = [conn["target"]]
+    try:
+        hosts = json.loads((profile_of(conn) / SIGNIN_RECORD).read_text()).get("hosts", [])
+    except (OSError, ValueError):
+        hosts = []
+    for host in hosts:
+        try:
+            site = site_of(str(host))
+        except Problem:
+            continue
+        if site not in sites:
+            sites.append(site)
+    return sites
 
 
 def run_job(job: dict[str, Any], timeout: int = READ_TIMEOUT_S) -> dict[str, Any]:
@@ -120,7 +146,11 @@ class Browser:
         next time Alpha checks (`refresh`) after the person has signed in and closed it."""
         site = site_of(site_or_url)
         url = site_or_url if "://" in site_or_url else f"https://www.{site}/"
-        job = {"op": "signin", "site": site, "url": url, "profile": str(profile_dir(site)),
+        # A site an earlier sign-in already passed through is signed in again on that profile.
+        covering = self.covering(site)
+        target = covering["target"] if covering else site
+        profile = profile_of(covering) if covering else profile_dir(site)
+        job = {"op": "signin", "site": target, "url": url, "profile": str(profile),
                "channel": "chrome"}
         script = driver()
         proc = subprocess.Popen(
@@ -131,8 +161,8 @@ class Browser:
         assert proc.stdin is not None
         proc.stdin.write(json.dumps(job) + "\n")
         proc.stdin.close()
-        conn = self.connections.upsert("browser", site, status="needs_ok",
-                                       config={"profile": str(profile_dir(site))})
+        conn = self.connections.upsert("browser", target, status="needs_ok",
+                                       config={"profile": str(profile)})
         self.world.journal.close_asks_about(conn["id"], "Asked again.", "replaced")
         self.world.journal.append(
             "asked", f"A window is open on {site}: sign in there, then close it.",
@@ -140,18 +170,29 @@ class Browser:
         )
         return conn
 
-    def refresh(self, site_or_url: str) -> dict[str, Any]:
-        """Check whether the site's profile holds a sign-in now."""
+    def covering(self, site_or_url: str) -> dict[str, Any] | None:
+        """The sign-in that covers a site: its own, or one whose window passed through it."""
         site = site_of(site_or_url)
-        conn = self.connections.find("browser", site)
+        own = self.connections.find("browser", site)
+        if own is not None and own["status"] != "off":
+            return own
+        for conn in self.connections.all("browser"):
+            if conn["status"] != "off" and site in signin_sites(conn)[1:]:
+                return conn
+        return own
+
+    def refresh(self, site_or_url: str) -> dict[str, Any]:
+        """Check whether the sign-in covering the site holds a session now."""
+        conn = self.covering(site_or_url)
         if conn is None:
-            raise Problem(f"Alpha's browser has never been signed in to {site}.")
-        result = self.runner({"op": "status", "site": site, "profile": str(profile_dir(site)),
-                              "channel": "chrome"}, 60)
+            raise Problem(f"Alpha's browser has never been signed in to {site_of(site_or_url)}.")
+        target = conn["target"]
+        result = self.runner({"op": "status", "site": target, "sites": signin_sites(conn),
+                              "profile": str(profile_of(conn)), "channel": "chrome"}, 60)
         status = "connected" if result.get("signed_in") else "needs_ok"
-        conn = self.connections.upsert("browser", site, status=status, config=conn["config"])
+        conn = self.connections.upsert("browser", target, status=status, config=conn["config"])
         if status == "connected":
-            self.world.journal.close_asks_about(conn["id"], f"Signed in to {site}.", "done")
+            self.world.journal.close_asks_about(conn["id"], f"Signed in to {target}.", "done")
         return conn
 
     def read(self, url: str, *, to_end: bool = False, signed_in: bool | None = None,
@@ -163,14 +204,14 @@ class Browser:
         if PRIVATE.match(parsed.hostname):
             raise Problem("Alpha doesn't open addresses on this Mac or the local network.")
         site = site_of(url)
-        conn = self.connections.find("browser", site)
-        if conn is not None and conn["status"] == "needs_ok" and signed_in is not False:
+        conn = self.covering(site)
+        if conn is not None and conn["status"] != "connected" and signed_in is not False:
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected" and signed_in is not False
         job: dict[str, Any] = {"op": "read", "url": url, "max_chars": max_chars,
                                "channel": "chrome", "scroll_to_end": to_end}
-        if use_profile:
-            job["profile"] = str(profile_dir(site))
+        if use_profile and conn is not None:
+            job["profile"] = str(profile_of(conn))
         page = self.runner(job, READ_TIMEOUT_S)
         links = page.get("links") or []
         self.world.journal.append(
@@ -210,14 +251,14 @@ class Browser:
         if not script.strip():
             raise Problem("The script is empty.")
         site = site_of(url)
-        conn = self.connections.find("browser", site)
-        if conn is not None and conn["status"] == "needs_ok":
+        conn = self.covering(site)
+        if conn is not None and conn["status"] != "connected":
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected"
         job: dict[str, Any] = {"op": "script", "url": url, "script": script, "channel": "chrome",
                                "scroll_to_end": to_end}
-        if use_profile:
-            job["profile"] = str(profile_dir(site))
+        if use_profile and conn is not None:
+            job["profile"] = str(profile_of(conn))
         page = self.runner(job, READ_TIMEOUT_S * 3 if to_end else READ_TIMEOUT_S)
         result = page.get("result")
         count = len(result) if isinstance(result, list) else None

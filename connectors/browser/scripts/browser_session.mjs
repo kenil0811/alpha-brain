@@ -2,7 +2,9 @@
  * Alpha's browser session worker (the `browser` capability). One JSON job on stdin, one JSON
  * result on stdout, then exit. Two jobs:
  *   signin: open a visible window on a profile Alpha keeps, so the person signs in themselves;
- *           resolves when they close the window. Alpha never reads what they type.
+ *           resolves when they close the window. Alpha never reads what they type. A sign-in
+ *           often passes through other sites (gmail.com signs in at google.com), so the sites
+ *           the window visited are written next to the profile: the sign-in covers them all.
  *   read:   load a page headless (with a profile, or none), let scripts run, and return its
  *           title, readable text and links. Never clicks, types or submits anything.
  *   script: load a page the same way, optionally read it to its end, then run Alpha's own
@@ -12,10 +14,11 @@
  * done by this driver alone (it only scrolls and presses "Show more" style paging buttons), and
  * the page may use any request it needs for that, because many sites load the next page of a
  * list with a POST that only reads.
- *   status: whether a profile holds cookies for a site.
+ *   status: whether a profile holds cookies for a site (or any of `sites`).
  */
 import { chromium } from "playwright-core";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 // Resolves once the line is handed to the pipe: a large page must be written in full before the
@@ -65,7 +68,8 @@ async function cookiesFor(job) {
   const context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
   try {
     const cookies = await context.cookies();
-    return cookies.filter((c) => cookieMatches(c, job.site)).length;
+    const sites = job.sites && job.sites.length ? job.sites : [job.site];
+    return cookies.filter((c) => sites.some((site) => cookieMatches(c, site))).length;
   } finally {
     await context.close();
   }
@@ -75,6 +79,19 @@ async function signin(job) {
   mkdirSync(job.profile, { recursive: true, mode: 0o700 });
   const context = await chromium.launchPersistentContext(job.profile, launchOptions(job, false));
   const page = context.pages()[0] || (await context.newPage());
+  const visited = new Set();
+  const follow = (p) =>
+    p.on("framenavigated", (frame) => {
+      if (frame !== p.mainFrame()) return;
+      try {
+        const url = new URL(frame.url());
+        if (url.protocol === "https:" || url.protocol === "http:") visited.add(url.hostname);
+      } catch {
+        // not a web address
+      }
+    });
+  follow(page);
+  context.on("page", follow);
   await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
   await new Promise((resolve) => {
     context.on("close", resolve);
@@ -91,8 +108,9 @@ async function signin(job) {
     context.on("page", (p) => p.on("close", maybeDone));
     page.on("close", maybeDone);
   });
+  writeFileSync(join(job.profile, "alpha-signin.json"), JSON.stringify({ hosts: [...visited], at: new Date().toISOString() }));
   const cookies = await cookiesFor(job);
-  return { signed_in: cookies > 0, cookies };
+  return { signed_in: cookies > 0, cookies, hosts: [...visited] };
 }
 
 async function status(job) {

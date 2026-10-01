@@ -6,6 +6,13 @@ and the conversation the model resumes), its note, its goals, its journal, and t
 Entities and facts stay (they belong to the person, not to a module), and so do connections
 (a sign-in belongs to Alpha's browser).
 
+`remove_connection` disconnects Alpha from something for good: the connection and everything
+that exists because of it. For a site, Alpha's sign-in (its browser profile on disk), the
+readers Alpha wrote for the sites that sign-in covers, the automations that use them (with
+their threads), and the journal of reading those sites; for a folder, the documents read from
+it; for the calendar, its events. What Alpha wrote into the person's tables stays: those rows
+are the person's, and removing the module is how they go.
+
 `clear_conversation` deletes the person's conversation with Alpha: everything said and replied
 outside any thread, with the questions Alpha asked there and their answers. What Alpha did and
 read (Activity) and every module's data stay.
@@ -13,9 +20,14 @@ read (Activity) and every module's data stay.
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
 from typing import Any
 
-from alpha.world.world import World
+from alpha.connectors.base import Connections
+from alpha.connectors.browser import profile_of, signin_sites, site_of
+from alpha.world.store import Problem, loads
+from alpha.world.world import World, alpha_home
 
 CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
 
@@ -64,3 +76,96 @@ def clear_conversation(world: World) -> dict[str, int]:
             f"DELETE FROM journal WHERE thread IS NULL AND kind IN ({marks})", CONVERSATION_KINDS
         ).rowcount
     return {"turns": removed}
+
+
+def _site(url: str) -> str | None:
+    try:
+        return site_of(url)
+    except Problem:
+        return None
+
+
+def _in(column: str, values: list[str]) -> tuple[str, tuple[str, ...]]:
+    return f"{column} IN ({','.join('?' * len(values))})", tuple(values)
+
+
+def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[str, Any]:
+    """Remove a connection and everything that exists because of it. With `dry_run`, only say
+    what would go (the app shows it before the person confirms)."""
+    store = world.store
+    conn = Connections(store).get(cid)
+    kind, target = conn["connector"], conn["target"]
+    journal = {r["id"] for r in store.all(
+        "SELECT id FROM journal WHERE json_extract(data, '$.connection') = ?", (cid,))}
+    readers: list[str] = []
+    autos: list[dict[str, Any]] = []
+    profile: Path | None = None
+    documents: list[str] = []
+    events: list[str] = []
+    entity_ids: list[str] = []
+    if kind == "browser":
+        sites = set(signin_sites(conn))
+        readers = [r["name"] for r in store.all("SELECT name, site, url FROM readers")
+                   if r["site"] in sites or _site(r["url"]) in sites]
+        autos = [dict(a) for a in store.all("SELECT id, title, thread, procedure FROM automations")
+                 if any(n in a["procedure"] for n in readers)
+                 or any(site in a["procedure"].lower() for site in sites)]
+        for r in store.all("SELECT id, data FROM journal WHERE source = 'connector:browser'"
+                           " OR json_extract(data, '$.reader') IS NOT NULL"):
+            data = loads(r["data"], {})
+            if _site(str(data.get("url") or "")) in sites or data.get("reader") in readers:
+                journal.add(r["id"])
+        candidate = profile_of(conn).resolve()
+        if candidate.is_relative_to((alpha_home() / "browser").resolve()) and candidate.exists():
+            profile = candidate
+    elif kind == "files":
+        rows = store.all("SELECT id, entity_id FROM documents WHERE connection = ?", (cid,))
+        documents = [r["id"] for r in rows]
+        entity_ids = [r["entity_id"] for r in rows]
+    elif kind == "calendar":
+        rows = store.all("SELECT id, entity_id FROM events WHERE connection = ?", (cid,))
+        events = [r["id"] for r in rows]
+        entity_ids = [r["entity_id"] for r in rows]
+    for a in autos:
+        journal |= {r["id"] for r in store.all(
+            "SELECT id FROM journal WHERE thread = ? OR json_extract(data, '$.automation') = ?",
+            (a["thread"], a["id"]))}
+    plan: dict[str, Any] = {
+        "connection": cid, "connector": kind, "target": target,
+        "signin": profile is not None,
+        "readers": readers,
+        "automations": [a["title"] for a in autos],
+        "documents": len(documents), "events": len(events),
+        "journal": len(journal),
+    }
+    if dry_run:
+        return plan
+    with store.tx() as db:
+        for name in readers:
+            db.execute("DELETE FROM readers WHERE name = ?", (name,))
+        for a in autos:
+            db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
+            if a["thread"]:
+                db.execute("DELETE FROM threads WHERE id = ?", (a["thread"],))
+        if documents:
+            clause, args = _in("id", documents)
+            db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text)"
+                       f" SELECT 'delete', rowid, title, text FROM documents WHERE {clause}", args)
+            db.execute(f"DELETE FROM documents WHERE {clause}", args)
+        if events:
+            clause, args = _in("id", events)
+            db.execute(f"DELETE FROM events WHERE {clause}", args)
+        if entity_ids:
+            clause, args = _in("entity_id", entity_ids)
+            db.execute(f"DELETE FROM entity_keys WHERE {clause}", args)
+            clause, args = _in("subject", entity_ids)
+            db.execute(f"DELETE FROM facts WHERE {clause}", args)
+            clause, args = _in("id", entity_ids)
+            db.execute(f"DELETE FROM entities WHERE {clause}", args)
+        if journal:
+            clause, args = _in("id", sorted(journal))
+            db.execute(f"DELETE FROM journal WHERE {clause}", args)
+        db.execute("DELETE FROM connections WHERE id = ?", (cid,))
+    if profile is not None:
+        shutil.rmtree(profile, ignore_errors=True)
+    return plan

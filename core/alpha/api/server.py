@@ -33,6 +33,7 @@ from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
+from alpha.world.purge import remove_connection
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
@@ -453,6 +454,15 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if conn["connector"] == "browser":
             return Browser(world).refresh(conn["target"])
         raise Problem(f"Nothing to sync for {conn['connector']}.")
+
+    @app.get("/api/connections/{cid}/removal", dependencies=[api])
+    def connection_removal(cid: str) -> dict[str, Any]:
+        """What removing a connection takes with it, shown before the person confirms."""
+        return remove_connection(world, cid, dry_run=True)
+
+    @app.delete("/api/connections/{cid}", dependencies=[api])
+    def delete_connection(cid: str) -> dict[str, Any]:
+        return remove_connection(world, cid)
 
     # ---- automations ----
 

@@ -94,6 +94,16 @@ def test_an_ask_can_be_dismissed_without_running_anything(world: World) -> None:
     assert world.journal.recent(5, kinds=["said"]) == []
 
 
+def test_a_connection_says_what_goes_then_goes(world: World) -> None:
+    from alpha.connectors.base import Connections
+    conn = Connections(world.store).upsert("browser", "example.com")
+    c = client(world)
+    plan = c.get(f"/api/connections/{conn['id']}/removal").json()
+    assert plan["target"] == "example.com" and plan["readers"] == []
+    c.delete(f"/api/connections/{conn['id']}")
+    assert c.get("/api/intelligence").json()["connections"] == []
+
+
 def test_ask_runs_a_turn_in_the_background(world: World) -> None:
     def runner(req: TurnRequest) -> RunResult:
         return RunResult(reply="Logged two eggs.", ok=True, duration_ms=1200)

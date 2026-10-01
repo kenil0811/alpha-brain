@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
+
+from alpha.connectors.base import Connections
 from alpha.mcp.tools import Tools
-from alpha.world.purge import clear_conversation, remove_module
+from alpha.world.purge import clear_conversation, remove_connection, remove_module
 from alpha.world.world import World
 
 
@@ -40,3 +46,64 @@ def test_clearing_the_conversation_keeps_activity(world: World) -> None:
     world.journal.append("said", "in a thread", actor="person", thread="t_1")
     assert clear_conversation(world)["turns"] == 2
     assert [e["kind"] for e in world.journal.recent(10)] == ["did", "said"]
+
+
+def test_removing_a_site_connection_leaves_nothing_of_it_but_the_persons_rows(
+    world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ALPHA_HOME", str(tmp_path / "home"))
+    profile = tmp_path / "home" / "browser" / "linkedin.com"
+    profile.mkdir(parents=True)
+    (profile / "Cookies").write_text("session")
+    conn = Connections(world.store).upsert("browser", "linkedin.com",
+                                           config={"profile": str(profile)})
+    other = Connections(world.store).upsert("browser", "example.com")
+    t = Tools(world, turn="j_1")
+    t.module_create("Network")
+    t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"}],
+                        module="Network")
+    t.records_add("connections", {"name": "Priya"})
+    world.readers.save("linkedin_connections", site="linkedin.com",
+                       url="https://www.linkedin.com/mynetwork/", script="return []",
+                       description="d", to_end=True, count=1)
+    auto = t.automation_create("Daily LinkedIn sync", "daily 07:00",
+                               'reader_run(name="linkedin_connections")', module="Network")
+    world.journal.append("replied", "LinkedIn caps the list", thread=auto["thread"])
+    world.journal.append("saw", "Read My Network (linkedin.com, signed in).",
+                         data={"url": "https://www.linkedin.com/mynetwork/"},
+                         source="connector:browser")
+    world.journal.append("saw", "Read Example (example.com).",
+                         data={"url": "https://example.com/"}, source="connector:browser")
+    world.journal.append("asked", "A window is open on linkedin.com: sign in there.",
+                         data={"connection": conn["id"]}, source="connector:browser")
+
+    plan = remove_connection(world, conn["id"], dry_run=True)
+    assert plan["signin"] and plan["readers"] == ["linkedin_connections"]
+    assert plan["automations"] == ["Daily LinkedIn sync"] and profile.exists()
+
+    remove_connection(world, conn["id"])
+    assert not profile.exists()
+    assert [c["target"] for c in Connections(world.store).all()] == [other["target"]]
+    assert world.readers.all() == [] and world.automations.all() == []
+    assert world.modules.threads(None) == [] and world.journal.open_asks() == []
+    assert world.journal.search("caps") == [] and world.journal.search("signed in") == []
+    assert [e["text"] for e in world.journal.recent(20, kinds=["saw"])] == [
+        "Read Example (example.com)."]
+    assert world.collections.describe("connections")["records"] == 1  # the person's rows stay
+
+
+def test_removing_a_signin_takes_the_sites_it_passed_through(
+    world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ALPHA_HOME", str(tmp_path / "home"))
+    profile = tmp_path / "home" / "browser" / "gmail.com"
+    profile.mkdir(parents=True)
+    (profile / "alpha-signin.json").write_text(json.dumps(
+        {"hosts": ["www.gmail.com", "accounts.google.com", "mail.google.com"]}))
+    conn = Connections(world.store).upsert("browser", "gmail.com",
+                                           config={"profile": str(profile)})
+    world.journal.append("saw", "Read Inbox (google.com).",
+                         data={"url": "https://mail.google.com/mail/u/0/"},
+                         source="connector:browser")
+    remove_connection(world, conn["id"])
+    assert not profile.exists() and world.journal.recent(5, kinds=["saw"]) == []

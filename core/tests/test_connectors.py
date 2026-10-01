@@ -133,6 +133,30 @@ def test_a_signin_ask_closes_when_asked_again_and_when_signed_in(
     assert world.journal.open_asks() == []
 
 
+def test_a_signin_covers_the_sites_its_window_passed_through(
+    world: World, tmp_path: Path
+) -> None:
+    profile = tmp_path / "gmail.com"
+    profile.mkdir()
+    (profile / "alpha-signin.json").write_text(
+        '{"hosts": ["www.gmail.com", "accounts.google.com", "mail.google.com"]}')
+    Connections(world.store).upsert("browser", "gmail.com", status="needs_ok",
+                                    config={"profile": str(profile)})
+    jobs: list[dict[str, Any]] = []
+
+    def runner(job: dict[str, Any], timeout: int) -> dict[str, Any]:
+        jobs.append(job)
+        if job["op"] == "status":
+            return {"signed_in": "google.com" in job["sites"]}
+        return {"status": 200, "final_url": job["url"], "title": "Inbox", "text": "", "links": []}
+
+    page = Browser(world, runner).read("https://mail.google.com/mail/u/0/")
+    assert page["signed_in"] and jobs[1]["profile"] == str(profile)
+    assert jobs[0]["sites"] == ["gmail.com", "google.com"]
+    conn = Connections(world.store).find("browser", "gmail.com")
+    assert conn is not None and conn["status"] == "connected"
+
+
 def test_read_refuses_local_addresses(world: World) -> None:
     with pytest.raises(Problem, match="local network"):
         Browser(world, lambda j, t: {}).read("http://192.168.1.1/admin")

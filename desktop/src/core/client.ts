@@ -191,6 +191,16 @@ export interface EntityDetail extends Entity {
   maybe_same: Entity[];
 }
 
+export interface ConnectionRemoval {
+  connector: string;
+  target: string;
+  signin: boolean;
+  readers: string[];
+  automations: string[];
+  documents: number;
+  events: number;
+}
+
 export interface Connection {
   id: string;
   connector: string;
@@ -328,6 +338,8 @@ export class Client {
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });
   connectCalendar = () => this.call<Connection>("POST", "/api/connections/calendar");
   syncConnection = (id: string) => this.call<Record<string, unknown>>("POST", `/api/connections/${id}/sync`);
+  connectionRemoval = (id: string) => this.call<ConnectionRemoval>("GET", `/api/connections/${id}/removal`);
+  removeConnection = (id: string) => this.call<ConnectionRemoval>("DELETE", `/api/connections/${id}`);
 
   activity = (params: { q?: string; module?: string; limit?: number } = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
