@@ -48,7 +48,7 @@ def test_clearing_the_conversation_keeps_activity(world: World) -> None:
     assert [e["kind"] for e in world.journal.recent(10)] == ["did", "said"]
 
 
-def test_removing_a_site_connection_leaves_nothing_of_it_but_the_persons_rows(
+def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("ALPHA_HOME", str(tmp_path / "home"))
@@ -85,10 +85,13 @@ def test_removing_a_site_connection_leaves_nothing_of_it_but_the_persons_rows(
     assert not profile.exists()
     assert [c["target"] for c in Connections(world.store).all()] == [other["target"]]
     assert world.readers.all() == [] and world.automations.all() == []
-    assert world.modules.threads(None) == [] and world.journal.open_asks() == []
-    assert world.journal.search("caps") == [] and world.journal.search("signed in") == []
-    assert [e["text"] for e in world.journal.recent(20, kinds=["saw"])] == [
-        "Read Example (example.com)."]
+    assert world.journal.open_asks() == []
+    thread = world.modules.thread(auto["thread"])
+    assert thread["session_ref"] is None  # its old beliefs can never be resumed
+    # What happened stays in the journal: the reads, the thread's run, and the removal itself.
+    assert world.journal.search("caps") and len(world.journal.recent(20, kinds=["saw"])) == 2
+    assert world.journal.recent(1)[0]["text"] == (
+        "Removed the connection to linkedin.com (Alpha's sign-in, 1 reader, 1 automation).")
     assert world.collections.describe("connections")["records"] == 1  # the person's rows stay
 
 
@@ -106,4 +109,4 @@ def test_removing_a_signin_takes_the_sites_it_passed_through(
                          data={"url": "https://mail.google.com/mail/u/0/"},
                          source="connector:browser")
     remove_connection(world, conn["id"])
-    assert not profile.exists() and world.journal.recent(5, kinds=["saw"]) == []
+    assert not profile.exists() and len(world.journal.recent(5, kinds=["saw"])) == 1

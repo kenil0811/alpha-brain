@@ -8,10 +8,12 @@ Entities and facts stay (they belong to the person, not to a module), and so do 
 
 `remove_connection` disconnects Alpha from something for good: the connection and everything
 that exists because of it. For a site, Alpha's sign-in (its browser profile on disk), the
-readers Alpha wrote for the sites that sign-in covers, the automations that use them (with
-their threads), and the journal of reading those sites; for a folder, the documents read from
-it; for the calendar, its events. What Alpha wrote into the person's tables stays: those rows
-are the person's, and removing the module is how they go.
+readers Alpha wrote for the sites that sign-in covers, and the automations that use them (their
+threads stay as a record but can never be resumed); for a folder, the documents read from it;
+for the calendar, its events. Its open questions are closed. The journal is the audit and is
+never rewritten: what Alpha read stays in Activity, and the removal is journaled too. What
+Alpha wrote into the person's tables stays: those rows are the person's, and removing the
+module is how they go.
 
 `clear_conversation` deletes the person's conversation with Alpha: everything said and replied
 outside any thread, with the questions Alpha asked there and their answers. What Alpha did and
@@ -26,7 +28,7 @@ from typing import Any
 
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites, site_of
-from alpha.world.store import Problem, loads
+from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
 
 CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
@@ -95,8 +97,6 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     store = world.store
     conn = Connections(store).get(cid)
     kind, target = conn["connector"], conn["target"]
-    journal = {r["id"] for r in store.all(
-        "SELECT id FROM journal WHERE json_extract(data, '$.connection') = ?", (cid,))}
     readers: list[str] = []
     autos: list[dict[str, Any]] = []
     profile: Path | None = None
@@ -110,11 +110,6 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         autos = [dict(a) for a in store.all("SELECT id, title, thread, procedure FROM automations")
                  if any(n in a["procedure"] for n in readers)
                  or any(site in a["procedure"].lower() for site in sites)]
-        for r in store.all("SELECT id, data FROM journal WHERE source = 'connector:browser'"
-                           " OR json_extract(data, '$.reader') IS NOT NULL"):
-            data = loads(r["data"], {})
-            if _site(str(data.get("url") or "")) in sites or data.get("reader") in readers:
-                journal.add(r["id"])
         candidate = profile_of(conn).resolve()
         if candidate.is_relative_to((alpha_home() / "browser").resolve()) and candidate.exists():
             profile = candidate
@@ -126,17 +121,12 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         rows = store.all("SELECT id, entity_id FROM events WHERE connection = ?", (cid,))
         events = [r["id"] for r in rows]
         entity_ids = [r["entity_id"] for r in rows]
-    for a in autos:
-        journal |= {r["id"] for r in store.all(
-            "SELECT id FROM journal WHERE thread = ? OR json_extract(data, '$.automation') = ?",
-            (a["thread"], a["id"]))}
     plan: dict[str, Any] = {
         "connection": cid, "connector": kind, "target": target,
         "signin": profile is not None,
         "readers": readers,
         "automations": [a["title"] for a in autos],
         "documents": len(documents), "events": len(events),
-        "journal": len(journal),
     }
     if dry_run:
         return plan
@@ -146,7 +136,8 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         for a in autos:
             db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
             if a["thread"]:
-                db.execute("DELETE FROM threads WHERE id = ?", (a["thread"],))
+                db.execute("UPDATE threads SET state = 'done', session_ref = NULL WHERE id = ?",
+                           (a["thread"],))
         if documents:
             clause, args = _in("id", documents)
             db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text)"
@@ -162,10 +153,24 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
             db.execute(f"DELETE FROM facts WHERE {clause}", args)
             clause, args = _in("id", entity_ids)
             db.execute(f"DELETE FROM entities WHERE {clause}", args)
-        if journal:
-            clause, args = _in("id", sorted(journal))
-            db.execute(f"DELETE FROM journal WHERE {clause}", args)
         db.execute("DELETE FROM connections WHERE id = ?", (cid,))
     if profile is not None:
         shutil.rmtree(profile, ignore_errors=True)
+    world.journal.close_asks_about(cid, "The connection was removed.", "removed")
+    gone = [w for w in (
+        "Alpha's sign-in" if profile is not None else "",
+        plural(len(readers), "reader") if readers else "",
+        plural(len(autos), "automation") if autos else "",
+        plural(len(documents), "document") if documents else "",
+        plural(len(events), "event") if events else "",
+    ) if w]
+    words = f"Removed the connection to {target}" + (f" ({', '.join(gone)})." if gone else ".")
+    world.journal.append(
+        "changed", words, actor="person", data={"connection": cid, **plan},
+        source=f"connector:{kind}",
+    )
     return plan
+
+
+def plural(n: int, one: str) -> str:
+    return f"{n} {one}{'' if n == 1 else 's'}"

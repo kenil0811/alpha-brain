@@ -36,15 +36,14 @@ function plural(n: number, one: string, many = `${one}s`): string {
 /** What removing a connection takes with it, in a sentence the person reads before saying yes. */
 function removalWords(plan: ConnectionRemoval): string {
   const goes: string[] = [];
-  if (plan.connector === "browser") goes.push(plan.signin ? "Alpha's sign-in (you'd sign in again to reconnect)" : "the connection");
+  goes.push(plan.connector === "browser" && plan.signin ? "Alpha's sign-in (you'd sign in again to reconnect)" : "the connection");
   if (plan.readers.length) goes.push(`the ${plan.readers.length === 1 ? "reader" : "readers"} Alpha wrote for it`);
   if (plan.automations.length) goes.push(`the ${plan.automations.length === 1 ? "automation" : "automations"} ${plan.automations.map((t) => `“${t}”`).join(", ")}`);
   if (plan.documents) goes.push(`${plural(plan.documents, "document")} read from it`);
   if (plan.events) goes.push(`${plural(plan.events, "event")} read from it`);
-  goes.push("Alpha's record of reading it");
   const list = goes.length > 1 ? `${goes.slice(0, -1).join(", ")} and ${goes[goes.length - 1]}` : goes[0];
   const kept = plan.connector === "files" ? " Your files aren't touched." : " What it already put in your tables stays.";
-  return `This deletes ${list}.${kept}`;
+  return `This deletes ${list}.${kept} Activity keeps the record of what Alpha read.`;
 }
 
 function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
