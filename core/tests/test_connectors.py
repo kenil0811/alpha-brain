@@ -157,6 +157,32 @@ def test_a_signin_covers_the_sites_its_window_passed_through(
     assert conn is not None and conn["status"] == "connected"
 
 
+def test_a_page_asking_for_a_signin_tries_the_signins_alpha_holds_first(
+    world: World, tmp_path: Path
+) -> None:
+    for site in ("example.com", "gmail.com"):  # tried in this order
+        (tmp_path / site).mkdir()
+        Connections(world.store).upsert("browser", site, config={"profile": str(tmp_path / site)})
+    jobs: list[dict[str, Any]] = []
+
+    def runner(job: dict[str, Any], timeout: int) -> dict[str, Any]:
+        jobs.append(job)
+        in_gmail = str(job.get("profile", "")).endswith("gmail.com")
+        if job["op"] == "status":
+            return {"signed_in": in_gmail}
+        return {"status": 200, "final_url": job["url"], "title": "Inbox", "text": "",
+                "links": [], "blocked": not in_gmail}
+
+    browser = Browser(world, runner)
+    page = browser.read("https://mail.google.com/mail/u/0/")
+    assert page["signed_in"] and not page["needs_signin"]
+    assert [j["op"] for j in jobs] == ["read", "status", "status", "read"]
+    # From now on the Gmail sign-in covers google.com: no more trying.
+    jobs.clear()
+    browser.read("https://mail.google.com/mail/u/0/")
+    assert [j["op"] for j in jobs] == ["read"] and jobs[0]["profile"].endswith("gmail.com")
+
+
 def test_read_refuses_local_addresses(world: World) -> None:
     with pytest.raises(Problem, match="local network"):
         Browser(world, lambda j, t: {}).read("http://192.168.1.1/admin")

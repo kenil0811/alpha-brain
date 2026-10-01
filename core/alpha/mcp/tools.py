@@ -637,8 +637,10 @@ class Tools:
     @tool
     def browser_signin(self, site: str) -> dict[str, Any]:
         """Open a window on a site (e.g. linkedin.com) so the person signs in themselves; Alpha
-        never sees what they type. Returns at once; tell them to sign in and close the window,
-        and the next page_read uses the sign-in."""
+        never sees what they type. Only after a page read says needs_signin: reads already use
+        every sign-in Alpha holds, including one made on another site (gmail.com for
+        google.com). Returns at once; tell them to sign in and close the window, and the next
+        page read uses the sign-in."""
         conn = Browser(self.world).start_signin(site)
         return {"connection": conn["id"], "site": conn["target"], "status": conn["status"]}
 

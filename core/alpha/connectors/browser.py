@@ -72,6 +72,18 @@ def profile_of(conn: dict[str, Any]) -> Path:
     return Path(conn["config"].get("profile") or profile_dir(conn["target"]))
 
 
+def cover(conn: dict[str, Any], site: str) -> None:
+    """Note that a sign-in also covers `site`, next to its profile."""
+    record = profile_of(conn) / SIGNIN_RECORD
+    try:
+        data = json.loads(record.read_text())
+    except (OSError, ValueError):
+        data = {"hosts": []}
+    if site not in data.get("hosts", []):
+        data["hosts"] = [*data.get("hosts", []), site]
+        record.write_text(json.dumps(data))
+
+
 def signin_sites(conn: dict[str, Any]) -> list[str]:
     """The sites a sign-in covers: the one it started on and every site its window visited."""
     sites = [conn["target"]]
@@ -181,6 +193,24 @@ class Browser:
                 return conn
         return own
 
+    def held_elsewhere(self, site: str, job: dict[str, Any],
+                       timeout: int) -> tuple[dict[str, Any], dict[str, Any]] | None:
+        """A page asked for a sign-in that no sign-in covers. Before anyone is asked to sign in,
+        try the sign-ins Alpha already holds: one with a session for the site that opens the
+        page signed in covers the site from now on."""
+        for conn in self.connections.all("browser"):
+            if conn["status"] == "off" or site in signin_sites(conn):
+                continue
+            held = self.runner({"op": "status", "site": site, "sites": [site],
+                                "profile": str(profile_of(conn)), "channel": "chrome"}, 60)
+            if not held.get("signed_in"):
+                continue
+            page = self.runner({**job, "profile": str(profile_of(conn))}, timeout)
+            if not page.get("blocked"):
+                cover(conn, site)
+                return conn, page
+        return None
+
     def refresh(self, site_or_url: str) -> dict[str, Any]:
         """Check whether the sign-in covering the site holds a session now."""
         conn = self.covering(site_or_url)
@@ -213,6 +243,10 @@ class Browser:
         if use_profile and conn is not None:
             job["profile"] = str(profile_of(conn))
         page = self.runner(job, READ_TIMEOUT_S)
+        if page.get("blocked") and not use_profile and signed_in is not False:
+            found = self.held_elsewhere(site, job, READ_TIMEOUT_S)
+            if found is not None:
+                conn, page, use_profile = found[0], found[1], True
         links = page.get("links") or []
         self.world.journal.append(
             "saw",
@@ -259,7 +293,12 @@ class Browser:
                                "scroll_to_end": to_end}
         if use_profile and conn is not None:
             job["profile"] = str(profile_of(conn))
-        page = self.runner(job, READ_TIMEOUT_S * 3 if to_end else READ_TIMEOUT_S)
+        timeout = READ_TIMEOUT_S * 3 if to_end else READ_TIMEOUT_S
+        page = self.runner(job, timeout)
+        if page.get("blocked") and not use_profile:
+            found = self.held_elsewhere(site, job, timeout)
+            if found is not None:
+                conn, page, use_profile = found[0], found[1], True
         result = page.get("result")
         count = len(result) if isinstance(result, list) else None
         self.world.journal.append(
