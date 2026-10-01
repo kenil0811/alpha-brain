@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from alpha.context import prepack
 from alpha.runtime import claude_cli
@@ -35,10 +35,15 @@ today's date from NOW), and search the journal for anything about the past. Neve
 numbers, records or history. If it is not in the world, say so.
 4. When the person states something about themselves (height, diet, role, where they live), \
 remember it with fact_record(stated=true). Things you infer are suggestions (stated=false).
-5. When the ask is a standing need ("track", "keep an eye on", "every week", "I want a … \
-tracker") or states a goal: set it up now (module, tables, goal_set), open a thread with \
-thread_open(kind="deepen") so the fuller version gets researched and built, and say that it is \
-being set up. Only ask a question when the answer changes the shape and you cannot find it.
+5. When the ask is a standing need ("I want to build/track/keep…", "keep an eye on", "every \
+week", "I want a … tracker") or states a goal: set up a sensible first version now (module, \
+tables, goal_set with the goal in the person's words), then open ONE thread with \
+thread_open(kind="deepen", module=…) titled with what will be made good. That thread starts at \
+once in the background: it researches how this is best done, uses what Alpha knows about the \
+person, improves the module and comes back with recommendations and the questions only the \
+person can answer. So in this reply do not ask those questions yourself and do not list \
+features; say what exists now and that you are researching how to make it good and will come \
+back in a few minutes with recommendations.
 6. Reading is free once connected: page_read for any web page (signed in where the person \
 connected the site; offer browser_signin when a page asks for a sign-in), folder_watch for a \
 folder they name, calendar_connect when they want their calendar used. Keep what you read in \
@@ -61,9 +66,20 @@ class TurnOutcome:
     said: str
     replied: str
     result: RunResult
+    opened: list[str] = field(default_factory=list)
 
 
 Runner = Callable[[TurnRequest], RunResult]
+
+
+def threads_opened_by(world: World, turn_id: str) -> list[str]:
+    """The threads a turn opened (its tools journal each one with the turn's id)."""
+    rows = world.store.all(
+        "SELECT json_extract(data, '$.thread') AS t FROM journal WHERE kind = 'made'"
+        " AND json_extract(data, '$.turn') = ? AND json_extract(data, '$.thread') IS NOT NULL",
+        (turn_id,),
+    )
+    return [str(r["t"]) for r in rows]
 
 
 def ask(
@@ -73,21 +89,32 @@ def ask(
     module: str | None = None,
     thread: str | None = None,
     runner: Runner = claude_cli.run,
+    rules: str = RULES,
+    actor: str = "person",
+    timeout: int | None = None,
+    model: str | None = None,
 ) -> TurnOutcome:
+    """One turn. `actor="alpha"` is a turn Alpha starts itself (a deepen pass): its prompt is
+    journaled as something Alpha did, not as words the person said."""
     module_id = world.modules.get(module)["id"] if module else None
     thread_row = world.modules.thread(thread) if thread else None
+    if module_id is None and thread_row and thread_row["module"]:
+        module_id = thread_row["module"]
     said = world.journal.append(
-        "said", sentence, actor="person", module=module_id, thread=thread
+        "said" if actor == "person" else "did", sentence, actor=actor, module=module_id,
+        thread=thread,
     )
     context = prepack.build(world, sentence, module=module_id)
     request = TurnRequest(
         sentence=sentence,
-        system=f"{RULES}\n\n{context}",
+        system=f"{rules}\n\n{context}",
         world_path=world.path,
         turn_id=said,
         thread_id=thread,
         module_id=module_id,
         resume=thread_row["session_ref"] if thread_row else None,
+        model=model,
+        timeout=timeout,
     )
     result = runner(request)
     data = {
@@ -110,4 +137,5 @@ def ask(
         )
     if thread and result.session_id:
         world.modules.update_thread(thread, session_ref=result.session_id)
-    return TurnOutcome(reply=reply, ok=result.ok, said=said, replied=replied, result=result)
+    return TurnOutcome(reply=reply, ok=result.ok, said=said, replied=replied, result=result,
+                       opened=threads_opened_by(world, said))

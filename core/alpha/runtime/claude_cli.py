@@ -50,6 +50,7 @@ class TurnRequest:
     module_id: str | None = None
     resume: str | None = None
     model: str | None = None
+    timeout: int | None = None
 
 
 def mcp_config(req: TurnRequest) -> dict[str, Any]:
@@ -102,7 +103,8 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
     return args
 
 
-def run(req: TurnRequest, *, binary: str | None = None, timeout: int = TIMEOUT_S) -> RunResult:
+def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = None) -> RunResult:
+    timeout = timeout or req.timeout or TIMEOUT_S
     env = dict(os.environ)
     env.setdefault("USER", getpass.getuser())
     env.pop("CLAUDE_CONFIG_DIR", None)

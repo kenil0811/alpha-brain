@@ -30,6 +30,7 @@ from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.runtime import deepen
 from alpha.runtime import turn as turns
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
@@ -91,10 +92,20 @@ class Turns:
                 kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread}
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
+                if body.thread:
+                    # Talking inside a thread is talking about that work; what they say
+                    # answers whatever the thread was waiting on.
+                    kwargs["rules"] = deepen.CONTINUE_RULES
+                    for a in self.world.journal.open_asks():
+                        if a["thread"] == body.thread:
+                            self.world.journal.append("answered", body.text, actor="person",
+                                                      data={"ask": a["id"]}, thread=body.thread)
                 out = turns.ask(self.world, body.text, **kwargs)
+                for tid in deepen.deepen_threads(self.world, out.opened):
+                    deepen.start(self.world, tid, **self._runner())
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
-                          "duration_ms": out.result.duration_ms}
+                          "duration_ms": out.result.duration_ms, "opened": out.opened}
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
             except Exception as e:
@@ -105,6 +116,9 @@ class Turns:
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def _runner(self) -> dict[str, Any]:
+        return {"runner": self.runner} if self.runner is not None else {}
 
     def get(self, key: str) -> dict[str, Any]:
         with self.lock:
@@ -247,7 +261,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
-        return {"answered": jid}
+        if asked["thread"]:
+            deepen.continue_with_answer(world, asked["thread"], body.text, **running._runner())
+        return {"answered": jid, "continues": asked["thread"]}
 
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:

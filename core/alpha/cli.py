@@ -21,7 +21,7 @@ import sys
 from typing import Any
 
 from alpha.context import prepack
-from alpha.runtime import turn
+from alpha.runtime import deepen, turn
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -85,6 +85,14 @@ def main(argv: list[str] | None = None) -> int:
             r = outcome.result
             if r.duration_ms is not None:
                 print(f"\n[{r.duration_ms / 1000:.1f} s · {r.num_turns} steps]", file=sys.stderr)
+            for tid in deepen.deepen_threads(world, outcome.opened):
+                print(f"\n… {world.modules.thread(tid)['title']} (researching)", file=sys.stderr)
+                follow = deepen.run(world, tid)
+                print(f"\n{follow.reply}")
+                fr = follow.result
+                if fr.duration_ms is not None:
+                    print(f"\n[{fr.duration_ms / 1000:.1f} s · {fr.num_turns} steps]",
+                          file=sys.stderr)
             return 0 if outcome.ok else 1
         if args.command == "journal":
             module = world.modules.get(args.module)["id"] if args.module else None

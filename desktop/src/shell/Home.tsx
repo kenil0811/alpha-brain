@@ -176,10 +176,10 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
           <div className="card list">
             {home.threads.map((t) => (
               <div key={t.id} className="item">
-                <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "open" ? "Open" : t.state}</span>
+                <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</span>
                 <div className="item__body">
                   <b>{t.title}</b>
-                  <div className="item__sub">Started {when(t.created_at)}</div>
+                  <div className="item__sub">{t.state === "working" ? "Researching and building now" : t.state === "waiting" ? "Waiting for your answer above" : "Started"} · {when(t.created_at)}</div>
                 </div>
               </div>
             ))}

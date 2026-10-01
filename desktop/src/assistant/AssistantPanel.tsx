@@ -8,10 +8,14 @@ import type { Client, JournalEntry, ModuleCard, Thread, Turn } from "../core/cli
 import { when } from "../modules/format";
 import { MicButton, useSpeech } from "../shell/voice";
 
+const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
+
 function Message({ e }: { e: JournalEntry }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
+  const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
   return (
     <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
+      {fromThread ? <div className="msg__label">From the thread · {fromThread}</div> : null}
       <Rich text={e.text} />
       {typeof e.data.duration_ms === "number" ? <span className="msg__cite">{(e.data.duration_ms / 1000).toFixed(0)} s</span> : null}
     </div>
@@ -86,6 +90,15 @@ export function AssistantPanel({
       .catch(() => undefined);
   }, [client]);
   useEffect(load, [load, version]);
+  const working = threads.some((t) => t.state === "working");
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(() => {
+      load();
+      onChanged();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [working, load, onChanged]);
   useEffect(() => {
     body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
@@ -148,7 +161,7 @@ export function AssistantPanel({
       </button>
     );
   }
-  const working = pending ? (
+  const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status">
       Working on it… <span className="faint">{elapsed} s</span>
     </div>
@@ -201,9 +214,9 @@ export function AssistantPanel({
               <button key={t.id} type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
                 <h3 className="creation__title">
                   {t.title}
-                  <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "open" ? "Open" : t.state}</span>
+                  <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
                 </h3>
-                <span className="faint">Its own thread · open it to talk about this work</span>
+                <span className="faint">{t.state === "working" ? "Alpha is researching and building this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
               </button>
             ))}
             {module ? (
@@ -217,7 +230,7 @@ export function AssistantPanel({
             ))}
           </>
         )}
-        {working}
+        {workingNote}
         {error ? (
           <p className="notice" role="alert">
             {error}
