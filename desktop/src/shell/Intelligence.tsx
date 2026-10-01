@@ -43,7 +43,7 @@ function removalWords(plan: ConnectionRemoval): string {
   if (plan.events) goes.push(`${plural(plan.events, "event")} read from it`);
   const list = goes.length > 1 ? `${goes.slice(0, -1).join(", ")} and ${goes[goes.length - 1]}` : goes[0];
   const kept = plan.connector === "files" ? " Your files aren't touched." : " What it already put in your tables stays.";
-  return `This deletes ${list}.${kept} Activity keeps the record of what Alpha read.`;
+  return `This deletes ${list}.${kept}`;
 }
 
 function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {

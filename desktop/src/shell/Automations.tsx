@@ -65,8 +65,6 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                 </div>
               ) : a.last_error ? (
                 <div className="notice" style={{ fontSize: 12 }}>Last run didn't work: {a.last_error}</div>
-              ) : a.last_result ? (
-                <div className="item__sub" style={{ whiteSpace: "pre-wrap" }}>{a.last_result}</div>
               ) : null}
             </div>
             <button type="button" className="btn btn--sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
