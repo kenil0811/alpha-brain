@@ -44,6 +44,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS journal_fts USING fts5(
 CREATE TRIGGER IF NOT EXISTS journal_ai AFTER INSERT ON journal BEGIN
     INSERT INTO journal_fts(rowid, text) VALUES (new.rowid, new.text);
 END;
+CREATE TRIGGER IF NOT EXISTS journal_ad AFTER DELETE ON journal BEGIN
+    INSERT INTO journal_fts(journal_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
+END;
 CREATE TRIGGER IF NOT EXISTS journal_au AFTER UPDATE OF text ON journal BEGIN
     INSERT INTO journal_fts(journal_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
     INSERT INTO journal_fts(rowid, text) VALUES (new.rowid, new.text);

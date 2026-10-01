@@ -73,3 +73,10 @@ def test_server_exposes_every_tool(world: World) -> None:
     q: Any = next(x for x in tools if x.name == "records_query")
     assert set(q.parameters["properties"]) == {"collection", "where", "order", "limit"}
     assert "self" not in q.parameters["properties"]
+
+
+def test_journal_notes_point_at_the_module_by_id(world: World) -> None:
+    t = Tools(world)
+    m = t.module_create("Network")
+    t.journal_note("did", "Synced.", module="Network")
+    assert world.journal.recent(1)[0]["module"] == m["id"]

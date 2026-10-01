@@ -116,7 +116,8 @@ class Tools:
         sentence. kind: did | noticed | saw | failed."""
         if kind not in {"did", "noticed", "saw", "failed"}:
             raise Problem("journal_note takes kind did, noticed, saw or failed.")
-        return {"id": self._did(kind, text, data or {}, module)}
+        module_id = self.world.modules.get(module)["id"] if module else None
+        return {"id": self._did(kind, text, data or {}, module_id)}
 
     # ---- tables and records ----
 

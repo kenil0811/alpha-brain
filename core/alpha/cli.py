@@ -55,6 +55,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("collection")
     p.add_argument("--limit", type=int, default=20)
     sub.add_parser("notes", help="Alpha's notes")
+    p = sub.add_parser("remove-module", help="delete a module and everything that belongs to it")
+    p.add_argument("module")
+    sub.add_parser("clear-conversation", help="delete the conversation (activity stays)")
     p = sub.add_parser("prepack", help="print what the model would see first")
     p.add_argument("text", nargs="+")
     p.add_argument("--module")
@@ -133,6 +136,16 @@ def main(argv: list[str] | None = None) -> int:
                 result = Browser(world).start_signin(args.target)
                 print("A window is open: sign in there, then close it.", file=sys.stderr)
             print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "remove-module":
+            from alpha.world.purge import remove_module
+
+            print(json.dumps(remove_module(world, args.module)))
+            return 0
+        if args.command == "clear-conversation":
+            from alpha.world.purge import clear_conversation
+
+            print(json.dumps(clear_conversation(world)))
             return 0
         if args.command == "prepack":
             print(prepack.build(world, " ".join(args.text), module=args.module))
