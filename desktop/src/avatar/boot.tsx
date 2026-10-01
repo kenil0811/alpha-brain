@@ -26,6 +26,7 @@ async function tauriHost(): Promise<AvatarHost | undefined> {
   return {
     layout: (mode) => invoke("avatar_layout", { mode }),
     showMain: () => invoke("show_main"),
+    hotAreas: (areas) => invoke("avatar_hot_areas", { areas }),
   };
 }
 

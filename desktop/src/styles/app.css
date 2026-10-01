@@ -181,6 +181,16 @@ a { color: var(--primary); }
 .pager .spacer { flex: 1; }
 .pager__size { display: inline-flex; align-items: center; gap: 6px; }
 .pager__pages { display: inline-flex; align-items: center; gap: 6px; }
+/* A table's page fills the window and never scrolls; its rows scroll in their own area, with the
+   header and totals held in place. */
+.page--fill { height: 100%; display: flex; flex-direction: column; padding-bottom: 22px; }
+.page--fill > .stack--fill { flex: 1; min-height: 0; }
+.stack--fill > .card--fill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.card--fill > .pagebody { flex: 1; min-height: 0; overflow: auto; }
+.card--fill > .drawer { flex-shrink: 0; max-height: 45%; overflow: auto; }
+.pagebody .tablewrap { overflow: visible; }
+.pagebody .table thead th { position: sticky; top: 0; z-index: 2; border-bottom-color: transparent; box-shadow: inset 0 -1px 0 var(--border); }
+.pagebody .table tfoot td { position: sticky; bottom: 0; z-index: 2; box-shadow: inset 0 1px 0 var(--border); }
 
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .metric { padding: 16px; }
@@ -371,6 +381,8 @@ a { color: var(--primary); }
   .rail__group, .rail__spacer, .rail__status { display: none; }
   .navbtn { width: auto; }
   .main { height: auto; }
+  .page--fill { height: auto; }
+  .card--fill > .pagebody { overflow: visible; }
   .page { padding: 16px; }
   .today { grid-template-columns: 1fr; }
   .toggle { margin-left: 0; }

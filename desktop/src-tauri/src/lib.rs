@@ -98,6 +98,12 @@ const AVATAR_BUBBLE: (f64, f64) = (320.0, 230.0);
 const AVATAR_OPEN: (f64, f64) = (380.0, 560.0);
 const AVATAR_MARGIN: f64 = 20.0;
 const AVATAR_HIDDEN_MARKER: &str = "avatar-hidden";
+/// Even sized to what it shows, the companion's window is a rectangle around a round character
+/// and a bubble. The page reports where it is drawn; everywhere else the window lets clicks
+/// through to what is behind it, so it never blocks the workspace or other apps.
+static AVATAR_HOT: Mutex<Vec<[f64; 4]>> = Mutex::new(Vec::new());
+const HOT_SLACK: f64 = 4.0;
+const HOT_EVERY: Duration = Duration::from_millis(40);
 
 fn avatar_marker() -> Option<PathBuf> {
     DATA_DIR.get().map(|d| d.join(AVATAR_HIDDEN_MARKER))
@@ -168,6 +174,50 @@ fn avatar_layout(app: AppHandle, mode: String) -> Result<(), String> {
         let _ = window.set_focus();
     }
     Ok(())
+}
+
+#[tauri::command]
+fn avatar_hot_areas(areas: Vec<[f64; 4]>) {
+    *AVATAR_HOT.lock().unwrap() = areas;
+}
+
+fn over_hot_area(x: f64, y: f64) -> bool {
+    AVATAR_HOT.lock().unwrap().iter().any(|[left, top, width, height]| {
+        x >= left - HOT_SLACK
+            && x <= left + width + HOT_SLACK
+            && y >= top - HOT_SLACK
+            && y <= top + height + HOT_SLACK
+    })
+}
+
+/// Follow the pointer and let clicks through wherever the companion draws nothing.
+fn watch_companion_clicks(app: AppHandle) {
+    std::thread::Builder::new()
+        .name("companion-clicks".into())
+        .spawn(move || {
+            let mut passing: Option<bool> = None;
+            loop {
+                std::thread::sleep(HOT_EVERY);
+                let Some(window) = app.get_webview_window(AVATAR_LABEL) else {
+                    continue;
+                };
+                if !window.is_visible().unwrap_or(false) {
+                    continue;
+                }
+                let (Ok(cursor), Ok(origin), Ok(scale)) =
+                    (app.cursor_position(), window.outer_position(), window.scale_factor())
+                else {
+                    continue;
+                };
+                let x = (cursor.x - origin.x as f64) / scale;
+                let y = (cursor.y - origin.y as f64) / scale;
+                let pass = !over_hot_area(x, y);
+                if passing != Some(pass) && window.set_ignore_cursor_events(pass).is_ok() {
+                    passing = Some(pass);
+                }
+            }
+        })
+        .expect("companion clicks thread");
 }
 
 #[tauri::command]
@@ -400,6 +450,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             core_session,
             avatar_layout,
+            avatar_hot_areas,
             avatar_visible,
             avatar_is_visible,
             show_main
@@ -422,6 +473,7 @@ pub fn run() {
             if let Err(error) = build_avatar(app.handle()) {
                 note(&format!("companion window not created: {error}"));
             }
+            watch_companion_clicks(app.handle().clone());
 
             let open = MenuItem::with_id(app, "open", "Open Alpha", true, None::<&str>)?;
             let avatar_item =

@@ -86,7 +86,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const [pageAt, setPageAt] = useState(0);
   const [pageSize, setPageSize] = useState<PageSize>(() => remembered<PageSize>(PAGE_SIZE_KEY, "fit"));
   const [fit, setFit] = useState(20);
-  const cardRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -145,23 +145,22 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   }, [all, search, searchable, filters, hideDone, statusField, sort]);
   useEffect(() => setPageAt(0), [search, filters, hideDone, sort]);
 
-  // Fit to window: the rows that fit between the top of the table's body and the bottom of the
-  // window, leaving room for what sits below it (totals, pager). Measured when the page first
-  // shows rows and when the window changes size, not as rows come and go.
+  // The page never scrolls; the rows do, inside their own area under a header that stays put.
+  // Fit to window: as many rows as that area holds, less the header and totals. Measured when
+  // the page first shows rows and when the window changes size, not as rows come and go.
   const loaded = all !== null;
   const measure = useCallback(() => {
     const body = bodyRef.current;
-    const card = cardRef.current;
-    if (!body || !card) return;
-    const main = card.closest<HTMLElement>(".main");
-    const bodyBox = body.getBoundingClientRect();
+    const scroller = scrollRef.current;
+    if (!body || !scroller) return;
     const first = body.firstElementChild as HTMLElement | null;
     const rowHeight = first?.getBoundingClientRect().height || 34;
-    const scroller = main ?? document.documentElement;
-    const top = bodyBox.top - (main ? main.getBoundingClientRect().top : 0) + scroller.scrollTop;
-    const below = card.getBoundingClientRect().bottom - bodyBox.bottom + parseFloat(getComputedStyle(scroller).paddingBottom || "0");
-    const visible = Math.min(scroller.clientHeight, window.innerHeight);
-    setFit(Math.max(FEWEST_ROWS, Math.floor((visible - top - below) / rowHeight)));
+    const table = body.closest("table");
+    const chrome = (table?.tHead?.offsetHeight ?? 0) + (table?.tFoot?.offsetHeight ?? 0);
+    // A narrow window stacks everything and lets the page scroll; fit to what is left on screen.
+    const fills = getComputedStyle(scroller).overflowY !== "visible";
+    const room = fills ? scroller.clientHeight : window.innerHeight - scroller.getBoundingClientRect().top - 60;
+    setFit(Math.max(FEWEST_ROWS, Math.floor((room - chrome - 1) / rowHeight)));
   }, []);
   useLayoutEffect(() => {
     if (loaded) measure();
@@ -245,8 +244,8 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
         : `${count(rows.length)} of ${count(all?.length ?? 0)} rows`;
 
   return (
-    <div className="stack" aria-label={table.title}>
-      <div className="card" ref={cardRef}>
+    <div className="stack stack--fill" aria-label={table.title}>
+      <div className="card card--fill">
         <div className="toolbar toolbar--page">
           {searchable.length ? (
             <div className="search">
@@ -350,13 +349,15 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
             </button>
           </p>
         ) : null}
-        {view === "table" ? (
-          <TableView rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
-        ) : null}
-        {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
-        {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
-        {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={setOpenId} /> : null}
-        {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
+        <div className="pagebody" ref={scrollRef}>
+          {view === "table" ? (
+            <TableView rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
+          ) : null}
+          {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
+          {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
+          {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={setOpenId} /> : null}
+          {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
+        </div>
         {openRow ? <RecordPanel row={openRow} fields={fields} titleField={titleField} onClose={() => setOpenId(null)} onCommit={(field, text) => commit(openRow, field, text)} onRemove={() => remove(openRow)} /> : null}
         <div className="pager">
           <span className="num">{counted}</span>

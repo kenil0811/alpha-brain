@@ -45,7 +45,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
   }
   const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
   return (
-    <div className="page page--wide">
+    <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}`}>
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">

@@ -4,7 +4,7 @@
  * person; a click opens a small panel to say or type one thing, answered at once. Anything that
  * needs the full window is handed to the workspace, which comes forward.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Client, Home, JournalEntry } from "../core/client";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
@@ -16,7 +16,12 @@ export type AvatarMode = "idle" | "bubble" | "open";
 export interface AvatarHost {
   layout(mode: AvatarMode): Promise<void>;
   showMain(): Promise<void>;
+  /** What is drawn, as [left, top, width, height] in the window; clicks anywhere else pass
+   * through to whatever is behind the companion. */
+  hotAreas?(areas: number[][]): Promise<void>;
 }
+
+const HOT = ".avatar__panel, .avatar__bubble, .avatar__dock";
 
 function handOff(value: Record<string, unknown>, host?: AvatarHost) {
   try {
@@ -35,6 +40,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const [mood, setMood] = useState<Mood>("idle");
   const [bubble, setBubble] = useState<string | null>(null);
   const [home, setHome] = useState<Home | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,8 +110,30 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     host?.layout(mode).catch(() => undefined);
   }, [host, mode]);
 
+  // Tell the host where the companion is drawn, whenever that moves or changes size.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || !host?.hotAreas) return;
+    const report = () => {
+      const areas = Array.from(root.querySelectorAll<HTMLElement>(HOT)).map((el) => {
+        const r = el.getBoundingClientRect();
+        return [r.left, r.top, r.width, r.height];
+      });
+      host.hotAreas?.(areas).catch(() => undefined);
+    };
+    report();
+    const watcher = new ResizeObserver(report);
+    watcher.observe(root);
+    root.querySelectorAll<HTMLElement>(HOT).forEach((el) => watcher.observe(el));
+    window.addEventListener("resize", report);
+    return () => {
+      watcher.disconnect();
+      window.removeEventListener("resize", report);
+    };
+  }, [host, mode, shownBubble]);
+
   return (
-    <div className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
+    <div ref={rootRef} className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
       {expanded ? (
         <section className="avatar__panel" aria-label="Alpha companion">
           <header className="avatar__head" data-tauri-drag-region>
