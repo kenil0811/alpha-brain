@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from typing import Any
 
@@ -58,12 +59,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("text", nargs="+")
     p.add_argument("--module")
     sub.add_parser("mcp", help="run the MCP server (stdio)")
+    p = sub.add_parser("serve", help="run the core's HTTP API for the app")
+    p.add_argument("--port", type=int, default=int(os.environ.get("ALPHA_PORT", "53900")))
+    p = sub.add_parser("connect", help="connect a folder, a site or the calendar")
+    p.add_argument("what", choices=["folder", "site", "calendar"])
+    p.add_argument("target", nargs="?")
     args = parser.parse_args(argv)
 
     if args.command == "mcp":
-        from alpha.mcp.server import main as serve
+        from alpha.mcp.server import main as mcp_main
 
-        serve()
+        mcp_main()
+        return 0
+    if args.command == "serve":
+        from alpha.api.server import serve
+
+        serve(args.port)
         return 0
 
     world = World()
@@ -104,6 +115,24 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "notes":
             for n in world.knowledge.notes():
                 print(f"## [{n['scope']}] {n['title']}\n{n['body']}\n")
+            return 0
+        if args.command == "connect":
+            from alpha.connectors.browser import Browser
+            from alpha.connectors.calendar import Calendar
+            from alpha.connectors.files import Files
+
+            if args.what == "calendar":
+                result: Any = Calendar(world).connect()
+            elif not args.target:
+                print(f"Say which {args.what}.", file=sys.stderr)
+                return 2
+            elif args.what == "folder":
+                files = Files(world)
+                result = {**files.watch(args.target), "sync": files.sync(args.target)}
+            else:
+                result = Browser(world).start_signin(args.target)
+                print("A window is open: sign in there, then close it.", file=sys.stderr)
+            print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0
         if args.command == "prepack":
             print(prepack.build(world, " ".join(args.text), module=args.module))

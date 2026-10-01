@@ -22,6 +22,7 @@ dev = [
     "mypy==2.3.1",
     "types-pyyaml==6.0.12.20250915",
     "types-openpyxl==3.1.5.20250919",
+    "httpx==0.28.1",
 ]
 
 [tool.ruff]

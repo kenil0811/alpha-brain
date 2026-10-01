@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Alpha's core: the world store, the pre-pack, the turn runtime and the MCP server that hands the world to the model."
 requires-python = "==3.13.9"
 dependencies = [
+    "fastapi==0.141.1",
     "fastmcp==4.0.10",
     "mcp==2.2.0",
     "openpyxl==3.1.5",
@@ -13,6 +14,7 @@ dependencies = [
     "python-docx==1.2.0",
     "python-pptx==1.0.2",
     "pyyaml==6.0.3",
+    "uvicorn==0.54.0",
     "watchdog==6.0.0",
 ]
 
