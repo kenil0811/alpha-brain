@@ -91,8 +91,8 @@ class Tools:
             "documents": Files(self.world).search(query, limit),
             "journal": [
                 {"id": e["id"], "at": e["at"], "kind": e["kind"], "snippet": e["snippet"],
-                 "module": e["module"]}
-                for e in self.world.journal.search(query, limit)
+                 "module": e["module"], **({"removed": e["removed"]} if "removed" in e else {})}
+                for e in self.world.journal.mark_removed(self.world.journal.search(query, limit))
             ],
         }
 
@@ -102,12 +102,13 @@ class Tools:
     ) -> list[dict[str, Any]]:
         """The latest entries of the journal (what was said, done, seen), oldest first,
         optionally for one module or one thread."""
-        return self.world.journal.recent(limit, module=module, thread=thread)
+        return self.world.journal.mark_removed(
+            self.world.journal.recent(limit, module=module, thread=thread))
 
     @tool
     def journal_read(self, id: str) -> dict[str, Any]:
         """One journal entry in full, by id (ids appear in search results and the pre-pack)."""
-        return self.world.journal.read(id)
+        return self.world.journal.mark_removed([self.world.journal.read(id)])[0]
 
     @tool
     def journal_note(self, kind: str, text: str, data: dict[str, Any] | None = None,

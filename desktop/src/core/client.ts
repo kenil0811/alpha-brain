@@ -194,11 +194,10 @@ export interface EntityDetail extends Entity {
 export interface ConnectionRemoval {
   connector: string;
   target: string;
-  signin: boolean;
+  /** What goes, in words: "Alpha's sign-in, 1 reader and 1 automation". */
+  what: string;
   readers: string[];
   automations: string[];
-  documents: number;
-  events: number;
 }
 
 export interface Connection {

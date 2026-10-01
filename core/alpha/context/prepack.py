@@ -122,11 +122,13 @@ def build(world: World, sentence: str, *, module: str | None = None) -> str:
     for doc in Files(world).search(sentence, 3):
         matches.append(f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}")
     recent_ids = {e["id"] for e in world.journal.recent(RECENT_TURNS, stream=True)}
-    for hit in world.journal.search(sentence, MATCHES + len(recent_ids)):
+    hits = world.journal.mark_removed(world.journal.search(sentence, MATCHES + len(recent_ids)))
+    for hit in hits:
         if hit["id"] in recent_ids:
             continue
+        gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
         matches.append(f"- {hit['at'][:16]}Z {hit['kind']} ({hit['id']}):"
-                       f" {_clip(hit['snippet'], 160)}")
+                       f" {_clip(hit['snippet'], 160)}{gone}")
         if len(matches) >= MATCHES * 2:
             break
     if matches:

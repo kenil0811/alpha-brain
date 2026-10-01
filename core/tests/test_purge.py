@@ -11,7 +11,7 @@ from alpha.world.purge import clear_conversation, remove_connection, remove_modu
 from alpha.world.world import World
 
 
-def test_removing_a_module_leaves_nothing_of_it(world: World) -> None:
+def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) -> None:
     t = Tools(world, turn="j_1")
     t.module_create("Network", "Keep my connections")
     t.module_create("Food")
@@ -33,7 +33,13 @@ def test_removing_a_module_leaves_nothing_of_it(world: World) -> None:
     assert world.collections.names() == ["food_log"]
     assert world.readers.all() == [] and world.automations.all() == []
     assert world.modules.threads(None) == [] and world.knowledge.notes() == []
-    assert world.collections.search("Priya") == [] and world.journal.search("renders") == []
+    assert world.collections.search("Priya") == []
+    # What happened stays, marked as history about something removed.
+    history = world.journal.mark_removed(world.journal.search("renders"))
+    assert history[0]["removed"].startswith("Network was removed on ")
+    assert world.modules.thread(auto["thread"])["session_ref"] is None
+    assert world.journal.recent(1)[0]["text"] == (
+        "Removed Network: 1 table (1 row), 1 reader and 1 automation.")
     assert [m["name"] for m in world.modules.all()] == ["Food"]
     assert world.entities.get(entity["id"])["name"] == "Priya"  # the person's, not the module's
     assert world.collections.describe("food_log")["records"] == 1
@@ -78,7 +84,8 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
                          data={"connection": conn["id"]}, source="connector:browser")
 
     plan = remove_connection(world, conn["id"], dry_run=True)
-    assert plan["signin"] and plan["readers"] == ["linkedin_connections"]
+    assert plan["what"] == "Alpha's sign-in, 1 reader and 1 automation"
+    assert plan["readers"] == ["linkedin_connections"]
     assert plan["automations"] == ["Daily LinkedIn sync"] and profile.exists()
 
     remove_connection(world, conn["id"])
@@ -91,7 +98,9 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     # What happened stays in the journal: the reads, the thread's run, and the removal itself.
     assert world.journal.search("caps") and len(world.journal.recent(20, kinds=["saw"])) == 2
     assert world.journal.recent(1)[0]["text"] == (
-        "Removed the connection to linkedin.com (Alpha's sign-in, 1 reader, 1 automation).")
+        "Removed linkedin.com: Alpha's sign-in, 1 reader and 1 automation.")
+    assert world.journal.mark_removed(world.journal.search("caps"))[0]["removed"].startswith(
+        "linkedin.com was removed")
     assert world.collections.describe("connections")["records"] == 1  # the person's rows stay
 
 

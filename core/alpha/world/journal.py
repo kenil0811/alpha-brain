@@ -155,6 +155,38 @@ class Journal:
         )
         return [entry(r) for r in rows]
 
+    def removals(self) -> dict[str, str]:
+        """Everything the person removed (modules, connections, their threads, automations and
+        readers), by id or name, with a few words saying when."""
+        gone: dict[str, str] = {}
+        for r in self.store.all(
+            "SELECT at, data FROM journal WHERE kind = 'changed'"
+            " AND json_extract(data, '$.removed') IS NOT NULL"
+        ):
+            removed = loads(r["data"], {})["removed"]
+            words = f"{removed['name']} was removed on {r['at'][:10]}"
+            for key in [removed["id"], *removed.get("threads", []),
+                        *removed.get("automations", []), *removed.get("readers", [])]:
+                gone[key] = words
+        return gone
+
+    def mark_removed(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """History stays, but an entry about something since removed says so (`removed`), so
+        it is never read as something that still exists."""
+        gone = self.removals()
+        if not gone:
+            return entries
+        for e in entries:
+            data = e.get("data") or {}
+            if data.get("removed"):
+                continue
+            for key in (e.get("module"), e.get("thread"), data.get("connection"),
+                        data.get("automation"), data.get("reader")):
+                if key and key in gone:
+                    e["removed"] = gone[key]
+                    break
+        return entries
+
     def close_ask(self, ask_id: str, words: str, *, actor: str = "person",
                   closed: str = "dismissed") -> str:
         """Close a question without answering it: the person dismissed it, or Alpha no longer
