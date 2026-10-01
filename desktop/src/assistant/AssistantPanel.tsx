@@ -155,13 +155,7 @@ export function AssistantPanel({
     }
   };
 
-  if (!open) {
-    return (
-      <button type="button" className="btn btn--primary assist__fab" onClick={() => onOpen(true)}>
-        Ask Alpha
-      </button>
-    );
-  }
+  if (!open) return null;
   const steps = pending?.steps ?? [];
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status">

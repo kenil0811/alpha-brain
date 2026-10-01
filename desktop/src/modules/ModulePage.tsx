@@ -3,9 +3,9 @@
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, ModuleDetail } from "../core/client";
+import type { Client, ModuleDetail, ModuleSummary } from "../core/client";
 import { DataPage } from "./DataPage";
-import { formatNumber, humanize, when } from "./format";
+import { formatDay, formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
 
@@ -80,67 +80,12 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
           {table ? (
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
           ) : (
-            <div className="blocks">
-              <div className="metrics">
-                {detail.tables.map((t) => (
-                  <button key={t.name} type="button" className="card metric linkbtn" onClick={() => setTab(t.name)}>
-                    <div className="metric__lab">{t.title}</div>
-                    <div className="metric__big num">
-                      {formatNumber(t.records)} <small>{t.records === 1 ? "row" : "rows"}</small>
-                    </div>
-                    <div className="metric__sub">{t.fields.slice(0, 4).map((f) => f.label ?? humanize(f.name)).join(" · ")}</div>
-                  </button>
-                ))}
-                {detail.goals.map((g) => (
-                  <div key={g.id} className="card metric">
-                    <div className="metric__lab">Goal</div>
-                    <div style={{ marginTop: 6 }}>{g.text}</div>
-                    <div className="metric__sub">Since {when(g.since)}</div>
-                  </div>
-                ))}
-              </div>
-              {detail.automations.length ? <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="" /> : null}
-              {detail.note ? (
-                <div className="card textblock">
-                  <h3>Alpha's note</h3>
-                  <p style={{ whiteSpace: "pre-wrap" }}>{detail.note.body}</p>
-                </div>
-              ) : null}
-              {detail.threads.length ? (
-                <div className="card list">
-                  {detail.threads.map((t) => (
-                    <div key={t.id} className="item">
-                      <span className="badge badge--running">{t.state === "open" ? "Open" : t.state}</span>
-                      <div className="item__body">
-                        <b>{t.title}</b>
-                        <div className="item__sub">A thread Alpha is working in · started {when(t.created_at)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <RecentChanges detail={detail} limit={6} />
-            </div>
+            <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
           )}
         </>
       ) : null}
 
-      {section === "activity" ? (
-        <>
-          <div className="section" style={{ marginTop: 0 }}>
-            <div className="section__head">
-              <h2>What runs on its own</h2>
-            </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here yet. Ask Alpha to keep something here current and it shows up with a switch." />
-          </div>
-          <div className="section">
-            <div className="section__head">
-              <h2>What happened here</h2>
-            </div>
-            <RecentChanges detail={detail} limit={100} />
-          </div>
-        </>
-      ) : null}
+      {section === "activity" ? <ModuleActivity detail={detail} /> : null}
 
       {section === "settings" ? (
         <>
@@ -167,9 +112,10 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
           </div>
           <div className="section">
             <div className="section__head">
-              <h2>Made</h2>
+              <h2>What runs on its own</h2>
+              <span className="faint">Switch any off; Alpha says so if something needs it</span>
             </div>
-            <p className="muted">{when(detail.created_at)}. To change what it keeps, tell Alpha ("add a fibre column", "track protein too").</p>
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
           </div>
         </>
       ) : null}
@@ -177,18 +123,124 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
   );
 }
 
-function RecentChanges({ detail, limit }: { detail: ModuleDetail; limit: number }) {
-  const rows = detail.activity.filter((e) => ["did", "changed", "made", "saw", "failed"].includes(e.kind)).slice(0, limit);
-  if (!rows.length) return null;
+const PAGE = 50;
+
+/** Everything that happened in this module, newest first: what you did, what Alpha did, what
+ *  it read, what you asked and what it answered. */
+function ModuleActivity({ detail }: { detail: ModuleDetail }) {
+  const [shown, setShown] = useState(PAGE);
+  const rows = detail.activity;
+  if (!rows.length) return <p className="empty">Nothing has happened here yet.</p>;
+  const label = (e: ModuleDetail["activity"][number]) =>
+    e.kind === "failed" ? { cls: "badge--failed", words: "Failed" }
+    : e.kind === "said" ? { cls: "", words: "You said" }
+    : e.kind === "replied" ? { cls: "badge--running", words: "Alpha said" }
+    : e.kind === "asked" || e.kind === "proposed" ? { cls: "badge--waiting", words: "Asked" }
+    : e.actor === "person" ? { cls: "", words: "You" }
+    : e.kind === "saw" ? { cls: "badge--running", words: "Read" }
+    : { cls: "badge--succeeded", words: "Alpha" };
   return (
-    <div className="card list" aria-label="Recent changes">
-      {rows.map((e) => (
-        <div key={e.id} className="item">
-          <span className="item__when">{when(e.at)}</span>
-          <span className={`badge ${e.kind === "failed" ? "badge--failed" : e.actor === "person" ? "" : "badge--succeeded"}`}>{e.actor === "person" ? "You" : e.kind === "failed" ? "Failed" : "Alpha"}</span>
-          <div className="item__body">{e.text}</div>
+    <div className="stack">
+      <div className="card list" aria-label="Everything that happened here">
+        {rows.slice(0, shown).map((e) => {
+          const b = label(e);
+          return (
+            <div key={e.id} className="item item--top">
+              <span className="item__when">{when(e.at)}</span>
+              <span className={`badge ${b.cls}`}>{b.words}</span>
+              <div className="item__body activity__text">{e.text}</div>
+            </div>
+          );
+        })}
+      </div>
+      {rows.length > shown ? (
+        <button type="button" className="btn btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
+          Show more ({rows.length - shown} earlier)
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The Summary tab: numbers worked out from the module's own tables. */
+function Summary({ client, moduleId, version, onOpen }: { client: Client; moduleId: string; version: number; onOpen: (table: string) => void }) {
+  const [data, setData] = useState<ModuleSummary | null>(null);
+  useEffect(() => {
+    client.moduleSummary(moduleId).then(setData).catch(() => setData(null));
+  }, [client, moduleId, version]);
+  if (!data) return <p className="muted">Loading…</p>;
+  const amount = (v: number | null, unit?: string | null) => (v === null ? "—" : formatNumber(v, unit));
+  return (
+    <div className="blocks">
+      {data.goals.length ? (
+        <div className="card card--pad">
+          <div className="metric__lab">{data.goals.length === 1 ? "Goal" : "Goals"}</div>
+          {data.goals.map((g) => (
+            <div key={g.id} style={{ marginTop: 6 }}>
+              {g.text}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {data.tables.map((t) => (
+        <div key={t.name} className="stack">
+          <div className="section__head" style={{ marginBottom: 0 }}>
+            <h2>{t.title}</h2>
+            <span className="faint">
+              {t.rows} {t.rows === 1 ? "row" : "rows"}
+              {t.added_this_week ? ` · ${t.added_this_week} added this week` : ""}
+            </span>
+            <span className="section__right">
+              <button type="button" className="btn btn--sm" onClick={() => onOpen(t.name)}>
+                Open
+              </button>
+            </span>
+          </div>
+          {t.amounts?.length ? (
+            <div className="metrics">
+              {t.amounts.map((a) => (
+                <div key={a.field} className="card metric">
+                  <div className="metric__lab">
+                    {a.label}
+                    {a.how === "average" ? " · average" : ""}
+                  </div>
+                  <div className="metric__big num">{amount(a.today, a.unit)}</div>
+                  <div className="metric__sub">Today · {amount(a.this_week, a.unit)} this week</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {t.split && Object.keys(t.split.counts).length ? (
+            <div className="card card--pad">
+              <div className="metric__lab">{t.split.label}</div>
+              <div className="row" style={{ marginTop: 8 }}>
+                {Object.entries(t.split.counts).map(([choice, n]) => (
+                  <span key={choice} className={`pill ${t.split?.done.includes(choice) ? "pill--good" : "pill--gray"}`}>
+                    {humanize(choice)} <b className="num">{n}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {t.latest.length ? (
+            <div className="card list">
+              {t.latest.map((r) => (
+                <div key={r.id} className="item">
+                  <div className="item__body">{r.title}</div>
+                  {r.when ? <span className="faint">{formatDay(r.when)}</span> : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty">Nothing here yet.</p>
+          )}
         </div>
       ))}
+      {data.automations ? (
+        <p className="faint">
+          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
+        </p>
+      ) : null}
     </div>
   );
 }

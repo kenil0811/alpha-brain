@@ -10,8 +10,7 @@ import { AssistantPanel } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
-import { People, Person } from "./shell/People";
-import { Rail, type Surface } from "./shell/Rail";
+import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { ModulePage } from "./modules/ModulePage";
 import { useTheme } from "./shell/theme";
 import type { ModuleCard } from "./core/client";
@@ -41,7 +40,7 @@ type Runtime = { kind: "connecting" } | { kind: "connected"; client: Client } | 
 export function App({ client: injected }: { client?: Client } = {}) {
   const [runtime, setRuntime] = useState<Runtime>(injected ? { kind: "connected", client: injected } : { kind: "connecting" });
   const [attempt, setAttempt] = useState(0);
-  const [surface, setSurfaceState] = useState<Surface>(() => remembered<Surface>(SURFACE_KEY, { kind: "home" }));
+  const [surface, setSurfaceState] = useState<Surface>(() => knownSurface(remembered<unknown>(SURFACE_KEY, null)));
   const [panelOpen, setPanelOpen] = useState<boolean>(() => remembered<boolean>(PANEL_KEY, true));
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>("alpha.rail.collapsed", false));
   const [modules, setModules] = useState<ModuleCard[]>([]);
@@ -113,7 +112,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       if (event.key !== HANDOFF_KEY || !event.newValue) return;
       try {
         const handoff = JSON.parse(event.newValue) as { surface?: Surface; panel?: boolean };
-        if (handoff.surface) setSurface(handoff.surface);
+        if (handoff.surface) setSurface(knownSurface(handoff.surface));
         if (handoff.panel) setPanelOpen(true);
         changed();
       } catch {
@@ -140,12 +139,17 @@ export function App({ client: injected }: { client?: Client } = {}) {
 
   const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "people" || surface.kind === "person" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : "Intelligence";
 
   return (
     <div className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}`}>
       <Rail surface={surface} modules={modules} needs={needs} runtime={runtime.kind} onGo={setSurface} onNew={startNew} theme={theme} onTheme={setTheme} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
       <main className="main">
+        {!panelOpen && runtime.kind === "connected" ? (
+          <button type="button" className="btn btn--primary assist__reopen" onClick={() => togglePanel(true)}>
+            Ask Alpha
+          </button>
+        ) : null}
         {runtime.kind !== "connected" ? (
           <div className="page">
             <h1>{runtime.kind === "connecting" ? "Starting Alpha…" : "Alpha's core isn't running"}</h1>
@@ -167,10 +171,6 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft(text); togglePanel(true); }} onNew={startNew} />
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
-        ) : surface.kind === "people" ? (
-          <People client={runtime.client} version={version} onGo={setSurface} />
-        ) : surface.kind === "person" ? (
-          <Person key={surface.id} client={runtime.client} entityId={surface.id} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft(text); togglePanel(true); }} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} />
         ) : (

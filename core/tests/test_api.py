@@ -117,3 +117,27 @@ def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -
     assert {s["name"] for s in data["skills"]} >= {"files", "browser", "calendar"}
     assert data["knowledge"]["facts"][0]["predicate"] == "prefers"
     assert data["knowledge"]["goals"] == []
+
+
+def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
+    from datetime import date
+
+    t = Tools(world)
+    t.module_create("Food")
+    t.collection_create("food_log", "Food log", [
+        {"name": "item", "kind": "text"}, {"name": "eaten_on", "kind": "date"},
+        {"name": "calories", "kind": "number", "unit": "kcal"},
+        {"name": "meal", "kind": "choice", "choices": ["breakfast", "lunch"]}], module="Food")
+    today = date.today().isoformat()
+    t.records_add("food_log", {"item": "Eggs", "eaten_on": today, "calories": 155,
+                               "meal": "breakfast"})
+    t.records_add("food_log", {"item": "Salad", "eaten_on": today, "calories": 520,
+                               "meal": "lunch"})
+    t.records_add("food_log", {"item": "Old", "eaten_on": "2020-01-01", "calories": 999})
+    data = client(world).get("/api/modules/Food/summary").json()
+    table = data["tables"][0]
+    assert table["rows"] == 3 and table["added_this_week"] == 3
+    kcal = table["amounts"][0]
+    assert kcal["today"] == 675 and kcal["this_week"] == 675 and kcal["how"] == "total"
+    assert table["split"]["counts"] == {"breakfast": 1, "lunch": 1}
+    assert [r["title"] for r in table["latest"]][:2] == ["Old", "Salad"]

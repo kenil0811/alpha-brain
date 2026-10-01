@@ -107,6 +107,46 @@ An MCP server maps one-to-one; a native macOS framework is tools and resources w
 
 **Module** — a named bundle of collections, skills, automations, connections and a note, around a goal. Made in seconds; no code, no build, no versions. The tool the person works in; first-class in the workspace.
 
+### 4.0 The capability model: hands, know-how, access (agreed 1 October 2026)
+
+The split between what the platform provides and what Alpha makes. It was settled after the first LinkedIn sync went wrong (20 of 1,574 connections, names read from photo labels) and a platform reader was patched by hand. The fault was that site knowledge had been built into the platform, where Alpha could neither see nor repair it.
+
+**Principle: anything inside Alpha's own space; consent at the boundary; never for the forbidden list.** Alpha's power is not limited by narrow tools. What it is allowed to *cause* is enforced where an effect leaves its space, by mechanism rather than by instructions in a prompt.
+
+**Hands: universal, few, built by the platform, never changed by Alpha.** Generic primitives that know no particular site or app:
+
+1. **Browser** — any web app in the person's session: open, read (text, links, structure), run Alpha's own script in the page, scroll until a condition holds, screenshot; click, type, upload and download exist but are writes.
+2. **Desktop control** — any Mac app: see its window (screenshot and the accessibility tree), click, type, use menus. Reaches apps with no API. The road to screen observation later. *(Not built yet.)*
+3. **App scripting** — AppleScript / JavaScript for Automation / Shortcuts, for apps that can be driven that way: faster and more reliable than clicking. *(Not built yet.)*
+4. **Files** — read folders the person shared; write freely in Alpha's own space.
+5. **Web APIs** — with the person's own key or sign-in.
+6. **Plug-ins** — third-party MCP servers that vendors ship for their products.
+
+Plus the world itself (tables, journal, notes, automations) and **sandboxed code**: Alpha writes and runs its own Python or JavaScript with no network of its own; it reaches outside only through the hands.
+
+**Know-how: Alpha builds it, on the hands.** Site readers and app connectors ("read LinkedIn connections into rows", "export the open Illustrator file as PDF") are Alpha's own: a procedure, a script where one helps, a test, a health record. Each is tested on a real run before it is kept (Voyager's rule) and run without a model call by automations where possible. When a run's result is wrong (zero rows, a large drop, empty fields), Alpha looks again and repairs it itself, telling the person only if it can't. Everything lives in Alpha's space: versioned, visible in Intelligence, removable. Alpha never edits platform code; generic "read anything" heuristics do not belong in the hands. `page_to_table` is at most a rough first look; a site's reader is Alpha's.
+
+**Guardrails classify effects, not tools.** The same click can be "Show more" or "Send".
+
+| Effect | Example | Rule |
+|---|---|---|
+| Read | open a page, run a read-only script, read a file or an app's window | free once the source is granted; journaled |
+| Write inside Alpha | its tables, notes, scripts, connectors | free; journaled; undoable |
+| Write outward | send, submit, post, change a calendar, act in an app, write to the person's folders | asks first, per kind of step; later a standing permission the person can read and revoke |
+| Never | entering passwords or card numbers, moving money, permanent deletion | refused, whatever Alpha or a page says |
+
+Enforcement is in the process boundary: Alpha's code runs sandboxed; a browser read session blocks requests that would change data on the site (form submissions and similar), so neither Alpha's script nor text planted on a page can send anything while reading; a write runs only as the one action the person approved, and is journaled. Acting in an app is a write by default: the first consequential step of a kind (export, save over, send, delete) is approved once for that skill. Installing a plug-in always asks (someone else's code), and it then runs under the same walls; its own read-only/destructive labels are hints, unlabelled tools are treated as writes.
+
+**Gaps, and who closes them.** When Alpha cannot do something it says so plainly and records the gap as one of three kinds:
+
+- **hand** — a primitive is missing (desktop control and app scripting today): a platform release, closed by the system owner;
+- **access** — a grant, a key, a sign-in, a plug-in install: the person decides;
+- **know-how** — the common case: Alpha builds it.
+
+For now the system owner (developer) handles hands, listed in Intelligence. Open: as people ask Alpha to reach their own applications (Adobe and the like), the platform cannot build per-app integrations, and doesn't need to; the open question is how hand gaps are collected and prioritised across many people, and whether vetted, shared know-how (readers for common sites) ships with Alpha.
+
+**What changes in the build** (not yet done): add the hands for a read-only script in a page and sandboxed code; enforce read-only browser sessions by blocking mutating requests; give site readers and app connectors a home, a test and health checks with repair on failure; reduce `page_to_table` to a first look; then desktop control and app scripting.
+
 ### 4.1 First sources, as the research ranked them
 
 - **Browser.** Leverage Claude in Chrome through `claude --chrome` now: the real signed-in profile, per-site permissions, pauses on login and CAPTCHA, zero build — subscription-only. Later, a thin fallback on Google's sanctioned Chrome 144 remote-debugging route (reuse `chrome-devtools-mcp`, Apache-2.0) so the API route also has a browser. Site procedures are recorded as connector skills after a successful run, so the second run is cheap and deterministic with the agent as fallback. Never raw CDP on the real profile (blocked since Chrome 136) and never a copied profile.

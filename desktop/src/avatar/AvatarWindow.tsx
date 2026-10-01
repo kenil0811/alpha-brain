@@ -11,8 +11,10 @@ import { Character, type Mood } from "./Character";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
+export type AvatarMode = "idle" | "bubble" | "open";
+
 export interface AvatarHost {
-  layout(expanded: boolean): Promise<void>;
+  layout(mode: AvatarMode): Promise<void>;
   showMain(): Promise<void>;
 }
 
@@ -50,16 +52,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight });
   }, [turns, expanded, busy]);
 
-  const toggle = useCallback(async () => {
+  const toggle = useCallback(() => {
     const next = !expanded;
-    try {
-      await host?.layout(next);
-    } catch {
-      /* the window keeps its size; the panel still works */
-    }
     setExpanded(next);
     if (next) setTimeout(() => inputRef.current?.focus(), 50);
-  }, [expanded, host]);
+  }, [expanded]);
 
   const say = useCallback((reply: string, tone: Mood) => {
     setMood(tone);
@@ -102,9 +99,13 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const label = { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: "Here" }[state];
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
+  const mode: AvatarMode = expanded ? "open" : shownBubble ? "bubble" : "idle";
+  useEffect(() => {
+    host?.layout(mode).catch(() => undefined);
+  }, [host, mode]);
 
   return (
-    <div className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && void toggle()}>
+    <div className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
       {expanded ? (
         <section className="avatar__panel" aria-label="Alpha companion">
           <header className="avatar__head" data-tauri-drag-region>
@@ -115,7 +116,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <button type="button" className="iconbtn iconbtn--sm" aria-label="Open the workspace" title="Open the workspace" onClick={() => handOff({ panel: true }, host)}>
               ⤢
             </button>
-            <button type="button" className="iconbtn iconbtn--sm" aria-label="Close" onClick={() => void toggle()}>
+            <button type="button" className="iconbtn iconbtn--sm" aria-label="Close" onClick={() => toggle()}>
               ×
             </button>
           </header>
@@ -157,7 +158,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         <div className="avatar__grip" data-tauri-drag-region title="Drag to move Alpha" aria-hidden="true">
           ⋯
         </div>
-        <button type="button" className={`avatar__button is-${state}`} onClick={() => void toggle()} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
+        <button type="button" className={`avatar__button is-${state}`} onClick={() => toggle()} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
           <Character mood={busy ? "thinking" : mood} size={expanded ? 56 : 80} />
         </button>
       </div>

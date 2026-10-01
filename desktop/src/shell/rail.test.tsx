@@ -1,13 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
-import { Rail, sameSurface } from "./Rail";
+import { Rail, knownSurface, sameSurface } from "./Rail";
 
 describe("the rail", () => {
   it("marks the right item current", () => {
-    expect(sameSurface({ kind: "person", id: "e_1" }, { kind: "people" })).toBe(true);
-    expect(sameSurface({ kind: "intelligence", tab: "automations" }, { kind: "intelligence" })).toBe(true);
-    expect(sameSurface({ kind: "intelligence", tab: "knowledge" }, { kind: "intelligence" })).toBe(false);
+    expect(sameSurface({ kind: "intelligence", tab: "connections" }, { kind: "intelligence" })).toBe(true);
+    expect(knownSurface({ kind: "people" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
   });
 
@@ -18,6 +17,9 @@ describe("the rail", () => {
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
+    expect(screen.queryByRole("button", { name: "People & Companies" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
   });
 });
 

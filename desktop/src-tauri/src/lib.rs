@@ -91,7 +91,10 @@ struct HostState {
 // ---------- the companion ----------
 
 const AVATAR_LABEL: &str = "avatar";
-const AVATAR_IDLE: (f64, f64) = (300.0, 220.0);
+/// The companion's window only covers what it shows: the character, the character with a
+/// bubble, or the open panel. (Even a transparent window catches clicks.)
+const AVATAR_IDLE: (f64, f64) = (112.0, 124.0);
+const AVATAR_BUBBLE: (f64, f64) = (320.0, 230.0);
 const AVATAR_OPEN: (f64, f64) = (380.0, 560.0);
 const AVATAR_MARGIN: f64 = 20.0;
 const AVATAR_HIDDEN_MARKER: &str = "avatar-hidden";
@@ -137,16 +140,22 @@ fn build_avatar(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Grow the companion into its panel (or back), keeping its bottom-right corner in place.
+/// Resize the companion to `mode` ("idle", "bubble" or "open"), keeping its bottom-right
+/// corner in place.
 #[tauri::command]
-fn avatar_layout(app: AppHandle, expanded: bool) -> Result<(), String> {
+fn avatar_layout(app: AppHandle, mode: String) -> Result<(), String> {
     let window = app.get_webview_window(AVATAR_LABEL).ok_or("no companion window")?;
     let scale = window.scale_factor().map_err(|e| e.to_string())?;
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let size = window.outer_size().map_err(|e| e.to_string())?;
     let right = position.x + size.width as i32;
     let bottom = position.y + size.height as i32;
-    let (width, height) = if expanded { AVATAR_OPEN } else { AVATAR_IDLE };
+    let expanded = mode == "open";
+    let (width, height) = match mode.as_str() {
+        "open" => AVATAR_OPEN,
+        "bubble" => AVATAR_BUBBLE,
+        _ => AVATAR_IDLE,
+    };
     window
         .set_size(LogicalSize::new(width, height))
         .map_err(|e| e.to_string())?;

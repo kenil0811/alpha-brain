@@ -4,22 +4,21 @@ import { ThemeControl, type Theme } from "./theme";
 export type Surface =
   | { kind: "home" }
   | { kind: "activity" }
-  | { kind: "people" }
-  | { kind: "person"; id: string }
   | { kind: "intelligence"; tab?: string }
   | { kind: "module"; id: string };
 
-/** About you and Connections are Intelligence tabs with their own rail items. */
-function railItemOf(tab: string | undefined): string {
-  return tab === "knowledge" || tab === "connections" ? tab : "intelligence";
-}
-
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
-  if (a.kind !== b.kind) return a.kind === "person" && b.kind === "people";
+  if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
-  if (a.kind === "intelligence" && b.kind === "intelligence") return railItemOf(a.tab) === railItemOf(b.tab);
   return true;
+}
+
+/** A remembered place that no longer exists (an older build's) becomes Home. */
+export function knownSurface(value: unknown): Surface {
+  const s = value as Surface | null;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || (s.kind === "module" && typeof s.id === "string"))) return s;
+  return { kind: "home" };
 }
 
 export function Rail({
@@ -47,7 +46,7 @@ export function Rail({
 }) {
   const item = (target: Surface, icon: string, label: string, count?: number) => {
     const current = sameSurface(surface, target);
-    const key = target.kind === "module" ? `m:${target.id}` : target.kind === "intelligence" ? `i:${target.tab ?? ""}` : target.kind;
+    const key = target.kind === "module" ? `m:${target.id}` : target.kind;
     return (
       <button key={key} type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
         <span className="navbtn__ico" aria-hidden="true">
@@ -87,10 +86,7 @@ export function Rail({
           <ThemeControl theme={theme} onChange={onTheme} compact />
         </div>
       )}
-      {item({ kind: "people" }, "☺", "People & Companies")}
       {item({ kind: "intelligence" }, "◈", "Intelligence")}
-      {item({ kind: "intelligence", tab: "knowledge" }, "◉", "About you")}
-      {item({ kind: "intelligence", tab: "connections" }, "⛓", "Connections")}
       <div className={`rail__status rail__status--${runtime}`} role="status" title={collapsed ? status : undefined}>
         <i aria-hidden="true" />
         <span className="rail__status-text">{status}</span>

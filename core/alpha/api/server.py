@@ -30,6 +30,7 @@ from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.context.summary import module_summary
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world.store import Problem, loads
@@ -297,11 +298,15 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         m = world.modules.get(ref)
         card = module_card(world, m)
         card["tables"] = [world.collections.describe(t["name"]) for t in card["tables"]]
-        card["activity"] = list(reversed(world.journal.recent(60, module=m["id"])))
+        card["activity"] = list(reversed(world.journal.recent(500, module=m["id"])))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
         card["automations"] = world.automations.all(m["id"])
         return card
+
+    @app.get("/api/modules/{ref}/summary", dependencies=[api])
+    def summary(ref: str) -> dict[str, Any]:
+        return module_summary(world, world.modules.get(ref)["id"])
 
     @app.get("/api/tables/{name}", dependencies=[api])
     def table(name: str, q: str | None = None, order: str | None = None,

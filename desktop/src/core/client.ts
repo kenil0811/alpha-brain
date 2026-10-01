@@ -112,6 +112,23 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   automations: Automation[];
 }
 
+export interface TableSummaryData {
+  name: string;
+  title: string;
+  rows: number;
+  added_this_week: number;
+  amounts?: { field: string; label: string; unit: string | null; how: "total" | "average"; today: number | null; this_week: number | null }[];
+  split?: { field: string; label: string; counts: Record<string, number>; done: string[] };
+  latest: { id: string; title: string; when: string | null }[];
+}
+
+export interface ModuleSummary {
+  tables: TableSummaryData[];
+  goals: Goal[];
+  next_run: string | null;
+  automations: number;
+}
+
 export interface NeedItem {
   kind: "ask" | "proposal" | "fact";
   id: string;
@@ -276,6 +293,7 @@ export class Client {
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
+  moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
   async table(name: string): Promise<{ table: TableDesc; records: RecordRow[] }> {
     const data = await this.call<{ table: TableDesc; records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}?limit=500`);
