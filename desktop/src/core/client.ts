@@ -119,7 +119,6 @@ export interface TableSummaryData {
   added_this_week: number;
   amounts?: { field: string; label: string; unit: string | null; how: "total" | "average"; today: number | null; this_week: number | null }[];
   split?: { field: string; label: string; counts: Record<string, number>; done: string[] };
-  latest: { id: string; title: string; when: string | null }[];
 }
 
 export interface ModuleSummary {

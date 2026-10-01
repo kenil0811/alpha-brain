@@ -140,4 +140,4 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     kcal = table["amounts"][0]
     assert kcal["today"] == 675 and kcal["this_week"] == 675 and kcal["how"] == "total"
     assert table["split"]["counts"] == {"breakfast": 1, "lunch": 1}
-    assert [r["title"] for r in table["latest"]][:2] == ["Old", "Salad"]
+    assert "latest" not in table

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Client, ModuleDetail, ModuleSummary } from "../core/client";
 import { DataPage } from "./DataPage";
-import { formatDay, formatNumber, humanize, when } from "./format";
+import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
 
@@ -222,18 +222,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
               </div>
             </div>
           ) : null}
-          {t.latest.length ? (
-            <div className="card list">
-              {t.latest.map((r) => (
-                <div key={r.id} className="item">
-                  <div className="item__body">{r.title}</div>
-                  {r.when ? <span className="faint">{formatDay(r.when)}</span> : null}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty">Nothing here yet.</p>
-          )}
+          {t.rows === 0 ? <p className="empty">Nothing here yet.</p> : null}
         </div>
       ))}
       {data.automations ? (

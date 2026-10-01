@@ -2,8 +2,8 @@
 
 For each table: how many rows and how many came in this week; where rows happen on a day and
 carry amounts, today's and this week's totals (an average for scores and percentages); how rows
-split across the first status or choice field; the latest few rows by their title. Plus the
-module's goals and when its automations next run.
+split across the first status or choice field. Plus the module's goals and when its automations
+next run. No sample rows: the table's own page shows them.
 """
 
 from __future__ import annotations
@@ -89,12 +89,6 @@ def table_summary(world: World, name: str) -> dict[str, Any]:
                         .capitalize(),
                         "counts": {k: v for k, v in counts.items() if v},
                         "done": split_field.get("done_choices", [])}
-    title = desc["title_field"]
-    out["latest"] = [
-        {"id": r["id"], "title": str(r.get(title) or "Untitled"),
-         "when": _day_of(r, date_field)}
-        for r in rows[:5]
-    ]
     return out
 
 
