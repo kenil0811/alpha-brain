@@ -90,13 +90,14 @@ export function AssistantPanel({
       .catch(() => undefined);
   }, [client]);
   useEffect(load, [load, version]);
+  // Alpha works on its own too (a deepen pass, a folder that changed): look again every 5 s
+  // while a thread is working, every 15 s otherwise.
   const working = threads.some((t) => t.state === "working");
   useEffect(() => {
-    if (!working) return;
     const timer = setInterval(() => {
       load();
-      onChanged();
-    }, 5000);
+      if (working) onChanged();
+    }, working ? 5000 : 15000);
     return () => clearInterval(timer);
   }, [working, load, onChanged]);
   useEffect(() => {
