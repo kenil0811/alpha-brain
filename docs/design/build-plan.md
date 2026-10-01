@@ -397,7 +397,8 @@ connect, Install and Sign in from Settings on a fresh Mac, the try-the-sign-ins-
 
 ### 4.4 What the recon flagged
 
-1. **Gmail went against decision Q4** ("keep Gmail out of scope until a Google app is justified;
+1. **Decided 2 Oct: Gmail through the browser is fine** (Kenil; Q4 revised in the design). It
+   was flagged because it went against decision Q4 ("keep Gmail out of scope until a Google app is justified;
    use Anthropic's Gmail connector meanwhile"). It is now read by driving a signed-in browser:
    it works, it is the access path Google likes least, and it is the most sensitive source
    Alpha reads. Needs a deliberate decision.
@@ -428,12 +429,11 @@ connect, Install and Sign in from Settings on a fresh Mac, the try-the-sign-ins-
   what a resumed thread may carry, linking people across sources, the sleep-time pass. The
   thesis, and where both real failures live.
 - **B. Slice 3, proactivity**: triage of new data, the digest, the Inbox on Home.
-- **C. The Gmail decision**: keep it in the browser with an explicit yes, move to the
-  connector, or drop it for now.
+- **C. The Gmail decision**: decided 2 Oct, Gmail stays in the browser.
 - **D. A working rule**: three or four standing real journeys (LinkedIn, Gmail × network,
   nutrition, one new) that every change is judged against, instead of what was last noticed.
 
-Recommended order: C quickly, then A, then B, with D throughout.
+Recommended order: C (done), then A, then B, with D throughout.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
