@@ -814,6 +814,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def data_backup() -> dict[str, Any]:
         return backup.back_up(world)
 
+    @app.post("/api/data/backups/{name}/restore", dependencies=[api])
+    def data_restore(name: str) -> dict[str, Any]:
+        return backup.restore(world, name)
+
     @app.get("/api/connections/{cid}/removal", dependencies=[api])
     def connection_removal(cid: str) -> dict[str, Any]:
         """What removing a connection takes with it, shown before the person confirms."""

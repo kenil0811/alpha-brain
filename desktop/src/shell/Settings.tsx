@@ -300,6 +300,32 @@ function DataAndRuntime({ client }: { client: Client }) {
           {busy ? "Backing up…" : "Back up now"}
         </button>
       </div>
+      {data?.backups.slice(0, 5).map((b) => (
+        <div className="item" key={b.name}>
+          <div className="item__body">
+            <div className="item__sub">
+              {when(b.at)} · {bytes(b.size)}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm(`Go back to the backup from ${when(b.at)}? Everything as it is now is kept as another backup first.`)) return;
+              setBusy(true);
+              setProblem(null);
+              client
+                .restoreBackup(b.name)
+                .then(setData)
+                .catch((e: unknown) => setProblem(e instanceof Error ? e.message : String(e)))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Go back
+          </button>
+        </div>
+      ))}
       <div className="item">
         <div className="item__body">
           <b>Runtime</b>

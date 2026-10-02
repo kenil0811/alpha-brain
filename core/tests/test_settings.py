@@ -7,6 +7,7 @@ import pytest
 
 from alpha.runtime import claude_account
 from alpha.world import backup
+from alpha.world.store import Problem
 from alpha.world.world import World
 
 
@@ -44,3 +45,19 @@ def test_a_backup_is_a_copy_of_the_world(world: World) -> None:
     copy = World(Path(info["folder"]) / "backups" / info["backups"][0]["name"])
     assert copy.journal.recent(1)[0]["text"] == "Something worth keeping."
     copy.close()
+
+
+def test_going_back_to_a_backup_keeps_today_as_another(world: World) -> None:
+    world.journal.append("did", "Before the backup.")
+    name = backup.back_up(world)["backups"][0]["name"]
+    world.journal.append("did", "After the backup.")
+    info = backup.restore(world, name)
+    texts = [e["text"] for e in world.journal.recent(5)]
+    assert "After the backup." not in texts and "Before the backup." in texts
+    assert any(t.startswith(f"Went back to the backup {name}.") for t in texts)
+    kept = next(b["name"] for b in info["backups"] if b["name"].endswith("-before-restore.sqlite"))
+    today = World(Path(info["folder"]) / "backups" / kept)
+    assert today.journal.recent(1)[0]["text"] == "After the backup."
+    today.close()
+    with pytest.raises(Problem, match="no backup called"):
+        backup.restore(world, "../world.sqlite")

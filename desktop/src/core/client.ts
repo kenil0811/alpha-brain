@@ -425,6 +425,7 @@ export class Client {
   setRoute = (thread: string | null, provider: string | null, model: string | null = null) => this.call<ModelRoute>("PUT", "/api/route", { thread, provider, model });
   dataInfo = () => this.call<DataInfo>("GET", "/api/data");
   backUp = () => this.call<DataInfo>("POST", "/api/data/backup");
+  restoreBackup = (name: string) => this.call<DataInfo>("POST", `/api/data/backups/${encodeURIComponent(name)}/restore`);
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);

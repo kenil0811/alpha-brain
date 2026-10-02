@@ -409,6 +409,24 @@ class Store:
         finally:
             copy.close()
 
+    def replace_with(self, path: Path) -> None:
+        """Make this world the copy at `path` (a backup), in place and while Alpha runs, then bring
+        it up to this version. The caller keeps a copy of what it replaces."""
+        copy = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            if copy.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise Problem(f"The backup {path.name} is damaged; it was left alone.")
+            found = version_of(copy)
+            if found > VERSION:
+                raise Problem(f"The backup {path.name} was made by a newer Alpha (version "
+                              f"{found}); update Alpha before going back to it.")
+            with self._lock:
+                copy.backup(self.db)
+                self.db.executescript(SCHEMA)
+                migrate(self.db)
+        finally:
+            copy.close()
+
     def close(self) -> None:
         with self._lock:
             self.db.close()
