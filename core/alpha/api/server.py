@@ -12,6 +12,7 @@ automations, connections, knowledge), Activity, the conversation, and turns.
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import secrets
@@ -31,7 +32,7 @@ from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
-from alpha.runtime import claude_account
+from alpha.runtime import claude_account, transcription
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world import backup
@@ -73,6 +74,12 @@ class SiteBody(BaseModel):
 
 class SwitchBody(BaseModel):
     enabled: bool
+
+
+class SpeechBody(BaseModel):
+    audio_b64: str
+    mime: str = "audio/webm"
+    provider: str | None = None
 
 
 class ModuleBody(BaseModel):
@@ -497,6 +504,18 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/claude/signout", dependencies=[api])
     def claude_sign_out() -> dict[str, Any]:
         return claude_account.sign_out()
+
+    @app.get("/api/transcribe", dependencies=[api])
+    def can_transcribe() -> dict[str, bool]:
+        return {"available": transcription.available()}
+
+    @app.post("/api/transcribe", dependencies=[api])
+    def transcribe(body: SpeechBody) -> dict[str, str]:
+        try:
+            audio = base64.b64decode(body.audio_b64, validate=True)
+        except ValueError as e:
+            raise Problem("That recording didn't arrive whole.") from e
+        return {"text": transcription.transcribe(audio, body.mime, body.provider)}
 
     @app.get("/api/data", dependencies=[api])
     def data_info() -> dict[str, Any]:

@@ -187,3 +187,26 @@ def test_a_project_is_renamed_given_an_icon_exported_imported_and_deleted(world:
     gone = api.delete("/api/modules/Jobs").json()
     assert gone["rows"] == 1
     assert [m["name"] for m in api.get("/api/modules").json()] == ["Jobs 2"]
+
+
+def test_speech_goes_to_whisper_only_with_a_saved_key(world: World, monkeypatch: Any) -> None:
+    from alpha.runtime import transcription
+
+    api = client(world)
+    monkeypatch.setattr(transcription, "saved_key", lambda provider: None)
+    assert api.get("/api/transcribe").json() == {"available": False}
+    said = api.post("/api/transcribe", json={"audio_b64": "aGk="})
+    assert said.status_code == 400 and "No transcription key" in said.json()["error"]
+
+    calls: list[tuple[str, str]] = []
+
+    def whisper(url: str, model: str, key: str, audio: bytes, mime: str) -> str:
+        calls.append((model, mime))
+        return "hi"
+
+    monkeypatch.setattr(transcription, "saved_key", lambda p: "k" if p == "chatgpt_api" else None)
+    monkeypatch.setattr(transcription, "_call", whisper)
+    assert api.get("/api/transcribe").json() == {"available": True}
+    assert api.post("/api/transcribe", json={"audio_b64": "aGk=", "mime": "audio/mp4"}).json() \
+        == {"text": "hi"}
+    assert calls == [("whisper-1", "audio/mp4")]
