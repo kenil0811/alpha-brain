@@ -4,7 +4,7 @@
  * view. The companion is the same stream.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import type { Action, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
+import type { Action, Ask, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
@@ -41,6 +41,49 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
           {stopped ? "Leave it" : "Not now"}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** A question Alpha asked, as choices to tap (or words to type); the answer starts the next
+ *  turn, so the person never has to repeat the question. */
+function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnswered: (turn: Turn | null) => void }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const answer = async (words: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const out = await client.answerAsk(ask.id, words);
+      onAnswered(out.turn);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="askcard" role="group" aria-label="Alpha asks">
+      <p className="askcard__q">{ask.text}</p>
+      {ask.options.length ? (
+        <div className="askcard__options">
+          {ask.options.map((o) => (
+            <button key={o} type="button" className="btn askcard__opt" disabled={busy} onClick={() => void answer(o)}>
+              {o}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
+        <button type="submit" className="btn btn--sm btn--primary" disabled={busy || !text.trim()}>
+          Answer
+        </button>
+        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
+          Skip
+        </button>
+      </form>
+      {error ? <p className="notice">{error}</p> : null}
     </div>
   );
 }
@@ -111,6 +154,8 @@ export function AssistantPanel({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
+  const [asks, setAsks] = useState<Ask[]>([]);
+  const [showSteps, setShowSteps] = useState(false);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
@@ -127,6 +172,7 @@ export function AssistantPanel({
         setThreads(c.threads);
         setPlans(c.plans ?? []);
         setActions(c.actions ?? []);
+        setAsks(c.asks ?? []);
       })
       .catch(() => undefined);
   }, [client]);
@@ -165,12 +211,14 @@ export function AssistantPanel({
       input.current?.setSelectionRange(end, end);
     }, 30);
   }, [draft, onDraftTaken]);
+  const pendingId = pending?.id ?? null;
   useEffect(() => {
-    if (!pending) return;
+    // Keyed on the turn's id, not the polled object: the clock must not restart every second.
+    if (!pendingId) return;
     const started = Date.now();
     const timer = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
     return () => clearInterval(timer);
-  }, [pending]);
+  }, [pendingId]);
 
   const send = useCallback(
     async (sentence: string) => {
@@ -196,6 +244,24 @@ export function AssistantPanel({
     [client, module, pending, threadView, load, onChanged],
   );
 
+  const follow = useCallback(
+    async (turn: Turn | null) => {
+      if (!turn) return;
+      setPending(turn);
+      setElapsed(0);
+      let current = turn;
+      while (current.state === "running") {
+        await new Promise((r) => setTimeout(r, 1000));
+        current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
+        setPending(current);
+      }
+      setPending(null);
+      load();
+      onChanged();
+    },
+    [client, load, onChanged],
+  );
+
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
   });
@@ -209,29 +275,45 @@ export function AssistantPanel({
 
   if (!open) return null;
   const steps = pending?.steps ?? [];
+  const live = pending?.live ?? null;
+  const latest = steps.length ? steps[steps.length - 1].text : null;
+  const doing = live?.doing ?? null;
+  const thought = live?.thought ?? null;
+  const headline = doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking");
   const workingNote = pending ? (
-    <div className="msg msg--ai msg--working" role="status">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <span>
-          Working on it… <span className="faint">{elapsed} s</span>
+    <div className="msg msg--ai msg--working" role="status" aria-live="polite">
+      <div className="working__head">
+        <span className="working__pulse" aria-hidden="true" />
+        <span className="shimmer">{headline}</span>
+        <span className="working__dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
         </span>
+        <span className="faint working__time">{elapsed} s</span>
         <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.stopTurn(pending.id).catch(() => undefined)}>
           Stop
         </button>
       </div>
+      {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
+        <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
+          {showSteps ? "▾" : "▸"} {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
+        </button>
+      ) : null}
+      {showSteps && steps.length ? (
         <ul className="stages">
-          {steps.slice(-8).map((s, i) => (
-            <li key={`${s.at}-${i}`} className="stages__done">
-              ✓ {s.text}
+          {steps.slice(-12).map((s, i) => (
+            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
+              {s.kind === "failed" ? "✗" : "✓"} {s.text}
             </li>
           ))}
         </ul>
-      ) : elapsed > 8 ? (
-        <span className="faint">Researching and deciding; steps show here as they happen.</span>
       ) : null}
     </div>
   ) : null;
+  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : a.thread === null));
 
   return (
     <aside className="assist" aria-label="Assistant">
@@ -273,6 +355,11 @@ export function AssistantPanel({
               ),
             )}
             {!threadView.journal.length ? <p className="muted">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
+            {!pending
+              ? openAsks.map((a) => (
+                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                ))
+              : null}
           </>
         ) : (
           <>
@@ -316,6 +403,11 @@ export function AssistantPanel({
               .map((a) => (
                 <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
+            {!pending
+              ? openAsks.map((a) => (
+                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                ))
+              : null}
           </>
         )}
         {workingNote}

@@ -85,6 +85,7 @@ export interface Thread {
   steps?: { at: string; kind: string; text: string }[];
   step_count?: number;
   last_at?: string;
+  live?: Live | null;
 }
 
 export interface ModuleCard {
@@ -358,11 +359,28 @@ export interface Reader {
   last_count: number | null;
 }
 
+export interface Live {
+  thought: string | null;
+  doing: string | null;
+  tools: number;
+  at: number | null;
+}
+
+export interface Ask {
+  id: string;
+  text: string;
+  at: string;
+  options: string[];
+  thread: string | null;
+  module: string | null;
+}
+
 export interface Turn {
   id: string;
   state: "running" | "done" | "failed";
   text: string;
   steps?: { at: string; kind: string; text: string }[];
+  live?: Live | null;
   reply?: string;
   said?: string;
   replied?: string;
@@ -376,6 +394,7 @@ export interface Conversation {
   running: Turn[];
   plans: Plan[];
   actions?: Action[];
+  asks?: Ask[];
 }
 
 export interface SearchResult {

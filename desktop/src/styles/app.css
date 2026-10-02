@@ -682,3 +682,30 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .linkbtn.faint { color: var(--text-3); text-decoration: none; }
 .linkbtn.faint:hover { color: var(--text); }
+
+/* working: a Claude-like state line with motion */
+.working__head { display: flex; align-items: center; gap: 8px; }
+.working__time { margin-left: auto; }
+.working__pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s ease-in-out infinite; flex: none; }
+@keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
+.shimmer { background: linear-gradient(90deg, var(--text-2) 0%, var(--text) 45%, var(--text-2) 90%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 2.2s linear infinite; font-weight: 500; }
+@keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+.working__dots { display: inline-flex; gap: 3px; }
+.working__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); animation: dots 1.2s infinite; }
+.working__dots i:nth-child(2) { animation-delay: 0.2s; }
+.working__dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dots { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+.working__thought { margin: 6px 0 0; color: var(--text-2); font-style: italic; animation: fadein 0.35s ease-out; }
+.working__steps { background: none; border: 0; padding: 6px 0 0; color: var(--text-3); font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
+.working__steps:hover { color: var(--text); }
+.msg--working .stages li { animation: fadein 0.3s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.thread__now { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; }
+
+/* a question as choices */
+.askcard { align-self: flex-start; max-width: 94%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; animation: fadein 0.3s ease-out; }
+.askcard__q { margin: 0 0 8px; font-weight: 500; }
+.askcard__options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.askcard__opt { border-radius: 999px; }
+.askcard__other { display: flex; gap: 6px; align-items: center; }
+.askcard__other input { flex: 1; min-width: 120px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }

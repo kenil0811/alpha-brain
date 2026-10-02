@@ -172,6 +172,7 @@ class Turns:
             for e in self.world.journal.recent(200)
             if said and e["data"].get("turn") == said and e["kind"] != "replied"
         ]
+        out["live"] = claude_cli.LIVE.progress_for(said)
         return out
 
     def running(self) -> list[dict[str, Any]]:
@@ -287,7 +288,8 @@ def thread_views(world: World) -> list[dict[str, Any]]:
                  if e["kind"] in STEP_KINDS and not e["text"].startswith(("Build the approved",
                                                                           "Continue the build"))]
         out.append({**t, "steps": steps[-6:], "step_count": len(steps),
-                    "last_at": entries[-1]["at"] if entries else t["updated_at"]})
+                    "last_at": entries[-1]["at"] if entries else t["updated_at"],
+                    "live": claude_cli.LIVE.progress_for(t["id"])})
     return out
 
 
@@ -861,7 +863,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                                       module=module_id)
         return {"turns": turns_, "threads": thread_views(world), "running": running.running(),
                 "plans": world.plans.recent(),
-                "actions": [action_view(a) for a in world.actions.all(limit=20)]}
+                "actions": [action_view(a) for a in world.actions.all(limit=20)],
+                "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
+                          "options": a["data"].get("options", []), "thread": a["thread"],
+                          "module": a["module"]} for a in world.journal.open_asks()]}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:
