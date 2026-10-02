@@ -73,6 +73,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [hideDone, setHideDone] = useState(false);
+  const [showGone, setShowGone] = useState(false);
   const [sort, setSort] = useState<{ field: string; direction: "asc" | "desc" } | null>(null);
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
@@ -138,12 +139,16 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
       if (q && !searchable.some((f) => String(r.values[f] ?? "").toLowerCase().includes(q))) return false;
       for (const [field, value] of Object.entries(filters)) if (value && String(r.values[field] ?? "") !== value) return false;
       if (hideDone && statusField && open && !open.has(String(r.values[statusField.name] ?? ""))) return false;
+      if (!showGone && r.gone_at) return false;
       return true;
     });
     if (sort) out = [...out].sort((a, b) => (sort.direction === "asc" ? 1 : -1) * compare(a.values[sort.field], b.values[sort.field]));
     return out;
-  }, [all, search, searchable, filters, hideDone, statusField, sort]);
-  useEffect(() => setPageAt(0), [search, filters, hideDone, sort]);
+  }, [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
+  useEffect(() => setPageAt(0), [search, filters, hideDone, showGone, sort]);
+  // A table fed by readers: the platform knows when each row was first seen, last seen, gone.
+  const tracked = useMemo(() => Boolean(all?.some((r) => r.seen_at || r.gone_at)), [all]);
+  const goneCount = useMemo(() => (all ?? []).filter((r) => r.gone_at).length, [all]);
 
   // The page never scrolls; the rows do, inside their own area under a header that stays put.
   // Fit to window: as many rows as that area holds, less the header and totals. Measured when
@@ -285,6 +290,11 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
               <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide done
             </label>
           ) : null}
+          {tracked && goneCount ? (
+            <label className="check">
+              <input type="checkbox" checked={showGone} onChange={(e) => setShowGone(e.target.checked)} /> Show gone ({goneCount})
+            </label>
+          ) : null}
           <span className="spacer" />
           <button type="button" className="btn btn--sm btn--primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
             {adding ? "Cancel" : "Add"}
@@ -351,7 +361,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
         ) : null}
         <div className="pagebody" ref={scrollRef}>
           {view === "table" ? (
-            <TableView rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
+            <TableView seen={tracked} rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
           ) : null}
           {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
           {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
@@ -407,7 +417,16 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
 
 // ---------- table ----------
 
-function TableView({ rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty }: { rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+/** When a reader-fed row came and went, in words: "New today", "Since 2 Oct", "Gone 5 Oct". */
+function SeenCell({ row }: { row: RecordRow }) {
+  const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const today = new Date().toDateString();
+  if (row.gone_at) return <td><span className="pill pill--gray">Gone {day(row.gone_at)}</span></td>;
+  if (new Date(row.created_at).toDateString() === today) return <td><span className="pill pill--good">New today</span></td>;
+  return <td className="faint">Since {day(row.created_at)}</td>;
+}
+
+function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty }: { seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = columns.filter((c) => isNumeric(byName.get(c)?.kind ?? "")).map((c) => ({ field: c, value: totalOf.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
   return (
     <div className="tablewrap">
@@ -446,6 +465,7 @@ function TableView({ rows, totalOf, bodyRef, fields, columns, byName, widths, on
                 </th>
               );
             })}
+            {seen ? <th>Seen</th> : null}
             <th aria-label="Actions" />
           </tr>
         </thead>
@@ -455,6 +475,7 @@ function TableView({ rows, totalOf, bodyRef, fields, columns, byName, widths, on
               {columns.map((c) => (
                 <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} />
               ))}
+              {seen ? <SeenCell row={row} /> : null}
               <td className="r">
                 <span className="faint">›</span>
               </td>
@@ -462,7 +483,7 @@ function TableView({ rows, totalOf, bodyRef, fields, columns, byName, widths, on
           ))}
           {empty ? (
             <tr>
-              <td colSpan={columns.length + 1} className="empty" style={{ whiteSpace: "normal" }}>
+              <td colSpan={columns.length + (seen ? 2 : 1)} className="empty" style={{ whiteSpace: "normal" }}>
                 {empty}
               </td>
             </tr>
@@ -479,6 +500,7 @@ function TableView({ rows, totalOf, bodyRef, fields, columns, byName, widths, on
                   </td>
                 );
               })}
+              {seen ? <td /> : null}
               <td />
             </tr>
           </tfoot>

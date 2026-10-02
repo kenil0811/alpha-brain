@@ -21,7 +21,8 @@ description: Read web pages, including sites behind a sign-in (LinkedIn, job boa
   `reader_run`, `automation_create` with a schedule that fits how fast it changes and `steps`
   (a read step per reader, then a tell step): the scheduler runs it with no model. Rows are
   marked seen on every run, and the reader's rows that stop appearing are marked gone, so a tell
-  step reports what is new, changed and gone.
+  step reports what is new, changed and gone, and tables need no first-seen, last-seen or gone
+  fields of their own (the table page shows them).
 - When `reader_run` says the reader is broken (sites change), repair it: look at the page again,
   rewrite, try, `reader_save` under the same name, run again.
 - Every place a module reads from is a source with a status (`source_add`, `sources_list`),

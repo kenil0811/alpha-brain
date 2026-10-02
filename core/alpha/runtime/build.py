@@ -38,7 +38,8 @@ when they run.
 - For each source you can read: look at the real page with page_script (the HTML of one or two \
 items), write a reader that returns clean rows with values already in the table's words, try it \
 with page_script, keep it with reader_save (to_end when the list pages or scrolls), and run it \
-with reader_run. Several readers can feed one table.
+with reader_run. Several readers can feed one table. Don't add first-seen, last-seen or gone \
+fields: the platform keeps them for every row a reader writes, and the table shows them.
 - Keep it current with an automation made of steps: automation_create with a read step per \
 reader and a tell step for what the person wants to hear about. Use a procedure only for work \
 that needs judgement on every run.

@@ -49,6 +49,10 @@ export interface RecordRow {
   created_at: string;
   updated_at: string;
   provenance: Provenance;
+  /** Rows a reader keeps: when it last returned the row, and when it stopped returning it. */
+  seen_at?: string | null;
+  gone_at?: string | null;
+  entity?: string | null;
 }
 
 export interface JournalEntry {
@@ -331,11 +335,11 @@ export class CoreError extends Error {
   }
 }
 
-type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance };
+type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
 
 export function toRow(raw: Raw): RecordRow {
-  const { id, revision, created_at, updated_at, _provenance, ...values } = raw;
-  return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {} };
+  const { id, revision, created_at, updated_at, _provenance, _seen_at, _gone_at, _entity, ...values } = raw;
+  return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {}, seen_at: _seen_at ?? null, gone_at: _gone_at ?? null, entity: _entity ?? null };
 }
 
 export class Client {
