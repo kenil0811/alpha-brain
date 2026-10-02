@@ -1134,6 +1134,15 @@ thinking, it should give me options for questions and not just have me type in".
   the evidence with "more", lays the text beside a thumbnail that opens full size, and the
   panel drops a failed attempt once the same thing was proposed again; `action_propose` asks
   for evidence in one plain sentence, never ids.
+- **Kenil's run, the dangerous part (21:29):** his yes sent the message to Sania; Alpha's
+  verify step then failed (text LinkedIn never shows), the platform called the action failed,
+  and the repair loop had Alpha fix the check and **propose the same message again**: a card
+  that, pressed, would have messaged her twice. Withdrawn by hand at 22:35 (journaled). Fixed:
+  when every step ran, the commit included, and only the check afterwards failed, the action
+  is `done` as "Sent, not confirmed … look in linkedin.com to be sure", the procedure is marked
+  broken for its check, and the repair turn is told to fix only the verify steps and never
+  propose again (test added). The same shape had hit the first Gmail draft (§4.13); it is now
+  "Made, not confirmed" rather than a second draft.
 - A lesson for the repair loop: Alpha's diagnosis ("anti-automation") was wrong because it
   never saw the error screenshot. `action_propose`'s failure answer now carries the step log;
   giving Alpha the screenshot itself (a `page_read` of the final page, or the image) is open.

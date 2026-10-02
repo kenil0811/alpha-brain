@@ -305,7 +305,9 @@ guardrails and governance and approvals". The split of §4.0 decides the shape.
   a site is what was on the card; a **dry run** performs every step but the commit and the
   card shows the screenshot; the run performs them all, screenshots before and after, and runs
   the procedure's read-only `verify` checks before it counts as done; the hand refuses password
-  and payment fields by their own attributes, whatever a step says; every step, screenshot and
+  and payment fields by their own attributes, whatever a step says; **once the commit step has
+  run, the effect is treated as having happened**: a failed check afterwards makes the action
+  "sent, not confirmed" and repairs only the check, never a second send; every step, screenshot and
   decision is journaled and shows in Activity.
 - **Approvals grow with use:** a prepare-level action may be approved "always", which makes a
   standing permission sentence ("Alpha may make a draft email in Gmail on google.com without

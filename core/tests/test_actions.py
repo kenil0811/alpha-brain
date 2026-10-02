@@ -356,3 +356,34 @@ def test_a_placeholder_anywhere_must_be_a_payload_field() -> None:
                             {"type": ".box", "value": "{message}"}, {"click_text": "Send"}],
                            ["slug", "message"], effect="send")
     assert steps[0]["goto"].endswith("{slug}/")
+
+
+def test_a_failed_check_after_the_commit_is_unconfirmed_never_redone(world: World) -> None:
+    """21:29 on 2 Oct: the LinkedIn message went out, Alpha's check afterwards failed, the
+    repair proposed the same message again. Once the commit ran, it happened."""
+    gmail_connected(world)
+    driver = Driver()
+    driver.verified = False
+    with_fake(driver)
+    prompts: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        prompts.append(req.sentence)
+        return RunResult(ok=True, reply="Fixed the check.")
+
+    try:
+        t = keep_procedure(world, turn=said(world, "send it"), effect="send")
+        aid = t.action_propose("gmail_draft", "Email to Sania", PAYLOAD,
+                               "cannot be unsent")["action"]
+        out = acting.approve(world, aid, "yes", runner=runner)
+        action = world.actions.get(aid)
+        assert out["ok"] and out["unconfirmed"] and action["state"] == "done"
+        assert action["result"].startswith("Sent, not confirmed: Email to Sania")
+        assert world.procedures.get("gmail_draft")["health"] == "broken"
+        assert prompts and "Do NOT propose the action again" in prompts[0]
+        assert not [a for a in world.actions.all() if a["id"] != aid]
+        done = [e for e in world.journal.recent(10) if e["kind"] == "did"
+                and e["data"].get("unconfirmed")]
+        assert done and done[-1]["text"].startswith("Sent, not confirmed")
+    finally:
+        restore()

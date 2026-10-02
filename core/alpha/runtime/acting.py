@@ -31,7 +31,9 @@ one site, in the person's own session. Look at the page as it is now (page_read,
 returning the HTML around the control that failed), rewrite the steps so they do the task \
 (selectors or visible text for clicks; fills and typing take only fields of the payload), and \
 save them with procedure_save under the same name. Then propose the action again with \
-action_propose and the same payload, so the person sees a fresh preview and decides. Do nothing \
+action_propose and the same payload, so the person sees a fresh preview and decides, unless the \
+prompt says the action already happened: then only the verify steps are repaired and nothing is \
+proposed. Do nothing \
 else. If the site needs a sign-in or stops you with a bot check, say so in one line and stop. \
 Your final answer is one line.
 
@@ -109,6 +111,25 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
     except Exception as e:
         log.exception("action %s failed", action_id)
         result = {"raised": str(e), "shots": {}, "outcome": f"the hand could not run it: {e}"}
+    if _committed_but_unconfirmed(result, procedure):
+        # Every step ran, the commit included: the message went, the draft was saved. Only
+        # Alpha's check afterwards failed. The effect is treated as having happened, never
+        # redone: a duplicate send is worse than an unconfirmed one.
+        verb = "Sent" if action["effect"] == "send" else "Made"
+        why = f"its check afterwards didn't confirm it ({result.get('outcome')})"
+        text = (f"{verb}, not confirmed: {action['title']} ({action['site']}). Every step ran,"
+                f" but Alpha's check afterwards failed; look in {action['site']} to be sure.")
+        world.actions.finish(action_id, text, _shots(result))
+        world.procedures.ran(procedure["name"], problem=why)
+        world.journal.append(
+            "did", text, actor="alpha",
+            data={"action": action_id, "procedure": procedure["name"],
+                  "effect": action["effect"], "payload": action["payload"],
+                  "unconfirmed": True, "shots": result.get("shots") or {}},
+            module=action["module"], thread=action["thread"])
+        if repair:
+            _repair(world, action, why, runner, redo=False)
+        return {"ok": True, "unconfirmed": True, "text": text, **result}
     if _failed(result):
         why = result.get("note") or result.get("outcome") or "it failed"
         world.actions.fail(action_id, why, _shots(result))
@@ -135,6 +156,13 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
     return {"ok": True, "text": text, **result}
 
 
+def _committed_but_unconfirmed(result: dict[str, Any], procedure: dict[str, Any]) -> bool:
+    """Every step ran (the commit too) and only the check afterwards failed."""
+    return (result.get("verified") is False and result.get("done") == len(procedure["steps"])
+            and not result.get("failed_step") and not result.get("raised")
+            and not result.get("needs_signin") and not result.get("bot_check"))
+
+
 def _failed(result: dict[str, Any]) -> bool:
     """A run counts as done only when every step ran and nothing says otherwise. Anything the
     hand could not do, a wall, a failed step, a failed check, or an error is a failure: "it
@@ -144,10 +172,19 @@ def _failed(result: dict[str, Any]) -> bool:
                 or result.get("done") is None)
 
 
-def _repair(world: World, action: dict[str, Any], why: str, runner: turn.Runner) -> None:
-    prompt = (f"The action \"{action['title']}\" (procedure {action['procedure']}, payload"
-              f" {action['payload']}) failed: {why}. Repair the procedure and propose the action"
-              " again.")
+def _repair(world: World, action: dict[str, Any], why: str, runner: turn.Runner,
+            *, redo: bool = True) -> None:
+    if redo:
+        prompt = (f"The action \"{action['title']}\" (procedure {action['procedure']}, payload"
+                  f" {action['payload']}) failed: {why}. Repair the procedure and propose the"
+                  " action again.")
+    else:
+        prompt = (f"The action \"{action['title']}\" (procedure {action['procedure']}) ran to"
+                  f" its end, so it happened, but {why}. Repair only the procedure's verify"
+                  " steps (look at the page as it is after the commit) and save it with"
+                  " procedure_save. Do NOT propose the action again: it has been done once and"
+                  " must not be repeated. Tell the person in one line that it went out and that"
+                  " the check is fixed for next time.")
     try:
         turn.ask(world, prompt, module=action["module"], thread=action["thread"],
                  runner=runner, rules=REPAIR_RULES, actor="alpha",
