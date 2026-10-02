@@ -56,18 +56,37 @@ function cookieMatches(cookie, site) {
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const CHALLENGE_TITLE = /^(just a moment|attention required|access denied|are you a human|verify you are human|security check|please verify|one more step|pardon our interruption)/i;
+// Marks only a challenge page carries (Cloudflare, PerimeterX, DataDome).
 const CHALLENGE_MARKS = [
   "#challenge-form", "#challenge-running", "[id^='cf-chl']", "#cf-challenge-running",
-  "iframe[src*='hcaptcha']", "iframe[src*='recaptcha']", "iframe[src*='challenges.cloudflare']",
-  ".g-recaptcha", ".h-captcha", "#px-captcha", "[data-sitekey]",
+  "iframe[src*='challenges.cloudflare']", "#px-captcha", "iframe[src*='captcha-delivery']",
 ];
+// A captcha widget is also found on ordinary login and contact forms: it only means a bot check
+// when the captcha is all the page is.
+const CAPTCHA_WIDGETS = [".g-recaptcha", ".h-captcha", "iframe[src*='recaptcha']", "iframe[src*='hcaptcha']"];
 
 /** Whether the page in front of us is a bot check rather than the page that was asked for. */
 async function isBotCheck(page) {
   const title = (await page.title().catch(() => "")) || "";
   if (CHALLENGE_TITLE.test(title.trim())) return true;
   return page
-    .evaluate((marks) => marks.some((m) => document.querySelector(m)), CHALLENGE_MARKS)
+    .evaluate(([marks, widgets]) => {
+      if (marks.some((m) => document.querySelector(m))) return true;
+      const words = (document.body ? document.body.innerText : "").trim().length;
+      const links = document.querySelectorAll("a[href]").length;
+      return widgets.some((w) => document.querySelector(w)) && words < 400 && links < 10;
+    }, [CHALLENGE_MARKS, CAPTCHA_WIDGETS])
+    .catch(() => false);
+}
+
+/** Whether the page in front of us asks for a sign-in: the address says so, or it shows a
+ *  password field. */
+async function isSignIn(page, askedFor) {
+  const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
+  if (wall.test(page.url()) && !wall.test(askedFor)) return true;
+  return page
+    .evaluate(() => [...document.querySelectorAll("input[type=password]")]
+      .some((el) => el.offsetParent !== null))
     .catch(() => false);
 }
 
@@ -215,12 +234,11 @@ async function read(job) {
         return await fn();
       }, job.script);
       const finalUrl = page.url();
-      const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
       return {
         status: response ? response.status() : 0,
         final_url: finalUrl,
         title: await page.title(),
-        blocked: wall.test(finalUrl) && !wall.test(job.url),
+        blocked: await isSignIn(page, job.url),
         result: value === undefined ? null : value,
         scrolls,
         writes_blocked: blockedCount(),
@@ -261,8 +279,7 @@ async function read(job) {
     }, maxChars);
     const html = job.html ? await page.content() : null;
     const finalUrl = page.url();
-    const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
-    const blocked = wall.test(finalUrl) && !wall.test(job.url);
+    const blocked = await isSignIn(page, job.url);
     return {
       status: response ? response.status() : 0,
       final_url: finalUrl,
