@@ -1,27 +1,55 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
-import { Rail, knownSurface, sameSurface } from "./Rail";
+import { ToastProvider, TooltipProvider, type PanelControl } from "../ui";
+import { Rail, knownSurface, sameSurface, surfaceFromPath, surfacePath } from "./Rail";
+
+const panel: PanelControl = { collapsed: false, mode: "expanded", width: 224, displayWidth: 224, isDragging: false, setCollapsed: vi.fn(), toggleCollapsed: vi.fn(), resizeBy: vi.fn(), startDrag: vi.fn(), handleEscape: () => false };
 
 describe("the rail", () => {
   it("marks the right item current", () => {
     expect(sameSurface({ kind: "intelligence", tab: "connections" }, { kind: "intelligence" })).toBe(true);
     expect(knownSurface({ kind: "people" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
+    expect(surfaceFromPath(`#${surfacePath({ kind: "module", id: "m_1" })}`)).toEqual({ kind: "module", id: "m_1" });
   });
 
-  it("lists the modules and what needs the person", () => {
+  it("keeps sections and Alpha's aliases in the address", () => {
+    expect(surfacePath({ kind: "module", id: "m_1", section: "activity" })).toBe("/m/m_1/activity");
+    expect(surfaceFromPath("#/m/m_1/settings")).toEqual({ kind: "module", id: "m_1", section: "settings" });
+    expect(surfaceFromPath("#/settings/models")).toEqual({ kind: "settings", section: "models" });
+    expect(surfaceFromPath("#/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(surfaceFromPath("#/settings/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(surfaceFromPath("#/about")).toEqual({ kind: "intelligence", tab: "knowledge" });
+  });
+
+  it("gives each Intelligence item its own address, and keeps the tab addresses", () => {
+    for (const s of [{ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "intelligence", tab: "skills", item: "reader:lumen_jobs" }, { kind: "intelligence", tab: "automations" }, { kind: "intelligence" }] as const)
+      expect(surfaceFromPath(`#${surfacePath(s)}`)).toEqual(s);
+    expect(surfacePath({ kind: "intelligence", tab: "skills", item: "reader:lumen_jobs" })).toBe("/intelligence/skills/reader%3Alumen_jobs");
+    expect(surfaceFromPath("#/intelligence/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(sameSurface({ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "home" })).toBe(false);
+  });
+
+  it("lists the projects, and no Activity item", () => {
+    const card = (id: string, name: string) => ({ id, name, goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
     render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[card("m_1", "School"), card("m_2", "Grades"), card("m_3", "Food")]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
     );
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: "Grades" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Activity" })).toBeNull();
+    expect(screen.queryByText("Projects")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add a project from a file" })).toBeNull();
+    expect(screen.getByRole("button", { name: "New project" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
     expect(screen.queryByRole("button", { name: "People & Companies" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
   });
 });
 

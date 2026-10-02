@@ -3,24 +3,26 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AvatarBoot, isAvatarWindow } from "./avatar/boot";
 import "./styles/app.css";
+import { Button } from "./ui/Button";
 
 /** A window that went blank tells nobody anything: any error that escapes rendering is shown
  *  in the window with a way back. */
 class Guard extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(error: unknown) {
-    return { error: error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error) };
+    // One line for the person; the stack goes to the console, never on screen.
+    console.error(error);
+    return { error: error instanceof Error ? error.message : String(error) };
   }
   render() {
     if (this.state.error) {
       return (
-        <section className="page" role="alert" style={{ padding: 24 }}>
+        <section className="page page--crash stack" role="alert">
           <h2>Alpha's window hit a problem</h2>
-          <p className="muted">Reload to carry on; nothing you saved is affected.</p>
-          <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, userSelect: "text" }}>{this.state.error}</pre>
-          <button type="button" className="btn btn--primary" onClick={() => window.location.reload()}>
+          <p className="notice">{this.state.error}</p>
+          <Button onClick={() => window.location.reload()}>
             Reload
-          </button>
+          </Button>
         </section>
       );
     }

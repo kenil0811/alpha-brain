@@ -1,15 +1,29 @@
 /**
- * The conversation beside the workspace: one stream, scoped by the page (a message sent from a
- * module's page is about that module), with Alpha's threads as cards that open into their own
- * view. The companion is the same stream.
+ * Zazoo, beside the workspace: the place's conversation (global, or a project's), with Alpha's
+ * threads as cards that open here. The companion is the same conversation.
  */
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Action, Ask, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
+import { Button, CollapseToggleButton, IconButton, Input } from "../ui";
+import { ZazooIcon } from "../ui/ZazooIcon";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
+const EXAMPLES = [
+  "Track what I eat and how much, with calories, history and trends",
+  "Keep a reading list with what I thought of each book",
+  "Keep a list of job openings I find and what I did about each",
+];
+
+/** The composer grows with its text up to its CSS max-height. */
+function autoGrow(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
 
 /** A plan Alpha proposed (nothing is built until the person says yes, here or in words), or a
  *  build that stopped before it finished (it can carry on from where it stopped). */
@@ -28,24 +42,23 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
   };
   return (
     <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
-      <h3 className="creation__title">
-        {plan.title}
+      <span className="creation__title">
+        <span className="creation__name">{plan.title}</span>
         <span className="badge badge--waiting">{stopped ? "Stopped" : "Plan"}</span>
-      </h3>
-      <span className="faint">{stopped ? "The build stopped before it finished. It can carry on from where it stopped." : "Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed."}</span>
-      <div className="row" style={{ marginTop: 8 }}>
-        <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => decide(true)}>
+      </span>
+      <div className="row plancard__actions">
+        <Button size="sm" disabled={busy} onClick={() => decide(true)}>
           {stopped ? "Continue building" : "Build it"}
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => decide(false)}>
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
           {stopped ? "Leave it" : "Not now"}
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-/** A question Alpha asked, as choices to tap (or words to type); the answer starts the next
+/** A question Zazoo asked, as choices to tap (or words to type); the answer starts the next
  *  turn, so the person never has to repeat the question. */
 function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnswered: (turn: Turn | null) => void }) {
   const [text, setText] = useState("");
@@ -63,25 +76,25 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
     }
   };
   return (
-    <div className="askcard" role="group" aria-label="Alpha asks">
+    <div className="askcard" role="group" aria-label="Zazoo asks">
       <p className="askcard__q">{ask.text}</p>
       {ask.options.length ? (
         <div className="askcard__options">
           {ask.options.map((o) => (
-            <button key={o} type="button" className="btn askcard__opt" disabled={busy} onClick={() => void answer(o)}>
+            <Button key={o} variant="outline" size="sm" className="askcard__opt" disabled={busy} onClick={() => void answer(o)}>
               {o}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
       <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
-        <button type="submit" className="btn btn--sm btn--primary" disabled={busy || !text.trim()}>
+        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
+        <Button type="submit" size="sm" disabled={busy || !text.trim()}>
           Answer
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
+        </Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
           Skip
-        </button>
+        </Button>
       </form>
       {error ? <p className="notice">{error}</p> : null}
     </div>
@@ -127,29 +140,43 @@ function Rich({ text }: { text: string }) {
   );
 }
 
+/** Where the panel's chat stands: the place's conversation (`undefined`) or a thread by id. */
+export type ChatChoice = string | undefined;
+
 export function AssistantPanel({
   client,
-  open,
-  onOpen,
+  onCollapse,
   scopeName,
   module,
   version,
   onChanged,
   draft,
   onDraftTaken,
-  focusThread,
+  thread,
+  onThread,
+  headerEnd,
+  sendNow,
 }: {
   client: Client;
-  open: boolean;
-  onOpen: (open: boolean) => void;
+  onCollapse: () => void;
   scopeName: string;
   module: ModuleCard | null;
   version: number;
   onChanged: () => void;
   draft: string | null;
   onDraftTaken: () => void;
-  focusThread?: { id: string; at: number } | null;
+  /** The chat shown in this place, chosen outside the panel so it survives navigation. */
+  thread?: ChatChoice;
+  onThread?: (id: ChatChoice) => void;
+  /** Right slot of the header (the Activity bell). */
+  headerEnd?: ReactNode;
+  /** A message typed somewhere else (a table's quick entry), sent here as if typed; `id`
+   *  changes once per message. */
+  sendNow?: { text: string; id: number } | null;
 }) {
+  const [own, setOwn] = useState<ChatChoice>(undefined);
+  const chat = onThread ? thread : own;
+  const choose = onThread ?? setOwn;
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -159,38 +186,54 @@ export function AssistantPanel({
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [failures, setFailures] = useState(0);
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const moduleId = module?.id ?? null;
 
   const load = useCallback(() => {
-    client
-      .conversation(module?.id ?? null)
-      .then((c) => {
+    const work: Promise<unknown>[] = [
+      client.conversation(moduleId).then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
         setPlans(c.plans ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
-      })
-      .catch(() => undefined);
-  }, [client]);
-  useEffect(load, [load, version]);
-  // A thread opened from elsewhere (Home's Open on a build) shows here with each step.
+      }),
+    ];
+    if (typeof chat === "string") work.push(client.thread(chat).then(setThreadView));
+    Promise.all(work)
+      .then(() => setFailures(0))
+      .catch((e: unknown) => {
+        // A chat that can't be opened any more (archived elsewhere, another data folder) resets.
+        if (typeof chat === "string" && e instanceof Error && /no thread/i.test(e.message)) choose(undefined);
+        else setFailures((n) => n + 1);
+      });
+  }, [client, chat, moduleId, choose]);
   useEffect(() => {
-    if (!focusThread) return;
-    void client.thread(focusThread.id).then(setThreadView).catch(() => undefined);
-  }, [client, focusThread]);
+    if (typeof chat !== "string") setThreadView(null);
+    else if (threadView?.id !== chat) {
+      setThreadView(null);
+      setOpening(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat]);
+  useEffect(() => {
+    if (threadView) setOpening(false);
+  }, [threadView]);
   // While a thread view is open and Alpha works in it, its steps keep arriving.
   useEffect(() => {
     if (!threadView || threadView.state !== "working") return;
     const id = window.setInterval(() => void client.thread(threadView.id).then(setThreadView).catch(() => undefined), 4000);
     return () => window.clearInterval(id);
   }, [client, threadView?.id, threadView?.state]);
+  useEffect(load, [load, version]);
   // Alpha works on its own too (a deepen pass, a folder that changed): look again every 5 s
-  // while a thread is working, every 15 s otherwise.
-  const working = threads.some((t) => t.state === "working");
+  // while something is working, every 15 s otherwise.
+  const working = threads.some((t) => t.state === "working") || threadView?.state === "working";
   useEffect(() => {
     const timer = setInterval(() => {
       load();
@@ -207,6 +250,7 @@ export function AssistantPanel({
     onDraftTaken();
     setTimeout(() => {
       input.current?.focus();
+      autoGrow(input.current);
       const end = input.current?.value.length ?? 0;
       input.current?.setSelectionRange(end, end);
     }, 30);
@@ -225,25 +269,33 @@ export function AssistantPanel({
       const clean = sentence.trim();
       if (!clean || pending) return;
       setText("");
+      autoGrow(input.current);
       setError(null);
       setElapsed(0);
-      const threadId = threadView?.id ?? null;
-      setTurns((all) => (threadId ? all : [...all, { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text: clean, data: {}, module: null, thread: null, entity_ids: [], source: null }]));
       try {
-        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId }, setPending);
+        const threadId = typeof chat === "string" ? chat : null;
+        if (threadId) setThreadView((v) => (v && v.id === threadId ? { ...v, journal: [...v.journal, local(clean, threadId)] } : v));
+        else setTurns((all) => [...all, local(clean, null)]);
+        const final = await client.askAndWait(clean, { module: threadId ? null : moduleId, thread: threadId }, setPending);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setPending(null);
         load();
-        if (threadId) void client.thread(threadId).then(setThreadView);
         onChanged();
       }
     },
-    [client, module, pending, threadView, load, onChanged],
+    [client, chat, moduleId, pending, load, onChanged],
   );
+  const sentNow = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sendNow || sentNow.current === sendNow.id || pending) return;
+    sentNow.current = sendNow.id;
+    void send(sendNow.text);
+  }, [sendNow, pending, send]);
 
+  // An answered question starts a turn of its own; follow it like a sent message.
   const follow = useCallback(
     async (turn: Turn | null) => {
       if (!turn) return;
@@ -262,24 +314,25 @@ export function AssistantPanel({
     [client, load, onChanged],
   );
 
-  const speech = useSpeech((final, interim) => {
-    setText(final || interim);
-  });
+  // Words spoken are added after whatever was already typed.
+  const typedBefore = useRef("");
+  const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
+  const toggleMic = () => {
+    if (!speech.listening) typedBefore.current = text;
+    speech.toggle();
+  };
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || !e.shiftKey)) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (speech.listening) speech.stop();
       void send(text);
     }
   };
 
-  if (!open) return null;
   const steps = pending?.steps ?? [];
-  const live = pending?.live ?? null;
   const latest = steps.length ? steps[steps.length - 1].text : null;
-  const doing = live?.doing ?? null;
-  const thought = live?.thought ?? null;
-  const headline = doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking");
+  const thought = pending?.live?.thought ?? null;
+  const headline = pending?.live?.doing ?? (elapsed < 2 || !latest ? "Thinking" : "Working");
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status" aria-live="polite">
       <div className="working__head">
@@ -290,15 +343,15 @@ export function AssistantPanel({
           <i />
           <i />
         </span>
-        <span className="faint working__time">{elapsed} s</span>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.stopTurn(pending.id).catch(() => undefined)}>
+        <span className="faint working__time">{clock(elapsed)}</span>
+        <Button size="sm" variant="ghost" onClick={() => void client.stopTurn(pending.id).catch(() => undefined)}>
           Stop
-        </button>
+        </Button>
       </div>
       {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
         <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-          {showSteps ? "▾" : "▸"} {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {showSteps ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
           {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
         </button>
       ) : null}
@@ -314,52 +367,103 @@ export function AssistantPanel({
     </div>
   ) : null;
   const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : a.thread === null));
+  const askCards = !pending
+    ? openAsks.map((a) => (
+        <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+      ))
+    : null;
 
+  const inThread = Boolean(threadView && threadView.kind !== "topic");
+  const label = threadView ? threadView.title : scopeName;
+  const fresh = chat === undefined && !turns.length;
+  const requests = (module?.threads ?? []).filter((t) => t.kind !== "topic");
   return (
-    <aside className="assist" aria-label="Assistant">
-      {threadView ? (
-        <div className="assist__head">
-          <button type="button" className="assist__back" onClick={() => setThreadView(null)}>
-            ‹ Back
-          </button>
-          <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>{threadView.title}</b>
-            <div className="assist__ctx">Thread · {threadView.state === "open" ? "open" : threadView.state}</div>
+    <aside className="assist__panel" aria-label="Zazoo">
+      <div className="assist__head">
+        {inThread ? (
+          <IconButton aria-label="Back to the conversation" title="Back" size="sm" onClick={() => choose(undefined)}>
+            <ChevronLeft size={16} />
+          </IconButton>
+        ) : (
+          <CollapseToggleButton side="right" collapsed={false} controls="panel-right" onClick={onCollapse} />
+        )}
+        <div className="assist__title">
+          <ZazooIcon size={32} />
+          <div className="assist__titletext">
+            <b className="assist__name">Zazoo</b>
+            <span className="assist__ctx" title={label}>
+              {inThread && threadView ? `Thread · ${THREAD_STATE[threadView.state] ?? threadView.state}` : label}
+            </span>
           </div>
         </div>
-      ) : (
-        <div className="assist__head">
-          <div className="assist__mark" aria-hidden="true">
-            A
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>Assistant</b>
-            <div className="assist__ctx">{scopeName}</div>
-          </div>
-          <span style={{ marginLeft: "auto" }} />
-          <button type="button" className="iconbtn" onClick={() => onOpen(false)} aria-label="Close the assistant">
-            ›
-          </button>
-        </div>
-      )}
+        <div className="assist__headend">{headerEnd}</div>
+      </div>
       <div className="assist__body" ref={body}>
-        {threadView ? (
+        {typeof chat === "string" && !threadView ? (
+          opening ? (
+            <p className="faint" role="status">
+              Opening the session…
+            </p>
+          ) : null
+        ) : threadView ? (
           <>
             {threadView.journal.map((e) =>
               e.kind === "said" || e.kind === "replied" || e.kind === "failed" ? (
                 <Message key={e.id} e={e} />
-              ) : (
+              ) : inThread ? (
                 <div key={e.id} className="faint thread__step">
                   {when(e.at)} · {e.text}
                 </div>
-              ),
+              ) : null,
             )}
-            {!threadView.journal.length ? <p className="muted">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
-            {!pending
-              ? openAsks.map((a) => (
-                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                ))
-              : null}
+            {!threadView.journal.some((e) => e.kind === "said") ? (
+              <div className="msg msg--ai">{threadView.kind === "topic" ? "What's on your mind?" : "Nothing in this thread yet."}</div>
+            ) : null}
+            {askCards}
+          </>
+        ) : fresh ? (
+          <>
+            <div className="msg msg--ai">
+              {module ? (
+                <>
+                  I'm looking at <b>{module.name}</b>. Ask about it, tell me to run something, or describe what to change or add and I change it in place. Everything already saved in it is kept.
+                </>
+              ) : (
+                <>Tell me what you want to keep track of, automate or get done. I'll ask at most a couple of questions, then build it.</>
+              )}
+            </div>
+            {!module ? (
+              <div className="assist-empty__chips" aria-label="Examples">
+                {EXAMPLES.map((example) => (
+                  <Button
+                    key={example}
+                    variant="outline"
+                    className="assist-empty__chip"
+                    onClick={() => {
+                      setText(example);
+                      setTimeout(() => autoGrow(input.current), 0);
+                    }}
+                  >
+                    {example}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+            {requests.length ? (
+              <nav aria-label="This project's requests" className="recent">
+                <h3 className="recent__title">This project's requests</h3>
+                <ul>
+                  {requests.map((t) => (
+                    <li key={t.id}>
+                      <button type="button" className="recent__item" onClick={() => choose(t.id)}>
+                        <span className="recent__text">{t.title}</span>
+                        <span className={t.state === "working" ? "recent__state recent__state--busy" : "recent__state"}>{THREAD_STATE[t.state] ?? t.state}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
           </>
         ) : (
           <>
@@ -368,28 +472,21 @@ export function AssistantPanel({
               const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
               return (
                 <div key={t.id} className="creation-wrap">
-                  <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
-                    <h3 className="creation__title">
-                      {t.title}
+                  <button type="button" className="creation" title={t.kind === "build" && t.state === "working" ? "Building in the background: open it to see each step; it reports here when done" : t.state === "waiting" ? "Waiting for your answer: open it to reply here" : "Its own thread: open it to talk about this work"} onClick={() => choose(t.id)}>
+                    <span className="creation__title">
+                      <span className="creation__name">{t.title}</span>
                       <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
-                    </h3>
-                    <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                    </span>
                     {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
                   {build ? (
-                    <button type="button" className="btn btn--sm btn--ghost creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
+                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
                       Stop
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               );
             })}
-            {module ? (
-              <div className="msg msg--ai">
-                I'm looking at <b>{module.name}</b>. Ask about it, tell me to add or change something, or log to it.
-              </div>
-            ) : null}
-            {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
             {turns.map((e) => (
               <Message key={e.id} e={e} />
             ))}
@@ -400,38 +497,69 @@ export function AssistantPanel({
               ))}
             {actions
               .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
-              // A failed attempt is history once Alpha proposed the same thing again.
+              // A failed attempt is history once Zazoo proposed the same thing again.
               .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
               .map((a) => (
                 <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
-            {!pending
-              ? openAsks.map((a) => (
-                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                ))
-              : null}
+            {askCards}
           </>
         )}
         {workingNote}
-        {error ? (
+        {failures >= 2 ? (
+          <p className="notice notice--quiet" role="status">
+            Lost contact with Alpha's runtime for a moment. Reconnecting…
+          </p>
+        ) : null}
+        {error && !(threadView?.journal ?? turns).some((e) => e.kind === "failed" && e.text === error) ? (
           <p className="notice" role="alert">
             {error}
           </p>
         ) : null}
       </div>
-      <div className="composer">
+      <form
+        className="composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (speech.listening) speech.stop();
+          void send(text);
+        }}
+      >
         <div className="composer__box">
-          <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
-          <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-          <button type="button" className="btn btn--primary btn--sm" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
-            Send
-          </button>
+          <textarea
+            ref={input}
+            rows={1}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              autoGrow(e.currentTarget);
+            }}
+            onKeyDown={key}
+            placeholder={inThread ? "Reply…" : "Ask…"}
+            aria-label="Message Zazoo"
+          />
+          <MicButton listening={speech.listening} supported={speech.supported} onToggle={toggleMic} small />
+          <IconButton aria-label="Send" title="Enter to send, Shift+Enter for a new line" type="submit" className="composer__send" disabled={!text.trim() || Boolean(pending)}>
+            <ArrowUp size={16} />
+          </IconButton>
         </div>
-        <div className="composer__row">
-          <span>Uses your Claude subscription</span>
-          <span style={{ marginLeft: "auto" }}>⏎ to send</span>
-        </div>
-      </div>
+        {speech.error ? (
+          <div className="composer__row">
+            <span className="notice" role="alert">
+              {speech.error}
+            </span>
+          </div>
+        ) : null}
+      </form>
     </aside>
   );
+}
+
+function local(text: string, thread: string | null): JournalEntry {
+  return { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text, data: {}, module: null, thread, entity_ids: [], source: null };
+}
+
+/** m:ss, the way the creation page counts too. */
+export function clock(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }

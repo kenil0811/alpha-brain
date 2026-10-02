@@ -197,6 +197,13 @@ export interface FileInfo {
   kind: string;
 }
 
+export interface TableData {
+  table: TableDesc;
+  records: RecordRow[];
+  /** The documents the table's file fields point at, by id. */
+  files: Record<string, FileInfo>;
+}
+
 export interface DocumentInfo {
   id: string;
   path: string;
@@ -448,7 +455,7 @@ export class Client {
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
-  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo> }> {
+  async table(name: string): Promise<TableData> {
     const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo> }>("GET", `/api/tables/${encodeURIComponent(name)}`);
     return { table: data.table, records: data.records.map(toRow), files: data.files ?? {} };
   }

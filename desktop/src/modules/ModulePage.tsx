@@ -1,20 +1,47 @@
 /**
- * A module: its summary, a page per table, what Alpha did here, and what it is made of. The
- * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
+ * A project (a module in the core): its name and goal, its summary with Alpha's notes, a page
+ * per table, what Alpha did here and what went wrong, and what it is made of. The App ·
+ * Activity · Settings toggle and the subtabs are the shell's own structure; the section lives
+ * in the address (`#/m/<id>/<section>`).
  */
-import { type DragEvent, useEffect, useMemo, useState } from "react";
+import { type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Folder, Plus } from "lucide-react";
 import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
+import { Button, InfoTip } from "../ui";
+import { Badge, type BadgeVariant } from "../ui/Badge";
+import { projectIcon } from "../shell/projectIcons";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
+import { MicButton, useSpeech } from "../shell/voice";
 
 type Section = "app" | "activity" | "settings";
 
-export function ModulePage({ client, moduleId, version, onChanged }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
+export function ModulePage({
+  client,
+  moduleId,
+  version,
+  onChanged,
+  onGo,
+  section: shownSection,
+  onSection,
+  onQuickEntry,
+}: {
+  client: Client;
+  moduleId: string;
+  version: number;
+  onChanged: () => void;
+  onGo: (s: Surface) => void;
+  section?: string;
+  onSection?: (section: Section) => void;
+  /** A table's one-line quick entry, sent to Zazoo in this project's chat. */
+  onQuickEntry?: (text: string) => void;
+}) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [section, setSection] = useState<Section>("app");
+  const section: Section = shownSection === "activity" || shownSection === "settings" ? shownSection : "app";
+  const setSection = (s: Section) => onSection?.(s);
   const [dragging, setDragging] = useState(false);
   const [dropNote, setDropNote] = useState<string | null>(null);
   async function dropped(e: DragEvent<HTMLDivElement>) {
@@ -24,7 +51,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
     if (!files.length) return;
     try {
       const out = await client.addFiles(files, { module: moduleId });
-      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
+      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Zazoo is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
       onChanged();
     } catch (err) {
       setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
@@ -52,27 +79,32 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
         setDetail(d);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [client, moduleId, version]);
+      .catch((e: unknown) => {
+        const words = e instanceof Error ? e.message : String(e);
+        // A project that no longer exists (deleted elsewhere, another data folder): go Home.
+        if (/there is no project/i.test(words)) onGo({ kind: "home" });
+        else setError(words);
+      });
+  }, [client, moduleId, version, onGo]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
   if (!detail) {
-    return <div className="page">{error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}</div>;
+    return <div className="page">{error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}</div>;
   }
-  const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
+  const Icon = projectIcon(detail);
   return (
     <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
-      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
+      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Zazoo reads them into its tables.</div> : null}
       {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">
-            ▦
+            <Icon size={18} />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <h1>{detail.name}</h1>
-            <div className="faint">{subtitle}</div>
-          </div>
+          <h1 className="modhead__name">{detail.name}</h1>
+          <span className="faint num">
+            {detail.tables.length} {detail.tables.length === 1 ? "table" : "tables"}
+          </span>
         </div>
         <div className="toggle" role="tablist" aria-label="Section">
           {(["app", "activity", "settings"] as Section[]).map((s) => (
@@ -82,6 +114,12 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
           ))}
         </div>
       </div>
+      {detail.goal ? <div className="modhead__desc">{detail.goal}</div> : null}
+      {error ? (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {section === "app" ? (
         <>
@@ -96,18 +134,34 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
             ))}
           </div>
           {table ? (
-            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
+            <>
+              {onQuickEntry ? <QuickEntry key={`quick-${table.name}`} title={table.title} onSend={onQuickEntry} /> : null}
+              <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
+            </>
           ) : (
-            <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
+            <>
+              <ProjectNotes client={client} detail={detail} onChanged={onChanged} />
+              <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
+            </>
           )}
         </>
       ) : null}
 
-      {section === "activity" ? <ModuleActivity detail={detail} /> : null}
+      {section === "activity" ? (
+        <>
+          <WentWrong detail={detail} />
+          <div className="section">
+            <div className="section__head">
+              <h2>Everything that happened here</h2>
+            </div>
+            <ModuleActivity detail={detail} />
+          </div>
+        </>
+      ) : null}
 
       {section === "settings" ? (
         <>
-          <div className="section" style={{ marginTop: 0 }}>
+          <div className="section section--first">
             <div className="section__head">
               <h2>What it keeps</h2>
             </div>
@@ -115,7 +169,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
               {detail.tables.map((t) => (
                 <div key={t.name} className="item item--top">
                   <div className="item__ico" aria-hidden="true">
-                    ▤
+                    <Folder size={16} />
                   </div>
                   <div className="item__body">
                     <b>{t.title}</b>
@@ -147,7 +201,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
                         {src.detail ?? (src.status === "working" ? `${src.last_rows ?? 0} rows${src.last_checked ? ` · read ${when(src.last_checked)}` : ""}` : src.site)}
                       </div>
                     </div>
-                    <span className={`pill ${SOURCE_STATUS[src.status].pill}`}>{SOURCE_STATUS[src.status].words}</span>
+                    <Badge variant={SOURCE_STATUS[src.status].badge}>{SOURCE_STATUS[src.status].words}</Badge>
                   </div>
                 ))}
               </div>
@@ -156,9 +210,9 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
-              <span className="faint">Switch any off; Alpha says so if something needs it</span>
+              <InfoTip content="Switch any off; Alpha says so if something needs it. Ask Zazoo to keep something here current and it shows up with a switch." label="About automations" />
             </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here." />
           </div>
         </>
       ) : null}
@@ -166,14 +220,14 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
   );
 }
 
-const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> = {
-  working: { pill: "pill--good", words: "Working" },
-  needs_signin: { pill: "pill--warn", words: "Needs your sign-in" },
-  blocked: { pill: "pill--bad", words: "Blocked" },
-  broken: { pill: "pill--bad", words: "Being repaired" },
-  not_built: { pill: "pill--gray", words: "Not read yet" },
-  unavailable: { pill: "pill--gray", words: "Nothing to read" },
-  skipped: { pill: "pill--gray", words: "Skipped by you" },
+const SOURCE_STATUS: Record<Source["status"], { badge: BadgeVariant; words: string }> = {
+  working: { badge: "success", words: "Working" },
+  needs_signin: { badge: "warning", words: "Needs your sign-in" },
+  blocked: { badge: "danger", words: "Blocked" },
+  broken: { badge: "danger", words: "Being repaired" },
+  not_built: { badge: "neutral", words: "Not read yet" },
+  unavailable: { badge: "neutral", words: "Nothing to read" },
+  skipped: { badge: "neutral", words: "Skipped by you" },
 };
 
 function sourceSummary(sources: Source[]): string {
@@ -212,9 +266,9 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
         })}
       </div>
       {rows.length > shown ? (
-        <button type="button" className="btn btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
+        <Button variant="outline" size="sm" className="btn--start" onClick={() => setShown((n) => n + PAGE)}>
           Show more ({rows.length - shown} earlier)
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -234,7 +288,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
         <div className="card card--pad">
           <div className="metric__lab">{data.goals.length === 1 ? "Goal" : "Goals"}</div>
           {data.goals.map((g) => (
-            <div key={g.id} style={{ marginTop: 6 }}>
+            <div key={g.id} className="goal__text">
               {g.text}
             </div>
           ))}
@@ -242,16 +296,16 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
       ) : null}
       {data.tables.map((t) => (
         <div key={t.name} className="stack">
-          <div className="section__head" style={{ marginBottom: 0 }}>
+          <div className="section__head section__head--tight">
             <h2>{t.title}</h2>
             <span className="faint">
               {t.rows} {t.rows === 1 ? "row" : "rows"}
               {t.added_this_week ? ` · ${t.added_this_week} added this week` : ""}
             </span>
             <span className="section__right">
-              <button type="button" className="btn btn--sm" onClick={() => onOpen(t.name)}>
+              <Button variant="outline" size="sm" onClick={() => onOpen(t.name)}>
                 Open
-              </button>
+              </Button>
             </span>
           </div>
           {t.amounts?.length ? (
@@ -271,11 +325,11 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
           {t.split && Object.keys(t.split.counts).length ? (
             <div className="card card--pad">
               <div className="metric__lab">{t.split.label}</div>
-              <div className="row" style={{ marginTop: 8 }}>
+              <div className="row">
                 {Object.entries(t.split.counts).map(([choice, n]) => (
-                  <span key={choice} className={`pill ${t.split?.done.includes(choice) ? "pill--good" : "pill--gray"}`}>
+                  <Badge key={choice} variant={t.split?.done.includes(choice) ? "success" : "neutral"}>
                     {humanize(choice)} <b className="num">{n}</b>
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -285,9 +339,126 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
       ))}
       {data.automations ? (
         <p className="faint">
-          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
+          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}.
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Alpha's notes on this project (the project's note): click to edit, yours to clear. */
+function ProjectNotes({ client, detail, onChanged }: { client: Client; detail: ModuleDetail; onChanged: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const body = detail.note?.body.trim() ?? "";
+  const save = async () => {
+    setEditing(false);
+    if (draft.trim() === body) return;
+    try {
+      await client.writeNote(`module:${detail.name}`, detail.name, draft.trim());
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const start = () => {
+    setDraft(body);
+    setEditing(true);
+  };
+  return (
+    <div className="section section--first">
+      <div className="section__head">
+        <h2>
+          Alpha's notes
+          <InfoTip content="What Alpha keeps in mind about this project, from your sessions. Yours to edit or clear." label="About Alpha's notes" />
+        </h2>
+      </div>
+      {editing ? (
+        <textarea autoFocus aria-label="Alpha's notes" className="projpage__notesinput" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => void save()} onKeyDown={(e) => e.key === "Escape" && setEditing(false)} />
+      ) : body ? (
+        <div className="card card--pad">
+          <p className="editable projpage__notes" onClick={start}>
+            {body}
+          </p>
+        </div>
+      ) : (
+        <p className="projempty editable" onClick={start}>
+          Nothing yet
+        </p>
+      )}
+      {error ? (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Recent failures here, in plain words. */
+function WentWrong({ detail }: { detail: ModuleDetail }) {
+  const failed = detail.activity.filter((e) => e.kind === "failed").slice(0, 8);
+  if (!failed.length) return null;
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>
+          What went wrong
+          <InfoTip content="Recent failures in plain words, and what Alpha did about them." label="About what went wrong" />
+        </h2>
+      </div>
+      <div className="card list" aria-label="What went wrong">
+        {failed.map((e) => (
+          <div key={e.id} className="item item--top">
+            <span className="item__when">{when(e.at)}</span>
+            <div className="item__body activity__text">{e.text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Alpha's quick entry above a table: type or say one line and Zazoo adds it. */
+function QuickEntry({ title, onSend }: { title: string; onSend: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const typedBefore = useRef("");
+  const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value) return;
+    onSend(`Add to ${title}: ${value}`);
+    setText("");
+    setSent(true);
+  }
+  return (
+    <form className="card quick quick--table" onSubmit={submit} aria-label={`Quick entry for ${title}`}>
+      <Plus size={16} strokeWidth={1.75} aria-hidden="true" className="quick__plus" />
+      <input
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setSent(false);
+        }}
+        placeholder={`Add to ${title}…`}
+        aria-label={`Add to ${title}`}
+      />
+      {sent ? <span className="faint quick__status">Sent to Zazoo</span> : null}
+      <MicButton
+        listening={speech.listening}
+        supported={speech.supported}
+        onToggle={() => {
+          if (!speech.listening) typedBefore.current = text;
+          speech.toggle();
+        }}
+        small
+      />
+      <Button type="submit" size="sm" disabled={!text.trim()}>
+        Add
+      </Button>
+    </form>
   );
 }

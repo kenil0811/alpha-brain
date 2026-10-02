@@ -1,10 +1,15 @@
 /**
- * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched.
+ * Activity, where Zazoo's bell goes: first what the bell counts (what waits on you), then what
+ * Alpha did, what it read, what you changed,
+ * newest first and grouped by day; search finds anything that happened. Each row opens to what
+ * it touched.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, JournalEntry } from "../core/client";
+import type { Client, JournalEntry, NeedItem } from "../core/client";
+import { Search } from "lucide-react";
 import { dayLabel, when } from "../modules/format";
+import { InfoTip, PageHeader, useToast } from "../ui";
+import { Need } from "./Home";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
@@ -46,8 +51,13 @@ function Details({ e }: { e: JournalEntry }) {
   );
 }
 
-export function Activity({ client, version }: { client: Client; version: number; onChanged: () => void }) {
+export function Activity({ client, version, onChanged }: { client: Client; version: number; onChanged: () => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
+  const [needs, setNeeds] = useState<NeedItem[]>([]);
+  const toast = useToast();
+  useEffect(() => {
+    client.home().then((h) => setNeeds(h.needs_you), () => setNeeds([]));
+  }, [client, version]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "alpha" | "you" | "failed">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -70,15 +80,25 @@ export function Activity({ client, version }: { client: Client; version: number;
   let lastDay = "";
   return (
     <div className="page">
-      <div className="home__head">
-        <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
-      </div>
-      <div style={{ marginTop: 18 }}>
-        <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
-          <div className="search" style={{ maxWidth: "none" }}>
-            <span aria-hidden="true">⌕</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
+      <PageHeader title={<>Activity <InfoTip content="What Alpha read, made and changed, and what you did." label="About Activity" /></>} />
+      {needs.length ? (
+        <div className="section section--first">
+          <div className="section__head">
+            <h2>Needs you</h2>
+            <span className="faint">{needs.length}</span>
+          </div>
+          <div className="needs">
+            {needs.map((item) => (
+              <Need key={item.id} item={item} client={client} onDone={(words) => { toast.show(words); onChanged(); }} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="section">
+        <div className="card toolbar toolbar--page toolbar--activity">
+          <div className="search search--wide">
+            <Search size={14} aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search activity" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>

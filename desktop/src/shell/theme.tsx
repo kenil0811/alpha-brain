@@ -1,32 +1,46 @@
-/** The appearance setting: follow the Mac, or force light or dark. Kept per window. */
+/** The appearance setting: follow the Mac, force light or dark, or Ambient (light from 7:00 to
+ * 19:00, dark otherwise). Light until the person picks another, as in Alpha. Kept per window. */
 import { useCallback, useEffect, useState } from "react";
+import { Segmented } from "../ui/Segmented";
+import { useLookChange } from "../avatar/look";
+import { reapplyAppearance } from "./appearance";
 
-export type Theme = "system" | "light" | "dark";
+export type Theme = "system" | "light" | "dark" | "ambient";
 const KEY = "alpha.theme";
 
-function readTheme(): Theme {
+export function readTheme(): Theme {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw === "light" || raw === "dark" ? raw : "system";
+    return raw === "system" || raw === "dark" || raw === "ambient" ? raw : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   if (theme === "system") delete root.dataset.theme;
-  else root.dataset.theme = theme;
+  else if (theme === "ambient") {
+    const hour = new Date().getHours();
+    root.dataset.theme = hour >= 7 && hour < 19 ? "light" : "dark";
+  } else root.dataset.theme = theme;
 }
 
 export function useTheme(): [Theme, (next: Theme) => void] {
-  const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "system" : readTheme()));
-  useEffect(() => applyTheme(theme), [theme]);
+  useEffect(reapplyAppearance, []);
+  // A new companion can bring its own colours, so the palette follows the avatar too.
+  useLookChange(reapplyAppearance);
+  const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "light" : readTheme()));
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== "ambient") return;
+    const timer = window.setInterval(() => applyTheme(theme), 60_000);
+    return () => window.clearInterval(timer);
+  }, [theme]);
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
     try {
-      if (next === "system") window.localStorage.removeItem(KEY);
-      else window.localStorage.setItem(KEY, next);
+      window.localStorage.setItem(KEY, next);
     } catch {
       /* per-window convenience only */
     }
@@ -35,16 +49,11 @@ export function useTheme(): [Theme, (next: Theme) => void] {
 }
 
 export function ThemeControl({ theme, onChange, compact = false }: { theme: Theme; onChange: (next: Theme) => void; compact?: boolean }) {
-  const options: [Theme, string][] = compact ? [["light", "Light"], ["dark", "Dark"]] : [["system", "Match Mac"], ["light", "Light"], ["dark", "Dark"]];
-  return (
-    <div className="theme" role="group" aria-label="Appearance">
-      {options.map(([value, label]) => (
-        <button key={value} type="button" aria-pressed={theme === value || (compact && theme === "system" && value === currentSystem())} onClick={() => onChange(value)}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+  const options: { value: Theme; label: string }[] = compact
+    ? [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }]
+    : [{ value: "system", label: "Match Mac" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "ambient", label: "Ambient" }];
+  // Compact has no "Match Mac", so it marks whichever the Mac is showing.
+  return <Segmented label="Appearance" value={compact && theme === "system" ? currentSystem() : theme} options={options} onChange={onChange} />;
 }
 
 function currentSystem(): Theme {

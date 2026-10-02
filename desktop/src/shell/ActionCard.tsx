@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
+import { Button } from "../ui/Button";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 /** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
@@ -133,29 +134,29 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         <div className="row">
           {editing ? (
             <>
-              <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void save()}>
+              <Button disabled={busy} onClick={() => void save()}>
                 Save changes
-              </button>
-              <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => { setEditing(false); setDraft(action.payload); }}>
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => { setEditing(false); setDraft(action.payload); }}>
                 Cancel
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button type="button" className="btn btn--primary" disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
+              <Button disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
                 {action.effect === "send" ? "Send it" : "Do it"}
-              </button>
+              </Button>
               {action.effect === "prepare" ? (
-                <button type="button" className="btn" disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+                <Button variant="outline" disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
                   Always allow
-                </button>
+                </Button>
               ) : null}
-              <button type="button" className="btn" disabled={busy} onClick={() => setEditing(true)}>
+              <Button variant="outline" disabled={busy} onClick={() => setEditing(true)}>
                 Change
-              </button>
-              <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Left it.")}>
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Left it.")}>
                 Not now
-              </button>
+              </Button>
             </>
           )}
         </div>
