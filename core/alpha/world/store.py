@@ -92,6 +92,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     collection UNINDEXED, record_id UNINDEXED, text, tokenize='porter unicode61'
 );
 
+CREATE TABLE IF NOT EXISTS views (
+    id TEXT PRIMARY KEY,
+    collection TEXT NOT NULL REFERENCES collections(name),
+    title TEXT NOT NULL,
+    config TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (collection, title)
+);
+
 CREATE TABLE IF NOT EXISTS notes (
     id TEXT PRIMARY KEY,
     scope TEXT NOT NULL,

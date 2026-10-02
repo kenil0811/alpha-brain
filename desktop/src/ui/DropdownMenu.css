@@ -23,3 +23,6 @@
 .ui-menu__dot--green { background: #2eae4e; }
 .ui-menu__dot--grey { background: var(--text-3, #999); }
 .ui-menu__dot--red { background: var(--danger, #c0392b); }
+
+/* The open menu takes focus as a container; its items show their own highlight. */
+.ui-menu:focus { outline: none; }

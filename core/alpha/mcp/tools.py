@@ -22,7 +22,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, signin_sites, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world import taint
+from alpha.world import edits, taint
 from alpha.world.actions import Actions
 from alpha.world.readers import allowed_posts, health_problem
 from alpha.world.store import Problem
@@ -395,6 +395,90 @@ class Tools:
         with the same where filters as records_query. Use it for totals such as today's
         calories instead of adding numbers up yourself."""
         return self.world.collections.aggregate(collection, op, field, where)
+
+    @tool
+    def collection_change_field(
+        self, collection: str, field: str, kind: str | None = None, label: str | None = None,
+        choices: list[str] | None = None, relation: str | None = None,
+    ) -> dict[str, Any]:
+        """Change one field of a table in place: its kind (e.g. text to number, choice to
+        status), its label or its choices. Saved values are converted; if any would lose what it
+        says, nothing changes and the error says which row and why. Choosing a choice kind
+        without choices makes the values already there the choices."""
+        result = edits.change_field(
+            self.world, collection, field, actor="alpha",
+            extra={"turn": self.turn, "thread": self.thread},
+            **{k: v for k, v in {"kind": kind, "label": label, "choices": choices,
+                                 "relation": relation}.items() if v is not None})
+        return {"field": result["after"], "rewritten": result["rewritten"]}
+
+    @tool
+    def records_undo(self, collection: str) -> dict[str, Any]:
+        """Undo the latest edit to a table (by the person or by Alpha): a changed row goes back,
+        a removed row comes back, an added row goes, a field returns to its old kind. Use it when
+        the person says "undo that" about a table."""
+        return edits.undo(self.world, collection, actor="alpha",
+                          provenance={"by": "alpha", "turn": self.turn},
+                          extra={"turn": self.turn, "thread": self.thread})
+
+    @tool
+    def views_list(self, collection: str) -> list[dict[str, Any]]:
+        """The saved views of a table (the lists the person picks from its List menu)."""
+        self.world.collections.describe(collection)
+        return self.world.views.all(collection)
+
+    @tool
+    def view_save(
+        self,
+        collection: str,
+        title: str,
+        kind: str = "table",
+        filters: list[dict[str, Any]] | None = None,
+        match: str = "all",
+        sorts: list[dict[str, Any]] | None = None,
+        group_by: str | None = None,
+        hidden: list[str] | None = None,
+        date_field: str | None = None,
+        default: bool = False,
+    ) -> dict[str, Any]:
+        """Save a named view of a table, which the person then picks from the table's List
+        menu ("Open roles by company"). kind: table, list, board, gallery, calendar, timeline,
+        chart, form, map, graph or tree. filters: [{"field", "op", "value"}] with op one of
+        contains, does_not_contain, is, is_not, starts_with, ends_with, is_empty, is_not_empty,
+        gt, gte, lt, lte (numbers), before, after, on_or_before, on_or_after (dates), is_any_of,
+        is_none_of (choices; value comma-separated), is_checked, is_not_checked; match: all or
+        any. sorts: [{"field", "dir": "asc"|"desc"}], first wins. group_by: a field to group
+        rows (the board's columns, the chart's axis). hidden: fields not shown. date_field: the
+        date a calendar or timeline uses. default: open the table on this view. A view with the
+        same title is replaced."""
+        if match not in {"all", "any"}:
+            raise Problem("match is all or any.")
+        config: dict[str, Any] = {
+            "kind": kind,
+            "rowFilters": [{"field": f.get("field"), "op": f.get("op", "is"),
+                            "value": "" if f.get("value") is None else str(f.get("value"))}
+                           for f in filters or []],
+            "filterMatch": match,
+            "sorts": [{"id": x.get("field") or x.get("id"),
+                       "dir": "desc" if x.get("dir") == "desc" else "asc"} for x in sorts or []],
+            "groupBy": group_by,
+            "hidden": hidden or [],
+        }
+        if date_field:
+            config["dateBy"] = date_field
+        existing = self.world.views.find(collection, title.strip())
+        if existing:
+            view = self.world.views.update(existing["id"], config=config,
+                                           is_default=default or None)
+        else:
+            view = self.world.views.create(collection, title, config, by="alpha",
+                                           is_default=default)
+        desc = self.world.collections.describe(collection)
+        self._did("changed" if existing else "made",
+                  f"{'Updated' if existing else 'Saved'} the view {view['title']} on"
+                  f" {desc['title']}.", {"collection": collection, "view": view["id"]},
+                  desc["module"])
+        return view
 
     # ---- notes, goals, facts ----
 

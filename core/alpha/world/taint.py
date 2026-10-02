@@ -19,7 +19,7 @@ in it could ask for exactly that. From then on, for the rest of that run and of 
 
 What taints (`READS`, plus the pre-pack and page reads below):
 - searching or listing what Alpha holds: `search`, `journal_recent`, `journal_read`,
-  `records_query`;
+  `records_query`, `records_undo` and `collection_change_field` (both hand back row values);
 - documents: `document_read`, `documents_list`;
 - the calendar: `calendar_events`;
 - people, facts and notes: `entities_find`, `entity_read`, `facts_get`, `notes_list`,
@@ -53,6 +53,8 @@ READS = {
     "journal_recent": "read the journal",
     "journal_read": "read the journal",
     "records_query": "read the person's records",
+    "records_undo": "read the person's records",
+    "collection_change_field": "read the person's records",
     "document_read": "read the person's documents",
     "documents_list": "read the person's documents",
     "calendar_events": "read the calendar",
