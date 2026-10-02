@@ -69,7 +69,10 @@ def load(names: list[str] | None = None, folder: Path | None = None) -> list[dic
     folder = folder or journeys_dir()
     out = []
     for path in sorted(folder.glob("*.yaml")):
-        data = yaml.safe_load(path.read_text()) or {}
+        try:
+            data = yaml.safe_load(path.read_text()) or {}
+        except yaml.YAMLError as e:
+            raise Problem(f"The journey file {path.name} isn't valid YAML: {e}") from e
         data.setdefault("name", path.stem)
         if names and data["name"] not in names:
             continue
