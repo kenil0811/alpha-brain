@@ -191,12 +191,18 @@ def test_a_project_is_renamed_given_an_icon_exported_imported_and_deleted(world:
     assert note and note["body"] == "Roles I want."
     assert api.patch("/api/modules/Jobs", json={"icon": "nope"}).status_code == 400
 
-    bundle = api.get("/api/modules/Jobs/export").json()
-    assert bundle["format"] == "alpha.project"
+    world.views.create("openings", "Applied", {"filters": []}, by="person")
+    # Structure only by default: never the records (Alpha's export), with views and the version.
+    shape = api.get("/api/modules/Jobs/export").json()
+    assert shape["format"] == "alpha.project" and shape["alpha_version"]
+    assert "rows" not in shape["tables"][0]
+    assert [v["title"] for v in shape["tables"][0]["views"]] == ["Applied"]
+    bundle = api.get("/api/modules/Jobs/export?rows=true").json()
     assert bundle["tables"][0]["rows"] == [{"title": "Backend Engineer", "company": "Lumen",
                                             "fit": 88, "status": "new"}]
     made = api.post("/api/modules/import", json=bundle).json()
     assert made["name"] == "Jobs 2" and made["icon"] == "briefcase" and made["records"] == 1
+    assert [v["title"] for v in api.get("/api/tables/openings_2").json()["views"]] == ["Applied"]
     copy = api.get(f"/api/modules/{made['id']}").json()
     assert copy["note"]["body"] == "Roles I want."
     assert [a["enabled"] for a in copy["automations"]] == [False]

@@ -7,8 +7,9 @@ went, and history about a removed thing is marked as such wherever Alpha reads i
 as a record but lose the session the model would resume, and open questions are closed.
 
 `remove_module` deletes a module's tables and their rows, the readers its automations use, its
-automations, its note and its goals. Entities and facts stay (they belong to the person, not to
-a module), and so do connections (a sign-in belongs to Alpha's browser).
+automations, its note and its goals; its sub projects move back to the top level. Entities and
+facts stay (they belong to the person, not to a module), and so do connections (a sign-in
+belongs to Alpha's browser).
 
 `remove_connection` disconnects Alpha from something: for a site, Alpha's sign-in (its browser
 profile on disk), the readers Alpha wrote for the sites that sign-in covers and the automations
@@ -76,6 +77,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         for table in tables:
             records += db.execute("DELETE FROM records WHERE collection = ?", (table,)).rowcount
             db.execute("DELETE FROM records_fts WHERE collection = ?", (table,))
+            db.execute("DELETE FROM views WHERE collection = ?", (table,))
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
@@ -88,6 +90,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["notes"] = db.execute(
             "DELETE FROM notes WHERE scope = ?", (f"module:{name}",)).rowcount
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
+        counts["sub_projects"] = db.execute(
+            "UPDATE modules SET project = NULL WHERE project = ?", (mid,)).rowcount
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")

@@ -87,7 +87,7 @@ function Pending({ action, client, onDone }: { action: PendingAction; client: Cl
   );
 }
 
-function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
+export function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -174,6 +174,10 @@ input:placeholder-shown:not([type="checkbox"]):not([type="radio"]) { flex-shrink
 .search input { border: 0; background: transparent; flex: 1; min-width: 0; color: var(--text); }
 .toolbar__hint { margin-left: auto; font-size: var(--text-xs); color: var(--text-3); }
 .tablewrap { overflow-x: auto; }
+/* About you: a narrow forget column; the add-row inputs take their cell, not a fixed width. */
+.about__table { width: 100%; table-layout: fixed; }
+.about__table .about__gutter { width: 32px; padding-left: 4px; padding-right: 0; }
+.about__input { width: 100%; min-width: 0; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .table th { font-size: var(--text-xs); color: var(--text-3); font-weight: 600; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
 .table th button { background: none; border: 0; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; }
@@ -325,7 +329,7 @@ input:placeholder-shown:not([type="checkbox"]):not([type="radio"]) { flex-shrink
 .assist__open:hover { background: var(--hover); }
 /* Opaque and above the thread, so scrolled messages never show through. One line each for the
    name and the scope; the panda never shrinks into the text. */
-.assist__head { position: relative; z-index: 2; background: var(--surface); display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 12px; border-bottom: 1px solid var(--border); flex: none; min-width: 0; }
+.assist__head { position: relative; z-index: 2; background: var(--surface); display: flex; align-items: center; gap: 4px; height: 56px; padding: 0 8px; border-bottom: 1px solid var(--border); flex: none; min-width: 0; }
 .assist__head > * { min-width: 0; }
 .assist__title { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
 .assist__title > :first-child { flex: none; }
@@ -450,14 +454,15 @@ input:placeholder-shown:not([type="checkbox"]):not([type="radio"]) { flex-shrink
 
 /* The rail folded to icons, each with its short label under it */
 .rail__fold { margin-left: auto; color: var(--text-3); }
-.rail--collapsed .rail__body { padding-left: 6px; padding-right: 6px; align-items: stretch; }
+.rail--collapsed .rail__body { padding-left: 4px; padding-right: 4px; align-items: stretch; }
 .rail--collapsed .brand { justify-content: center; padding: 0 4px; }
 .rail--collapsed .brand__name, .rail--collapsed .brand__input, .rail--collapsed .rail__group { display: none; }
 .rail--collapsed .rail__fold { margin-left: 0; }
-.rail--collapsed .navbtn { flex-direction: column; justify-content: center; padding: 8px 2px; gap: 2px; text-align: center; }
+.rail--collapsed .navbtn { flex-direction: column; justify-content: center; padding: 8px 0; gap: 2px; text-align: center; }
 .rail--collapsed .navbtn::before { display: none; }
 .rail--collapsed .navbtn__ico { width: auto; }
-.rail--collapsed .navbtn__text { display: block; width: 100%; font-size: var(--text-xs); text-align: center; }
+/* Two-word names wrap to a second line instead of being cut. */
+.rail--collapsed .navbtn__text { display: block; width: 100%; font-size: var(--text-xs); text-align: center; white-space: normal; }
 .rail--collapsed .navrow { flex-direction: column; }
 .rail--collapsed .navrow__menu { display: none; }
 .rail--collapsed .faint { display: none; }
@@ -798,3 +803,74 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .avatar__composer .avatar__ask { margin: 0; }
 .avatar__turns .models__connect { font-size: var(--text-sm); }
 /* ---------- end P2 ---------- */
+/* ---------- P1: the bell, chats, sub projects, making a project on its page ---------- */
+.truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bell { position: relative; flex: none; }
+.modhead__title .num { flex: none; }
+.bell__count { position: absolute; top: 1px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--warn); color: #fff; font-size: var(--text-xs); line-height: 16px; font-weight: 600; text-align: center; }
+.iconbtn--on { background: var(--primary-soft); color: var(--primary); }
+.rail__nested { display: flex; flex-direction: column; gap: 2px; padding-left: 16px; }
+.rail--collapsed .rail__nested { padding-left: 0; }
+.assist-empty__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.assist-empty__chip { max-width: 100%; height: auto; justify-content: flex-start; border-radius: 12px; padding: 6px 10px; color: var(--text-2); font-size: var(--text-xs); font-weight: 400; text-align: left; white-space: normal; }
+.assist-empty__chip:hover { background: var(--hover); color: var(--text); }
+.convo__pointer { font-size: var(--text-sm); color: var(--text-2); }
+.command-menu__hint { display: flex; gap: 12px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--text-3); }
+kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; background: var(--surface-2); }
+
+.modhead__desc { flex: 1 1 100%; min-width: 0; margin: -6px 0 10px 44px; font-size: var(--text-sm); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page--fill > .modhead__desc { flex: none; }
+.modhead__nameinput { min-width: 0; flex: 1; font: inherit; font-family: var(--font-ed); font-size: var(--text-xl); padding: 0 6px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); color: var(--text); }
+.projpage__goalinput { display: block; width: calc(100% - 44px); border: 1px solid var(--primary); border-radius: 6px; padding: 3px 8px; background: var(--surface); color: var(--text); white-space: normal; }
+.projpage__addgoal { align-self: flex-start; margin: -6px 0 10px 36px; }
+.projpage__notes { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); color: var(--text-2); }
+.projpage__notesinput { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--primary); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: var(--text-sm); background: var(--surface); color: var(--text); }
+.projpage__pair { gap: 6px; min-width: 0; flex-wrap: wrap; }
+.projempty { margin: 0 0 14px; font-size: var(--text-sm); color: var(--text-3); }
+.projrow__body { min-width: 0; }
+.projrow__title { display: block; max-width: 100%; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projrow__title:hover { text-decoration: underline; }
+.projrow__sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projrow__action { flex: none; }
+.projplan { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.projplan p { margin: 0; }
+.projplan__head { font-weight: 600; margin-top: 6px !important; }
+
+.creation-on-page { max-width: 760px; }
+.convo--page { border-left: 0; padding-left: 0; }
+.convo__step { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--text-2); }
+.convo__steptext { min-width: 0; overflow-wrap: anywhere; }
+.convo__plan { margin: 0; font-weight: 500; }
+.newproject { display: flex; flex-direction: column; gap: 10px; }
+.newproject__input { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; background: var(--surface); color: var(--text); }
+.newproject__input:focus { outline: none; border-color: var(--primary); }
+.newproject__actions { flex-wrap: wrap; gap: 8px; }
+.newproject__spacer { flex: 1; }
+.proposal { display: flex; flex-direction: column; gap: 12px; font-size: var(--text-sm); }
+.proposal__intro { margin: 0; overflow-wrap: anywhere; }
+.proposal__findings { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--text-2); }
+.proposal__options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.proposal__option { min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface); overflow-wrap: anywhere; }
+.proposal__option p { margin: 0; }
+.proposal__option--default { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.proposal__pick, .proposal__more { align-self: flex-start; }
+.proposal__go { align-self: flex-start; margin-top: auto; }
+.proposal__evidence { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.creation__status { margin: 0; }
+.creation__thinking { display: flex; flex-direction: column; gap: 6px; }
+.creation__ready { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 10px 12px; border: 1px solid var(--good); border-radius: 10px; font-size: var(--text-sm); color: var(--text); }
+
+/* Below 640px: no rail, a tab bar at the foot, Projects in a sheet, the panel over the page. */
+.app--narrow { flex-direction: column; }
+.app--narrow .main { padding-bottom: 56px; }
+.assist--overlay:not(.assist--collapsed) { position: fixed; inset: 0 0 56px 0; width: 100% !important; z-index: 10; }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; height: 56px; display: flex; border-top: 1px solid var(--border); background: var(--surface); }
+.tabbar__btn { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: none; color: var(--text-3); font-size: var(--text-xs); }
+.tabbar__btn[aria-current="page"] { color: var(--primary); }
+.drawer-sheet { position: fixed; inset: 0 0 56px 0; z-index: 12; background: rgba(26, 43, 60, 0.32); }
+.drawer-sheet__panel { width: min(280px, 85vw); height: 100%; background: var(--surface); }
+.drawer-sheet .rail { display: flex; width: 100% !important; }
+.quick--table { margin-bottom: 10px; box-shadow: none; }
+.quick__plus { flex: none; color: var(--primary); }
+.quick--table .quick__status { flex: none; padding: 0; }
+/* ---------- end P1 ---------- */

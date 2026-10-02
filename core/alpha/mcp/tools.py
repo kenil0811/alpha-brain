@@ -24,8 +24,9 @@ from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.world import access, edits, links, skills, taint
 from alpha.world.actions import Actions
+from alpha.world.modules import CREATION_STAGES, ICONS, UNTITLED
 from alpha.world.readers import allowed_posts, health_problem
-from alpha.world.store import Problem
+from alpha.world.store import Problem, now
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.tools")
@@ -182,7 +183,7 @@ class Tools:
 
     @tool
     def collections_list(self) -> list[dict[str, Any]]:
-        """Every table Alpha keeps, with its module and how many records it holds."""
+        """Every table Alpha keeps, with its project (module) and how many records it holds."""
         return self.world.collections.overview()
 
     @tool
@@ -499,7 +500,8 @@ class Tools:
 
     @tool
     def notes_list(self, scope: str | None = None) -> list[dict[str, Any]]:
-        """Alpha's notes, optionally for one scope: person, module:<name> or topic:<slug>."""
+        """Alpha's notes, optionally for one scope: person, module:<project name> or
+        topic:<slug>."""
         return self.world.knowledge.notes(scope)
 
     @tool
@@ -621,12 +623,135 @@ class Tools:
         ]
 
     @tool
-    def module_create(self, name: str, goal: str | None = None) -> dict[str, Any]:
-        """Make a module: a named place for a topic the person keeps coming back to (Food, Job
-        search, Cold calls). Name it the way the person would; goal in their words."""
+    def module_create(self, name: str, goal: str | None = None,
+                      icon: str | None = None) -> dict[str, Any]:
+        """Make a project: a named place for a topic the person keeps coming back to (Food, Job
+        search, Cold calls). Name it the way the person would; goal in their words. icon: the
+        one that fits, from:
+        book-open, boxes, briefcase, calendar, chart-line, code, dumbbell, folder,
+        graduation-cap, heart-pulse, house, list-checks, mail, megaphone, notebook-pen, plane,
+        shopping-cart, sparkles, sticky-note, target, users, utensils, wallet."""
         module = self.world.modules.create(name, goal)
-        self._did("made", f"Made the module {name}.", {"module": module["id"]}, module["id"])
+        if icon:
+            module = self.world.modules.update(module["id"], icon=icon)
+        self._did("made", f"Made the project {name}.", {"module": module["id"]}, module["id"])
         return module
+
+    @tool
+    def module_update(self, ref: str, name: str | None = None, icon: str | None = None,
+                      goal: str | None = None, project: str | None = None,
+                      top_level: bool = False) -> dict[str, Any]:
+        """Change a project: rename it, give it another icon (one of the project icons) or goal,
+        or file it as a sub project under another project (project: that project's name or
+        id; top_level=true takes it out again). Sub projects are one level deep."""
+        before = self.world.modules.get(ref)
+        kwargs: dict[str, Any] = {"name": name, "icon": icon, "goal": goal}
+        if top_level:
+            kwargs["project"] = None
+        elif project:
+            kwargs["project"] = project
+        module = self.world.modules.update(ref, **kwargs)
+        what = []
+        if module["name"] != before["name"]:
+            what.append(f"renamed {before['name']} to {module['name']}")
+        if module["icon"] != before["icon"]:
+            what.append("changed its icon")
+        if module["goal"] != before["goal"]:
+            what.append("changed its goal")
+        if module["project"] != before["project"]:
+            what.append(f"filed it under {self.world.modules.get(module['project'])['name']}"
+                        if module["project"] else "moved it back to the top level")
+        if what:
+            self._did("changed", f"{module['name']}: {', '.join(what)}.", {"module": module["id"]},
+                      module["id"])
+        return module
+
+    @tool
+    def creation_show(
+        self,
+        stage: str,
+        questions: list[dict[str, Any]] | None = None,
+        intro: str | None = None,
+        findings: list[str] | None = None,
+        options: list[dict[str, Any]] | None = None,
+        default: str | None = None,
+        evidence: list[dict[str, Any]] | None = None,
+        assumptions: list[dict[str, Any]] | None = None,
+        plan: str | None = None,
+        project_name: str | None = None,
+        project_icon: str | None = None,
+    ) -> dict[str, Any]:
+        """While making a new project: show the person where it stands ON THE PROJECT'S PAGE
+        (never in your reply, which is one short line pointing there). stage: asking |
+        researching | proposing | planned | building | done.
+        asking: questions [{id, question, options (3-6 concrete ones), why_it_matters (<= 8
+        words)}], at most 4, ids role, outcomes, tools, cadence.
+        proposing: intro (one sentence); findings (<= 3, <= 15 words each, each naming its
+        source kind); options [{id, title, summary, why (<= 12 words)}], 2 or 3; default (the
+        option id you would build); questions (decisions only, <= 3, 2-5 options each);
+        evidence [{title, url, note, kind}] for everything you read.
+        planned: plan, the plan in Markdown (kept as the project's note "Plan").
+        assumptions: [{text, source}] with source "default", "you chose" or "you corrected".
+        project_name (2-4 words, Title Case, <= 40) and project_icon (one of:
+        book-open, boxes, briefcase, calendar, chart-line, code, dumbbell, folder,
+        graduation-cap, heart-pulse, house, list-checks, mail, megaphone, notebook-pen, plane,
+        shopping-cart, sparkles, sticky-note, target, users, utensils, wallet)
+        name a project still called "Untitled project"."""
+        making = self.world.modules.making(self.thread)
+        if making is None:
+            raise Problem("creation_show is only for a project being made, in its own thread.")
+        current = (making["creation"] or {}).get("stage", "new")
+        if stage not in CREATION_STAGES or stage == "new":
+            raise Problem(f"stage is one of {', '.join(CREATION_STAGES[1:])}; got '{stage}'.")
+        order = CREATION_STAGES.index
+        if current == "done" or (order(current) >= order("building") and order(stage) <
+                                 order("building")):
+            raise Problem(f"Making this project is at '{current}' already; it can't go back to"
+                          f" '{stage}'.")
+        patch: dict[str, Any] = {"stage": stage, "at": now(), "error": None, "timed_out": None}
+        if stage == "asking":
+            patch["questions"] = _questions(questions, most=4, fewest_options=3, most_options=6)
+            if not patch["questions"]:
+                raise Problem("asking needs at least one question.")
+        if stage == "proposing":
+            opts = [_clean(o, ("id", "title", "summary", "why")) for o in options or []]
+            if not 2 <= len(opts) <= 3 or any(not o.get("id") or not o.get("title")
+                                               for o in opts):
+                raise Problem("proposing needs two or three options, each with an id and a"
+                              " title.")
+            ids = [o["id"] for o in opts]
+            if len(findings or []) > 3:
+                raise Problem("At most three findings.")
+            patch["proposal"] = {
+                "intro": " ".join((intro or "").split()),
+                "findings": [" ".join(str(f).split()) for f in findings or []],
+                "options": opts,
+                "default": default if default in ids else ids[0],
+                "questions": _questions(questions, most=3, fewest_options=2, most_options=5),
+                "evidence": [_clean(e, ("title", "url", "note", "kind"))
+                             for e in (evidence or [])][:16],
+            }
+        if stage == "planned":
+            if not (plan or "").strip():
+                raise Problem("planned needs the plan, in Markdown.")
+            self.world.knowledge.write_note(f"module:{making['name']}", "Plan", plan or "")
+        if stage == "building":
+            patch["turn"] = self.turn
+        if assumptions is not None:
+            patch["assumptions"] = [_clean(a, ("text", "source")) for a in assumptions][:12]
+        renamed = None
+        if making["name"].startswith(UNTITLED) and (project_name or "").strip():
+            name = " ".join((project_name or "").split())[:40]
+            icon = project_icon if project_icon in ICONS else "folder"
+            try:
+                making = self.world.modules.update(making["id"], name=name, icon=icon)
+                renamed = making["name"]
+            except Problem:
+                pass  # taken: the turn's fallback names it from the person's words
+        self.world.modules.set_creation(making["id"], patch)
+        self._did("did", SHOWN[stage], {"creation": stage, "renamed": renamed}, making["id"])
+        return {"shown": stage, "project": making["name"],
+                "note": "It is on the project's page. Reply with one short line pointing there."}
 
     @tool
     def threads_list(self, state: str | None = None) -> list[dict[str, Any]]:
@@ -875,6 +1000,10 @@ class Tools:
         """Record a question for the person that must be answered before something can be
         done well (it shows on Home until answered). Ask in the reply too. Only ask what you
         cannot find out and what changes the result."""
+        making = self.world.modules.making(self.thread)
+        if making and (making["creation"] or {}).get("stage") != "done":
+            raise Problem("While a project is being made, its questions go on its page: use"
+                          " creation_show(stage=\"asking\").")
         jid = self.world.journal.append(
             "asked", question, data={"options": options or [], "turn": self.turn},
             module=self.module, thread=self.thread,
@@ -924,3 +1053,39 @@ class Tools:
                   {"collection": collection, "skill": skill},
                   module=self._module_of(collection))
         return {"row_actions": actions}
+
+SHOWN = {
+    "asking": "Showed a few questions on the project's page.",
+    "researching": "Looking around: how this is usually done, and what their tools connect to.",
+    "proposing": "Showed the options on the project's page.",
+    "planned": "Wrote the plan on the project's page.",
+    "building": "Building it from the plan.",
+    "done": "Finished making the project.",
+}
+OUTCOMES_OPEN = "Not sure yet: show me what's possible"
+
+
+def _clean(item: Any, keys: tuple[str, ...]) -> dict[str, str]:
+    item = item if isinstance(item, dict) else {}
+    return {k: " ".join(str(item[k]).split()) for k in keys if item.get(k) not in (None, "")}
+
+
+def _questions(raw: list[dict[str, Any]] | None, *, most: int, fewest_options: int,
+               most_options: int) -> list[dict[str, Any]]:
+    """Questions as the page shows them: an id, the question, its options and why it matters.
+    The outcomes question always ends with the open option (research then looks for what is
+    possible)."""
+    out = []
+    for q in (raw or [])[:most]:
+        q = q if isinstance(q, dict) else {}
+        qid, text = str(q.get("id") or "").strip(), " ".join(str(q.get("question") or "").split())
+        opts = [" ".join(str(o).split()) for o in q.get("options") or [] if str(o).strip()]
+        if not qid or not text:
+            raise Problem("Each question needs an id and the question.")
+        if qid == "outcomes" and OUTCOMES_OPEN not in opts:
+            opts = opts[:most_options] + [OUTCOMES_OPEN]
+        elif not fewest_options <= len(opts) <= most_options:
+            raise Problem(f"'{text}' needs {fewest_options} to {most_options} options.")
+        out.append({"id": qid, "question": text, "options": opts,
+                    "why_it_matters": " ".join(str(q.get("why_it_matters") or "").split())})
+    return out

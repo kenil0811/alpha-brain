@@ -13,6 +13,7 @@ automations, connections, knowledge), Activity, the conversation, and turns.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import os
 import platform
@@ -22,6 +23,7 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -31,6 +33,7 @@ from pydantic import BaseModel, Field
 
 import alpha
 from alpha.api import brain
+from alpha.bugs import bug_log
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
@@ -146,6 +149,36 @@ class SpeechBody(BaseModel):
 class ModuleBody(BaseModel):
     name: str | None = None
     icon: str | None = None
+    goal: str | None = None
+    # The project it is filed under (sub project); null takes it out. Absent: left as it is.
+    project: str | None = None
+
+
+class NewModuleBody(BaseModel):
+    name: str | None = Field(default=None, max_length=80)
+
+
+class CreationAnswerBody(BaseModel):
+    """What the person did on the project's page while it is being made: answered the
+    questions, took the defaults, chose an option, asked to build, or tried again."""
+    text: str | None = None
+    answers: dict[str, str] | None = None
+    choice: str | None = None
+    use_defaults: bool = False
+    build: bool = False
+    carry_on: bool = False
+    retry: bool = False
+    start_over: bool = False
+
+
+class ThreadBody(BaseModel):
+    title: str | None = Field(default=None, max_length=400)
+    module: str | None = None
+
+
+class ThreadPatch(BaseModel):
+    state: str | None = None
+    title: str | None = Field(default=None, max_length=400)
 
 
 class NoteBody(BaseModel):
@@ -176,6 +209,7 @@ class Turns:
                         "provider": provider, "started_at": datetime.now(UTC).isoformat()}
         with self.lock:
             self.state[key] = {"id": key, "state": "running", "text": body.text,
+                               "thread": body.thread,
                                "started_at": datetime.now(UTC).isoformat()}
 
         def work() -> None:
@@ -210,6 +244,7 @@ class Turns:
                 result = {"state": "failed", "reply": str(e)}
             except Exception as e:
                 log.exception("turn failed")
+                bug_log(self.world).record("core", type(e).__name__, str(e))
                 result = {"state": "failed", "reply": f"Alpha hit an internal problem: {e}"}
             with self.lock:
                 self.state[key].update(result)
@@ -503,22 +538,35 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
         card["automations"] = automation_views(world, scheduler, m["id"])
+        card["plan"] = world.knowledge.find_note(f"module:{m['name']}", "Plan")
+        card["sessions"] = world.modules.sessions(m["id"])
+        card["sub_projects"] = [module_card(world, c) for c in world.modules.children(m["id"])]
+        # Facts that hold only inside this project (world/knowledge.py).
+        card["facts"] = world.knowledge.facts(f"module:{m['id']}")
+        # The turn making it, while one runs (the page shows its clock and Stop).
+        making = (m["creation"] or {}).get("thread")
+        card["running"] = [t for t in running.running() if making and t.get("thread") == making]
         return card
 
     @app.patch("/api/modules/{ref}", dependencies=[api])
     def edit_module(ref: str, body: ModuleBody) -> dict[str, Any]:
-        return module_card(world, world.modules.update(ref, name=body.name, icon=body.icon))
+        kwargs: dict[str, Any] = {"name": body.name, "icon": body.icon, "goal": body.goal}
+        if "project" in body.model_fields_set:
+            kwargs["project"] = body.project
+        return module_card(world, world.modules.update(ref, **kwargs))
 
     @app.delete("/api/modules/{ref}", dependencies=[api])
     def delete_module(ref: str) -> dict[str, Any]:
         return remove_module(world, ref)
 
     @app.get("/api/modules/{ref}/export", dependencies=[api])
-    def export(ref: str) -> dict[str, Any]:
-        return export_module(world, ref)
+    def export(ref: str, rows: bool = False) -> dict[str, Any]:
+        return export_module(world, ref, rows=rows)
 
     @app.post("/api/modules/import", dependencies=[api])
     def import_(bundle: dict[str, Any]) -> dict[str, Any]:
+        if set(bundle) == {"path"}:
+            bundle = read_project_file(str(bundle["path"]))
         return module_card(world, import_module(world, bundle))
 
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
@@ -880,8 +928,126 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     # ---- facts, skills, first steps, project links, row actions (alpha/api/brain.py) ----
     brain.mount(app, world, api, running.runner or Router(accounts))
+    # ---- P1: new projects and making them, chats (sessions), what needs the person, bugs ----
+
+    # A turn can't carry on across a restart: a creation that was thinking says so on its page.
+    for m in world.modules.all():
+        tid = (m["creation"] or {}).get("thread")
+        if tid and world.modules.thread(tid)["state"] == "working":
+            world.modules.set_creation(m["id"], {"error": turns.RESTARTED})
+            world.modules.update_thread(tid, state="open")
+
+    @app.post("/api/modules", dependencies=[api])
+    def new_module(body: NewModuleBody) -> dict[str, Any]:
+        """New project: a blank one at once ("Untitled project"), with the thread it is made
+        in; its page asks the person to describe it."""
+        m = world.modules.create((body.name or "").strip() or world.modules.untitled())
+        tid = world.modules.open_thread(f"Making {m['name']}", "build", m["id"])["id"]
+        return module_card(world, world.modules.set_creation(m["id"], {"stage": "new",
+                                                                         "thread": tid}))
+
+    def said_last(tid: str) -> str:
+        last = world.journal.recent(1, thread=tid, kinds=["said"])
+        if not last:
+            raise Problem("There is nothing to try again yet.")
+        return str(last[-1]["text"])
+
+    @app.post("/api/modules/{ref}/creation/answer", dependencies=[api])
+    def answer_creation(ref: str, body: CreationAnswerBody) -> dict[str, Any]:
+        m = world.modules.get(ref)
+        creation = m["creation"] or {}
+        if not creation.get("thread") or creation.get("stage") == "done":
+            raise Problem(f"{m['name']} isn't being made.")
+        tid = str(creation["thread"])
+        if body.start_over:
+            world.modules.update_thread(tid, state="done")
+            fresh = world.modules.open_thread(f"Making {m['name']}", "build", m["id"])["id"]
+            world.modules.set_creation(m["id"], None)
+            return {"module": module_card(world, world.modules.set_creation(
+                m["id"], {"stage": "new", "thread": fresh}))}
+        asked = {q["id"]: q["question"] for q in creation.get("questions", [])
+                 + (creation.get("proposal") or {}).get("questions", [])}
+        lines = [f"{asked.get(k, k)} {v}" for k, v in (body.answers or {}).items() if v.strip()]
+        if body.retry:
+            text = said_last(tid)
+        elif body.carry_on:
+            text = "Carry on building from where you stopped; check what exists first."
+        elif body.build:
+            text = "Build it now from the plan."
+        elif body.choice:
+            options = (creation.get("proposal") or {}).get("options", [])
+            option = next((o for o in options if o.get("id") == body.choice), None)
+            if option is None:
+                raise Problem("That option isn't on the page any more.")
+            text = "\n".join([f'Go with "{option["title"]}": {option.get("summary", "")}',
+                              *lines])
+        elif body.use_defaults:
+            text = ("Use your defaults for anything still open; I will revise later. Resolve"
+                    " every open question with a stated assumption and ask nothing more.")
+        else:
+            text = "\n".join([*([body.text.strip()] if body.text and body.text.strip() else []),
+                              *lines])
+        if not text.strip():
+            raise Problem("Pick an answer first.")
+        return {"turn": running.start(AskBody(text=text, module=m["id"], thread=tid))}
+
+    @app.post("/api/threads", dependencies=[api])
+    def new_thread(body: ThreadBody) -> dict[str, Any]:
+        """A chat the person opens ("+ New chat", then their first message): a topic thread in
+        the place it was opened (a project, or global)."""
+        module_id = world.modules.get(body.module)["id"] if body.module else None
+        title = " ".join((body.title or "").split())[:60] or "Untitled session"
+        return world.modules.open_thread(title, "topic", module_id)
+
+    @app.get("/api/threads", dependencies=[api])
+    def list_threads(module: str | None = None,
+                     include_done: bool = False) -> list[dict[str, Any]]:
+        module_id = world.modules.get(module)["id"] if module else None
+        return world.modules.sessions(module_id, include_done=include_done)
+
+    @app.patch("/api/threads/{tid}", dependencies=[api])
+    def edit_thread(tid: str, body: ThreadPatch) -> dict[str, Any]:
+        """Archive a chat (state done) or rename it."""
+        return world.modules.update_thread(tid, state=body.state, title=body.title)
+
+    @app.get("/api/attention", dependencies=[api])
+    def attention() -> dict[str, Any]:
+        """What the Activity bell counts: everything waiting on the person, and automations
+        whose last run in the past day failed."""
+        since = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+        failed = [{"id": a["id"], "title": a["title"], "module": a["module"],
+                   "at": a["last_run_at"], "error": a["last_error"]}
+                  for a in world.automations.all()
+                  if a["last_error"] and (a["last_run_at"] or "") >= since]
+        needs = needs_you(world)
+        return {"count": len(needs) + len(failed), "needs_you": needs, "failed": failed}
+
+    @app.get("/api/bugs", dependencies=[api])
+    def bugs() -> dict[str, Any]:
+        """Alpha's own bug log (`<data dir>/bugs.md`)."""
+        return {"path": str(bug_log(world).path), "text": bug_log(world).read()}
 
     return app
+
+
+PROJECT_SUFFIXES = (".alphaproject", ".json")
+PROJECT_MAX_BYTES = 10 * 1024 * 1024
+
+
+def read_project_file(path: str) -> dict[str, Any]:
+    """A project file on this Mac, by its path (what the window's attachments carry)."""
+    file = Path(path).expanduser()
+    if file.suffix.lower() not in PROJECT_SUFFIXES or not file.is_file():
+        raise Problem("That isn't a project file exported from Alpha.")
+    if file.stat().st_size > PROJECT_MAX_BYTES:
+        raise Problem("That project file is larger than 10 MB.")
+    try:
+        bundle = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise Problem("That project file couldn't be read.") from e
+    if not isinstance(bundle, dict):
+        raise Problem("That isn't a project file exported from Alpha.")
+    return bundle
 
 
 READY_PREFIX = "ALPHA_CORE_READY "

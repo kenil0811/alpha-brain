@@ -189,5 +189,5 @@ def test_turn_progress_steps_are_visible_while_it_runs(world: World) -> None:
     while time.time() < end and not steps:
         steps = c.get(f"/api/turns/{started['id']}").json()["steps"]
         time.sleep(0.05)
-    assert steps and steps[0]["text"] == "Made the module Network."
+    assert steps and steps[0]["text"] == "Made the project Network."
     gate["go"] = True

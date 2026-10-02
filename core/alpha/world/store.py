@@ -307,6 +307,9 @@ CREATE TABLE IF NOT EXISTS threads (
 ADDED_COLUMNS = [
     ("readers", "allow_posts", "TEXT NOT NULL DEFAULT '[]'"),
     ("modules", "icon", "TEXT"),
+    # Where making the project stands (JSON, world/modules.py `set_creation`); NULL for a
+    # project that was never made through the creation process.
+    ("modules", "creation", "TEXT"),
 ]
 
 

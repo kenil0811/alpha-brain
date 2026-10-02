@@ -1,21 +1,23 @@
 /**
- * The rail: the workspace name (with the core's status dot), Home, Activity, the person's
- * projects (drag to reorder, hide, rename, change icon, export, delete), New project, and
- * Intelligence and Settings at the foot. It collapses to icons and resizes (ui/panel).
+ * The rail: the workspace name (with the core's status dot), Home, the person's projects with
+ * their sub projects nested under them (drag to reorder, open, hide, rename, change icon,
+ * export, delete), New project (a project file dropped on it is added), and Intelligence and
+ * Settings at the foot. Activity is the bell in the Chief of Staff's header. It collapses to
+ * icons and resizes (ui/panel).
  */
 import { useCallback, useRef, useState } from "react";
-import { Activity as ActivityIcon, FileUp, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import type { Client, ModuleCard } from "../core/client";
 import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, useToast, type PanelControl } from "../ui";
-import { exportProject, importProject, isProjectFile, PROJECT_FILE, ProjectEditDialog, ProjectMenuItems, type ProjectEdit } from "./ProjectMenu";
+import { exportProject, importProject, isProjectFile, ProjectEditDialog, ProjectMenuItems, type ProjectEdit } from "./ProjectMenu";
 import { projectIcon } from "./projectIcons";
 
 export type Surface =
   | { kind: "home" }
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string }
-  | { kind: "settings" }
-  | { kind: "module"; id: string };
+  | { kind: "settings"; section?: string }
+  | { kind: "module"; id: string; section?: string };
 
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
@@ -31,18 +33,26 @@ export function knownSurface(value: unknown): Surface {
   return { kind: "home" };
 }
 
-/** Where a place lives in the window's address (`#/m/<id>`), so back and forward work. */
+/** Where a place lives in the window's address (`#/m/<id>/<section>`, `#/settings/<section>`),
+ *  so back and forward work. */
 export function surfacePath(s: Surface): string {
-  if (s.kind === "module") return `/m/${encodeURIComponent(s.id)}`;
+  if (s.kind === "module") return `/m/${encodeURIComponent(s.id)}${s.section && s.section !== "app" ? `/${s.section}` : ""}`;
   if (s.kind === "intelligence") return s.tab ? `/intelligence/${s.tab}` : "/intelligence";
+  if (s.kind === "settings") return s.section ? `/settings/${s.section}` : "/settings";
   return s.kind === "home" ? "/" : `/${s.kind}`;
 }
 
+const MODULE_SECTIONS = new Set(["app", "activity", "settings"]);
+
 export function surfaceFromPath(path: string): Surface | null {
-  const [, first, second] = path.replace(/^#/, "").split("/");
+  const [, first, second, third] = path.replace(/^#/, "").split("/");
   if (!first) return path.replace(/^#/, "") === "/" ? { kind: "home" } : null;
-  if (first === "m" && second) return { kind: "module", id: decodeURIComponent(second) };
+  if (first === "m" && second) return third && MODULE_SECTIONS.has(third) ? { kind: "module", id: decodeURIComponent(second), section: third } : { kind: "module", id: decodeURIComponent(second) };
   if (first === "intelligence") return second ? { kind: "intelligence", tab: second } : { kind: "intelligence" };
+  // Alpha's aliases: Connections and About you live in Intelligence.
+  if (first === "connections" || (first === "settings" && second === "connections")) return { kind: "intelligence", tab: "connections" };
+  if (first === "about") return { kind: "intelligence", tab: "knowledge" };
+  if (first === "settings") return second ? { kind: "settings", section: second } : { kind: "settings" };
   return knownSurface({ kind: first });
 }
 
@@ -97,7 +107,6 @@ function useOrdering(modules: ModuleCard[]) {
 export function Rail({
   surface,
   modules,
-  needs,
   runtime,
   onGo,
   onNew,
@@ -107,7 +116,6 @@ export function Rail({
 }: {
   surface: Surface;
   modules: ModuleCard[];
-  needs: number;
   runtime: "connecting" | "connected" | "unavailable";
   onGo: (surface: Surface) => void;
   onNew: () => void;
@@ -118,9 +126,11 @@ export function Rail({
 }) {
   const collapsed = panel.collapsed;
   const { visible, hiddenCount, reorder, hide, showAll } = useOrdering(modules);
+  // Sub projects sit under their project; one whose project is hidden shows at the top level.
+  const shownIds = new Set(visible.map((m) => m.id));
+  const top = visible.filter((m) => !m.project || !shownIds.has(m.project));
   const toast = useToast();
   const dragId = useRef<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const [dropOn, setDropOn] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ project: ModuleCard; edit: ProjectEdit } | null>(null);
@@ -162,7 +172,7 @@ export function Rail({
     [client, onChanged, onGo, toast],
   );
 
-  const item = (target: Surface, Icon: LucideIcon, label: string, count?: number) => {
+  const item = (target: Surface, Icon: LucideIcon, label: string) => {
     const current = sameSurface(surface, target);
     return (
       <button key={target.kind} type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
@@ -170,7 +180,6 @@ export function Rail({
           <Icon size={16} strokeWidth={1.75} />
         </span>
         <span className="navbtn__text">{label}</span>
-        {count ? <span className="navbtn__count">{count}</span> : null}
       </button>
     );
   };
@@ -219,12 +228,13 @@ export function Rail({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <ProjectMenuItems
+                onOpen={() => onGo(target)}
                 onPick={(edit) => setEditing({ project: m, edit })}
                 onHide={() => hide(m.id)}
-                onExport={() =>
-                  void exportProject(client, m)
+                onExport={(rows) =>
+                  void exportProject(client, m, rows)
                     .then((words) => toast.show(words))
-                    .catch((e: unknown) => toast.show(e instanceof Error ? e.message : `${m.name} couldn't be exported.`))
+                    .catch(() => toast.show(`Couldn't export ${m.name}`))
                 }
               />
             </DropdownMenuContent>
@@ -279,10 +289,18 @@ export function Rail({
         <CollapseToggleButton side="left" collapsed={collapsed} onClick={panel.toggleCollapsed} controls="rail-body" className="rail__fold" />
       </div>
       <div id="rail-body" className="rail__body">
-        {item({ kind: "home" }, HomeIcon, "Home", needs)}
-        {item({ kind: "activity" }, ActivityIcon, "Activity")}
-        <div className="rail__group">Projects</div>
-        {visible.map(projectRow)}
+        {item({ kind: "home" }, HomeIcon, "Home")}
+        {top.map((m) => {
+          const nested = visible.filter((c) => c.project === m.id);
+          return nested.length ? (
+            <div key={m.id} className="rail__project">
+              {projectRow(m)}
+              <div className="rail__nested">{nested.map(projectRow)}</div>
+            </div>
+          ) : (
+            projectRow(m)
+          );
+        })}
         <div className="navrow">
           <button
             type="button"
@@ -303,22 +321,6 @@ export function Rail({
             </span>
             <span className="navbtn__text">{collapsed ? "New" : "New project"}</span>
           </button>
-          {!collapsed && client ? (
-            <button type="button" className="iconbtn iconbtn--sm navrow__menu" aria-label="Add a project from a file" title="Add a project from a file" onClick={() => fileInput.current?.click()}>
-              <FileUp size={14} />
-            </button>
-          ) : null}
-          <input
-            ref={fileInput}
-            type="file"
-            accept={`${PROJECT_FILE},.json,application/json`}
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (file) void addFromFile(file);
-            }}
-          />
         </div>
         {!collapsed && hiddenCount > 0 ? (
           <button type="button" className="navbtn" onClick={showAll}>
@@ -336,6 +338,7 @@ export function Rail({
           project={editing?.project ?? null}
           edit={editing?.edit ?? null}
           onClose={() => setEditing(null)}
+          subProjects={editing ? modules.filter((x) => x.project === editing.project.id).length : 0}
           onChanged={() => onChanged?.()}
           onDeleted={(id) => {
             onChanged?.();

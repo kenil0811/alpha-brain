@@ -3,15 +3,19 @@
  * gets its core session from the host (or Vite env in a browser), then everything is one
  * client. Pages reload when the core reports a change (a turn finished, a row was edited).
  *
- * The rail and the conversation are side panels that collapse, expand and resize
- * (ui/panel); neither ever covers the page at full width. Below 1024px the rail shows icons
- * and the conversation opens over the page, without changing what was saved. The page lives
- * in the address (`#/m/<id>`), so back and forward work.
+ * The rail and Chief of Staff are side panels that collapse, expand and resize (ui/panel);
+ * neither ever covers the page at full width. Chief of Staff is open on Home and closed on a
+ * project page unless opened there (`alpha.assistant.open`); its header holds the Activity
+ * bell. Below 1024px the rail shows icons and the panel opens over the page; below 640px a
+ * bottom tab bar replaces the rail. The page lives in the address (`#/m/<id>/<section>`), so
+ * back and forward work. Each place reopens its last chat (`alpha.sessions`). New project
+ * makes a blank "Untitled project" at once and opens its page with Chief of Staff beside it.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
+import { Bell, Boxes, Home as HomeIcon, Settings as SettingsIcon } from "lucide-react";
 import { Client } from "./core/client";
 import { resolveSession } from "./core/session";
-import { AssistantPanel } from "./assistant/AssistantPanel";
+import { AssistantPanel, type ChatChoice } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { CommandMenu } from "./shell/CommandMenu";
 import { Home } from "./shell/Home";
@@ -21,13 +25,16 @@ import { ModulePage } from "./modules/ModulePage";
 import { Settings } from "./shell/Settings";
 import { ProviderAccounts } from "./shell/models";
 import { useTheme } from "./shell/theme";
-import { InfoTip, PageHeader, ResizeHandle, ToastProvider, TooltipProvider, usePanelControl } from "./ui";
+import { InfoTip, PageHeader, ResizeHandle, ToastProvider, TooltipProvider, usePanelControl, useToast } from "./ui";
 import { ZazooIcon } from "./ui/ZazooIcon";
 import type { ModuleCard } from "./core/client";
 
 const SURFACE_KEY = "alpha.surface";
 export const HANDOFF_KEY = "alpha.handoff";
+const SESSIONS_KEY = "alpha.sessions";
+const OPEN_KEY = "alpha.assistant.open";
 const COMPACT_BELOW = 1024;
+const NARROW_BELOW = 640;
 
 function remembered<T>(key: string, fallback: T): T {
   try {
@@ -63,6 +70,13 @@ function Workspace({ injected }: { injected?: Client }) {
   const [surface, setSurfaceState] = useState<Surface>(() => surfaceFromPath(window.location.hash) ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
   const [modules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
+  // The chat open in each place ("global" or "module:<id>"), remembered on this Mac.
+  const [sessionByScope, setSessionByScope] = useState<Record<string, string | null>>(() => remembered(SESSIONS_KEY, {}));
+  // Chief of Staff is open on Home and closed on a project page unless opened there.
+  const [openByKind, setOpenByKind] = useState<{ home: boolean; module: boolean }>(() => ({ home: true, module: false, ...remembered<Partial<{ home: boolean; module: boolean }>>(OPEN_KEY, {}) }));
+  const [sendNow, setSendNow] = useState<{ text: string; id: number; thread?: string } | null>(null);
+  const [drawer, setDrawer] = useState(false);
+  const toast = useToast();
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
@@ -74,10 +88,21 @@ function Workspace({ injected }: { injected?: Client }) {
   const railRef = useRef<HTMLDivElement>(null);
   const assistRef = useRef<HTMLDivElement>(null);
 
-  const railPanel = usePanelControl({ defaultWidth: 224, minWidth: 76, maxWidth: 360, storageKeyWidth: "alpha.rail.width", storageKeyCollapsed: "alpha.rail.collapsed", snap: true, snapMidpoint: 150 });
-  const assistantPanel = usePanelControl({ defaultWidth: 380, minWidth: 260, maxWidth: 520, storageKeyWidth: "alpha.assistant.width", storageKeyCollapsed: "alpha.assistant.collapsed" });
-  const compact = viewport < COMPACT_BELOW;
-  const assistOpen = compact ? assistPeek : !assistantPanel.collapsed;
+  const railPanel = usePanelControl({ defaultWidth: 220, minWidth: 76, maxWidth: 360, storageKeyWidth: "alpha.rail.width", storageKeyCollapsed: "alpha.rail.collapsed", snap: true, snapMidpoint: 148 });
+  const assistantPanel = usePanelControl({ defaultWidth: 286, minWidth: 260, maxWidth: 520, storageKeyWidth: "alpha.assistant.width", storageKeyCollapsed: "alpha.assistant.collapsed" });
+  const narrow = viewport < NARROW_BELOW;
+  const compact = !narrow && viewport < COMPACT_BELOW;
+  const panelKind = surface.kind === "module" ? "module" : "home";
+  const setOpenHere = useCallback(
+    (open: boolean) =>
+      setOpenByKind((current) => {
+        const next = { ...current, [panelKind]: open };
+        remember(OPEN_KEY, next);
+        return next;
+      }),
+    [panelKind],
+  );
+  const assistOpen = compact || narrow ? assistPeek : !assistantPanel.collapsed && openByKind[panelKind];
 
   const setSurface = useCallback((next: Surface) => {
     setSurfaceState(next);
@@ -87,10 +112,25 @@ function Workspace({ injected }: { injected?: Client }) {
   }, []);
   const changed = useCallback(() => setVersion((v) => v + 1), []);
   const openAssistant = useCallback(() => {
-    if (compact) setAssistPeek(true);
-    else assistantPanel.setCollapsed(false);
-  }, [compact, assistantPanel]);
-  const closeAssistant = () => (compact ? setAssistPeek(false) : assistantPanel.setCollapsed(true));
+    if (compact || narrow) setAssistPeek(true);
+    else {
+      assistantPanel.setCollapsed(false);
+      setOpenHere(true);
+    }
+  }, [compact, narrow, assistantPanel, setOpenHere]);
+  const closeAssistant = () => {
+    if (compact || narrow) setAssistPeek(false);
+    else setOpenHere(false);
+  };
+  const rememberSession = useCallback((scope: string, id: string | null | undefined) => {
+    setSessionByScope((current) => {
+      const next = { ...current };
+      if (id === undefined) delete next[scope];
+      else next[scope] = id;
+      remember(SESSIONS_KEY, next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const onResize = () => setViewport(window.innerWidth);
@@ -152,15 +192,20 @@ function Workspace({ injected }: { injected?: Client }) {
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
-    const load = () =>
+    const load = () => {
       client
         .home()
         .then((home) => {
           if (cancelled) return;
           setModules(home.modules);
-          setNeeds(home.needs_you.length);
         })
         .catch(() => undefined);
+      // The bell: what waits on the person, and automations whose last run failed.
+      client
+        .attention()
+        .then((a) => !cancelled && setNeeds(a.count))
+        .catch(() => undefined);
+    };
     load();
     const timer = setInterval(load, 20_000);
     return () => {
@@ -207,9 +252,60 @@ function Workspace({ injected }: { injected?: Client }) {
     },
     [openAssistant],
   );
-  const startNew = useCallback(() => ask("I want to "), [ask]);
+  // New project: a blank "Untitled project" at once, its page, and Chief of Staff open beside
+  // it on the thread it is made in.
+  const startNew = useCallback(() => {
+    if (!client) return;
+    void client
+      .createModule()
+      .then((made) => {
+        setModules((all) => [...all, made]);
+        if (made.creation?.thread) rememberSession(`module:${made.id}`, made.creation.thread);
+        setSurface({ kind: "module", id: made.id });
+        if (compact || narrow) setAssistPeek(true);
+        else {
+          assistantPanel.setCollapsed(false);
+          setOpenByKind((current) => {
+            const next = { ...current, module: true };
+            remember(OPEN_KEY, next);
+            return next;
+          });
+        }
+        changed();
+      })
+      .catch((e: unknown) => toast.show(e instanceof Error ? e.message : "Couldn't make a new project."));
+  }, [client, rememberSession, setSurface, compact, narrow, assistantPanel, changed, toast]);
+
+  // A blank project left before anything was said is removed (nothing of it would be kept).
+  const lastModule = useRef<string | null>(null);
+  useEffect(() => {
+    const left = lastModule.current;
+    lastModule.current = surface.kind === "module" ? surface.id : null;
+    if (!client || !left || left === lastModule.current) return;
+    void client
+      .module(left)
+      .then((m) => {
+        if (m.creation?.stage === "new" && m.name.startsWith("Untitled project") && !m.activity.some((e) => e.kind === "said") && !m.tables.length) return client.removeModule(left).then(changed);
+      })
+      .catch(() => undefined);
+  }, [client, surface, changed]);
 
   const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
+  const scopeKey = scopeModule ? `module:${scopeModule.id}` : "global";
+  const chat: ChatChoice = scopeKey in sessionByScope ? sessionByScope[scopeKey] : scopeModule ? null : undefined;
+  const bell = (
+    <button
+      type="button"
+      className={surface.kind === "activity" ? "iconbtn bell iconbtn--on" : "iconbtn bell"}
+      aria-label={needs ? `Activity, ${needs} need you` : "Activity"}
+      title="Activity"
+      aria-current={surface.kind === "activity" ? "page" : undefined}
+      onClick={() => setSurface({ kind: "activity" })}
+    >
+      <Bell size={16} />
+      {needs ? <span className="bell__count">{needs > 9 ? "9+" : needs}</span> : null}
+    </button>
+  );
   const scopeName =
     surface.kind === "module" ? (scopeModule?.name ?? "Project") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : "Intelligence";
 
@@ -217,12 +313,11 @@ function Workspace({ injected }: { injected?: Client }) {
   const assistantWidth = assistantPanel.displayWidth;
 
   return (
-    <div className="app">
-      <div ref={railRef} className="app__rail">
+    <div className={narrow ? "app app--narrow" : "app"}>
+      <div ref={railRef} className="app__rail" hidden={narrow}>
         <Rail
           surface={surface}
           modules={modules}
-          needs={needs}
           runtime={runtime.kind}
           onGo={setSurface}
           onNew={startNew}
@@ -236,12 +331,17 @@ function Workspace({ injected }: { injected?: Client }) {
           <div className="page">
             <PageHeader title={runtime.kind === "connecting" ? "Starting Alpha…" : "Alpha's core isn't running"} />
             {runtime.kind === "unavailable" ? (
-              <p className="notice page__line" role="alert">
-                {runtime.reason}{" "}
-                <button type="button" className="btn btn--sm" onClick={() => setAttempt((n) => n + 1)}>
-                  Try again
-                </button>
-              </p>
+              <>
+                <p className="notice page__line" role="alert">
+                  {runtime.reason}
+                </p>
+                <p className="muted page__line">
+                  Alpha keeps trying on its own every few seconds.{" "}
+                  <button type="button" className="btn btn--sm" onClick={() => setAttempt((n) => n + 1)}>
+                    Try again now
+                  </button>
+                </p>
+              </>
             ) : null}
           </div>
         ) : (
@@ -265,9 +365,35 @@ function Workspace({ injected }: { injected?: Client }) {
             {surface.kind === "home" ? (
               <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={ask} onNew={startNew} />
             ) : surface.kind === "module" ? (
-              <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
+              <ModulePage
+                key={surface.id}
+                client={runtime.client}
+                moduleId={surface.id}
+                version={version}
+                onChanged={changed}
+                onGo={setSurface}
+                section={surface.section}
+                onSection={(section) => setSurface({ kind: "module", id: surface.id, section })}
+                modules={modules}
+                onQuickEntry={(text) => {
+                  openAssistant();
+                  setSendNow({ text, id: Date.now() });
+                }}
+                onDescribe={(text) => {
+                  const thread = scopeModule?.creation?.thread;
+                  if (!thread) return;
+                  rememberSession(scopeKey, thread);
+                  openAssistant();
+                  setSendNow({ text, id: Date.now(), thread });
+                }}
+                onOpenSession={(id) => {
+                  rememberSession(scopeKey, id);
+                  openAssistant();
+                }}
+              />
             ) : surface.kind === "settings" ? (
-              <Settings client={runtime.client} theme={theme} onTheme={setTheme} />
+              // P2's Settings takes the section from the address (`#/settings/<section>`).
+              <Settings {...({ client: runtime.client, theme, onTheme: setTheme, section: surface.section, onSection: (section: string) => setSurface({ kind: "settings", section }) } as ComponentProps<typeof Settings>)} />
             ) : surface.kind === "intelligence" ? (
               <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} />
             ) : (
@@ -277,16 +403,75 @@ function Workspace({ injected }: { injected?: Client }) {
         )}
       </main>
       {client && assistOpen ? (
-        <div ref={assistRef} id="panel-right" className="assist" style={compact ? undefined : { width: assistantWidth }}>
-          {!compact ? <ResizeHandle side="right" onMouseDown={assistantPanel.startDrag} onStep={assistantPanel.resizeBy} label="Resize Chief of Staff" value={assistantWidth} min={260} max={520} isDragging={assistantPanel.isDragging} /> : null}
-          <AssistantPanel client={client} onCollapse={closeAssistant} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} />
+        <div ref={assistRef} id="panel-right" className={narrow ? "assist assist--overlay" : "assist"} style={compact || narrow ? undefined : { width: assistantWidth }}>
+          {!compact && !narrow ? <ResizeHandle side="right" onMouseDown={assistantPanel.startDrag} onStep={assistantPanel.resizeBy} label="Resize Chief of Staff" value={assistantWidth} min={260} max={520} isDragging={assistantPanel.isDragging} /> : null}
+          <AssistantPanel
+            client={client}
+            onCollapse={closeAssistant}
+            scopeName={scopeName}
+            module={scopeModule}
+            version={version}
+            onChanged={changed}
+            draft={draft}
+            onDraftTaken={() => setDraft(null)}
+            thread={chat}
+            onThread={(id) => rememberSession(scopeKey, id)}
+            headerEnd={bell}
+            sendNow={sendNow}
+            cardsOnPage={surface.kind === "module"}
+          />
         </div>
-      ) : client ? (
+      ) : client && !narrow ? (
         <div className="assist assist--collapsed" style={{ width: 48 }}>
           <button type="button" className="assist__open" onClick={openAssistant} aria-label="Open Chief of Staff" title="Chief of Staff">
             <ZazooIcon size={30} label="" />
           </button>
+          {bell}
         </div>
+      ) : null}
+      {narrow && client ? (
+        <>
+          {drawer ? (
+            <div className="drawer-sheet" onClick={() => setDrawer(false)}>
+              <div className="drawer-sheet__panel" onClick={(e) => e.stopPropagation()}>
+                <Rail
+                  surface={surface}
+                  modules={modules}
+                  runtime={runtime.kind}
+                  onGo={(s) => {
+                    setSurface(s);
+                    setDrawer(false);
+                  }}
+                  onNew={() => {
+                    setDrawer(false);
+                    startNew();
+                  }}
+                  client={client}
+                  onChanged={changed}
+                  panel={{ ...railPanel, collapsed: false, displayWidth: 280 }}
+                />
+              </div>
+            </div>
+          ) : null}
+          <nav className="tabbar" aria-label="Alpha">
+            <button type="button" className="tabbar__btn" aria-current={surface.kind === "home" ? "page" : undefined} onClick={() => setSurface({ kind: "home" })}>
+              <HomeIcon size={18} />
+              Home
+            </button>
+            <button type="button" className="tabbar__btn" aria-current={drawer ? "page" : undefined} onClick={() => setDrawer(true)}>
+              <Boxes size={18} />
+              Projects
+            </button>
+            <button type="button" className="tabbar__btn" aria-current={assistOpen ? "page" : undefined} onClick={() => setAssistPeek((v) => !v)}>
+              <ZazooIcon size={20} label="" />
+              Chief of Staff
+            </button>
+            <button type="button" className="tabbar__btn" aria-current={surface.kind === "settings" ? "page" : undefined} onClick={() => setSurface({ kind: "settings" })}>
+              <SettingsIcon size={18} />
+              Settings
+            </button>
+          </nav>
+        </>
       ) : null}
       {client ? <CommandMenu modules={modules} onGo={setSurface} onNew={startNew} onAsk={ask} /> : null}
     </div>
