@@ -1,6 +1,7 @@
 """The pre-pack: what the model sees before it looks anything up.
 
-Deterministic and free: no model call, bounded to about three thousand tokens. Every line names
+Deterministic and free: no model call, cut at MAX_CHARS (12,000 characters, roughly
+three thousand tokens). Every line names
 where it came from. It carries who the person is and how they want things done, what they are
 working towards, what Alpha holds, the recent stream, the records and moments that match the
 sentence, and what is open. Everything else the model fetches itself through the tools.

@@ -13,21 +13,42 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
 ## Where things are
 
 - `docs/design/alpha-second-brain-design.md` — the agreed design: principles, the world model,
-  capabilities, the agent loop, standing things, trust, workspace, model route, decisions.
-- `docs/design/build-plan.md` — the engineering plan: verified toolchain facts, the first slice
-  in detail (world store, MCP server, companion turn), what follows, what to port.
+  capabilities, the agent loop, standing things, trust, workspace, model route, decisions
+  (Q1–Q21). Every section ends with an *As built* paragraph; where it disagrees with the text
+  above it, *As built* is current.
+- `docs/design/build-plan.md` — the engineering side: verified toolchain facts, what each slice
+  built, what ran for real, where things stand and what is pending (§4.3, §4.5, §4.9).
 - `docs/design/research/` — the four research reports behind the design.
-- `core/` — the Python core (`alpha` package): world store, pre-pack, runtime, MCP server, CLI.
-- `connectors/` — built-in connectors (browser, files, calendar; later).
-- `desktop/` — the Tauri + React app (later; ported from the current shell).
+- `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
+  records, entities, facts, notes, goals, modules, threads, plans, sources, readers,
+  automations), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
+  `claude -p` runs, the turn, builds, pipelines, the scheduler, the second opinion), `mcp/` (the
+  world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
+  (the Python side of the hands), `cli.py`.
+- `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright
+  driver, read-only), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
+- `desktop/` — the Tauri 2 + React app: the workspace (rail, Home, modules with derived table
+  pages, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
+  window. The app starts the core from this repository's `.venv`.
+- `core/tests/` — the core's tests; `desktop/src/**/*.test.tsx` — the app's.
 
 ## Running
 
 ```
-just setup      # uv sync (Python 3.13.9, uv 0.12.17)
-just test
+just setup          # uv sync (Python 3.13.9, uv 0.12.17)
+just test           # core tests (pytest)
+just lint           # ruff + mypy strict
 just ask "log two boiled eggs"
+just serve          # the core's HTTP API on a loopback port
+just app            # build the signed debug app and open it (needs the node@24 keg and Rust)
+just app-dev        # the app with Vite hot reload
+just test-desktop   # typecheck + vitest
 ```
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
-from the default config home and `USER` must be in the environment.
+from the default config home and `USER` must be in the environment. The app keeps its world in
+`~/Library/Application Support/com.alpha.brain`; the CLI on its own defaults to
+`~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and
+acceptance runs use a scratch one so the owner's world stays untouched). Builds are
+signed with the local "Alpha Local Signing" certificate so macOS keeps the app's permissions
+across rebuilds; see `build-plan.md` §4.1.

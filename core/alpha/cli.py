@@ -6,10 +6,16 @@
     alpha tables
     alpha show food_log [--limit 20]
     alpha notes
-    alpha prepack "how much protein today"
-    alpha check [j_turn | --last]   (check a reply against an independent answer)
-    alpha mcp                      (the MCP server the model talks to)
+    alpha prepack "how much protein today" [--module Food]
+    alpha context j_turn            (what the model saw for that turn)
+    alpha check [j_turn] [--no-repair]   (a reply against an independent answer)
+    alpha remove-module Food        (the module and everything made for it; history stays)
+    alpha clear-conversation        (the stream's turns; the only physical journal delete)
+    alpha connect folder|site|calendar [target]
+    alpha serve [--port N]          (the HTTP API the app uses; the scheduler runs here)
+    alpha mcp                       (the MCP server the model talks to)
 
+`alpha ask` runs one turn only: the second opinion and the build kick live in `alpha serve`.
 ALPHA_HOME picks the data directory; ALPHA_MODEL the model alias (default sonnet).
 """
 
