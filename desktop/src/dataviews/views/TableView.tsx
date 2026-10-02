@@ -4,9 +4,9 @@
  * saved list brings it back. Long pages are windowed; a cell edits in place; the checkbox
  * column is always there.
  */
-import { useEffect, useMemo, useState, type CSSProperties, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Maximize2, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, MoreHorizontal, PanelRight, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../../ui/DropdownMenu";
 import { CHOICE_KINDS, isNumeric, type FieldInfo } from "../../modules/fields";
 import { formatNumber, humanize } from "../../modules/format";
@@ -15,8 +15,7 @@ import { CellEditor, CellValue, fieldLabel } from "../cells";
 import { KIND_LABELS, NameDialog } from "../controls";
 import type { ViewProps } from "../types";
 
-const SELECT_W = 36;
-const OPEN_W = 36;
+const SELECT_W = 56;
 const ROW_H = 36;
 const WINDOW_ABOVE = 100;
 const KINDS = ["text", "long_text", "number", "date", "datetime", "bool", "choice", "multichoice", "status", "url"];
@@ -41,6 +40,8 @@ export function TableView(p: ViewProps) {
   const [editing, setEditing] = useState<{ id: string; field: string } | null>(null);
   const [renaming, setRenaming] = useState<FieldInfo | null>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [rowMenu, setRowMenu] = useState<string | null>(null);
   const collapsed = view.collapsedGroups ?? [];
   const byName = useMemo(() => new Map(p.allFields.map((f) => [f.name, f])), [p.allFields]);
 
@@ -106,15 +107,45 @@ export function TableView(p: ViewProps) {
   const shown = windowed ? virtual.map((v) => items[v.index]!) : items;
   const padTop = windowed && virtual.length ? virtual[0]!.start : 0;
   const padBottom = windowed && virtual.length ? virtualizer.getTotalSize() - virtual[virtual.length - 1]!.end : 0;
-  const colSpan = fields.length + 2;
+  const colSpan = fields.length + 1;
+  const rowIndex = useMemo(() => new Map(rows.map((r, i) => [r.id, i])), [rows]);
 
   const pageIds = rows.map((r) => r.id);
   const allOn = pageIds.length > 0 && pageIds.every((id) => p.selected.has(id));
   const someOn = pageIds.some((id) => p.selected.has(id));
-  const totalWidth = SELECT_W + OPEN_W + fields.reduce((s, f) => s + widthOf(f), 0);
+  const totalWidth = SELECT_W + fields.reduce((s, f) => s + widthOf(f), 0);
 
   const toggleGroup = (id: string) => patch({ collapsedGroups: collapsed.includes(id) ? collapsed.filter((g) => g !== id) : [...collapsed, id] });
   const aggregateOf = (f: FieldInfo): AggregateKind | "none" => view.aggregates?.[f.name] ?? (isNumeric(f.kind) ? "sum" : "none");
+
+  // Clicking a column's name sorts by it: ascending, then descending, then not at all.
+  function cycleSort(f: FieldInfo) {
+    const rest = view.sorts.filter((s) => s.id !== f.name);
+    const first = view.sorts[0];
+    if (first?.id !== f.name) return patch({ sorts: [{ id: f.name, dir: "asc" }, ...rest] });
+    patch({ sorts: first.dir === "asc" ? [{ id: f.name, dir: "desc" }, ...rest] : rest });
+  }
+
+  // Arrow keys move between cells, as in a spreadsheet; inside an editor they stay the editor's.
+  function onKeys(e: KeyboardEvent<HTMLTableElement>) {
+    const target = e.target as HTMLElement;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
+    const cell = target.closest<HTMLElement>("[data-cell]");
+    if (!cell) return;
+    let [r, c] = cell.dataset.cell!.split("-").map(Number) as [number, number];
+    if (e.key === "ArrowRight") c = Math.min(fields.length - 1, c + 1);
+    else if (e.key === "ArrowLeft") c = Math.max(0, c - 1);
+    else if (e.key === "ArrowDown") r = Math.min(rows.length - 1, r + 1);
+    else if (e.key === "ArrowUp") r = Math.max(0, r - 1);
+    else return;
+    e.preventDefault();
+    const box = e.currentTarget;
+    const go = () => (box.querySelector(`[data-cell="${r}-${c}"]`) as HTMLElement | null)?.focus();
+    if (box.querySelector(`[data-cell="${r}-${c}"]`)) return go();
+    // A windowed row that isn't drawn yet: bring it into view, then focus it.
+    if (windowed) virtualizer.scrollToIndex(r);
+    requestAnimationFrame(() => requestAnimationFrame(go));
+  }
 
   async function commit(row: DataRow, f: FieldInfo, value: unknown) {
     setEditing(null);
@@ -124,13 +155,12 @@ export function TableView(p: ViewProps) {
 
   return (
     <div className="dv-tablebox" ref={setScrollEl}>
-      <table className={`dv-table${view.wrapCells ? " dv-table--wrap" : ""}`} style={{ width: totalWidth }}>
+      <table className={`dv-table${view.wrapCells ? " dv-table--wrap" : ""}`} style={{ width: totalWidth }} onKeyDown={onKeys}>
         <colgroup>
           <col style={{ width: SELECT_W }} />
           {fields.map((f) => (
             <col key={f.name} style={{ width: widthOf(f) }} />
           ))}
-          <col style={{ width: OPEN_W }} />
         </colgroup>
         <thead>
           <tr>
@@ -153,16 +183,25 @@ export function TableView(p: ViewProps) {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => drop(e, f.name)}
                   onDragEnd={() => setDragging(null)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenuFor(f.name);
+                  }}
                 >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button type="button" className="dv-th__btn" title={`${fieldLabel(f)} · ${KIND_LABELS[f.kind] ?? f.kind}`}>
-                        <span className="dv-ellipsis">{fieldLabel(f)}</span>
-                        {sort ? sort.dir === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" /> : null}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <ColumnMenu field={f} p={p} onRename={() => setRenaming(f)} />
-                  </DropdownMenu>
+                  <div className="dv-th__in">
+                    <button type="button" className="dv-th__btn" title={`${fieldLabel(f)} · ${KIND_LABELS[f.kind] ?? f.kind}`} onClick={() => cycleSort(f)}>
+                      <span className="dv-ellipsis">{fieldLabel(f)}</span>
+                      {sort ? sort.dir === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" /> : null}
+                    </button>
+                    <DropdownMenu open={menuFor === f.name} onOpenChange={(open) => setMenuFor(open ? f.name : null)}>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="dv-th__menu" aria-label={`${fieldLabel(f)} column menu`}>
+                          <MoreHorizontal size={12} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <ColumnMenu field={f} p={p} onRename={() => setRenaming(f)} />
+                    </DropdownMenu>
+                  </div>
                   <span
                     className="dv-grip"
                     role="separator"
@@ -177,7 +216,6 @@ export function TableView(p: ViewProps) {
                 </th>
               );
             })}
-            <th className="dv-th" aria-label="Open" />
           </tr>
         </thead>
         <tbody>
@@ -197,9 +235,35 @@ export function TableView(p: ViewProps) {
                 </td>
               </tr>
             ) : (
-              <tr key={item.row.id} className={p.selected.has(item.row.id) ? "dv-row dv-row--on" : "dv-row"}>
+              <tr
+                key={item.row.id}
+                className={p.selected.has(item.row.id) ? "dv-row dv-row--on" : "dv-row"}
+                onContextMenu={(e) => {
+                  if ((e.target as HTMLElement).closest("input, textarea, select")) return;
+                  e.preventDefault();
+                  setRowMenu(item.row.id);
+                }}
+              >
                 <td className="dv-td dv-td--check" style={frozenAt >= 0 ? { position: "sticky", left: 0, zIndex: 1 } : undefined}>
                   <input type="checkbox" className="dv-check" aria-label="Select row" checked={p.selected.has(item.row.id)} onChange={(e) => p.onSelect([item.row.id], e.target.checked)} />
+                  <DropdownMenu open={rowMenu === item.row.id} onOpenChange={(open) => setRowMenu(open ? item.row.id : null)}>
+                    <DropdownMenuTrigger asChild>
+                      <button type="button" className="dv-rowmenu" aria-label="Row menu">
+                        <MoreHorizontal size={13} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onSelect={() => p.onOpen(item.row.id)}>Open</DropdownMenuItem>
+                      {(p.rowActions ?? []).map((a) => (
+                        <DropdownMenuItem key={a.skill} onSelect={() => p.onRowAction?.(item.row.id, a.skill)}>
+                          {a.title}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuItem className="dv-menu--danger" onSelect={() => p.onRemove(item.row.id)}>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </td>
                 {fields.map((f, i) => {
                   const value = item.row[f.name];
@@ -211,6 +275,7 @@ export function TableView(p: ViewProps) {
                       className={`dv-td${isNumeric(f.kind) ? " dv-r dv-num" : ""}${isEditing ? " dv-td--editing" : " dv-td--edit"}`}
                       style={sticky(i)}
                       tabIndex={0}
+                      data-cell={`${rowIndex.get(item.row.id)}-${i}`}
                       onClick={() => (f.kind === "bool" ? void commit(item.row, f, !value) : setEditing({ id: item.row.id, field: f.name }))}
                       onKeyDown={(e) => e.key === "Enter" && !isEditing && setEditing({ id: item.row.id, field: f.name })}
                     >
@@ -221,6 +286,17 @@ export function TableView(p: ViewProps) {
                           <span className="dv-ellipsis">
                             <CellValue field={f} value={value} row={p.record(item.row.id)} relations={p.relations} onOpenLink={p.onOpenLink} />
                           </span>
+                          <button
+                            type="button"
+                            className="dv-open"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              p.onOpen(item.row.id);
+                            }}
+                          >
+                            <PanelRight size={12} aria-hidden="true" />
+                            Open
+                          </button>
                         </span>
                       ) : (
                         <CellValue field={f} value={value} row={p.record(item.row.id)} relations={p.relations} onOpenLink={p.onOpenLink} />
@@ -228,11 +304,6 @@ export function TableView(p: ViewProps) {
                     </td>
                   );
                 })}
-                <td className="dv-td dv-td--open">
-                  <button type="button" className="dv-open" aria-label="Open record" title="Open" onClick={() => p.onOpen(item.row.id)}>
-                    <Maximize2 size={13} />
-                  </button>
-                </td>
               </tr>
             ),
           )}
@@ -288,7 +359,6 @@ export function TableView(p: ViewProps) {
                 </td>
               );
             })}
-            <td className="dv-foot" />
           </tr>
         </tfoot>
       </table>
@@ -316,6 +386,14 @@ function ColumnMenu({ field, p, onRename }: { field: FieldInfo; p: ViewProps; on
   const sortBy = (dir: "asc" | "desc") => set({ sorts: [{ id: field.name, dir }, ...view.sorts.filter((s) => s.id !== field.name)] });
   const grouped = view.groupBy === field.name;
   const frozen = view.frozenColumnId === field.name;
+  const shown = p.fields.map((f) => f.name);
+  const at = shown.indexOf(field.name);
+  const move = (by: -1 | 1) => {
+    const next = [...shown];
+    next.splice(at, 1);
+    next.splice(at + by, 0, field.name);
+    set({ columnOrder: [...next, ...(view.columnOrder ?? []).filter((n) => !next.includes(n))] });
+  };
   return (
     <DropdownMenuContent>
       <DropdownMenuItem onSelect={() => sortBy("asc")}>Sort ascending</DropdownMenuItem>
@@ -330,6 +408,12 @@ function ColumnMenu({ field, p, onRename }: { field: FieldInfo; p: ViewProps; on
       <DropdownMenuItem onSelect={() => set({ groupBy: grouped ? null : field.name, collapsedGroups: [] })}>{grouped ? "Ungroup" : "Group by this"}</DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => set({ hidden: [...(view.hidden ?? []), field.name] })}>Hide column</DropdownMenuItem>
+      <DropdownMenuItem disabled={at <= 0} onSelect={() => move(-1)}>
+        Move left
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={at < 0 || at === shown.length - 1} onSelect={() => move(1)}>
+        Move right
+      </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => set({ frozenColumnId: frozen ? null : field.name })}>{frozen ? "Unfreeze columns" : "Freeze up to here"}</DropdownMenuItem>
       <DropdownMenuItem onSelect={() => set({ wrapCells: !view.wrapCells })}>{view.wrapCells ? "Stop wrapping cells" : "Wrap cells"}</DropdownMenuItem>
       <DropdownMenuSeparator />

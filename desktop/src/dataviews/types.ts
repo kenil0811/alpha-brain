@@ -32,4 +32,9 @@ export interface ViewProps {
   /** Column commands that change the table itself (kind, name), through the core. */
   onChangeField: (field: string, change: { kind?: string; label?: string; choices?: string[] }) => Promise<boolean>;
   empty: string | null;
+  /** Delete one row (it can be undone). */
+  onRemove: (id: string) => void;
+  /** Skills Chief of Staff attached to this table, run on one row. */
+  rowActions?: { skill: string; title: string }[];
+  onRowAction?: (id: string, skill: string) => void;
 }

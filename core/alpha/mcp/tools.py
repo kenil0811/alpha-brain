@@ -440,6 +440,7 @@ class Tools:
         hidden: list[str] | None = None,
         date_field: str | None = None,
         default: bool = False,
+        hide_done: bool = False,
     ) -> dict[str, Any]:
         """Save a named view of a table, which the person then picks from the table's List
         menu ("Open roles by company"). kind: table, list, board, gallery, calendar, timeline,
@@ -447,16 +448,21 @@ class Tools:
         contains, does_not_contain, is, is_not, starts_with, ends_with, is_empty, is_not_empty,
         gt, gte, lt, lte (numbers), before, after, on_or_before, on_or_after (dates), is_any_of,
         is_none_of (choices; value comma-separated), is_checked, is_not_checked; match: all or
-        any. sorts: [{"field", "dir": "asc"|"desc"}], first wins. group_by: a field to group
-        rows (the board's columns, the chart's axis). hidden: fields not shown. date_field: the
-        date a calendar or timeline uses. default: open the table on this view. A view with the
-        same title is replaced."""
+        any. A date value may be relative so the view stays current: {"$today": 0} is today,
+        {"$today": -7} a week ago ("this week": on_or_after {"$today": -6}). sorts: [{"field",
+        "dir": "asc"|"desc"}], first wins. group_by: a field to group rows (the board's
+        columns, the chart's axis; a date field charts it over time, per day). hidden: fields
+        not shown. date_field: the date a calendar or timeline uses. hide_done: leave out rows
+        whose status is a done choice. When you build a table, save its page default with
+        default=true and the group_by and date_field that suit it. A view with the same title
+        is replaced."""
         if match not in {"all", "any"}:
             raise Problem("match is all or any.")
         config: dict[str, Any] = {
             "kind": kind,
             "rowFilters": [{"field": f.get("field"), "op": f.get("op", "is"),
-                            "value": "" if f.get("value") is None else str(f.get("value"))}
+                            "value": f["value"] if isinstance(f.get("value"), dict)
+                            else "" if f.get("value") is None else str(f.get("value"))}
                            for f in filters or []],
             "filterMatch": match,
             "sorts": [{"id": x.get("field") or x.get("id"),
@@ -466,6 +472,8 @@ class Tools:
         }
         if date_field:
             config["dateBy"] = date_field
+        if hide_done:
+            config["hideDone"] = True
         existing = self.world.views.find(collection, title.strip())
         if existing:
             view = self.world.views.update(existing["id"], config=config,

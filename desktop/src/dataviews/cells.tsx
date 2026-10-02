@@ -129,12 +129,14 @@ export function CellValue({ field, value, row, relations, onOpenLink }: { field:
         ))}
       </span>
     );
-  const estimated = Boolean(row?.provenance?.estimated) && isNumeric(field.kind);
+  // An estimate is marked per field when the core names the fields, else on a row's numbers.
+  const est = row?.provenance?.estimated;
+  const estimated = Array.isArray(est) ? est.includes(field.name) : Boolean(est) && isNumeric(field.kind);
   return (
     <>
       {showValue(value, field.kind, field.unit)}
       {estimated ? (
-        <span className="dv-est" title="Estimated by Alpha" aria-label="estimated">
+        <span className="dv-est" title="An estimate. Click the cell to correct it." aria-label="estimate">
           ≈
         </span>
       ) : null}
@@ -262,7 +264,7 @@ export function EditInPlace({ field, value, row, relations, onCommit, onOpenLink
     );
   return (
     <div className={`dv-inplace${field.kind === "long_text" ? " dv-inplace--long" : ""}`} role="button" tabIndex={0} title="Click to edit" onClick={() => setEditing(true)} onKeyDown={(e) => e.key === "Enter" && setEditing(true)}>
-      <CellValue field={field} value={value} row={row} relations={relations} onOpenLink={onOpenLink} />
+      {field.kind === "long_text" && (value === null || value === undefined || value === "") ? <span className="dv-faint">Nothing yet. Click to write.</span> : <CellValue field={field} value={value} row={row} relations={relations} onOpenLink={onOpenLink} />}
     </div>
   );
 }

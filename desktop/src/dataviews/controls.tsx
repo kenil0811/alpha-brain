@@ -13,7 +13,7 @@ import { IconButton } from "../ui/IconButton";
 import { Input } from "../ui/Input";
 import type { FieldInfo } from "../modules/fields";
 import { humanize } from "../modules/format";
-import { FILTER_OP_LABELS, VALUELESS_FILTER_OPS, filterOpsForKind, type FilterOp, type RowFilter, type SortSpec } from "./engine";
+import { FILTER_OP_LABELS, VALUELESS_FILTER_OPS, filterOpsForKind, filterText, isActiveFilter, type FilterOp, type RowFilter, type SortSpec } from "./engine";
 import { CellEditor, fieldLabel, type Relations } from "./cells";
 
 export const KIND_LABELS: Record<string, string> = {
@@ -145,7 +145,7 @@ function FilterValue({ field, filter, onChange }: { field: FieldInfo | undefined
   const kind = field?.kind ?? "text";
   const choices = field?.choices ?? [];
   if (choices.length && MULTI.includes(filter.op)) {
-    const picked = filter.value.split(",").map((s) => s.trim()).filter(Boolean);
+    const picked = filterText(filter.value).split(",").map((s) => s.trim()).filter(Boolean);
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -172,7 +172,7 @@ function FilterValue({ field, filter, onChange }: { field: FieldInfo | undefined
   }
   if (choices.length)
     return (
-      <select className="dv-select" value={filter.value} aria-label="Value" onChange={(e) => onChange(e.target.value)}>
+      <select className="dv-select" value={filterText(filter.value)} aria-label="Value" onChange={(e) => onChange(e.target.value)}>
         <option value="">Choose…</option>
         {choices.map((c) => (
           <option key={c} value={c}>
@@ -182,7 +182,39 @@ function FilterValue({ field, filter, onChange }: { field: FieldInfo | undefined
       </select>
     );
   const type = kind === "number" ? "number" : kind === "date" || kind === "datetime" ? "date" : "text";
-  return <input className="dv-select dv-input" type={type} value={filter.value} aria-label="Value" placeholder="Value" onChange={(e) => onChange(e.target.value)} />;
+  return <input className="dv-select dv-input" type={type} value={filterText(filter.value)} aria-label="Value" placeholder="Value" onChange={(e) => onChange(e.target.value)} />;
+}
+
+/** A relative day in words: "today", "7 days ago", "in 3 days". */
+function relativeWords(n: number): string {
+  if (n === 0) return "today";
+  if (n === -1) return "yesterday";
+  if (n === 1) return "tomorrow";
+  return n < 0 ? `${-n} days ago` : `in ${n} days`;
+}
+
+/** One chip per active filter under the toolbar ("Stage is Applied ×"); × drops it. */
+export function FilterChips({ fields, filters, onRemove }: { fields: FieldInfo[]; filters: RowFilter[]; onRemove: (i: number) => void }) {
+  const shown = filters.map((f, i) => ({ f, i })).filter(({ f }) => isActiveFilter(f));
+  if (!shown.length) return null;
+  const byName = new Map(fields.map((f) => [f.name, f]));
+  return (
+    <div className="dv-chips">
+      {shown.map(({ f, i }) => {
+        const field = byName.get(f.field);
+        const value = typeof f.value === "object" ? relativeWords(f.value.$today) : field?.choices?.length ? filterText(f.value).split(",").map((v) => humanize(v.trim())).join(", ") : filterText(f.value);
+        const words = `${field ? fieldLabel(field) : humanize(f.field)} ${FILTER_OP_LABELS[f.op]}${VALUELESS_FILTER_OPS.includes(f.op) ? "" : ` ${value}`}`;
+        return (
+          <span key={i} className="dv-chip" title={words}>
+            <span className="dv-ellipsis">{words}</span>
+            <button type="button" onClick={() => onRemove(i)} aria-label="Remove filter">
+              <X size={11} />
+            </button>
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 // ---------- sorts ----------

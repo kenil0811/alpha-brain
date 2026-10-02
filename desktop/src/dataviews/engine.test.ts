@@ -1,6 +1,6 @@
 /** The table engine: filter, sort, group, footer reductions, search and places. */
 import { describe, expect, it } from "vitest";
-import { applyFilters, applySorts, computeAggregate, filterOpsForKind, filterRowsByQuery, groupBy, NO_VALUE, parseLocationValue, type DataRow } from "./engine";
+import { applyFilters, applySorts, computeAggregate, dayFromToday, filterOpsForKind, filterRowsByQuery, groupBy, NO_VALUE, parseLocationValue, type DataRow } from "./engine";
 
 const rows: DataRow[] = [
   { id: "1", name: "Ember", stage: "sourced", amount: 300, close: "2026-09-06", tags: ["ai", "saas"], done: true },
@@ -22,6 +22,17 @@ describe("filters", () => {
   });
   it("never lets a number comparison match an empty cell", () => {
     expect(ids(applyFilters(rows, [{ field: "amount", op: "lt", value: "1000" }], "all", kinds))).toEqual(["1", "2", "4"]);
+  });
+  it("fills in a day relative to today, so a saved list stays current", () => {
+    const today = dayFromToday(0);
+    const near: DataRow[] = [
+      { id: "a", close: dayFromToday(-3) },
+      { id: "b", close: dayFromToday(-10) },
+      { id: "c", close: `${today}T09:00:00` },
+    ];
+    expect(ids(applyFilters(near, [{ field: "close", op: "on_or_after", value: { $today: -6 } }], "all", kinds))).toEqual(["a", "c"]);
+    expect(ids(applyFilters(near, [{ field: "close", op: "is", value: { $today: 0 } }], "all", kinds))).toEqual(["c"]);
+    expect(dayFromToday(-1, new Date(2026, 2, 1))).toBe("2026-02-28");
   });
   it("compares dates as days", () => {
     expect(ids(applyFilters(rows, [{ field: "close", op: "is", value: "2026-10-01" }], "all", kinds))).toEqual(["2"]);

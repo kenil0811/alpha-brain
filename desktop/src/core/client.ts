@@ -39,7 +39,8 @@ export interface TableSummary {
 export interface Provenance {
   by?: string;
   turn?: string | null;
-  estimated?: boolean;
+  /** true: the row's numbers are estimates; a list names the estimated fields. */
+  estimated?: boolean | string[];
 }
 
 export interface RecordRow {
