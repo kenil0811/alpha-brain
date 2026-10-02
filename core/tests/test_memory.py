@@ -70,6 +70,11 @@ def test_an_older_world_file_is_brought_up_to_date(tmp_path: Path) -> None:
         " state TEXT NOT NULL, module TEXT, session_ref TEXT, created_at TEXT NOT NULL,"
         " updated_at TEXT NOT NULL);"
         "INSERT INTO threads VALUES ('t_1','Sync','job','done',NULL,'sess-1','x','x');"
+        "CREATE TABLE journal (id TEXT PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL,"
+        " actor TEXT NOT NULL, text TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}', module TEXT,"
+        " thread TEXT, entity_ids TEXT NOT NULL DEFAULT '[]', source TEXT, deleted_at TEXT);"
+        "INSERT INTO journal (id, at, kind, actor, text) VALUES"
+        " ('j_1','2026-09-30T08:00:00+00:00','said','person','hi');"
     )
     db.commit()
     db.close()
@@ -77,6 +82,8 @@ def test_an_older_world_file_is_brought_up_to_date(tmp_path: Path) -> None:
     columns = {r["name"] for r in world.store.all("PRAGMA table_info(threads)")}
     assert "brief" in columns
     assert world.modules.thread("t_1")["session_ref"] is None
+    began = world.store.one("SELECT value FROM meta WHERE key = 'created_at'")
+    assert began["value"] == "2026-09-30T08:00:00+00:00"
     first = world.store.one("SELECT value FROM meta WHERE key = 'world_id'")
     world.close()
     again = World(path)

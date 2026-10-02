@@ -320,8 +320,10 @@ class Store:
             # Each world is one person's; its id travels with the file.
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('world_id', ?)",
                        (new_id("w"),))
+            # When the world began: its first journal entry, for a file older than this field.
+            first = db.execute("SELECT MIN(at) AS at FROM journal").fetchone()
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
-                       (now(),))
+                       ((first["at"] if first and first["at"] else None) or now(),))
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
