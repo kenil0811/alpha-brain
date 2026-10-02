@@ -27,7 +27,7 @@ describe("Settings", () => {
     const onSection = vi.fn();
     render(<Settings client={fake()} theme="light" onTheme={() => undefined} section="data" onSection={onSection} />);
     const nav = screen.getByRole("navigation", { name: "Settings sections" });
-    expect([...nav.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Models", "Appearance", "Project look", "Builds", "Desktop", "Data & runtime", "About"]);
+    expect([...nav.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Models", "Appearance", "Project look", "Builds", "Desktop", "Permissions", "Data & runtime", "About"]);
     expect(screen.getByRole("button", { name: "Data & runtime" })).toHaveAttribute("aria-current", "page");
     expect(await screen.findByText("Core 0.1.0 · Python 3.13.1 · internal development build")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Builds" }));

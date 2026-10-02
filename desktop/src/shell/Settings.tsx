@@ -3,12 +3,13 @@
  * section) beside the section. Models (every way Alpha can reach a model, then how long it
  * thinks), Appearance, Project look (the rules Chief of Staff follows for tables and views),
  * Builds (making projects, and when Alpha needs your OK), Desktop (the companion, voice),
+ * Permissions (what Alpha may reach on this Mac, and what macOS has granted),
  * Data & runtime, and About (what leaves this Mac, shortcuts). Explanations sit behind (i).
  * `section` / `onSection` come from the address (#/settings/<section>); without them the last
  * section is remembered per window.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Cpu, Hammer, HardDrive, Info, type LucideIcon, Monitor, Palette, Settings as SettingsIcon, Shapes } from "lucide-react";
+import { Cpu, Hammer, HardDrive, Info, type LucideIcon, Monitor, Palette, Settings as SettingsIcon, Shapes, ShieldCheck } from "lucide-react";
 import type { Client, DataInfo, HealthInfo, ModelProvider, SettingField } from "../core/client";
 import { host } from "../core/host";
 import { hasTauri } from "../core/session";
@@ -17,6 +18,7 @@ import { when } from "../modules/format";
 import { InfoTip, useOptionalToast } from "../ui";
 import { ACCENTS, DENSITIES, FONTS, SIZES, useAppearance } from "./appearance";
 import { ProviderAccounts } from "./models";
+import { Permissions } from "./Permissions";
 import { keycodeFor, labelFor, type PttShortcut, readShortcut, shortcutLabel, writeShortcut } from "./ptt";
 import { ThemeControl, type Theme } from "./theme";
 import { setSpeakEnabled, speakEnabled } from "./tts";
@@ -29,6 +31,7 @@ export const SETTINGS_SECTIONS: { value: string; label: string; icon: LucideIcon
   { value: "look", label: "Project look", icon: Shapes },
   { value: "builds", label: "Builds", icon: Hammer },
   { value: "desktop", label: "Desktop", icon: Monitor },
+  { value: "permissions", label: "Permissions", icon: ShieldCheck },
   { value: "data", label: "Data & runtime", icon: HardDrive },
   { value: "about", label: "About", icon: Info },
 ];
@@ -617,6 +620,7 @@ export function Settings({ client, theme, onTheme, section: requested, onSection
               </div>
             </>
           ) : null}
+          {section === "permissions" ? <Permissions /> : null}
           {section === "data" ? <DataAndRuntime client={client} /> : null}
           {section === "about" ? <About client={client} /> : null}
         </div>
