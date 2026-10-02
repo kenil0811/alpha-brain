@@ -333,7 +333,7 @@ function Workspace({ injected }: { injected?: Client }) {
             ) : surface.kind === "settings" ? (
               <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} section={surface.section} onSection={(section) => setSurface({ kind: "settings", section })} />
             ) : surface.kind === "intelligence" ? (
-              <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} />
+              <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} item={surface.item} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} onAsk={ask} />
             ) : (
               <Activity client={runtime.client} version={version} onChanged={changed} />
             )}

@@ -16,7 +16,7 @@ describe("About you", () => {
     const facts = [fact({}), fact({ id: "f_2", predicate: "target_roles", value: "PM", state: "suggested", source: "turn:j_1", why: "You said so on Monday" })];
     render(
       <TooltipProvider>
-        <AboutYou client={client} facts={facts} modules={[]} onChanged={vi.fn()} />
+        <AboutYou client={client} facts={facts} modules={[]} onChanged={vi.fn()} onOpen={vi.fn()} />
       </TooltipProvider>,
     );
     expect(screen.getByText("1 known")).toBeInTheDocument();

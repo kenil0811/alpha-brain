@@ -49,10 +49,14 @@ const CONNECTED = { installed: true, signed_in: true, email: "layout@example.com
 const WEB_PORT = process.env.ALPHA_LAYOUT_PORT ?? "5199";
 let failed = false;
 try {
-  const project = (await start("uv", ["run", "python", join(desktop, "tools/layout-seed.py")], { cwd: join(repo, "core") }, (s) => s.match(/^(m_\w+)$/m)?.[1]));
+  const seed = JSON.parse(await start("uv", ["run", "python", join(desktop, "tools/layout-seed.py")], { cwd: join(repo, "core") }, (s) => s.match(/^SEED (.*)\n/m)?.[1]));
+  const project = seed.project;
   const port = await start("uv", ["run", "alpha", "serve", "--port", "0"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
   const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
-  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`];
+  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`,
+    // Each kind of Intelligence item's own page.
+    "/intelligence/skills/files", `/intelligence/skills/reader%3A${seed.reader}`, `/intelligence/automations/${seed.automation}`, `/intelligence/connections/${seed.connection}`,
+    `/intelligence/knowledge/${seed.fact}`, `/intelligence/knowledge/${seed.goal}`, `/intelligence/knowledge/${seed.permission}`, `/intelligence/knowledge/${seed.note}`, `/intelligence/brain/${seed.entity}`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
     for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {

@@ -12,7 +12,7 @@ import { projectIcon } from "./projectIcons";
 export type Surface =
   | { kind: "home" }
   | { kind: "activity" }
-  | { kind: "intelligence"; tab?: string }
+  | { kind: "intelligence"; tab?: string; item?: string }
   | { kind: "settings"; section?: string }
   | { kind: "module"; id: string; section?: string };
 
@@ -30,11 +30,11 @@ export function knownSurface(value: unknown): Surface {
   return { kind: "home" };
 }
 
-/** Where a place lives in the window's address (`#/m/<id>/<section>`, `#/settings/<section>`),
- *  so back and forward work. */
+/** Where a place lives in the window's address (`#/m/<id>/<section>`, `#/settings/<section>`,
+ *  `#/intelligence/<tab>/<item>`), so back and forward work. */
 export function surfacePath(s: Surface): string {
   if (s.kind === "module") return `/m/${encodeURIComponent(s.id)}${s.section && s.section !== "app" ? `/${s.section}` : ""}`;
-  if (s.kind === "intelligence") return s.tab ? `/intelligence/${s.tab}` : "/intelligence";
+  if (s.kind === "intelligence") return s.tab ? `/intelligence/${s.tab}${s.item ? `/${encodeURIComponent(s.item)}` : ""}` : "/intelligence";
   if (s.kind === "settings") return s.section ? `/settings/${s.section}` : "/settings";
   return s.kind === "home" ? "/" : `/${s.kind}`;
 }
@@ -45,7 +45,7 @@ export function surfaceFromPath(path: string): Surface | null {
   const [, first, second, third] = path.replace(/^#/, "").split("/");
   if (!first) return path.replace(/^#/, "") === "/" ? { kind: "home" } : null;
   if (first === "m" && second) return third && MODULE_SECTIONS.has(third) ? { kind: "module", id: decodeURIComponent(second), section: third } : { kind: "module", id: decodeURIComponent(second) };
-  if (first === "intelligence") return second ? { kind: "intelligence", tab: second } : { kind: "intelligence" };
+  if (first === "intelligence") return second ? (third ? { kind: "intelligence", tab: second, item: decodeURIComponent(third) } : { kind: "intelligence", tab: second }) : { kind: "intelligence" };
   // Alpha's aliases: Connections and About you live in Intelligence.
   if (first === "connections" || (first === "settings" && second === "connections")) return { kind: "intelligence", tab: "connections" };
   if (first === "about") return { kind: "intelligence", tab: "knowledge" };

@@ -23,6 +23,14 @@ describe("the rail", () => {
     expect(surfaceFromPath("#/about")).toEqual({ kind: "intelligence", tab: "knowledge" });
   });
 
+  it("gives each Intelligence item its own address, and keeps the tab addresses", () => {
+    for (const s of [{ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "intelligence", tab: "skills", item: "reader:lumen_jobs" }, { kind: "intelligence", tab: "automations" }, { kind: "intelligence" }] as const)
+      expect(surfaceFromPath(`#${surfacePath(s)}`)).toEqual(s);
+    expect(surfacePath({ kind: "intelligence", tab: "skills", item: "reader:lumen_jobs" })).toBe("/intelligence/skills/reader%3Alumen_jobs");
+    expect(surfaceFromPath("#/intelligence/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(sameSurface({ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "home" })).toBe(false);
+  });
+
   it("lists the projects, and no Activity item", () => {
     const card = (id: string, name: string) => ({ id, name, goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
     render(

@@ -7,17 +7,12 @@ import { useState } from "react";
 import type { Client, Fact, ModuleCard } from "../core/client";
 import { humanize } from "../modules/format";
 import { InfoTip } from "../ui";
+import { OpenRow, OpenTitle, sourceWords } from "./IntelItem";
 import "../dataviews/dataviews.css";
 
-/** Where a fact came from, in the person's words. */
-export function sourceWords(source: string): string {
-  if (source === "person") return "You said so";
-  if (source.startsWith("module:")) return "From a project";
-  if (source.startsWith("turn:")) return "From a conversation";
-  return "Alpha worked it out";
-}
+export { sourceWords };
 
-export function AboutYou({ client, facts, modules, onChanged }: { client: Client; facts: Fact[]; modules: ModuleCard[]; onChanged: () => void }) {
+export function AboutYou({ client, facts, modules, onChanged, onOpen }: { client: Client; facts: Fact[]; modules: ModuleCard[]; onChanged: () => void; onOpen: (id: string) => void }) {
   const [error, setError] = useState<string | null>(null);
   const known = facts.filter((f) => f.state === "accepted");
   const suggestions = facts.filter((f) => f.state === "suggested");
@@ -53,11 +48,11 @@ export function AboutYou({ client, facts, modules, onChanged }: { client: Client
           </div>
           <div className="card list" aria-label="Suggested facts">
             {suggestions.map((s) => (
-              <div className="item" key={s.id}>
+              <OpenRow key={s.id} open={() => onOpen(s.id)}>
                 <div className="item__body">
-                  <b>
+                  <OpenTitle open={() => onOpen(s.id)}>
                     {humanize(s.predicate)}: {s.value}
-                  </b>
+                  </OpenTitle>
                   <div className="item__sub">
                     {from(s)}
                     {s.why ? ` · ${s.why}` : ""}
@@ -71,7 +66,7 @@ export function AboutYou({ client, facts, modules, onChanged }: { client: Client
                     No
                   </button>
                 </span>
-              </div>
+              </OpenRow>
             ))}
           </div>
         </div>
@@ -97,10 +92,12 @@ export function AboutYou({ client, facts, modules, onChanged }: { client: Client
               </thead>
               <tbody>
                 {known.map((f) => (
-                  <tr key={f.id}>
+                  <tr key={f.id} className="row--link" onClick={(e) => !(e.target as Element).closest("button") && onOpen(f.id)}>
                     <td className="about__gutter">
                     </td>
-                    <td>{humanize(f.predicate)}</td>
+                    <td>
+                      <OpenTitle open={() => onOpen(f.id)}>{humanize(f.predicate)}</OpenTitle>
+                    </td>
                     <td>{f.value}</td>
                     <td className="faint">{from(f)}</td>
                     <td className="faint">{new Date(f.recorded_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</td>
