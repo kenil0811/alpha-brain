@@ -10,6 +10,7 @@ import re
 import threading
 from typing import Any
 
+from alpha.bugs import bug_log
 from alpha.runtime import claude_cli, turn
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -66,10 +67,12 @@ def run(world: World, automation_id: str, *,
                            actor="alpha", timeout=RUN_TIMEOUT_S)
     except Exception as e:
         log.exception("automation %s failed", automation_id)
+        bug_log(world).record("automation", f"{auto['title']} didn't run", str(e))
         world.modules.update_thread(thread, state="done")
         return world.automations.finished(automation_id, result=None, error=str(e))
     world.modules.update_thread(thread, state="done")
     if outcome.ok:
+        bug_log(world).resolve("automation", f"{auto['title']} didn't run")
         worth = worth_telling(outcome.reply)
         if worth:
             world.journal.append("noticed", worth, data={"automation": automation_id},
@@ -77,6 +80,8 @@ def run(world: World, automation_id: str, *,
         return world.automations.finished(automation_id, result=outcome.reply[:2000], error=None)
     world.journal.append("failed", f"{auto['title']}: {outcome.result.error or outcome.reply}",
                          data={"automation": automation_id}, module=auto["module"])
+    bug_log(world).record("automation", f"{auto['title']} didn't run",
+                          outcome.result.error or outcome.reply)
     return world.automations.finished(automation_id, result=None,
                                       error=outcome.result.error or outcome.reply)
 
