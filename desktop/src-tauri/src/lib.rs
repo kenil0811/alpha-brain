@@ -21,6 +21,8 @@ use tauri::{
 };
 
 #[cfg(target_os = "macos")]
+mod permissions;
+#[cfg(target_os = "macos")]
 mod ptt;
 #[cfg(target_os = "macos")]
 mod speech;
@@ -525,6 +527,9 @@ pub fn run() {
             show_main,
             reveal_data,
             save_to_downloads,
+            permissions::permissions_status,
+            permissions::permission_request,
+            permissions::permission_settings,
             ptt::ptt_permission,
             ptt::ptt_request_permission,
             ptt::ptt_set_shortcut,

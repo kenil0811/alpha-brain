@@ -35,6 +35,28 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
+// `stt_helper --status`, or `--request microphone|speech`: print both permissions as one JSON line
+// ({"microphone":"granted|denied|not_asked","speech":...}) and exit. Settings → Permissions asks
+// through here (permissions.rs) because this binary already links AVFoundation and Speech.
+func state(_ granted: Bool, _ undecided: Bool) -> String {
+    granted ? "granted" : undecided ? "not_asked" : "denied"
+}
+if CommandLine.arguments.count > 1 {
+    let args = CommandLine.arguments
+    let asked = DispatchSemaphore(value: 0)
+    if args.count > 2 && args[1] == "--request" && args[2] == "microphone" {
+        AVCaptureDevice.requestAccess(for: .audio) { _ in asked.signal() }
+        asked.wait()
+    } else if args.count > 2 && args[1] == "--request" && args[2] == "speech" {
+        SFSpeechRecognizer.requestAuthorization { _ in asked.signal() }
+        asked.wait()
+    }
+    let mic = AVCaptureDevice.authorizationStatus(for: .audio)
+    let speech = SFSpeechRecognizer.authorizationStatus()
+    print("{\"microphone\":\"\(state(mic == .authorized, mic == .notDetermined))\",\"speech\":\"\(state(speech == .authorized, speech == .notDetermined))\"}")
+    exit(0)
+}
+
 let localeId = ProcessInfo.processInfo.environment["ALPHA_STT_LOCALE"] ?? "en-US"
 guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeId)), recognizer.isAvailable else {
     fail("Speech recognition isn't available for this language on this Mac.")
