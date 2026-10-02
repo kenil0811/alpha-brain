@@ -192,7 +192,7 @@ function Workspace({ injected }: { injected?: Client }) {
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
-    const load = () =>
+    const load = () => {
       client
         .home()
         .then((home) => {
@@ -205,6 +205,7 @@ function Workspace({ injected }: { injected?: Client }) {
         .attention()
         .then((a) => !cancelled && setNeeds(a.count))
         .catch(() => undefined);
+    };
     load();
     const timer = setInterval(load, 20_000);
     return () => {

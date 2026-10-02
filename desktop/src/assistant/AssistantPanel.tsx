@@ -432,7 +432,7 @@ export function AssistantPanel({
             }}
           />
         ) : null}
-        {error ? (
+        {error && !(threadView?.journal ?? turns).some((e) => e.kind === "failed" && e.text === error) ? (
           <p className="notice" role="alert">
             {error}
           </p>

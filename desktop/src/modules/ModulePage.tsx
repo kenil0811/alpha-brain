@@ -405,7 +405,7 @@ function Ready({ detail }: { detail: ModuleDetail }) {
   });
   if (!show) return null;
   return (
-    <p className="faint row creation__ready">
+    <p className="row creation__ready">
       <span className="truncate">{detail.name} is ready.</span>
       <InfoTip content="It's in the sidebar. To change it later, open it and describe the change here." label="How to change it later" />
     </p>

@@ -26,13 +26,20 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
   const creation = detail.creation;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The description goes through the chat, so the page hears of that turn only by looking:
+  // until it shows up, the page says it is on it and looks every second.
+  const [sent, setSent] = useState<string | null>(null);
   const running = detail.running?.[0] ?? null;
+  const stageNow = detail.creation?.stage;
+  useEffect(() => {
+    if (running || stageNow !== "new") setSent(null);
+  }, [running, stageNow]);
   // While a turn runs the page looks again every 3 s (Alpha's poll), so each stage shows as it lands.
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(onChanged, 3000);
+    if (!running && !sent) return;
+    const timer = window.setInterval(onChanged, running ? 3000 : 1000);
     return () => window.clearInterval(timer);
-  }, [running, onChanged]);
+  }, [running, sent, onChanged]);
   if (!creation || creation.stage === "done") return null;
 
   async function answer(body: CreationAnswer) {
@@ -60,7 +67,9 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
   const stage = creation.stage;
   const failed = !running && creation.error;
   let body: ReactNode = null;
-  if (running && stage !== "building") {
+  if (sent && !running) {
+    body = <Thinking since={sent} label="Understanding your request…" />;
+  } else if (running && stage !== "building") {
     body = <Thinking since={running.started_at} onStop={() => void stop()} label={`${stage === "researching" ? "Looking around" : "Understanding your request"}…`} />;
   } else if (failed && creation.timed_out) {
     body = (
@@ -88,7 +97,16 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
       </div>
     );
   } else if (stage === "new") {
-    body = <Describe busy={busy} onStart={onDescribe} onImport={onImport} />;
+    body = (
+      <Describe
+        busy={busy}
+        onStart={(text) => {
+          setSent(new Date().toISOString());
+          onDescribe(text);
+        }}
+        onImport={onImport}
+      />
+    );
   } else if (stage === "asking" && creation.questions?.length) {
     body = <QuestionsForm questions={creation.questions} busy={busy} onAnswer={(answers) => void answer({ answers })} onDefaults={() => void answer({ use_defaults: true })} />;
   } else if (stage === "proposing" && creation.proposal) {
@@ -109,7 +127,7 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
     body = <Building detail={detail} running={running !== null} busy={busy} onStop={() => void stop()} onCarryOn={() => void answer({ carry_on: true })} />;
   }
 
-  const step = running && stage !== "building" ? null : STEP[stage] ?? null;
+  const step = (running || sent) && stage !== "building" ? null : STEP[stage] ?? null;
   return (
     <div className="section creation-on-page" aria-label="Making this project">
       <div className="convo convo--page">
@@ -280,7 +298,7 @@ function ProposalCard({ proposal, busy, onChoose }: { proposal: Proposal; busy: 
         })}
       </div>
       {proposal.evidence?.length ? (
-        <Button size="sm" variant="ghost" onClick={() => setShowEvidence((v) => !v)} aria-expanded={showEvidence}>
+        <Button size="sm" variant="ghost" className="proposal__more" onClick={() => setShowEvidence((v) => !v)} aria-expanded={showEvidence}>
           {showEvidence ? "Hide what Alpha looked at" : `What Alpha looked at (${proposal.evidence.length})`}
         </Button>
       ) : null}
