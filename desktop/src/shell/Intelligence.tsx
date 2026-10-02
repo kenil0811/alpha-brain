@@ -4,22 +4,27 @@
  * read, switch or correct, never a configuration form.
  */
 import { type FormEvent, useEffect, useState } from "react";
-import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
+import { CalendarDays, Folder, Globe, Link } from "lucide-react";
+import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
+import { InfoTip, PageHeader, Tabs } from "../ui";
 import { AutomationList } from "./Automations";
+import type { Surface } from "./Rail";
+import { SecondBrain } from "./SecondBrain";
 
-export type IntelTab = "skills" | "automations" | "connections" | "knowledge";
-const TABS: { id: IntelTab; label: string }[] = [
-  { id: "skills", label: "Skills" },
-  { id: "automations", label: "Automations" },
-  { id: "connections", label: "Connections" },
-  { id: "knowledge", label: "Knowledge" },
+export type IntelTab = "brain" | "skills" | "automations" | "connections" | "knowledge";
+const TABS: { id: IntelTab; label: string; hint: string }[] = [
+  { id: "brain", label: "Second brain", hint: "What Alpha holds and how it connects" },
+  { id: "skills", label: "Skills", hint: "Everything Alpha can do" },
+  { id: "automations", label: "Automations", hint: "What runs on its own" },
+  { id: "connections", label: "Connections", hint: "What Alpha can reach" },
+  { id: "knowledge", label: "Knowledge", hint: "What Alpha knows about you" },
 ];
 
-const CONNECTOR: Record<string, { icon: string; label: (c: Connection) => string; reach: string }> = {
-  files: { icon: "▤", label: (c) => c.target.split("/").slice(-2).join("/"), reach: "Reads the documents in this folder as they change; never changes your files" },
-  browser: { icon: "◎", label: (c) => `${c.target}, signed in as you`, reach: "Reads pages the way you would; never posts, messages or clicks" },
-  calendar: { icon: "▦", label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
+const CONNECTOR: Record<string, { icon: typeof Folder; label: (c: Connection) => string; reach: string }> = {
+  files: { icon: Folder, label: (c) => c.target.split("/").slice(-2).join("/"), reach: "Reads the documents in this folder as they change; never changes your files" },
+  browser: { icon: Globe, label: (c) => `${c.target}, signed in as you`, reach: "Reads pages the way you would; never posts, messages or clicks" },
+  calendar: { icon: CalendarDays, label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
 };
 
 const STATUS: Record<Connection["status"], { pill: string; words: string }> = {
@@ -68,13 +73,14 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   return (
     <div className="stack">
       <div className="card list">
-        {!live.length ? <p className="empty">Nothing connected yet. Alpha can always read public web pages; connect a folder, a site you sign into, or your calendar below.</p> : null}
+        {!live.length ? <p className="empty">Nothing connected yet.</p> : null}
         {live.map((c) => {
-          const meta = CONNECTOR[c.connector] ?? { icon: "•", label: () => c.target, reach: "" };
+          const meta = CONNECTOR[c.connector] ?? { icon: Link, label: () => c.target, reach: "" };
+          const Icon = meta.icon;
           return (
             <div key={c.id} className="item">
               <div className="item__ico" aria-hidden="true">
-                {meta.icon}
+                <Icon size={16} />
               </div>
               <div className="item__body">
                 <b>{meta.label(c)}</b>
@@ -118,9 +124,9 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Alpha is reading the folder."); }}>
           <div className="intel__head">
             <h3>A folder</h3>
+            <InfoTip content="Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change." label="About folders" />
           </div>
-          <p className="muted" style={{ fontSize: 13 }}>Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change.</p>
-          <div className="row" style={{ marginTop: 10 }}>
+          <div className="row">
             <input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
             <button type="submit" className="btn btn--primary" disabled={!folder.trim() || busy !== null}>
               Read it
@@ -130,9 +136,9 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("site", () => client.connectSite(site.trim()), "A window is open: sign in there, then close it."); }}>
           <div className="intel__head">
             <h3>A site you sign into</h3>
+            <InfoTip content="LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it." label="About sites" />
           </div>
-          <p className="muted" style={{ fontSize: 13 }}>LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it.</p>
-          <div className="row" style={{ marginTop: 10 }}>
+          <div className="row">
             <input className="need__input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
             <button type="submit" className="btn btn--primary" disabled={!site.trim() || busy !== null}>
               Sign in
@@ -143,9 +149,9 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
           <div className="card card--pad">
             <div className="intel__head">
               <h3>Your calendar</h3>
+              <InfoTip content="Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once." label="About calendars" />
             </div>
-            <p className="muted" style={{ fontSize: 13 }}>Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once.</p>
-            <div className="row" style={{ marginTop: 10 }}>
+            <div className="row">
               <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
                 Connect calendars
               </button>
@@ -184,7 +190,7 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
           </div>
         </>
       ) : (
-        <p className="muted editable" style={{ whiteSpace: "pre-wrap", fontSize: 13 }} onClick={() => setEditing(true)} title="Click to edit">
+        <p className="muted editable note__body" onClick={() => setEditing(true)} title="Click to edit">
           {note.body}
         </p>
       )}
@@ -200,9 +206,9 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>About you</h3>
-          <span className="faint">what you told Alpha, and what it noticed</span>
+          <InfoTip content="What you told Alpha, and what it noticed. Tell it about yourself in any conversation and it remembers." label="About this" />
         </div>
-        {!facts.length ? <p className="empty">Nothing yet. Tell Alpha about yourself in any conversation and it remembers.</p> : null}
+        {!facts.length ? <p className="empty">Nothing yet.</p> : null}
         <dl className="intel__facts">
           {facts.map((f) => (
             <div key={f.id}>
@@ -229,12 +235,13 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Goals</h3>
+          <InfoTip content={'Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.'} label="About goals" />
         </div>
-        {!goals.length ? <p className="empty">No goals yet. Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.</p> : null}
+        {!goals.length ? <p className="empty">No goals yet.</p> : null}
         <div className="stack">
           {goals.map((g) => (
             <div key={g.id}>
-              <b style={{ fontWeight: 500 }}>{g.text}</b>
+              <b className="goal__text">{g.text}</b>
               <div className="item__sub">
                 {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
               </div>
@@ -252,7 +259,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
   );
 }
 
-export function Intelligence({ client, tab, version, onTab, onChanged }: { client: Client; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onChanged: () => void }) {
+export function Intelligence({ client, modules, tab, version, onTab, onGo, onChanged }: { client: Client; modules: ModuleCard[]; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onGo: (s: Surface) => void; onChanged: () => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -263,28 +270,21 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
   }, [client, version]);
   return (
     <div className="page">
-      <div className="home__head">
-        <h1>Intelligence</h1>
-        <span className="muted">Everything Alpha can do, runs on its own, reaches, and knows</span>
-      </div>
-      <div className="subtabs" role="tablist" style={{ marginTop: 16 }}>
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <PageHeader title={<>Intelligence <InfoTip content="Everything Alpha can do, runs on its own, reaches, and knows." label="About Intelligence" /></>} />
+      <Tabs className="page__tabs" aria-label="Intelligence" items={TABS.map((t) => ({ value: t.id, label: <span title={t.hint}>{t.label}</span> }))} value={tab} onChange={(v) => onTab(v as IntelTab)} />
       {!data ? (
-        error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
+        error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>
+      ) : tab === "brain" ? (
+        <SecondBrain client={client} modules={modules} facts={data.knowledge.facts} onOpenModule={(id) => onGo({ kind: "module", id })} onOpenKnowledge={() => onTab("knowledge")} />
       ) : tab === "skills" ? (
         <div className="intel">
           {data.skills.map((s) => (
             <div key={s.name} className="card card--pad intel__card">
               <div className="intel__head">
                 <h3>{s.title}</h3>
+                <InfoTip content={s.description ?? ""} label={`About ${s.title}`} />
                 <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
               </div>
-              <p className="muted">{s.description}</p>
               <div className="skill__meta">
                 {s.tools.map((t) => (
                   <span key={t.name} className="faint" title={t.description}>
@@ -302,19 +302,21 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
                 <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
               </div>
               <p className="muted">
-                Alpha made this to read {r.site}. Version {r.version}
+                Reads {r.site} · version {r.version}
                 {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
               </p>
-              {r.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{r.last_problem}</p> : null}
+              {r.last_problem ? <p className="notice notice--sm">{r.last_problem}</p> : null}
             </div>
           ))}
           <div className="card card--pad intel__card modcard--new">
-            <b>Skills Alpha learns</b>
-            <p className="muted">When something works and you'll want it again, Alpha keeps how it did it here. Say "remember how I do this" to teach one.</p>
+            <div className="intel__head">
+              <b>Skills Alpha learns</b>
+              <InfoTip content={'When something works and you\'ll want it again, Alpha keeps how it did it here. Say "remember how I do this" to teach one.'} label="About learned skills" />
+            </div>
           </div>
         </div>
       ) : tab === "automations" ? (
-        <AutomationList client={client} items={data.automations} onChanged={onChanged} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
+        <AutomationList client={client} items={data.automations} onChanged={onChanged} empty="Nothing runs on its own yet." />
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />
       ) : (

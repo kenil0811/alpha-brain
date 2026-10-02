@@ -294,6 +294,7 @@ CREATE TABLE IF NOT EXISTS threads (
 # Columns added after a store may already exist: (table, column, declaration).
 ADDED_COLUMNS = [
     ("readers", "allow_posts", "TEXT NOT NULL DEFAULT '[]'"),
+    ("modules", "icon", "TEXT"),
 ]
 
 

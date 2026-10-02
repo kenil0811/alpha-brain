@@ -12,6 +12,7 @@ automations, connections, knowledge), Activity, the conversation, and turns.
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import secrets
@@ -33,13 +34,14 @@ from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
 from alpha.models.accounts import Accounts
 from alpha.models.keychain import KeychainError
-from alpha.runtime import claude_account
+from alpha.runtime import claude_account, transcription
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.runtime.route import Router
 from alpha.world import backup
 from alpha.world.actions import Actions
-from alpha.world.purge import remove_connection
+from alpha.world.bundle import export_module, import_module
+from alpha.world.purge import remove_connection, remove_module
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
@@ -94,6 +96,17 @@ class SiteBody(BaseModel):
 
 class SwitchBody(BaseModel):
     enabled: bool
+
+
+class SpeechBody(BaseModel):
+    audio_b64: str
+    mime: str = "audio/webm"
+    provider: str | None = None
+
+
+class ModuleBody(BaseModel):
+    name: str | None = None
+    icon: str | None = None
 
 
 class NoteBody(BaseModel):
@@ -270,8 +283,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     app = FastAPI(title="Alpha", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:1430", "http://127.0.0.1:1430", "tauri://localhost",
-                       "http://tauri.localhost"],
+        allow_origins=["tauri://localhost", "http://tauri.localhost"],
+        # Any loopback dev server (each worktree runs Vite on its own port); the token still guards.
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
         allow_methods=["*"], allow_headers=["*"],
     )
 
@@ -391,6 +405,22 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
         card["automations"] = automation_views(world, scheduler, m["id"])
         return card
+
+    @app.patch("/api/modules/{ref}", dependencies=[api])
+    def edit_module(ref: str, body: ModuleBody) -> dict[str, Any]:
+        return module_card(world, world.modules.update(ref, name=body.name, icon=body.icon))
+
+    @app.delete("/api/modules/{ref}", dependencies=[api])
+    def delete_module(ref: str) -> dict[str, Any]:
+        return remove_module(world, ref)
+
+    @app.get("/api/modules/{ref}/export", dependencies=[api])
+    def export(ref: str) -> dict[str, Any]:
+        return export_module(world, ref)
+
+    @app.post("/api/modules/import", dependencies=[api])
+    def import_(bundle: dict[str, Any]) -> dict[str, Any]:
+        return module_card(world, import_module(world, bundle))
 
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
     def summary(ref: str) -> dict[str, Any]:
@@ -593,6 +623,17 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def set_route(body: RouteBody) -> dict[str, Any]:
         """This conversation's own model; no provider goes back to the default."""
         return accounts.choose(body.thread, body.provider, body.model)
+    @app.get("/api/transcribe", dependencies=[api])
+    def can_transcribe() -> dict[str, bool]:
+        return {"available": transcription.available()}
+
+    @app.post("/api/transcribe", dependencies=[api])
+    def transcribe(body: SpeechBody) -> dict[str, str]:
+        try:
+            audio = base64.b64decode(body.audio_b64, validate=True)
+        except ValueError as e:
+            raise Problem("That recording didn't arrive whole.") from e
+        return {"text": transcription.transcribe(audio, body.mime, body.provider)}
 
     @app.get("/api/data", dependencies=[api])
     def data_info() -> dict[str, Any]:

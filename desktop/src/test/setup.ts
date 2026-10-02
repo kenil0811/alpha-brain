@@ -2,8 +2,12 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
-// globals: false turns off Testing Library's own cleanup; without it renders pile up across tests.
-afterEach(cleanup);
+// Unmount between tests (StandardDropdown's tests found two copies otherwise) and start every
+// test at the home address: the app routes through window.location.hash, which jsdom keeps.
+afterEach(() => {
+  cleanup();
+  window.location.hash = "";
+});
 
 // jsdom has no ResizeObserver; Radix's Popover/Select/Tooltip primitives use it to measure
 // content, so every test importing them needs at least a no-op stub.

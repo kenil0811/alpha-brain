@@ -80,6 +80,8 @@ export interface ModuleCard {
   id: string;
   name: string;
   goal: string | null;
+  /** A lucide icon name the person picked (shell/projectIcons.ts); null until they pick one. */
+  icon?: string | null;
   tables: TableSummary[];
   records: number;
   last_at: string | null;
@@ -136,6 +138,22 @@ export interface NeedItem {
   at: string;
   options?: string[];
   module?: string | null;
+}
+
+/** Something Alpha wants to do outside its own space, waiting for the person's yes (core
+ *  world/actions.py). `result` is set once it has been decided and, if approved, run. */
+export interface PendingAction {
+  id: string;
+  kind: string;
+  connector: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  module: string | null;
+  asked: string | null;
+  state: "pending" | "approved" | "rejected" | "expired" | "unavailable";
+  created_at: string;
+  expires_at: string | null;
+  result: { error?: string } | null;
 }
 
 export interface CalendarItem {
@@ -379,6 +397,11 @@ export class Client {
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
+  updateModule = (ref: string, patch: { name?: string; icon?: string }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
+  removeModule = (ref: string) => this.call<{ module: string; tables: number; rows: number }>("DELETE", `/api/modules/${encodeURIComponent(ref)}`);
+  /** A project as a file: its tables and rows, note, goals and automations. */
+  exportModule = (ref: string) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export`);
+  importModule = (bundle: unknown) => this.call<ModuleCard>("POST", "/api/modules/import", bundle);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
   async table(name: string): Promise<{ table: TableDesc; records: RecordRow[] }> {
@@ -430,6 +453,9 @@ export class Client {
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
+  pending = () => this.call<PendingAction[]>("GET", "/api/pending");
+  approvePending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/approve`);
+  rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }
