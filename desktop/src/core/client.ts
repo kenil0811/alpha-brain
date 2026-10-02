@@ -51,6 +51,48 @@ export interface RecordRow {
   provenance: Provenance;
 }
 
+export interface SavedView {
+  id: string;
+  collection: string;
+  title: string;
+  config: Record<string, unknown>;
+  is_default: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LastEdit {
+  text: string;
+  at: string;
+  actor: string;
+}
+
+export interface TableData {
+  table: TableDesc;
+  records: RecordRow[];
+  views: SavedView[];
+  last_edit: LastEdit | null;
+}
+
+/** One journal entry that touched a record: who, when, and what the person said in that turn. */
+export interface HistoryEntry {
+  id: string;
+  at: string;
+  kind: string;
+  actor: string;
+  text: string;
+  turn: string | null;
+  said: string | null;
+}
+
+export interface FieldChange {
+  kind?: string;
+  label?: string;
+  choices?: string[];
+  relation?: string;
+}
+
 export interface JournalEntry {
   id: string;
   at: string;
@@ -339,10 +381,22 @@ export class Client {
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
-  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[] }> {
-    const data = await this.call<{ table: TableDesc; records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
-    return { table: data.table, records: data.records.map(toRow) };
+  async table(name: string): Promise<TableData> {
+    const data = await this.call<Omit<TableData, "records"> & { records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
+    return { ...data, views: data.views ?? [], last_edit: data.last_edit ?? null, records: data.records.map(toRow) };
   }
+  bulkRecords = (table: string, action: "set" | "delete", items: { id: string; revision: number }[], values?: Record<string, unknown>) =>
+    this.call<{ done: number; skipped: string[] }>("POST", `/api/tables/${encodeURIComponent(table)}/records/bulk`, { action, items, values });
+  undo = (table: string) => this.call<{ undone: string; text: string }>("POST", `/api/tables/${encodeURIComponent(table)}/undo`);
+  history = (table: string, id: string) => this.call<HistoryEntry[]>("GET", `/api/tables/${encodeURIComponent(table)}/records/${id}/history`);
+  changeField = (table: string, field: string, change: FieldChange) =>
+    this.call<{ before: Field; after: Field; rewritten: number; table: TableDesc }>("PATCH", `/api/tables/${encodeURIComponent(table)}/fields/${encodeURIComponent(field)}`, change);
+  addFields = (table: string, fields: Field[]) => this.call<TableDesc>("POST", `/api/tables/${encodeURIComponent(table)}/fields`, { fields });
+  views = (table: string) => this.call<SavedView[]>("GET", `/api/tables/${encodeURIComponent(table)}/views`);
+  saveView = (table: string, title: string, config: object, isDefault = false) =>
+    this.call<SavedView>("POST", `/api/tables/${encodeURIComponent(table)}/views`, { title, config, is_default: isDefault });
+  updateView = (id: string, patch: { title?: string; config?: object; is_default?: boolean }) => this.call<SavedView>("PATCH", `/api/views/${id}`, patch);
+  deleteView = (id: string) => this.call<{ deleted: string }>("DELETE", `/api/views/${id}`);
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
     toRow(await this.call<Raw>("PATCH", `/api/tables/${encodeURIComponent(table)}/records/${id}`, { values, revision }));
