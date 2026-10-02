@@ -345,16 +345,23 @@ async function sensitive(locator) {
     .catch(() => null);
 }
 
-function target(page, step) {
+/** `{field}` in an address, a selector or a text comes from the approved payload (a profile
+ *  slug, a subject to find): it steers where the steps go; only fill, type and upload put
+ *  payload text into the site. */
+function filled(text, values) {
+  return String(text).replace(/\{([a-z][a-z0-9_]*)\}/g, (m, name) => (name in (values || {}) && name !== "__files" ? String(values[name]) : m));
+}
+
+function target(page, step, values) {
   if (step.click_text !== undefined) {
-    const text = String(step.click_text);
+    const text = filled(step.click_text, values);
     return page
       .locator(`button, [role=button], a, [role=link], [role=menuitem], [role=tab], label, [role=option]`)
       .filter({ hasText: new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i") })
       .first();
   }
-  const selector = step.click ?? step.fill ?? step.type ?? step.wait ?? step.expect;
-  return page.locator(String(selector)).first();
+  const selector = step.click ?? step.fill ?? step.type ?? step.wait ?? step.expect ?? step.upload;
+  return page.locator(filled(String(selector), values)).first();
 }
 
 let job_files_root = null;
@@ -365,17 +372,17 @@ async function performStep(page, step, values, log) {
   const entry = { step: kind, ok: false, ms: 0 };
   try {
     if (kind === "goto") {
-      await page.goto(String(step.goto), { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.goto(filled(step.goto, values), { waitUntil: "domcontentloaded", timeout: 30000 });
       await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
     } else if (kind === "click" || kind === "click_text") {
-      const el = target(page, step);
+      const el = target(page, step, values);
       await el.waitFor({ state: "visible", timeout: 15000 });
       await el.click({ timeout: 10000 });
       await page.waitForTimeout(600);
     } else if (kind === "fill" || kind === "type") {
       const field = String(step.value).replace(/^\{|\}$/g, "");
       if (!(field in values)) throw new Error(`no value for {${field}}`);
-      const el = target(page, step);
+      const el = target(page, step, values);
       await el.waitFor({ state: "visible", timeout: 15000 });
       const why = await sensitive(el);
       if (why) throw new Error(`refused: Alpha never types into ${why}`);
@@ -391,7 +398,7 @@ async function performStep(page, step, values, log) {
       const file = (job_files_root && values.__files && values.__files[field]) || null;
       if (!file) throw new Error(`no file for {${field}}`);
       if (!String(file).startsWith(job_files_root)) throw new Error("refused: Alpha uploads only files it keeps itself");
-      const el = target(page, { fill: step.upload });
+      const el = target(page, { fill: step.upload }, values);
       await el.waitFor({ state: "attached", timeout: 15000 });
       await el.setInputFiles(String(file));
       await page.waitForTimeout(800);
@@ -399,13 +406,13 @@ async function performStep(page, step, values, log) {
       await page.keyboard.press(String(step.press));
       await page.waitForTimeout(600);
     } else if (kind === "wait") {
-      await target(page, step).waitFor({ state: "visible", timeout: 20000 });
+      await target(page, step, values).waitFor({ state: "visible", timeout: 20000 });
     } else if (kind === "wait_ms") {
       await page.waitForTimeout(Number(step.wait_ms));
     } else if (kind === "expect") {
-      await target(page, step).waitFor({ state: "visible", timeout: 15000 });
+      await target(page, step, values).waitFor({ state: "visible", timeout: 15000 });
     } else if (kind === "expect_text") {
-      await page.getByText(String(step.expect_text), { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
+      await page.getByText(filled(step.expect_text, values), { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
     } else {
       throw new Error(`unknown step ${JSON.stringify(step)}`);
     }
@@ -432,13 +439,14 @@ async function act(job) {
   const log = [];
   try {
     const page = context.pages()[0] || (await context.newPage());
-    const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const startUrl = filled(job.url, job.values || {});
+    const response = await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
     if (await isBotCheck(page)) {
       await shoot(page, "error");
       return { bot_check: true, blocked: false, done: 0, log, shots, final_url: page.url(), title: await page.title().catch(() => "") };
     }
-    if (await isSignIn(page, job.url)) {
+    if (await isSignIn(page, startUrl)) {
       await shoot(page, "error");
       return { bot_check: false, blocked: true, done: 0, log, shots, final_url: page.url(), title: await page.title().catch(() => "") };
     }
@@ -493,7 +501,7 @@ async function download(job) {
       await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
       if (await isBotCheck(page)) return { bot_check: true, blocked: false };
       if (await isSignIn(page, job.url)) return { bot_check: false, blocked: true };
-      const el = target(page, job.click ? { click: job.click } : { click_text: job.click_text });
+      const el = target(page, job.click ? { click: job.click } : { click_text: job.click_text }, {});
       await el.waitFor({ state: "visible", timeout: 15000 });
       const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), el.click({ timeout: 10000 })]);
       const name = dl.suggestedFilename() || "download";

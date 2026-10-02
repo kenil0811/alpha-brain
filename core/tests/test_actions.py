@@ -346,3 +346,13 @@ def test_an_error_in_the_hand_is_a_failure_never_a_sent(world: World) -> None:
         assert world.procedures.get("gmail_draft")["health"] == "broken"
     finally:
         restore()
+
+
+def test_a_placeholder_anywhere_must_be_a_payload_field() -> None:
+    with pytest.raises(Problem, match="not in fields"):
+        check_steps([{"click": "a[href*='{slug}']"}, {"click_text": "Send"}], ["message"],
+                    effect="send")
+    steps, _ = check_steps([{"goto": "https://x.example/in/{slug}/"}, {"click_text": "Message"},
+                            {"type": ".box", "value": "{message}"}, {"click_text": "Send"}],
+                           ["slug", "message"], effect="send")
+    assert steps[0]["goto"].endswith("{slug}/")

@@ -931,7 +931,9 @@ class Tools:
         {"type": css, "value": "{body}"} (keyboard, for rich editors) · {"press": "Enter"} ·
         {"wait": css} · {"wait_ms": 1500} · {"expect": css} · {"expect_text": "Draft saved"} ·
         {"goto": url}. fill and type take only a field of the payload, never words of your own;
-        the last step is the commit (save, close, send): a dry run does everything before it.
+        a {field} inside the url, a selector, a click_text or a goto is filled from the payload
+        too (a profile slug, a subject to find), so one procedure serves every recipient; the
+        last step is the commit (save, close, send): a dry run does everything before it.
         fields: the payload fields the steps use (e.g. ["to", "subject", "body"]). verify:
         read-only checks after the commit ({"expect_text": …})."""
         site = site_of(url)

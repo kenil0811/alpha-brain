@@ -76,6 +76,15 @@ def check_steps(steps: Any, fields: list[str], *, effect: str,
                                                       and not step[kind].strip()):
             raise Problem(f"Step {i}: {kind} needs a selector, text or key.")
         clean.append({k: v for k, v in step.items()})
+    for i, step in enumerate(clean, 1):
+        for key, value in step.items():
+            if key in ("value", "note"):
+                continue
+            for ref in re.findall(r"\{([a-z][a-z0-9_]*)\}", str(value)):
+                if ref not in fields:
+                    raise Problem(f"Step {i} uses {{{ref}}}, which is not in fields; a"
+                                  " placeholder in an address, a selector or a text is filled"
+                                  " from the payload.")
     last = next(k for k in clean[-1] if k in STEP_KINDS)
     if last not in COMMITS:
         raise Problem("The last step is the commit (save, close, send): a click, click_text or"
@@ -141,6 +150,9 @@ class Procedures:
         if not description.strip():
             raise Problem("A procedure needs a description: what it does, in a sentence.")
         clean, checks = check_steps(steps, fields, effect=effect, verify=verify)
+        for ref in re.findall(r"\{([a-z][a-z0-9_]*)\}", url):
+            if ref not in fields:
+                raise Problem(f"The address uses {{{ref}}}, which is not in fields.")
         stamp = now()
         prior = self.store.one("SELECT version FROM procedures WHERE name = ?", (name,))
         with self.store.tx() as db:
