@@ -150,6 +150,7 @@ export function SecondBrain({ client, modules, facts, onOpenModule, onOpenKnowle
       <svg
         ref={svg}
         className="intel-graph"
+        data-overflow-ok
         role="img"
         aria-label="Second brain graph"
         viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}

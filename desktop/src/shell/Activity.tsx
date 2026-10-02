@@ -76,7 +76,7 @@ export function Activity({ client, version }: { client: Client; version: number;
         <div className="card toolbar toolbar--page toolbar--activity">
           <div className="search search--wide">
             <Search size={14} aria-hidden="true" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search activity" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
