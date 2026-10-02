@@ -109,3 +109,36 @@ def test_signed_out_says_where_to_sign_in() -> None:
     out = claude_cli.parse(json.dumps({"type": "result", "is_error": True,
                                        "result": "Not logged in · Please run /login"}), "", 1)
     assert not out.ok and out.error == claude_cli.SIGNED_OUT
+
+
+def test_a_streamed_run_is_watched_and_its_result_read() -> None:
+    """stream-json: the window sees what the model is doing; the result event ends it."""
+    from alpha.runtime.claude_cli import LIVE, _watch, plain_tool
+
+    keys = ["j_live"]
+    _watch(keys, {"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "Let me look at the inbox first."}]}})
+    _watch(keys, {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "mcp__alpha__page_read",
+         "input": {"url": "https://mail.google.com/mail/u/0/#inbox"}}]}})
+    _watch(keys, {"type": "rate_limit_event"})
+    live = LIVE.progress_for("j_live")
+    assert live and live["thought"] == "Let me look at the inbox first."
+    assert live["doing"].startswith("Reading a page: https://mail.google.com")
+    assert live["tools"] == 1
+    assert plain_tool("WebSearch", {"query": "cadbury dairy milk 45g calories"}).startswith(
+        "Searching the web for cadbury")
+    assert plain_tool("mcp__alpha__records_add", {"collection": "food_log"}) == \
+        "Adding a row: food_log"
+    assert plain_tool("mcp__alpha__ask_person", {"question": "Which size?"}) == "Asking you"
+    LIVE.progress.clear()
+    stream = "\n".join([
+        json.dumps({"type": "system", "subtype": "init"}),
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "Hi"}]}}),
+        "not json",
+        json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "Done.",
+                    "session_id": "s", "num_turns": 3, "duration_ms": 1200,
+                    "total_cost_usd": 0.01}),
+    ])
+    out = claude_cli.parse(stream, "", 0)
+    assert out.ok and out.reply == "Done." and out.num_turns == 3

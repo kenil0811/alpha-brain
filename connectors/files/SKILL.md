@@ -5,6 +5,11 @@ description: Read and search documents in folders the person shared (resumes, no
 
 # Files
 
+- Besides the folders the person named, Alpha keeps files of its own under the data directory,
+  one folder per module: what `page_download` fetched and what the person dropped onto a module
+  or a row. Each is a document (`documents_list`, `document_read`); a table's `file` field
+  holds a document's id and the page shows the file's name. Removing a module removes its files.
+
 - Only folders the person named are read. Never ask for the home folder or a whole drive; ask
   which folder holds the thing they mean.
 - `search` already covers every document Alpha has read. Use `document_read` for the full text,

@@ -300,6 +300,30 @@ fn save_to_downloads(filename: String, text: String) -> Result<String, String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
+/// Reveal a file Alpha keeps (an export, a fetched attachment) in Finder.
+#[tauri::command]
+fn reveal_path(path: String) -> Result<(), String> {
+    let dir = DATA_DIR.get().ok_or("Alpha's data folder isn't set yet")?;
+    let target = std::path::PathBuf::from(&path);
+    if !target.starts_with(dir) {
+        return Err("Alpha only reveals files in its own folder".into());
+    }
+    Command::new("/usr/bin/open").arg("-R").arg(&target).status().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Open a file Alpha keeps with the Mac's default app for it.
+#[tauri::command]
+fn open_path(path: String) -> Result<(), String> {
+    let dir = DATA_DIR.get().ok_or("Alpha's data folder isn't set yet")?;
+    let target = std::path::PathBuf::from(&path);
+    if !target.starts_with(dir) {
+        return Err("Alpha only opens files in its own folder".into());
+    }
+    Command::new("/usr/bin/open").arg(&target).status().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 fn show_main(app: AppHandle) -> Result<(), String> {
     show_main_window(&app);
@@ -536,7 +560,9 @@ pub fn run() {
             speech::stt_start,
             speech::stt_stop,
             speech::tts_speak,
-            speech::tts_stop
+            speech::tts_stop,
+            reveal_path,
+            open_path
         ])
         .setup(|app| {
             ptt::start(app.handle().clone(), app.state::<ptt::PttState>().inner());

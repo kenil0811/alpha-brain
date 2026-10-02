@@ -57,6 +57,14 @@ description: Read web pages, including sites behind a sign-in, through the perso
   stays in the person's account (a draft, an unsent message: the commit is closing or saving),
   "send" when it reaches someone (the commit is Send). The hand refuses password and payment
   fields on its own, and a site the person hasn't connected.
+- **Files in**: `page_download(url, module, click|click_text, name)` fetches a file through the
+  person's session (a direct address with the site's cookies, or what a page hands back when
+  you press an attachment icon or an Export control) into Alpha's folder for the module, and
+  makes it a document: `document_read` for its text, its id on a row's `file` field. A read;
+  nothing changes on the site. Only when the plan says to keep such files, or on an ask.
+- **Files out**: a procedure step `{"upload": "input[type=file]", "value": "{attachment}"}`
+  sends a document Alpha keeps (the payload field holds its id); the hand refuses any other
+  file. It reaches someone, so the action is a send.
 - This hand knows no particular site. Where a site keeps its lists, how its pages are built and
   where its sign-in lives are yours to find out (read the page, search the web) and to keep: in
   the reader you save for it, its sources, and the module's note.

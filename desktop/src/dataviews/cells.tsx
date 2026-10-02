@@ -3,9 +3,10 @@
  * table, a property on a card, a field on the record page. Relation values are resolved to the
  * record or person they name and shown as links that open it.
  */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check } from "lucide-react";
-import type { Client, RecordRow } from "../core/client";
+import type { Client, FileInfo, RecordRow } from "../core/client";
+import { host } from "../core/host";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "../ui/DropdownMenu";
 import { editText, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "../modules/fields";
 import { humanize } from "../modules/format";
@@ -85,9 +86,50 @@ export function useRelations(client: Client, fields: FieldInfo[], version: numbe
   );
 }
 
+// ---------- files ----------
+
+/** A table's file fields hold document ids: the table's load names each file, and a row can be
+ *  given one. Provided by DataViews; views elsewhere show the bare id. */
+export const FilesContext = createContext<{ files: Record<string, FileInfo>; add?: (row: RecordRow, field: FieldInfo, file: File) => void }>({ files: {} });
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** A file field: the document's name, opened with the Mac's own app, or a way to add one. */
+function FileValue({ field, value, row }: { field: FieldInfo; value: unknown; row?: RecordRow }) {
+  const { files, add } = useContext(FilesContext);
+  const id = value ? String(value) : "";
+  const info = id ? files[id] : undefined;
+  if (info)
+    return (
+      <span onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
+          {info.name}
+        </button>
+        <span className="dv-faint"> · {formatBytes(info.size)}</span>
+        {host.available() ? (
+          <button type="button" className="linkbtn faint" aria-label="Show in Finder" title="Show in Finder" onClick={() => void host.revealPath(info.path)}>
+            {" "}↗
+          </button>
+        ) : null}
+      </span>
+    );
+  if (!add || !row) return <span className="dv-faint">{id || "—"}</span>;
+  return (
+    <label className="linkbtn faint" onClick={(e) => e.stopPropagation()}>
+      {id ? "File missing · " : ""}Add file
+      <input type="file" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) add(row, field, f); e.target.value = ""; }} />
+    </label>
+  );
+}
+
 // ---------- showing ----------
 
 export function CellValue({ field, value, row, relations, onOpenLink }: { field: FieldInfo; value: unknown; row?: RecordRow; relations?: Relations; onOpenLink?: (link: Link) => void }) {
+  if (field.kind === "file") return <FileValue field={field} value={value} row={row} />;
   if (value === null || value === undefined || value === "" || (Array.isArray(value) && !value.length)) {
     return field.kind === "bool" ? <span className="dv-faint">No</span> : <span className="dv-faint">—</span>;
   }

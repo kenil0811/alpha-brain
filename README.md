@@ -51,7 +51,8 @@ just journeys       # the journey suite on a copy of the app's world (uses the s
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in
-`~/Library/Application Support/com.alpha.brain`; the CLI on its own defaults to
+`~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles, Alpha's own
+`files/<module>` for what it fetched or was given, `exports/`, `actions/` screenshots); the CLI on its own defaults to
 `~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and
 acceptance runs use a scratch one so the owner's world stays untouched). Builds are
 signed with the local "Alpha Local Signing" certificate so macOS keeps the app's permissions

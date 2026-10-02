@@ -5,7 +5,7 @@
  * with its sub projects. The App · Activity · Settings toggle and the subtabs are the shell's
  * own structure; the section lives in the address (`#/m/<id>/<section>`).
  */
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
 import { Archive, Folder, MoreHorizontal, Plus, X } from "lucide-react";
 import type { Client, ModuleCard, ModuleDetail, ModuleSummary, Source } from "../core/client";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, Tooltip, useToast } from "../ui";
@@ -59,6 +59,22 @@ export function ModulePage({
   const [error, setError] = useState<string | null>(null);
   const section: Section = shownSection === "activity" || shownSection === "settings" ? shownSection : "app";
   const setSection = (s: Section) => onSection?.(s);
+  const [dragging, setDragging] = useState(false);
+  const [dropNote, setDropNote] = useState<string | null>(null);
+  async function dropped(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (!files.length) return;
+    try {
+      const out = await client.addFiles(files, { module: moduleId });
+      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
+      onChanged();
+    } catch (err) {
+      setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    window.setTimeout(() => setDropNote(null), 6000);
+  }
   const [tab, setTab] = useState<string>(() => {
     try {
       return localStorage.getItem(`alpha.module.${moduleId}.tab`) ?? "summary";
@@ -117,7 +133,9 @@ export function ModulePage({
     if (e.key === "Escape") setInline(null);
   };
   return (
-    <div className={`page page--wide${section === "app" && table && !early ? " page--fill" : ""}`}>
+    <div className={`page page--wide${section === "app" && table && !early ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
+      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
+      {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">

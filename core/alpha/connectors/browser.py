@@ -354,9 +354,51 @@ class Browser:
                 "writes_blocked": page.get("writes_blocked") or 0,
                 "egress_blocked": page.get("egress_blocked") or 0}
 
+    def download(self, url: str, into: Path, *, click: str | None = None,
+                 click_text: str | None = None, name: str | None = None,
+                 turn: str | None = None, module: str | None = None) -> dict[str, Any]:
+        """Fetch a file through the person's session into `into` (Alpha's own folder): a direct
+        address, or what a page hands back when a control is pressed. A read: nothing changes
+        on the site, nothing reaches anyone. The file is data, never run."""
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise Problem(f"'{url}' isn't a web address Alpha can open.")
+        if PRIVATE.match(parsed.hostname):
+            raise Problem("Alpha doesn't open addresses on this Mac or the local network.")
+        site = site_of(url)
+        conn = self.covering(site)
+        if conn is not None and conn["status"] != "connected":
+            conn = self.refresh(site)
+        use_profile = conn is not None and conn["status"] == "connected"
+        job: dict[str, Any] = {"op": "download", "url": url, "channel": "chrome",
+                               "dest_dir": str(into), "click": click, "click_text": click_text,
+                               "name": name}
+        if use_profile and conn is not None:
+            job["profile"] = str(profile_of(conn))
+        page = self.runner(job, READ_TIMEOUT_S)
+        got = page.get("path")
+        self.world.journal.append(
+            "saw",
+            (f"Fetched {page.get('name')} from {site}" if got else
+             f"Could not fetch a file from {site}")
+            + (", signed in" if use_profile else "")
+            + (" — it asked for a sign-in" if page.get("blocked") else "")
+            + (" — it stopped Alpha with a bot check" if page.get("bot_check") else "")
+            + (" — the address gave a page, not a file" if page.get("html") else "") + ".",
+            data={"url": url, "signed_in": use_profile, "path": got, "size": page.get("size"),
+                  "turn": turn},
+            module=module, source="connector:browser",
+        )
+        self._walls(site, page)
+        return {"url": url, "site": site, "signed_in": use_profile,
+                "needs_signin": bool(page.get("blocked")),
+                "bot_check": bool(page.get("bot_check")), "path": got, "name": page.get("name"),
+                "size": page.get("size"), "content_type": page.get("content_type"),
+                "html": bool(page.get("html")), "status": page.get("status")}
+
     def act(self, procedure: dict[str, Any], values: dict[str, str], *, shots_dir: Path,
             dry_run: bool, turn: str | None = None, module: str | None = None,
-            label: str | None = None) -> dict[str, Any]:
+            label: str | None = None, files: dict[str, str] | None = None) -> dict[str, Any]:
         """Perform a procedure's steps in the person's own session for one approved (or, on a dry
         run, proposed) action. Only a site the person connected; only the payload is typed. A
         dry run does every step but the commit and screenshots the result."""
@@ -376,7 +418,9 @@ class Browser:
         job: dict[str, Any] = {
             "op": "act", "url": url, "channel": "chrome", "profile": str(profile_of(conn)),
             "steps": procedure["steps"], "verify": procedure.get("verify") or [],
-            "values": values, "stop_before_last": dry_run, "shots_dir": str(shots_dir),
+            "values": {**values, "__files": files or {}}, "stop_before_last": dry_run,
+            "shots_dir": str(shots_dir),
+            "files_root": str((alpha_home() / "files").resolve()),
         }
         page = self.runner(job, ACT_TIMEOUT_S)
         what = label or procedure["name"]

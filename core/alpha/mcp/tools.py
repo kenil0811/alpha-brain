@@ -11,11 +11,13 @@ on sites the run already knows.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 import os
 import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 from alpha.connectors.base import Connections
@@ -1004,6 +1006,37 @@ class Tools:
         return Files(self.world).read(ref, start, length)
 
     @tool
+    def page_download(self, url: str, module: str | None = None, click: str | None = None,
+                      click_text: str | None = None, name: str | None = None) -> dict[str, Any]:
+        """Fetch a file through the person's session into Alpha's own folder for the module
+        (an attachment, a PDF, an export): a direct address, or the file a page hands back
+        when a control is pressed (click: css, or click_text: the control's words). A read:
+        nothing changes on the site. The file becomes a document (document_read for its text)
+        and its id can be kept on a row in a `file` field (records_update). Fetch files only
+        when the plan said to keep them or the person asked for one."""
+        from alpha.connectors.files import Files, files_dir
+
+        module_id = self.world.modules.get(module)["id"] if module else self.module
+        module_name = self.world.modules.get(module_id)["name"] if module_id else None
+        scratch = files_dir(module_name) / ".incoming"
+        got = Browser(self.world).download(url, scratch, click=click, click_text=click_text,
+                                           name=name, turn=self.turn, module=module_id)
+        if not got.get("path"):
+            why = ("the site asked for a sign-in (browser_signin)" if got["needs_signin"] else
+                   "the site stopped Alpha with a bot check" if got["bot_check"] else
+                   "the address gave a page, not a file" if got["html"] else
+                   f"nothing came back (status {got.get('status')})")
+            return {"error": f"Couldn't fetch a file from {url}: {why}."}
+        doc = Files(self.world).take(Path(got["path"]), module=module_id, origin=url,
+                                     move=True, turn=self.turn)
+        with contextlib.suppress(OSError):
+            scratch.rmdir()  # the holding folder, empty again
+        return {"document": doc["id"], "name": doc["title"], "size": doc["size"],
+                "words": len((doc.get("text") or "").split()) if doc.get("text") else None,
+                "kind": doc["kind"], "note": "Read it with document_read; keep its id on a row"
+                                              " in a file field if the table has one."}
+
+    @tool
     def page_read(self, url: str, to_end: bool = False) -> dict[str, Any]:
         """Read a web page: title, readable text and links (each with the text of the card it
         sits in). Uses the person's sign-in when they connected that site in Alpha's browser.
@@ -1201,7 +1234,9 @@ class Tools:
         {"type": css, "value": "{body}"} (keyboard, for rich editors) · {"press": "Enter"} ·
         {"wait": css} · {"wait_ms": 1500} · {"expect": css} · {"expect_text": "Draft saved"} ·
         {"goto": url}. fill and type take only a field of the payload, never words of your own;
-        the last step is the commit (save, close, send): a dry run does everything before it.
+        a {field} inside the url, a selector, a click_text or a goto is filled from the payload
+        too (a profile slug, a subject to find), so one procedure serves every recipient; the
+        last step is the commit (save, close, send): a dry run does everything before it.
         fields: the payload fields the steps use (e.g. ["to", "subject", "body"]). verify:
         read-only checks after the commit ({"expect_text": …})."""
         site = site_of(url)
@@ -1229,7 +1264,9 @@ class Tools:
         words after the card: action_approve). A prepare-level procedure the person has allowed
         always runs at once instead. title: what it does, in their words ("Draft to Sania about
         Barcelona"). undo: what can be undone and what cannot ("the draft can be deleted" / "a
-        sent email cannot be unsent"). evidence: what it rests on (records, pages read)."""
+        sent email cannot be unsent"). evidence: what it rests on, in one plain sentence the
+        person would say (who it goes to and why, what was read), never ids, urns or
+        addresses: the card shows it."""
         proc = self.world.procedures.get(procedure)
         module_id = self.world.modules.get(module)["id"] if module else self.module
         from alpha.runtime import acting

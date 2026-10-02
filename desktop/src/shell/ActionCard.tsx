@@ -8,6 +8,12 @@ import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
+/** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
+ *  slug, an opaque token), not words. It still travels with the action and the title names the
+ *  person. */
+const isIdentifier = (field: string, value: string) =>
+  /(^|_)(urn|id|slug|key|token|uid|guid|handle)$/.test(field) || /^urn:/i.test(value) || (/^[A-Za-z0-9_-]{24,}$/.test(value) && !/\s/.test(value));
+const EVIDENCE_SHORT = 150;
 
 const EFFECT: Record<string, string> = {
   prepare: "Stays in your account; reaches nobody",
@@ -20,6 +26,10 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(action.payload);
   const [shot, setShot] = useState<string | null>(null);
+  const [full, setFull] = useState(false);
+  const [moreWhy, setMoreWhy] = useState(false);
+  const fields = Object.entries(action.payload).filter(([f, v]) => editing || !isIdentifier(f, v));
+  const why = action.evidence ?? "";
   const previewName = action.state === "proposed" ? action.preview : action.shots.after ?? action.shots.preview ?? action.shots.error ?? null;
 
   useEffect(() => {
@@ -67,36 +77,53 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
       <p className="because">
         <b>{action.effect === "send" ? "Sends" : "Prepares"}</b> on {action.site} · {EFFECT[action.effect]} · {when(action.created_at)}
       </p>
-      {action.evidence ? (
+      {why ? (
         <p className="because">
-          <b>Because</b> {action.evidence}
+          <b>Because</b> {moreWhy || why.length <= EVIDENCE_SHORT ? why : `${why.slice(0, EVIDENCE_SHORT).trimEnd()}…`}
+          {why.length > EVIDENCE_SHORT ? (
+            <button type="button" className="linkbtn faint" style={{ marginLeft: 6 }} onClick={() => setMoreWhy((v) => !v)}>
+              {moreWhy ? "less" : "more"}
+            </button>
+          ) : null}
         </p>
       ) : null}
-      {!compact ? (
-        <div className="action__payload">
-          {Object.entries(action.payload).filter(([, v]) => isShort(v)).length ? (
-            <p className="action__line">
-              {Object.entries(action.payload)
-                .filter(([, v]) => isShort(v))
-                .map(([field, value]) => (
-                  <span key={field}>
-                    <span className="faint">{field.replace(/_/g, " ")}</span> {editing ? <input value={draft[field] ?? ""} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : value}
-                  </span>
-                ))}
-            </p>
-          ) : null}
-          {Object.entries(action.payload)
-            .filter(([, v]) => !isShort(v))
-            .map(([field, value]) => (
-              <div key={field} className="action__block">
-                <span className="faint">{field.replace(/_/g, " ")}</span>
-                {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text">{value}</pre>}
-              </div>
-            ))}
+      <div className={`action__body${compact ? " action__body--compact" : ""}`}>
+        {!compact ? (
+          <div className="action__payload">
+            {fields.filter(([, v]) => isShort(v)).length ? (
+              <p className="action__line">
+                {fields
+                  .filter(([, v]) => isShort(v))
+                  .map(([field, value]) => (
+                    <span key={field}>
+                      <span className="faint">{field.replace(/_/g, " ")}</span> {action.files?.[field] ? `${action.files[field].name} (${Math.max(1, Math.round(action.files[field].size / 1024))} KB)` : editing ? <input value={draft[field] ?? ""} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : value}
+                    </span>
+                  ))}
+              </p>
+            ) : null}
+            {fields
+              .filter(([, v]) => !isShort(v))
+              .map(([field, value]) => (
+                <div key={field} className="action__block">
+                  <span className="faint">{field.replace(/_/g, " ")}</span>
+                  {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text">{value}</pre>}
+                </div>
+              ))}
+          </div>
+        ) : null}
+        {shot ? (
+          <button type="button" className="action__thumb" onClick={() => setFull(true)} title="See it full size">
+            <img src={shot} alt={open ? "How it looks before the last step" : "How it ended"} onError={() => setShot(null)} />
+            <span className="action__thumb-cap">{open ? "Before the last step" : "How it ended"} · click to enlarge</span>
+          </button>
+        ) : null}
+      </div>
+      {!shot && open && action.preview_note ? <p className="faint">{action.preview_note}</p> : null}
+      {full && shot ? (
+        <div className="lightbox" role="dialog" aria-label="Screenshot" onClick={() => setFull(false)}>
+          <img src={shot} alt="Screenshot, full size" />
         </div>
       ) : null}
-      {shot ? <img className="action__shot" src={shot} alt={open ? "How it looks before the last step" : "How it ended"} onError={() => setShot(null)} /> : null}
-      {!shot && open && action.preview_note ? <p className="faint">{action.preview_note}</p> : null}
       <p className="because">
         <b>Undo</b> {action.undo}
       </p>

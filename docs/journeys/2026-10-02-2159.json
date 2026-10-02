@@ -1,0 +1,48 @@
+[
+ {
+  "name": "attachment_in",
+  "title": "An attachment is fetched from Gmail into the module and read",
+  "steps": [
+   {
+    "say": "fetch the ETA Tracker CSV that Vikas Badami emailed me into the Advisory module and tell me how many rows it has",
+    "ok": true,
+    "reply": "Fetched it — the email is \"Data\" from Vikas Badami (badami@wustl.edu), sent 12 Sept 2026, with the attachment \"ETA Tracker Accounting Vikas.csv\". I downloaded it into the Advisory module as a document (there's an older copy of the same file in your local \"alpha docs\" folder too, but this one came straight from the email).\n\nIt has **20 data rows** (a list of accounting-practice/business broker sites — Platform, Website, Notes, Last time checked), plus a header row.",
+    "steps": 8,
+    "seconds": 39.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "contains": "Fetched"
+    },
+    "ok": true,
+    "why": "1 saw entry: Fetched ETA Tracker Accounting Vikas (email attachment).csv from google.com, signed in..",
+    "seconds": 0.0
+   },
+   {
+    "check": "document",
+    "arg": {
+     "module": "Advisory",
+     "kind": "csv"
+    },
+    "ok": true,
+    "why": "ETA Tracker Accounting Vikas (email attachment).csv (2068 bytes, 50 words).",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\d+ (rows|listings|lines|entries)"
+    },
+    "ok": false,
+    "why": "The reply doesn't match /\\d+ (rows|listings|lines|entries)/.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 39.2,
+  "error": null
+ }
+]

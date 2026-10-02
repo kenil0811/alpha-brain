@@ -13,4 +13,6 @@ export const host = {
   companionVisible: () => invoke<boolean>("avatar_is_visible"),
   setCompanionVisible: (visible: boolean) => invoke<boolean>("avatar_visible", { visible }),
   revealData: () => invoke<void>("reveal_data"),
+  revealPath: (path: string) => invoke<void>("reveal_path", { path }),
+  openPath: (path: string) => invoke<void>("open_path", { path }),
 };

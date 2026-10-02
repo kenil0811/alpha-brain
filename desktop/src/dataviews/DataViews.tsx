@@ -20,7 +20,8 @@ import { StandardDropdown } from "../ui/StandardDropdown";
 import { titleFieldOf, type FieldInfo } from "../modules/fields";
 import { applyFilters, applySorts, filterRowsByQuery, isActiveFilter, VIEW_KINDS, type DataRow, type ViewConfig, type ViewKind } from "./engine";
 import { computeEligibleKinds, ineligibleReason, migrateViewConfig, viewConfigForKind } from "./eligibility";
-import { useRelations, fieldLabel, type Link } from "./cells";
+import { FilesContext, useRelations, fieldLabel, type Link } from "./cells";
+import { host } from "../core/host";
 import { FilterBuilder, FilterChips, KIND_LABELS, NameDialog, PaginationBar, SelectionBar, SortEditor, PAGE_SIZES, type PageSize } from "./controls";
 import { PAGED, VIEW_COMPONENTS, VIEW_METADATA } from "./registry";
 import { EntityPage, NewRecordFrame, RecordPage, type Opened } from "./RecordPage";
@@ -119,6 +120,29 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [client, name]);
   useEffect(load, [load, version]);
+  const exportAs = async (format: "csv" | "xlsx") => {
+    try {
+      const out = await client.exportTable(name, format);
+      if (host.available()) await host.revealPath(out.path);
+      setStatus({ text: `Exported ${out.rows} rows to ${out.name}${host.available() ? "" : ` (${out.path})`}.` });
+    } catch (e) {
+      setStatus({ text: `Couldn't export: ${e instanceof Error ? e.message : String(e)}`, error: true });
+    }
+  };
+  const filesCtx = useMemo(
+    () => ({
+      files: data?.files ?? {},
+      add: (row: RecordRow, field: FieldInfo, file: File) =>
+        void client
+          .addFiles([file], { table: name, record: row.id, field: field.name })
+          .then(() => {
+            load();
+            onChanged();
+          })
+          .catch((e: unknown) => setStatus({ text: `Couldn't add ${file.name}: ${e instanceof Error ? e.message : String(e)}`, error: true })),
+    }),
+    [data, client, name, load, onChanged],
+  );
   // Skills the Chief of Staff attached to this table, offered in each row's menu.
   const [rowActions, setRowActions] = useState<{ skill: string; title: string }[]>([]);
   useEffect(() => {
@@ -388,6 +412,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const page = top && mode === "page";
 
   return (
+    <FilesContext.Provider value={filesCtx}>
     <div className="dv" aria-label={table.title}>
       <div className="dv-toolbar">
         <div className="dv-toolbar__left">
@@ -486,6 +511,8 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={load}>Reload</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void exportAs("csv")}>Download as CSV</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void exportAs("xlsx")}>Download as Excel</DropdownMenuItem>
               {doneField ? (
                 <DropdownMenuCheckboxItem checked={Boolean(config.hideDone)} onSelect={(e) => e.preventDefault()} onCheckedChange={(on) => setConfig({ ...config, hideDone: on === true || undefined })}>
                   <span className="dv-menu__mark">{config.hideDone ? <Check size={12} /> : null}</span>
@@ -701,6 +728,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
       ) : null}
       {addingColumn ? <AddColumn fields={fields} onCancel={() => setAddingColumn(false)} onAdd={async (f) => (await run(() => client.addFields(name, [f]), `Added ${f.label}`, false)) && (setAddingColumn(false), true)} /> : null}
     </div>
+    </FilesContext.Provider>
   );
 }
 

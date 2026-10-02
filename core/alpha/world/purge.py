@@ -37,6 +37,17 @@ from alpha.world.world import World, alpha_home
 CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
 
 
+def _unlink_files(paths: list[str]) -> None:
+    """Delete files Alpha kept for a module, only inside its own files folder."""
+    from alpha.world.world import alpha_home
+
+    root = (alpha_home() / "files").resolve()
+    for p in paths:
+        path = Path(p).resolve()
+        if path.is_relative_to(root) and path.is_file():
+            path.unlink(missing_ok=True)
+
+
 def plural(n: int, one: str) -> str:
     return f"{n:,} {one}{'' if n == 1 else 's'}"
 
@@ -104,6 +115,14 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             "UPDATE modules SET project = NULL WHERE project = ?", (mid,)).rowcount
         counts["sources"] = world.sources.remove_module(db, mid)
         counts["actions"] = world.actions.remove_module(db, mid)
+        files = [r["path"] for r in db.execute("SELECT path FROM documents WHERE module = ?",
+                                               (mid,)).fetchall()]
+        for did in [r["id"] for r in db.execute("SELECT id FROM documents WHERE module = ?",
+                                                (mid,)).fetchall()]:
+            db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text) SELECT"
+                       " 'delete', rowid, title, text FROM documents WHERE id = ?", (did,))
+        counts["files"] = db.execute("DELETE FROM documents WHERE module = ?", (mid,)).rowcount
+        _unlink_files(files)
         # Plans stay as a record of what was proposed and decided; none of them goes on.
         db.execute("UPDATE plans SET state = 'stopped', report = COALESCE(report, ?),"
                    " updated_at = ? WHERE module = ? AND state IN ('proposed', 'approved',"

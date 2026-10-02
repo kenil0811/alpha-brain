@@ -432,6 +432,9 @@ ADDED_COLUMNS = [
     # Where making the project stands (JSON, world/modules.py `set_creation`); NULL for a
     # project that was never made through the creation process.
     ("modules", "creation", "TEXT"),
+    # a file Alpha fetched or the person added: whose module it is, and where it came from
+    ("documents", "module", "TEXT"),
+    ("documents", "origin", "TEXT"),
 ]
 
 
