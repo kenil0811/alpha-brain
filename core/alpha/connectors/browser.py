@@ -4,9 +4,10 @@ A public page is read headless with scripts run. A site the person signed into i
 a Chrome profile Alpha keeps for that site under the data directory: the person signs in
 themselves in a window Alpha opens (Alpha never sees what they type), and the connection is then
 "connected". A sign-in covers every site its window passed through (one that starts at gmail.com
-ends at google.com), so a page on any of them is read through that profile. Reading only: the
-driver never clicks, types or submits (it presses "Show more" style paging buttons when asked to
-read a list to its end). Every page read is journaled.
+ends at google.com), so a page on any of them is read through that profile. Reading never clicks,
+types or submits (it presses "Show more" style paging buttons when asked to read a list to its
+end). The one write is `act`: an approved action's procedure, performed in the person's session,
+typing only the payload the person saw. Every page read and every act is journaled.
 
 The driver is `connectors/browser/scripts/browser_session.mjs` (Playwright, pinned), run with
 Node 24.
@@ -14,6 +15,7 @@ Node 24.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -31,6 +33,7 @@ TWO_PART = {"co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "co.in", "
             "co.nz", "com.sg"}
 NODE_CANDIDATES = ["/opt/homebrew/opt/node@24/bin/node", "/usr/local/opt/node@24/bin/node"]
 READ_TIMEOUT_S = 180
+ACT_TIMEOUT_S = 300
 SIGNIN_TIMEOUT_S = 1800
 PRIVATE = re.compile(r"^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)")
 
@@ -131,8 +134,21 @@ class Browser:
         self._runner = runner
 
     def runner(self, job: dict[str, Any], timeout: int) -> dict[str, Any]:
+        """Run one driver job. Jobs on the same sign-in profile take turns (a file lock, so the
+        model's MCP process and the core never open one Chrome profile twice at once, which
+        Chrome refuses)."""
         run = self._runner or run_job
-        result: dict[str, Any] = run(job, timeout)
+        profile = job.get("profile")
+        if not profile or self._runner is not None:
+            result: dict[str, Any] = run(job, timeout)
+            return result
+        Path(profile).mkdir(parents=True, exist_ok=True)
+        with open(Path(profile) / "alpha-busy.lock", "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                result = run(job, timeout)
+            finally:
+                fcntl.flock(lock, fcntl.LOCK_UN)
         return result
 
     def signin(self, site_or_url: str) -> dict[str, Any]:
@@ -337,6 +353,56 @@ class Browser:
                 "result": result, "scrolls": page.get("scrolls"),
                 "writes_blocked": page.get("writes_blocked") or 0,
                 "egress_blocked": page.get("egress_blocked") or 0}
+
+    def act(self, procedure: dict[str, Any], values: dict[str, str], *, shots_dir: Path,
+            dry_run: bool, turn: str | None = None, module: str | None = None,
+            label: str | None = None) -> dict[str, Any]:
+        """Perform a procedure's steps in the person's own session for one approved (or, on a dry
+        run, proposed) action. Only a site the person connected; only the payload is typed. A
+        dry run does every step but the commit and screenshots the result."""
+        url = procedure["url"]
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise Problem(f"'{url}' isn't a web address Alpha can open.")
+        if PRIVATE.match(parsed.hostname):
+            raise Problem("Alpha doesn't act on addresses on this Mac or the local network.")
+        site = site_of(url)
+        conn = self.covering(site)
+        if conn is not None and conn["status"] != "connected":
+            conn = self.refresh(site)
+        if conn is None or conn["status"] != "connected":
+            return {"needs_signin": True, "done": 0, "site": site,
+                    "note": f"Acting on {site} needs the person's sign-in there (browser_signin)."}
+        job: dict[str, Any] = {
+            "op": "act", "url": url, "channel": "chrome", "profile": str(profile_of(conn)),
+            "steps": procedure["steps"], "verify": procedure.get("verify") or [],
+            "values": values, "stop_before_last": dry_run, "shots_dir": str(shots_dir),
+        }
+        page = self.runner(job, ACT_TIMEOUT_S)
+        what = label or procedure["name"]
+        outcome = ("stopped before the last step" if page.get("stopped_before_last") else
+                   f"failed at step {page['failed_step']}: {page.get('error')}"
+                   if page.get("failed_step") else
+                   "it asked for a sign-in" if page.get("blocked") else
+                   "it stopped Alpha with a bot check" if page.get("bot_check") else
+                   "done" + ("" if page.get("verified") in (None, True) else
+                             ", but the check afterwards failed"))
+        self.world.journal.append(
+            "did", f"{'Dry run of' if dry_run else 'Performed'} {what} on {site}: {outcome}.",
+            actor="alpha",
+            data={"url": url, "procedure": procedure["name"], "dry_run": dry_run,
+                  "done": page.get("done"), "failed_step": page.get("failed_step"),
+                  "error": page.get("error"), "verified": page.get("verified"),
+                  "shots": page.get("shots") or {}, "log": page.get("log") or [], "turn": turn},
+            module=module, source="connector:browser",
+        )
+        self._walls(site, page)
+        return {"site": site, "needs_signin": bool(page.get("blocked")),
+                "bot_check": bool(page.get("bot_check")), "done": page.get("done", 0),
+                "failed_step": page.get("failed_step"), "error": page.get("error"),
+                "verified": page.get("verified"), "shots": page.get("shots") or {},
+                "log": page.get("log") or [], "final_url": page.get("final_url"),
+                "title": page.get("title"), "outcome": outcome}
 
     def items(self, url: str, *, link_contains: str, to_end: bool = True,
               turn: str | None = None, module: str | None = None) -> dict[str, Any]:

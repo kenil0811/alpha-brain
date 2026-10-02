@@ -368,7 +368,7 @@ function Workspace({ injected }: { injected?: Client }) {
               </div>
             ) : null}
             {surface.kind === "home" ? (
-              <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={ask} onNew={startNew} />
+              <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={ask} onNew={startNew} onOpenThread={(id) => { rememberSession(scopeKey, id); openAssistant(); }} />
             ) : surface.kind === "module" ? (
               <ModulePage
                 key={surface.id}

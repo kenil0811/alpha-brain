@@ -8,8 +8,9 @@
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronLeft, Plus } from "lucide-react";
-import type { AttachmentWire, Client, JournalEntry, ModuleCard, Plan, Session, Thread, Turn } from "../core/client";
+import type { Action, AttachmentWire, Client, JournalEntry, ModuleCard, Plan, Session, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
+import { ActionCard } from "../shell/ActionCard";
 import { ConnectCard } from "../shell/models";
 import { usePushToTalk } from "../shell/ptt";
 import { MicButton, useSpeech } from "../shell/voice";
@@ -161,6 +162,7 @@ export function AssistantPanel({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [earlier, setEarlier] = useState<Session[]>([]);
+  const [actions, setActions] = useState<Action[]>([]);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
@@ -186,6 +188,7 @@ export function AssistantPanel({
         setTurns(c.turns);
         setThreads(c.threads);
         setPlans(c.plans ?? []);
+        setActions(c.actions ?? []);
       }),
       client.sessions(moduleId).then((all) => setEarlier(all.slice(0, 8))),
     ];
@@ -209,6 +212,12 @@ export function AssistantPanel({
   useEffect(() => {
     if (threadView) setOpening(false);
   }, [threadView]);
+  // While a thread view is open and Alpha works in it, its steps keep arriving.
+  useEffect(() => {
+    if (!threadView || threadView.state !== "working") return;
+    const id = window.setInterval(() => void client.thread(threadView.id).then(setThreadView).catch(() => undefined), 4000);
+    return () => window.clearInterval(id);
+  }, [client, threadView?.id, threadView?.state]);
   useEffect(load, [load, version]);
   // Alpha works on its own too (a deepen pass, a folder that changed): look again every 5 s
   // while something is working, every 15 s otherwise.
@@ -460,6 +469,7 @@ export function AssistantPanel({
                       <span className="creation__name">{t.title}</span>
                       <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
                     </span>
+                    {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
                   {build ? (
                     <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
@@ -476,6 +486,11 @@ export function AssistantPanel({
               .filter((p) => p.state === "proposed" || p.state === "stopped")
               .map((p) => (
                 <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
+              ))}
+            {actions
+              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || (a.state === "failed" && !a.error?.includes("declined")))
+              .map((a) => (
+                <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
           </>
         )}

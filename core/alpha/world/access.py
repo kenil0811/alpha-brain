@@ -6,7 +6,7 @@ Advanced -> Access, seeded from Settings -> Builds), after Alpha's own `needs_ap
 - approve_for_me ("Approve for me"): only removing a record waits;
 - full ("Full access"): nothing here waits.
 
-A call that waits becomes a pending action (`alpha.world.actions`) with the exact call as its
+A call that waits becomes a pending action (`alpha.world.pending`) with the exact call as its
 payload: the person approves it on Home and it runs once, from the core, exactly as stored.
 The modes only ever add approvals on top of the governance rules, never take any away: in every
 mode a write outward is still only a pending action, the never list still refuses, and the taint
@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from alpha.connectors.browser import site_of
 from alpha.models import settings
-from alpha.world.actions import Actions, register
+from alpha.world.pending import PendingActions, register
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -73,7 +73,7 @@ def hold(tools: Tools, fn: Callable[..., Any], args: tuple[Any, ...],
         return None
     call = dict(inspect.signature(fn).bind(tools, *args, **kwargs).arguments)
     call.pop("self", None)
-    action = Actions(tools.world).propose(
+    action = PendingActions(tools.world).propose(
         KIND, _summary(tools, name, call),
         {"tool": name, "input": call, "turn": tools.turn, "thread": tools.thread,
          "module": tools.module},

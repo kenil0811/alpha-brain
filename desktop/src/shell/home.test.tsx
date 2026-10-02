@@ -17,7 +17,7 @@ describe("Home", () => {
     render(
       <TooltipProvider>
         <ToastProvider>
-          <Home client={client} version={0} onGo={vi.fn()} onChanged={vi.fn()} onAsk={vi.fn()} onNew={vi.fn()} />
+          <Home client={client} version={0} onGo={vi.fn()} onChanged={vi.fn()} onAsk={vi.fn()} onNew={vi.fn()} onOpenThread={vi.fn()} />
         </ToastProvider>
       </TooltipProvider>,
     );

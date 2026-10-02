@@ -20,7 +20,7 @@ from alpha.mcp.tools import Tools
 from alpha.runtime import automation, claude_account, claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.runtime.turn import ask
-from alpha.world import actions, taint
+from alpha.world import pending, taint
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -261,9 +261,9 @@ def echo() -> Any:
         ran.append(payload)
         return {"echoed": payload["text"]}
 
-    actions.register("echo_note", "test", run)
+    pending.register("echo_note", "test", run)
     yield ran
-    actions.EXECUTORS.pop("echo_note", None)
+    pending.EXECUTORS.pop("echo_note", None)
 
 
 def test_an_approved_action_runs_its_stored_payload_exactly_once(world: World, echo: Any) -> None:
@@ -289,7 +289,7 @@ def test_an_approved_action_runs_its_stored_payload_exactly_once(world: World, e
 
 
 def test_reject_unavailable_and_expired_never_run(world: World, echo: Any) -> None:
-    a = actions.Actions(world)
+    a = pending.PendingActions(world)
     rejected = a.propose("echo_note", "Echo one", {"text": "1"})
     assert a.reject(rejected["id"], by="person")["state"] == "rejected"
     with pytest.raises(Problem):
@@ -307,7 +307,7 @@ def test_reject_unavailable_and_expired_never_run(world: World, echo: Any) -> No
 
 
 def test_answering_the_question_is_the_same_approve_path(world: World, echo: Any) -> None:
-    a = actions.Actions(world)
+    a = pending.PendingActions(world)
     c = TestClient(create_app(world, live=False))
     yes = a.propose("echo_note", "Echo yes", {"text": "yes"})
     no = a.propose("echo_note", "Echo no", {"text": "no"})
@@ -331,14 +331,15 @@ def test_automations_and_model_runs_can_only_propose(world: World, echo: Any,
         aid = t.propose_action("echo_note", "Echo from automation", {"text": "auto"})[
             "pending_action"]
         with pytest.raises(Problem, match="Only the person"):
-            actions.Actions(world).approve(aid, by="person")
+            pending.PendingActions(world).approve(aid, by="person")
         monkeypatch.delenv("ALPHA_TURN")
         with pytest.raises(Problem, match="Only the person"):
-            actions.Actions(world).approve(aid, by="alpha")
+            pending.PendingActions(world).approve(aid, by="alpha")
         return RunResult(reply="Proposed.", ok=True)
 
     automation.run(world, auto["id"], runner=runner)
-    assert echo == [] and [p["state"] for p in actions.Actions(world).pending()] == ["pending"]
+    waiting = pending.PendingActions(world).pending()
+    assert echo == [] and [p["state"] for p in waiting] == ["pending"]
 
 
 # ---- 6. the never list, checked before anything else ----
@@ -361,5 +362,5 @@ def test_the_never_list_refuses_before_anything_is_stored(world: World, kind: st
 
 
 def test_the_never_list_leaves_ordinary_writes_alone() -> None:
-    assert actions.never("send_email", {"to": "a@b.example", "body": "Order 1234 5678"}) is None
-    assert actions.never("delete_email", {"id": "m1"}) is None
+    assert pending.never("send_email", {"to": "a@b.example", "body": "Order 1234 5678"}) is None
+    assert pending.never("delete_email", {"id": "m1"}) is None

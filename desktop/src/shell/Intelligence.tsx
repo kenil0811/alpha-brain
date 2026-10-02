@@ -208,6 +208,7 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
 
 function Knowledge({ client, data, modules, onChanged }: { client: Client; data: Data; modules: ModuleCard[]; onChanged: () => void }) {
   const { facts, notes, goals } = data.knowledge;
+  const permissions = data.knowledge.permissions ?? [];
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
   return (
     <div className="stack">
@@ -226,6 +227,25 @@ function Knowledge({ client, data, modules, onChanged }: { client: Client; data:
               <div className="item__sub">
                 {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card card--pad intel__card">
+        <div className="intel__head">
+          <h3>Standing permissions</h3>
+          <span className="faint">what Alpha may do without asking; anything sent asks every time</span>
+        </div>
+        {!permissions.length ? <p className="empty">None yet. When Alpha proposes a draft or a message, "Always allow" on its card makes one.</p> : null}
+        <div className="stack">
+          {permissions.map((p) => (
+            <div key={p.id} className="row" style={{ justifyContent: "space-between" }}>
+              <span>
+                {p.sentence} <span className="faint">· since {when(p.granted_at)}</span>
+              </span>
+              <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
+                Revoke
+              </button>
             </div>
           ))}
         </div>

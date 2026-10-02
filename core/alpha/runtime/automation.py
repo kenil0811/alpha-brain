@@ -166,8 +166,22 @@ class Scheduler:
         if self.world.plans.get(pid)["state"] == "building" and not self.stop_event.is_set():
             self.builds()
 
+    def acts(self) -> None:
+        """Perform every action the person approved that hasn't run (the app was closed in
+        between, say). The approval route runs them at once; this is the catch-up."""
+        from alpha.runtime import acting
+
+        for action in self.world.actions.all(("approved",)):
+            if self.stop_event.is_set():
+                return
+            try:
+                acting.perform(self.world, action["id"], runner=self.runner)
+            except Exception:
+                log.exception("action %s failed", action["id"])
+
     def tick(self) -> None:
         self.builds()
+        self.acts()
         for auto in self.world.automations.due():
             if self.stop_event.is_set():
                 return

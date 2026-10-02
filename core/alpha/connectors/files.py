@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.base import Connections
-from alpha.world.actions import register
+from alpha.world.pending import register
 from alpha.world.store import Problem, new_id, now
 from alpha.world.world import World
 

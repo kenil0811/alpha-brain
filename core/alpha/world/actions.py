@@ -1,224 +1,316 @@
-"""Pending actions: the one way anything is written outside Alpha's own space.
+"""Acting outward: procedures, actions and standing permissions.
 
-Alpha never writes outward itself. It proposes (`propose`): the exact payload is stored with
-its kind and connector, and the person is asked (an `asked` journal entry, shown on Home). Only
-the person's approve runs it (`approve`, reached from the app's HTTP API and nowhere else):
-the stored payload, exactly once, fail-closed. The row is claimed as approved before anything
-runs, so a crash or a second click never runs it again. The decision is journaled as the ask's
-`answered`, and the result as `did` or `failed`. The outcomes are DeepSeek Harness's:
-allowed once, rejected, or unavailable (nothing in Alpha can do that kind yet, or it is never
-allowed); a proposal not decided within a week expires.
+A **procedure** is know-how Alpha writes for one task on one site ("make a draft in Gmail",
+"send a LinkedIn message"): declarative steps the browser hand performs in the person's own
+session. Fills and typing take only fields of an action's payload, never text of the
+procedure's own, so what reaches a site is exactly what the person saw and approved. A
+procedure declares its effect: `prepare` (the result stays in the person's account and reaches
+nobody: a draft, an unsent message) or `send` (it reaches someone or something). Its last step
+is the commit (save, close, send); a dry run performs everything before it.
 
-Executors are registered per kind (`register`), and that is the only place an outward write may
-run from. The core registers two: an access-mode call that waited for approval (`access`) and
-saving a new document into a shared folder (`files.save_document`). Any other kind comes back
-unavailable.
+An **action** is one outward effect Alpha proposes: the procedure, the payload, what it rests
+on, what cannot be undone. It is a card the person decides on; nothing leaves Alpha's space
+until they say yes, in the app or in their own words after the card.
 
-The never list (`never`) is checked before anything else, on proposing and again on approving:
-moving money, permanent deletion outside Alpha's space, and passwords, card numbers or similar
-secrets in a payload. Typing into password and card fields is refused by the browser driver
-itself. Installing a plug-in is someone else's code: it can only ever be a pending action here.
+    proposed → approved → running → done | failed
+    proposed → declined
+
+A **permission** is a sentence the person granted ("Alpha may make drafts in gmail.com without
+asking"): a prepare-level procedure with one runs without a card. Sends ask every time.
 """
 
 from __future__ import annotations
 
-import os
 import re
-from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+import sqlite3
 from typing import Any
 
-from alpha.world.store import Problem, dumps, loads, new_id, now
-from alpha.world.world import World
+from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-EFFECT = "write_outward"
-EXPIRES_AFTER = timedelta(days=7)
-STATES = ("pending", "approved", "rejected", "expired", "unavailable")
-
-
-@dataclass(frozen=True)
-class Executor:
-    connector: str
-    run: Callable[[dict[str, Any]], dict[str, Any]]
+NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
+FIELD_REF = re.compile(r"^\{([a-z][a-z0-9_]*)\}$")
+EFFECTS = ("prepare", "send")
+STATES = ("proposed", "approved", "running", "done", "failed", "declined")
+STEP_KINDS = {"goto", "click", "click_text", "fill", "type", "press", "wait", "wait_ms",
+              "expect", "expect_text"}
+COMMITS = {"click", "click_text", "press"}
 
 
-EXECUTORS: dict[str, Executor] = {}
+def check_steps(steps: Any, fields: list[str], *, effect: str,
+                verify: Any = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate a procedure's steps. Returns (steps, verify) cleaned, or raises a Problem that
+    says exactly what is wrong."""
+    if effect not in EFFECTS:
+        raise Problem(f"effect must be one of {EFFECTS}.")
+    if not isinstance(steps, list) or not steps:
+        raise Problem("steps must be a non-empty list.")
+    for name in fields:
+        if not re.match(r"^[a-z][a-z0-9_]*$", name):
+            raise Problem(f"'{name}' is not a field name (lower-case words joined by _).")
+    clean: list[dict[str, Any]] = []
+    for i, step in enumerate(steps, 1):
+        if not isinstance(step, dict) or not step:
+            raise Problem(f"Step {i} must be an object like {{\"click\": \"button.send\"}}.")
+        kinds = [k for k in step if k in STEP_KINDS]
+        if len(kinds) != 1:
+            raise Problem(f"Step {i} must have exactly one of {sorted(STEP_KINDS)}.")
+        kind = kinds[0]
+        extra = set(step) - {kind, "value", "note"}
+        if extra:
+            raise Problem(f"Step {i} has unknown keys {sorted(extra)}.")
+        if kind in ("fill", "type"):
+            value = step.get("value")
+            m = FIELD_REF.match(str(value or ""))
+            if not m:
+                raise Problem(f"Step {i}: a {kind} value must be one field of the payload, like"
+                              " \"{body}\"; text of the procedure's own is never typed.")
+            if m.group(1) not in fields:
+                raise Problem(f"Step {i} types {{{m.group(1)}}}, which is not in fields.")
+        elif kind == "wait_ms":
+            if not isinstance(step[kind], int) or not 0 < step[kind] <= 30000:
+                raise Problem(f"Step {i}: wait_ms is a number of milliseconds up to 30000.")
+        elif "value" in step:
+            raise Problem(f"Step {i}: only fill and type take a value.")
+        if not isinstance(step[kind], str | int) or (isinstance(step[kind], str)
+                                                      and not step[kind].strip()):
+            raise Problem(f"Step {i}: {kind} needs a selector, text or key.")
+        clean.append({k: v for k, v in step.items()})
+    last = next(k for k in clean[-1] if k in STEP_KINDS)
+    if last not in COMMITS:
+        raise Problem("The last step is the commit (save, close, send): a click, click_text or"
+                      " press. A dry run performs everything before it.")
+    checks: list[dict[str, Any]] = []
+    for i, step in enumerate(verify or [], 1):
+        if not isinstance(step, dict) or len(step) != 1 or next(iter(step)) not in (
+                "expect", "expect_text", "goto", "wait", "wait_ms"):
+            raise Problem(f"verify step {i} must be one of expect, expect_text, goto, wait,"
+                          " wait_ms.")
+        checks.append(dict(step))
+    return clean, checks
 
 
-def register(kind: str, connector: str, run: Callable[[dict[str, Any]], dict[str, Any]]) -> None:
-    """Make an outward write of `kind` possible: `run` gets the approved payload, once."""
-    EXECUTORS[kind] = Executor(connector, run)
-
-
-MONEY = {"pay", "payment", "payout", "transfer", "purchase", "buy", "sell", "trade", "withdraw",
-         "deposit", "wire", "checkout", "donate", "refund", "money", "invest", "bet", "tip"}
-PERMANENT = {"purge", "wipe", "erase", "shred", "permanent", "permanently", "expunge"}
-SECRET_KEYS = re.compile(r"(?i)^(password|passwd|passcode|pin|cvc|cvv|csc|iban|ssn|"
-                         r"card_?number|security_?code|secret|api_?key|token)$")
-DIGITS = re.compile(r"(?:\d[ -]?){13,19}")
-
-
-def _luhn(number: str) -> bool:
-    digits = [int(d) for d in number if d.isdigit()]
-    total = 0
-    for i, d in enumerate(reversed(digits)):
-        if i % 2:
-            d = d * 2 - 9 if d > 4 else d * 2
-        total += d
-    return total % 10 == 0
-
-
-def _walk(value: Any) -> list[tuple[str, Any]]:
-    if isinstance(value, dict):
-        return [(str(k), v) for k, v in value.items()] + [
-            kv for v in value.values() for kv in _walk(v)]
-    if isinstance(value, list):
-        return [kv for v in value for kv in _walk(v)]
-    return []
-
-
-def never(kind: str, payload: dict[str, Any]) -> str | None:
-    """Why this is never done, whatever Alpha or a page says, or None."""
-    words = set(re.split(r"[^a-z]+", kind.lower()))
-    if words & MONEY:
-        return "Alpha never moves money"
-    pairs = _walk(payload)
-    if (("trash" in words and words & {"empty", "delete"}) or words & PERMANENT
-            or any(k == "permanent" and v for k, v in pairs)):
-        return "Alpha never deletes anything permanently outside its own space"
-    if any(SECRET_KEYS.match(k) for k, _ in pairs):
-        return "Alpha never enters passwords, card numbers or other secrets"
-    strings = [v for _, v in pairs if isinstance(v, str)]
-    if any(_luhn(m.group()) for s in strings for m in DIGITS.finditer(s)):
-        return "Alpha never enters passwords, card numbers or other secrets"
+def payload_problem(payload: Any, fields: list[str]) -> str | None:
+    if not isinstance(payload, dict):
+        return "payload must be an object: field → text."
+    missing = [f for f in fields if not str(payload.get(f, "")).strip()]
+    if missing:
+        return f"payload is missing {', '.join(missing)}."
+    extra = sorted(set(payload) - set(fields))
+    if extra:
+        return f"payload has fields the procedure doesn't use: {', '.join(extra)}."
     return None
 
 
-def _view(row: Any) -> dict[str, Any]:
+def _procedure(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
-    out["payload"] = loads(row["payload"], {})
-    out["result"] = loads(row["result"], None)
+    out["steps"] = loads(row["steps"], [])
+    out["verify"] = loads(row["verify"], [])
+    out["fields"] = loads(row["fields"], [])
     return out
 
 
-class Actions:
-    def __init__(self, world: World) -> None:
-        self.world = world
-        self.store = world.store
+def _action(row: sqlite3.Row) -> dict[str, Any]:
+    out = {k: row[k] for k in row.keys()}
+    out["payload"] = loads(row["payload"], {})
+    out["shots"] = loads(row["shots"], [])
+    return out
 
-    def get(self, aid: str) -> dict[str, Any]:
-        row = self.store.one("SELECT * FROM pending_actions WHERE id = ?", (aid,))
-        if row is None:
-            raise Problem(f"There is no pending action {aid}.")
-        return _view(row)
 
-    def by_ask(self, ask_id: str) -> dict[str, Any] | None:
-        row = self.store.one("SELECT * FROM pending_actions WHERE asked = ?", (ask_id,))
-        return _view(row) if row else None
+class Procedures:
+    def __init__(self, store: Store) -> None:
+        self.store = store
 
-    def propose(self, kind: str, summary: str, payload: dict[str, Any], *,
-                connector: str | None = None, turn: str | None = None,
-                thread: str | None = None, module: str | None = None) -> dict[str, Any]:
-        refused = never(kind, payload)
-        if refused:
-            self.world.journal.append("failed", f"Refused to propose {kind}: {refused}.",
-                                      data={"kind": kind, "never": refused, "turn": turn},
-                                      module=module, thread=thread)
-            raise Problem(f"{refused}; this can't be proposed.")
-        if not summary.strip():
-            raise Problem("Say what the action does, in one sentence the person reads.")
-        executor = EXECUTORS.get(kind)
-        aid = new_id("pa")
+    def save(self, name: str, *, site: str, url: str, description: str, effect: str,
+             steps: list[dict[str, Any]], fields: list[str],
+             verify: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        if not NAME.match(name):
+            raise Problem("A procedure's name is lower-case words joined by _, e.g. "
+                          "gmail_draft.")
+        if not description.strip():
+            raise Problem("A procedure needs a description: what it does, in a sentence.")
+        clean, checks = check_steps(steps, fields, effect=effect, verify=verify)
         stamp = now()
-        expires = (datetime.fromisoformat(stamp) + EXPIRES_AFTER).isoformat()
-        asked = self.world.journal.append(
-            "asked", summary, module=module, thread=thread,
-            data={"pending_action": aid, "kind": kind, "effect": EFFECT,
-                  "options": ["Approve", "Reject"], "turn": turn},
-        )
+        prior = self.store.one("SELECT version FROM procedures WHERE name = ?", (name,))
+        with self.store.tx() as db:
+            if prior:
+                db.execute(
+                    "UPDATE procedures SET site = ?, url = ?, description = ?, effect = ?,"
+                    " steps = ?, verify = ?, fields = ?, version = version + 1,"
+                    " health = 'untried', last_problem = NULL, updated_at = ? WHERE name = ?",
+                    (site, url, description.strip(), effect, dumps(clean), dumps(checks),
+                     dumps(list(fields)), stamp, name))
+            else:
+                db.execute(
+                    "INSERT INTO procedures (name, site, url, description, effect, steps, verify,"
+                    " fields, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (name, site, url, description.strip(), effect, dumps(clean), dumps(checks),
+                     dumps(list(fields)), stamp, stamp))
+        return self.get(name)
+
+    def get(self, name: str) -> dict[str, Any]:
+        row = self.store.one("SELECT * FROM procedures WHERE name = ?", (name,))
+        if row is None:
+            raise Problem(f"There is no procedure '{name}'. Procedures: {self.names()}.")
+        return _procedure(row)
+
+    def names(self) -> list[str]:
+        return [r["name"] for r in self.store.all("SELECT name FROM procedures ORDER BY name")]
+
+    def all(self) -> list[dict[str, Any]]:
+        return [_procedure(r) for r in
+                self.store.all("SELECT * FROM procedures ORDER BY site, name")]
+
+    def ran(self, name: str, *, problem: str | None) -> dict[str, Any]:
+        stamp = now()
         with self.store.tx() as db:
             db.execute(
-                "INSERT INTO pending_actions (id, kind, effect, connector, payload, summary,"
-                " created_by, thread, module, asked, state, created_at, expires_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?,?)",
-                (aid, kind, EFFECT, executor.connector if executor else connector or "unknown",
-                 dumps(payload), summary, turn, thread, module, asked, stamp, expires),
-            )
-        return self.get(aid)
+                "UPDATE procedures SET health = ?, last_problem = ?, last_run_at = ?,"
+                " updated_at = ? WHERE name = ?",
+                ("broken" if problem else "ok", problem, stamp, stamp, name))
+        return self.get(name)
 
-    def pending(self) -> list[dict[str, Any]]:
-        self.expire()
-        return [_view(r) for r in self.store.all(
-            "SELECT * FROM pending_actions WHERE state = 'pending' ORDER BY created_at")]
 
-    def expire(self) -> None:
-        for row in self.store.all("SELECT id, asked FROM pending_actions WHERE state = 'pending'"
-                                  " AND expires_at <= ?", (now(),)):
-            if self._claim(row["id"], "expired"):
-                self._answer(self.get(row["id"]), "Expired without a decision.", "expired",
-                             actor="alpha")
+class Actions:
+    def __init__(self, store: Store) -> None:
+        self.store = store
 
-    def _claim(self, aid: str, state: str) -> bool:
-        """Move a pending action to its decision, once: False if it was already decided."""
+    def propose(self, procedure: dict[str, Any], *, title: str, payload: dict[str, Any],
+                undo: str, evidence: str | None, module: str | None, thread: str | None,
+                turn: str | None) -> dict[str, Any]:
+        if not title.strip():
+            raise Problem("An action needs a title: what it does, in the person's words.")
+        if not undo.strip():
+            raise Problem("An action says what can be undone and what cannot (undo).")
+        problem = payload_problem(payload, procedure["fields"])
+        if problem:
+            raise Problem(problem)
+        stamp = now()
+        aid = new_id("act")
         with self.store.tx() as db:
-            return db.execute(
-                "UPDATE pending_actions SET state = ?, decided_at = ? WHERE id = ?"
-                " AND state = 'pending'", (state, now(), aid)).rowcount == 1
-
-    def _answer(self, action: dict[str, Any], words: str, outcome: str, *,
-                actor: str = "person") -> str:
-        return self.world.journal.append(
-            "answered", words, actor=actor, module=action["module"], thread=action["thread"],
-            data={"ask": action["asked"], "pending_action": action["id"], "outcome": outcome},
-        )
-
-    def _only_the_person(self, by: str) -> None:
-        # A model run (a turn or an automation) has ALPHA_TURN set in its tools' process; the
-        # app's HTTP API never does. Neither can decide.
-        if by != "person" or os.environ.get("ALPHA_TURN"):
-            raise Problem("Only the person decides on an action, in the app.")
-
-    def reject(self, aid: str, *, by: str) -> dict[str, Any]:
-        self._only_the_person(by)
-        action = self.get(aid)
-        if not self._claim(aid, "rejected"):
-            raise Problem(f"That action was already {action['state']}.")
-        self._answer(action, "Rejected.", "rejected")
+            db.execute(
+                "INSERT INTO actions (id, procedure, title, payload, evidence, undo, effect, site,"
+                " state, module, thread, turn, created_at, updated_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (aid, procedure["name"], title.strip(),
+                 dumps({k: str(v) for k, v in payload.items()}), evidence, undo.strip(),
+                 procedure["effect"], procedure["site"], "proposed", module, thread, turn,
+                 stamp, stamp))
         return self.get(aid)
 
-    def approve(self, aid: str, *, by: str) -> dict[str, Any]:
-        """Run exactly the stored payload, once."""
-        self._only_the_person(by)
-        self.expire()
-        action = self.get(aid)
-        refused = never(action["kind"], action["payload"])
-        executor = EXECUTORS.get(action["kind"])
-        state = "unavailable" if refused or executor is None else "approved"
-        if not self._claim(aid, state):
-            raise Problem(f"That action was already {action['state']}.")
-        if executor is None or refused:
-            why = refused or f"nothing in Alpha can do {action['kind']} yet"
-            self._answer(action, "Approved, but it can't be done.", "unavailable")
-            self.world.journal.append("failed", f"Couldn't {action['summary']}: {why}.",
-                                      data={"pending_action": aid}, module=action["module"],
-                                      thread=action["thread"])
-            with self.store.tx() as db:
-                db.execute("UPDATE pending_actions SET result = ? WHERE id = ?",
-                           (dumps({"error": why}), aid))
-            return self.get(aid)
-        self._answer(action, "Approved.", "allowed_once")
-        try:
-            result = executor.run(dict(action["payload"]))
-            done, text = "did", f"Done: {action['summary']}"
-        except Exception as e:  # it ran once and failed: say so, never retry
-            result = {"error": str(e)}
-            done, text = "failed", f"Tried once and it failed: {action['summary']} ({e})"
+    def get(self, aid: str) -> dict[str, Any]:
+        row = self.store.one("SELECT * FROM actions WHERE id = ?", (aid,))
+        if row is None:
+            raise Problem(f"There is no action {aid}.")
+        return _action(row)
+
+    def all(self, states: tuple[str, ...] | None = None, *, limit: int = 50,
+            module: str | None = None) -> list[dict[str, Any]]:
+        where: list[str] = ["1=1"]
+        args: list[Any] = []
+        if states:
+            where.append(f"state IN ({','.join('?' * len(states))})")
+            args.extend(states)
+        if module:
+            where.append("module = ?")
+            args.append(module)
+        rows = self.store.all(
+            f"SELECT * FROM actions WHERE {' AND '.join(where)} ORDER BY created_at DESC"
+            " LIMIT ?", (*args, limit))
+        return [_action(r) for r in rows]
+
+    def _set(self, aid: str, **values: Any) -> dict[str, Any]:
+        values["updated_at"] = now()
+        cols = ", ".join(f"{k} = ?" for k in values)
         with self.store.tx() as db:
-            db.execute("UPDATE pending_actions SET result = ? WHERE id = ?", (dumps(result), aid))
-        self.world.journal.append(done, text, actor="alpha", module=action["module"],
-                                  thread=action["thread"],
-                                  data={"pending_action": aid, "result": result,
-                                        "connector": action["connector"]})
+            db.execute(f"UPDATE actions SET {cols} WHERE id = ?", (*values.values(), aid))
         return self.get(aid)
 
+    def _move(self, aid: str, to: str, when: tuple[str, ...], **values: Any) -> dict[str, Any]:
+        current = self.get(aid)
+        if current["state"] not in when:
+            raise Problem(f"The action \"{current['title']}\" is {current['state']}; it can't"
+                          f" become {to}.")
+        return self._set(aid, state=to, **values)
+
+    def set_proposal(self, aid: str, proposal: str) -> None:
+        self._set(aid, proposal=proposal)
+
+    def previewed(self, aid: str, *, preview: str | None, note: str | None,
+                  shots: list[str]) -> dict[str, Any]:
+        return self._set(aid, preview=preview, preview_note=note, shots=dumps(shots))
+
+    def edit(self, aid: str, payload: dict[str, Any], fields: list[str]) -> dict[str, Any]:
+        current = self.get(aid)
+        if current["state"] != "proposed":
+            raise Problem("Only a proposed action can be changed.")
+        merged = {**current["payload"], **{k: str(v) for k, v in payload.items()}}
+        problem = payload_problem(merged, fields)
+        if problem:
+            raise Problem(problem)
+        return self._set(aid, payload=dumps(merged))
+
+    def approve(self, aid: str, approval: str) -> dict[str, Any]:
+        return self._move(aid, "approved", ("proposed",), approval=approval)
+
+    def decline(self, aid: str) -> dict[str, Any]:
+        return self._move(aid, "declined", ("proposed", "failed"))
+
+    def start(self, aid: str) -> dict[str, Any]:
+        return self._move(aid, "running", ("approved",))
+
+    def finish(self, aid: str, result: str, shots: list[str]) -> dict[str, Any]:
+        return self._move(aid, "done", ("running",), result=result, error=None,
+                          shots=dumps(shots))
+
+    def fail(self, aid: str, error: str, shots: list[str] | None = None) -> dict[str, Any]:
+        current = self.get(aid)
+        values: dict[str, Any] = {"error": error}
+        if shots is not None:
+            values["shots"] = dumps(shots)
+        return self._move(aid, "failed", ("proposed", "approved", "running"), **values) \
+            if current["state"] != "failed" else current
+
+    def remove_module(self, db: sqlite3.Connection, module: str) -> int:
+        return int(db.execute("DELETE FROM actions WHERE module = ? AND state IN"
+                              " ('proposed', 'approved')", (module,)).rowcount)
+
+
+class Permissions:
+    def __init__(self, store: Store) -> None:
+        self.store = store
+
+    def grant(self, *, sentence: str, procedure: str, effect: str,
+              source: str | None = None) -> dict[str, Any]:
+        if effect != "prepare":
+            raise Problem("A standing permission covers what stays in the person's account"
+                          " (prepare); anything sent asks every time.")
+        live = self.for_procedure(procedure)
+        if live:
+            return live
+        pid = new_id("perm")
+        with self.store.tx() as db:
+            db.execute(
+                "INSERT INTO permissions (id, sentence, procedure, effect, granted_at, source)"
+                " VALUES (?,?,?,?,?,?)", (pid, sentence.strip(), procedure, effect, now(), source))
+        return self.get(pid)
+
+    def get(self, pid: str) -> dict[str, Any]:
+        row = self.store.one("SELECT * FROM permissions WHERE id = ?", (pid,))
+        if row is None:
+            raise Problem(f"There is no permission {pid}.")
+        return {k: row[k] for k in row.keys()}
+
+    def for_procedure(self, procedure: str) -> dict[str, Any] | None:
+        row = self.store.one(
+            "SELECT * FROM permissions WHERE procedure = ? AND revoked_at IS NULL", (procedure,))
+        return {k: row[k] for k in row.keys()} if row else None
+
+    def live(self) -> list[dict[str, Any]]:
+        return [{k: r[k] for k in r.keys()} for r in self.store.all(
+            "SELECT * FROM permissions WHERE revoked_at IS NULL ORDER BY granted_at")]
+
+    def revoke(self, pid: str) -> dict[str, Any]:
+        with self.store.tx() as db:
+            db.execute("UPDATE permissions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+                       (now(), pid))
+        return self.get(pid)

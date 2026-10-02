@@ -29,7 +29,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 import alpha
@@ -44,14 +44,14 @@ from alpha.context.summary import module_summary
 from alpha.models import settings
 from alpha.models.accounts import Accounts
 from alpha.models.keychain import KeychainError
-from alpha.runtime import build, check, claude_cli, transcription
+from alpha.runtime import acting, build, check, claude_cli, transcription
 from alpha.runtime import turn as turns
 from alpha.runtime.attachments import MAX_ATTACHMENTS, AttachmentIn
 from alpha.runtime.automation import Scheduler
 from alpha.runtime.route import Router
 from alpha.world import access, backup, edits
-from alpha.world.actions import Actions
 from alpha.world.bundle import export_module, import_module
+from alpha.world.pending import PendingActions
 from alpha.world.purge import remove_connection, remove_module
 from alpha.world.store import Problem, loads, now
 from alpha.world.world import World
@@ -120,6 +120,14 @@ class BulkBody(BaseModel):
     action: str
     items: list[dict[str, Any]]
     values: dict[str, Any] | None = None
+
+
+class ActionEditBody(BaseModel):
+    payload: dict[str, Any]
+
+
+class ActionApproveBody(BaseModel):
+    always: bool = False
 
 
 class DecideBody(BaseModel):
@@ -335,7 +343,25 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     for f in world.knowledge.facts("person", states=("suggested",)):
         items.append({"kind": "fact", "id": f["id"], "text": f"{f['predicate']}: {f['value']}",
                       "why": f["why"], "at": f["recorded_at"]})
-    return items
+    for a in world.actions.all(("proposed",)):
+        items.append({"kind": "action", "id": a["id"], "text": a["title"], "why": a["evidence"],
+                      "at": a["created_at"], "module": a["module"], "action": action_view(a)})
+    return [i for i in items if i["kind"] != "proposal" or not _is_action_proposal(world, i)]
+
+
+def _is_action_proposal(world: World, item: dict[str, Any]) -> bool:
+    """An action's own `proposed` journal entry is shown as its card, not as a plain proposal."""
+    entry = world.journal.read(item["id"])
+    return bool(entry["data"].get("action"))
+
+
+def action_view(a: dict[str, Any]) -> dict[str, Any]:
+    """An action for the app: the card's contents, with screenshot names instead of paths."""
+    shots = {Path(p).stem: Path(p).name for p in a.get("shots") or []}
+    return {**{k: a[k] for k in ("id", "procedure", "title", "payload", "evidence", "undo",
+                                 "effect", "site", "state", "module", "preview_note", "result",
+                                 "error", "created_at", "updated_at")},
+            "preview": Path(a["preview"]).name if a.get("preview") else None, "shots": shots}
 
 
 def automation_views(world: World, scheduler: Scheduler,
@@ -353,6 +379,23 @@ def automation_views(world: World, scheduler: Scheduler,
             steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in current
                      if e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
         out.append({**a, "running": running, "steps": steps[-8:]})
+    return out
+
+
+STEP_KINDS = {"did", "saw", "made", "changed", "failed", "noticed", "asked", "checked"}
+
+
+def thread_views(world: World) -> list[dict[str, Any]]:
+    """Open threads with what Alpha has done in each lately, so a build is watched, not
+    waited for: its last few journal entries, newest last (a prompt line is left out)."""
+    out = []
+    for t in world.modules.threads():
+        entries = world.journal.recent(40, thread=t["id"])
+        steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in entries
+                 if e["kind"] in STEP_KINDS and not e["text"].startswith(("Build the approved",
+                                                                          "Continue the build"))]
+        out.append({**t, "steps": steps[-6:], "step_count": len(steps),
+                    "last_at": entries[-1]["at"] if entries else t["updated_at"]})
     return out
 
 
@@ -403,6 +446,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     # An injected runner (tests) bypasses the model routes and their connection check.
     route = runner or Router(accounts)
     scheduler = Scheduler(world, route)
+    runner_fn = route
     running = Turns(world, route, None if runner else accounts,
                     after=scheduler.builds if live else None, checks=live)
     stops: list[Callable[[], None]] = []
@@ -499,32 +543,33 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             "modules": [module_card(world, m) for m in world.modules.all()],
             "loose_tables": [t for t in world.collections.overview() if t["module"] is None],
             "coming_up": events[:6],
-            "threads": world.modules.threads(),
+            "threads": thread_views(world),
             "brief": None,
         }
 
-    actions = Actions(world)
+    pending_actions = PendingActions(world)
 
     @app.get("/api/pending", dependencies=[api])
     def pending() -> list[dict[str, Any]]:
-        return actions.pending()
+        return pending_actions.pending()
 
     # The one approve path: these two, and an answer to a pending action's question, all end in
     # Actions.approve / reject, which runs the stored payload once.
     @app.post("/api/pending/{aid}/approve", dependencies=[api])
     def approve(aid: str) -> dict[str, Any]:
-        return actions.approve(aid, by="person")
+        return pending_actions.approve(aid, by="person")
 
     @app.post("/api/pending/{aid}/reject", dependencies=[api])
     def reject(aid: str) -> dict[str, Any]:
-        return actions.reject(aid, by="person")
+        return pending_actions.reject(aid, by="person")
 
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
-        action = actions.by_ask(ask_id)
+        action = pending_actions.by_ask(ask_id)
         if action is not None:
             yes = body.text.strip().lower() in {"approve", "yes", "approved"}
-            decided = (actions.approve if yes else actions.reject)(action["id"], by="person")
+            decide = pending_actions.approve if yes else pending_actions.reject
+            decided = decide(action["id"], by="person")
             return {"pending_action": decided}
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
@@ -537,9 +582,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
     def dismiss(ask_id: str) -> dict[str, Any]:
         # Closed without an answer: nothing runs (a pending action is rejected).
-        action = actions.by_ask(ask_id)
+        action = pending_actions.by_ask(ask_id)
         if action is not None:
-            return {"pending_action": actions.reject(action["id"], by="person")}
+            return {"pending_action": pending_actions.reject(action["id"], by="person")}
         return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
 
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
@@ -817,8 +862,68 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                 "facts": world.knowledge.facts("person"),
                 "notes": world.knowledge.notes(),
                 "goals": world.knowledge.goals(None),
+                "permissions": world.permissions.live(),
             },
+            "procedures": world.procedures.all(),
         }
+
+    @app.post("/api/permissions/{pid}/revoke", dependencies=[api])
+    def revoke_permission(pid: str) -> dict[str, Any]:
+        revoked = world.permissions.revoke(pid)
+        world.journal.append("changed", f"Revoked a standing permission: {revoked['sentence']}",
+                             actor="person", data={"permission": pid})
+        return revoked
+
+    @app.get("/api/actions", dependencies=[api])
+    def actions(state: str | None = None) -> list[dict[str, Any]]:
+        return [action_view(a) for a in world.actions.all((state,) if state else None)]
+
+    @app.get("/api/actions/{aid}", dependencies=[api])
+    def action(aid: str) -> dict[str, Any]:
+        return action_view(world.actions.get(aid))
+
+    @app.get("/api/actions/{aid}/shots/{name}", dependencies=[api])
+    def action_shot(aid: str, name: str) -> FileResponse:
+        a = world.actions.get(aid)
+        for p in a.get("shots") or []:
+            if Path(p).name == name and Path(p).exists():
+                return FileResponse(p, media_type="image/png")
+        raise Problem("There is no such screenshot.")
+
+    @app.patch("/api/actions/{aid}", dependencies=[api])
+    def edit_action(aid: str, body: ActionEditBody) -> dict[str, Any]:
+        a = world.actions.get(aid)
+        proc = world.procedures.get(a["procedure"])
+        world.actions.edit(aid, body.payload, proc["fields"])
+        world.journal.append("changed", f"Changed the text of \"{a['title']}\" before deciding.",
+                             actor="person", data={"action": aid})
+        # The preview showed the old text: it is made again before the card can be approved.
+        world.actions.previewed(aid, preview=None, note=acting.PREVIEW_PENDING, shots=[])
+        if live:
+            threading.Thread(target=lambda: acting.dry_run(world, aid), daemon=True,
+                             name=f"preview-{aid}").start()
+        else:
+            acting.dry_run(world, aid)
+        return action_view(world.actions.get(aid))
+
+    @app.post("/api/actions/{aid}/approve", dependencies=[api])
+    def approve_action(aid: str, body: ActionApproveBody) -> dict[str, Any]:
+        """The person's yes in the app: the action runs now, in the background, and the card
+        shows what happened."""
+        approval = "Approved in the app" + (", always" if body.always else "")
+        if live:
+            # The yes is recorded now (and refused if the preview isn't ready); the run follows.
+            acting.approve(world, aid, approval, always=body.always, perform_now=False)
+            threading.Thread(target=lambda: acting.perform(world, aid, runner=runner_fn),
+                             daemon=True, name=f"act-{aid}").start()
+        else:
+            acting.approve(world, aid, approval, always=body.always, runner=runner_fn,
+                           repair=False)
+        return action_view(world.actions.get(aid))
+
+    @app.post("/api/actions/{aid}/decline", dependencies=[api])
+    def decline_action(aid: str) -> dict[str, Any]:
+        return action_view(acting.decline(world, aid))
 
     @app.post("/api/notes", dependencies=[api])
     def write_note(body: NoteBody) -> dict[str, Any]:
@@ -1012,8 +1117,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         module_id = world.modules.get(module)["id"] if module else None
         turns_ = world.journal.recent(limit, stream=True, kinds=["said", "replied", "failed"],
                                       module=module_id)
-        return {"turns": turns_, "threads": world.modules.threads(), "running": running.running(),
-                "plans": world.plans.recent()}
+        return {"turns": turns_, "threads": thread_views(world), "running": running.running(),
+                "plans": world.plans.recent(),
+                "actions": [action_view(a) for a in world.actions.all(limit=20)]}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:

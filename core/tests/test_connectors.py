@@ -14,7 +14,7 @@ from alpha.connectors.calendar import Attendee, Calendar, CalendarEvent
 from alpha.connectors.files import Files
 from alpha.context import prepack
 from alpha.mcp.tools import Tools
-from alpha.world.actions import Actions
+from alpha.world.pending import PendingActions
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -197,7 +197,7 @@ def test_saving_a_document_waits_for_approval_and_never_overwrites(
     shared.mkdir()
     Files(world).watch(str(shared))
     files.enable(world)
-    actions = Actions(world)
+    actions = PendingActions(world)
 
     def save(name: str, folder: Path = shared) -> dict[str, Any]:
         aid = actions.propose("save_document", f"Save {name}", {

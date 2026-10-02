@@ -9,7 +9,7 @@ from alpha.api.server import create_app
 from alpha.mcp.tools import Tools
 from alpha.models import settings
 from alpha.world import access
-from alpha.world.actions import Actions
+from alpha.world.pending import PendingActions
 from alpha.world.world import World
 
 
@@ -40,7 +40,7 @@ def test_removing_waits_for_the_persons_yes_then_runs_once(world: World) -> None
     out = Tools(world, turn="j_t").records_delete("openings", rid, rev)
     assert out["state"] == "pending"
     assert world.collections.get("openings", rid)  # still there
-    [action] = Actions(world).pending()
+    [action] = PendingActions(world).pending()
     assert action["summary"] == "Remove Backend Engineer from Openings"
     assert action["payload"]["tool"] == "records_delete"
     c = TestClient(create_app(world, live=False))
@@ -57,7 +57,7 @@ def test_full_access_runs_at_once_and_ask_also_holds_browser_reads(world: World)
     settings.set_access_mode(world.store, None, "ask")
     held = Tools(world, turn="j_t").page_read("https://example.com/jobs")
     assert held["state"] == "pending"
-    assert Actions(world).pending()[0]["summary"] == "Read example.com in Alpha's browser"
+    assert PendingActions(world).pending()[0]["summary"] == "Read example.com in Alpha's browser"
     settings.set_access_mode(world.store, None, "full")
     assert Tools(world, turn="j_t").records_delete("openings", rid, rev) == {"removed": rid}
 

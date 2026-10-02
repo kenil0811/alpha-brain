@@ -128,6 +128,9 @@ export interface Thread {
   session_ref: string | null;
   created_at: string;
   updated_at: string;
+  steps?: { at: string; kind: string; text: string }[];
+  step_count?: number;
+  last_at?: string;
 }
 
 export interface ModuleCard {
@@ -212,8 +215,36 @@ export interface ModuleSummary {
   automations: number;
 }
 
+export interface Action {
+  id: string;
+  procedure: string;
+  title: string;
+  payload: Record<string, string>;
+  evidence: string | null;
+  undo: string;
+  effect: "prepare" | "send";
+  site: string;
+  state: "proposed" | "approved" | "running" | "done" | "failed" | "declined";
+  module: string | null;
+  preview: string | null;
+  preview_note: string | null;
+  shots: Record<string, string>;
+  result: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Permission {
+  id: string;
+  sentence: string;
+  procedure: string;
+  effect: string;
+  granted_at: string;
+}
+
 export interface NeedItem {
-  kind: "ask" | "proposal" | "fact";
+  kind: "ask" | "proposal" | "fact" | "action";
   id: string;
   text: string;
   why?: string | null;
@@ -221,6 +252,7 @@ export interface NeedItem {
   options?: string[];
   module?: string | null;
   plan?: string | null;
+  action?: Action;
 }
 
 /** Something Alpha wants to do outside its own space, waiting for the person's yes (core
@@ -358,7 +390,7 @@ export interface Intelligence {
   automations: Automation[];
   readers: Reader[];
   connections: Connection[];
-  knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[] };
+  knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[]; permissions?: Permission[] };
 }
 
 export interface Automation {
@@ -409,6 +441,7 @@ export interface Conversation {
   threads: Thread[];
   running: Turn[];
   plans: Plan[];
+  actions?: Action[];
 }
 
 export interface SearchResult {
@@ -542,6 +575,17 @@ export class Client {
   pending = () => this.call<PendingAction[]>("GET", "/api/pending");
   approvePending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/approve`);
   rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
+  approveAction = (id: string, always: boolean) => this.call<Action>("POST", `/api/actions/${id}/approve`, { always });
+  declineAction = (id: string) => this.call<Action>("POST", `/api/actions/${id}/decline`);
+  editAction = (id: string, payload: Record<string, string>) => this.call<Action>("PATCH", `/api/actions/${id}`, { payload });
+  actions = (state?: string) => this.call<Action[]>("GET", `/api/actions${state ? `?state=${state}` : ""}`);
+  revokePermission = (id: string) => this.call<Permission>("POST", `/api/permissions/${id}/revoke`);
+  /** A screenshot of an action, as an object URL the caller revokes. */
+  actionShot = async (id: string, name: string): Promise<string> => {
+    const response = await fetch(`${this.session.baseUrl}/api/actions/${id}/shots/${name}`, { headers: { Authorization: `Bearer ${this.session.token}` } });
+    if (!response.ok) throw new CoreError(`No screenshot (${response.status}).`, response.status);
+    return URL.createObjectURL(await response.blob());
+  };
   approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);

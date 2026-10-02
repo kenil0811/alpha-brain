@@ -6,7 +6,7 @@ import os
 import sys
 
 from alpha.mcp.tools import Tools
-from alpha.world.actions import Actions
+from alpha.world.pending import PendingActions
 from alpha.world.world import World
 
 if not os.environ.get("ALPHA_HOME"):
@@ -35,7 +35,7 @@ world.journal.append("failed", "Couldn't read calendar (macos): EventKit stopped
 t.ask_person("What salary floor should I filter by?")
 t.propose("Raise protein to 130 g on training days", "Four workouts this week")
 t.fact_record("person", "prefers", "mornings")
-Actions(world).propose("save_document", "Save the thank-you note to Priya in Notes",
+PendingActions(world).propose("save_document", "Save the thank-you note to Priya in Notes",
                        {"folder": "/tmp", "name": "thanks.md", "text": "Thank you."},
                        connector="files")
 print(project["id"])

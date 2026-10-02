@@ -10,6 +10,11 @@
  *   script: load a page the same way, optionally read it to its end, then run Alpha's own
  *           JavaScript in it and return what the script returns (JSON).
  *   status: whether a profile holds cookies for a site (or any of `sites`).
+ *   act:    the one write operation. Performs an approved action's procedure in the person's
+ *           own session: declarative steps (click, click_text, fill, type, press, wait,
+ *           expect). Fills and typing take only values of the approved payload. With
+ *           `stop_before_last` it is a dry run: every step but the commit, then a screenshot.
+ *           It refuses to type into password or payment fields, whatever the step says.
  * A read session never changes anything on a site: from the moment its browser opens, every
  * request other than GET, HEAD and OPTIONS is blocked at the network, for the page's own scripts
  * and the driver's paging alike. A reader that truly needs a POST that only reads (some sites
@@ -412,6 +417,142 @@ async function read(job) {
   }
 }
 
+// ---- acting: the one write operation ----
+
+const SENSITIVE_NAME = /passw|passcode|pin\b|cvv|cvc|card.?num|cardnumber|credit|iban|account.?num|ssn|social.?security|passport/i;
+
+/** Why typing into this element is refused, or null. Decided by the field itself, never by what
+ *  a step says: a password is a password whatever it is called. */
+async function sensitive(locator) {
+  return locator
+    .evaluate((el) => {
+      const type = (el.getAttribute("type") || "").toLowerCase();
+      const auto = (el.getAttribute("autocomplete") || "").toLowerCase();
+      const words = [el.getAttribute("name"), el.getAttribute("id"), el.getAttribute("aria-label"), el.getAttribute("placeholder")].join(" ");
+      if (type === "password") return "a password field";
+      if (auto.startsWith("cc-") || auto === "one-time-code" || auto === "new-password" || auto === "current-password") return `a ${auto} field`;
+      if (/passw|passcode|cvv|cvc|card.?num|cardnumber|credit|iban|account.?num|ssn|social.?security|passport/i.test(words)) return "a field that looks like a password or payment detail";
+      return null;
+    })
+    .catch(() => null);
+}
+
+function target(page, step) {
+  if (step.click_text !== undefined) {
+    const text = String(step.click_text);
+    return page
+      .locator(`button, [role=button], a, [role=link], [role=menuitem], [role=tab], label, [role=option]`)
+      .filter({ hasText: new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i") })
+      .first();
+  }
+  const selector = step.click ?? step.fill ?? step.type ?? step.wait ?? step.expect;
+  return page.locator(String(selector)).first();
+}
+
+async function performStep(page, step, values, log) {
+  const began = Date.now();
+  const kind = Object.keys(step).find((k) => ["goto", "click", "click_text", "fill", "type", "press", "wait", "wait_ms", "expect", "expect_text"].includes(k));
+  const entry = { step: kind, ok: false, ms: 0 };
+  try {
+    if (kind === "goto") {
+      await page.goto(String(step.goto), { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+    } else if (kind === "click" || kind === "click_text") {
+      const el = target(page, step);
+      await el.waitFor({ state: "visible", timeout: 15000 });
+      await el.click({ timeout: 10000 });
+      await page.waitForTimeout(600);
+    } else if (kind === "fill" || kind === "type") {
+      const field = String(step.value).replace(/^\{|\}$/g, "");
+      if (!(field in values)) throw new Error(`no value for {${field}}`);
+      const el = target(page, step);
+      await el.waitFor({ state: "visible", timeout: 15000 });
+      const why = await sensitive(el);
+      if (why) throw new Error(`refused: Alpha never types into ${why}`);
+      if (kind === "fill") {
+        await el.fill(String(values[field]), { timeout: 10000 });
+      } else {
+        await el.click({ timeout: 10000 });
+        await page.keyboard.type(String(values[field]), { delay: 8 });
+      }
+      await page.waitForTimeout(300);
+    } else if (kind === "press") {
+      await page.keyboard.press(String(step.press));
+      await page.waitForTimeout(600);
+    } else if (kind === "wait") {
+      await target(page, step).waitFor({ state: "visible", timeout: 20000 });
+    } else if (kind === "wait_ms") {
+      await page.waitForTimeout(Number(step.wait_ms));
+    } else if (kind === "expect") {
+      await target(page, step).waitFor({ state: "visible", timeout: 15000 });
+    } else if (kind === "expect_text") {
+      await page.getByText(String(step.expect_text), { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
+    } else {
+      throw new Error(`unknown step ${JSON.stringify(step)}`);
+    }
+    entry.ok = true;
+  } catch (error) {
+    entry.error = String((error && error.message) || error).split("\n")[0].slice(0, 300);
+  }
+  entry.ms = Date.now() - began;
+  log.push(entry);
+  return entry.ok;
+}
+
+async function act(job) {
+  if (!job.profile) throw new Error("acting needs the person's sign-in profile for the site");
+  mkdirSync(job.shots_dir, { recursive: true });
+  const context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
+  const shots = {};
+  const shoot = async (page, name) => {
+    const file = join(job.shots_dir, `${name}.png`);
+    await page.screenshot({ path: file, fullPage: false }).catch(() => {});
+    shots[name] = file;
+  };
+  const log = [];
+  try {
+    const page = context.pages()[0] || (await context.newPage());
+    const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+    if (await isBotCheck(page)) {
+      await shoot(page, "error");
+      return { bot_check: true, blocked: false, done: 0, log, shots, final_url: page.url(), title: await page.title().catch(() => "") };
+    }
+    if (await isSignIn(page, job.url)) {
+      await shoot(page, "error");
+      return { bot_check: false, blocked: true, done: 0, log, shots, final_url: page.url(), title: await page.title().catch(() => "") };
+    }
+    const steps = job.steps || [];
+    const upto = job.stop_before_last ? steps.length - 1 : steps.length;
+    let done = 0;
+    for (let i = 0; i < upto; i += 1) {
+      if (i === steps.length - 1) await shoot(page, "before");
+      const ok = await performStep(page, steps[i], job.values || {}, log);
+      if (!ok) {
+        await shoot(page, "error");
+        return { bot_check: false, blocked: false, done, failed_step: i + 1, error: log[log.length - 1].error, log, shots, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
+      }
+      done += 1;
+    }
+    await page.waitForTimeout(800);
+    await shoot(page, job.stop_before_last ? "preview" : "after");
+    let verified = null;
+    if (!job.stop_before_last && job.verify && job.verify.length) {
+      verified = true;
+      for (const step of job.verify) {
+        if (!(await performStep(page, step, job.values || {}, log))) {
+          verified = false;
+          await shoot(page, "verify");
+          break;
+        }
+      }
+    }
+    return { bot_check: false, blocked: false, done, stopped_before_last: !!job.stop_before_last, verified, log, shots, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
 const rl = createInterface({ input: process.stdin });
 rl.once("line", async (line) => {
   let job;
@@ -425,6 +566,7 @@ rl.once("line", async (line) => {
     if (job.op === "signin") await out(await signin(job));
     else if (job.op === "read" || job.op === "script") await out(await read(job));
     else if (job.op === "status") await out(await status(job));
+    else if (job.op === "act") await out(await act(job));
     else await out({ error: `unknown job ${job.op}` });
   } catch (error) {
     await out({ error: String((error && error.message) || error) });
