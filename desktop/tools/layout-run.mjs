@@ -26,7 +26,8 @@ function start(cmd, args, opts, ready) {
     let seen = "";
     const timer = setTimeout(() => reject(new Error(`${cmd} didn't start:\n${seen}`)), 60_000);
     const on = (chunk) => {
-      seen += chunk;
+      // Colour codes (CI forces colour) would split a URL like localhost:\x1b[1m5199.
+      seen += String(chunk).replace(/\x1b\[[0-9;]*m/g, "");
       const found = ready(seen);
       if (found) {
         clearTimeout(timer);
