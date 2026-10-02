@@ -6,7 +6,9 @@
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { Client, JournalEntry, ModuleCard, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
+import { ConnectCard } from "../shell/models";
 import { MicButton, useSpeech } from "../shell/voice";
+import { AttachMenu } from "./AttachMenu";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 
@@ -77,6 +79,8 @@ export function AssistantPanel({
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // A message whose model isn't connected yet: the card connects it, then it goes again.
+  const [connect, setConnect] = useState<{ provider: string; text: string } | null>(null);
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
@@ -131,7 +135,8 @@ export function AssistantPanel({
       setTurns((all) => (threadId ? all : [...all, { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text: clean, data: {}, module: null, thread: null, entity_ids: [], source: null }]));
       try {
         const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId }, setPending);
-        if (final.state === "failed") setError(final.reply ?? "That didn't work.");
+        if (final.state === "needs_connect" && final.provider) setConnect({ provider: final.provider, text: clean });
+        else if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -240,6 +245,21 @@ export function AssistantPanel({
           </>
         )}
         {workingNote}
+        {connect ? (
+          <ConnectCard
+            client={client}
+            provider={connect.provider}
+            onConnected={() => {
+              const again = connect.text;
+              setConnect(null);
+              void send(again);
+            }}
+            onCancel={() => {
+              setText(connect.text);
+              setConnect(null);
+            }}
+          />
+        ) : null}
         {error ? (
           <p className="notice" role="alert">
             {error}
@@ -248,6 +268,7 @@ export function AssistantPanel({
       </div>
       <div className="composer">
         <div className="composer__box">
+          <AttachMenu client={client} thread={threadView?.id ?? null} />
           <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
           <button type="button" className="btn btn--primary btn--sm" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
@@ -255,7 +276,6 @@ export function AssistantPanel({
           </button>
         </div>
         <div className="composer__row">
-          <span>Uses your Claude subscription</span>
           <span style={{ marginLeft: "auto" }}>⏎ to send</span>
         </div>
       </div>
