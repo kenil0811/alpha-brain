@@ -1,0 +1,11 @@
+name: attachment_in
+title: An attachment is fetched from Gmail into the module and read
+why: Files are the next thing after text: Alpha fetches an attachment through the person's
+  session into its own folder, makes it a document, and answers from it. A read.
+steps:
+  - say: "fetch the ETA Tracker CSV that Vikas Badami emailed me into the Advisory module and tell me how many rows it has"
+    module: Advisory
+checks:
+  - journal: {kind: saw, contains: "Fetched"}
+  - document: {module: Advisory, kind: csv}
+  - reply: {matches: "\\d+ (rows|listings|lines|entries)"}

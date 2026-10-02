@@ -40,8 +40,8 @@ what the first slice is exactly, and what follows.
   connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
   that are people, threads as records, what the model saw); plan first, sources, pipelines and
   background builds with no limits; known, assumed or asked (provenance on every value, a second
-  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 128
-  core + 3 desktop tests; 69 tools; ruff and mypy strict clean (2 Oct evening). **Later the
+  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 134
+  core + 3 desktop tests; 70 tools; ruff and mypy strict clean (2 Oct late evening). **Later the
   same evening:** the journey suite (§4.11), the trust holes closed (§4.12), the write route
   (§4.13, Q24), builds watched live on Home (§4.14).
   **Where we stand and what is open: §4.3, §4.5 and §4.9; what the code read of 2 Oct evening
@@ -1025,6 +1025,40 @@ relevant attachments from Vikas Badami". The core log and the journal gave two f
 The world after: the plan is `stopped` and can be resumed (the Advisory module, its
 attachments table and reader exist; the trial never ran); the nineteen stop reports stay in
 the journal, as history does. 128 core tests; lint and types clean; the app rebuilt.
+
+### 4.17 Files in and out (built 2 Oct 2026, late evening; Q25)
+
+Kenil: downloads from connections (attachments) and uploads (a module that takes files), "lets
+discuss"; the five decisions are Q25. Built:
+
+- **Store and world**: `documents.module`, `documents.origin`; `Files.take(path, module,
+  origin, move, by)` keeps a file in `files/<module>` under the data directory, extracts text
+  where it can, makes the document and its entity, journals (`did` for Alpha, `changed` for the
+  person); `Files.document`, `Files.of_module`; field kind `file` (a document id); a module's
+  removal deletes its documents and files (inside Alpha's folder only).
+- **The hand**: driver `download` (direct address through `context.request` with the
+  session's cookies, or the file a control hands back via Playwright's download event; an HTML
+  answer is a wall, not a file) and an `upload` step (`setInputFiles`, only under
+  `files_root`); `Browser.download` with the journal line; `Browser.act` passes the resolved
+  file paths; `acting._files` resolves payload fields of upload steps to documents Alpha keeps
+  and refuses others.
+- **Tools and rules**: `page_download(url, module, click, click_text, name)`; rule 8 (fetch
+  only when the plan said so or on an ask; a dropped file arrives as a turn), rule 9 (an
+  upload is a send); the browser and files skills.
+- **API and app**: `GET /api/tables/{name}` carries a `files` map for file fields;
+  `POST /api/tables/{name}/export {csv|xlsx}` writes to `exports/` and journals;
+  `GET /api/documents/{id}`; `POST /api/files` (multipart: module, or table/record/field)
+  keeps the files and starts Alpha's reading turn (actor alpha, journaled as "Read X the person
+  added"); `Turns.start` takes an actor. The app: a file cell (name, size, Open, Show in
+  Finder, Add file), a drop zone on the module page, Download as CSV / Excel in the table
+  menu, file names on action cards; host commands `open_path` and `reveal_path` (inside the
+  data folder only); `dragDropEnabled: false` so the webview gets HTML5 drops.
+- **Tests**: `core/tests/test_files_in_out.py` (a fetched file lands as a document and on a
+  row; a page instead of a file is not a download; dropped files are kept and the row path;
+  removal takes the files; an upload step sends only a file Alpha keeps; CSV and Excel export).
+  134 core tests; lint and types clean.
+- **Journey** `attachment_in` ("fetch the ETA Tracker CSV that Vikas Badami emailed me into
+  the Advisory module and tell me how many rows it has"): result below.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

@@ -80,7 +80,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
                 .filter(([, v]) => isShort(v))
                 .map(([field, value]) => (
                   <span key={field}>
-                    <span className="faint">{field.replace(/_/g, " ")}</span> {editing ? <input value={draft[field] ?? ""} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : value}
+                    <span className="faint">{field.replace(/_/g, " ")}</span> {action.files?.[field] ? `${action.files[field].name} (${Math.max(1, Math.round(action.files[field].size / 1024))} KB)` : editing ? <input value={draft[field] ?? ""} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : value}
                   </span>
                 ))}
             </p>

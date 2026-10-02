@@ -9,6 +9,7 @@ While the core runs, FSEvents (through watchdog) triggers the same sync for the 
 from __future__ import annotations
 
 import logging
+import shutil
 import sqlite3
 import threading
 from collections.abc import Callable
@@ -78,6 +79,27 @@ def extract(path: Path) -> str:
     raise Problem(f"{path.name} isn't a kind of file Alpha reads yet.")
 
 
+def files_dir(module_name: str | None = None) -> Path:
+    """Alpha's own folder for files it fetched or was given: one folder per module under the
+    data directory (`files/<module>`), `files/loose` for the rest. Never the person's folders."""
+    from alpha.world.world import alpha_home
+
+    slug = "_".join("".join(ch if ch.isalnum() else " " for ch in (module_name or "loose")
+                           .lower()).split()) or "loose"
+    return alpha_home() / "files" / slug
+
+
+def unique_path(folder: Path, name: str) -> Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    clean = Path(name).name or "file"
+    target = folder / clean
+    n = 2
+    while target.exists():
+        target = folder / f"{Path(clean).stem} ({n}){Path(clean).suffix}"
+        n += 1
+    return target
+
+
 def readable(path: Path) -> bool:
     return path.suffix.lower() in TEXT_SUFFIXES | OFFICE_SUFFIXES and not path.name.startswith(
         (".", "~$")
@@ -109,6 +131,8 @@ def document_view(row: sqlite3.Row, *, full: bool = False) -> dict[str, Any]:
         "size": row["size"],
         "modified_at": row["modified_at"],
         "chars": len(row["text"]),
+        "module": row["module"] if "module" in row.keys() else None,
+        "origin": row["origin"] if "origin" in row.keys() else None,
     }
     if full:
         out["text"] = row["text"]
@@ -235,6 +259,67 @@ class Files:
             data={"document": did, "path": str(path)}, entity_ids=[entity["id"]],
             source="connector:files",
         )
+
+    # ---- taking a file in: fetched from a connection, or given by the person ----
+
+    def take(self, source: Path, *, module: str | None, origin: str, name: str | None = None,
+             move: bool = False, turn: str | None = None, by: str = "alpha") -> dict[str, Any]:
+        """Keep a file in Alpha's folder for the module and make it a document (its text
+        extracted where Alpha reads the kind; otherwise kept as a file alone). `origin` says
+        where it came from (a page or message address, or "the person"). Returns the
+        document."""
+        source = Path(source)
+        if not source.is_file():
+            raise Problem(f"There is no file at {source}.")
+        module_row = self.world.modules.get(module) if module else None
+        target = unique_path(files_dir(module_row["name"] if module_row else None),
+                             name or source.name)
+        if move:
+            shutil.move(str(source), target)
+        else:
+            shutil.copy2(source, target)
+        try:
+            text = extract(target) if readable(target) else ""
+        except Problem as e:
+            log.info("%s", e)
+            text = ""
+        entity = self.world.entities.resolve("document", target.name,
+                                             {"path": str(target)})["entity"]
+        stamp = now()
+        did = new_id("d")
+        with self.world.store.tx() as db:
+            db.execute(
+                "INSERT INTO documents (id, entity_id, connection, path, title, kind, text, size,"
+                " modified_at, indexed_at, module, origin) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (did, entity["id"], None, str(target), target.name,
+                 target.suffix.lower().lstrip("."), text, target.stat().st_size,
+                 _mtime(target), stamp, module_row["id"] if module_row else None, origin),
+            )
+        words = len(text.split())
+        where = f" into {module_row['name']}" if module_row else ""
+        self.world.journal.append(
+            "did" if by == "alpha" else "changed",
+            (f"Kept {target.name}{where} from {origin}" if by == "alpha" else
+             f"Added {target.name}{where}")
+            + (f" ({words:,} words read)" if words else " (kept as a file; not a kind Alpha"
+                                                        " reads)") + ".",
+            actor=by, data={"document": did, "path": str(target), "origin": origin,
+                            "turn": turn},
+            entity_ids=[entity["id"]], module=module_row["id"] if module_row else None,
+            source=None if by == "person" else "connector:files",
+        )
+        return self.document(did)
+
+    def document(self, did: str) -> dict[str, Any]:
+        row = self.world.store.one("SELECT * FROM documents WHERE id = ?", (did,))
+        if row is None:
+            raise Problem(f"There is no document {did}.")
+        return document_view(row)
+
+    def of_module(self, module_id: str) -> list[dict[str, Any]]:
+        return [document_view(r) for r in self.world.store.all(
+            "SELECT * FROM documents WHERE module = ? AND removed_at IS NULL"
+            " ORDER BY indexed_at DESC", (module_id,))]
 
     # ---- reading ----
 

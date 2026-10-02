@@ -127,7 +127,7 @@ def test_propose_dry_runs_up_to_the_commit_and_waits_for_the_person(world: World
         action = world.actions.get(out["action"])
         assert action["state"] == "proposed" and action["preview"].endswith("preview.png")
         job = driver.jobs[-1]
-        assert job["stop_before_last"] is True and job["values"] == PAYLOAD
+        assert job["stop_before_last"] is True and job["values"] == {**PAYLOAD, "__files": {}}
         assert job["profile"].endswith("google.com")
         # Journaled as a proposal with the action, and as the dry run the hand did.
         kinds = [e["kind"] for e in world.journal.recent(5)]

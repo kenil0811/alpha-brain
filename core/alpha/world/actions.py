@@ -32,7 +32,7 @@ FIELD_REF = re.compile(r"^\{([a-z][a-z0-9_]*)\}$")
 EFFECTS = ("prepare", "send")
 STATES = ("proposed", "approved", "running", "done", "failed", "declined")
 STEP_KINDS = {"goto", "click", "click_text", "fill", "type", "press", "wait", "wait_ms",
-              "expect", "expect_text"}
+              "expect", "expect_text", "upload"}
 COMMITS = {"click", "click_text", "press"}
 
 
@@ -58,19 +58,20 @@ def check_steps(steps: Any, fields: list[str], *, effect: str,
         extra = set(step) - {kind, "value", "note"}
         if extra:
             raise Problem(f"Step {i} has unknown keys {sorted(extra)}.")
-        if kind in ("fill", "type"):
+        if kind in ("fill", "type", "upload"):
             value = step.get("value")
             m = FIELD_REF.match(str(value or ""))
             if not m:
                 raise Problem(f"Step {i}: a {kind} value must be one field of the payload, like"
-                              " \"{body}\"; text of the procedure's own is never typed.")
+                              " \"{body}\" (for upload, the field that names the document);"
+                              " text of the procedure's own is never typed.")
             if m.group(1) not in fields:
                 raise Problem(f"Step {i} types {{{m.group(1)}}}, which is not in fields.")
         elif kind == "wait_ms":
             if not isinstance(step[kind], int) or not 0 < step[kind] <= 30000:
                 raise Problem(f"Step {i}: wait_ms is a number of milliseconds up to 30000.")
         elif "value" in step:
-            raise Problem(f"Step {i}: only fill and type take a value.")
+            raise Problem(f"Step {i}: only fill, type and upload take a value.")
         if not isinstance(step[kind], str | int) or (isinstance(step[kind], str)
                                                       and not step[kind].strip()):
             raise Problem(f"Step {i}: {kind} needs a selector, text or key.")
@@ -87,6 +88,17 @@ def check_steps(steps: Any, fields: list[str], *, effect: str,
                           " wait_ms.")
         checks.append(dict(step))
     return clean, checks
+
+
+def file_fields(steps: list[dict[str, Any]]) -> set[str]:
+    """The payload fields an upload step sends: their values are document ids."""
+    out = set()
+    for step in steps:
+        if "upload" in step:
+            m = FIELD_REF.match(str(step.get("value") or ""))
+            if m:
+                out.add(m.group(1))
+    return out
 
 
 def payload_problem(payload: Any, fields: list[str]) -> str | None:

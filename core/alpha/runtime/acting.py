@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.browser import Browser
+from alpha.connectors.files import Files
 from alpha.runtime import claude_cli, turn
+from alpha.world.actions import file_fields
 from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
 
@@ -40,6 +42,20 @@ def shots_dir(action_id: str) -> Path:
     return alpha_home() / "actions" / action_id
 
 
+def _files(world: World, procedure: dict[str, Any], payload: dict[str, str]) -> dict[str, str]:
+    """For each payload field an upload step sends, the path of the document it names; the
+    document must be one Alpha keeps in its own folder."""
+    root = (alpha_home() / "files").resolve()
+    out: dict[str, str] = {}
+    for field in file_fields(procedure["steps"]):
+        doc = Files(world).document(str(payload.get(field, "")))
+        path = Path(doc["path"]).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            raise Problem(f"{doc['title']} isn't a file Alpha keeps; only those can be sent.")
+        out[field] = str(path)
+    return out
+
+
 def _shots(result: dict[str, Any]) -> list[str]:
     return [str(p) for p in (result.get("shots") or {}).values()]
 
@@ -53,7 +69,8 @@ def dry_run(world: World, action_id: str, *, browser: Browser | None = None,
     try:
         result = hand.act(procedure, action["payload"], shots_dir=shots_dir(action_id),
                           dry_run=True, turn=turn_id, module=action["module"],
-                          label=f"\"{action['title']}\"")
+                          label=f"\"{action['title']}\"",
+                          files=_files(world, procedure, action["payload"]))
     except Exception as e:
         log.exception("dry run of %s failed", action_id)
         result = {"raised": str(e), "shots": {}, "outcome": f"the hand could not run it: {e}"}
@@ -87,7 +104,8 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
     try:
         result = hand.act(procedure, action["payload"], shots_dir=shots_dir(action_id),
                           dry_run=False, turn=turn_id, module=action["module"],
-                          label=f"\"{action['title']}\"")
+                          label=f"\"{action['title']}\"",
+                          files=_files(world, procedure, action["payload"]))
     except Exception as e:
         log.exception("action %s failed", action_id)
         result = {"raised": str(e), "shots": {}, "outcome": f"the hand could not run it: {e}"}

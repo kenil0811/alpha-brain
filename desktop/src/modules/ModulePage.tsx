@@ -2,7 +2,7 @@
  * A module: its summary, a page per table, what Alpha did here, and what it is made of. The
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
-import { useEffect, useMemo, useState } from "react";
+import { type DragEvent, useEffect, useMemo, useState } from "react";
 import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
@@ -15,6 +15,22 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("app");
+  const [dragging, setDragging] = useState(false);
+  const [dropNote, setDropNote] = useState<string | null>(null);
+  async function dropped(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (!files.length) return;
+    try {
+      const out = await client.addFiles(files, { module: moduleId });
+      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
+      onChanged();
+    } catch (err) {
+      setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    window.setTimeout(() => setDropNote(null), 6000);
+  }
   const [tab, setTab] = useState<string>(() => {
     try {
       return localStorage.getItem(`alpha.module.${moduleId}.tab`) ?? "summary";
@@ -45,7 +61,9 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
   }
   const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
   return (
-    <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}`}>
+    <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
+      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
+      {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">

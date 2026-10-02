@@ -371,6 +371,18 @@ class Run:
             return False, words + "; no preview screenshot"
         return True, words
 
+    def check_document(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        module = self.world.modules.get(arg["module"])["id"] if arg.get("module") else None
+        rows = [r for r in self.world.store.all(
+            "SELECT * FROM documents WHERE removed_at IS NULL AND indexed_at >= ?"
+            " ORDER BY indexed_at", (self.mark.at,))
+            if (module is None or r["module"] == module)
+            and (not arg.get("kind") or r["kind"] == arg["kind"])]
+        if not rows:
+            return False, "No such document was kept."
+        return True, ", ".join(f"{r['title']} ({r['size']} bytes, {len(r['text'].split())} words)"
+                               for r in rows) + "."
+
     def check_journal(self, arg: dict[str, Any]) -> tuple[bool, str]:
         entries = [e for e in self.world.journal.recent(200, kinds=[arg["kind"]])
                    if e["at"] >= self.mark.at

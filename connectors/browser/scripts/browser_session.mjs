@@ -15,6 +15,9 @@
  * the page may use any request it needs for that, because many sites load the next page of a
  * list with a POST that only reads.
  *   status: whether a profile holds cookies for a site (or any of `sites`).
+ *   download: fetch a file through the person's session: a direct address (the site's
+ *           cookies go with the request), or the file a page hands back when a control is
+ *           pressed. Saved under `dest_dir`, never run. A read.
  *   act:    the one write operation. Performs an approved action's procedure in the person's
  *           own session: declarative steps (click, click_text, fill, type, press, wait,
  *           expect). Fills and typing take only values of the approved payload. With
@@ -354,6 +357,8 @@ function target(page, step) {
   return page.locator(String(selector)).first();
 }
 
+let job_files_root = null;
+
 async function performStep(page, step, values, log) {
   const began = Date.now();
   const kind = Object.keys(step).find((k) => ["goto", "click", "click_text", "fill", "type", "press", "wait", "wait_ms", "expect", "expect_text"].includes(k));
@@ -381,6 +386,15 @@ async function performStep(page, step, values, log) {
         await page.keyboard.type(String(values[field]), { delay: 8 });
       }
       await page.waitForTimeout(300);
+    } else if (kind === "upload") {
+      const field = String(step.value).replace(/^\{|\}$/g, "");
+      const file = (job_files_root && values.__files && values.__files[field]) || null;
+      if (!file) throw new Error(`no file for {${field}}`);
+      if (!String(file).startsWith(job_files_root)) throw new Error("refused: Alpha uploads only files it keeps itself");
+      const el = target(page, { fill: step.upload });
+      await el.waitFor({ state: "attached", timeout: 15000 });
+      await el.setInputFiles(String(file));
+      await page.waitForTimeout(800);
     } else if (kind === "press") {
       await page.keyboard.press(String(step.press));
       await page.waitForTimeout(600);
@@ -405,6 +419,7 @@ async function performStep(page, step, values, log) {
 }
 
 async function act(job) {
+  job_files_root = job.files_root || null;
   if (!job.profile) throw new Error("acting needs the person's sign-in profile for the site");
   mkdirSync(job.shots_dir, { recursive: true });
   const context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
@@ -458,6 +473,60 @@ async function act(job) {
   }
 }
 
+// ---- downloading: a file comes in through the person's session; nothing goes out ----
+
+async function download(job) {
+  mkdirSync(job.dest_dir, { recursive: true });
+  let browser = null;
+  let context;
+  if (job.profile) {
+    context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
+  } else {
+    browser = await chromium.launch(launchOptions(job, true));
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT });
+  }
+  try {
+    const page = context.pages()[0] || (await context.newPage());
+    if (job.click || job.click_text) {
+      // The file the page hands back when a control is pressed (an attachment icon, Export).
+      await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+      if (await isBotCheck(page)) return { bot_check: true, blocked: false };
+      if (await isSignIn(page, job.url)) return { bot_check: false, blocked: true };
+      const el = target(page, job.click ? { click: job.click } : { click_text: job.click_text });
+      await el.waitFor({ state: "visible", timeout: 15000 });
+      const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), el.click({ timeout: 10000 })]);
+      const name = dl.suggestedFilename() || "download";
+      const file = join(job.dest_dir, name);
+      await dl.saveAs(file);
+      return { bot_check: false, blocked: false, path: file, name, final_url: page.url() };
+    }
+    // A direct address: fetched with the session's cookies. A page that comes back instead of a
+    // file (a sign-in wall, say) is not a download.
+    const response = await context.request.get(job.url, { timeout: 60000, maxRedirects: 10 });
+    const type = (response.headers()["content-type"] || "").toLowerCase();
+    const body = await response.body();
+    if (!response.ok()) return { bot_check: false, blocked: response.status() === 401 || response.status() === 403, status: response.status() };
+    if (type.includes("text/html")) {
+      const head = body.toString("utf8", 0, 4000).toLowerCase();
+      return { bot_check: /challenge|captcha|verify you are human/.test(head), blocked: /password|sign in|log in/.test(head), html: true, status: response.status() };
+    }
+    const disposition = response.headers()["content-disposition"] || "";
+    const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+    let name = m ? decodeURIComponent(m[1]) : "";
+    if (!name) {
+      try { name = decodeURIComponent(new URL(job.url).pathname.split("/").pop() || ""); } catch { name = ""; }
+    }
+    name = (job.name || name || "download").replace(/[\/\\]/g, "_");
+    const file = join(job.dest_dir, name);
+    writeFileSync(file, body);
+    return { bot_check: false, blocked: false, path: file, name, size: body.length, content_type: type, status: response.status() };
+  } finally {
+    await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
 const rl = createInterface({ input: process.stdin });
 rl.once("line", async (line) => {
   let job;
@@ -472,6 +541,7 @@ rl.once("line", async (line) => {
     else if (job.op === "read" || job.op === "script") await out(await read(job));
     else if (job.op === "status") await out(await status(job));
     else if (job.op === "act") await out(await act(job));
+    else if (job.op === "download") await out(await download(job));
     else await out({ error: `unknown job ${job.op}` });
   } catch (error) {
     await out({ error: String((error && error.message) || error) });

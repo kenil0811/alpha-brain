@@ -210,7 +210,7 @@ Enforcement is in the process boundary: Alpha's code runs sandboxed; a browser r
 
 For now the system owner (developer) handles hands, listed in Intelligence. Open: as people ask Alpha to reach their own applications (Adobe and the like), the platform cannot build per-app integrations, and doesn't need to; the open question is how hand gaps are collected and prioritised across many people, and whether vetted, shared know-how (readers for common sites) ships with Alpha.
 
-*As built (1–2 Oct):* the hands are the browser (read a page; run Alpha's script in it, read-only by mechanism: while Alpha's script runs, requests that would change data are blocked, the page's own loading is not; a plain `page_read` installs no blocking at all, which is safe only because the driver never clicks, types, submits, uploads, downloads or screenshots: it presses "Show more" paging and scrolls to the end, nothing else), files (folders the person names, read only) and the calendar (EventKit, read only), plus the world's tools and web search and fetch. Readers are the know-how, with a home (`readers`), a real-run rule, health against the reader's own last good run, and repair by Alpha (in a pipeline: one repair turn, then one rerun). `page_to_table` is refused inside automations and described as a first look. Gaps are not recorded as objects; a module's sources carry the access and know-how gaps for reading (needs sign-in, blocked, broken, not built, unavailable, skipped). **Not built:** desktop control, app scripting, sandboxed code of Alpha's own, plug-in install, any outward write. **Site vocabulary moved out of the hands (2 Oct evening, Q23):** the code read found LinkedIn's sign-in paths (`authwall`, `checkpoint`, `uas/login`) and "Show more connections/jobs" in the driver, a `linkedin` entity key beside `url`, and a Sites section with LinkedIn and We Work Remotely addresses in the browser `SKILL.md`. Kenil chose to move it: the driver now knows only generic sign-in paths (`login`, `signin`, `signup`, `auth`) plus a visible password field, and any "Show more …" button; addresses are one key, `url` (old `linkedin` keys fold into it when a world opens); the SKILL.md says the hand knows no site and that where a site keeps its lists and its sign-in is Alpha's to find out and keep in its readers, sources and notes. What Alpha loses: a LinkedIn checkpoint page without a password field is no longer recognised as a wall by path alone; a reader that then returns nothing fails its health check and gets a repair turn, where Alpha sees the page.
+*As built (1–2 Oct):* the hands are the browser (read a page; run Alpha's script in it, read-only by mechanism: while Alpha's script runs, requests that would change data are blocked, the page's own loading is not; a plain `page_read` installs no blocking at all, which is safe only because the driver never clicks, types, submits, uploads, downloads or screenshots: it presses "Show more" paging and scrolls to the end, nothing else), files (folders the person names, read only) and the calendar (EventKit, read only), plus the world's tools and web search and fetch. Readers are the know-how, with a home (`readers`), a real-run rule, health against the reader's own last good run, and repair by Alpha (in a pipeline: one repair turn, then one rerun). `page_to_table` is refused inside automations and described as a first look. Gaps are not recorded as objects; a module's sources carry the access and know-how gaps for reading (needs sign-in, blocked, broken, not built, unavailable, skipped). The files hand also brings a file in from any connected site (`page_download`, §6.2) and a procedure can send one (`upload`). **Not built:** desktop control, app scripting, sandboxed code of Alpha's own, plug-in install. **Site vocabulary moved out of the hands (2 Oct evening, Q23):** the code read found LinkedIn's sign-in paths (`authwall`, `checkpoint`, `uas/login`) and "Show more connections/jobs" in the driver, a `linkedin` entity key beside `url`, and a Sites section with LinkedIn and We Work Remotely addresses in the browser `SKILL.md`. Kenil chose to move it: the driver now knows only generic sign-in paths (`login`, `signin`, `signup`, `auth`) plus a visible password field, and any "Show more …" button; addresses are one key, `url` (old `linkedin` keys fold into it when a world opens); the SKILL.md says the hand knows no site and that where a site keeps its lists and its sign-in is Alpha's to find out and keep in its readers, sources and notes. What Alpha loses: a LinkedIn checkpoint page without a password field is no longer recognised as a wall by path alone; a reader that then returns nothing fails its health check and gets a repair turn, where Alpha sees the page.
 
 ### 4.1 First sources, as the research ranked them
 
@@ -329,6 +329,32 @@ filled a real compose window, the yes made the draft (Drafts 1 → 2), and Alpha
 check then failed because its text had gone, so the platform called it failed and the
 procedure broken, for Alpha to repair (build-plan §4.13).
 **Real (2 Oct, 18:43–18:54, in the app):** the draft was made and then, on "send it as well now", Alpha wrote a send procedure and the email went to Sania with the verify passing. The trace found a false "Sent" on a thrown error, cards approvable before their preview, and two Chromes colliding on one profile; all three fixed the same evening (build-plan §4.15): any error is a failure, a card waits for its preview, one job per profile at a time. Not built: upload steps, acting in Mac apps, sentences for sends, undo of a draft.
+
+### 6.2 Files in and out (decided and built 2 October 2026, late evening; Q25)
+
+- **In, from a connection.** `page_download` fetches a file through the person's session (a
+  direct address with the site's cookies, or what a page hands back when a control is pressed)
+  into Alpha's own folder for the module (`files/<module>` under the data directory, never the
+  person's folders). It becomes a document (text extracted where Alpha reads the kind; the
+  file itself is never run), searchable and readable in pages, and a table's new `file` field
+  keeps its id; the page shows the file's name, Open and Show in Finder. A read: free once the
+  connection is granted, journaled. Whether a module keeps such files is a sentence in the plan
+  the person approves, or an ask; never silent growth. Removing the module removes its files.
+- **In, from the person.** Files dropped onto a module page or added to a row's file field go
+  into the module's folder, become documents, and (for a module drop) Alpha reads them into the
+  module's tables in a turn of its own, journaled as the person's addition and Alpha's reading.
+- **Out, by a procedure.** An `upload` step names a payload field whose value is a document
+  Alpha keeps; the hand refuses any other path. Sending a file reaches someone, so the action is
+  a send: a card with the file's name and size, a fresh yes every time.
+- **Out, by the person.** A table downloads as CSV or Excel into Alpha's exports folder,
+  revealed in Finder.
+
+*As built (2 Oct, late evening):* `documents.module/origin`, `Files.take`, `files_dir`; the
+driver's `download` op and `upload` step; `Browser.download`; `page_download`; `/api/files`
+(multipart), `/api/documents/{id}`, `/api/tables/{name}/export`; the `file` field kind; the file
+cell, the drop zone, the Download menu; the host's open and reveal of files in Alpha's folder
+(the window takes HTML5 drops). Journey `attachment_in`. Tests for each path. Not built:
+attachments on the conversation box, files from Mac apps, a size policy beyond the reading cap.
 
 *The text below is the original design of 30 September; where it says an explicit ask is built at once, the revision above applies.*
 
@@ -469,6 +495,7 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q21** | Threads are records, never remembered model sessions; what the model saw is kept per turn; instructions change only on the person's own words. | 2 Oct, after a stale belief carried across runs. §3.6 |
 | **Q22** | One floor stays: an automation runs at most every 30 minutes (was 15, undocumented). Everything else unlimited (Q18). | 2 Oct evening, after the code read listed the hidden floor. |
 | **Q23** | Site vocabulary out of the hands: generic sign-in and paging detection only, one `url` key, no Sites section in the browser skill; Alpha learns a site's addresses and walls itself. | 2 Oct evening, after the code read found LinkedIn's paths in the driver. §4.0 |
+| **Q25** | Files in and out: a download is a read into Alpha's own folder per module (the plan decides and proposes keeping files; never silent growth); the person drops files onto a module or a row and Alpha reads them; a file sent by a procedure is an upload step on a document Alpha keeps and asks every time; tables export as CSV or Excel. | 2 Oct, late evening. §6.2 |
 | **Q24** | The write route, generic: one acting hand; procedures as Alpha's know-how with an effect (prepare / send); every outward effect an action the person approves after a dry-run preview; prepare asks once per procedure then a standing sentence, send asks every time; the first journey is Kenil's real draft in his real Gmail. | 2 Oct evening, after Alpha refused to draft an email. §6.1 |
 
 ---

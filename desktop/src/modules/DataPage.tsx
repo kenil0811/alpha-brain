@@ -5,7 +5,8 @@
  * and are journaled as theirs.
  */
 import { type DragEvent, type FormEvent, type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Client, RecordRow, TableDesc } from "../core/client";
+import type { Client, FileInfo, RecordRow, TableDesc } from "../core/client";
+import { host } from "../core/host";
 import { DATE_KINDS, coerce, editText, firstOfKind, inputType, isNumeric, openChoices, showValue, titleFieldOf, type FieldInfo } from "./fields";
 import { formatNumber, humanize } from "./format";
 
@@ -68,6 +69,26 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const numericField = useMemo(() => firstOfKind(fields, new Set(["number"])), [fields]);
 
   const [view, setView] = useState<PageView>(() => remembered<PageView>(`${key}.view`, "table"));
+  const [files, setFiles] = useState<Record<string, FileInfo>>({});
+  async function exportAs(format: "csv" | "xlsx") {
+    setMenu(false);
+    try {
+      const out = await client.exportTable(table.name, format);
+      if (host.available()) await host.revealPath(out.path);
+      setStatus({ ok: true, text: `Exported ${out.rows} rows to ${out.name}${host.available() ? "" : ` (${out.path})`}.` });
+    } catch (e) {
+      setStatus({ ok: false, text: `Couldn't export: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  }
+  async function addFile(row: RecordRow, field: FieldInfo, file: File) {
+    try {
+      await client.addFiles([file], { table: table.name, record: row.id, field: field.name });
+      load();
+      onChanged();
+    } catch (e) {
+      setStatus({ ok: false, text: `Couldn't add ${file.name}: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  }
   const [lists, setLists] = useState<SavedList[]>(() => remembered<SavedList[]>(`${key}.lists`, []));
   const [listId, setListId] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -125,6 +146,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
       .table(table.name)
       .then((result) => {
         setAll(result.records);
+        setFiles(result.files ?? {});
         setError(null);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
@@ -308,6 +330,13 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
             </button>
             {menu ? (
               <div className="menu__list" role="menu">
+                <div className="menu__head">Download</div>
+                <button type="button" className="menu__item" role="menuitem" onClick={() => void exportAs("csv")}>
+                  As CSV
+                </button>
+                <button type="button" className="menu__item" role="menuitem" onClick={() => void exportAs("xlsx")}>
+                  As Excel
+                </button>
                 <div className="menu__head">Columns</div>
                 {[...shownColumns, ...fields.map((f) => f.name).filter((n) => !shownColumns.includes(n))].map((name) => {
                   const at = shownColumns.indexOf(name);
@@ -364,7 +393,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
         ) : null}
         <div className="pagebody" ref={scrollRef}>
           {view === "table" ? (
-            <TableView seen={tracked} rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} />
+            <TableView seen={tracked} rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} files={files} onFile={(row, field, file) => void addFile(row, field, file)} />
           ) : null}
           {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
           {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
@@ -436,7 +465,7 @@ function SeenCell({ row }: { row: RecordRow }) {
   return <td className="faint">Since {day(row.created_at)}</td>;
 }
 
-function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty }: { seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = columns.filter((c) => isNumeric(byName.get(c)?.kind ?? "")).map((c) => ({ field: c, value: totalOf.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
   return (
     <div className="tablewrap">
@@ -483,7 +512,7 @@ function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widt
           {rows.map((row) => (
             <tr key={row.id} className={`row--open${openId === row.id ? " row--current" : ""}`} onClick={() => onOpen(row.id)} aria-label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`}>
               {columns.map((c) => (
-                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} />
+                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
               ))}
               {seen ? <SeenCell row={row} /> : null}
               <td className="r">
@@ -526,10 +555,11 @@ function RelationCell({ row, field }: { row: RecordRow; field: FieldInfo }) {
   return <td>{value ? <span className="pill pill--info">{String(value)}</span> : <span className="faint">—</span>}</td>;
 }
 
-function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void }) {
+function Cell({ row, field, onCommit, files, onFile }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   if (field.kind === "relation") return <RelationCell row={row} field={field} />;
+  if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} />;
   const value = row.values[field.name];
   const numeric = isNumeric(field.kind);
   const estimate = Boolean(row.provenance?.estimated) && numeric;
@@ -591,6 +621,45 @@ function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCo
       ) : null}
     </td>
   );
+}
+
+/** A file field: the document's name, opened with the Mac's own app, or a way to add one. */
+function FileCell({ row, field, files, onFile }: { row: RecordRow; field: FieldInfo; files: Record<string, FileInfo>; onFile?: (file: File) => void }) {
+  const id = row.values[field.name] ? String(row.values[field.name]) : "";
+  const info = id ? files[id] : undefined;
+  if (info) {
+    return (
+      <td onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
+          {info.name}
+        </button>
+        <span className="faint"> · {formatBytes(info.size)}</span>
+        {host.available() ? (
+          <button type="button" className="iconbtn" aria-label="Show in Finder" title="Show in Finder" onClick={() => void host.revealPath(info.path)}>
+            ↗
+          </button>
+        ) : null}
+      </td>
+    );
+  }
+  return (
+    <td onClick={(e) => e.stopPropagation()}>
+      {onFile ? (
+        <label className="linkbtn faint">
+          {id ? "File missing · " : ""}Add file
+          <input type="file" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+        </label>
+      ) : (
+        <span className="faint">—</span>
+      )}
+    </td>
+  );
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
 // ---------- add ----------

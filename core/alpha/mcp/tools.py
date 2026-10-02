@@ -13,6 +13,7 @@ import functools
 import logging
 import os
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 from alpha.connectors.base import Connections
@@ -717,6 +718,35 @@ class Tools:
         """The text of a document by id, path or file name, in pages of `length` characters;
         `more` says whether there is more after this page."""
         return Files(self.world).read(ref, start, length)
+
+    @tool
+    def page_download(self, url: str, module: str | None = None, click: str | None = None,
+                      click_text: str | None = None, name: str | None = None) -> dict[str, Any]:
+        """Fetch a file through the person's session into Alpha's own folder for the module
+        (an attachment, a PDF, an export): a direct address, or the file a page hands back
+        when a control is pressed (click: css, or click_text: the control's words). A read:
+        nothing changes on the site. The file becomes a document (document_read for its text)
+        and its id can be kept on a row in a `file` field (records_update). Fetch files only
+        when the plan said to keep them or the person asked for one."""
+        from alpha.connectors.files import Files, files_dir
+
+        module_id = self.world.modules.get(module)["id"] if module else self.module
+        module_name = self.world.modules.get(module_id)["name"] if module_id else None
+        scratch = files_dir(module_name) / ".incoming"
+        got = Browser(self.world).download(url, scratch, click=click, click_text=click_text,
+                                           name=name, turn=self.turn, module=module_id)
+        if not got.get("path"):
+            why = ("the site asked for a sign-in (browser_signin)" if got["needs_signin"] else
+                   "the site stopped Alpha with a bot check" if got["bot_check"] else
+                   "the address gave a page, not a file" if got["html"] else
+                   f"nothing came back (status {got.get('status')})")
+            return {"error": f"Couldn't fetch a file from {url}: {why}."}
+        doc = Files(self.world).take(Path(got["path"]), module=module_id, origin=url,
+                                     move=True, turn=self.turn)
+        return {"document": doc["id"], "name": doc["title"], "size": doc["size"],
+                "words": len((doc.get("text") or "").split()) if doc.get("text") else None,
+                "kind": doc["kind"], "note": "Read it with document_read; keep its id on a row"
+                                              " in a file field if the table has one."}
 
     @tool
     def page_read(self, url: str, to_end: bool = False) -> dict[str, Any]:
