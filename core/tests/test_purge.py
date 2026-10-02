@@ -43,7 +43,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert history[0]["removed"].startswith("Network was removed on ")
     assert world.modules.thread(auto["thread"])["session_ref"] is None
     assert world.journal.recent(1)[0]["text"] == (
-        "Removed Network: 1 table (1 row), 1 reader and 1 automation.")
+        "Removed Network: 1 table (2 rows), 2 readers and 1 automation.")
     assert [m["name"] for m in world.modules.all()] == ["Food"]
     assert world.entities.get(entity["id"])["name"] == "Priya"  # the person's, not the module's
     assert world.collections.describe("food_log")["records"] == 1
