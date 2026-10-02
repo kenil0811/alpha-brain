@@ -19,7 +19,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world.readers import health_problem
+from alpha.world.readers import allowed_posts, health_problem
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -562,24 +562,33 @@ class Tools:
 
     @tool
     def reader_save(self, name: str, url: str, script: str, description: str,
-                    to_end: bool = False) -> dict[str, Any]:
+                    to_end: bool = False,
+                    allow_posts: list[dict[str, str]] | None = None) -> dict[str, Any]:
         """Keep a reader you wrote: a page_script that turns a page into rows (a list of
         objects with the same keys). It is run once now and only kept if it returns rows; then
         automations use it with reader_run, with no model call, and you repair it when it
         breaks. Saving under an existing name replaces it (its version goes up). name: e.g.
-        linkedin_connections. description: what it reads, in a sentence."""
+        linkedin_connections. description: what it reads, in a sentence. allow_posts: only
+        when the site loads more of the list with a POST that only reads (page_script shows
+        writes_blocked and too few rows): [{"origin": "https://www.site.com", "path":
+        "/api/graphql*"}] on the reader's own site; every other non-GET request stays
+        blocked."""
+        rules = allowed_posts(allow_posts, site_of(url), site_of)
         browser = Browser(self.world)
         out = browser.script(url, script, to_end=to_end, turn=self.turn, module=self.module,
-                             label=f"the new reader {name}")
+                             label=f"the new reader {name}", allow_posts=rules)
         rows = out["result"]
         problem = health_problem(rows, last_ok=None)
         if problem:
             raise Problem(f"Not saved: {problem}. Fix the script and try again.")
         reader = self.world.readers.save(name, site=site_of(url), url=url, script=script,
                                          description=description, to_end=to_end,
-                                         count=len(rows))
+                                         count=len(rows), allow_posts=rules)
+        posts = (f" It may send read-only POSTs to "
+                 f"{', '.join(r['origin'] + r['path'] for r in rules)}." if rules else "")
         self._did("made", f"{'Updated' if reader['version'] > 1 else 'Wrote'} the reader {name}"
-                  f" ({description}); it read {len(rows)} rows.", {"reader": name})
+                  f" ({description}); it read {len(rows)} rows.{posts}",
+                  {"reader": name, "allow_posts": rules})
         return {"name": name, "version": reader["version"], "rows": len(rows),
                 "sample": rows[:5]}
 
@@ -594,7 +603,8 @@ class Tools:
         reader = self.world.readers.get(name)
         out = Browser(self.world).script(reader["url"], reader["script"], to_end=reader["to_end"],
                                          turn=self.turn, module=self.module,
-                                         label=f"the reader {name}")
+                                         label=f"the reader {name}",
+                                         allow_posts=reader["allow_posts"])
         if out["needs_signin"]:
             self.world.readers.ran(name, count=0, problem="the site asked for a sign-in")
             return {"health": "needs_signin", "note": "Offer browser_signin; nothing was written."}

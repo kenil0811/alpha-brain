@@ -226,7 +226,8 @@ CREATE TABLE IF NOT EXISTS readers (
     last_count INTEGER,
     last_ok_count INTEGER,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    allow_posts TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS threads (
@@ -240,6 +241,21 @@ CREATE TABLE IF NOT EXISTS threads (
     updated_at TEXT NOT NULL
 );
 """
+
+
+# Columns added after a store may already exist: (table, column, declaration).
+ADDED_COLUMNS = [
+    ("readers", "allow_posts", "TEXT NOT NULL DEFAULT '[]'"),
+]
+
+
+def migrate(db: sqlite3.Connection) -> None:
+    """Bring a store made by an earlier version up to the schema (new tables and triggers come
+    from SCHEMA's IF NOT EXISTS; new columns are added here)."""
+    for table, column, declaration in ADDED_COLUMNS:
+        have = {r[1] for r in db.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
 
 class Problem(Exception):
@@ -279,6 +295,7 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
+        migrate(self.db)
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
