@@ -384,19 +384,21 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
+        plan = proposal["data"].get("plan")
+        if plan:
+            # The state moves first: a refused decision (a plan already building, say) must
+            # not leave an answer in the journal. A yes starts the build; a no closes it.
+            if body.accept:
+                world.plans.approve(plan, "Approved in the app")
+            else:
+                world.plans.decline(plan)
         answered = world.journal.append("answered", "Yes" if body.accept else "No",
                                         actor="person",
                                         data={"proposal": pid, "accept": body.accept},
                                         module=proposal["module"])
-        plan = proposal["data"].get("plan")
         if plan:
-            # A plan's yes starts its build in the background; its no just closes it.
-            if body.accept:
-                world.plans.approve(plan, "Approved in the app")
-                if live:
-                    scheduler.builds()
-            else:
-                world.plans.decline(plan)
+            if body.accept and live:
+                scheduler.builds()
             return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
         instruction = proposal["data"].get("instruction")
         if instruction:
