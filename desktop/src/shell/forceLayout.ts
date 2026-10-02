@@ -45,9 +45,10 @@ export function spacingFor(nodeCount: number): number {
 export const EGG_ASPECT = 1.32;
 const EGG_TAPER = 0.3;
 
+/** Half the egg's width at `ny` (-1 is the top, as in SVG, where y grows downward). */
 export function eggHalfWidth(ny: number, semiWidth: number): number {
   const clamped = Math.max(-1, Math.min(1, ny));
-  return semiWidth * Math.sqrt(Math.max(0, 1 - clamped * clamped)) * (1 - EGG_TAPER * clamped);
+  return semiWidth * Math.sqrt(Math.max(0, 1 - clamped * clamped)) * (1 + EGG_TAPER * clamped);
 }
 
 export function eggRadii(nodeCount: number): { semiWidth: number; semiHeight: number } {
