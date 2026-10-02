@@ -1058,7 +1058,14 @@ discuss"; the five decisions are Q25. Built:
   removal takes the files; an upload step sends only a file Alpha keeps; CSV and Excel export).
   134 core tests; lint and types clean.
 - **Journey** `attachment_in` ("fetch the ETA Tracker CSV that Vikas Badami emailed me into
-  the Advisory module and tell me how many rows it has"): result below.
+  the Advisory module and tell me how many rows it has"), 2 Oct 21:59, a copy of Kenil's world,
+  his Gmail profile: Alpha opened the "Data" email, fetched "ETA Tracker Accounting Vikas
+  (email attachment).csv" through the session (2,068 bytes, 50 words), kept it in
+  `files/advisory` as a document, and answered "20 data rows … plus a header row" (right),
+  39 s in all; it also noticed an older copy of the same file in the watched "alpha docs"
+  folder. The suite's first run failed on the journey file (an unquoted colon; bad YAML is now a
+  plain error) and the second on the reply check's regex (bold marks between "20" and "rows";
+  widened). The mechanism itself passed first time.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

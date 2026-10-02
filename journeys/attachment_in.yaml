@@ -8,4 +8,4 @@ steps:
 checks:
   - journal: {kind: saw, contains: "Fetched"}
   - document: {module: Advisory, kind: csv}
-  - reply: {matches: "\\d+ (rows|listings|lines|entries)"}
+  - reply: {matches: "\\d+[^\\n]{0,12}(rows|listings|lines|entries)"}

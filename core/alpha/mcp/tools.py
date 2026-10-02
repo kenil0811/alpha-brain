@@ -9,6 +9,7 @@ Activity can show what was done, because of which turn, and undo it later.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 import os
@@ -743,6 +744,8 @@ class Tools:
             return {"error": f"Couldn't fetch a file from {url}: {why}."}
         doc = Files(self.world).take(Path(got["path"]), module=module_id, origin=url,
                                      move=True, turn=self.turn)
+        with contextlib.suppress(OSError):
+            scratch.rmdir()  # the holding folder, empty again
         return {"document": doc["id"], "name": doc["title"], "size": doc["size"],
                 "words": len((doc.get("text") or "").split()) if doc.get("text") else None,
                 "kind": doc["kind"], "note": "Read it with document_read; keep its id on a row"
