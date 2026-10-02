@@ -756,7 +756,7 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .modhead__desc { flex: 1 1 100%; min-width: 0; margin: -6px 0 10px 44px; font-size: var(--text-sm); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modhead__nameinput { min-width: 0; flex: 1; font: inherit; font-family: var(--font-ed); font-size: var(--text-xl); padding: 0 6px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); color: var(--text); }
 .projpage__goalinput { display: block; width: calc(100% - 44px); border: 1px solid var(--primary); border-radius: 6px; padding: 3px 8px; background: var(--surface); color: var(--text); white-space: normal; }
-.projpage__addgoal { margin: -6px 0 10px 36px; }
+.projpage__addgoal { align-self: flex-start; margin: -6px 0 10px 36px; }
 .projpage__notes { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); color: var(--text-2); }
 .projpage__notesinput { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--primary); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: var(--text-sm); background: var(--surface); color: var(--text); }
 .projpage__pair { gap: 6px; min-width: 0; flex-wrap: wrap; }
