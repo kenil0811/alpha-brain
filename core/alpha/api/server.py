@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 
 import alpha
 from alpha.api import brain
+from alpha.connectors import files
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
@@ -770,6 +771,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     # ---- P2: settings fields, access modes, stopping a turn ----
 
     access.enable(world)
+    files.enable(world)
 
     @app.get("/api/settings", dependencies=[api])
     def get_settings() -> list[dict[str, Any]]:
