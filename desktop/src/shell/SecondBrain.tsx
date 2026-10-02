@@ -6,7 +6,7 @@
  * is `./forceLayout.ts`. Real data or nothing: nothing is invented to make the picture busier.
  */
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
-import type { Client, Entity, Fact, ModuleCard } from "../core/client";
+import type { Client, Entity, Fact, ModuleCard, ProjectLink } from "../core/client";
 import { humanize } from "../modules/format";
 import { eggHalfWidth, eggRadii, seedPositions, settle, type SimEdge, type SimNode } from "./forceLayout";
 
@@ -36,6 +36,15 @@ export function SecondBrain({ client, modules, facts, onOpenModule, onOpenKnowle
       cancelled = true;
     };
   }, [client]);
+  // Real project-to-project links only: the same switchable ones Connections shows.
+  const [links, setLinks] = useState<ProjectLink[]>([]);
+  useEffect(() => {
+    client
+      .projectLinks()
+      .then(setLinks)
+      .catch(() => setLinks([]));
+  }, [client, modules]);
+  const pending = facts.filter((f) => f.state === "suggested").length;
 
   const nodes = useMemo<GraphNode[]>(() => {
     if (people === null) return [];
@@ -50,10 +59,14 @@ export function SecondBrain({ client, modules, facts, onOpenModule, onOpenKnowle
 
   const edges = useMemo<SimEdge[]>(() => {
     const present = new Set(nodes.map((n) => n.key));
-    return facts
-      .map((f) => ({ from: `fact:${f.id}`, to: f.subject === "person" ? "you" : `entity:${f.subject}` }))
-      .filter((e) => present.has(e.from) && present.has(e.to));
-  }, [nodes, facts]);
+    const list: SimEdge[] = [
+      ...links.map((l) => ({ from: `module:${l.module}`, to: `module:${l.reads}` })),
+      ...facts.map((f) => ({ from: `fact:${f.id}`, to: f.subject === "person" ? "you" : `entity:${f.subject}` })),
+      // A fact that arrived from a project is a real, recorded link to it.
+      ...facts.filter((f) => f.source.startsWith("module:")).map((f) => ({ from: `fact:${f.id}`, to: f.source })),
+    ];
+    return list.filter((e) => present.has(e.from) && present.has(e.to));
+  }, [nodes, facts, links]);
 
   const [positions, setPositions] = useState<SimNode[]>([]);
   useEffect(() => {
@@ -125,9 +138,24 @@ export function SecondBrain({ client, modules, facts, onOpenModule, onOpenKnowle
     panFrom.current = null;
   };
 
+  const manage = (
+    <div className="row" style={{ justifyContent: "flex-end" }}>
+      <button type="button" className="btn btn--sm" onClick={onOpenKnowledge}>
+        {pending ? `Manage (${pending} waiting for you)` : "Manage what Alpha knows"}
+      </button>
+    </div>
+  );
   if (people === null) return <p className="empty">Loading…</p>;
-  if (!nodes.length) return <p className="empty">Nothing yet.</p>;
+  if (!nodes.length)
+    return (
+      <div className="stack">
+        {manage}
+        <p className="empty">Nothing yet.</p>
+      </div>
+    );
   return (
+    <div className="stack">
+    {manage}
     <div className="card intel-graph-card">
       <div className="intel-controls">
         {(Object.keys(KIND_LABEL) as (keyof typeof KIND_LABEL)[]).map((kind) => (
@@ -183,6 +211,7 @@ export function SecondBrain({ client, modules, facts, onOpenModule, onOpenKnowle
           );
         })}
       </svg>
+    </div>
     </div>
   );
 }

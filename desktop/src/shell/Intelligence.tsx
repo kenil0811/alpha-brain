@@ -8,17 +8,20 @@ import { CalendarDays, Folder, Globe, Link } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { InfoTip, PageHeader, Tabs } from "../ui";
-import { AutomationList } from "./Automations";
+import { AboutYou } from "./AboutYou";
+import { AutomationTable } from "./Automations";
+import { ProjectLinks } from "./ProjectLinks";
+import { Skills } from "./Skills";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
 
 export type IntelTab = "brain" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string; hint: string }[] = [
-  { id: "brain", label: "Second brain", hint: "What Alpha holds and how it connects" },
-  { id: "skills", label: "Skills", hint: "Everything Alpha can do" },
-  { id: "automations", label: "Automations", hint: "What runs on its own" },
-  { id: "connections", label: "Connections", hint: "What Alpha can reach" },
-  { id: "knowledge", label: "Knowledge", hint: "What Alpha knows about you" },
+  { id: "brain", label: "Second brain", hint: "Every project and every fact Alpha holds, and how they connect." },
+  { id: "skills", label: "Skills", hint: "A reusable ability outside any project: on its own, or when a sentence calls for it." },
+  { id: "automations", label: "Automations", hint: "Every schedule across your projects, switchable in place." },
+  { id: "connections", label: "Connections", hint: "A project reads another only when it asked to and you left it on." },
+  { id: "knowledge", label: "Knowledge", hint: "What Alpha knows and uses across your projects." },
 ];
 
 const CONNECTOR: Record<string, { icon: typeof Folder; label: (c: Connection) => string; reach: string }> = {
@@ -72,6 +75,11 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   const hasCalendar = live.some((c) => c.connector === "calendar");
   return (
     <div className="stack">
+      <div className="section__head section__head--tight">
+        <h2>
+          Connections <InfoTip content="Accounts and services your projects may use. Alpha never shows or stores raw passwords here." label="About Connections" />
+        </h2>
+      </div>
       <div className="card list">
         {!live.length ? <p className="empty">Nothing connected yet.</p> : null}
         {live.map((c) => {
@@ -190,7 +198,7 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
           </div>
         </>
       ) : (
-        <p className="muted editable note__body" onClick={() => setEditing(true)} title="Click to edit">
+        <p className="muted editable note__body" onClick={() => setEditing(true)}>
           {note.body}
         </p>
       )}
@@ -198,40 +206,13 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
   );
 }
 
-function Knowledge({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
+function Knowledge({ client, data, modules, onChanged }: { client: Client; data: Data; modules: ModuleCard[]; onChanged: () => void }) {
   const { facts, notes, goals } = data.knowledge;
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
   return (
+    <div className="stack">
+    <AboutYou client={client} facts={facts} modules={modules} onChanged={onChanged} />
     <div className="intel">
-      <div className="card card--pad intel__card">
-        <div className="intel__head">
-          <h3>About you</h3>
-          <InfoTip content="What you told Alpha, and what it noticed. Tell it about yourself in any conversation and it remembers." label="About this" />
-        </div>
-        {!facts.length ? <p className="empty">Nothing yet.</p> : null}
-        <dl className="intel__facts">
-          {facts.map((f) => (
-            <div key={f.id}>
-              <dt>{humanize(f.predicate)}</dt>
-              <dd>
-                {f.value}
-                {f.state === "suggested" ? (
-                  <span className="row" style={{ marginTop: 4 }}>
-                    <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.decideFact(f.id, true).then(onChanged)}>
-                      Yes
-                    </button>
-                    <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.decideFact(f.id, false).then(onChanged)}>
-                      No
-                    </button>
-                  </span>
-                ) : (
-                  <span className="faint"> · {f.source.startsWith("turn:") ? "you said" : f.source}</span>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Goals</h3>
@@ -256,6 +237,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
         <NoteCard key={n.id} note={n} client={client} onChanged={onChanged} />
       ))}
     </div>
+    </div>
   );
 }
 
@@ -270,57 +252,62 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
   }, [client, version]);
   return (
     <div className="page">
-      <PageHeader title={<>Intelligence <InfoTip content="Everything Alpha can do, runs on its own, reaches, and knows." label="About Intelligence" /></>} />
+      <PageHeader title={<>Intelligence <InfoTip content="What Alpha knows and can do across your projects." label="About Intelligence" /></>} />
       <Tabs className="page__tabs" aria-label="Intelligence" items={TABS.map((t) => ({ value: t.id, label: <span title={t.hint}>{t.label}</span> }))} value={tab} onChange={(v) => onTab(v as IntelTab)} />
       {!data ? (
         error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "brain" ? (
         <SecondBrain client={client} modules={modules} facts={data.knowledge.facts} onOpenModule={(id) => onGo({ kind: "module", id })} onOpenKnowledge={() => onTab("knowledge")} />
       ) : tab === "skills" ? (
-        <div className="intel">
-          {data.skills.map((s) => (
-            <div key={s.name} className="card card--pad intel__card">
-              <div className="intel__head">
-                <h3>{s.title}</h3>
-                <InfoTip content={s.description ?? ""} label={`About ${s.title}`} />
-                <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+        <div className="stack">
+          <Skills client={client} />
+          <div className="section__head section__head--tight">
+            <h2>
+              Built in <InfoTip content="What Alpha can reach without being taught, and the site readers it made." label="About built-in abilities" />
+            </h2>
+          </div>
+          <div className="intel">
+            {data.skills.map((s) => (
+              <div key={s.name} className="card card--pad intel__card">
+                <div className="intel__head">
+                  <h3>{s.title}</h3>
+                  <InfoTip content={s.description ?? ""} label={`About ${s.title}`} />
+                  <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+                </div>
+                <div className="skill__meta">
+                  {s.tools.map((t) => (
+                    <span key={t.name} className="faint" title={t.description}>
+                      {humanize(t.name)}
+                      {t.effect === "write" ? " (asks first)" : ""}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="skill__meta">
-                {s.tools.map((t) => (
-                  <span key={t.name} className="faint" title={t.description}>
-                    {humanize(t.name)}
-                    {t.effect === "write" ? " (asks first)" : ""}
-                  </span>
-                ))}
+            ))}
+            {data.readers.map((r) => (
+              <div key={r.name} className="card card--pad intel__card">
+                <div className="intel__head">
+                  <h3>{r.description}</h3>
+                  <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
+                </div>
+                <p className="muted">
+                  Reads {r.site} · version {r.version}
+                  {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
+                </p>
+                {r.last_problem ? <p className="notice notice--sm">{r.last_problem}</p> : null}
               </div>
-            </div>
-          ))}
-          {data.readers.map((r) => (
-            <div key={r.name} className="card card--pad intel__card">
-              <div className="intel__head">
-                <h3>{r.description}</h3>
-                <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
-              </div>
-              <p className="muted">
-                Reads {r.site} · version {r.version}
-                {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
-              </p>
-              {r.last_problem ? <p className="notice notice--sm">{r.last_problem}</p> : null}
-            </div>
-          ))}
-          <div className="card card--pad intel__card modcard--new">
-            <div className="intel__head">
-              <b>Skills Alpha learns</b>
-              <InfoTip content={'When something works and you\'ll want it again, Alpha keeps how it did it here. Say "remember how I do this" to teach one.'} label="About learned skills" />
-            </div>
+            ))}
           </div>
         </div>
       ) : tab === "automations" ? (
-        <AutomationList client={client} items={data.automations} onChanged={onChanged} empty="Nothing runs on its own yet." />
+        <AutomationTable client={client} items={data.automations} modules={modules} onOpenModule={(id) => onGo({ kind: "module", id })} onChanged={onChanged} />
       ) : tab === "connections" ? (
-        <Connections client={client} data={data} onChanged={onChanged} />
+        <div className="stack">
+          <Connections client={client} data={data} onChanged={onChanged} />
+          <ProjectLinks client={client} modules={modules} version={version} onOpenModule={(id) => onGo({ kind: "module", id })} />
+        </div>
       ) : (
-        <Knowledge client={client} data={data} onChanged={onChanged} />
+        <Knowledge client={client} data={data} modules={modules} onChanged={onChanged} />
       )}
     </div>
   );

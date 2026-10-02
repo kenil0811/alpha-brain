@@ -119,6 +119,14 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [client, name]);
   useEffect(load, [load, version]);
+  // Skills the Chief of Staff attached to this table, offered in each row's menu.
+  const [rowActions, setRowActions] = useState<{ skill: string; title: string }[]>([]);
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => client.rowActions(name))
+      .then(setRowActions)
+      .catch(() => setRowActions([]));
+  }, [client, name, version]);
 
   const lists = useSavedViews(client, name, fields, data?.views ?? null);
   const list = lists.views.find((v) => v.id === listId) ?? null;
@@ -247,6 +255,14 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
     if (!rec) return;
     if (opened.some((o) => o.kind === "record" && o.id === id)) setOpened([]);
     void run(() => client.deleteRecord(name, id, rec.revision), "Removed", true, "Could not remove it");
+  };
+  const runRowAction = (id: string, skill: string) => {
+    const title = rowActions.find((a) => a.skill === skill)?.title ?? "It";
+    setStatus({ text: `${title} is working on this row…` });
+    client
+      .runRowAction(name, id, skill)
+      .then((out) => setStatus({ text: out.summary, error: out.state === "failed" }))
+      .catch((e: unknown) => setStatus({ text: `Could not run ${title}: ${e instanceof Error ? e.message : String(e)}`, error: true }));
   };
   const undo = () =>
     run(async () => {
@@ -613,6 +629,8 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                 onSelect={select}
                 onChangeField={changeField}
                 onRemove={remove}
+                rowActions={rowActions}
+                onRowAction={runRowAction}
                 empty={empty}
               />
             ) : (
