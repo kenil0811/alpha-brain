@@ -929,17 +929,19 @@ class Tools:
         sent email cannot be unsent"). evidence: what it rests on (records, pages read)."""
         proc = self.world.procedures.get(procedure)
         module_id = self.world.modules.get(module)["id"] if module else self.module
+        from alpha.runtime import acting
+
         action = self.world.actions.propose(proc, title=title, payload=payload, undo=undo,
                                             evidence=evidence, module=module_id,
                                             thread=self.thread, turn=self.turn)
+        self.world.actions.previewed(action["id"], preview=None, note=acting.PREVIEW_PENDING,
+                                     shots=[])
         jid = self._did("proposed",
                         f"{'Send' if proc['effect'] == 'send' else 'Make'}: {title}"
                         f" ({proc['site']})",
                         {"action": action["id"], "why": evidence, "effect": proc["effect"]},
                         module_id)
         self.world.actions.set_proposal(action["id"], jid)
-        from alpha.runtime import acting
-
         standing = self.world.permissions.for_procedure(proc["name"]) \
             if proc["effect"] == "prepare" else None
         if standing:
@@ -953,11 +955,12 @@ class Tools:
                     "error": done.get("error")}
         preview = acting.dry_run(self.world, action["id"], turn_id=self.turn)
         if not preview["ok"]:
-            return {"action": action["id"], "state": "proposed", "dry_run": "failed",
+            return {"action": action["id"], "state": "failed", "dry_run": "failed",
                     "why": preview["why"], "failed_step": preview.get("failed_step"),
                     "log": preview.get("log"),
-                    "note": "Fix the procedure (procedure_save) and propose again; the person"
-                            " will see this card with the failure until then."}
+                    "note": "That card shows the failure and can't be approved. Look at the"
+                            " page again, fix the procedure (procedure_save) and propose"
+                            " again."}
         return {"action": action["id"], "state": "proposed", "dry_run": "ok",
                 "steps_done": preview.get("done"),
                 "note": "The person sees the card with a preview and decides. Say so in one"

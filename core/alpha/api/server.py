@@ -601,33 +601,31 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def edit_action(aid: str, body: ActionEditBody) -> dict[str, Any]:
         a = world.actions.get(aid)
         proc = world.procedures.get(a["procedure"])
-        edited = world.actions.edit(aid, body.payload, proc["fields"])
+        world.actions.edit(aid, body.payload, proc["fields"])
         world.journal.append("changed", f"Changed the text of \"{a['title']}\" before deciding.",
                              actor="person", data={"action": aid})
-        return action_view(edited)
+        # The preview showed the old text: it is made again before the card can be approved.
+        world.actions.previewed(aid, preview=None, note=acting.PREVIEW_PENDING, shots=[])
+        if live:
+            threading.Thread(target=lambda: acting.dry_run(world, aid), daemon=True,
+                             name=f"preview-{aid}").start()
+        else:
+            acting.dry_run(world, aid)
+        return action_view(world.actions.get(aid))
 
     @app.post("/api/actions/{aid}/approve", dependencies=[api])
     def approve_action(aid: str, body: ActionApproveBody) -> dict[str, Any]:
         """The person's yes in the app: the action runs now, in the background, and the card
         shows what happened."""
-        a = world.actions.get(aid)
-        world.actions.approve(aid, "Approved in the app" + (", always" if body.always else ""))
-        if a.get("proposal"):
-            world.journal.append("answered", "Yes", actor="person",
-                                 data={"proposal": a["proposal"], "accept": True, "action": aid})
-        if body.always and a["effect"] == "prepare":
-            proc = world.procedures.get(a["procedure"])
-            granted = world.permissions.grant(sentence=acting.sentence_for(proc),
-                                              procedure=proc["name"], effect="prepare",
-                                              source="Approved in the app, always")
-            world.journal.append("changed", f"Standing permission: {granted['sentence']}",
-                                 actor="person", data={"permission": granted["id"],
-                                                       "action": aid})
+        approval = "Approved in the app" + (", always" if body.always else "")
         if live:
+            # The yes is recorded now (and refused if the preview isn't ready); the run follows.
+            acting.approve(world, aid, approval, always=body.always, perform_now=False)
             threading.Thread(target=lambda: acting.perform(world, aid, runner=runner_fn),
                              daemon=True, name=f"act-{aid}").start()
         else:
-            acting.perform(world, aid, runner=runner_fn, repair=False)
+            acting.approve(world, aid, approval, always=body.always, runner=runner_fn,
+                           repair=False)
         return action_view(world.actions.get(aid))
 
     @app.post("/api/actions/{aid}/decline", dependencies=[api])

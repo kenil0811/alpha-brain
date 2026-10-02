@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
 
+const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
+
 const EFFECT: Record<string, string> = {
   prepare: "Stays in your account; reaches nobody",
   send: "Reaches someone: it asks every time",
@@ -71,26 +73,30 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         </p>
       ) : null}
       {!compact ? (
-        <dl className="action__payload">
-          {Object.entries(action.payload).map(([field, value]) => (
-            <div key={field}>
-              <dt>{field.replace(/_/g, " ")}</dt>
-              <dd>
-                {editing ? (
-                  value.length > 80 || value.includes("\n") ? (
-                    <textarea value={draft[field] ?? ""} rows={Math.min(12, Math.max(3, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} />
-                  ) : (
-                    <input value={draft[field] ?? ""} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} />
-                  )
-                ) : (
-                  <pre className="action__text">{value}</pre>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <div className="action__payload">
+          {Object.entries(action.payload).filter(([, v]) => isShort(v)).length ? (
+            <p className="action__line">
+              {Object.entries(action.payload)
+                .filter(([, v]) => isShort(v))
+                .map(([field, value]) => (
+                  <span key={field}>
+                    <span className="faint">{field.replace(/_/g, " ")}</span> {editing ? <input value={draft[field] ?? ""} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : value}
+                  </span>
+                ))}
+            </p>
+          ) : null}
+          {Object.entries(action.payload)
+            .filter(([, v]) => !isShort(v))
+            .map(([field, value]) => (
+              <div key={field} className="action__block">
+                <span className="faint">{field.replace(/_/g, " ")}</span>
+                {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text">{value}</pre>}
+              </div>
+            ))}
+        </div>
       ) : null}
-      {shot ? <img className="action__shot" src={shot} alt={open ? "How it looks before the last step" : "How it ended"} /> : action.preview_note && open ? <p className="notice">{action.preview_note}</p> : null}
+      {shot ? <img className="action__shot" src={shot} alt={open ? "How it looks before the last step" : "How it ended"} onError={() => setShot(null)} /> : null}
+      {!shot && open && action.preview_note ? <p className="faint">{action.preview_note}</p> : null}
       <p className="because">
         <b>Undo</b> {action.undo}
       </p>
@@ -109,11 +115,11 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
             </>
           ) : (
             <>
-              <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
+              <button type="button" className="btn btn--primary" disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
                 {action.effect === "send" ? "Send it" : "Do it"}
               </button>
               {action.effect === "prepare" ? (
-                <button type="button" className="btn" disabled={busy} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+                <button type="button" className="btn" disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
                   Always allow
                 </button>
               ) : null}

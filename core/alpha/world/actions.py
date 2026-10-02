@@ -247,9 +247,7 @@ class Actions:
         problem = payload_problem(merged, fields)
         if problem:
             raise Problem(problem)
-        # The preview showed the old text; it is stale until the next dry run.
-        return self._set(aid, payload=dumps(merged), preview=None,
-                         preview_note="Changed since the preview.")
+        return self._set(aid, payload=dumps(merged))
 
     def approve(self, aid: str, approval: str) -> dict[str, Any]:
         return self._move(aid, "approved", ("proposed",), approval=approval)

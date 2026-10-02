@@ -658,12 +658,14 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .creation-wrap:has(> .creation__stop) > .creation { padding-right: 72px; }
 
 /* an outward action's card: the text as it will be typed, the dry-run screenshot, the decision */
-.action__payload { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
-.action__payload dt { color: var(--text-2); text-transform: capitalize; padding-top: 2px; }
-.action__payload dd { margin: 0; min-width: 0; }
+.action__payload { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.action__line { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.action__line .faint { text-transform: capitalize; margin-right: 4px; }
+.action__block { display: flex; flex-direction: column; gap: 4px; }
+.action__block > .faint { text-transform: capitalize; }
 .action__payload input, .action__payload textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--surface); font: inherit; color: var(--text); }
-.action__text { margin: 0; white-space: pre-wrap; font: inherit; line-height: 1.45; }
-.action__shot { width: 100%; max-height: 320px; object-fit: cover; object-position: top; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.action__text { margin: 0; white-space: pre-wrap; font: inherit; line-height: 1.45; max-height: 260px; overflow: auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.action__shot { width: 100%; max-height: 260px; object-fit: cover; object-position: top; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .action--settled { border-left-color: var(--border); }
 .badge--good { color: var(--good); background: var(--good-soft); }
 

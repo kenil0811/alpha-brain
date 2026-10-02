@@ -15,6 +15,7 @@ Node 24.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -133,8 +134,21 @@ class Browser:
         self._runner = runner
 
     def runner(self, job: dict[str, Any], timeout: int) -> dict[str, Any]:
+        """Run one driver job. Jobs on the same sign-in profile take turns (a file lock, so the
+        model's MCP process and the core never open one Chrome profile twice at once, which
+        Chrome refuses)."""
         run = self._runner or run_job
-        result: dict[str, Any] = run(job, timeout)
+        profile = job.get("profile")
+        if not profile or self._runner is not None:
+            result: dict[str, Any] = run(job, timeout)
+            return result
+        Path(profile).mkdir(parents=True, exist_ok=True)
+        with open(Path(profile) / "alpha-busy.lock", "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                result = run(job, timeout)
+            finally:
+                fcntl.flock(lock, fcntl.LOCK_UN)
         return result
 
     def signin(self, site_or_url: str) -> dict[str, Any]:

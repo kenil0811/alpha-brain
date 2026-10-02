@@ -328,7 +328,7 @@ procedure is Alpha's own, written against Kenil's Gmail in about two minutes; th
 filled a real compose window, the yes made the draft (Drafts 1 → 2), and Alpha's own verify
 check then failed because its text had gone, so the platform called it failed and the
 procedure broken, for Alpha to repair (build-plan §4.13).
-Not built: upload steps, acting in Mac apps, sentences for sends, undo of a draft.
+**Real (2 Oct, 18:43–18:54, in the app):** the draft was made and then, on "send it as well now", Alpha wrote a send procedure and the email went to Sania with the verify passing. The trace found a false "Sent" on a thrown error, cards approvable before their preview, and two Chromes colliding on one profile; all three fixed the same evening (build-plan §4.15): any error is a failure, a card waits for its preview, one job per profile at a time. Not built: upload steps, acting in Mac apps, sentences for sends, undo of a draft.
 
 *The text below is the original design of 30 September; where it says an explicit ask is built at once, the revision above applies.*
 

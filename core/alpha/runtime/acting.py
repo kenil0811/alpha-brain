@@ -16,9 +16,12 @@ from typing import Any
 
 from alpha.connectors.browser import Browser
 from alpha.runtime import claude_cli, turn
+from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
 
 log = logging.getLogger(__name__)
+
+PREVIEW_PENDING = "The preview is being made."
 
 REPAIR_RULES = """You are Alpha, repairing one of your own procedures after an action the person \
 approved failed; nobody is watching. A procedure is the list of steps that performs one task on \
@@ -47,15 +50,25 @@ def dry_run(world: World, action_id: str, *, browser: Browser | None = None,
     action = world.actions.get(action_id)
     procedure = world.procedures.get(action["procedure"])
     hand = browser or Browser(world)
-    result = hand.act(procedure, action["payload"], shots_dir=shots_dir(action_id),
-                      dry_run=True, turn=turn_id, module=action["module"],
-                      label=f"\"{action['title']}\"")
-    if result.get("needs_signin") or result.get("bot_check") or result.get("failed_step"):
+    try:
+        result = hand.act(procedure, action["payload"], shots_dir=shots_dir(action_id),
+                          dry_run=True, turn=turn_id, module=action["module"],
+                          label=f"\"{action['title']}\"")
+    except Exception as e:
+        log.exception("dry run of %s failed", action_id)
+        result = {"raised": str(e), "shots": {}, "outcome": f"the hand could not run it: {e}"}
+        world.journal.append("failed", f"Dry run of \"{action['title']}\" on"
+                             f" {action['site']}: {e}", actor="alpha",
+                             data={"action": action_id, "procedure": procedure["name"]},
+                             module=action["module"], thread=action["thread"])
+    if _failed(result):
         note = (result.get("note") or result.get("outcome") or "the dry run failed")
+        # The card stays, failed, so the person sees why; Alpha proposes afresh after a repair.
         world.actions.previewed(action_id, preview=(result.get("shots") or {}).get("error"),
                                 note=note, shots=_shots(result))
-        world.procedures.ran(procedure["name"], problem=note if result.get("failed_step")
-                             else None)
+        world.actions.fail(action_id, note, _shots(result))
+        if result.get("failed_step") or result.get("raised"):
+            world.procedures.ran(procedure["name"], problem=note)
         return {"ok": False, "why": note, **result}
     world.actions.previewed(action_id, preview=(result.get("shots") or {}).get("preview"),
                             note=None, shots=_shots(result))
@@ -77,19 +90,18 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
                           label=f"\"{action['title']}\"")
     except Exception as e:
         log.exception("action %s failed", action_id)
-        result = {"error": str(e), "failed_step": 0, "shots": {}, "outcome": str(e)}
-    failed = (result.get("needs_signin") or result.get("bot_check") or result.get("failed_step")
-              or result.get("verified") is False)
-    if failed:
+        result = {"raised": str(e), "shots": {}, "outcome": f"the hand could not run it: {e}"}
+    if _failed(result):
         why = result.get("note") or result.get("outcome") or "it failed"
         world.actions.fail(action_id, why, _shots(result))
-        if result.get("failed_step") or result.get("verified") is False:
+        if result.get("failed_step") or result.get("raised") or result.get("verified") is False:
             world.procedures.ran(procedure["name"], problem=why)
         world.journal.append(
             "failed", f"\"{action['title']}\" did not happen: {why}.",
             actor="alpha", data={"action": action_id, "procedure": procedure["name"]},
             module=action["module"], thread=action["thread"])
-        if repair and (result.get("failed_step") or result.get("verified") is False):
+        if repair and (result.get("failed_step") or result.get("raised")
+                       or result.get("verified") is False):
             _repair(world, action, why, runner)
         return {"ok": False, "why": why, **result}
     world.procedures.ran(procedure["name"], problem=None)
@@ -103,6 +115,15 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
               "payload": action["payload"], "shots": result.get("shots") or {}},
         module=action["module"], thread=action["thread"])
     return {"ok": True, "text": text, **result}
+
+
+def _failed(result: dict[str, Any]) -> bool:
+    """A run counts as done only when every step ran and nothing says otherwise. Anything the
+    hand could not do, a wall, a failed step, a failed check, or an error is a failure: "it
+    ran" is never assumed."""
+    return bool(result.get("raised") or result.get("needs_signin") or result.get("bot_check")
+                or result.get("failed_step") or result.get("verified") is False
+                or result.get("done") is None)
 
 
 def _repair(world: World, action: dict[str, Any], why: str, runner: turn.Runner) -> None:
@@ -120,9 +141,15 @@ def _repair(world: World, action: dict[str, Any], why: str, runner: turn.Runner)
 
 def approve(world: World, action_id: str, approval: str, *, always: bool = False,
             browser: Browser | None = None, runner: turn.Runner = claude_cli.run,
-            repair: bool = True) -> dict[str, Any]:
+            repair: bool = True, perform_now: bool = True) -> dict[str, Any]:
     """The person's yes: record it (and, for a prepare-level action they want always allowed, the
     standing sentence), then perform the action."""
+    current = world.actions.get(action_id)
+    if current["state"] == "proposed" and not current.get("preview"):
+        raise Problem("Its preview isn't ready yet; decide once the card shows how it looks."
+                      if current.get("preview_note") == PREVIEW_PENDING else
+                      "Its dry run didn't work, so it can't be approved; Alpha proposes it"
+                      " afresh once repaired.")
     action = world.actions.approve(action_id, approval)
     if action.get("proposal"):
         world.journal.append("answered", "Yes", actor="person",
@@ -136,6 +163,8 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
         world.journal.append("changed", f"Standing permission: {granted['sentence']}",
                              actor="person", data={"permission": granted["id"],
                                                    "action": action_id})
+    if not perform_now:
+        return world.actions.get(action_id)
     return perform(world, action_id, browser=browser, runner=runner, repair=repair)
 
 

@@ -145,6 +145,12 @@ def test_acting_needs_the_persons_sign_in(world: World) -> None:
         out = t.action_propose("gmail_draft", "Draft", PAYLOAD, "deletable")
         assert out["dry_run"] == "failed" and "sign-in" in out["why"]
         assert not driver.jobs or all(j["op"] != "act" for j in driver.jobs)
+        failed = world.actions.get(out["action"])
+        assert failed["state"] == "failed" and "sign-in" in failed["error"]
+        # A failed card can't be approved: nothing runs on a dry run that didn't work.
+        with pytest.raises(Problem, match="is failed"):
+            acting.approve(world, out["action"], "yes",
+                           runner=lambda r: RunResult(ok=True, reply=""))
     finally:
         restore()
 
@@ -260,7 +266,7 @@ def test_the_api_shows_the_card_and_takes_the_decision(world: World) -> None:
         shot = c.get(f"/api/actions/{aid}/shots/preview.png")
         assert shot.status_code == 200 and shot.headers["content-type"] == "image/png"
         edited = c.patch(f"/api/actions/{aid}", json={"payload": {"subject": "Barcelona!"}}).json()
-        assert edited["payload"]["subject"] == "Barcelona!" and edited["preview"] is None
+        assert edited["payload"]["subject"] == "Barcelona!" and edited["preview"] == "preview.png"
         done = c.post(f"/api/actions/{aid}/approve", json={"always": True}).json()
         assert done["state"] == "done" and done["shots"] == {"after": "after.png"}
         intel = c.get("/api/intelligence").json()
@@ -291,5 +297,52 @@ def test_removing_the_connection_takes_its_procedures_and_pending_actions(world:
         assert world.procedures.names() == []
         assert world.actions.get(aid)["state"] == "declined"
         assert world.permissions.live() == []
+    finally:
+        restore()
+
+
+def test_a_card_cannot_be_approved_before_its_preview_exists(world: World) -> None:
+    gmail_connected(world)
+    with_fake(Driver())
+    try:
+        t = keep_procedure(world, turn=said(world, "draft"))
+        proc = world.procedures.get("gmail_draft")
+        pending = world.actions.propose(proc, title="Draft", payload=PAYLOAD, undo="deletable",
+                                        evidence=None, module=None, thread=None, turn=None)
+        world.actions.previewed(pending["id"], preview=None, note=acting.PREVIEW_PENDING, shots=[])
+        with pytest.raises(Problem, match="preview isn't ready"):
+            acting.approve(world, pending["id"], "yes")
+        assert world.actions.get(pending["id"])["state"] == "proposed"
+        c = TestClient(create_app(world, live=False,
+                                  runner=lambda req: RunResult(ok=True, reply="")))
+        refused = c.post(f"/api/actions/{pending['id']}/approve", json={"always": False})
+        assert refused.status_code == 400 and "preview" in refused.json()["error"]
+        del t
+    finally:
+        restore()
+
+
+def test_an_error_in_the_hand_is_a_failure_never_a_sent(world: World) -> None:
+    """17:47 on 2 Oct: the hand threw, and the action was marked Sent with nothing sent."""
+    gmail_connected(world)
+
+    class Broken(Driver):
+        def __call__(self, job: dict[str, Any], timeout: int) -> dict[str, Any]:
+            if job["op"] == "act" and not job["stop_before_last"]:
+                raise Problem("The browser couldn't do that: profile in use")
+            return super().__call__(job, timeout)
+
+    with_fake(Broken())
+    try:
+        t = keep_procedure(world, turn=said(world, "send it"), effect="send")
+        aid = t.action_propose("gmail_draft", "Email to Sania", PAYLOAD,
+                               "cannot be unsent")["action"]
+        out = acting.approve(world, aid, "yes", runner=lambda r: RunResult(ok=True, reply=""),
+                             repair=False)
+        assert out["ok"] is False and "profile in use" in out["why"]
+        action = world.actions.get(aid)
+        assert action["state"] == "failed" and "profile in use" in action["error"]
+        assert not any(e["text"].startswith("Sent") for e in world.journal.recent(20))
+        assert world.procedures.get("gmail_draft")["health"] == "broken"
     finally:
         restore()
