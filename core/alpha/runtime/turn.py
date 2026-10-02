@@ -16,6 +16,7 @@ from alpha.connectors.base import skills_text
 from alpha.context import prepack
 from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.world import taint
 from alpha.world.world import World
 
 RULES = """You are Alpha, the person's second brain. You keep their world (tables, a journal of \
@@ -40,7 +41,11 @@ fact_record(stated=true). Things you infer are suggestions (stated=false).
 maintain…", "keep an eye on", "a … tracker", "every week…"), do the whole job in this turn, \
 however long it takes; they would rather wait a few minutes than come back later:
    a. Research how this is best done: WebSearch and WebFetch, 3 to 6 good sources (expert \
-guidance, well-regarded tools and how they work). Read them; don't guess from titles.
+guidance, well-regarded tools and how they work). Read them; don't guess from titles. Do it \
+first: once this turn has read the person's private material (their records, documents, \
+calendar, journal, notes, people, or a page through their sign-in), web search and fetch are \
+off for the rest of it, and only sites already read, signed in to or named in the request \
+open. If research is refused, build from what you know and say what you could not look up.
    b. Use what Alpha already knows (facts, goals, other modules, documents). Never ask for \
 something known.
    c. Build it properly: the tables with the fields that matter (units, a date field, status \
@@ -141,7 +146,9 @@ def ask(
     )
     if on_said is not None:
         on_said(said)
-    context = prepack.build(world, sentence, module=module_id)
+    context, tainted = prepack.build_with_taint(world, sentence, module=module_id)
+    if tainted:
+        taint.mark(world.store, said, thread, tainted)
     request = TurnRequest(
         sentence=sentence,
         system=f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}\n\n{context}",
@@ -160,6 +167,7 @@ def ask(
         "num_turns": result.num_turns,
         "duration_ms": result.duration_ms,
         "cost_estimate": result.cost_estimate,
+        "tainted": taint.reason(world.store, said, thread),
     }
     if result.ok:
         replied = world.journal.append(

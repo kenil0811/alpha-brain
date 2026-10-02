@@ -3,17 +3,20 @@
 `claude -p` gets the sentence, Alpha's rules and the pre-pack as an appended system prompt, and
 the world as an MCP server. Nothing else of the person's Claude Code setup applies (no user
 settings, CLAUDE.md or hooks; no other MCP servers), and only Alpha's tools plus web search and
-fetch are allowed: anything that would ask for permission is refused.
+fetch are allowed: anything that would ask for permission is refused. Web search and fetch pass
+a gate first (a PreToolUse hook, `alpha.world.taint`): once the run has read private or
+third-party material they are refused, so nothing of it can leave in a query or an address.
 
-Headless runs need the default config home (a private CLAUDE_CONFIG_DIR is not logged in) and
-USER in the environment.
+The claude process gets only the environment it needs (`claude_account.child_env`), not
+Alpha's: headless runs need the default config home (a private CLAUDE_CONFIG_DIR is not logged
+in) and USER.
 """
 
 from __future__ import annotations
 
-import getpass
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -55,8 +58,13 @@ class TurnRequest:
     timeout: int | None = None
 
 
+# What the MCP server needs from Alpha's own environment (the claude process has none of it).
+PASSED_TO_TOOLS = ("ALPHA_HOME", "ALPHA_NODE", "ALPHA_CONNECTORS")
+
+
 def mcp_config(req: TurnRequest) -> dict[str, Any]:
     env = {
+        **{k: os.environ[k] for k in PASSED_TO_TOOLS if k in os.environ},
         "ALPHA_WORLD": str(req.world_path),
         "ALPHA_TURN": req.turn_id,
         "ALPHA_THREAD": req.thread_id or "",
@@ -67,6 +75,15 @@ def mcp_config(req: TurnRequest) -> dict[str, Any]:
             "alpha": {"command": sys.executable, "args": ["-m", "alpha.mcp.server"], "env": env}
         }
     }
+
+
+def gate_settings(req: TurnRequest) -> dict[str, Any]:
+    """The web gate as Claude Code settings. `|| exit 2`: a gate that fails to run refuses."""
+    command = " ".join(shlex.quote(a) for a in [
+        sys.executable, "-m", "alpha.world.taint", "--world", str(req.world_path),
+        "--turn", req.turn_id, "--thread", req.thread_id or ""]) + " || exit 2"
+    return {"hooks": {"PreToolUse": [{"matcher": "WebSearch|WebFetch", "hooks": [
+        {"type": "command", "command": command}]}]}}
 
 
 def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[str]:
@@ -92,6 +109,8 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "none",
         "--setting-sources",
         "",
+        "--settings",
+        json.dumps(gate_settings(req)),
         "--model",
         req.model or os.environ.get("ALPHA_MODEL") or DEFAULT_MODEL,
         "--max-turns",
@@ -107,9 +126,7 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
 
 def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = None) -> RunResult:
     timeout = timeout or req.timeout or TIMEOUT_S
-    env = dict(os.environ)
-    env.setdefault("USER", getpass.getuser())
-    env.pop("CLAUDE_CONFIG_DIR", None)
+    env = claude_account.child_env()
     with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
         config_path = Path(tmp) / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(req)))

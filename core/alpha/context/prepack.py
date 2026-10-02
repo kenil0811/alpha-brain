@@ -39,7 +39,16 @@ def clock(at: datetime | None = None) -> list[str]:
 
 
 def build(world: World, sentence: str, *, module: str | None = None) -> str:
+    return build_with_taint(world, sentence, module=module)[0]
+
+
+def build_with_taint(world: World, sentence: str, *,
+                     module: str | None = None) -> tuple[str, str | None]:
+    """The pre-pack, and why it taints the run (alpha.world.taint) if it carries more than the
+    person's own words: today's calendar, records, documents, what Alpha saw in a source, or a
+    reply from a run that was tainted."""
     sections: list[tuple[str, list[str]]] = []
+    taints: list[str] = []
     k = world.knowledge
 
     sections.append(("NOW", clock()))
@@ -95,6 +104,7 @@ def build(world: World, sentence: str, *, module: str | None = None) -> str:
     day_end = (day_start + timedelta(days=1)).isoformat()
     today = Calendar(world).between(day_start.isoformat(), day_end)
     if today:
+        taints.append("read the calendar")
         sections.append(("TODAY'S CALENDAR", [
             f"- {datetime.fromisoformat(e['starts_at']).astimezone().strftime('%H:%M')}"
             f"–{datetime.fromisoformat(e['ends_at']).astimezone().strftime('%H:%M')}"
@@ -113,19 +123,25 @@ def build(world: World, sentence: str, *, module: str | None = None) -> str:
     recent = []
     for e in world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"]):
         who_said = "person" if e["kind"] == "said" else "alpha"
+        if e["data"].get("tainted"):
+            taints.append("carries a reply that drew on private material")
         recent.append(f"- {e['at'][11:16]}Z {who_said}: {_clip(e['text'], 400)}")
     sections.append(("RECENT CONVERSATION (oldest first)", recent or ["- This is the first."]))
 
     matches = []
     for hit in world.collections.search(sentence, MATCHES):
+        taints.append("read the person's records")
         matches.append(f"- record {hit['id']} in {hit['collection']}: {_clip(hit['snippet'], 160)}")
     for doc in Files(world).search(sentence, 3):
+        taints.append("read the person's documents")
         matches.append(f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}")
     recent_ids = {e["id"] for e in world.journal.recent(RECENT_TURNS, stream=True)}
     hits = world.journal.mark_removed(world.journal.search(sentence, MATCHES + len(recent_ids)))
     for hit in hits:
         if hit["id"] in recent_ids:
             continue
+        if hit["kind"] == "saw" or hit["source"]:
+            taints.append("read what Alpha saw in a source")
         gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
         matches.append(f"- {hit['at'][:16]}Z {hit['kind']} ({hit['id']}):"
                        f" {_clip(hit['snippet'], 160)}{gone}")
@@ -142,4 +158,5 @@ def build(world: World, sentence: str, *, module: str | None = None) -> str:
         sections.append(("OPEN", open_items))
 
     text = "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in sections)
-    return text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(pre-pack cut short)"
+    text = text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(pre-pack cut short)"
+    return text, taints[0] if taints else None

@@ -245,6 +245,15 @@ CREATE TABLE IF NOT EXISTS readers (
     allow_posts TEXT NOT NULL DEFAULT '[]'
 );
 
+-- Runs that have read private or third-party material (alpha.world.taint).
+CREATE TABLE IF NOT EXISTS taints (
+    turn TEXT PRIMARY KEY,
+    thread TEXT,
+    reason TEXT NOT NULL,
+    at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS taints_thread ON taints(thread);
+
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
