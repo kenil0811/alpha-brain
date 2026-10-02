@@ -427,10 +427,11 @@ export class Client {
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
-  updateModule = (ref: string, patch: { name?: string; icon?: string }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
+  updateModule = (ref: string, patch: { name?: string; icon?: string; goal?: string; project?: string | null }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
   removeModule = (ref: string) => this.call<{ module: string; tables: number; rows: number }>("DELETE", `/api/modules/${encodeURIComponent(ref)}`);
-  /** A project as a file: its tables and rows, note, goals and automations. */
-  exportModule = (ref: string) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export`);
+  /** A project as a file: its structure (tables, views, readers, note, goals, automations);
+   *  its rows only with `rows`. */
+  exportModule = (ref: string, rows = false) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export${rows ? "?rows=true" : ""}`);
   importModule = (bundle: unknown) => this.call<ModuleCard>("POST", "/api/modules/import", bundle);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
@@ -500,4 +501,100 @@ export class Client {
   rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
+
+  // ---- P1: new projects and making them, chats, the Activity bell, Alpha's bug log ----
+  /** New project: a blank "Untitled project" at once, with the thread it is made in. */
+  createModule = (name?: string) => this.call<ModuleCard>("POST", "/api/modules", { name: name ?? null });
+  /** What the person did on the project's page while it is being made. */
+  answerCreation = (ref: string, answer: CreationAnswer) => this.call<{ turn?: Turn; module?: ModuleCard }>("POST", `/api/modules/${encodeURIComponent(ref)}/creation/answer`, answer);
+  importModulePath = (path: string) => this.call<ModuleCard>("POST", "/api/modules/import", { path });
+  /** The chats opened in one place (a project's, or the global ones). */
+  sessions = (module: string | null, includeDone = false) => this.call<Session[]>("GET", `/api/threads?${new URLSearchParams({ ...(module ? { module } : {}), ...(includeDone ? { include_done: "true" } : {}) })}`);
+  createSession = (title: string, module: string | null) => this.call<Thread>("POST", "/api/threads", { title, module });
+  updateSession = (id: string, patch: { state?: string; title?: string }) => this.call<Thread>("PATCH", `/api/threads/${id}`, patch);
+  attention = () => this.call<Attention>("GET", "/api/attention");
+  bugs = () => this.call<{ path: string; text: string | null }>("GET", "/api/bugs");
+  /** Forget a fact that holds for one project (P3's DELETE /api/facts/{id}). */
+  forgetProjectFact = (id: string) => this.call<unknown>("DELETE", `/api/facts/${id}`);
+  /** Stop a running turn (P2's endpoint). False when this core can't stop one yet. */
+  async cancelTurn(id: string): Promise<boolean> {
+    try {
+      await this.call<unknown>("POST", `/api/turns/${id}/cancel`);
+      return true;
+    } catch (e) {
+      if (e instanceof CoreError && (e.status === 404 || e.status === 405)) return false;
+      throw e;
+    }
+  }
+}
+
+// ---- P1: new projects and making them, chats, the Activity bell ----
+
+export type CreationStage = "new" | "asking" | "researching" | "proposing" | "planned" | "building" | "done";
+
+export interface CreationQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  why_it_matters?: string;
+}
+
+export interface CreationOption {
+  id: string;
+  title: string;
+  summary?: string;
+  why?: string;
+}
+
+/** Where making a project stands (core world/modules.py `creation`, written by creation_show). */
+export interface Creation {
+  stage: CreationStage;
+  thread: string;
+  at?: string;
+  questions?: CreationQuestion[];
+  proposal?: { intro: string; findings: string[]; options: CreationOption[]; default: string; questions: CreationQuestion[]; evidence: { title?: string; url?: string; note?: string; kind?: string }[] };
+  assumptions?: { text?: string; source?: string }[];
+  /** The build turn's journal id: its steps are the build's progress. */
+  turn?: string;
+  /** Why the last turn didn't work, in plain words. */
+  error?: string;
+  /** A build the model ran out of time on: what's made is kept; Carry on resumes it. */
+  timed_out?: boolean;
+}
+
+export interface CreationAnswer {
+  text?: string;
+  answers?: Record<string, string>;
+  choice?: string;
+  use_defaults?: boolean;
+  build?: boolean;
+  carry_on?: boolean;
+  retry?: boolean;
+  start_over?: boolean;
+}
+
+/** A chat (a topic thread), with how many times the person spoke in it. */
+export interface Session extends Thread {
+  turns: number;
+}
+
+export interface Attention {
+  count: number;
+  needs_you: NeedItem[];
+  failed: { id: string; title: string; module: string | null; at: string | null; error: string | null }[];
+}
+
+export interface ModuleCard {
+  creation?: Creation | null;
+  /** The project it is filed under (a sub project), or null. */
+  project?: string | null;
+}
+
+export interface ModuleDetail {
+  plan?: Note | null;
+  sessions?: Session[];
+  sub_projects?: ModuleCard[];
+  facts?: Fact[];
+  /** The turn making it, while one runs. */
+  running?: Turn[];
 }

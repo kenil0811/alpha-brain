@@ -193,6 +193,7 @@ class Turns:
                         "provider": provider, "started_at": datetime.now(UTC).isoformat()}
         with self.lock:
             self.state[key] = {"id": key, "state": "running", "text": body.text,
+                               "thread": body.thread,
                                "started_at": datetime.now(UTC).isoformat()}
 
         def work() -> None:
@@ -467,6 +468,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["sub_projects"] = [module_card(world, c) for c in world.modules.children(m["id"])]
         # Facts that hold only inside this project (world/knowledge.py).
         card["facts"] = world.knowledge.facts(f"module:{m['id']}")
+        # The turn making it, while one runs (the page shows its clock and Stop).
+        making = (m["creation"] or {}).get("thread")
+        card["running"] = [t for t in running.running() if making and t.get("thread") == making]
         return card
 
     @app.patch("/api/modules/{ref}", dependencies=[api])
