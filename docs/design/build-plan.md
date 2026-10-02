@@ -1119,7 +1119,13 @@ thinking, it should give me options for questions and not just have me type in".
   literal address. **Failed, platform's fault.** Fixed: a `{field}` placeholder anywhere in the
   address, a selector, a click text or a goto is filled from the approved payload (the payload
   is on the card, so nothing hidden reaches the site); every placeholder must be a declared
-  field; proven on example.com (address and selector filled, step done). Rerun below.
+  field; proven on example.com (address and selector filled, step done).
+- **linkedin_message, rerun** (22:16, `docs/journeys/2026-10-02-2216.md`): **passed** in 550 s.
+  Alpha wrote `linkedin_message` seven times and landed on four steps: `goto` LinkedIn's
+  compose overlay with `{recipient_urn}` in the address, wait for the message box, type
+  `{message}`, click Send; the dry run composed the message and the card waits with its
+  preview; nothing was sent. The second site cost no platform code beyond the placeholder fix;
+  nine minutes is the price of learning a site once.
 - A lesson for the repair loop: Alpha's diagnosis ("anti-automation") was wrong because it
   never saw the error screenshot. `action_propose`'s failure answer now carries the step log;
   giving Alpha the screenshot itself (a `page_read` of the final page, or the image) is open.
