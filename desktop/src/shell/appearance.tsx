@@ -1,4 +1,5 @@
-/** Settings -> Appearance beyond light/dark: accent colour, interface font and text size. Kept
+/** Settings -> Appearance beyond light/dark: accent colour, interface font, text size and
+ *  density (Alpha's look.density: Compact fits more on screen). Kept
  *  per window like the theme, applied on the document root (ported from Alpha). Text size zooms
  *  the window, since most of the shell is sized in px. */
 import { useState } from "react";
@@ -7,10 +8,16 @@ export interface Appearance {
   accent: string;
   font: string;
   size: string;
+  density: string;
 }
 
 const KEY = "alpha.appearance";
-const DEFAULTS: Appearance = { accent: "steel", font: "geist", size: "default" };
+const DEFAULTS: Appearance = { accent: "steel", font: "geist", size: "default", density: "compact" };
+
+export const DENSITIES: { value: string; label: string }[] = [
+  { value: "compact", label: "Compact" },
+  { value: "comfortable", label: "Comfortable" },
+];
 
 export const ACCENTS: { value: string; label: string; color: string | null }[] = [
   { value: "steel", label: "Steel", color: null }, // app.css default
@@ -51,6 +58,7 @@ export function applyAppearance(a: Appearance): void {
   if (font) style.setProperty("--font-ui", font);
   else style.removeProperty("--font-ui");
   style.setProperty("zoom", zoom === 1 ? "" : String(zoom));
+  document.documentElement.dataset.density = a.density === "comfortable" ? "comfortable" : "compact";
 }
 
 export function useAppearance(): [Appearance, (change: Partial<Appearance>) => void] {
