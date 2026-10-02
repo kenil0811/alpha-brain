@@ -186,7 +186,11 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
     if stopped or plan["state"] == "stopped":
         return stop(world, plan_id, None) if plan["state"] != "stopped" else plan
     if ok:
-        tried = trial(world, plan, runner=runner) if plan.get("trial") else None
+        try:
+            tried = trial(world, plan, runner=runner) if plan.get("trial") else None
+        except Exception as e:  # the build itself is done; the trial is what broke
+            log.exception("trial of %s failed", plan_id)
+            return stop(world, plan_id, f"its trial could not run ({e})")
         if tried and not tried["agree"] and plan["checks"] < TRIAL_REPAIRS:
             # Not done: the finding goes into the thread, and the next run carries on from it.
             world.plans.checked(plan_id)

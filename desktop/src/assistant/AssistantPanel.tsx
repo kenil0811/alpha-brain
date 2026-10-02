@@ -46,8 +46,10 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
   const stopped = plan.state === "stopped";
   const decide = (yes: boolean) => {
     setBusy(true);
-    const go = stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id);
-    void (yes ? go : client.declinePlan(plan.id)).finally(() => {
+    // One request per decision. (Until 2 Oct evening the yes request was built eagerly, so
+    // "Not now" approved and "Leave it" resumed before declining: builds ran on a no.)
+    const go = () => (stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id));
+    void (yes ? go() : client.declinePlan(plan.id)).finally(() => {
       setBusy(false);
       onDecided();
     });

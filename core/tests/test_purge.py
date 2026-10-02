@@ -126,3 +126,22 @@ def test_removing_a_signin_takes_the_sites_it_passed_through(
                          source="connector:browser")
     remove_connection(world, conn["id"])
     assert not profile.exists() and len(world.journal.recent(5, kinds=["saw"])) == 1
+
+
+def test_a_deleted_row_never_breaks_the_list_of_removals(world: World) -> None:
+    """2 Oct 18:51: Alpha deleted one row, its values rode under `removed`, and every pre-pack
+    (so every turn) crashed on the missing `name` until the app was shut."""
+    from conftest import building
+
+    t = building(world, turn="j_x")
+    t.collection_create("things", "Things", [{"name": "title", "kind": "text"}])
+    rec = t.records_add("things", {"title": "Data"}, source="stated")
+    t.records_delete("things", rec["id"], rec["revision"])
+    # An old-shaped entry from before the fix is tolerated too.
+    world.journal.append("changed", "Removed Data from Things.",
+                         data={"collection": "things", "record": "r_old",
+                               "removed": {"id": "r_old", "title": "Data"}})
+    assert world.journal.removals() == {}
+    from alpha.context import prepack
+
+    assert "Things" in prepack.build(world, "what did I remove")

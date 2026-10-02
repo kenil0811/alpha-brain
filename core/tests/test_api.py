@@ -7,6 +7,7 @@ from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
+from alpha.mcp.tools import Tools
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
@@ -263,3 +264,20 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
     assert kinds == ["turn", "independent", "judge"]
     assert turns_.get(started["id"])["state"] == "done"
     assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")
+
+
+def test_a_refused_decline_leaves_no_answer_and_starts_nothing(world: World) -> None:
+    """The panel once fired resume and decline together on "Leave it": the decline must be
+    refused on a building plan without journaling a No."""
+    t = Tools(world, turn=world.journal.append("said", "track x", actor="person"))
+    pid = t.plan_propose("Track x", "A plan.", "show me x")["plan"]
+    plan = world.plans.get(pid)
+    world.plans.approve(pid, "yes")
+    thread = world.modules.open_thread("Build: Track x", "build", None)
+    world.plans.start(pid, thread["id"])
+    c = client(world)
+    refused = c.post(f"/api/plans/{pid}/decline")
+    assert refused.status_code == 400 and "building" in refused.json()["error"]
+    assert not [e for e in world.journal.recent(10, kinds=["answered"])
+                if e["data"].get("proposal") == plan["proposal"]]
+    assert world.plans.get(pid)["state"] == "building"

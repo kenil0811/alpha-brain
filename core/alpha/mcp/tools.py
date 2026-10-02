@@ -483,7 +483,7 @@ class Tools:
         self._did(
             "changed",
             f"Removed {before.get(desc['title_field']) or id} from {desc['title']}.",
-            {"collection": collection, "record": id, "removed": before},
+            {"collection": collection, "record": id, "was": before},
             desc["module"],
         )
         return {"removed": id}
