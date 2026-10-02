@@ -16,7 +16,7 @@ import tempfile
 from typing import Any
 
 from alpha.runtime import claude_account
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.claude_cli import RunResult, Stopped, TurnRequest, call, stopped_result
 
 TIMEOUT_S = 900
 PREFIX = "codex:"
@@ -93,11 +93,14 @@ def run(req: TurnRequest, *, binary: str) -> RunResult:
     timeout = req.timeout or TIMEOUT_S
     with tempfile.TemporaryDirectory(prefix="alpha-codex-") as tmp:
         try:
-            done = subprocess.run(argv(req, binary, tmp), capture_output=True, text=True,
-                                  timeout=timeout, cwd=tmp, stdin=subprocess.DEVNULL,
-                                  env=claude_account.child_env())
+            stdout, stderr, _ = call(argv(req, binary, tmp), turn_id=req.turn_id,
+                                     timeout=timeout, env=claude_account.child_env(), cwd=tmp)
+        except Stopped:
+            return stopped_result()
         except subprocess.TimeoutExpired:
-            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.")
+            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.",
+                             raw={"timeout": True})
         except FileNotFoundError:
-            return RunResult(reply="", ok=False, error="Codex isn't on this Mac yet.")
-    return parse(done.stdout, done.stderr)
+            return RunResult(reply="", ok=False, error="Codex isn't on this Mac yet.",
+                             raw={"cli_missing": True})
+    return parse(stdout, stderr)

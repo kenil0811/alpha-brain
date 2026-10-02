@@ -22,7 +22,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, signin_sites, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world import edits, taint
+from alpha.world import access, edits, taint
 from alpha.world.actions import Actions
 from alpha.world.readers import allowed_posts, health_problem
 from alpha.world.store import Problem
@@ -35,7 +35,9 @@ def tool[F: Callable[..., Any]](fn: F) -> F:
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
-            return fn(*args, **kwargs)
+            # The conversation's access mode may make this call wait for the person's yes.
+            held = access.hold(args[0], fn, args[1:], kwargs) if args else None
+            return held if held is not None else fn(*args, **kwargs)
         except Problem as e:
             return {"error": str(e)}
         except Exception as e:  # a bug of ours: say so plainly, keep the details in the log
@@ -51,6 +53,9 @@ def tool[F: Callable[..., Any]](fn: F) -> F:
 
 
 class Tools:
+    # True only for the one call the person approved (alpha.world.access.enable).
+    approved = False
+
     def __init__(
         self,
         world: World,

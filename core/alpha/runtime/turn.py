@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 
 from alpha.connectors.base import skills_text
 from alpha.context import prepack
+from alpha.models import settings
+from alpha.runtime import attachments as attached
 from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world import taint
@@ -132,6 +134,7 @@ def ask(
     timeout: int | None = None,
     model: str | None = None,
     on_said: Callable[[str], None] | None = None,
+    attachments: list[attached.AttachmentIn] | None = None,
 ) -> TurnOutcome:
     """One turn. `actor="alpha"` is a turn Alpha starts itself (an automation run): its prompt is
     journaled as something Alpha did, not as words the person said."""
@@ -141,18 +144,30 @@ def ask(
         module_id = thread_row["module"]
     if actor == "person":
         close_answered_asks(world, sentence, thread)
+    # What the person attached rides along in this turn's prompt only; the journal keeps names.
+    attachments = attachments or []
     said = world.journal.append(
         "said" if actor == "person" else "did", sentence, actor=actor, module=module_id,
         thread=thread,
+        data={"attachments": attached.summaries(attachments)} if attachments else None,
     )
     if on_said is not None:
         on_said(said)
     context, tainted = prepack.build_with_taint(world, sentence, module=module_id)
     if tainted:
         taint.mark(world.store, said, thread, tainted)
+    prompt = sentence
+    if attachments:
+        # The person's own files, but private material all the same: nothing new leaves.
+        taint.mark(world.store, said, thread, taint.ATTACHED)
+        prompt = f"{sentence}\n\n{attached.build_context(attachments)}"
+    look = str(settings.get(world.store, "look.rules")).strip()
+    look_block = f"\n\nHOW PROJECTS LOOK (the person's rules for every table and view you make or" \
+                 f" change)\n\n{look}" if look else ""
     request = TurnRequest(
-        sentence=sentence,
-        system=f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}\n\n{context}",
+        sentence=prompt,
+        system=f"{rules}{look_block}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
+               f"\n\n{context}",
         world_path=world.path,
         turn_id=said,
         thread_id=thread,
@@ -176,7 +191,9 @@ def ask(
         )
         reply = result.reply
     else:
-        reply = f"That didn't work: {result.error or 'no answer came back'}"
+        # The router already words a failure for the person (route.plain_failure).
+        reply = result.error if result.raw.get("plain") and result.error else \
+            f"That didn't work: {result.error or 'no answer came back'}"
         replied = world.journal.append(
             "failed", reply, data={**data, "error": result.error}, module=module_id,
             thread=thread,

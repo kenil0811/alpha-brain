@@ -21,6 +21,7 @@ from fastmcp.tools import Tool
 
 from alpha.mcp.tools import Tools
 from alpha.models.providers import ProviderHTTPError, auth_headers, request
+from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
@@ -139,6 +140,16 @@ def run(req: TurnRequest, *, kind: str, base_url: str, key: str | None, model: s
         post: Post = request, timeout: float = 300) -> RunResult:
     """`kind` is "anthropic" (Messages API) or "openai" (chat completions)."""
     started = time.monotonic()
+    if claude_cli.stopped(req.turn_id):
+        return claude_cli.stopped_result()
+
+    def guarded(url: str, headers: dict[str, str], body: dict[str, Any] | None,
+                limit: float) -> dict[str, Any]:
+        # Stopping a turn on this route ends it before its next model call.
+        if claude_cli.stopped(req.turn_id):
+            raise claude_cli.Stopped
+        return post(url, headers, body, limit)
+
     world = World(req.world_path)
     try:
         fns = Tools(world, turn=req.turn_id, thread=req.thread_id, module=req.module_id).all()
@@ -149,7 +160,9 @@ def run(req: TurnRequest, *, kind: str, base_url: str, key: str | None, model: s
         loop = _anthropic if kind == "anthropic" else _openai
         try:
             reply, n, usage = loop(base_url, key or "", model, req.system + NO_WEB_SEARCH, turns,
-                                   tool_specs(fns), by_name, post, timeout)
+                                   tool_specs(fns), by_name, guarded, timeout)
+        except claude_cli.Stopped:
+            return claude_cli.stopped_result()
         except ProviderHTTPError as e:
             return RunResult(reply="", ok=False, error=str(e),
                              duration_ms=int((time.monotonic() - started) * 1000))

@@ -17,9 +17,11 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -56,6 +58,9 @@ class TurnRequest:
     resume: str | None = None
     model: str | None = None
     timeout: int | None = None
+    # How long Claude thinks (Settings -> Models -> How long it thinks); None or "default"
+    # leaves it to Claude Code.
+    effort: str | None = None
 
 
 # What the MCP server needs from Alpha's own environment (the claude process has none of it).
@@ -116,12 +121,76 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--max-turns",
         str(MAX_TURNS),
     ]
+    if req.effort and req.effort != "default":
+        args += ["--effort", req.effort]
     if req.resume:
         args += ["--resume", req.resume]
     elif req.thread_id is None:
         # The stream is stateless: the pre-pack carries the context, the journal the history.
         args += ["--no-session-persistence"]
     return args
+
+
+class Stopped(Exception):
+    """The person stopped this turn (`cancel`)."""
+
+
+STOPPED_TEXT = "You stopped it."
+_RUNNING: dict[str, subprocess.Popen[str]] = {}
+# ponytail: stopped turn ids are kept for the life of the core (a few bytes each); prune if
+# a core ever runs for months.
+_STOPPED: set[str] = set()
+_LOCK = threading.Lock()
+
+
+def stopped(turn_id: str) -> bool:
+    with _LOCK:
+        return turn_id in _STOPPED
+
+
+def cancel(turn_id: str) -> bool:
+    """Stop a turn: its model process (and the tools it started) ends now, and a turn that
+    hasn't started its process yet never does. True when a process was running."""
+    with _LOCK:
+        _STOPPED.add(turn_id)
+        proc = _RUNNING.get(turn_id)
+    if proc is None:
+        return False
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        proc.terminate()
+    return True
+
+
+def call(args: list[str], *, turn_id: str, timeout: int, env: dict[str, str],
+         cwd: str) -> tuple[str, str, int]:
+    """`subprocess.run`, except that `cancel(turn_id)` can stop it from another thread. The
+    process gets its own session so stopping it also stops the MCP server it started."""
+    with _LOCK:
+        if turn_id in _STOPPED:
+            raise Stopped
+        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                env=env, cwd=cwd, stdin=subprocess.DEVNULL,
+                                start_new_session=True)
+        _RUNNING[turn_id] = proc
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        raise
+    finally:
+        with _LOCK:
+            _RUNNING.pop(turn_id, None)
+    if stopped(turn_id):
+        raise Stopped
+    return out, err, proc.returncode
+
+
+def stopped_result() -> RunResult:
+    return RunResult(reply="", ok=False, error=STOPPED_TEXT, raw={"cancelled": True,
+                                                                  "plain": True})
 
 
 def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = None,
@@ -134,21 +203,18 @@ def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = No
         config_path = Path(tmp) / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(req)))
         try:
-            done = subprocess.run(
+            stdout, stderr, code = call(
                 argv(req, config_path, binary or claude_account.binary() or "claude"),
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                env=env,
-                cwd=tmp,
-                stdin=subprocess.DEVNULL,
-            )
+                turn_id=req.turn_id, timeout=timeout, env=env, cwd=tmp)
+        except Stopped:
+            return stopped_result()
         except subprocess.TimeoutExpired:
-            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.")
+            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.",
+                             raw={"timeout": True})
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
-                             " connect Claude in Settings.")
-    return parse(done.stdout, done.stderr, done.returncode)
+                             " connect Claude in Settings.", raw={"cli_missing": True})
+    return parse(stdout, stderr, code)
 
 
 def parse(stdout: str, stderr: str, code: int) -> RunResult:

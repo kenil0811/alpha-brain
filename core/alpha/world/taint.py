@@ -26,6 +26,8 @@ What taints (`READS`, plus the pre-pack and page reads below):
   `note_read`;
 - a page read through the person's sign-in (`page_read`, `page_script`, `page_to_table`,
   `reader_save`, `reader_run`), but not a public page;
+- files, a folder, images or audio the person attached to the message (`ATTACHED`, marked by
+  `runtime.turn.ask`): their own, but private all the same;
 - a pre-pack that carries today's calendar, records, documents or what Alpha saw in a source
   (`prepack.build_with_taint`), or an earlier reply in the conversation from a tainted run.
 
@@ -65,6 +67,7 @@ READS = {
     "note_read": "read Alpha's notes",
 }
 SIGNED_IN_PAGE = "read a page through the person's sign-in"
+ATTACHED = "read files the person attached"
 
 
 def mark(store: Store, turn: str | None, thread: str | None, reason: str) -> None:

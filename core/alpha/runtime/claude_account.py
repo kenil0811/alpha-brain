@@ -97,3 +97,12 @@ def install() -> dict[str, Any]:
         return {"started": False}
     _start(["/bin/bash", "-c", INSTALLER], "claude-install.log")
     return {"started": True}
+
+
+def update() -> dict[str, Any]:
+    """Bring an installed Claude Code up to date (`claude update`), in the background."""
+    claude = binary()
+    if claude is None:
+        return install()
+    _start([claude, "update"], "claude-install.log")
+    return {"started": True}
