@@ -21,7 +21,16 @@ export function parseSession(value: unknown): CoreSession {
   ) {
     throw new Error(`host returned an invalid core session: ${JSON.stringify(value)}`);
   }
-  return { baseUrl: candidate.baseUrl, token: candidate.token };
+  return { baseUrl: candidate.baseUrl, token: candidate.token, appCommit: candidate.appCommit, coreCommit: candidate.coreCommit };
+}
+
+/** Plain words when the app and its core come from different commits: the app runs the core
+ *  from the checkout, which moves on without a rebuild. Nothing when they match or either is
+ *  unknown. */
+export function driftNotice(session: CoreSession): string | null {
+  const { appCommit: app, coreCommit: core } = session;
+  if (!app || !core || app === core) return null;
+  return `This window was built from ${app.slice(0, 7)}, but Alpha's core is running ${core.slice(0, 7)}. Rebuild the app (just app) so they match.`;
 }
 
 export function hasTauri(): boolean {

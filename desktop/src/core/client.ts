@@ -6,6 +6,9 @@
 export interface CoreSession {
   baseUrl: string;
   token: string;
+  /** The commits the app was built from and the core runs (the host's; absent in a browser). */
+  appCommit?: string;
+  coreCommit?: string | null;
 }
 
 export interface Field {

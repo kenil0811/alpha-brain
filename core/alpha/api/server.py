@@ -13,6 +13,7 @@ automations, connections, knowledge), Activity, the conversation, and turns.
 from __future__ import annotations
 
 import base64
+import functools
 import logging
 import os
 import platform
@@ -22,6 +23,7 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -407,6 +409,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def health() -> dict[str, Any]:
         return {"ok": True, "world": str(world.path), "running_turns": len(running.running()),
                 "core_version": alpha.__version__,
+                "core_commit": source_commit(),
                 "python_version": platform.python_version()}
 
     # ---- Home ----
@@ -891,6 +894,22 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 READY_PREFIX = "ALPHA_CORE_READY "
 
 
+@functools.cache
+def source_commit() -> str | None:
+    """The commit the core's code was loaded from (once: later commits don't change running
+    code), so the app can tell when its own build is older or newer (the app runs the core from
+    the checkout, which moves on without it)."""
+    import subprocess
+
+    repo = Path(__file__).resolve().parents[3]
+    try:
+        done = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True,
+                              text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return (done.stdout.strip() or None) if done.returncode == 0 else None
+
+
 def serve(port: int = 53900) -> None:
     """Listen on 127.0.0.1 (port 0 picks a free one) and say so on one stdout line,
     `ALPHA_CORE_READY {"port": …}`, which the app's host waits for."""
@@ -906,7 +925,8 @@ def serve(port: int = 53900) -> None:
     sock.bind(("127.0.0.1", port))
     sock.listen(128)
     world = World()
-    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid()}
+    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid(),
+             "commit": source_commit()}
     print(READY_PREFIX + json.dumps(ready), flush=True)
     config = uvicorn.Config(create_app(world), log_level="warning")
     uvicorn.Server(config).run(sockets=[sock])

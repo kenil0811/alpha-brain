@@ -52,6 +52,9 @@ fn note(message: &str) {
 pub struct CoreSession {
     base_url: String,
     token: String,
+    /// The commits this app was built from and the core runs, compared by the window.
+    app_commit: String,
+    core_commit: Option<String>,
 }
 
 struct CoreProcess {
@@ -60,6 +63,8 @@ struct CoreProcess {
     token: String,
     /// The companion window's token: the core lets it talk and listen, nothing else.
     companion_token: String,
+    /// The commit the core reported in its ready line.
+    commit: Option<String>,
 }
 
 #[derive(Default)]
@@ -428,7 +433,9 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
     let ready: serde_json::Value =
         serde_json::from_str(&ready_line).map_err(|e| format!("bad ready line: {e}"))?;
     let port = ready["port"].as_u64().ok_or("ready line missing port")? as u16;
-    Ok(CoreProcess { child, port, token, companion_token })
+    let commit = ready["commit"].as_str().map(str::to_string);
+    note(&format!("app commit {} · core commit {}", env!("ALPHA_APP_COMMIT"), commit.as_deref().unwrap_or("unknown")));
+    Ok(CoreProcess { child, port, token, companion_token, commit })
 }
 
 fn stop_core(process: &mut CoreProcess) {
@@ -469,6 +476,8 @@ async fn core_session(
             Some(core) => Ok(CoreSession {
                 base_url: format!("http://127.0.0.1:{}", core.port),
                 token: if companion { core.companion_token.clone() } else { core.token.clone() },
+                app_commit: env!("ALPHA_APP_COMMIT").to_string(),
+                core_commit: core.commit.clone(),
             }),
             None => Err(launch
                 .launch_error
