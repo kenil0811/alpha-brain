@@ -16,7 +16,7 @@ from alpha.world.world import World
 def table(world: World) -> dict[str, str]:
     t = building(world, turn="j_seed")
     t.collection_create("openings", "Openings", [{"name": "title", "kind": "text"}])
-    rec = t.records_add("openings", {"title": "Backend Engineer"})
+    rec = t.records_add("openings", {"title": "Backend Engineer"}, source="stated")
     return {"id": rec["id"]}
 
 

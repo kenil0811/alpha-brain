@@ -92,7 +92,7 @@ def test_a_row_action_runs_a_skill_on_one_row(world: World) -> None:
     c, seen = client(world, '{"summary": "Researched Lumen.", "items": []}')
     t = building(world, turn="j_seed")
     t.collection_create("companies", "Companies", [{"name": "name", "kind": "text"}])
-    row = t.records_add("companies", {"name": "Lumen"})
+    row = t.records_add("companies", {"name": "Lumen"}, source="stated")
     sid = c.post("/api/skills", json={"title": "Research", "instructions": "Look."}).json()["id"]
     t.table_row_action("companies", sid)
     actions = c.get("/api/tables/companies/row-actions").json()

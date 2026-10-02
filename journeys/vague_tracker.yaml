@@ -1,0 +1,11 @@
+name: vague_tracker
+title: A vague tracker ask is understood and proposed, and nothing is built
+why: On 2 Oct Alpha built nine tables and eight readers blind for "a live daily tracker" and
+  ran out of time. Nothing lasting is made before the person's yes.
+steps:
+  - say: "i want to keep track of all the ai conferences happening in london this year"
+checks:
+  - no_new_tables: {}
+  - no_new_modules: {}
+  - plan: proposed
+  - reply: {matches: "(^|\\n)\\s*1[.)]"}

@@ -190,9 +190,9 @@ def test_multi_valued_facts_side_by_side_and_suggestions(world: World) -> None:
 
 def test_hard_keys_resolve_names_do_not(world: World) -> None:
     e = world.entities
-    a = e.resolve("person", "Priya Raman", {"linkedin": "https://www.linkedin.com/in/priya/"})
+    a = e.resolve("person", "Priya Raman", {"url": "https://www.linkedin.com/in/priya/"})
     assert a["created"]
-    b = e.resolve("person", "P. Raman", {"linkedin": "linkedin.com/in/priya",
+    b = e.resolve("person", "P. Raman", {"url": "linkedin.com/in/priya",
                                          "email": "Priya@Lumen.example"})
     assert not b["created"] and b["entity"]["id"] == a["entity"]["id"]
     assert "P. Raman" in b["entity"]["aliases"]
@@ -203,7 +203,7 @@ def test_hard_keys_resolve_names_do_not(world: World) -> None:
 
 def test_merge_and_undo(world: World) -> None:
     e = world.entities
-    a = e.resolve("person", "Mark Ellis", {"linkedin": "linkedin.com/in/mark"})["entity"]
+    a = e.resolve("person", "Mark Ellis", {"url": "linkedin.com/in/mark"})["entity"]
     b = e.resolve("person", "M. Ellis", {"email": "m.ellis@northwind.example"})["entity"]
     merged = e.merge(a["id"], b["id"])
     assert merged["keys"]["email"] == ["m.ellis@northwind.example"]

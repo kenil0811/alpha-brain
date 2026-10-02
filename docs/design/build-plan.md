@@ -1,6 +1,6 @@
 # Build plan
 
-1 October 2026; brought up to date 2 October 2026, evening (§1, §4.3, §4.5, §4.9). Written so that any session
+1 October 2026; brought up to date 2 October 2026, evening (§1, §4.3, §4.5, §4.9), then corrected the same evening after the code was read in full against the docs (§4.10 and the italic notes in §3 and §4). Written so that any session
 (or person) can continue from here without the conversation that produced it. The design it implements is `alpha-second-brain-design.md` in this
 folder; read that first. This document is the engineering side: what is decided, what is verified,
 what the first slice is exactly, and what follows.
@@ -14,12 +14,13 @@ what the first slice is exactly, and what follows.
   repetition; trust and governance; the workspace; the model route; a new repository.
 - **Decisions Q1–Q16** all taken as recommended except Q1: no Apple Developer ID yet; local builds
   are signed with a self-signed certificate so macOS permission grants survive rebuilds.
-- **Sessions** are one visible stream plus threads with their own model context, opened
-  automatically for any work item; no session picker; memory lives in the world, never in a
-  session.
+- **Sessions** are one visible stream plus threads opened automatically for any work item; no
+  session picker; memory lives in the world, never in a session. *(Revised 2 Oct, Q21: threads
+  are records with a brief, never a remembered model session; nothing is resumed.)*
 - **Building happens in the one conversation** (Kenil, 1 Oct): an explicit "I want to build…" is
   researched, decided and built in the same conversation, even when it takes minutes; the
-  separate deepen threads were removed. Threads remain for automations (each has its own).
+  separate deepen threads were removed. Threads remain for automations and builds (each has
+  its own).
 - **Modules stay first-class.** Alpha is a work tool with a companion, not a personal assistant
   with a window. Intelligence stays as a rail item (Skills · Automations · Connections ·
   Knowledge).
@@ -39,9 +40,10 @@ what the first slice is exactly, and what follows.
   connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
   that are people, threads as records, what the model saw); plan first, sources, pipelines and
   background builds with no limits; known, assumed or asked (provenance on every value, a second
-  opinion on every answer Alpha worked out, a trial on every build). 46 commits since 1 Oct; 112
-  core + 3 desktop tests; 63 tools. **Where we stand and what is open: §4.3, §4.5 and §4.9.**
-  Slice 3 (proactivity) and the sleep-time pass have not started.
+  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 113
+  core + 3 desktop tests; 63 tools; ruff and mypy strict clean (2 Oct evening).
+  **Where we stand and what is open: §4.3, §4.5 and §4.9; what the code read of 2 Oct evening
+  found: §4.10.** Slice 3 (proactivity) and the sleep-time pass have not started.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -81,7 +83,7 @@ driving the app needs full-screen control; wrap long runs in `caffeinate -i`.
 Goal: from a clean checkout, `just ask "log two boiled eggs"` runs a real turn on the
 subscription, the model creates a food table because none exists, adds a row, and replies with
 what it did and where it is; `just ask "how much have I eaten today"` answers from the table.
-No desktop, no connectors, no sensors yet. Everything below is the spec; none of it is written.
+No desktop, no connectors, no sensors yet. Everything below is the spec as written on 1 Oct; it is kept as the record of slice 1. *Where the code has since moved on, an italic note says so; the full list of differences is §4.10.*
 
 ### 3.1 Layout
 
@@ -155,6 +157,16 @@ threads(id PK, title, kind, state, module, session_ref, created_at, updated_at)
   kind: build | deepen | research | job | topic;  state: open | working | waiting | done
 ```
 
+*As of 2 Oct the schema has grown past this (every difference in §4.10): journal kind `checked`;
+actors are only `person` and `alpha`, a connector names itself in `source` as `connector:<name>`;
+field kinds add `multichoice` and specs carry `label`, `unit`, `done_choices`, and the schema an
+`identity` (`rows_are`, `identity_field`); provenance keys are `by`, `turn`, `source`,
+`estimated`, `assumed` (never `journal`); note scope is `module:<name>`, not the id; entity keys
+add `url` and `domain` and live in an `entity_keys` table; `facts` has a `why` column; thread
+kind `deepen` never existed in code and `session_ref` is never set; added tables: `meta`,
+`record_versions`, `turn_contexts`, `connections`, `documents` (+FTS), `events`, `automations`,
+`readers`, `plans`, `sources`; added record columns `entity_id`, `reader`, `seen_at`, `gone_at`.*
+
 ### 3.3 The pre-pack (`context/prepack.py`)
 
 Deterministic, zero model calls, at most ~3,000 tokens. Sections, each line naming its source:
@@ -172,6 +184,13 @@ Deterministic, zero model calls, at most ~3,000 tokens. Sections, each line nami
 
 Scope (a module, a person) moves that module's or entity's material to the top.
 
+*As built it differs: twelve sections (NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE
+GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · TODAY'S CALENDAR · NOTES · RECENT CONVERSATION
+· MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN), cut at 12,000 characters; WHO includes
+suggested facts marked by state; notes are the first 100 characters, at most 20; matches are
+relevance-first (5 records, 3 documents, journal hits to 10 lines in all); only a module scope
+exists and it moves that module first within WHAT ALPHA HOLDS; no entity cards.*
+
 ### 3.4 The runtime (`runtime/claude_cli.py`)
 
 ```
@@ -180,20 +199,23 @@ claude -p <sentence>
   --append-system-prompt <RULES + pre-pack>
   --mcp-config <tmpfile.json> --strict-mcp-config
   --allowedTools mcp__alpha WebSearch WebFetch
-  --disallowedTools Bash Edit Write NotebookEdit
+  --disallowedTools Bash Edit Write NotebookEdit      (now also Read Glob Grep Task)
   --permission-mode dontAsk --permission-prompts none   ("default" is not a mode in 2.1.278;
                                                           dontAsk refuses anything not allowed)
   --setting-sources ""
   --model $ALPHA_MODEL (default "sonnet")
-  --max-turns 20                        (now 80; see §4.2)
+  --max-turns 20                        (removed 2 Oct: no step cap, §4.7)
   [--no-session-persistence]            stream turns are stateless; the pre-pack carries context
-  [--resume <session_id>]               a thread resumes its own session
+  [--resume <session_id>]               (removed 2 Oct, Q21: nothing is ever resumed)
 ```
 
-MCP config file: `{"mcpServers":{"alpha":{"command": sys.executable, "args": ["-m","alpha.mcp.server"], "env": {"ALPHA_WORLD": <store path>}}}}`.
-Environment: inherit, ensure `USER`, never set `CLAUDE_CONFIG_DIR`. Timeout 300 s (now 900 s); on timeout
-the process is killed and the turn is journaled as `failed`. The JSON result's `result` is the
-reply; `session_id` is stored on the thread when a thread runs.
+MCP config file: `{"mcpServers":{"alpha":{"command": sys.executable, "args": ["-m","alpha.mcp.server"], "env": {"ALPHA_WORLD": <store path>}}}}`
+*(now also `ALPHA_TURN`, `ALPHA_THREAD`, `ALPHA_MODULE`, so the tools know which turn they serve)*.
+Environment: inherit, ensure `USER`, never set `CLAUDE_CONFIG_DIR`. Timeout 300 s *(removed 2 Oct:
+no time limit; the person stops, and the stop kills the whole process group)*. The JSON result's
+`result` is the reply; `session_id` is journaled in the reply's data and used for nothing. *Two
+more run kinds share the launcher since 2 Oct (§4.8): `independent` (WebSearch and WebFetch only,
+no MCP) and `judge` (no tools at all).*
 
 ### 3.5 The turn (`runtime/turn.py`)
 
@@ -213,6 +235,16 @@ would leave the machine is not available in this slice, say so; when the ask is 
 (an explicit "track/keep/watch/every", or a goal), open a thread with `thread_open` and tell the
 person it is being set up (the deepen pass arrives in slice 3); reply with what was done and
 where it is, in two or three sentences.
+
+*Superseded 2 Oct. Today's RULES are ten numbered rules in `runtime/turn.py`: known, assumed or
+asked (1–2); tables never loose, `table_start` for a log with no home (3); answer from the data,
+the journal is history (4); stated facts kept, inferred ones suggested, instructions only in the
+person's words (5); never build on a request, understand → research → look at the sources →
+propose with a trial (6–7); reading is free, sign-ins and bot checks said plainly (8); nothing
+leaves the machine (9); plain replies naming where each number came from (10). Nothing in them
+opens a thread; "do now, deepen later" is gone (§4.7–§4.8). The build, automation, repair,
+independent and judge runs each have their own rules in `build.py`, `automation.py`,
+`pipeline.py` and `check.py`.*
 
 ### 3.6 MCP tools (`mcp/tools.py`, registered in `mcp/server.py`)
 
@@ -241,12 +273,32 @@ words, never raised through the server.
 Server: `FastMCP("alpha")`; tools registered with `mcp.tool(fn)` so the functions stay plain and
 testable; the World path from `ALPHA_WORLD`; stdio transport.
 
+*Thirty-one tools then; 63 on 2 Oct, registered from the `@tool` methods of `Tools` in
+`mcp/tools.py`. Finding: `search` (records, documents, journal; no `kinds`), `journal_recent`,
+`journal_read`, `journal_note`. Tables: `collections_list`, `collection_describe`,
+`collection_create` (gated; `rows_are`, `identity_field`), `collection_identify`,
+`collection_add_fields`, `record_history`, `records_add` (`source`, `assumed`),
+`records_upsert`, `records_update` (`source`, `assumed`), `records_delete`, `records_query`,
+`records_aggregate`, `table_start`, `page_to_table`. Knowledge: `notes_list`, `note_read`,
+`note_write`, `instruction_add`, `instruction_remove`, `instruction_propose`, `thread_brief`,
+`goals_list`, `goal_set`, `goal_update`, `facts_get`, `fact_record` (`stated`). Entities:
+`entities_find`, `entity_resolve`, `entity_read`. Modules and threads: `modules_list`,
+`module_create` (gated), `threads_list`, `thread_open`, `thread_update`. Hands:
+`connections_list`, `folder_watch`, `files_sync`, `documents_list`, `document_read`,
+`page_read`, `page_script`, `reader_save` (gated for a new name), `reader_run`, `readers_list`,
+`browser_signin`, `calendar_connect`, `calendar_sync`, `calendar_events`. Automations:
+`automation_create` (gated), `automations_list`, `automation_update`. Plans and sources:
+`plan_propose`, `plan_approve`, `plan_resume`, `plan_decline`, `source_add` (gated),
+`sources_list`. Person: `ask_person`, `propose`.*
+
 ### 3.7 CLI (`cli.py`, script `alpha`)
 
-`alpha ask "<text>" [--module NAME] [--thread ID]`, `alpha journal [--limit N] [--module NAME]`,
-`alpha search "<q>"`, `alpha tables`, `alpha show <collection> [--limit N]`, `alpha notes`,
-`alpha prepack "<text>"` (prints the pre-pack), `alpha mcp` (runs the server; used by the CLI
-config). `ALPHA_HOME` overrides the data directory; `ALPHA_MODEL` the model alias.
+`alpha ask "…" [--module] [--thread]`, `journal`, `search`, `tables`, `show`, `notes`, `prepack`,
+`mcp` (slice 1); since then `context <turn>` (what the model saw), `check [turn] [--no-repair]`,
+`remove-module`, `clear-conversation`, `connect folder|site|calendar`, `serve [--port]`. The
+default world is `~/Library/Application Support/Alpha Brain/` unless `ALPHA_HOME` is set (the
+app sets it to its own `com.alpha.brain` folder). `alpha ask` runs one turn only; the second
+opinion and the build kick live in `alpha serve`.
 
 ### 3.8 Tests and the acceptance check
 
@@ -282,8 +334,8 @@ Every change is in the journal with its turn (`alpha journal`). Found: the secon
 - **Connectors** (`connectors/<name>/connector.yaml` + `SKILL.md`, Python in
   `core/alpha/connectors/`): *files* (watched folders → documents, PDF/Word/Excel/PowerPoint/
   text, document entities keyed by path, live through watchdog); *browser* (the old read-only
-  Playwright driver unchanged, on the installed Chrome, per-site profiles the person signs into,
-  non-blocking sign-in); *calendar* (EventKit, 30 days back / 60 ahead, attendees resolve to
+  Playwright driver, on the installed Chrome, per-site profiles the person signs into,
+  non-blocking sign-in; extended the same day with scripts, bot-check and sign-in detection, §4.2); *calendar* (EventKit, 30 days back / 60 ahead, attendees resolve to
   people by email). A connection is a row (`connections`), shown in Intelligence.
 - **Core API** (`alpha serve`, `core/alpha/api/server.py`): loopback, bearer token from the host;
   Home, modules, tables (person edits journaled as theirs), people + timeline, Intelligence,
@@ -296,7 +348,8 @@ Every change is in the journal with its turn (`alpha journal`). Found: the secon
   usage strings. Pages: Home (needs you, threads, coming up, modules), module (App · Activity ·
   Settings, Summary + a derived page per table), People & Person, Intelligence (Skills,
   Automations, Connections with connect forms, Knowledge), Activity; the conversation panel
-  with thread cards and their own view; the companion with presence, bubble and panel.
+  with thread cards and their own view; the companion with presence, bubble and panel. *(The
+  People and Person pages were removed the same day, §4.2.)*
 - **Verified**: 43 core tests + 3 desktop tests; in the browser pane against the scratch world
   (every page renders, an inline edit saved and journaled as the person's, a turn from the
   panel answered "~53 g protein today" in 6 s); in the native app on the real world (core ready
@@ -376,8 +429,9 @@ Most of it came from using the app on the two judging journeys and from Kenil's 
   login, Sign out), companion and appearance (the theme left the rail), your data (folder, Show
   in Finder, Back up now via SQLite's backup), defaults (rows per page); "Connect Claude to
   start" on every page while Claude Code is missing or signed out.
-- **Runtime values now**: `--max-turns 80`, timeout 900 s, Sonnet; stream turns stateless,
-  automation threads resume their own session.
+- **Runtime values then**: `--max-turns 80`, timeout 900 s, Sonnet; stream turns stateless,
+  automation threads resumed their own session. *(All three superseded on 2 Oct: no step cap, no
+  time limit, §4.7; nothing resumed, §4.6.)*
 
 ### 4.3 Where we stand (recon, 2 Oct 2026)
 
@@ -388,10 +442,12 @@ Against the design's order of work:
 | 1. World store, MCP server, stream, companion | Done. Plus: row history, what the model saw per turn, threads as records (§4.6) |
 | 2. Browser, files, calendar; derived pages | Done, plus §4.2. Readers mark rows seen and gone; paged lists are read whole or say so. Calendar's real first read still not run |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | Not started |
-| 4. Entities and bi-temporal facts across sources | Partial: rows that are people link by hard key (1,548 connections are now people, §4.6); no cross-source linking yet, no sleep-time pass |
+| 4. Entities and bi-temporal facts across sources | Partial: rows that are people link by hard key (1,548 connections are now people, §4.6); no cross-source linking yet, no sleep-time pass; same-name maybes shown nowhere; merge only by an API route the app never calls, unmerge unreachable (§4.10) |
 | 5. Standing-things ladder, promotion from verified runs | Partial: automations and pipelines exist; every standing thing goes through a plan and a yes (§4.7); no ladder, no promotion from repetition |
 | 6. Pending actions and Access | Not started: every outward write is refused |
-| — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8) |
+| — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8). Holes: the opinion never fires for upserted or reader-written rows; an omitted `source` defaults to estimated (§4.10) |
+| — Hands free of site vocabulary (Q17) | Done 2 Oct evening (Q23): generic wall and paging detection, one `url` key with a migration, no Sites section (§4.10) |
+| — No limits (Q18) | Holds for turns and builds; one floor by decision, 30 minutes between an automation's runs (Q22); the hands' own timeouts (§4.10) |
 
 Proven on real runs (the person's own world, the subscription): LinkedIn connections read in
 the person's session (1,548 rows, daily at 07:00, Alpha's own reader); Gmail read through the
@@ -500,8 +556,9 @@ in the design §6 (revision of 2 Oct). The build:
   plan as a proposal; `plan_approve(plan, quote, answers)` needs the person's words from a
   message after the plan; the app approves with a button (`/api/plans/{id}/approve`).
 - **Builds** (`runtime/build.py`): the scheduler starts approved plans in their own thread
-  (kicked right after a turn too); BUILD_RULES; a run cut off by the time limit continues from
-  the brief, at most four runs; the report goes into the conversation with a coverage line from
+  (kicked right after every turn); BUILD_RULES; a run cut off continues from
+  the brief *(then: by the time limit, at most four runs; since the same afternoon no time limit
+  and no cap, see "No limits" below)*; the report goes into the conversation with a coverage line from
   the sources table.
 - **Readers and pipelines** (`runtime/pipeline.py`): one `run_reader` for tools and pipelines;
   health compares with the rows *this* reader returned last time; every healthy run marks rows
@@ -610,10 +667,9 @@ design), and the shake logged as a guess when the label was one search away (§4
 - The app rebuilt and restarted on this (14:58).
 
 **Pending, in order of how much they matter:**
-1. **The suite of real journeys** (D above). Today's trust mechanisms check single answers; the
-   thing that stops regressions is a handful of real journeys run on a copy of the world after
-   every change: LinkedIn sync, Gmail × network, a branded food log, the ETA tracker's daily run,
-   a plan that must be proposed before building. Not written yet.
+1. **The suite of real journeys**: built the same evening (§4.11), first run 4 of 5 with the
+   one failure in a check's wording; it runs with `just journeys` after any change to how Alpha
+   behaves.
 2. **The sleep-time pass and scenario suite** (A). Beliefs still go stale only by being
    overwritten; nothing links people across Gmail and LinkedIn; nothing consolidates.
 3. **Proactivity** (B): triage, digest, Inbox. Alpha still never brings anything to the person
@@ -625,8 +681,10 @@ design), and the shake logged as a guess when the label was one search away (§4
    worked values out, and three model runs per trial. Fine for one person; worth measuring over
    a week before anyone else uses it.
 6. **Readers still show "not_built" after their reader ran** in one case (the Accounting Biz
-   source, 13:50): the status is set by the reader's runs, but a reader saved after the source
-   was added didn't claim it. Small, visible, not fixed.
+   source, 13:50). Cause found on the code read: `sources.ran` updates rows `WHERE reader = ?`,
+   and a source added before its reader keeps `reader = NULL`, so the run creates a second
+   source row for the reader instead of claiming the first. Fix: claim by URL or site when the
+   reader's row is first created. Not fixed.
 7. From §4.4, unchanged: LinkedIn reads the whole list daily (reading only what is new would
    be gentler); desktop-control and app-scripting hands not built; `page_to_table` still in the
    platform; the photo-vs-name driver fix in `git stash`; not shippable to anyone else (venv,
@@ -634,11 +692,190 @@ design), and the shake logged as a guess when the label was one search away (§4
    unverified.
 8. **Housekeeping**: a stray `alpha serve --port 53911` from an earlier session runs against a
    scratch world (kill it); the calendar's real first read has never been run.
+9. **From the code read of 2 Oct evening (§4.10).** Decided and done the same evening: the
+   schedule floor is 30 minutes (Q22); the site vocabulary is out of the hands (Q23); `just
+   lint` is clean again; the trust holes are closed (§4.12). Still to fix: the dead code list
+   and the smaller inconsistencies in §4.10. The app must be
+   rebuilt (`just app`) to pick the evening's changes up; Kenil's world folds its old
+   `linkedin` keys into `url` on the next open.
 
 **Decisions taken today that bind what follows:** never build on a request, propose and wait
 for the yes (by mechanism, not prompt); know-how is code (pipelines, readers), the model is for
 repair and judgement; no limits anywhere, the person stops; nothing per use case; a knowable
 value is looked up, an unknown is asked about or assumed out loud; "it ran" is not "it works".
+
+### 4.10 The code read against the docs (2 Oct 2026, evening)
+
+Every file under `core/alpha`, `connectors` and `desktop/src` (+ `src-tauri/src/lib.rs`) was
+read in full and set against the design and this plan. The docs were corrected in place (the
+italic notes in §3 and §4, the *As built* paragraphs in the design). What follows is what the
+read found beyond wording: things the docs claimed that the code does not do, things the code
+does that no doc said, and plain faults. Nothing here was fixed; it is the list to decide on.
+
+**Limits that exist although Q18 says none** (all in platform code, none a setting):
+automation schedules had a 15-minute floor (`world/automations.py`; **now 30 minutes by
+decision, Q22**); a page read waits at most
+180 s (×3 when reading to the end) and a sign-in window 30 minutes (`connectors/browser.py`);
+the driver gives a page 30 s to load, 6 s to go quiet, at most 400 scrolls and stops after four
+rounds with no new links, keeps 5,000 links and returns 800, 60,000 characters of text; files
+over 50 MB are skipped, text cut at 400,000 characters, spreadsheets at 20,000 lines; the
+pre-pack is cut at 12,000 characters; an automation's last result and the independent answer
+are kept to 2,000 characters; a build is sent back at most twice over its trial. The timeouts
+and sizes are the hands protecting themselves; the schedule floor was the one product limit,
+and Kenil kept it at 30 minutes.
+
+**Site vocabulary in the hands** (against §4.0 of the design, Q17), **removed the same evening
+(Q23)**: `browser_session.mjs` treated `/authwall`, `/checkpoint` and `/uas/login` as sign-in
+walls and knew "Show more connections" and "Show more jobs" as paging; `entity_resolve` filed a
+linkedin.com URL under a `linkedin` key while table rows filed every URL under `url`, so the two
+never matched; the browser `SKILL.md` had a Sites section with LinkedIn and We Work Remotely
+addresses in every run's prompt. Now: wall paths are `login`, `signin`, `signup`, `auth` plus a
+visible password field; paging is any "Show more …" button; `url` is the one address key and a
+world folds old `linkedin` keys into it on open (`store._migrate`, tested); the skill says the
+hand knows no site. Vendor markers for bot checks (Cloudflare, PerimeterX, DataDome) are
+platform-level and stay. Proven by tests only; the real LinkedIn sync has not been rerun since.
+
+**The read-only guard is narrower than §4.0 states.** Requests that would change data are
+blocked only while Alpha's script runs inside `page_script`; a plain `page_read` installs no
+blocking. The driver never clicks, types, submits, uploads, downloads or screenshots (it
+presses "Show more" and scrolls), so a read stays read-only by the driver's behaviour, not by
+a mechanism. A sign-in counts as done when the profile holds any cookie for the site.
+
+**Trust mechanisms with holes.** `check.worth_checking` finds a turn's records through journal
+entries carrying `data.record`; `records_upsert`, `page_to_table` and `reader_run` journal
+counts only, so a turn that only upserted is never second-opinioned and a trial that upserted
+leaves its rows behind. `provenance_of` turns an omitted `source` into `estimated`, so a model
+that forgets the argument files a stated value as a guess. Rows from pipelines, upserts and
+the person's edits carry `by` and `turn` only. The store enforces nothing about provenance.
+Facts, notes and entities each record their source in a different format (`turn:<id>`, the
+bare id, `record:<table>/<id>`); goals have none.
+
+**The plan-first gate covers creation only.** `_gate` guards `module_create`,
+`collection_create`, a new `reader_save`, `automation_create` and `source_add`. Not guarded:
+`table_start` (which also creates a module when it names one that doesn't exist),
+`collection_add_fields`, replacing an existing reader's script, `automation_update` (schedule,
+steps, procedure), `records_upsert`, `page_to_table` outside an automation, and `run_reader`
+outside a build creates a source row. `Automations.update` cannot clear `steps` or empty a
+procedure.
+
+**Entities.** Same-name candidates are returned by `resolve` and by `/api/entities/{id}` and
+shown nowhere; `merge` is reachable only through an API route the app never calls and is
+journaled only there; `unmerge` and `delete_note` have no caller; `_index` uses `INSERT OR
+IGNORE`, so a key already owned by another entity is silently listed in the new entity's JSON
+while `entity_keys` keeps pointing at the old one. `journal.entity_ids` is written by files,
+calendar and the merge route, never by the tools. The calendar's first sync journals one line
+per event.
+
+**Removal.** `clear_conversation` deletes stream turns physically (the one exception to the
+tombstone rule; it also removes the `proposed` rows plans point to). `remove_connection`
+inspects an automation's `procedure` for the connection's readers but not its `steps`, and
+leaves `sources.reader` and `records.reader` naming deleted readers. Nothing ever purges
+`plans`, `threads`, person facts, entities made from tables or `meta`.
+
+**Desktop.** `DataPage` tests field kinds `boolean` and `multiselect` while the core's are
+`bool` and `multichoice`: a bool field edits as plain text seeded with "true"/"false", and the
+Yes/No select, the ✓ rendering and the multichoice placeholder are unreachable. The
+conversation panel sends a message scoped to the page's module but loads the stream unscoped.
+`home.brief` is typed and never rendered; `client.modules/people/entity/merge/search` are never
+called; `~110` CSS selectors from the old shell are orphaned; the CSP in `index.html` differs
+from `tauri.conf.json` (`blob:` in img-src). Launch at login (Q2) is not built. The companion
+takes focus when opened. The bundled app runs Python from the checkout it was built in
+(`CARGO_MANIFEST_DIR/../..`) with a hard-coded PATH; `ALPHA_HOME` is honoured in debug builds
+only; core stdout after readiness goes nowhere. Polling: Home 20 s, Claude status 60 s, the
+panel 15 s or 5 s, the companion 30 s, automations 4 s while running; while a thread works the
+panel re-fetches every mounted page every 5 s. Fonts come from Google Fonts. Three desktop
+tests exist (rail, surface, provenance split); none for DataPage, the panel, Home, Settings,
+Intelligence or the companion.
+
+**Dead code.** `threads.session_ref` (never set; nulled on open), `modules.project` (never
+read), `Plans.waiting`, `Entities.unmerge`, `Journal.forget`, `Knowledge.delete_note`,
+`Browser.signin` (the blocking one), `Browser.sites`, `Browser.read(signed_in=…)`,
+`Files.unwatch`, `Calendar.status`, `RunResult.raw`, the `error_max_turns` / `cut_off` /
+`OUT_OF_STEPS` path from the max-turns era, `Sources.coverage(None)` (always zero), the driver
+job keys `html`, `timeout_ms`, `scroll`, `max_scrolls`, `locale`, `browser` that Python never
+sets; in the app `ModulePage.onGo`, `Activity.onChanged`, `initials()`, `TEXT_KINDS`,
+`CHOICE_KINDS`, a duplicate `HANDOFF_KEY`.
+
+**Smaller inconsistencies.** Two `site_of` with different meanings (`sources.py`: host minus
+`www.`; `browser.py`: registrable domain), bridged by a `LIKE`; note scope by module *name*
+while everything else keys on the id; `decide_fact` overwrites `recorded_at`; `record_fact`
+returns an existing identical fact without updating `why` or `source`; `Collections.upsert`
+ignores tombstoned rows when matching keys, so a deleted row re-synced comes back under a new
+id; `_link` runs in its own transaction after the write; `documents_fts` has no delete trigger
+(the purge deletes by hand); `automation_views` finds a running automation's steps by the
+literal text "Run the automation"; `automation_create` opens a thread and marks it done at
+once; only a hash of the rules is kept with a turn, not their text, so `alpha context` cannot
+show which rules applied; the `cli.py` and `prepack.py` docstrings and the browser
+`connector.yaml` tool list were out of date (fixed in this pass).
+
+**Counts, measured (end of the evening):** 113 core tests in 12 files; 3 desktop tests; 63
+tools; ruff clean; mypy strict clean (the 16 errors in three test files fixed); `tsc` clean.
+
+### 4.11 The journey suite (built 2 Oct 2026, evening)
+
+Why: every trust mechanism so far checks one answer; nothing re-ran the journeys that matter
+after a change, so each "Again!" was found by Kenil using the app. §4.9 item 1.
+
+- **What a journey is**: a YAML file in `journeys/` with `steps` (a `say` as the person, a
+  `reader` run, an `automation` run by title, or `build` of the newest plan) and `checks`
+  (`independent`: the second opinion on the last turn agrees; `row` / `near`: a row this
+  journey added, its source and a value within a tolerance; `no_new_tables`,
+  `no_new_modules`, `plan`: nothing lasting before a yes; `reply`; `judge`: a rubric judged by
+  a no-tools run; `count`, `reader_health`, `automation`, `journal`). Every step and check is
+  timed and says why.
+- **Where it runs**: `core/alpha/journeys/suite.py` copies the world with SQLite's backup and
+  the browser profiles (minus Chrome's lock files) into a scratch `ALPHA_HOME`, so signed-in
+  sites read as the person and the live world is never written. The same `turn.ask`,
+  `run_reader`, `automation.run` and `build.run_build` the app uses; builds run to the end as
+  the scheduler would. The report is `docs/journeys/<stamp>.md` + `.json`. `alpha journeys
+  [names] [--world] [--keep] [--list]`; `just journeys` wraps it in `caffeinate`.
+- **The five journeys**: `branded_food` (a 45 g Cadbury Dairy Milk bar: a row not estimated,
+  calories within 10% of 240, the second opinion agrees); `vague_tracker` ("keep track of all
+  the AI conferences in London this year": no table, no module, a plan proposed, numbered
+  questions); `linkedin_sync` (the person's reader reads the whole list: health ok, at least
+  95% of its last good count); `gmail_network` ("which of my LinkedIn connections emailed me
+  in the last 7 days": Gmail was read, and a judge checks the answer names senders from the
+  table or says plainly none / needs sign-in, never invents); `eta_daily` (the pipeline runs
+  with no model and reports "Read N of M sources", only sign-in and bot-check problems
+  allowed).
+- **Tests**: `core/tests/test_journeys.py` runs a journey with a fake model on a copy and
+  shows the live world untouched. 115 core tests.
+- **First real run** (2 Oct 17:49, Sonnet, a copy of Kenil's world; `docs/journeys/2026-10-02-1749.md`):
+  4 of 5 passed in 7½ minutes. Branded food: 240 kcal from fatsecret.com in 33 s, the second
+  opinion agreed (58 s in all). Deal pipeline: 15 of 15 sources read with no model, 111 s.
+  LinkedIn: 1,551 of 1,551 through the generic driver (Q23 holds on the real site), 147 s.
+  Vague tracker: a plan with one source found and numbered questions, nothing built, 59 s.
+  Gmail × network: the answer named one connection with what he wrote and excluded three
+  senders not in the table; the judge passed it, my `journal` check failed because it matched
+  the entry's text for `mail.google.com` while the text says "(google.com, signed in)" (fixed:
+  the check now matches the entry's URL). **Found by the run:** the pipeline's tell step
+  reported "818 new" on a table of 831 because a first run measured changes from the
+  automation's creation, so rows made while the module was built counted as new.
+
+### 4.12 Trust holes closed (2 Oct 2026, evening; §4.9 item 9, §4.10)
+
+- **Tell steps measure from the last run only.** A first run sets the baseline and says so
+  ("First run: what is new, changed or gone is reported from the next run"); nothing is journaled
+  as `noticed` on it (`runtime/pipeline.py`).
+- **Synced rows are known as synced.** `records_upsert` and `page_to_table` mark provenance
+  `synced: true` and journal the ids they touched (capped at 500, `records` in the entry's
+  data), as reader runs now do too. `check.records_of` reads both `record` and `records`, so a
+  trial can remove rows it upserted; `worth_checking` skips synced and reader-written rows (a
+  page copied is not a value Alpha worked out) and still checks looked-up and estimated ones.
+- **`source` is required on `records_add`.** A forgotten argument is a tool error the model
+  sees, never a stated value filed as a guess. `table_start` defaults to `stated` (it logs what
+  the person just said); `records_update` keeps "left out means unchanged".
+- **The app's field kinds match the core's** (`bool`, `multichoice`): a bool field edits as
+  Yes / No again and shows ✓.
+- **The conversation panel loads the stream scoped to the page's module**, as it sends.
+- **Removing a connection reads pipeline `steps`** as well as procedures for the readers it
+  takes, and the sources those readers fed go to `not_built` with "Its reader went with the
+  linkedin.com connection", so the module still shows where it reads from.
+- Still open from §4.10: the dead code list, `clear_conversation`'s physical delete,
+  `Entities._index`'s silent key conflicts, `decide_fact` overwriting `recorded_at`, the
+  calendar's first-sync journal flood, the LinkedIn automation's procedure naming the old
+  `linkedin` key (Alpha's own know-how; the error now says to use `url`).
+
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

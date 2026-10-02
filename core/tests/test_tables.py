@@ -22,10 +22,11 @@ def table(world: World) -> Tools:
         {"name": "genre", "kind": "choice", "choices": ["novel", "essay"]},
         {"name": "notes", "kind": "long_text"}, {"name": "done", "kind": "bool"}])
     t.records_add("books", {"title": "Dune", "pages": "412", "shelf": "a",
-                            "read_on": "2026-01-02T00:00:00", "genre": "novel", "done": True})
+                            "read_on": "2026-01-02T00:00:00", "genre": "novel", "done": True},
+                  source="stated")
     t.records_add("books", {"title": "Essays", "pages": "12.5", "shelf": "b",
                             "read_on": "2026-02-03T09:30:00", "genre": "essay",
-                            "notes": "two\nlines"})
+                            "notes": "two\nlines"}, source="stated")
     return t
 
 
@@ -106,7 +107,7 @@ def test_changes_that_would_lose_data_are_refused_with_one_reason(world: World) 
         w.change_field("books", "notes", kind="text")
     with pytest.raises(Problem, match="Genre can't become a choice: a row holds 'essay'"):
         w.change_field("books", "genre", choices=["novel"])
-    t.records_add("books", {"title": "Atlas", "pages": "many"})
+    t.records_add("books", {"title": "Atlas", "pages": "many"}, source="stated")
     with pytest.raises(Problem, match="Pages can't become a number: a row holds 'many', which"
                        " isn't a number"):
         w.change_field("books", "pages", kind="number")
@@ -191,4 +192,4 @@ def test_a_records_history_says_who_and_in_which_turn(world: World) -> None:
     history = c.get(f"/api/tables/books/records/{dune['id']}/history").json()
     assert [(h["actor"], h["said"]) for h in history] == [("alpha", "Track my reading"),
                                                           ("person", None)]
-    assert history[0]["text"] == "Added Dune to Books (estimated)."
+    assert history[0]["text"] == "Added Dune to Books."

@@ -19,6 +19,11 @@ journal *ARGS:
 serve:
     uv run alpha serve
 
+# The journey suite: real journeys on a copy of the app's world, judged and timed; the report
+# lands in docs/journeys/. `just journeys branded_food` runs one.
+journeys *ARGS:
+    caffeinate -i uv run alpha journeys {{ARGS}}
+
 # The desktop app: the workspace and the companion, hosting the core. Builds are signed with
 # the local "Alpha Local Signing" certificate so macOS keeps Alpha's permissions across rebuilds;
 # /usr/bin comes first because a python.org xattr without -r shadows the system one.

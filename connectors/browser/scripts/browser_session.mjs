@@ -101,7 +101,9 @@ async function hasMorePages(page) {
 /** Whether the page in front of us asks for a sign-in: the address says so, or it shows a
  *  password field. */
 async function isSignIn(page, askedFor) {
-  const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
+  // Generic sign-in paths only; a site's own wall addresses are know-how Alpha learns (a
+  // visible password field catches the rest).
+  const wall = /\/(log-?in|sign-?in|sign-?up|auth)\b/i;
   if (wall.test(page.url()) && !wall.test(askedFor)) return true;
   return page
     .evaluate(() => [...document.querySelectorAll("input[type=password]")]
@@ -297,7 +299,7 @@ async function read(job) {
       // holds it), wheels over the middle of the window, and presses a "Show more" style button
       // when one is there (paging only; nothing else is ever clicked). It stops when no new links
       // have appeared for a few rounds.
-      const more = /^\s*(show|see|load|view) more( results| connections| items| jobs)?\s*$/i;
+      const more = /^\s*(show|see|load|view) more( \w+){0,2}\s*$/i;
       const countLinks = () => page.evaluate(() => document.querySelectorAll("a[href]").length);
       await page.mouse.move(640, 450);
       let still = 0;

@@ -1,6 +1,6 @@
 """Entities: the people, organisations, places, documents, messages and calendar events that
-recur across sources. They are the join keys of the world (the Priya on LinkedIn is the Priya who
-emailed), so resolution is careful: hard keys (an email address, a LinkedIn URL, a phone number,
+recur across sources. They are the join keys of the world (the Priya on a site is the Priya who
+emailed), so resolution is careful: hard keys (an email address, a profile URL, a phone number,
 a file path, a calendar UID) merge with no model call; a name alone never merges, it is returned
 as a "maybe" for the person or a later judgement to decide. A merge is undoable.
 """
@@ -13,14 +13,14 @@ from typing import Any
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
 KINDS = {"person", "organisation", "place", "document", "message", "event"}
-KEYS = {"email", "linkedin", "phone", "url", "path", "uid", "domain"}
+KEYS = {"email", "phone", "url", "path", "uid", "domain"}
 
 
 def _norm(key: str, value: str) -> str:
     value = value.strip()
     if key in {"email", "domain"}:
         return value.lower()
-    if key in {"linkedin", "url"}:
+    if key == "url":
         return value.lower().rstrip("/").removeprefix("https://").removeprefix("http://").removeprefix("www.")
     if key == "phone":
         return "".join(ch for ch in value if ch.isdigit() or ch == "+")
@@ -68,7 +68,8 @@ class Entities:
         out: dict[str, list[str]] = {}
         for key, raw in (keys or {}).items():
             if key not in KEYS:
-                raise Problem(f"'{key}' is not an identifying key; use one of {sorted(KEYS)}.")
+                raise Problem(f"'{key}' is not an identifying key; use one of {sorted(KEYS)}"
+                              " (a profile or page address is 'url').")
             values = raw if isinstance(raw, list) else [raw]
             clean = [_norm(key, str(v)) for v in values if str(v).strip()]
             if clean:

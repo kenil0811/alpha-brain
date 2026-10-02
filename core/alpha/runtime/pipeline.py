@@ -121,7 +121,8 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
         + (f", {result['gone']} gone" if result.get("gone") else "")
         + (f", {result['invalid']} set aside" if result["invalid"] else "") + ".",
         data={"collection": collection, "reader": name, "turn": turn_id,
-              **{k: v for k, v in result.items() if k != "ids"}},
+              **{k: v for k, v in result.items() if k != "ids"},
+              "records": list(result.get("ids") or [])[:500]},
         module=home,
     )
     return {"health": "ok", "rows": count, **{k: v for k, v in result.items() if k != "ids"}}
@@ -187,11 +188,14 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                  browser: Browser | None = None,
                  repair: Callable[..., Any] | None = None) -> tuple[str, str | None]:
     """Run an automation's steps. Returns (one line for its log, a problem or None)."""
-    since = auto["last_run_at"] or auto["created_at"]
+    # What changed is measured from the last run. A first run sets the baseline: rows made
+    # while the module was built are not "new" to the person who watched it built.
+    since = auto["last_run_at"]
     thread = auto["thread"]
     world.journal.append("did", f"Run the automation \"{auto['title']}\" ({auto['when']}).",
                          actor="alpha", thread=thread, module=auto["module"])
     read, needs, blocked, broken, told = 0, [], [], [], []
+    first_run = False
     for step in auto["steps"]:
         if "read" in step:
             name = step["read"]
@@ -211,6 +215,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                 blocked.append(out["site"])
             else:
                 broken.append(name)
+        elif since is None:
+            first_run = True
         else:
             message = describe_changes(world, step["tell"],
                                        world.collections.changes(step["tell"], since,
@@ -223,6 +229,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
     line = f"Read {read} of {reads} sources." if reads else "Done."
     if told:
         line += " " + " ".join(told)
+    if first_run:
+        line += " First run: what is new, changed or gone is reported from the next run."
     problems = []
     if needs:
         problems.append(f"{', '.join(needs)} need{'s' if len(needs) == 1 else ''} your sign-in")

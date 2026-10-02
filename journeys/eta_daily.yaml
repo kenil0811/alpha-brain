@@ -1,0 +1,9 @@
+name: eta_daily
+title: The deal tracker's daily pipeline runs without a model and reports coverage
+why: The pipeline is Alpha's know-how as code; it must read its sources, say which it could
+  not, and tell what is new, changed and gone.
+steps:
+  - automation: "Daily deal tracker"
+checks:
+  - automation: {title: "Daily deal tracker", result_matches: "Read \\d+ of \\d+ sources",
+                 problem_allowed: "sign-in|automated reading"}

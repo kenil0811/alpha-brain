@@ -182,7 +182,7 @@ export function AssistantPanel({
 
   const load = useCallback(() => {
     const work: Promise<unknown>[] = [
-      client.conversation().then((c) => {
+      client.conversation(moduleId).then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
         setPlans(c.plans ?? []);

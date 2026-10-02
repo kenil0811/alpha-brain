@@ -3,7 +3,7 @@ status; pipelines that run with no model."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from conftest import building
 from fastapi.testclient import TestClient
@@ -287,7 +287,7 @@ def test_a_reader_on_a_paged_list_must_say_whether_it_reads_every_page(world: Wo
     pages = Pages()
     pages.pages = {"https://a.example/listings": {"result": listings(12), "more_pages": True}}
     original = browser_module.run_job
-    browser_module.run_job = pages  # type: ignore[assignment]
+    browser_module.run_job = cast(Any, pages)
     try:
         refused = t.reader_save("a_list", "https://a.example/listings", "return rows", "A list")
         assert "shows more pages" in refused["error"] and "12 rows" in refused["error"]

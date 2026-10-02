@@ -6,11 +6,18 @@
     alpha tables
     alpha show food_log [--limit 20]
     alpha notes
-    alpha prepack "how much protein today"
-    alpha check [j_turn | --last]   (check a reply against an independent answer)
-    alpha mcp                      (the MCP server the model talks to)
+    alpha prepack "how much protein today" [--module Food]
+    alpha context j_turn            (what the model saw for that turn)
+    alpha check [j_turn] [--no-repair]   (a reply against an independent answer)
+    alpha remove-module Food        (the module and everything made for it; history stays)
+    alpha clear-conversation        (the stream's turns; the only physical journal delete)
+    alpha connect folder|site|calendar [target]
+    alpha serve [--port N]          (the HTTP API the app uses; the scheduler runs here)
+    alpha journeys [names…] [--world path] [--keep] [--list]   (the journey suite, on a copy)
+    alpha mcp                       (the MCP server the model talks to)
 
-ALPHA_HOME picks the data directory. `ask` runs on the model chosen in Settings -> Models.
+`alpha ask` runs one turn only, on the model chosen in Settings -> Models: the second opinion
+and the build kick live in `alpha serve`. ALPHA_HOME picks the data directory.
 """
 
 from __future__ import annotations
@@ -19,6 +26,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any
 
 from alpha.context import prepack
@@ -70,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mcp", help="run the MCP server (stdio)")
     p = sub.add_parser("serve", help="run the core's HTTP API for the app")
     p.add_argument("--port", type=int, default=int(os.environ.get("ALPHA_PORT", "53900")))
+    p = sub.add_parser("journeys", help="run the journey suite on a copy of the world")
+    p.add_argument("names", nargs="*", help="journeys to run (default: all)")
+    p.add_argument("--world", help="the world file to copy (default: the app's)")
+    p.add_argument("--keep", action="store_true", help="keep the scratch copy afterwards")
+    p.add_argument("--list", action="store_true", help="list the journeys and stop")
     p = sub.add_parser("connect", help="connect a folder, a site or the calendar")
     p.add_argument("what", choices=["folder", "site", "calendar"])
     p.add_argument("target", nargs="?")
@@ -85,6 +98,23 @@ def main(argv: list[str] | None = None) -> int:
 
         serve(args.port)
         return 0
+    if args.command == "journeys":
+        from alpha.journeys import suite
+
+        if args.list:
+            for j in suite.load():
+                print(f"{j['name']:<18} {j.get('title', '')}")
+            return 0
+        try:
+            failures, path = suite.run_suite(args.names or None,
+                                             world_path=Path(args.world) if args.world else None,
+                                             keep=args.keep)
+        except Problem as e:
+            print(str(e), file=sys.stderr)
+            return 2
+        print(path.read_text())
+        print(f"Report: {path}", file=sys.stderr)
+        return 1 if failures else 0
 
     world = World()
     try:
@@ -103,14 +133,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if outcome.ok else 1
         if args.command == "journal":
             module = world.modules.get(args.module)["id"] if args.module else None
-            for e in world.journal.recent(args.limit, module=module):
-                print(f"{e['at'][5:16].replace('T', ' ')}  {e['kind']:<8} {e['text']}")
+            for entry in world.journal.recent(args.limit, module=module):
+                print(f"{entry['at'][5:16].replace('T', ' ')}  {entry['kind']:<8} {entry['text']}")
             return 0
         if args.command == "search":
             print(json.dumps(
                 {"records": world.collections.search(" ".join(args.query)),
-                 "journal": [{"at": e["at"], "kind": e["kind"], "snippet": e["snippet"]}
-                             for e in world.journal.search(" ".join(args.query))]},
+                 "journal": [{"at": entry["at"], "kind": entry["kind"],
+                              "snippet": entry["snippet"]}
+                             for entry in world.journal.search(" ".join(args.query))]},
                 indent=2, ensure_ascii=False,
             ))
             return 0

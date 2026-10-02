@@ -59,6 +59,14 @@ def provenance_of(source: str, assumed: str | None, *, turn: str | None) -> dict
     return prov
 
 
+def counts_and_ids(result: dict[str, Any]) -> dict[str, Any]:
+    """An upsert's counts for the journal, plus the ids it touched (capped) so a check or a
+    trial can find the rows a turn wrote in bulk."""
+    out = {k: v for k, v in result.items() if k != "ids"}
+    out["records"] = list(result.get("ids") or [])[:500]
+    return out
+
+
 def provenance_words(prov: dict[str, Any]) -> str:
     """The bracket after "Added X to Y": (estimated), (from the label on ocado.com), (assumed
     the 330 ml bottle), or nothing when the person stated it all."""
@@ -325,11 +333,11 @@ class Tools:
 
     @tool
     def records_add(
-        self, collection: str, values: dict[str, Any], source: str = "estimated",
+        self, collection: str, values: dict[str, Any], source: str,
         assumed: str | None = None,
     ) -> dict[str, Any]:
-        """Add one record to a table. values: field name → value. source: where the values
-        Alpha worked out come from: "stated" when the person gave every value; the page or
+        """Add one record to a table. values: field name → value. source (required): where the
+        values come from: "stated" when the person gave every value; the page or
         document they were read from (a URL, or "label on ocado.com") when looked up; "estimated"
         only for what could not be looked up. assumed: anything you had to assume because it was
         unknown and could not be found ("the 330 ml bottle"), so the record and the person both
@@ -356,7 +364,7 @@ class Tools:
         anything synced from a source. keep_person_fields: fields only written where the record
         has none yet (tags, notes, priority the person sets), so syncs never overwrite them."""
         result = self.world.collections.upsert(
-            collection, key_field, rows, {"by": "alpha", "turn": self.turn},
+            collection, key_field, rows, {"by": "alpha", "turn": self.turn, "synced": True},
             fill_only=set(keep_person_fields or []),
         )
         desc = self.world.collections.describe(collection)
@@ -364,7 +372,7 @@ class Tools:
             "did",
             f"Synced {desc['title']}: {result['added']} new, {result['updated']} updated,"
             f" {result['unchanged']} unchanged.",
-            {"collection": collection, **{k: v for k, v in result.items() if k != "ids"}},
+            {"collection": collection, **counts_and_ids(result)},
             desc["module"],
         )
         return {k: v for k, v in result.items() if k != "ids"}
@@ -382,11 +390,11 @@ class Tools:
         """A rough first look at a list page, not a way to keep a list: for anything you will sync,
         write a reader (page_script, then reader_save) and use reader_run. Reads a list page
         (through the person's sign-in where they connected the site), takes
-        one item per distinct link whose address contains link_contains (e.g. "/in/" for
-        people on LinkedIn, "/jobs/view/" for openings), and save every item into a table in
-        one go, matched on its link so repeat runs update rather than duplicate. fields maps
-        table fields to what to take from each item: "url", "text" (the link's words, e.g. a
-        name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
+        one item per distinct link whose address contains link_contains (the part of the
+        address every item of the list shares, e.g. "/listing/"), and save every item into a
+        table in one go, matched on its link so repeat runs update rather than duplicate. fields
+        maps table fields to what to take from each item: "url", "text" (the link's words, e.g.
+        a name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
         words, e.g. a headline). The url-mapped field is the key. Use it for any list that
         should be kept whole and current; then refine individual rows if needed."""
         if self._in_automation():
@@ -412,7 +420,8 @@ class Tools:
         rows = [{f: item[src] for f, src in fields.items() if item.get(src)}
                 for item in page["items"]]
         result = self.world.collections.upsert(
-            collection, key, rows, {"by": "alpha", "turn": self.turn, "source": url},
+            collection, key, rows,
+            {"by": "alpha", "turn": self.turn, "source": url, "synced": True},
             fill_only=set(keep_person_fields or []),
         )
         desc = self.world.collections.describe(collection)
@@ -422,7 +431,7 @@ class Tools:
             f" {result['added']} new, {result['updated']} updated, {result['unchanged']}"
             " unchanged.",
             {"collection": collection, "url": url, "items": len(page["items"]),
-             **{k: v for k, v in result.items() if k != "ids"}},
+             **counts_and_ids(result)},
             desc["module"],
         )
         held = desc["records"]
@@ -760,7 +769,7 @@ class Tools:
         if email:
             keys["email"] = email
         if url:
-            keys["linkedin" if "linkedin.com" in url else "url"] = url
+            keys["url"] = url
         return self.world.entities.find(name=name, kind=kind, keys=keys or None)
 
     @tool
@@ -768,9 +777,10 @@ class Tools:
         self, kind: str, name: str, keys: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """The one entity these details identify, creating it when new. kind: person,
-        organisation, place, document, message, event. keys: {email, linkedin, phone, url, path,
-        uid, domain}. A matching key finds the existing entity; a name alone never merges, and
-        same-name entities come back under 'maybe' for the person to decide."""
+        organisation, place, document, message, event. keys: {email, url (a profile or page
+        address), phone, path, uid, domain}. A matching key finds the existing entity; a name
+        alone never merges, and same-name entities come back under 'maybe' for the person to
+        decide."""
         result = self.world.entities.resolve(kind, name, keys)
         if result["created"]:
             self._did("saw", f"Started keeping {name} ({kind}).",
@@ -1030,7 +1040,7 @@ class Tools:
         objects with the same keys). It is run once now and only kept if it returns rows; then
         automations use it with reader_run, with no model call, and you repair it when it
         breaks. Saving under an existing name replaces it (its version goes up). name: e.g.
-        linkedin_connections. description: what it reads, in a sentence. whole: true when it
+        site_listings. description: what it reads, in a sentence. whole: true when it
         returns the whole list (every page: to_end for lists that scroll or show more, or your
         script fetching the next pages), false when it deliberately reads only the newest page
         (then rows that drop off it are not counted as gone). When the page shows more pages
@@ -1098,7 +1108,7 @@ class Tools:
 
     @tool
     def browser_signin(self, site: str) -> dict[str, Any]:
-        """Open a window on a site (e.g. linkedin.com) so the person signs in themselves; Alpha
+        """Open a window on a site (e.g. example.com) so the person signs in themselves; Alpha
         never sees what they type. Only after a page read says needs_signin: reads already use
         every sign-in Alpha holds, including one made on another site (gmail.com for
         google.com). Returns at once; tell them to sign in and close the window, and the next
@@ -1258,7 +1268,7 @@ class Tools:
     @tool
     def table_start(self, title: str, fields: list[dict[str, Any]], values: dict[str, Any],
                     module: str | None = None, name: str | None = None,
-                    source: str = "estimated", assumed: str | None = None) -> dict[str, Any]:
+                    source: str = "stated", assumed: str | None = None) -> dict[str, Any]:
         """Only for a plain log with nowhere to keep it ("log two boiled eggs" and no food
         table exists): make the simplest table for it (in module, made if it doesn't exist)
         and add this first row. One per message. Anything more is a plan (plan_propose).

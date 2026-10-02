@@ -4,7 +4,6 @@ against an independent one."""
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from conftest import building
 
@@ -81,15 +80,15 @@ def test_a_plain_log_with_no_home_is_journaled_with_its_source(world: World) -> 
 
 
 def test_independent_and_judging_runs_never_see_alpha(world: World) -> None:
-    base: dict[str, Any] = dict(system="x", world_path=world.path, turn_id="j1")
-    independent = claude_cli.argv(TurnRequest(sentence="s", kind="independent", **base),
-                                  Path("/tmp/mcp.json"))
+    def req(kind: str = "turn") -> TurnRequest:
+        return TurnRequest(sentence="s", system="x", world_path=world.path, turn_id="j1", kind=kind)
+    independent = claude_cli.argv(req("independent"), Path("/tmp/mcp.json"))
     assert "--mcp-config" not in independent
     assert independent[independent.index("--allowedTools") + 1:][:2] == ["WebSearch", "WebFetch"]
-    judge = claude_cli.argv(TurnRequest(sentence="s", kind="judge", **base), Path("/tmp/m.json"))
+    judge = claude_cli.argv(req("judge"), Path("/tmp/m.json"))
     assert "--allowedTools" not in judge and "--mcp-config" not in judge
     assert "WebSearch" in judge[judge.index("--disallowedTools") + 1:]
-    ordinary = claude_cli.argv(TurnRequest(sentence="s", **base), Path("/tmp/m.json"))
+    ordinary = claude_cli.argv(req(), Path("/tmp/m.json"))
     assert "--mcp-config" in ordinary and "mcp__alpha" in ordinary
 
 
@@ -101,7 +100,8 @@ def test_only_turns_where_alpha_worked_values_out_are_checked(world: World) -> N
     world.journal.append("replied", "Logged.", data={"turn": stated})
     assert not check.worth_checking(world, stated)
     guessed = said(world, "i had a shake")
-    Tools(world, turn=guessed).records_add("food_log", {"item": "Shake", "kcal": 160})
+    Tools(world, turn=guessed).records_add("food_log", {"item": "Shake", "kcal": 160},
+                                           source="estimated")
     assert not check.worth_checking(world, guessed)  # no reply yet
     world.journal.append("replied", "Logged, ~160 kcal (estimated).", data={"turn": guessed})
     assert check.worth_checking(world, guessed)
@@ -121,7 +121,8 @@ def test_a_wrong_answer_is_caught_and_alpha_corrects_itself(world: World) -> Non
     food_log(world)
     turn_id = said(world, "i had a for goodness shakes 35g protein shake")
     t = Tools(world, turn=turn_id)
-    rec = t.records_add("food_log", {"item": "FGS shake", "kcal": 160, "protein": 35})
+    rec = t.records_add("food_log", {"item": "FGS shake", "kcal": 160, "protein": 35},
+                        source="estimated")
     world.journal.append("replied", "Logged: FGS shake, ~160 kcal (estimated).",
                          data={"turn": turn_id})
     runs: list[TurnRequest] = []
@@ -164,7 +165,8 @@ def test_a_wrong_answer_is_caught_and_alpha_corrects_itself(world: World) -> Non
 def test_an_agreeing_answer_leaves_things_alone(world: World) -> None:
     food_log(world)
     turn_id = said(world, "i had two boiled eggs")
-    Tools(world, turn=turn_id).records_add("food_log", {"item": "Two eggs", "kcal": 155})
+    Tools(world, turn=turn_id).records_add("food_log", {"item": "Two eggs", "kcal": 155},
+                                           source="estimated")
     world.journal.append("replied", "Logged two eggs, ~155 kcal (estimated).",
                          data={"turn": turn_id})
     kinds: list[str] = []

@@ -1,0 +1,194 @@
+[
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [
+   {
+    "say": "i had a 45g bar of cadbury dairy milk",
+    "ok": true,
+    "reply": "Logged: Cadbury Dairy Milk bar, 45g — 240 kcal, 25.7g carbs, 13.4g fat, 3.4g protein, pulled from fatsecret's Cadbury brand listing for that exact bar size (not estimated).",
+    "steps": 7,
+    "seconds": 32.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "food_log",
+     "source_not": [
+      "estimated"
+     ]
+    },
+    "ok": true,
+    "why": "1 row(s) added; source: fatsecret.com (Cadbury Dairy Milk Bar 45g).",
+    "seconds": 0.0
+   },
+   {
+    "check": "near",
+    "arg": {
+     "collection": "food_log",
+     "field": "calories",
+     "value": 240,
+     "within": 0.1
+    },
+    "ok": true,
+    "why": "calories = 240.0 (wanted 240.0 ±10%)",
+    "seconds": 0.0
+   },
+   {
+    "check": "independent",
+    "arg": {},
+    "ok": true,
+    "why": "Checked against an independent answer: it agrees.",
+    "seconds": 24.8
+   }
+  ],
+  "seconds": 57.5,
+  "error": null
+ },
+ {
+  "name": "eta_daily",
+  "title": "The deal tracker's daily pipeline runs without a model and reports coverage",
+  "steps": [
+   {
+    "automation": "Daily deal tracker — read all broker sources, flag new listings",
+    "ok": true,
+    "result": "Read 15 of 15 sources. Deal Listings: 818 new. New: Manchester Area CPA Firm (partial sale), North Shore Area of Chicago CPA Firm, Lincolnwood CPA Firm, Rural South Central Illinois CPA Firm, Aurora CPA Firm and 813 more.",
+    "problem": null,
+    "seconds": 111.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "automation",
+    "arg": {
+     "title": "Daily deal tracker",
+     "result_matches": "Read \\d+ of \\d+ sources",
+     "problem_allowed": "sign-in|automated reading"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources. Deal Listings: 818 new. New: Manchester Area CPA Firm (partial sale), North Shore Area of Chicago CPA Firm, Lincolnwood CPA Firm, Rural S",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 111.2,
+  "error": null
+ },
+ {
+  "name": "gmail_network",
+  "title": "A question across Gmail and the network is answered from both, or says plainly why not",
+  "steps": [
+   {
+    "say": "which of my linkedin connections emailed me in the last 7 days, and what did each say?",
+    "ok": true,
+    "reply": "Only one of your LinkedIn connections emailed you in the last 7 days: **Alexander Miller** (connected since 5 Aug 2025), who messaged on LinkedIn (forwarded as an email notification) on 1 Oct at 10:53 — the full message was just: *\"Could next week or following work for you?\"* (a reply in your \"Fuse Energy | World-Class Team | Real-World Impact at Scale\" thread).\n\nThe other person-named emails in that window — Sara Ramos, Diana Hu, and Todd — don't match anyone in your 1,551 saved connections, so they're excluded. Note: the connections table only stores name/headline/profile URL, not email addr",
+    "steps": 15,
+    "seconds": 76.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "contains": "mail.google.com"
+    },
+    "ok": false,
+    "why": "0 saw entries.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "The answer must either name senders who are in the person's LinkedIn connections with a line on what each wrote, or say plainly that none did, or say plainly that Gmail needs a sign-in. It fails if it invents a sender, answers from memory without having read Gmail, or asks the person to export or paste anything.",
+    "ok": true,
+    "why": "The answer reports a concrete match from reading Gmail/connections data, names the sender with what they wrote, and explicitly explains why other candidates were excluded, without inventing unverified senders or asking the user to export/paste anything.",
+    "seconds": 4.1
+   }
+  ],
+  "seconds": 80.3,
+  "error": null
+ },
+ {
+  "name": "linkedin_sync",
+  "title": "The LinkedIn connections reader reads the whole list in the person's session",
+  "steps": [
+   {
+    "reader": "linkedin_connections",
+    "ok": true,
+    "health": "ok",
+    "detail": null,
+    "seconds": 147.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "reader_health",
+    "arg": "linkedin_connections",
+    "ok": true,
+    "why": "linkedin_connections: ok, 1551 rows.",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "linkedin_connections",
+     "reader": "linkedin_connections",
+     "at_least_fraction_of_last_ok": 0.95
+    },
+    "ok": true,
+    "why": "1551 rows kept; the reader last read 1551.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 147.4,
+  "error": null
+ },
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask is understood and proposed, and nothing is built",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I looked into this before building anything. Here's what I found and propose:\n\n**Source:** dev.events keeps a clean, ongoing \"AI conferences in London\" listing (name, dates, link) — no sign-in or bot-check, reads reliably. It currently shows events from late October 2026 through 2027 (AI Strategy & Practice Conference, AI World Congress London, AI Engineering Summit, Chief AI Officer Summit, etc.). A few dedicated sites (AI Summit London, MLcon) have one-off listings but no ongoing feed, so they're good for occasional cross-checks, not for syncing. One quirk: dev.events' \"AI\" tag also catches ",
+    "steps": 8,
+    "seconds": 59.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "plan",
+    "arg": "proposed",
+    "ok": true,
+    "why": "Plans: Track AI conferences in London (proposed).",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "(^|\\n)\\s*1[.)]"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 59.3,
+  "error": null
+ }
+]

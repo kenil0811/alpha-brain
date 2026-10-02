@@ -161,9 +161,10 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         sites = set(signin_sites(conn))
         readers = [r["name"] for r in store.all("SELECT name, site, url FROM readers")
                    if r["site"] in sites or _site(r["url"]) in sites]
-        autos = [dict(a) for a in store.all("SELECT id, title, thread, procedure FROM automations")
-                 if any(n in a["procedure"] for n in readers)
-                 or any(site in a["procedure"].lower() for site in sites)]
+        autos = [dict(a) for a in store.all(
+                     "SELECT id, title, thread, procedure, steps FROM automations")
+                 if any(n in (a["procedure"] or "") or n in (a["steps"] or "") for n in readers)
+                 or any(site in (a["procedure"] or "").lower() for site in sites)]
         candidate = profile_of(conn).resolve()
         if candidate.is_relative_to((alpha_home() / "browser").resolve()) and candidate.exists():
             profile = candidate
@@ -194,6 +195,10 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     with store.tx() as db:
         for name in readers:
             db.execute("DELETE FROM readers WHERE name = ?", (name,))
+            # The module still reads from that place; it just has no reader for it now.
+            db.execute("UPDATE sources SET reader = NULL, status = 'not_built', detail = ?,"
+                       " updated_at = ? WHERE reader = ?",
+                       (f"Its reader went with the {target} connection.", now(), name))
         for a in autos:
             db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
 
