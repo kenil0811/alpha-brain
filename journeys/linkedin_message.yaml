@@ -1,0 +1,10 @@
+name: linkedin_message
+title: A LinkedIn message is composed by a procedure Alpha writes, and waits for the yes
+why: "The second site with no new platform code: Alpha learns LinkedIn's messaging page itself.
+  The journey stops at the card; nothing is sent without the person."
+steps:
+  - say: "write a LinkedIn message to Mitansh Singhi saying hello and that I'll give him a call next week; show it to me before anything is sent"
+    module: Network
+checks:
+  - action: {state: proposed, effect: send, preview: true}
+  - reply: {matches: "card|preview|approve|before|nothing (is )?sent"}
