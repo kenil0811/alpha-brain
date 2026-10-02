@@ -27,8 +27,12 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     auto = t.automation_create("Sync", "daily 08:00", "reader_run connections", module="Network")
     world.journal.append("replied", "LinkedIn only renders 20", thread=auto["thread"])
     entity = world.entities.resolve("person", "Priya", {"email": "p@x.com"})["entity"]
+    world.readers.save("people_feed", site="x.com", url="https://x.com/feed", script="return []",
+                       description="d", to_end=False, count=1)
+    world.collections.upsert("connections", "url", [{"name": "Sam", "url": "https://x.com/in/s/"}],
+                             {"by": "alpha", "reader": "people_feed"}, seen_by="people_feed")
     out = remove_module(world, "Network")
-    assert out["tables"] == 1 and out["rows"] == 1 and out["readers"] == 1
+    assert out["tables"] == 1 and out["rows"] == 2 and out["readers"] == 2
     assert out["automations"] == 1 and out["threads"] == 1 and out["goals"] == 1
     assert world.collections.names() == ["food_log"]
     assert world.readers.all() == [] and world.automations.all() == []

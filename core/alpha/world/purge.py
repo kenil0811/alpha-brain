@@ -63,9 +63,18 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     mid, name = module["id"], module["name"]
     store = world.store
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
-    autos = store.all("SELECT id, thread, procedure FROM automations WHERE module = ?", (mid,))
+    autos = store.all("SELECT id, thread, procedure, steps FROM automations WHERE module = ?",
+                      (mid,))
+    # The readers that feed this module: named after its tables, used by its automations
+    # (procedure or steps), recorded on its sources, or the readers its rows came from.
+    fed = {r["reader"] for t in tables for r in store.all(
+        "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
+    fed |= {r["reader"] for r in store.all(
+        "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
     readers = [r["name"] for r in store.all("SELECT name FROM readers")
-               if r["name"] in tables or any(r["name"] in a["procedure"] for a in autos)]
+               if r["name"] in tables or r["name"] in fed
+               or any(r["name"] in (a["procedure"] or "") or r["name"] in (a["steps"] or "")
+                      for a in autos)]
     threads = {r["id"] for r in store.all("SELECT id FROM threads WHERE module = ?", (mid,))}
     threads |= {a["thread"] for a in autos if a["thread"]}
     asks = [a["id"] for a in world.journal.open_asks() if a["module"] == mid]
