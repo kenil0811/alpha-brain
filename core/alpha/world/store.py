@@ -279,6 +279,9 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
+        # Columns added after a world file was first made.
+        if "icon" not in {r[1] for r in self.db.execute("PRAGMA table_info(modules)")}:
+            self.db.execute("ALTER TABLE modules ADD COLUMN icon TEXT")
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:

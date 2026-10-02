@@ -159,3 +159,31 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     assert kcal["today"] == 675 and kcal["this_week"] == 675 and kcal["how"] == "total"
     assert table["split"]["counts"] == {"breakfast": 1, "lunch": 1}
     assert "latest" not in table
+
+
+def test_a_project_is_renamed_given_an_icon_exported_imported_and_deleted(world: World) -> None:
+    seeded(world)
+    world.knowledge.write_note("module:Job Search", "Job Search", "Roles I want.")
+    world.automations.create("Check the board every morning", "daily 08:00", "reader_run",
+                             module=world.modules.get("Job Search")["id"])
+    api = client(world)
+    card = api.patch("/api/modules/Job Search", json={"name": "Jobs", "icon": "briefcase"}).json()
+    assert (card["name"], card["icon"]) == ("Jobs", "briefcase")
+    note = world.knowledge.find_note("module:Jobs", "Jobs")
+    assert note and note["body"] == "Roles I want."
+    assert api.patch("/api/modules/Jobs", json={"icon": "nope"}).status_code == 400
+
+    bundle = api.get("/api/modules/Jobs/export").json()
+    assert bundle["format"] == "alpha.project"
+    assert bundle["tables"][0]["rows"] == [{"title": "Backend Engineer", "company": "Lumen",
+                                            "fit": 88, "status": "new"}]
+    made = api.post("/api/modules/import", json=bundle).json()
+    assert made["name"] == "Jobs 2" and made["icon"] == "briefcase" and made["records"] == 1
+    copy = api.get(f"/api/modules/{made['id']}").json()
+    assert copy["note"]["body"] == "Roles I want."
+    assert [a["enabled"] for a in copy["automations"]] == [False]
+    assert api.post("/api/modules/import", json={"format": "x"}).status_code == 400
+
+    gone = api.delete("/api/modules/Jobs").json()
+    assert gone["rows"] == 1
+    assert [m["name"] for m in api.get("/api/modules").json()] == ["Jobs 2"]

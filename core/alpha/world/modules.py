@@ -16,6 +16,12 @@ from typing import Any
 from alpha.world.store import Problem, Store, new_id, now
 
 THREAD_KINDS = {"build", "research", "job", "topic"}
+# The icons a project may wear: lucide names the workspace draws (desktop shell/projectIcons.ts).
+ICONS = {
+    "folder", "boxes", "briefcase", "notebook-pen", "calendar", "users", "chart-line", "mail",
+    "list-checks", "graduation-cap", "heart-pulse", "wallet", "shopping-cart", "plane", "house",
+    "code", "megaphone", "book-open", "sparkles", "sticky-note", "target", "utensils", "dumbbell",
+}
 THREAD_STATES = {"open", "working", "waiting", "done"}
 
 
@@ -30,9 +36,9 @@ class Modules:
     def create(self, name: str, goal: str | None = None) -> dict[str, Any]:
         name = name.strip()
         if not name:
-            raise Problem("A module needs a name.")
+            raise Problem("A project needs a name.")
         if self.store.one("SELECT 1 FROM modules WHERE LOWER(name) = LOWER(?)", (name,)):
-            raise Problem(f"There is a module called '{name}' already.")
+            raise Problem(f"There is a project called '{name}' already.")
         mid = new_id("m")
         stamp = now()
         with self.store.tx() as db:
@@ -48,11 +54,35 @@ class Modules:
             "SELECT * FROM modules WHERE id = ? OR LOWER(name) = LOWER(?)", (ref, ref)
         )
         if row is None:
-            raise Problem(f"There is no module '{ref}'.")
+            raise Problem(f"There is no project '{ref}'.")
         return _row(row)
 
     def all(self) -> list[dict[str, Any]]:
         return [_row(r) for r in self.store.all("SELECT * FROM modules ORDER BY name")]
+
+    def update(self, ref: str, *, name: str | None = None,
+               icon: str | None = None) -> dict[str, Any]:
+        """Rename a module or change its icon. Its note is filed under its name, so it moves
+        with it."""
+        current = self.get(ref)
+        new_name = current["name"] if name is None else name.strip()
+        if not new_name:
+            raise Problem("A project needs a name.")
+        if new_name.lower() != current["name"].lower() and self.store.one(
+                "SELECT 1 FROM modules WHERE LOWER(name) = LOWER(?)", (new_name,)):
+            raise Problem(f"There is a project called '{new_name}' already.")
+        if icon is not None and icon not in ICONS:
+            raise Problem(f"'{icon}' isn't one of the project icons.")
+        with self.store.tx() as db:
+            db.execute("UPDATE modules SET name = ?, icon = ?, updated_at = ? WHERE id = ?",
+                       (new_name, current["icon"] if icon is None else icon, now(),
+                        current["id"]))
+            if new_name != current["name"]:
+                db.execute("UPDATE notes SET scope = ?, title = CASE WHEN title = ? THEN ?"
+                           " ELSE title END WHERE scope = ?",
+                           (f"module:{new_name}", current["name"], new_name,
+                            f"module:{current['name']}"))
+        return self.get(current["id"])
 
     # ---- threads ----
 
