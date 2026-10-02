@@ -23,6 +23,7 @@ from alpha.connectors.browser import Browser, signin_sites, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.world import taint
+from alpha.world.actions import Actions
 from alpha.world.readers import allowed_posts, health_problem
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -789,3 +790,18 @@ class Tools:
             module=self.module, thread=self.thread,
         )
         return {"proposed": jid}
+
+    @tool
+    def propose_action(self, kind: str, summary: str, payload: dict[str, Any],
+                       connector: str | None = None) -> dict[str, Any]:
+        """The only way to do something outside Alpha (send, post, submit, apply, change a
+        calendar, write to the person's folders): propose it, and it waits on Home for the
+        person's yes. Then exactly this payload runs once; nothing runs without that yes, and
+        you never decide it. kind: snake_case, e.g. send_email. summary: one sentence the person
+        reads ("Send Priya the thank-you note"). payload: everything the action needs, final.
+        Moving money, permanent deletion, and passwords or card numbers are never possible."""
+        action = Actions(self.world).propose(kind, summary, payload, connector=connector,
+                                             turn=self.turn, thread=self.thread,
+                                             module=self.module)
+        return {"pending_action": action["id"], "state": action["state"],
+                "note": "Waiting for the person's approval; tell them it's on Home."}

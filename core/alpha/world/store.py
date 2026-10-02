@@ -245,6 +245,30 @@ CREATE TABLE IF NOT EXISTS readers (
     allow_posts TEXT NOT NULL DEFAULT '[]'
 );
 
+-- Outward writes waiting for the person (alpha.world.actions): the exact payload, run once.
+CREATE TABLE IF NOT EXISTS pending_actions (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    effect TEXT NOT NULL,
+    connector TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_by TEXT,
+    thread TEXT,
+    module TEXT,
+    asked TEXT,
+    state TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    decided_at TEXT,
+    result TEXT
+);
+CREATE TRIGGER IF NOT EXISTS pending_actions_payload_fixed BEFORE UPDATE OF kind, payload,
+    connector, effect ON pending_actions
+BEGIN
+    SELECT RAISE(ABORT, 'A pending action runs exactly what was proposed.');
+END;
+
 -- Runs that have read private or third-party material (alpha.world.taint).
 CREATE TABLE IF NOT EXISTS taints (
     turn TEXT PRIMARY KEY,
