@@ -1,11 +1,13 @@
 /**
- * Home: what needs the person (questions Alpha asked, things it proposes, facts waiting for a
- * yes), what's coming up, and their modules. Nothing here is decoration: each card is something
- * to answer or open.
+ * Home: what needs the person (actions waiting for a yes, questions Alpha asked, things it
+ * proposes, facts to confirm), what's coming up, and their projects. Nothing here is
+ * decoration: each card is something to answer or open.
  */
 import { useEffect, useState } from "react";
-import type { Client, Home as HomeData, NeedItem } from "../core/client";
-import { when } from "../modules/format";
+import type { Client, Home as HomeData, NeedItem, PendingAction } from "../core/client";
+import { humanize, when } from "../modules/format";
+import { InfoTip, PageHeader, useToast } from "../ui";
+import { projectIcon } from "./projectIcons";
 import type { Surface } from "./Rail";
 
 function greeting(): string {
@@ -15,6 +17,64 @@ function greeting(): string {
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+/** What deciding did, in one line: the core's own outcome, never a guess. */
+export function outcomeWords(a: PendingAction): string {
+  if (a.state === "rejected") return "Not done. Nothing was sent.";
+  if (a.state === "expired") return "Expired without a decision.";
+  if (a.state === "unavailable") return `Approved, but it can't be done${a.result?.error ? `: ${a.result.error}` : ""}.`;
+  if (a.result?.error) return `Tried once and it failed: ${a.result.error}`;
+  return "Done.";
+}
+
+function evidence(a: PendingAction): string {
+  const what = Object.entries(a.payload)
+    .slice(0, 4)
+    .map(([k, v]) => `${humanize(k)}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
+    .join("; ");
+  return `${humanize(a.kind)} through ${a.connector}, proposed ${when(a.created_at)}${a.expires_at ? `, expires ${when(a.expires_at)}` : ""}.${what ? ` Exactly: ${what}.` : ""} It runs once, only if you approve.`;
+}
+
+function Pending({ action, client, onDone }: { action: PendingAction; client: Client; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [decided, setDecided] = useState<PendingAction | null>(null);
+  async function decide(approve: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      setDecided(await (approve ? client.approvePending(action.id) : client.rejectPending(action.id)));
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <article className="card need" aria-label={action.summary}>
+      <div className="need__head">
+        <h3>{action.summary}</h3>
+        <InfoTip content={evidence(action)} label="Why Alpha is asking" />
+      </div>
+      {decided ? (
+        <p className={decided.state === "approved" && !decided.result?.error ? "notice notice--ok" : "notice notice--quiet"} role="status">
+          {outcomeWords(decided)}
+        </p>
+      ) : (
+        <div className="row">
+          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void decide(true)}>
+            Approve
+          </button>
+          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void decide(false)}>
+            Not now
+          </button>
+        </div>
+      )}
+      {error ? <p className="notice" role="alert">{error}</p> : null}
+    </article>
+  );
 }
 
 function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
@@ -37,9 +97,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
     return (
       <article className="card need">
         <h3>{item.text}</h3>
-        <p className="because">
-          <b>Alpha asked</b> {when(item.at)}, because the answer changes what it builds.
-        </p>
+        <p className="because">Alpha asked {when(item.at)}</p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); if (answer.trim()) void act(() => client.answerAsk(item.id, answer.trim()), "Answered."); }}>
           {item.options?.length ? (
             item.options.map((o) => (
@@ -59,19 +117,17 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
             Dismiss
           </button>
         </form>
-        {error ? <p className="notice">{error}</p> : null}
+        {error ? <p className="notice" role="alert">{error}</p> : null}
       </article>
     );
   }
   if (item.kind === "proposal") {
     return (
       <article className="card need">
-        <h3>{item.text}</h3>
-        {item.why ? (
-          <p className="because">
-            <b>Because</b> {item.why}
-          </p>
-        ) : null}
+        <div className="need__head">
+          <h3>{item.text}</h3>
+          {item.why ? <InfoTip content={item.why} label="Why Alpha suggests this" /> : null}
+        </div>
         <div className="row">
           <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), "On it. Alpha is doing that now.")}>
             Yes, do it
@@ -86,12 +142,10 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   }
   return (
     <article className="card need">
-      <h3>Is this right? {item.text.replace(/_/g, " ")}</h3>
-      {item.why ? (
-        <p className="because">
-          <b>Alpha noticed</b> {item.why}
-        </p>
-      ) : null}
+      <div className="need__head">
+        <h3>Is this right? {item.text.replace(/_/g, " ")}</h3>
+        {item.why ? <InfoTip content={item.why} label="What Alpha noticed" /> : null}
+      </div>
       <div className="row">
         <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, true), "Remembered.")}>
           Yes, remember it
@@ -107,8 +161,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
 
 export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void }) {
   const [home, setHome] = useState<HomeData | null>(null);
+  const [pending, setPending] = useState<PendingAction[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const toast = useToast();
   useEffect(() => {
     client
       .home()
@@ -117,55 +172,62 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
         setError(null);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    // A decided card stays on screen with its result line; only new ones are added.
+    client
+      .pending()
+      .then((list) => setPending((shown) => [...shown.filter((a) => !list.some((b) => b.id === a.id)), ...list]))
+      .catch(() => undefined);
   }, [client, version]);
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const header = <PageHeader title={greeting()} right={<span className="muted">{date}</span>} />;
   if (!home) {
     return (
       <div className="page">
-        <div className="eyebrow">{date}</div>
-        <h1>{greeting()}</h1>
-        {error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}
+        {header}
+        {error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}
       </div>
     );
   }
   const next = home.coming_up[0];
+  // A pending action's question is shown once, as its own card.
+  const asks = new Set(pending.map((a) => a.asked));
+  const needs = home.needs_you.filter((item) => !(item.kind === "ask" && asks.has(item.id)));
+  const waiting = needs.length + pending.length;
   return (
     <div className="page">
-      <div className="eyebrow">{date}</div>
-      <h1>{greeting()}</h1>
+      {header}
       <div className="today">
         <div className="card tile">
           <div className="tile__lab">Needs you</div>
-          <div className="tile__big num">{home.needs_you.length}</div>
-          <div className="tile__sub">{home.needs_you.length ? "Questions and suggestions below" : "Nothing waiting on you"}</div>
+          <div className="tile__big num">{waiting}</div>
         </div>
         <div className="card tile">
-          <div className="tile__lab">Done today</div>
+          <div className="tile__lab">
+            Done today <InfoTip content="Things Alpha read, made and changed today." label="About done today" />
+          </div>
           <div className="tile__big num">{home.ran_today}</div>
-          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work; see Activity` : "Things Alpha read, made and changed"}</div>
+          {home.failed_today ? <div className="tile__sub">{home.failed_today} didn't work</div> : null}
         </div>
         <div className="card tile">
           <div className="tile__lab">Coming up</div>
           <div className="tile__big">{next ? timeOf(next.starts_at) : "—"}</div>
-          <div className="tile__sub">{next ? next.title : home.coming_up.length === 0 ? "Nothing on your calendar, or it isn't connected" : ""}</div>
+          <div className="tile__sub">{next ? next.title : "Nothing on your calendar"}</div>
         </div>
       </div>
 
-      {home.needs_you.length ? (
-        <div className="section" style={{ marginTop: 0 }}>
+      {waiting ? (
+        <div className="section section--first">
           <div className="section__head">
             <h2>Needs you</h2>
-            <span className="faint">Alpha never sends anything or acts for you without a yes</span>
+            <InfoTip content="Alpha never sends anything or acts for you without a yes." label="About needs you" />
           </div>
           <div className="needs">
-            {home.needs_you.map((item) => (
-              <Need key={item.id} item={item} client={client} onDone={(words) => { setToast(words); onChanged(); }} />
+            {pending.map((a) => (
+              <Pending key={a.id} action={a} client={client} onDone={onChanged} />
+            ))}
+            {needs.map((item) => (
+              <Need key={item.id} item={item} client={client} onDone={(words) => { toast.show(words); onChanged(); }} />
             ))}
           </div>
         </div>
@@ -194,7 +256,6 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
         <div className="section">
           <div className="section__head">
             <h2>Coming up</h2>
-            <span className="faint">From your calendar</span>
           </div>
           <div className="card list">
             {home.coming_up.map((e) => (
@@ -212,27 +273,26 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
 
       <div className="section">
         <div className="section__head">
-          <h2>Your modules</h2>
-          <span className="faint">Made from what you asked for; each grows as you use it</span>
+          <h2>Projects</h2>
+          <InfoTip content="Made from what you asked for; each grows as you use it." label="About projects" />
         </div>
         <div className="modgrid">
-          {home.modules.map((m) => (
+          {home.modules.map((m) => {
+            const Icon = projectIcon(m);
+            return (
             <div key={m.id} className="card modcard">
               <div className="modcard__top">
                 <div className="modcard__ico" aria-hidden="true">
-                  ▦
+                  <Icon size={18} />
                 </div>
-                <div style={{ minWidth: 0 }}>
+                <div className="modcard__name">
                   <h3>{m.name}</h3>
                   <div className="faint">
                     {m.tables.length} {m.tables.length === 1 ? "table" : "tables"} · {m.records} {m.records === 1 ? "row" : "rows"}
                   </div>
                 </div>
-                <span className="pill pill--good" style={{ marginLeft: "auto" }}>
-                  Active
-                </span>
               </div>
-              <p>{m.goal ?? m.last_text ?? "Nothing in it yet."}</p>
+              <p className="modcard__line">{m.goal ?? m.last_text ?? "Nothing in it yet."}</p>
               <div className="modcard__foot">
                 <span>{m.last_at ? `Last change ${when(m.last_at)}` : ""}</span>
                 <button type="button" className="btn btn--sm" onClick={() => onGo({ kind: "module", id: m.id })}>
@@ -240,32 +300,28 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
           <div className="card modcard modcard--new">
-            <div className="eyebrow">New</div>
-            <b>Describe what you want</b>
-            <p>"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Alpha sets it up and grows it as you use it.</p>
-            <button type="button" className="linkbtn" style={{ color: "var(--primary)", fontWeight: 500 }} onClick={onNew}>
-              Start a new module →
+            <div className="need__head">
+              <b>New project</b>
+              <InfoTip content={'"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Alpha sets it up and grows it as you use it.'} label="Examples" />
+            </div>
+            <button type="button" className="linkbtn linkbtn--primary" onClick={onNew}>
+              Start a new project →
             </button>
           </div>
         </div>
       </div>
       {home.modules.length === 0 ? (
         <div className="section">
-          <div className="card card--pad">
-            <div className="eyebrow">First steps</div>
-            <p style={{ marginTop: 6 }}>Tell Alpha one thing you keep track of, or connect something it can read.</p>
-            <div className="row" style={{ marginTop: 10 }}>
+          <div className="card card--pad stack">
+            <p className="page__line">Tell Alpha one thing you keep track of, or connect something it can read.</p>
+            <div className="row">
               <button type="button" className="btn" onClick={() => onAsk("I want to track what I eat")}>Track what I eat</button>
               <button type="button" className="btn" onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</button>
             </div>
           </div>
-        </div>
-      ) : null}
-      {toast ? (
-        <div className="toast" role="status">
-          {toast}
         </div>
       ) : null}
     </div>

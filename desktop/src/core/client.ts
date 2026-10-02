@@ -140,6 +140,22 @@ export interface NeedItem {
   module?: string | null;
 }
 
+/** Something Alpha wants to do outside its own space, waiting for the person's yes (core
+ *  world/actions.py). `result` is set once it has been decided and, if approved, run. */
+export interface PendingAction {
+  id: string;
+  kind: string;
+  connector: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  module: string | null;
+  asked: string | null;
+  state: "pending" | "approved" | "rejected" | "expired" | "unavailable";
+  created_at: string;
+  expires_at: string | null;
+  result: { error?: string } | null;
+}
+
 export interface CalendarItem {
   id: string;
   title: string;
@@ -395,6 +411,9 @@ export class Client {
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
+  pending = () => this.call<PendingAction[]>("GET", "/api/pending");
+  approvePending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/approve`);
+  rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }

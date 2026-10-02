@@ -4,7 +4,9 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
+import { Search } from "lucide-react";
 import { dayLabel, when } from "../modules/format";
+import { InfoTip, PageHeader } from "../ui";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered"]);
 
@@ -69,14 +71,11 @@ export function Activity({ client, version }: { client: Client; version: number;
   let lastDay = "";
   return (
     <div className="page">
-      <div className="home__head">
-        <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
-      </div>
-      <div style={{ marginTop: 18 }}>
-        <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
-          <div className="search" style={{ maxWidth: "none" }}>
-            <span aria-hidden="true">⌕</span>
+      <PageHeader title={<>Activity <InfoTip content="What Alpha read, made and changed, and what you did." label="About Activity" /></>} />
+      <div>
+        <div className="card toolbar toolbar--page toolbar--activity">
+          <div className="search search--wide">
+            <Search size={14} aria-hidden="true" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (

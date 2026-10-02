@@ -1,9 +1,13 @@
 /**
- * A module: its summary, a page per table, what Alpha did here, and what it is made of. The
+ * A project (a module in the core): its summary, a page per table, what Alpha did here, and what it is made of. The
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
 import { useEffect, useMemo, useState } from "react";
+import { Folder, MoreHorizontal } from "lucide-react";
 import type { Client, ModuleDetail, ModuleSummary } from "../core/client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, IconButton, InfoTip, useToast } from "../ui";
+import { exportProject, ProjectEditDialog, ProjectMenuItems, type ProjectEdit } from "../shell/ProjectMenu";
+import { projectIcon } from "../shell/projectIcons";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -11,8 +15,10 @@ import { AutomationList } from "../shell/Automations";
 
 type Section = "app" | "activity" | "settings";
 
-export function ModulePage({ client, moduleId, version, onChanged }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
+export function ModulePage({ client, moduleId, version, onChanged, onGo }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
+  const [editing, setEditing] = useState<ProjectEdit | null>(null);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("app");
   const [tab, setTab] = useState<string>(() => {
@@ -41,20 +47,38 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
   if (!detail) {
-    return <div className="page">{error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}</div>;
+    return <div className="page">{error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}</div>;
   }
-  const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
+  const Icon = projectIcon(detail);
   return (
     <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}`}>
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">
-            ▦
+            <Icon size={18} />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <h1>{detail.name}</h1>
-            <div className="faint">{subtitle}</div>
-          </div>
+          <h1 className="modhead__name">{detail.name}</h1>
+          {detail.goal ? <InfoTip content={detail.goal} label="What this project is for" /> : null}
+          <span className="faint num">
+            {detail.tables.length} {detail.tables.length === 1 ? "table" : "tables"}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton aria-label="Project options" title="Project options" size="sm">
+                <MoreHorizontal size={16} />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <ProjectMenuItems
+                onPick={setEditing}
+                onExport={() =>
+                  void exportProject(client, detail)
+                    .then((words) => toast.show(words))
+                    .catch((e: unknown) => toast.show(e instanceof Error ? e.message : `${detail.name} couldn't be exported.`))
+                }
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="toggle" role="tablist" aria-label="Section">
           {(["app", "activity", "settings"] as Section[]).map((s) => (
@@ -89,7 +113,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
 
       {section === "settings" ? (
         <>
-          <div className="section" style={{ marginTop: 0 }}>
+          <div className="section section--first">
             <div className="section__head">
               <h2>What it keeps</h2>
             </div>
@@ -97,7 +121,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
               {detail.tables.map((t) => (
                 <div key={t.name} className="item item--top">
                   <div className="item__ico" aria-hidden="true">
-                    ▤
+                    <Folder size={16} />
                   </div>
                   <div className="item__body">
                     <b>{t.title}</b>
@@ -113,12 +137,23 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
-              <span className="faint">Switch any off; Alpha says so if something needs it</span>
+              <InfoTip content="Switch any off; Alpha says so if something needs it. Ask Alpha to keep something here current and it shows up with a switch." label="About automations" />
             </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here." />
           </div>
         </>
       ) : null}
+      <ProjectEditDialog
+        client={client}
+        project={editing ? detail : null}
+        edit={editing}
+        onClose={() => setEditing(null)}
+        onChanged={onChanged}
+        onDeleted={() => {
+          onChanged();
+          onGo({ kind: "home" });
+        }}
+      />
     </div>
   );
 }
@@ -154,7 +189,7 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
         })}
       </div>
       {rows.length > shown ? (
-        <button type="button" className="btn btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
+        <button type="button" className="btn btn--sm btn--start" onClick={() => setShown((n) => n + PAGE)}>
           Show more ({rows.length - shown} earlier)
         </button>
       ) : null}
@@ -176,7 +211,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
         <div className="card card--pad">
           <div className="metric__lab">{data.goals.length === 1 ? "Goal" : "Goals"}</div>
           {data.goals.map((g) => (
-            <div key={g.id} style={{ marginTop: 6 }}>
+            <div key={g.id} className="goal__text">
               {g.text}
             </div>
           ))}
@@ -184,7 +219,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
       ) : null}
       {data.tables.map((t) => (
         <div key={t.name} className="stack">
-          <div className="section__head" style={{ marginBottom: 0 }}>
+          <div className="section__head section__head--tight">
             <h2>{t.title}</h2>
             <span className="faint">
               {t.rows} {t.rows === 1 ? "row" : "rows"}
@@ -213,7 +248,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
           {t.split && Object.keys(t.split.counts).length ? (
             <div className="card card--pad">
               <div className="metric__lab">{t.split.label}</div>
-              <div className="row" style={{ marginTop: 8 }}>
+              <div className="row">
                 {Object.entries(t.split.counts).map(([choice, n]) => (
                   <span key={choice} className={`pill ${t.split?.done.includes(choice) ? "pill--good" : "pill--gray"}`}>
                     {humanize(choice)} <b className="num">{n}</b>
@@ -227,7 +262,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
       ))}
       {data.automations ? (
         <p className="faint">
-          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
+          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}.
         </p>
       ) : null}
     </div>
