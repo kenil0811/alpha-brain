@@ -1,5 +1,6 @@
 """Provider API keys, kept in the macOS login Keychain — never in a plaintext file, localStorage
-or a log. Each provider gets one generic-password item (`alpha.<provider>`, account `alpha`).
+or a log. Each provider gets one generic-password item (`alpha-brain.<provider>`, account
+`alpha-brain`): AB's own, never the items the older Alpha app keeps under `alpha.<provider>`.
 
 The value is never passed as a subprocess argv: `security -i` reads a single command line from
 stdin, so the key never shows up in `ps` output the way `security ... -w <key>` would.
@@ -10,7 +11,7 @@ from __future__ import annotations
 import os
 import subprocess
 
-_ACCOUNT = "alpha"
+_ACCOUNT = "alpha-brain"
 
 
 class KeychainError(Exception):
@@ -19,7 +20,7 @@ class KeychainError(Exception):
 
 def _service(provider: str) -> str:
     # ALPHA_KEYCHAIN_PREFIX keeps a test run away from the real items.
-    return f"{os.environ.get('ALPHA_KEYCHAIN_PREFIX', 'alpha.')}{provider}"
+    return f"{os.environ.get('ALPHA_KEYCHAIN_PREFIX', 'alpha-brain.')}{provider}"
 
 
 def _quote(value: str) -> str:

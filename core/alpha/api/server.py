@@ -34,7 +34,7 @@ from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
 from alpha.models.accounts import Accounts
 from alpha.models.keychain import KeychainError
-from alpha.runtime import claude_account, transcription
+from alpha.runtime import transcription
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.runtime.route import Router
@@ -632,22 +632,6 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         raise Problem(f"Nothing to sync for {conn['connector']}.")
 
     # ---- settings: the person's Claude and their data ----
-
-    @app.get("/api/claude", dependencies=[api])
-    def claude_status() -> dict[str, Any]:
-        return claude_account.status()
-
-    @app.post("/api/claude/install", dependencies=[api])
-    def claude_install() -> dict[str, Any]:
-        return claude_account.install()
-
-    @app.post("/api/claude/signin", dependencies=[api])
-    def claude_sign_in() -> dict[str, Any]:
-        return claude_account.sign_in()
-
-    @app.post("/api/claude/signout", dependencies=[api])
-    def claude_sign_out() -> dict[str, Any]:
-        return claude_account.sign_out()
 
     # ---- settings: models (Settings -> Models, and the composer's + -> Advanced -> Model) ----
 

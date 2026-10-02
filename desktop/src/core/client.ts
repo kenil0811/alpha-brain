@@ -252,14 +252,6 @@ export interface EntityDetail extends Entity {
 }
 
 /** Whether Alpha can think: Claude Code on this Mac, signed in to the person's Claude. */
-export interface ClaudeStatus {
-  installed: boolean;
-  signed_in: boolean;
-  email?: string | null;
-  plan?: string | null;
-  via?: "subscription" | "console";
-}
-
 /** Settings -> Models: one way of reaching a model (a sign-in, a key, or Ollama on this Mac). */
 export interface ModelProvider {
   id: string;
@@ -417,10 +409,6 @@ export class Client {
   }
 
   health = () => this.call<{ ok: boolean; world: string }>("GET", "/api/health");
-  claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
-  installClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/install");
-  signInClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/signin");
-  signOutClaude = () => this.call<ClaudeStatus>("POST", "/api/claude/signout");
   modelProviders = async () => (await this.call<{ providers: ModelProvider[] }>("GET", "/api/models")).providers;
   providerModels = (id: string) => this.call<{ models: ProviderModel[]; selected: string | null }>("GET", `/api/models/${id}/models`);
   setProviderModel = (id: string, model: string) => this.call<{ models: ProviderModel[]; selected: string | null }>("PUT", `/api/models/${id}/model`, { model });

@@ -11,10 +11,10 @@ from __future__ import annotations
 import json
 import mimetypes
 import secrets
-import subprocess
 import urllib.error
 import urllib.request
 
+from alpha.models import keychain
 from alpha.world.store import Problem
 
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # the providers' own upload limit
@@ -26,17 +26,7 @@ PROVIDERS: tuple[tuple[str, str, str], ...] = (
 
 
 def saved_key(provider: str) -> str | None:
-    # ponytail: reads the Keychain item directly; use the shared key store once Core has one.
-    try:
-        out = subprocess.run(
-            ["security", "find-generic-password", "-s", f"alpha.{provider}", "-a", "alpha", "-w"],
-            capture_output=True, text=True, timeout=10,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    if out.returncode != 0:
-        return None
-    return out.stdout.strip() or None
+    return keychain.get_key(provider)
 
 
 def available() -> bool:

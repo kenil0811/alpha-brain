@@ -17,7 +17,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from alpha.world.store import Problem
 from alpha.world.world import alpha_home
 
 STATUS_TIMEOUT_S = 20
@@ -89,23 +88,6 @@ def _start(argv: list[str], log: str) -> None:
                      env=child_env(), start_new_session=True)
 
 
-def sign_in() -> dict[str, Any]:
-    """Start Claude Code's sign-in: it opens the browser and finishes there. Returns at once;
-    the app checks `status` until it is signed in."""
-    claude = binary()
-    if claude is None:
-        raise Problem("Claude Code isn't on this Mac yet; install it first.")
-    _start([claude, "auth", "login", "--claudeai"], "claude-login.log")
-    return {"started": True}
-
-
-def sign_out() -> dict[str, Any]:
-    claude = binary()
-    if claude is None:
-        raise Problem("Claude Code isn't on this Mac.")
-    subprocess.run([claude, "auth", "logout"], capture_output=True, text=True,
-                   timeout=STATUS_TIMEOUT_S, env=child_env(), stdin=subprocess.DEVNULL)
-    return status()
 
 
 def install() -> dict[str, Any]:
