@@ -1,3 +1,8 @@
+.ui-select-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+  border: 1px solid var(--border); border-radius: var(--radius-button); padding: 7px 10px;
+  background: var(--surface); color: var(--text); font-size: var(--text-md); min-width: 120px;
+}
 .ui-std-dropdown__trigger { width: 100%; text-align: left; }
 .ui-std-dropdown { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
 .ui-std-dropdown__search { margin-bottom: 2px; }

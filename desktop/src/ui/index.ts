@@ -20,7 +20,6 @@ export {
   DropdownMenuSubContent,
 } from "./DropdownMenu";
 export { Popover, PopoverTrigger, PopoverContent } from "./Popover";
-export { Select, SelectTrigger, SelectContent, SelectItem } from "./Select";
 export { Dialog, DialogTrigger, DialogContent, DialogClose } from "./Dialog";
 export { StandardDropdown } from "./StandardDropdown";
 export type { StandardDropdownOption } from "./StandardDropdown";
@@ -28,6 +27,7 @@ export { Tabs } from "./Tabs";
 export type { TabItem } from "./Tabs";
 export { ToastProvider, useOptionalToast, useToast } from "./toast";
 export { PageHeader } from "./PageHeader";
+export { Segmented } from "./Segmented";
 export {
   usePanelControl,
   useEscapeStep,

@@ -5,11 +5,14 @@
  * saved directly where the core has a route for it, otherwise drafted for Zazoo to do (the person
  * sends it). The same details show in the second brain's card beside the graph.
  */
+import { Input, Textarea } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, Pencil } from "lucide-react";
 import type { Client, ConnectionRemoval, EntityDetail, Fact, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { IconButton, InfoTip, PageHeader } from "../ui";
+import { Badge } from "../ui/Badge";
 import type { Surface } from "./Rail";
 
 export interface ItemContext {
@@ -123,9 +126,9 @@ export function EditField({ label, value, multiline, choices, zazoo, onSave }: {
           ))}
         </select>
       ) : multiline ? (
-        <textarea className="ui-input ui-textarea ifield__input" rows={5} {...common} onChange={(e) => setDraft(e.target.value)} />
+        <Textarea className="ifield__input" rows={5} {...common} onChange={(e) => setDraft(e.target.value)} />
       ) : (
-        <input className="ui-input ifield__input" {...common} onChange={(e) => setDraft(e.target.value)} />
+        <Input className="ifield__input" {...common} onChange={(e) => setDraft(e.target.value)} />
       )}
       {line ? (
         <p className={line.ok ? "notice notice--ok" : "notice"} role={line.ok ? "status" : "alert"}>
@@ -204,12 +207,12 @@ export function FactDetail({ fact, ctx }: { fact: Fact; ctx: ItemContext }) {
       <EditField label={what} value={fact.value} zazoo onSave={(next) => ctx.onAsk(`Change what you know about me: my ${what.toLowerCase()} is “${next}”, not “${fact.value}”.`)} />
       {fact.state === "suggested" ? (
         <div className="row">
-          <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => void act(() => ctx.client.decideFact(fact.id, true), "Accepted.")}>
+          <Button size="sm" disabled={busy} onClick={() => void act(() => ctx.client.decideFact(fact.id, true), "Accepted.")}>
             Yes, that's right
-          </button>
-          <button type="button" className="btn btn--sm" disabled={busy} onClick={() => void act(() => ctx.client.decideFact(fact.id, false), "Turned down.")}>
+          </Button>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void act(() => ctx.client.decideFact(fact.id, false), "Turned down.")}>
             No
-          </button>
+          </Button>
         </div>
       ) : null}
       {shown}
@@ -247,9 +250,9 @@ function PermissionDetail({ id, ctx }: { id: string; ctx: ItemContext }) {
     <>
       <EditField label="What Alpha may do without asking" value={p.sentence} zazoo onSave={(next) => ctx.onAsk(`Change the standing permission “${p.sentence}” to “${next}”.`)} />
       <div className="row">
-        <button type="button" className="btn btn--sm btn--danger" disabled={busy} onClick={() => void act(() => ctx.client.revokePermission(p.id), "Revoked. Alpha asks every time again.")}>
+        <Button variant="destructive" size="sm" disabled={busy} onClick={() => void act(() => ctx.client.revokePermission(p.id), "Revoked. Alpha asks every time again.")}>
           Revoke
-        </button>
+        </Button>
       </div>
       {shown}
       <Meta rows={[["Covers", humanize(p.procedure)], ["Kind", p.effect === "prepare" ? "Prepares, never sends" : humanize(p.effect)], ["Since", when(p.granted_at)]]} />
@@ -287,7 +290,7 @@ function SkillDetail({ name, ctx }: { name: string; ctx: ItemContext }) {
               <b>{humanize(t.name)}</b>
               {t.description ? <div className="item__sub">{t.description}</div> : null}
             </div>
-            <span className={`pill ${t.effect === "write" ? "pill--warn" : "pill--gray"}`}>{t.effect === "write" ? "Asks first" : "Reads"}</span>
+            <Badge variant={t.effect === "write" ? "warning" : "neutral"}>{t.effect === "write" ? "Asks first" : "Reads"}</Badge>
           </div>
         ))}
       </div>
@@ -333,9 +336,9 @@ function AutomationDetail({ id, ctx }: { id: string; ctx: ItemContext }) {
       <div className="row">
         <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? "Switch off" : "Switch on"} disabled={busy} onClick={() => void act(() => ctx.client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
         <span>{a.enabled ? "On" : "Off"}</span>
-        <button type="button" className="btn btn--sm" disabled={busy || a.running} onClick={() => void act(() => ctx.client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
+        <Button variant="outline" size="sm" disabled={busy || a.running} onClick={() => void act(() => ctx.client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
           {a.running ? "Running…" : "Run now"}
-        </button>
+        </Button>
       </div>
       {shown}
       {a.running && a.steps?.length ? (
@@ -379,23 +382,23 @@ function ConnectionDetail({ id, ctx }: { id: string; ctx: ItemContext }) {
         <Meta rows={[["Reads", "Your calendars"]]} />
       )}
       <div className="row">
-        <button type="button" className="btn btn--sm" disabled={busy} onClick={() => void act(() => ctx.client.syncConnection(c.id), "Read again.")}>
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => void act(() => ctx.client.syncConnection(c.id), "Read again.")}>
           {c.connector === "browser" ? "Check" : "Read now"}
-        </button>
+        </Button>
         {confirming ? (
           <>
             <span className="item__sub--warn">Removes {plan?.what ?? "it"}.</span>
-            <button type="button" className="btn btn--sm" onClick={() => setConfirming(false)}>
+            <Button variant="outline" size="sm" onClick={() => setConfirming(false)}>
               Keep it
-            </button>
-            <button type="button" className="btn btn--sm btn--danger" disabled={busy} onClick={() => void act(() => ctx.client.removeConnection(c.id), "Removed.").then(() => ctx.onGo({ kind: "intelligence", tab: "connections" }))}>
+            </Button>
+            <Button variant="destructive" size="sm" disabled={busy} onClick={() => void act(() => ctx.client.removeConnection(c.id), "Removed.").then(() => ctx.onGo({ kind: "intelligence", tab: "connections" }))}>
               Remove
-            </button>
+            </Button>
           </>
         ) : (
-          <button type="button" className="btn btn--sm btn--ghost" disabled={busy || !plan} onClick={() => setConfirming(true)}>
+          <Button variant="ghost" size="sm" disabled={busy || !plan} onClick={() => setConfirming(true)}>
             Remove
-          </button>
+          </Button>
         )}
       </div>
       {shown}
@@ -435,9 +438,9 @@ export function EntityDetailView({ id, ctx }: { id: string; ctx: ItemContext }) 
       {e.maybe_same.map((o) => (
         <div key={o.id} className="row">
           <span className="item__sub">Maybe the same as {o.name}</span>
-          <button type="button" className="btn btn--sm" disabled={busy} onClick={() => void act(() => ctx.client.merge(e.id, o.id), "Merged.")}>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void act(() => ctx.client.merge(e.id, o.id), "Merged.")}>
             They're the same
-          </button>
+          </Button>
         </div>
       ))}
       {shown}

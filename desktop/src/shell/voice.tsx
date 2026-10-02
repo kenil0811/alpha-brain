@@ -4,6 +4,8 @@
  * browser's own recognition when the window offers it; otherwise it points at the Mac's
  * dictation, which works in any text field.
  */
+import { Mic, Square } from "lucide-react";
+import { IconButton } from "../ui/IconButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface RecognitionResultEvent {
@@ -93,9 +95,9 @@ export function useSpeech(onText: (final: string, interim: string) => void) {
 export function MicButton({ listening, supported, onToggle, small = false }: { listening: boolean; supported: boolean; onToggle: () => void; small?: boolean }) {
   const title = supported ? (listening ? "Stop listening" : "Speak instead of typing") : "Speaking isn't available in this window; press your Mac's dictation key instead";
   return (
-    <button type="button" className={`iconbtn${small ? " iconbtn--sm" : ""}${listening ? " iconbtn--live" : ""}`} title={title} aria-label={listening ? "Stop listening" : "Speak"} aria-pressed={listening} onClick={onToggle} disabled={!supported}>
-      <span aria-hidden="true">{listening ? "●" : "🎙"}</span>
+    <IconButton size={small ? "sm" : "default"} className={listening ? "iconbtn--live" : undefined} title={title} aria-label={listening ? "Stop listening" : "Speak"} aria-pressed={listening} onClick={onToggle} disabled={!supported}>
+      {listening ? <Square size={10} fill="currentColor" aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
       {listening ? <span className="live__word">Listening</span> : null}
-    </button>
+    </IconButton>
   );
 }

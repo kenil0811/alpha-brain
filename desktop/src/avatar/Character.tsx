@@ -86,7 +86,7 @@ export function Character({ mood, state = "idle", done = 0, size = 96 }: { mood:
   const label = mood !== "idle" ? mood : state === "idle" ? "here" : state;
   return (
     <span ref={box} className="avatar__character">
-      <CompanionZazooFace director={director} size={size} label={`Alpha is ${label}`} crop={false} />
+      <CompanionZazooFace director={director} size={size} label={`Zazoo is ${label}`} crop={false} />
     </span>
   );
 }

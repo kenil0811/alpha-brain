@@ -9,6 +9,7 @@
  *
  * Every edit goes through the core, which journals it with who made it.
  */
+import { IconButton } from "../ui/IconButton";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Filter, MoreVertical, Search } from "lucide-react";
 import type { Client, RecordRow, TableData, TableDesc } from "../core/client";
@@ -492,12 +493,12 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                         </label>
                         {at >= 0 ? (
                           <span className="menu__arrows">
-                            <button type="button" className="iconbtn" aria-label={`Move ${fieldLabel(f)} left`} disabled={at === 0} onClick={() => moveColumn(f.name, -1)}>
+                            <IconButton size="sm" aria-label={`Move ${fieldLabel(f)} left`} disabled={at === 0} onClick={() => moveColumn(f.name, -1)}>
                               <ArrowUp size={12} />
-                            </button>
-                            <button type="button" className="iconbtn" aria-label={`Move ${fieldLabel(f)} right`} disabled={at === visible.length - 1} onClick={() => moveColumn(f.name, 1)}>
+                            </IconButton>
+                            <IconButton size="sm" aria-label={`Move ${fieldLabel(f)} right`} disabled={at === visible.length - 1} onClick={() => moveColumn(f.name, 1)}>
                               <ArrowDown size={12} />
-                            </button>
+                            </IconButton>
                           </span>
                         ) : null}
                       </div>

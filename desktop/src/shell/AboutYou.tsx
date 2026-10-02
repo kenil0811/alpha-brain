@@ -3,6 +3,7 @@
  * and the person's say over every one of them. A suggestion from a project or a conversation
  * waits for a yes.
  */
+import { Button } from "../ui/Button";
 import { useState } from "react";
 import type { Client, Fact, ModuleCard } from "../core/client";
 import { humanize } from "../modules/format";
@@ -59,12 +60,12 @@ export function AboutYou({ client, facts, modules, onChanged, onOpen }: { client
                   </div>
                 </div>
                 <span className="row" style={{ gap: 6 }}>
-                  <button type="button" className="btn btn--sm btn--primary" onClick={() => void act(() => client.decideFact(s.id, true))}>
+                  <Button size="sm" onClick={() => void act(() => client.decideFact(s.id, true))}>
                     Yes, that's right
-                  </button>
-                  <button type="button" className="btn btn--sm" onClick={() => void act(() => client.decideFact(s.id, false))}>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => void act(() => client.decideFact(s.id, false))}>
                     No
-                  </button>
+                  </Button>
                 </span>
               </OpenRow>
             ))}

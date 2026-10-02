@@ -3,6 +3,8 @@
  * proposes, facts to confirm), what's coming up, and their projects. Nothing here is
  * decoration: each card is something to answer or open.
  */
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
@@ -57,21 +59,21 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
         <form className="row" onSubmit={(e) => { e.preventDefault(); if (answer.trim()) void act(() => client.answerAsk(item.id, answer.trim()), "Answered."); }}>
           {item.options?.length ? (
             item.options.map((o) => (
-              <button key={o} type="button" className="btn" disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
+              <Button key={o} variant="outline" disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
                 {o}
-              </button>
+              </Button>
             ))
           ) : (
             <>
-              <input className="need__input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" aria-label="Your answer" />
-              <button type="submit" className="btn btn--primary" disabled={busy || !answer.trim()}>
+              <Input className="need__input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" aria-label="Your answer" />
+              <Button type="submit" disabled={busy || !answer.trim()}>
                 Answer
-              </button>
+              </Button>
             </>
           )}
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.dismissAsk(item.id), "Dismissed.")}>
+          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.dismissAsk(item.id), "Dismissed.")}>
             Dismiss
-          </button>
+          </Button>
         </form>
         {error ? <p className="notice" role="alert">{error}</p> : null}
       </article>
@@ -85,12 +87,12 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
           {item.why ? <InfoTip content={item.why} label="Why Alpha suggests this" /> : null}
         </div>
         <div className="row">
-          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
+          <Button disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
             {item.plan ? "Build it" : "Yes, do it"}
-          </button>
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
             Not now
-          </button>
+          </Button>
         </div>
         {error ? <p className="notice">{error}</p> : null}
       </article>
@@ -103,12 +105,12 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
         {item.why ? <InfoTip content={item.why} label="What Alpha noticed" /> : null}
       </div>
       <div className="row">
-        <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, true), "Remembered.")}>
+        <Button disabled={busy} onClick={() => void act(() => client.decideFact(item.id, true), "Remembered.")}>
           Yes, remember it
-        </button>
-        <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, false), "Forgotten.")}>
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, false), "Forgotten.")}>
           No
-        </button>
+        </Button>
       </div>
       {error ? <p className="notice">{error}</p> : null}
     </article>
@@ -234,9 +236,9 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                     <div className="item__sub">Starting…</div>
                   ) : null}
                 </div>
-                <button type="button" className="btn btn--sm" onClick={() => onOpenThread(t.id)}>
+                <Button variant="outline" size="sm" onClick={() => onOpenThread(t.id)}>
                   Open
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -316,10 +318,10 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       {home.modules.length === 0 ? (
         <div className="section">
           <div className="card card--pad stack">
-            <p className="page__line">Tell Alpha one thing you keep track of, or connect something it can read.</p>
+            <p className="page__line">Tell Zazoo one thing you keep track of, or connect something it can read.</p>
             <div className="row">
-              <button type="button" className="btn" onClick={() => onAsk("I want to track what I eat")}>Track what I eat</button>
-              <button type="button" className="btn" onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</button>
+              <Button variant="outline" onClick={() => onAsk("I want to track what I eat")}>Track what I eat</Button>
+              <Button variant="outline" onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</Button>
             </div>
           </div>
         </div>

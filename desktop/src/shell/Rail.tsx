@@ -3,6 +3,7 @@
  * to reorder, open, hide), New project, and Intelligence and Settings at the foot. Activity is
  * the bell in Zazoo's header. It collapses to icons and resizes (ui/panel).
  */
+import { IconButton } from "../ui/IconButton";
 import { useRef, useState } from "react";
 import { EyeOff, FolderOpen, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import type { ModuleCard } from "../core/client";
@@ -194,9 +195,9 @@ export function Rail({
         {!collapsed ? (
           <DropdownMenu open={menuFor === m.id} onOpenChange={(open) => setMenuFor(open ? m.id : null)}>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="iconbtn iconbtn--sm navrow__menu" aria-label={`${m.name} options`}>
+              <IconButton size="sm" className="navrow__menu" aria-label={`${m.name} options`}>
                 <MoreVertical size={14} />
-              </button>
+              </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem onSelect={() => onGo(target)}>

@@ -6,6 +6,7 @@
  * panel (growing box, mic) to say or type one thing, answered at once; a final spoken sentence
  * sends by itself. Anything that needs the full window is handed to the workspace.
  */
+import { Button } from "../ui/Button";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { ArrowUp, Maximize2, X } from "lucide-react";
 import type { ClaudeStatus, Client, Home, JournalEntry, Thread, Turn } from "../core/client";
@@ -277,9 +278,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <p>{shownBubble}</p>
             {!bubble && needs.length ? (
               <div className="row">
-                <button type="button" className="btn btn--sm btn--primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
+                <Button size="sm" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
                   Open
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>
@@ -287,7 +288,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         <div className="avatar__grip" data-tauri-drag-region title="Drag to move Alpha" aria-hidden="true">
           ⋯
         </div>
-        <button type="button" className={`avatar__button is-${state}`} {...dragHandlers} onClick={() => (dragged.current ? (dragged.current = false) : toggle())} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
+        <button type="button" className={`avatar__button is-${state}`} {...dragHandlers} onClick={() => (dragged.current ? (dragged.current = false) : toggle())} aria-label={expanded ? "Hide Zazoo's panel" : "Ask Zazoo"} aria-expanded={expanded} title={label}>
           <Character mood={busy ? "thinking" : speech.listening ? "listening" : mood} state={view.state} done={done} size={expanded ? 56 : 88} />
         </button>
       </div>

@@ -6,6 +6,7 @@
  * `section` / `onSection` come from the address (#/settings/<section>); without them the last
  * section is remembered per window.
  */
+import { Button } from "../ui/Button";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Cpu, HardDrive, Info, type LucideIcon, Monitor, Palette, PawPrint, RotateCcw, Settings as SettingsIcon } from "lucide-react";
 import { ACCESSORIES, type AvatarLook, BODY_COLORS, DEFAULT_LOOK, kindLabel, saveLook, SHIRT_COLORS, speciesOf, SUIT_COLORS, TIE_COLORS, useLook } from "../avatar/look";
@@ -17,6 +18,9 @@ import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { InfoTip } from "../ui";
+import { Badge } from "../ui/Badge";
+import { StandardDropdown } from "../ui/StandardDropdown";
+import { Segmented } from "../ui/Segmented";
 import { ACCENTS, CORNERS, DENSITIES, FONTS, SIZES, useAppearance } from "./appearance";
 import { COMPANION_PALETTES } from "./palettes";
 import { ThemeControl, type Theme } from "./theme";
@@ -61,18 +65,9 @@ function readSection(): string {
   }
 }
 
-/** A two-way choice in Alpha's segmented style (Shown/Hidden, On/Off). */
+/** A two-way choice (Shown/Hidden, On/Off). */
 function Toggle({ label, on, onChange, labels }: { label: string; on: boolean; onChange: (on: boolean) => void; labels: [string, string] }) {
-  return (
-    <div className="theme" role="group" aria-label={label}>
-      <button type="button" aria-pressed={on} onClick={() => onChange(true)}>
-        {labels[0]}
-      </button>
-      <button type="button" aria-pressed={!on} onClick={() => onChange(false)}>
-        {labels[1]}
-      </button>
-    </div>
-  );
+  return <Segmented label={label} value={on ? "on" : "off"} options={[{ value: "on", label: labels[0] }, { value: "off", label: labels[1] }]} onChange={(v) => onChange(v === "on")} />;
 }
 
 /** Claude: connected or not, and the one step that gets there. Also used on first run. */
@@ -130,30 +125,30 @@ export function ClaudeRow({ client, status, onStatus }: { client: Client; status
         <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
         {error ? <div className="notice" style={{ fontSize: 12 }}>{error}</div> : null}
       </div>
-      {status ? <span className={`pill ${connected ? "pill--good" : "pill--warn"}`}>{connected ? "Connected" : "Not connected"}</span> : null}
+      {status ? <Badge variant={connected ? "success" : "warning"}>{connected ? "Connected" : "Not connected"}</Badge> : null}
       {!status ? null : connected ? (
         confirming ? (
           <>
-            <button type="button" className="btn btn--sm" onClick={() => setConfirming(false)}>
+            <Button variant="outline" size="sm" onClick={() => setConfirming(false)}>
               Keep it
-            </button>
-            <button type="button" className="btn btn--sm btn--danger" onClick={() => void act(() => client.signOutClaude().then(onStatus), null).then(() => setConfirming(false))}>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => void act(() => client.signOutClaude().then(onStatus), null).then(() => setConfirming(false))}>
               Sign out
-            </button>
+            </Button>
           </>
         ) : (
-          <button type="button" className="btn btn--sm btn--ghost" onClick={() => setConfirming(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
             Sign out
-          </button>
+          </Button>
         )
       ) : status.installed ? (
-        <button type="button" className="btn btn--sm btn--primary" disabled={waiting !== null} onClick={() => void act(() => client.signInClaude(), "signin")}>
+        <Button size="sm" disabled={waiting !== null} onClick={() => void act(() => client.signInClaude(), "signin")}>
           {waiting === "signin" ? "Waiting…" : "Sign in"}
-        </button>
+        </Button>
       ) : (
-        <button type="button" className="btn btn--sm btn--primary" disabled={waiting !== null} onClick={() => void act(() => client.installClaude(), "install")}>
+        <Button size="sm" disabled={waiting !== null} onClick={() => void act(() => client.installClaude(), "install")}>
           {waiting === "install" ? "Installing…" : "Install"}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -165,19 +160,6 @@ function Swatches({ label, value, options, onChange }: { label: string; value: s
     <div className="settings__swatches" role="radiogroup" aria-label={label}>
       {options.map((o) => (
         <button key={o.value} type="button" role="radio" aria-checked={value.toLowerCase() === o.value.toLowerCase()} aria-label={o.label} title={o.label} className="settings__swatch" style={{ background: o.color }} onClick={() => onChange(o.value)} />
-      ))}
-    </div>
-  );
-}
-
-/** A choice of a few in Alpha's segmented style. */
-function Segmented({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
-  return (
-    <div className="theme" role="group" aria-label={label}>
-      {options.map((o) => (
-        <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
       ))}
     </div>
   );
@@ -228,19 +210,13 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
         <ThemeControl theme={theme} onChange={onTheme} />
       </Row>
       <Row title="Companion colours" tip={`Tints the page, cards and borders with your companion's colours (the ${kind.toLowerCase()} now) and takes its accent. Pick another accent to keep your own.`}>
-        <Segmented label="Companion colours" value={appearance.companion ? "on" : "off"} options={[{ value: "on", label: "On" }, { value: "off", label: "Off" }]} onChange={(v) => update(v === "on" ? { companion: true, accent: "companion" } : { companion: false, accent: appearance.accent === "companion" ? "steel" : appearance.accent })} />
+        <Toggle label="Companion colours" on={appearance.companion} labels={["On", "Off"]} onChange={(on) => update(on ? { companion: true, accent: "companion" } : { companion: false, accent: appearance.accent === "companion" ? "steel" : appearance.accent })} />
       </Row>
       <Row title="Accent colour">
         <Swatches label="Accent colour" value={appearance.accent} options={accents} onChange={(accent) => update({ accent })} />
       </Row>
-      <Row title={<label htmlFor="appearance-font">Font</label>}>
-        <select id="appearance-font" className="btn btn--sm settings__select" value={appearance.font} onChange={(e) => update({ font: e.target.value })}>
-          {FONTS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+      <Row title="Font">
+        <StandardDropdown ariaLabel="Font" options={FONTS} value={appearance.font} onChange={(font) => update({ font })} />
       </Row>
       <Row title="Text size">
         <Segmented label="Text size" value={appearance.size} options={SIZES} onChange={(size) => update({ size })} />
@@ -257,15 +233,13 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
       <Row title="Motion" tip="Reduce stops animations and holds your companion still. Match Mac follows the Mac's Reduce motion setting.">
         <Segmented label="Motion" value={appearance.motion} options={MOTIONS} onChange={(motion) => update({ motion })} />
       </Row>
-      <Row title={<label htmlFor="rows-per-page">Rows per page</label>} tip="How many rows a table shows at once.">
-        <select id="rows-per-page" className="btn btn--sm settings__select" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
-          <option value="fit">Fit to window</option>
-          {PAGE_SIZES.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
+      <Row title="Rows per page" tip="How many rows a table shows at once.">
+        <StandardDropdown
+          ariaLabel="Rows per page"
+          options={[{ value: "fit", label: "Fit to window" }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]}
+          value={String(pageSize)}
+          onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))}
+        />
       </Row>
     </div>
   );
@@ -294,20 +268,17 @@ function AvatarSettings() {
           <CompanionZazooFace director={director} size={112} label={`Zazoo as a ${kind.toLowerCase()}`} crop={false} />
         </div>
         <div className="item__body stack avatar-settings__pick">
-          <b>
-            <label htmlFor="avatar-species">Animal</label>
-          </b>
-          <select id="avatar-species" className="btn btn--sm settings__select" value={species.id} onChange={(e) => change({ species: e.target.value, body: SPECIES.find((s) => s.id === e.target.value)?.body ?? look.body })}>
-            {SPECIES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {kindLabel(s)}
-              </option>
-            ))}
-          </select>
+          <b>Animal</b>
+          <StandardDropdown
+            ariaLabel="Animal"
+            options={SPECIES.map((s) => ({ value: s.id, label: kindLabel(s) }))}
+            value={species.id}
+            onChange={(id) => change({ species: id, body: SPECIES.find((s) => s.id === id)?.body ?? look.body })}
+          />
           <div className="row">
-            <button type="button" className="btn btn--sm" onClick={() => saveLook(DEFAULT_LOOK)} disabled={JSON.stringify(look) === JSON.stringify(DEFAULT_LOOK)}>
+            <Button variant="outline" size="sm" onClick={() => saveLook(DEFAULT_LOOK)} disabled={JSON.stringify(look) === JSON.stringify(DEFAULT_LOOK)}>
               <RotateCcw size={14} aria-hidden="true" /> Reset to Zazoo
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -319,11 +290,11 @@ function AvatarSettings() {
             ))}
           </span>
           {themed ? (
-            <span className="pill pill--info">In use</span>
+            <Badge variant="info">In use</Badge>
           ) : (
-            <button type="button" className="btn btn--sm" onClick={() => updateAppearance({ companion: true, accent: "companion" })}>
+            <Button variant="outline" size="sm" onClick={() => updateAppearance({ companion: true, accent: "companion" })}>
               Use
-            </button>
+            </Button>
           )}
         </Row>
       ) : null}
@@ -367,9 +338,9 @@ function DataAndRuntime({ client }: { client: Client }) {
           </div>
         </div>
         {host.available() ? (
-          <button type="button" className="btn btn--sm" onClick={() => void host.revealData()}>
+          <Button variant="outline" size="sm" onClick={() => void host.revealData()}>
             Show in Finder
-          </button>
+          </Button>
         ) : null}
       </div>
       <div className="item">
@@ -382,9 +353,8 @@ function DataAndRuntime({ client }: { client: Client }) {
             </div>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="btn btn--sm"
+        <Button
+          variant="outline" size="sm"
           disabled={busy}
           onClick={() => {
             setBusy(true);
@@ -397,7 +367,7 @@ function DataAndRuntime({ client }: { client: Client }) {
           }}
         >
           {busy ? "Backing up…" : "Back up now"}
-        </button>
+        </Button>
       </div>
       {data?.backups.slice(0, 5).map((b) => (
         <div className="item" key={b.name}>
@@ -429,8 +399,8 @@ function AvatarSetting() {
     <div className="card list" aria-label="Desktop assistant">
       <div className="item">
         <div className="item__body">
-          <b>Alpha on your desktop</b>
-          <InfoTip content="A small Alpha stays above your other windows. Click it or speak to log something, ask a question, open a project or start something new." label="About the desktop assistant" />
+          <b>Zazoo on your desktop</b>
+          <InfoTip content="A small Zazoo stays above your other windows. Click it or speak to log something, ask a question, open a project or start something new." label="About the desktop assistant" />
           {shown === null ? <div className="item__sub">Desktop app only.</div> : null}
         </div>
         {shown !== null ? <Toggle label="Desktop assistant" on={shown} onChange={set} labels={["Shown", "Hidden"]} /> : null}
@@ -442,7 +412,7 @@ function AvatarSetting() {
 const SHORTCUTS: [string, string][] = [
   ["⌘↩", "Send a request to the assistant"],
   ["↩ / Esc", "Save or cancel a cell you are editing"],
-  ["⌘K", "Go to a project or a page, or ask Alpha"],
+  ["⌘K", "Go to a project or a page, or ask Zazoo"],
   ["⌘W", "Close the window; Alpha keeps running"],
   ["⌘Q", "Quit Alpha and stop everything"],
 ];

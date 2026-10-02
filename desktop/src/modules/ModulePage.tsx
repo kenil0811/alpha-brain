@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Folder, Plus } from "lucide-react";
 import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
 import { Button, InfoTip } from "../ui";
+import { Badge, type BadgeVariant } from "../ui/Badge";
 import { projectIcon } from "../shell/projectIcons";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
@@ -182,7 +183,7 @@ export function ModulePage({
                         {src.detail ?? (src.status === "working" ? `${src.last_rows ?? 0} rows${src.last_checked ? ` · read ${when(src.last_checked)}` : ""}` : src.site)}
                       </div>
                     </div>
-                    <span className={`pill ${SOURCE_STATUS[src.status].pill}`}>{SOURCE_STATUS[src.status].words}</span>
+                    <Badge variant={SOURCE_STATUS[src.status].badge}>{SOURCE_STATUS[src.status].words}</Badge>
                   </div>
                 ))}
               </div>
@@ -191,7 +192,7 @@ export function ModulePage({
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
-              <InfoTip content="Switch any off; Alpha says so if something needs it. Ask Alpha to keep something here current and it shows up with a switch." label="About automations" />
+              <InfoTip content="Switch any off; Alpha says so if something needs it. Ask Zazoo to keep something here current and it shows up with a switch." label="About automations" />
             </div>
             <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here." />
           </div>
@@ -201,14 +202,14 @@ export function ModulePage({
   );
 }
 
-const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> = {
-  working: { pill: "pill--good", words: "Working" },
-  needs_signin: { pill: "pill--warn", words: "Needs your sign-in" },
-  blocked: { pill: "pill--bad", words: "Blocked" },
-  broken: { pill: "pill--bad", words: "Being repaired" },
-  not_built: { pill: "pill--gray", words: "Not read yet" },
-  unavailable: { pill: "pill--gray", words: "Nothing to read" },
-  skipped: { pill: "pill--gray", words: "Skipped by you" },
+const SOURCE_STATUS: Record<Source["status"], { badge: BadgeVariant; words: string }> = {
+  working: { badge: "success", words: "Working" },
+  needs_signin: { badge: "warning", words: "Needs your sign-in" },
+  blocked: { badge: "danger", words: "Blocked" },
+  broken: { badge: "danger", words: "Being repaired" },
+  not_built: { badge: "neutral", words: "Not read yet" },
+  unavailable: { badge: "neutral", words: "Nothing to read" },
+  skipped: { badge: "neutral", words: "Skipped by you" },
 };
 
 function sourceSummary(sources: Source[]): string {
@@ -247,9 +248,9 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
         })}
       </div>
       {rows.length > shown ? (
-        <button type="button" className="btn btn--sm btn--start" onClick={() => setShown((n) => n + PAGE)}>
+        <Button variant="outline" size="sm" className="btn--start" onClick={() => setShown((n) => n + PAGE)}>
           Show more ({rows.length - shown} earlier)
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -284,9 +285,9 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
               {t.added_this_week ? ` · ${t.added_this_week} added this week` : ""}
             </span>
             <span className="section__right">
-              <button type="button" className="btn btn--sm" onClick={() => onOpen(t.name)}>
+              <Button variant="outline" size="sm" onClick={() => onOpen(t.name)}>
                 Open
-              </button>
+              </Button>
             </span>
           </div>
           {t.amounts?.length ? (
@@ -308,9 +309,9 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
               <div className="metric__lab">{t.split.label}</div>
               <div className="row">
                 {Object.entries(t.split.counts).map(([choice, n]) => (
-                  <span key={choice} className={`pill ${t.split?.done.includes(choice) ? "pill--good" : "pill--gray"}`}>
+                  <Badge key={choice} variant={t.split?.done.includes(choice) ? "success" : "neutral"}>
                     {humanize(choice)} <b className="num">{n}</b>
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>

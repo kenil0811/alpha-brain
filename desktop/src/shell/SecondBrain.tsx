@@ -9,6 +9,7 @@
  * beside the graph shows what it is, what it links to and the same edits as its own page; its
  * neighbours light up on hover or focus, and Esc lets go.
  */
+import { Button } from "../ui/Button";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { X } from "lucide-react";
 import type { Entity } from "../core/client";
@@ -175,9 +176,9 @@ export function SecondBrain({ ctx, onOpenKnowledge }: { ctx: ItemContext; onOpen
 
   const manage = (
     <div className="row" style={{ justifyContent: "flex-end" }}>
-      <button type="button" className="btn btn--sm" onClick={onOpenKnowledge}>
+      <Button variant="outline" size="sm" onClick={onOpenKnowledge}>
         {pending ? `Manage (${pending} waiting for you)` : "Manage what Alpha knows"}
-      </button>
+      </Button>
     </div>
   );
   if (people === null) return <p className="empty">Loading…</p>;
@@ -201,15 +202,15 @@ export function SecondBrain({ ctx, onOpenKnowledge }: { ctx: ItemContext; onOpen
           </button>
         ))}
         <span className="rail__spacer" />
-        <button type="button" className="btn btn--sm" onClick={() => zoomTo(view.w / 1.3)} aria-label="Zoom in" title="Zoom in">
+        <Button variant="outline" size="sm" onClick={() => zoomTo(view.w / 1.3)} aria-label="Zoom in" title="Zoom in">
           +
-        </button>
-        <button type="button" className="btn btn--sm" onClick={() => zoomTo(view.w * 1.3)} aria-label="Zoom out" title="Zoom out">
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => zoomTo(view.w * 1.3)} aria-label="Zoom out" title="Zoom out">
           −
-        </button>
-        <button type="button" className="btn btn--sm" onClick={fit} title="Back to the whole picture">
+        </Button>
+        <Button variant="outline" size="sm" onClick={fit} title="Back to the whole picture">
           Reset
-        </button>
+        </Button>
       </div>
       <svg
         ref={svg}
@@ -320,9 +321,9 @@ function NodeCard({ node, links, ctx, onPick }: { node: GraphNode; links: GraphN
         </div>
       ) : null}
       <div className="row">
-        <button type="button" className="btn btn--sm" onClick={() => ctx.onGo(node.page)}>
+        <Button variant="outline" size="sm" onClick={() => ctx.onGo(node.page)}>
           Open page
-        </button>
+        </Button>
       </div>
     </aside>
   );

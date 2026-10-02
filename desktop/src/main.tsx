@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AvatarBoot, isAvatarWindow } from "./avatar/boot";
 import "./styles/app.css";
+import { Button } from "./ui/Button";
 
 /** A window that went blank tells nobody anything: any error that escapes rendering is shown
  *  in the window with a way back. */
@@ -19,9 +20,9 @@ class Guard extends React.Component<{ children: React.ReactNode }, { error: stri
         <section className="page page--crash stack" role="alert">
           <h2>Alpha's window hit a problem</h2>
           <p className="notice">{this.state.error}</p>
-          <button type="button" className="btn btn--primary" onClick={() => window.location.reload()}>
+          <Button onClick={() => window.location.reload()}>
             Reload
-          </button>
+          </Button>
         </section>
       );
     }

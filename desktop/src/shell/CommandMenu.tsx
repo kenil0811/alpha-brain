@@ -55,7 +55,7 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
     const q = query.trim().toLowerCase();
     if (!q) return items;
     const hits = items.filter((i) => i.label.toLowerCase().includes(q));
-    return [...hits, { id: "ask", label: `Ask Alpha: ${query.trim()}`, icon: MessageCircle, run: () => onAsk(query.trim()) }];
+    return [...hits, { id: "ask", label: `Ask Zazoo: ${query.trim()}`, icon: MessageCircle, run: () => onAsk(query.trim()) }];
   }, [items, query, onAsk]);
 
   const choose = (item: Command | undefined) => {

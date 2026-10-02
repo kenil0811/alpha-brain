@@ -2,6 +2,7 @@
  * What runs on its own: each automation as the sentence the person reads, when it runs next,
  * how its last run went, an on/off switch and Run now.
  */
+import { Button } from "../ui/Button";
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { Automation, Client, ModuleCard } from "../core/client";
@@ -72,9 +73,9 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                 <div className="notice notice--sm">Last run didn't work: {a.last_error}</div>
               ) : null}
             </div>
-            <button type="button" className="btn btn--sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
+            <Button variant="outline" size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
               {a.running ? "Running…" : "Run now"}
-            </button>
+            </Button>
           </div>
         ))}
       </div>

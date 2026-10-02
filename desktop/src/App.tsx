@@ -11,6 +11,8 @@
  * place reopens the thread last open there (`alpha.sessions`). New project starts the sentence
  * in Zazoo ("I want to ").
  */
+import { Button } from "./ui/Button";
+import { IconButton } from "./ui/IconButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Boxes, Home as HomeIcon, Settings as SettingsIcon } from "lucide-react";
 import { Client } from "./core/client";
@@ -250,9 +252,8 @@ function Workspace({ injected }: { injected?: Client }) {
   const scopeKey = scopeModule ? `module:${scopeModule.id}` : "global";
   const chat: ChatChoice = sessionByScope[scopeKey];
   const bell = (
-    <button
-      type="button"
-      className={surface.kind === "activity" ? "iconbtn bell iconbtn--on" : "iconbtn bell"}
+    <IconButton
+      className={surface.kind === "activity" ? "bell iconbtn--on" : "bell"}
       aria-label={needs ? `Activity, ${needs} need you` : "Activity"}
       title="Activity"
       aria-current={surface.kind === "activity" ? "page" : undefined}
@@ -260,7 +261,7 @@ function Workspace({ injected }: { injected?: Client }) {
     >
       <Bell size={16} />
       {needs ? <span className="bell__count">{needs > 9 ? "9+" : needs}</span> : null}
-    </button>
+    </IconButton>
   );
   const scopeName =
     surface.kind === "module" ? (scopeModule?.name ?? "Project") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : "Intelligence";
@@ -291,9 +292,9 @@ function Workspace({ injected }: { injected?: Client }) {
                 </p>
                 <p className="muted page__line">
                   Alpha keeps trying on its own every few seconds.{" "}
-                  <button type="button" className="btn btn--sm" onClick={() => setAttempt((n) => n + 1)}>
+                  <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
                     Try again now
-                  </button>
+                  </Button>
                 </p>
               </>
             ) : null}

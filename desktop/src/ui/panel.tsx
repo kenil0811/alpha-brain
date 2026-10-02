@@ -9,6 +9,7 @@
  * acts when focus is inside this panel (or no dialog/menu is open) so it never steals
  * Escape from an open overlay.
  */
+import { IconButton } from "./IconButton";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ChevronsLeft, ChevronsRight, MoveHorizontal, PanelLeftClose, PanelRightClose } from "lucide-react";
 import "./panel.css";
@@ -219,9 +220,9 @@ export function CollapseToggleButton({
   const Icon = collapsed ? (side === "left" ? ChevronsRight : ChevronsLeft) : side === "left" ? PanelLeftClose : PanelRightClose;
   const label = collapsed ? `Expand the ${side === "left" ? "sidebar" : "panel"}` : `Collapse the ${side === "left" ? "sidebar" : "panel"}`;
   return (
-    <button type="button" className={`iconbtn panel__toggle${className ? ` ${className}` : ""}`} aria-label={label} title={label} aria-expanded={!collapsed} aria-controls={controls} onClick={onClick}>
+    <IconButton size="sm" className={`panel__toggle${className ? ` ${className}` : ""}`} aria-label={label} title={label} aria-expanded={!collapsed} aria-controls={controls} onClick={onClick}>
       <Icon size={16} />
-    </button>
+    </IconButton>
   );
 }
 

@@ -1,6 +1,7 @@
 /** The appearance setting: follow the Mac, force light or dark, or Ambient (light from 7:00 to
  * 19:00, dark otherwise). Light until the person picks another, as in Alpha. Kept per window. */
 import { useCallback, useEffect, useState } from "react";
+import { Segmented } from "../ui/Segmented";
 import { useLookChange } from "../avatar/look";
 import { reapplyAppearance } from "./appearance";
 
@@ -48,16 +49,11 @@ export function useTheme(): [Theme, (next: Theme) => void] {
 }
 
 export function ThemeControl({ theme, onChange, compact = false }: { theme: Theme; onChange: (next: Theme) => void; compact?: boolean }) {
-  const options: [Theme, string][] = compact ? [["light", "Light"], ["dark", "Dark"]] : [["system", "Match Mac"], ["light", "Light"], ["dark", "Dark"], ["ambient", "Ambient"]];
-  return (
-    <div className="theme" role="group" aria-label="Appearance">
-      {options.map(([value, label]) => (
-        <button key={value} type="button" aria-pressed={theme === value || (compact && theme === "system" && value === currentSystem())} onClick={() => onChange(value)}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+  const options: { value: Theme; label: string }[] = compact
+    ? [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }]
+    : [{ value: "system", label: "Match Mac" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "ambient", label: "Ambient" }];
+  // Compact has no "Match Mac", so it marks whichever the Mac is showing.
+  return <Segmented label="Appearance" value={compact && theme === "system" ? currentSystem() : theme} options={options} onChange={onChange} />;
 }
 
 function currentSystem(): Theme {

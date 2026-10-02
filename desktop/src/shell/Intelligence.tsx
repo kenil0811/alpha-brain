@@ -4,11 +4,14 @@
  * read, switch or correct, never a configuration form. Each item opens its own page
  * (`./IntelItem.tsx`); the second brain is its own place to look and edit.
  */
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { type FormEvent, useEffect, useState } from "react";
 import { CalendarDays, Folder, Globe, Link, Puzzle, ScanText } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { InfoTip, PageHeader, Tabs } from "../ui";
+import { Badge, type BadgeVariant } from "../ui/Badge";
 import { AboutYou } from "./AboutYou";
 import { AutomationTable } from "./Automations";
 import { INSTRUCTIONS, IntelItemPage, OpenRow, OpenTitle, type ItemContext } from "./IntelItem";
@@ -30,11 +33,11 @@ const CONNECTOR: Record<string, { icon: typeof Folder; label: (c: Connection) =>
   calendar: { icon: CalendarDays, label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
 };
 
-const STATUS: Record<Connection["status"], { pill: string; words: string }> = {
-  connected: { pill: "pill--good", words: "Connected" },
-  needs_ok: { pill: "pill--warn", words: "Needs your OK" },
-  broken: { pill: "pill--bad", words: "Not working" },
-  off: { pill: "pill--gray", words: "Off" },
+const STATUS: Record<Connection["status"], { badge: BadgeVariant; words: string }> = {
+  connected: { badge: "success", words: "Connected" },
+  needs_ok: { badge: "warning", words: "Needs your OK" },
+  broken: { badge: "danger", words: "Not working" },
+  off: { badge: "neutral", words: "Off" },
 };
 
 /** What removing a connection takes with it: the same words Activity records afterwards. */
@@ -104,24 +107,24 @@ function Connections({ client, data, onChanged, onOpen }: { client: Client; data
                   )}
                 </div>
               </div>
-              <span className={`pill ${STATUS[c.status].pill}`}>{STATUS[c.status].words}</span>
+              <Badge variant={STATUS[c.status].badge}>{STATUS[c.status].words}</Badge>
               {removing?.id === c.id ? (
                 <>
-                  <button type="button" className="btn btn--sm" onClick={() => setRemoving(null)}>
+                  <Button variant="outline" size="sm" onClick={() => setRemoving(null)}>
                     Keep it
-                  </button>
-                  <button type="button" className="btn btn--sm btn--danger" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
                     Remove
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="btn btn--sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
+                  <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
                     {c.connector === "browser" ? "Check" : "Read now"}
-                  </button>
-                  <button type="button" className="btn btn--sm btn--ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
                     Remove
-                  </button>
+                  </Button>
                 </>
               )}
             </OpenRow>
@@ -135,10 +138,10 @@ function Connections({ client, data, onChanged, onOpen }: { client: Client; data
             <InfoTip content="Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change." label="About folders" />
           </div>
           <div className="row">
-            <input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
-            <button type="submit" className="btn btn--primary" disabled={!folder.trim() || busy !== null}>
+            <Input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
+            <Button type="submit" disabled={!folder.trim() || busy !== null}>
               Read it
-            </button>
+            </Button>
           </div>
         </form>
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("site", () => client.connectSite(site.trim()), "A window is open: sign in there, then close it."); }}>
@@ -147,10 +150,10 @@ function Connections({ client, data, onChanged, onOpen }: { client: Client; data
             <InfoTip content="LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it." label="About sites" />
           </div>
           <div className="row">
-            <input className="need__input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
-            <button type="submit" className="btn btn--primary" disabled={!site.trim() || busy !== null}>
+            <Input className="need__input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
+            <Button type="submit" disabled={!site.trim() || busy !== null}>
               Sign in
-            </button>
+            </Button>
           </div>
         </form>
         {!hasCalendar ? (
@@ -160,9 +163,9 @@ function Connections({ client, data, onChanged, onOpen }: { client: Client; data
               <InfoTip content="Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once." label="About calendars" />
             </div>
             <div className="row">
-              <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
+              <Button disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
                 Connect calendars
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -217,9 +220,9 @@ function Knowledge({ client, data, modules, onChanged, onOpen }: { client: Clien
                 <OpenTitle open={() => onOpen(p.id)}>{p.sentence}</OpenTitle>
                 <div className="item__sub">since {when(p.granted_at)}</div>
               </div>
-              <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
+              <Button variant="ghost" size="sm" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
                 Revoke
-              </button>
+              </Button>
             </OpenRow>
           ))}
         </div>
@@ -288,7 +291,7 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
                   <OpenTitle open={() => open(s.name)}>{s.title}</OpenTitle>
                   <div className="item__sub">{s.tools.map((t) => humanize(t.name) + (t.effect === "write" ? " (asks first)" : "")).join(" · ")}</div>
                 </div>
-                <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+                <Badge variant="neutral">{s.origin === "builtin" ? "Built in" : "Alpha made"}</Badge>
               </OpenRow>
             ))}
             {data.readers.map((r) => (
@@ -304,7 +307,7 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
                     {r.last_problem ? ` · ${r.last_problem}` : ""}
                   </div>
                 </div>
-                <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
+                <Badge variant={r.health === "ok" ? "success" : "danger"}>{r.health === "ok" ? "Working" : "Being repaired"}</Badge>
               </OpenRow>
             ))}
           </div>

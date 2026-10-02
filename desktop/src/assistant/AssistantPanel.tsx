@@ -337,7 +337,7 @@ export function AssistantPanel({
             <div className="msg msg--ai">
               {module ? (
                 <>
-                  I'm looking at <b>{module.name}</b>. Ask about it, tell me to run something, or describe what to change or add and Alpha changes it in place. Everything already saved in it is kept.
+                  I'm looking at <b>{module.name}</b>. Ask about it, tell me to run something, or describe what to change or add and I change it in place. Everything already saved in it is kept.
                 </>
               ) : (
                 <>Tell me what you want to keep track of, automate or get done. I'll ask at most a couple of questions, then build it.</>
@@ -444,7 +444,7 @@ export function AssistantPanel({
             }}
             onKeyDown={key}
             placeholder={inThread ? "Reply…" : "Ask…"}
-            aria-label="Message Alpha"
+            aria-label="Message Zazoo"
           />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={toggleMic} small />
           <IconButton aria-label="Send" title="Enter to send, Shift+Enter for a new line" type="submit" className="composer__send" disabled={!text.trim() || Boolean(pending)}>
