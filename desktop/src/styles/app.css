@@ -804,4 +804,7 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .drawer-sheet { position: fixed; inset: 0 0 56px 0; z-index: 12; background: rgba(26, 43, 60, 0.32); }
 .drawer-sheet__panel { width: min(280px, 85vw); height: 100%; background: var(--surface); }
 .drawer-sheet .rail { display: flex; width: 100% !important; }
+.quick--table { margin-bottom: 10px; box-shadow: none; }
+.quick__plus { flex: none; color: var(--primary); }
+.quick--table .quick__status { flex: none; padding: 0; }
 /* ---------- end P1 ---------- */

@@ -5,7 +5,7 @@
  * with its sub projects. The App · Activity · Settings toggle and the subtabs are the shell's
  * own structure; the section lives in the address (`#/m/<id>/<section>`).
  */
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Archive, Folder, MoreHorizontal, Plus, X } from "lucide-react";
 import type { Client, ModuleCard, ModuleDetail, ModuleSummary } from "../core/client";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, Tooltip, useToast } from "../ui";
@@ -16,6 +16,7 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
+import { MicButton, useSpeech } from "../shell/voice";
 
 type Section = "app" | "activity" | "settings";
 /** While it is still being worked out and holds nothing, only the creation shows. */
@@ -32,6 +33,7 @@ export function ModulePage({
   modules = [],
   onDescribe,
   onOpenSession,
+  onQuickEntry,
 }: {
   client: Client;
   moduleId: string;
@@ -46,6 +48,8 @@ export function ModulePage({
   onDescribe?: (text: string) => void;
   /** Open one of the project's chats in the panel. */
   onOpenSession?: (threadId: string) => void;
+  /** A table's one-line quick entry, sent to Chief of Staff in this project's chat. */
+  onQuickEntry?: (text: string) => void;
 }) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [editing, setEditing] = useState<ProjectEdit | null>(null);
@@ -206,7 +210,10 @@ export function ModulePage({
             ))}
           </div>
           {table ? (
-            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
+            <>
+              {onQuickEntry ? <QuickEntry key={`quick-${table.name}`} title={table.title} onSend={onQuickEntry} /> : null}
+              <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
+            </>
           ) : (
             <>
               <ProjectNotes client={client} detail={detail} onChanged={onChanged} />
@@ -648,5 +655,48 @@ function SubProjects({ client, detail, modules, onChanged, onGo }: { client: Cli
         <p className="projempty">None yet</p>
       )}
     </div>
+  );
+}
+
+/** Alpha's quick entry above a table: type or say one line and Chief of Staff adds it. */
+function QuickEntry({ title, onSend }: { title: string; onSend: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const typedBefore = useRef("");
+  const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value) return;
+    onSend(`Add to ${title}: ${value}`);
+    setText("");
+    setSent(true);
+  }
+  return (
+    <form className="card quick quick--table" onSubmit={submit} aria-label={`Quick entry for ${title}`}>
+      <Plus size={16} strokeWidth={1.75} aria-hidden="true" className="quick__plus" />
+      <input
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setSent(false);
+        }}
+        placeholder={`Add to ${title}…`}
+        aria-label={`Add to ${title}`}
+      />
+      {sent ? <span className="faint quick__status">Sent to Chief of Staff</span> : null}
+      <MicButton
+        listening={speech.listening}
+        supported={speech.supported}
+        onToggle={() => {
+          if (!speech.listening) typedBefore.current = text;
+          speech.toggle();
+        }}
+        small
+      />
+      <Button type="submit" size="sm" disabled={!text.trim()}>
+        Add
+      </Button>
+    </form>
   );
 }

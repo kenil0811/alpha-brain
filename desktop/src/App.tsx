@@ -74,7 +74,7 @@ function Workspace({ injected }: { injected?: Client }) {
   const [sessionByScope, setSessionByScope] = useState<Record<string, string | null>>(() => remembered(SESSIONS_KEY, {}));
   // Chief of Staff is open on Home and closed on a project page unless opened there.
   const [openByKind, setOpenByKind] = useState<{ home: boolean; module: boolean }>(() => ({ home: true, module: false, ...remembered<Partial<{ home: boolean; module: boolean }>>(OPEN_KEY, {}) }));
-  const [sendNow, setSendNow] = useState<{ text: string; id: number; thread: string } | null>(null);
+  const [sendNow, setSendNow] = useState<{ text: string; id: number; thread?: string } | null>(null);
   const [drawer, setDrawer] = useState(false);
   const toast = useToast();
   const [version, setVersion] = useState(0);
@@ -375,6 +375,10 @@ function Workspace({ injected }: { injected?: Client }) {
                 section={surface.section}
                 onSection={(section) => setSurface({ kind: "module", id: surface.id, section })}
                 modules={modules}
+                onQuickEntry={(text) => {
+                  openAssistant();
+                  setSendNow({ text, id: Date.now() });
+                }}
                 onDescribe={(text) => {
                   const thread = scopeModule?.creation?.thread;
                   if (!thread) return;

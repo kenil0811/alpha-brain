@@ -112,7 +112,7 @@ export function AssistantPanel({
   headerEnd?: ReactNode;
   /** A message typed somewhere else (the blank project's "Describe your project"), sent here
    *  as if typed, into `thread`; `id` changes once per message. */
-  sendNow?: { text: string; id: number; thread: string } | null;
+  sendNow?: { text: string; id: number; thread?: string } | null;
   /** The page beside the chat shows the project being made: the chat only points to it. */
   cardsOnPage?: boolean;
 }) {
