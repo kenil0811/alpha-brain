@@ -308,6 +308,10 @@ ADDED_COLUMNS = [
     ("automations", "steps", "TEXT"),
     # whether a reader returns its whole list (only then do rows it no longer returns count as gone)
     ("readers", "whole", "INTEGER NOT NULL DEFAULT 1"),
+    # the first thing the person will do with what a plan builds, as they would say it, and how
+    # many times the build's trial of it disagreed with an independent answer
+    ("plans", "trial", "TEXT"),
+    ("plans", "checks", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

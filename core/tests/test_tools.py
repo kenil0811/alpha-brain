@@ -21,8 +21,9 @@ def test_level_zero_flow_through_the_tools(world: World) -> None:
     )
     assert table["module"] == module["id"]
     rec = t.records_add("food_log", {"food": "Two boiled eggs", "kcal": 155, "protein_g": 13},
-                        estimated=True)
-    assert rec["_provenance"] == {"by": "alpha", "turn": "j_turn", "estimated": True}
+                        source="estimated")
+    assert rec["_provenance"] == {"by": "alpha", "turn": "j_turn", "source": "estimated",
+                                  "estimated": True}
     total = t.records_aggregate("food_log", "sum", "kcal")
     assert total["value"] == 155
     changed = t.records_update("food_log", rec["id"], {"kcal": 160}, rec["revision"])

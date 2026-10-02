@@ -31,6 +31,42 @@ log = logging.getLogger("alpha.tools")
 ALPHA_SETS = ("not_built", "needs_signin", "blocked", "unavailable", "skipped")
 
 
+def provenance_of(source: str, assumed: str | None, *, turn: str | None) -> dict[str, Any]:
+    """What a record's values rest on. `source` is "stated" (the person gave them), "estimated"
+    (worked out with nothing to read) or where they were looked up (a URL or a few words naming
+    the page); `assumed` is what had to be assumed because it was unknown. Kept on the record so
+    the table can show which numbers are known and which are guesses."""
+    src = " ".join((source or "estimated").split()) or "estimated"
+    kind = src.lower()
+    prov: dict[str, Any] = {"by": "alpha", "turn": turn}
+    if kind == "stated":
+        prov["source"] = "stated"
+        prov["estimated"] = False
+    elif kind in ("estimated", "estimate", "guess", "guessed"):
+        prov["source"] = "estimated"
+        prov["estimated"] = True
+    else:
+        prov["source"] = src
+        prov["estimated"] = False
+    if assumed and assumed.strip():
+        prov["assumed"] = " ".join(assumed.split())
+    return prov
+
+
+def provenance_words(prov: dict[str, Any]) -> str:
+    """The bracket after "Added X to Y": (estimated), (from the label on ocado.com), (assumed
+    the 330 ml bottle), or nothing when the person stated it all."""
+    parts: list[str] = []
+    source = prov.get("source")
+    if prov.get("estimated"):
+        parts.append("estimated")
+    elif source and source != "stated":
+        parts.append(f"from {source}")
+    if prov.get("assumed"):
+        parts.append(f"assumed {prov['assumed']}")
+    return f" ({'; '.join(parts)})" if parts else ""
+
+
 def tool[F: Callable[..., Any]](fn: F) -> F:
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -96,6 +132,9 @@ class Tools:
     def _module_of(self, collection: str) -> str | None:
         module: str | None = self.world.collections.describe(collection)["module"]
         return module
+
+    def _provenance(self, source: str, assumed: str | None) -> dict[str, Any]:
+        return provenance_of(source, assumed, turn=self.turn)
 
     # ---- finding things ----
 
@@ -221,19 +260,22 @@ class Tools:
 
     @tool
     def records_add(
-        self, collection: str, values: dict[str, Any], estimated: bool = False
+        self, collection: str, values: dict[str, Any], source: str = "estimated",
+        assumed: str | None = None,
     ) -> dict[str, Any]:
-        """Add one record to a table. values: field name → value. estimated: true when numbers
-        were worked out (e.g. calories from a description) rather than given by the person."""
-        rec = self.world.collections.add(
-            collection, values,
-            {"by": "alpha", "turn": self.turn, "estimated": estimated},
-        )
+        """Add one record to a table. values: field name → value. source: where the values
+        Alpha worked out come from: "stated" when the person gave every value; the page or
+        document they were read from (a URL, or "label on ocado.com") when looked up; "estimated"
+        only for what could not be looked up. assumed: anything you had to assume because it was
+        unknown and could not be found ("the 330 ml bottle"), so the record and the person both
+        know."""
+        prov = self._provenance(source, assumed)
+        rec = self.world.collections.add(collection, values, prov)
         desc = self.world.collections.describe(collection)
         label = rec.get(desc["title_field"]) or rec["id"]
         self._did(
             "did",
-            f"Added {label} to {desc['title']}{' (estimated)' if estimated else ''}.",
+            f"Added {label} to {desc['title']}{provenance_words(prov)}.",
             {"collection": collection, "record": rec["id"], "values": values},
             desc["module"],
         )
@@ -327,19 +369,30 @@ class Tools:
 
     @tool
     def records_update(
-        self, collection: str, id: str, values: dict[str, Any], revision: int
+        self, collection: str, id: str, values: dict[str, Any], revision: int,
+        source: str | None = None, assumed: str | None = None,
     ) -> dict[str, Any]:
         """Change fields of one record. revision: the record's current revision (from a query);
-        if someone changed it meanwhile you get an error and should read it again."""
+        if someone changed it meanwhile you get an error and should read it again. source: as
+        in records_add, when the new values were looked up ("label on ocado.com"), stated or
+        estimated; left out, the record keeps what it had. assumed: as in records_add."""
         before = self.world.collections.get(collection, id)
-        rec = self.world.collections.update(
-            collection, id, values, revision, {"by": "alpha", "turn": self.turn}
-        )
+        prior = before.get("_provenance") or {}
+        if source is None:
+            prov: dict[str, Any] = {"by": "alpha", "turn": self.turn,
+                                    **{k: prior[k] for k in ("source", "estimated", "assumed")
+                                       if k in prior}}
+            if assumed:
+                prov["assumed"] = assumed
+        else:
+            prov = self._provenance(source, assumed)
+        rec = self.world.collections.update(collection, id, values, revision, prov)
         desc = self.world.collections.describe(collection)
         self._did(
             "changed",
             f"Changed {rec.get(desc['title_field']) or id} in {desc['title']}: "
-            + ", ".join(f"{k} {before.get(k)!r} → {v!r}" for k, v in values.items()) + ".",
+            + ", ".join(f"{k} {before.get(k)!r} → {v!r}" for k, v in values.items())
+            + f"{provenance_words(prov) if source else ''}.",
             {"collection": collection, "record": id,
              "before": {k: before.get(k) for k in values}, "after": values},
             desc["module"],
@@ -821,18 +874,25 @@ class Tools:
     # ---- plans: understand and propose, then build after the person's yes ----
 
     @tool
-    def plan_propose(self, title: str, plan: str, module: str | None = None,
+    def plan_propose(self, title: str, plan: str, trial: str, module: str | None = None,
                      replaces: str | None = None) -> dict[str, Any]:
         """Propose what you would set up, before anything is made. plan (Markdown): what you
         understood they want and why; what you found (each source, and whether it is readable,
         needs a sign-in or stops automated reading); what you would set up and why (tables and
-        their fields, how it stays current, what you would tell them and when); what you can't
-        reach and what to do about it; the questions that depend on them, numbered. module: an
-        existing module it extends. replaces: the plan this revises. Nothing is built until
-        they say yes."""
+        their fields, where every value will come from and how it stays current, what you would
+        tell them and when); what you can't reach and what to do about it; the questions that
+        depend on them, numbered. trial: the first thing the person will do with it, as they
+        would say it to Alpha ("log a For Goodness Shakes 35g protein shake", "which deals are
+        new today"), with a checkable answer: the finished build tries it and checks the answer
+        against an independent one before it counts as done. module: an existing module it
+        extends. replaces: the plan this revises. Nothing is built until they say yes."""
+        if not trial or len(trial.split()) < 2:
+            return {"error": "A plan needs a trial: the first thing the person will do with it,"
+                    " in their words, so the build can be checked against an independent"
+                    " answer."}
         module_id = self.world.modules.get(module)["id"] if module else None
         made = self.world.plans.propose(title, plan, module=module_id, turn=self.turn,
-                                        replaces=replaces)
+                                        replaces=replaces, trial=trial)
         jid = self.world.journal.append(
             "proposed", f"Plan: {title}",
             data={"plan": made["id"], "why": plan.strip()[:400], "turn": self.turn},
@@ -895,10 +955,11 @@ class Tools:
     @tool
     def table_start(self, title: str, fields: list[dict[str, Any]], values: dict[str, Any],
                     module: str | None = None, name: str | None = None,
-                    estimated: bool = False) -> dict[str, Any]:
+                    source: str = "estimated", assumed: str | None = None) -> dict[str, Any]:
         """Only for a plain log with nowhere to keep it ("log two boiled eggs" and no food
         table exists): make the simplest table for it (in module, made if it doesn't exist)
-        and add this first row. One per message. Anything more is a plan (plan_propose)."""
+        and add this first row. One per message. Anything more is a plan (plan_propose).
+        source and assumed: as in records_add."""
         said = self.world.journal.read(self.turn) if self.turn else None
         if not said or said["kind"] != "said" or said["actor"] != "person":
             return {"error": "table_start is for logging what the person just said."}
@@ -919,8 +980,11 @@ class Tools:
         described = self.world.collections.create(slug, title, fields, module=module_id)
         self._did("made", f"Made the table {title} to keep this.",
                   {"collection": slug, "table_start": True}, module_id)
-        row = self.world.collections.add(
-            slug, values, {"by": "alpha", "turn": self.turn, "estimated": estimated})
+        prov = self._provenance(source, assumed)
+        row = self.world.collections.add(slug, values, prov)
+        self._did("did", f"Added {row.get(described['title_field']) or row['id']} to {title}"
+                  f"{provenance_words(prov)}.",
+                  {"collection": slug, "record": row["id"], "values": values}, module_id)
         return {"table": described, "row": row}
 
     # ---- sources: everything a module reads from, and whether it works ----

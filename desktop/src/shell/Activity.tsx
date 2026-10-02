@@ -6,13 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 
-const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered"]);
+const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
 function badge(e: JournalEntry): { cls: string; words: string } {
   if (e.kind === "failed") return { cls: "badge--failed", words: "Failed" };
   if (e.kind === "asked" || e.kind === "proposed") return { cls: "badge--waiting", words: "Waiting" };
   if (e.actor === "person") return { cls: "", words: "You" };
   if (e.kind === "saw") return { cls: "badge--running", words: "Read" };
+  if (e.kind === "checked") return { cls: (e.data as { agree?: boolean }).agree ? "badge--succeeded" : "badge--failed", words: "Checked" };
   return { cls: "badge--succeeded", words: "Done" };
 }
 

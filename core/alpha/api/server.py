@@ -31,7 +31,7 @@ from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
-from alpha.runtime import build, claude_account, claude_cli
+from alpha.runtime import build, check, claude_account, claude_cli
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world import backup
@@ -84,10 +84,13 @@ class Turns:
     """Turns run in the background; the window polls for the answer."""
 
     def __init__(self, world: World, runner: turns.Runner | None = None,
-                 after: Callable[[], None] | None = None) -> None:
+                 after: Callable[[], None] | None = None, checks: bool = True) -> None:
         self.world = world
         self.runner = runner
         self.after = after
+        # After a turn in which Alpha wrote values it worked out itself, an independent answer
+        # checks them in the background and Alpha corrects itself in the conversation.
+        self.checks = checks
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
 
@@ -121,9 +124,27 @@ class Turns:
             if self.after is not None:
                 # A plan approved in this turn starts building now, not at the next tick.
                 self.after()
+            said_id = result.get("said")
+            if self.checks and result["state"] == "done" and said_id:
+                self.check(str(said_id))
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def check(self, said: str) -> None:
+        if not check.worth_checking(self.world, said):
+            return
+
+        def work() -> None:
+            try:
+                kwargs: dict[str, Any] = {}
+                if self.runner is not None:
+                    kwargs["runner"] = self.runner
+                check.check(self.world, said, **kwargs)
+            except Exception:
+                log.exception("check failed")
+
+        threading.Thread(target=work, daemon=True, name=f"check-{said}").start()
 
     def get(self, key: str) -> dict[str, Any]:
         with self.lock:
@@ -223,7 +244,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     world = world or World()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     scheduler = Scheduler(world, runner)
-    running = Turns(world, runner, after=scheduler.builds if live else None)
+    running = Turns(world, runner, after=scheduler.builds if live else None, checks=live)
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager

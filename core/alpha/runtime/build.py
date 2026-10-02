@@ -14,10 +14,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import check, claude_cli, turn
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.builds")
+# How many times a finished build is sent back when its trial disagrees with an independent
+# answer, before the report says so and leaves it to the person.
+TRIAL_REPAIRS = 2
 
 BUILD_RULES = """You are Alpha, building something the person approved; they are not watching. \
 THIS THREAD below holds the approved plan (the brief) and what this build has done so far. Build \
@@ -47,6 +50,16 @@ reader and a tell step for what the person wants to hear about. Use a procedure 
 that needs judgement on every run.
 - Give the person something working early: one source end to end, with the automation, before \
 the rest.
+- Every value in a table is stated by the person, looked up from a source, or estimated and \
+marked so. A table whose values come from outside (labels, prices, listings, figures) gets its \
+way of obtaining them built here, not left to guessing later: a reader where the values sit on \
+a page, or a lookup procedure (how to find the source and read the value) written into the \
+module's note; try it on a real item and check the value against the source before you rely on \
+it. The module's note says where each kind of value comes from and what stays estimated.
+- When the build is done, the platform tries the plan's trial (the first thing the person will \
+do) as they would say it, and checks the answer against an independent one with web search. If \
+they differ, you get the finding in this thread and the build goes on until they agree: fix \
+how the value is obtained, never the one row.
 - After each piece of work, rewrite the brief with thread_brief: the plan as approved, then a \
 short Progress list (done, next). If this run is cut off, the next one starts from it.
 
@@ -64,9 +77,51 @@ def brief(plan: dict[str, Any]) -> str:
     return (f"# {plan['title']}\n\n{plan['body']}{approval}\n\n## Progress\n- Nothing built yet.")
 
 
-def _report(world: World, plan: dict[str, Any], text: str) -> str:
+def _report(world: World, plan: dict[str, Any], text: str,
+            tried: dict[str, Any] | None = None) -> str:
     coverage = world.sources.coverage_line(plan["module"])
-    return text.strip() + (f"\n\n{coverage}" if coverage else "")
+    out = text.strip()
+    if tried:
+        out += f"\n\nTried \"{plan['trial']}\" as you would: {tried['reply']} {tried['words']}"
+        if not tried["agree"]:
+            out += (" It still differed after the build was sent back to fix it: correct it,"
+                    " or tell me what I'm getting wrong.")
+    return out + (f"\n\n{coverage}" if coverage else "")
+
+
+def trial(world: World, plan: dict[str, Any], *, runner: turn.Runner = claude_cli.run
+          ) -> dict[str, Any]:
+    """Try the plan's trial sentence in the build's thread, as the person would say it, check
+    the answer against an independent one, and remove the rows the trial made. Returns the
+    reply, the verdict's words and whether it agreed."""
+    thread = plan["thread"]
+    sentence = str(plan["trial"])
+    outcome = turn.ask(
+        world, f'Trial of the build, as the person would say it: "{sentence}". Do exactly what'
+        " you would do for them.", thread=thread, module=plan["module"], runner=runner,
+        actor="alpha", journal_as=f'Tried the build as the person would: "{sentence}".')
+    reply = outcome.reply if outcome.ok else f"it failed: {outcome.result.error or 'no reply'}"
+    verdict: dict[str, Any] = {"agree": outcome.ok, "words": ""}
+    if outcome.ok:
+        result = check.check(world, outcome.said, sentence=sentence, runner=runner, repair=False)
+        if result["checked"]:
+            verdict = {"agree": result["agree"] and not result["unstated"],
+                       "words": check.words(result)}
+        else:
+            verdict = {"agree": True, "words": f"(Not checked: {result['why']})"}
+    else:
+        verdict["words"] = "(Not checked.)"
+    for rec in check.records_of(world, outcome.said):
+        try:
+            world.collections.delete(rec["collection"], rec["id"], rec["revision"])
+            desc = world.collections.describe(rec["collection"])
+            world.journal.append("changed", f"Removed the trial's row from {desc['title']}.",
+                                 data={"collection": rec["collection"], "record": rec["id"],
+                                       "trial": outcome.said, "turn": outcome.said},
+                                 thread=thread, module=plan["module"])
+        except Exception:
+            log.exception("could not remove a trial row")
+    return {"said": outcome.said, "reply": reply, **verdict}
 
 
 def _what_was_done(world: World, thread: str) -> str:
@@ -131,7 +186,18 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
     if stopped or plan["state"] == "stopped":
         return stop(world, plan_id, None) if plan["state"] != "stopped" else plan
     if ok:
-        text = _report(world, plan, reply)
+        tried = trial(world, plan, runner=runner) if plan.get("trial") else None
+        if tried and not tried["agree"] and plan["checks"] < TRIAL_REPAIRS:
+            # Not done: the finding goes into the thread, and the next run carries on from it.
+            world.plans.checked(plan_id)
+            world.journal.append(
+                "did", f"The trial \"{plan['trial']}\" gave: {tried['reply']} {tried['words']}"
+                " Fix how this module obtains such values (look them up from their source and"
+                " keep the way of doing it), then the trial runs again.",
+                actor="alpha", thread=thread, module=plan["module"],
+                data={"plan": plan_id, "trial": tried["said"]})
+            return world.plans.get(plan_id)
+        text = _report(world, plan, reply, tried)
         world.plans.finish(plan_id, text)
         world.modules.update_thread(thread, state="done")
         world.journal.append("replied", text, data={"plan": plan_id, "thread": thread},

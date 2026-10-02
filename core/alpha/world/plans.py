@@ -32,7 +32,9 @@ class Plans:
 
     def propose(self, title: str, body: str, *, module: str | None = None,
                 turn: str | None = None, proposal: str | None = None,
-                replaces: str | None = None) -> dict[str, Any]:
+                replaces: str | None = None, trial: str | None = None) -> dict[str, Any]:
+        """`trial` is the first thing the person will do with what gets built, in their words;
+        the finished build tries it and checks the answer against an independent one."""
         if not title.strip() or not body.strip():
             raise Problem("A plan needs a title and the plan itself.")
         stamp = now()
@@ -42,11 +44,18 @@ class Plans:
                 db.execute("UPDATE plans SET state = 'replaced', updated_at = ? WHERE id = ?"
                            " AND state = 'proposed'", (stamp, replaces))
             db.execute(
-                "INSERT INTO plans (id, title, body, state, module, turn, proposal, created_at,"
-                " updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                (pid, title.strip(), body.strip(), "proposed", module, turn, proposal, stamp,
-                 stamp),
+                "INSERT INTO plans (id, title, body, state, module, turn, proposal, trial,"
+                " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (pid, title.strip(), body.strip(), "proposed", module, turn, proposal,
+                 (trial or "").strip() or None, stamp, stamp),
             )
+        return self.get(pid)
+
+    def checked(self, pid: str) -> dict[str, Any]:
+        """One more trial of the finished build disagreed with an independent answer."""
+        with self.store.tx() as db:
+            db.execute("UPDATE plans SET checks = checks + 1, updated_at = ? WHERE id = ?",
+                       (now(), pid))
         return self.get(pid)
 
     def set_module(self, pid: str, module: str) -> None:

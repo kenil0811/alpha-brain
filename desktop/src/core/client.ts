@@ -36,10 +36,14 @@ export interface TableSummary {
   records: number;
 }
 
+/** What a row's values rest on: "stated" by the person, "estimated" by Alpha, or where Alpha
+ * looked them up (a URL or a few words naming the page); `assumed` is what Alpha had to assume. */
 export interface Provenance {
   by?: string;
   turn?: string | null;
   estimated?: boolean;
+  source?: string;
+  assumed?: string;
 }
 
 export interface RecordRow {

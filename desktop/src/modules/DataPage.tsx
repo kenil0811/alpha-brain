@@ -240,6 +240,9 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const filtered = Boolean(search || Object.values(filters).some(Boolean) || hideDone);
   const count = (n: number) => n.toLocaleString();
   const rowsWord = (n: number) => (n === 1 ? "row" : "rows");
+  const guesses = rows ? rows.filter((r) => r.provenance?.estimated).length : 0;
+  const assumed = rows ? rows.filter((r) => r.provenance?.assumed && !r.provenance?.estimated).length : 0;
+  const resting = !rows || (!guesses && !assumed) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : ""].filter(Boolean).join(", ")}`;
   const counted = !rows
     ? "Loading…"
     : paged && rows.length > size
@@ -370,7 +373,14 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
         </div>
         {openRow ? <RecordPanel row={openRow} fields={fields} titleField={titleField} onClose={() => setOpenId(null)} onCommit={(field, text) => commit(openRow, field, text)} onRemove={() => remove(openRow)} /> : null}
         <div className="pager">
-          <span className="num">{counted}</span>
+          <span className="num">
+            {counted}
+            {resting ? (
+              <span className="faint" title="Numbers Alpha estimated or assumed something for. Click a cell to correct it.">
+                {resting}
+              </span>
+            ) : null}
+          </span>
           {status ? (
             <span className={status.ok ? "notice notice--ok" : "notice"} role="status">
               {status.text}
@@ -523,6 +533,10 @@ function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCo
   const value = row.values[field.name];
   const numeric = isNumeric(field.kind);
   const estimate = Boolean(row.provenance?.estimated) && numeric;
+  const assumed = row.provenance?.assumed;
+  const source = row.provenance?.source;
+  const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
+  const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   function begin(e?: { stopPropagation: () => void }) {
     e?.stopPropagation();
     setText(editText(value, field.kind));
@@ -564,11 +578,15 @@ function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCo
   }
   const words = showValue(value, field.kind, field.unit);
   return (
-    <td className={`${numeric ? "r num" : ""} editable`.trim()} onClick={(e) => begin(e)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && begin(e)} title="Click to edit">
+    <td className={`${numeric ? "r num" : ""} editable`.trim()} onClick={(e) => begin(e)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && begin(e)} title={rests ? `${rests} Click to correct it.` : "Click to edit"}>
       {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill ${field.done_choices?.includes(String(value)) ? "pill--good" : "pill--gray"}`}>{words}</span> : field.kind === "boolean" ? (value ? "✓" : <span className="faint">—</span>) : words}
       {estimate ? (
-        <span className="est" title="Estimated by Alpha. Click the cell to correct it." aria-label="estimated">
+        <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="estimated">
           ≈
+        </span>
+      ) : assumed && numeric ? (
+        <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="on an assumption">
+          ?
         </span>
       ) : null}
     </td>

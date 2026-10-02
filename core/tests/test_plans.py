@@ -40,7 +40,7 @@ def test_a_plain_log_with_no_home_still_gets_the_simplest_table(world: World) ->
     t = Tools(world, turn=said(world, "log two boiled eggs"))
     out = t.table_start("Food log", [{"name": "food", "kind": "text"},
                                      {"name": "kcal", "kind": "number"}],
-                        {"food": "Two boiled eggs", "kcal": 155}, module="Food", estimated=True)
+                        {"food": "Two boiled eggs", "kcal": 155}, module="Food", source="estimated")
     assert out["row"]["food"] == "Two boiled eggs" and world.modules.get("Food")
     assert "One new table" in t.table_start("Water", [{"name": "ml", "kind": "number"}],
                                             {"ml": 250})["error"]
@@ -55,8 +55,11 @@ def test_a_plain_log_with_no_home_still_gets_the_simplest_table(world: World) ->
 def test_a_plan_needs_the_persons_yes_after_it_was_proposed(world: World) -> None:
     ask = said(world, "i want a live daily tracker of all deals from my list")
     t = Tools(world, turn=ask)
+    assert "trial" in t.plan_propose("Daily deal tracker", "The plan.", "")["error"]
     plan = t.plan_propose("Daily deal tracker", "## What I understood\nYour 20 sites…\n"
-                          "## Questions\n1. Only accounting firms?")["plan"]
+                          "## Questions\n1. Only accounting firms?",
+                          "which deals are new today")["plan"]
+    assert world.plans.get(plan)["trial"] == "which deals are new today"
     home = TestClient(create_app(world, live=False)).get("/api/home").json()
     assert [n["text"] for n in home["needs_you"]] == ["Plan: Daily deal tracker"]
     assert "error" in t.plan_approve(plan, "a live daily tracker of all deals")  # same turn
@@ -69,7 +72,8 @@ def test_a_plan_needs_the_persons_yes_after_it_was_proposed(world: World) -> Non
 
 
 def test_the_app_approves_a_plan_without_another_turn(world: World) -> None:
-    plan = Tools(world, turn=said(world, "track it")).plan_propose("Tracker", "The plan.")
+    plan = Tools(world, turn=said(world, "track it")).plan_propose("Tracker", "The plan.",
+                                                                   "which deals are new")
     c = TestClient(create_app(world, live=False))
     proposal = c.get("/api/home").json()["needs_you"][0]
     out = c.post(f"/api/proposals/{proposal['id']}/decide", json={"accept": True}).json()

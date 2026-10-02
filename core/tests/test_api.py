@@ -159,3 +159,33 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     assert kcal["today"] == 675 and kcal["this_week"] == 675 and kcal["how"] == "total"
     assert table["split"]["counts"] == {"breakfast": 1, "lunch": 1}
     assert "latest" not in table
+
+
+def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World) -> None:
+    from alpha.api.server import AskBody, Turns
+    from alpha.mcp.tools import Tools
+
+    building(world).collection_create("food_log", "Food log",
+                                      [{"name": "item", "kind": "text"},
+                                       {"name": "kcal", "kind": "number"}])
+    kinds: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        kinds.append(req.kind)
+        if req.kind == "independent":
+            return RunResult(reply="215 kcal (ocado.com).", ok=True)
+        if req.kind == "judge":
+            return RunResult(reply='{"agree": true, "differences": [], "unstated": []}', ok=True)
+        Tools(world, turn=req.turn_id).records_add("food_log", {"item": "Shake", "kcal": 215},
+                                                   source="label on ocado.com")
+        return RunResult(reply="Logged: 215 kcal from the label.", ok=True)
+
+    turns_ = Turns(world, runner, checks=True)
+    started = turns_.start(AskBody(text="i had a shake"))
+    for _ in range(100):
+        if kinds[-1:] == ["judge"]:
+            break
+        time.sleep(0.05)
+    assert kinds == ["turn", "independent", "judge"]
+    assert turns_.get(started["id"])["state"] == "done"
+    assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")

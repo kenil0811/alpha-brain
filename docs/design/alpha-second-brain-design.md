@@ -282,6 +282,24 @@ Your point 3: the decision of when a one-off is worth turning into a tracker, a 
 - Undo where the connector allows; where it does not, the journal shows exactly what was sent.
 - An Access page: every connection, what it reaches and at what level, every grant to a skill.
 - Source content is data, never instruction: an email cannot tell Alpha what to do.
+- **Known, assumed or asked (decided 2 October 2026).** Every value Alpha writes or says is one of
+  three things, and Alpha knows which: *stated* by the person; *looked up* from a source it can
+  name (a label, a listing, a document, a page), which is what happens to anything that can be
+  known that way, never a guess; or *estimated*, only for what cannot be known, and said so. When
+  the result depends on something unknown that cannot be found out (which bottle size, which of
+  two people), Alpha asks before acting when the readings differ a lot, or acts on the likeliest
+  reading and says what it assumed, in the reply and on the record. Never a silent pick. Records
+  carry this as provenance (`source`, `estimated`, `assumed`); the table page shows which numbers
+  are known and which are guesses. The bar is the one a person holds Claude to in a chat: the
+  exact number with its source, or an honest "I assumed" or "which did you mean?".
+- **A second opinion.** After a turn in which Alpha wrote values it worked out itself, the same
+  sentence is answered again by the same model with web search and nothing of Alpha's, a judging
+  run compares the two, and the verdict is journaled (`checked`). A difference the independent
+  answer can source goes back to Alpha as a turn: it corrects the records from the source and
+  says so in the conversation, or says why it stands by its own. Every finished build tries the
+  plan's *trial* (the first thing the person will do with it, in their words) and is sent back
+  while the trial's answer differs from an independent one, up to twice; then the report says so.
+  "It ran" is not "it works".
 
 ---
 

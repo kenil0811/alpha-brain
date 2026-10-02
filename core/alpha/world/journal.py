@@ -24,6 +24,8 @@ KINDS = {
     "made",
     "changed",
     "failed",
+    # Alpha's answer compared with an independent one (web search, no Alpha tools)
+    "checked",
 }
 
 

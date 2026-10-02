@@ -118,6 +118,18 @@ class TurnRequest:
     thread_id: str | None = None
     module_id: str | None = None
     model: str | None = None
+    # What kind of run this is: "turn" (Alpha with its world and tools), "independent" (the same
+    # model with web search only and no Alpha, for a second opinion) or "judge" (no tools at
+    # all: compares two answers). Fake runners in tests tell them apart by it.
+    kind: str = "turn"
+
+
+def tools_allowed(req: TurnRequest) -> list[str]:
+    if req.kind == "independent":
+        return ["WebSearch", "WebFetch"]
+    if req.kind == "judge":
+        return []
+    return ALLOWED
 
 
 def mcp_config(req: TurnRequest) -> dict[str, Any]:
@@ -135,6 +147,8 @@ def mcp_config(req: TurnRequest) -> dict[str, Any]:
 
 
 def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[str]:
+    allowed = tools_allowed(req)
+    denied = DENIED + ([] if allowed else ["WebSearch", "WebFetch"])
     args = [
         binary,
         "-p",
@@ -143,13 +157,15 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "json",
         "--append-system-prompt",
         req.system,
-        "--mcp-config",
-        str(config_path),
-        "--strict-mcp-config",
-        "--allowedTools",
-        *ALLOWED,
+    ]
+    if req.kind == "turn":
+        # Alpha's world as an MCP server; an independent or judging run never sees it.
+        args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
+    if allowed:
+        args += ["--allowedTools", *allowed]
+    args += [
         "--disallowedTools",
-        *DENIED,
+        *denied,
         # dontAsk: anything not in --allowedTools is refused rather than prompted for.
         "--permission-mode",
         "dontAsk",
