@@ -322,7 +322,7 @@ class Accounts:
         try:
             list_models(spec["base_url"], auth_headers(spec["kind"], key), timeout=10)
         except ProviderHTTPError as e:
-            if e.status in (401, 403):
+            if e.status in (400, 401, 403):  # a list call only fails like this over the key
                 raise Problem(f"{spec['label']} refused that key.") from e
             # Not a verdict on the key (offline, a hiccup): keep it, say why the row is red.
             keychain.set_key(provider, key)

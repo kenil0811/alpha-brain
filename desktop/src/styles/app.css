@@ -676,7 +676,7 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .models__field { width: clamp(240px, 36vw, 320px); min-width: 0; flex: 0 1 auto; height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
 .models__field::placeholder { color: var(--text-3); }
 .models__picker { display: inline-flex; min-width: 0; max-width: 220px; }
-.models__picker .ui-std-dropdown__trigger { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.models__picker .ui-std-dropdown__trigger { max-width: 220px; height: 28px; padding: 0 9px; border-radius: 8px; font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .models__problem { padding: 10px 14px 0; }
 .models__connect { display: flex; flex-direction: column; gap: 8px; }
 .models__connect-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }

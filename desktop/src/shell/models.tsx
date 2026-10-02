@@ -183,7 +183,10 @@ export function ProviderRow({
     else if (p.kind === "key") window.setTimeout(() => keyField.current?.focus(), 0);
   };
 
-  const line = problem ?? p.error ?? (waiting === "install" || p.installing ? "Installing…" : waiting === "sign_in" ? "Finish signing in in your browser." : code !== null ? "Paste the code your browser shows." : null);
+  const line =
+    problem ??
+    p.error ??
+    (waiting === "install" || p.installing ? "Installing…" : waiting === "sign_in" ? "Finish signing in in your browser." : code !== null ? "Paste the code your browser shows." : autoConnect && p.kind === "local" && !connected ? p.dot.tooltip : null);
   const isError = Boolean(problem ?? p.error);
   return (
     <div className={`item models__row${p.default ? " models__row--default" : ""}`}>
