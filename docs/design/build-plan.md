@@ -1,6 +1,6 @@
 # Build plan
 
-1 October 2026; brought up to date 2 October 2026 (§1, §4.2–§4.5). Written so that any session
+1 October 2026; brought up to date 2 October 2026, evening (§1, §4.3, §4.5, §4.9). Written so that any session
 (or person) can continue from here without the conversation that produced it. The design it implements is `alpha-second-brain-design.md` in this
 folder; read that first. This document is the engineering side: what is decided, what is verified,
 what the first slice is exactly, and what follows.
@@ -36,8 +36,12 @@ what the first slice is exactly, and what follows.
   companion) hosting the core. **After slice 2** (1 Oct, §4.2): one-conversation building,
   automations, the capability model (platform hands vs Alpha's know-how) with readers Alpha writes
   and repairs, complete removal that keeps the audit, paginated tables, Settings with the Claude
-  connection. 25 commits; 76 core + 3 desktop tests. **Where we stand and what is open: §4.3–§4.5**
-  (the recon of 2 Oct). Slices 3–6 of the order of work have not started.
+  connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
+  that are people, threads as records, what the model saw); plan first, sources, pipelines and
+  background builds with no limits; known, assumed or asked (provenance on every value, a second
+  opinion on every answer Alpha worked out, a trial on every build). 46 commits since 1 Oct; 112
+  core + 3 desktop tests; 63 tools. **Where we stand and what is open: §4.3, §4.5 and §4.9.**
+  Slice 3 (proactivity) and the sleep-time pass have not started.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -379,21 +383,26 @@ Most of it came from using the app on the two judging journeys and from Kenil's 
 
 Against the design's order of work:
 
-| Step | State |
+| Step | State (end of 2 Oct) |
 |---|---|
-| 1. World store, MCP server, stream, companion | Done |
-| 2. Browser, files, calendar; derived pages | Done, plus §4.2. Calendar's real first read still not run |
+| 1. World store, MCP server, stream, companion | Done. Plus: row history, what the model saw per turn, threads as records (§4.6) |
+| 2. Browser, files, calendar; derived pages | Done, plus §4.2. Readers mark rows seen and gone; paged lists are read whole or say so. Calendar's real first read still not run |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | Not started |
-| 4. Entities and bi-temporal facts across sources | Partial: the layers exist; turns don't link people at scale (1,548 connections are rows, not people) |
-| 5. Standing-things ladder, promotion from verified runs | Partial: automations exist; no ladder, no promotion |
+| 4. Entities and bi-temporal facts across sources | Partial: rows that are people link by hard key (1,548 connections are now people, §4.6); no cross-source linking yet, no sleep-time pass |
+| 5. Standing-things ladder, promotion from verified runs | Partial: automations and pipelines exist; every standing thing goes through a plan and a yes (§4.7); no ladder, no promotion from repetition |
 | 6. Pending actions and Access | Not started: every outward write is refused |
+| — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8) |
 
 Proven on real runs (the person's own world, the subscription): LinkedIn connections read in
 the person's session (1,548 rows, daily at 07:00, Alpha's own reader); Gmail read through the
 browser (tracking and shipment details from the last 100 emails; then emails from LinkedIn
 connections in the last 24 hours and what one of them said, the first answer joining two
-sources); Nutrition (tables plus a weekly review automation). Proven only by tests: the calendar
-connect, Install and Sign in from Settings on a fresh Mac, the try-the-sign-ins-you-hold path.
+sources); Nutrition (tables plus a weekly review automation); the ETA deal tracker built after
+a plan and a yes (Deal Tracker, 365 rows from the readable broker sites, daily; its first build
+hit the old 80-step cap, which is why there are no limits now); the second opinion on the shake
+(160 → 215 kcal from the Morrisons page in 58 s, flavour asked). Proven only by tests: the
+calendar connect, Install and Sign in from Settings on a fresh Mac, the
+try-the-sign-ins-you-hold path, a build's trial being sent back.
 
 ### 4.4 What the recon flagged
 
@@ -423,16 +432,20 @@ connect, Install and Sign in from Settings on a fresh Mac, the try-the-sign-ins-
    bundles Claude Code) supports every flag in §3.4 is unverified, so the runtime stays on the
    CLI.
 
-### 4.5 What next (proposed 2 Oct, for Kenil to choose)
+### 4.5 What next (proposed 2 Oct; where each stands at the end of the day)
 
-- **A. Sessions and memory**: decided and its foundations built 2 Oct (§4.6, design
-  §3.5–§3.6); the sleep-time pass and the scenario suite are next.
-- **B. Slice 3, proactivity**: triage of new data, the digest, the Inbox on Home.
-- **C. The Gmail decision**: decided 2 Oct, Gmail stays in the browser.
-- **D. A working rule**: three or four standing real journeys (LinkedIn, Gmail × network,
-  nutrition, one new) that every change is judged against, instead of what was last noticed.
+- **A. Sessions and memory**: foundations built (§4.6, design §3.5–§3.6). Still open: the
+  sleep-time pass (idempotent derivations, hard-key links across sources, soft matches
+  proposed) and the scenario suite.
+- **B. Slice 3, proactivity**: not started. Triage of new data, the digest, the Inbox on Home.
+- **C. The Gmail decision**: done, Gmail stays in the browser.
+- **D. A working rule**: half there. The second opinion and the build trial (§4.8) are the
+  mechanism; the three or four standing journeys every change is judged against are not yet
+  written down as a suite that runs.
+- **E. (new, 2 Oct) Plan first and trust**: done (§4.7, §4.8). What it leaves open is in §4.9.
 
-Recommended order: C (done), then A, then B, with D throughout.
+Recommended order now: finish D as a runnable suite of real journeys (it is what stops the
+next "Again!"), then A's sleep-time pass, then B.
 
 ### 4.6 Memory and data foundations (built 2 Oct 2026)
 
@@ -572,6 +585,60 @@ Alpha doesn't know, ask, or at least say what it assumed; never just do anything
   trial in its thread as the person would say it, checks it, removes the trial's rows, and is
   sent back with the finding while it differs (`TRIAL_REPAIRS = 2`); the report ends with what
   was tried and what the check said.
+
+### 4.9 Status at the end of 2 October 2026: done, pending, what changed
+
+**What changed today, in one breath.** Alpha went from "builds on a guess, runs, and calls it
+done" to: it asks and proposes first, builds only after a yes and in the background, keeps every
+place it reads from with a status, writes know-how as pipelines that run without a model, has
+no step or time limits (the person stops), knows where every value it writes comes from, and
+checks its own answers against an independent one. The three failures that drove it: the blind
+ETA build (§4.7), the LinkedIn reader "concluding" a cap from one failed attempt (§4.0 of the
+design), and the shake logged as a guess when the label was one search away (§4.8).
+
+**Done (committed, tested, run for real):**
+- Memory and data foundations: row history, rows that are people, threads as records, the kept
+  context per turn, dated lines, instructions in the person's own words (§4.6).
+- Plan first by mechanism; sources with a status and a coverage line in every report; readers
+  that mark rows seen and gone and say whether they read every page; pipelines (read steps and
+  tell steps) with one repair turn; background builds that continue from the brief, resume
+  after a stop, and have no limits; plan cards and the sources list in the app (§4.7).
+- Known, assumed or asked; provenance (`source`, `assumed`) on records and in the table page;
+  the second opinion after turns Alpha worked values out and by `alpha check`; a trial on every
+  plan, sent back up to twice (§4.8).
+- Removal: a module's readers go with it; the audit stays.
+- The app rebuilt and restarted on this (14:58).
+
+**Pending, in order of how much they matter:**
+1. **The suite of real journeys** (D above). Today's trust mechanisms check single answers; the
+   thing that stops regressions is a handful of real journeys run on a copy of the world after
+   every change: LinkedIn sync, Gmail × network, a branded food log, the ETA tracker's daily run,
+   a plan that must be proposed before building. Not written yet.
+2. **The sleep-time pass and scenario suite** (A). Beliefs still go stale only by being
+   overwritten; nothing links people across Gmail and LinkedIn; nothing consolidates.
+3. **Proactivity** (B): triage, digest, Inbox. Alpha still never brings anything to the person
+   except an automation's "Worth telling".
+4. **The old estimates**: the four food rows logged before today stay estimates until the person
+   logs or asks about them again; the check only runs on new turns. A sleep-time pass could
+   re-check old estimates; not decided.
+5. **Cost of the check**: two extra runs on the subscription after every turn where Alpha
+   worked values out, and three model runs per trial. Fine for one person; worth measuring over
+   a week before anyone else uses it.
+6. **Readers still show "not_built" after their reader ran** in one case (the Accounting Biz
+   source, 13:50): the status is set by the reader's runs, but a reader saved after the source
+   was added didn't claim it. Small, visible, not fixed.
+7. From §4.4, unchanged: LinkedIn reads the whole list daily (reading only what is new would
+   be gentler); desktop-control and app-scripting hands not built; `page_to_table` still in the
+   platform; the photo-vs-name driver fix in `git stash`; not shippable to anyone else (venv,
+   self-signed, subscription login needs Anthropic's approval); the Agent SDK's flag support
+   unverified.
+8. **Housekeeping**: a stray `alpha serve --port 53911` from an earlier session runs against a
+   scratch world (kill it); the calendar's real first read has never been run.
+
+**Decisions taken today that bind what follows:** never build on a request, propose and wait
+for the yes (by mechanism, not prompt); know-how is code (pipelines, readers), the model is for
+repair and judgement; no limits anywhere, the person stops; nothing per use case; a knowable
+value is looked up, an unknown is asked about or assumed out loud; "it ran" is not "it works".
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
