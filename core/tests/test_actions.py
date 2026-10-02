@@ -52,7 +52,8 @@ class Driver:
                 shots["error"] = str(shots_dir / "error.png")
                 log.append({"step": "click", "ok": False, "error": "no such button"})
                 return {"done": i, "failed_step": i + 1, "error": "no such button", "log": log,
-                        "shots": shots, "final_url": job["url"], "title": "Gmail"}
+                        "shots": shots, "final_url": job["url"], "title": "Page not found",
+                        "page_text": "This page doesn't exist. Please check your URL."}
             log.append({"step": next(iter(steps[i])), "ok": True, "ms": 5})
         name = "preview" if job["stop_before_last"] else "after"
         (shots_dir / f"{name}.png").write_bytes(b"png")
@@ -241,6 +242,8 @@ def test_a_failed_run_marks_the_procedure_broken_and_alpha_repairs(world: World)
         assert action["state"] == "failed" and "no such button" in action["error"]
         assert world.procedures.get("gmail_draft")["health"] == "broken"
         assert repairs and "Repair the procedure" in repairs[0]
+        # Alpha is shown what the hand saw, so a wrong address is not read as a wall.
+        assert "Page not found" in repairs[0] and "This page doesn't exist" in repairs[0]
         failed = [e for e in world.journal.recent(10) if e["kind"] == "failed"]
         assert failed and "did not happen" in failed[-1]["text"]
     finally:

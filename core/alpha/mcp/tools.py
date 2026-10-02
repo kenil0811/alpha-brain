@@ -994,7 +994,7 @@ class Tools:
         if not preview["ok"]:
             return {"action": action["id"], "state": "failed", "dry_run": "failed",
                     "why": preview["why"], "failed_step": preview.get("failed_step"),
-                    "log": preview.get("log"),
+                    "log": preview.get("log"), "page": preview.get("page"),
                     "note": "That card shows the failure and can't be approved. Look at the"
                             " page again, fix the procedure (procedure_save) and propose"
                             " again."}

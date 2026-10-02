@@ -58,6 +58,16 @@ def _files(world: World, procedure: dict[str, Any], payload: dict[str, str]) -> 
     return out
 
 
+def page_seen(result: dict[str, Any]) -> str | None:
+    """What the hand had in front of it when a step failed: title, address and the first
+    words of the page, so a wrong address or a wall is recognised, not guessed at."""
+    if not (result.get("title") or result.get("page_text")):
+        return None
+    words = (result.get("page_text") or "")[:600]
+    return (f"The page in front of the hand when it failed: \"{result.get('title') or ''}\""
+            f" at {result.get('final_url') or '?'}. It read: {words}")
+
+
 def _shots(result: dict[str, Any]) -> list[str]:
     return [str(p) for p in (result.get("shots") or {}).values()]
 
@@ -88,7 +98,7 @@ def dry_run(world: World, action_id: str, *, browser: Browser | None = None,
         world.actions.fail(action_id, note, _shots(result))
         if result.get("failed_step") or result.get("raised"):
             world.procedures.ran(procedure["name"], problem=note)
-        return {"ok": False, "why": note, **result}
+        return {"ok": False, "why": note, "page": page_seen(result), **result}
     world.actions.previewed(action_id, preview=(result.get("shots") or {}).get("preview"),
                             note=None, shots=_shots(result))
     return {"ok": True, **result}
@@ -141,8 +151,9 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
             module=action["module"], thread=action["thread"])
         if repair and (result.get("failed_step") or result.get("raised")
                        or result.get("verified") is False):
-            _repair(world, action, why, runner)
-        return {"ok": False, "why": why, **result}
+            _repair(world, action, why + (f" {page_seen(result)}" if page_seen(result) else ""),
+                    runner)
+        return {"ok": False, "why": why, "page": page_seen(result), **result}
     world.procedures.ran(procedure["name"], problem=None)
     verb = "Sent" if action["effect"] == "send" else "Made"
     text = (f"{verb}: {action['title']} ({action['site']})."

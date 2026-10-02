@@ -458,7 +458,8 @@ async function act(job) {
       const ok = await performStep(page, steps[i], job.values || {}, log);
       if (!ok) {
         await shoot(page, "error");
-        return { bot_check: false, blocked: false, done, failed_step: i + 1, error: log[log.length - 1].error, log, shots, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
+        const seen = await page.evaluate(() => (document.body ? document.body.innerText : "").replace(/\s+/g, " ").trim().slice(0, 1500)).catch(() => "");
+        return { bot_check: false, blocked: false, done, failed_step: i + 1, error: log[log.length - 1].error, log, shots, page_text: seen, final_url: page.url(), title: await page.title().catch(() => ""), status: response ? response.status() : 0 };
       }
       done += 1;
     }
