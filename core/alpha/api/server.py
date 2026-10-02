@@ -349,6 +349,13 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             scheduler.builds()
         return world.plans.get(plan_id)
 
+    @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
+    def resume_plan(plan_id: str) -> dict[str, Any]:
+        plan = world.plans.resume(plan_id)
+        if live:
+            scheduler.builds()
+        return plan
+
     @app.post("/api/plans/{plan_id}/decline", dependencies=[api])
     def decline_plan(plan_id: str) -> dict[str, Any]:
         plan = world.plans.get(plan_id)
@@ -581,7 +588,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         turns_ = world.journal.recent(limit, stream=True, kinds=["said", "replied", "failed"],
                                       module=module_id)
         return {"turns": turns_, "threads": world.modules.threads(), "running": running.running(),
-                "plans": world.plans.all(("proposed", "approved", "building"))}
+                "plans": world.plans.recent()}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:

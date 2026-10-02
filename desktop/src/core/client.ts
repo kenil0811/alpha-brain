@@ -424,6 +424,7 @@ export class Client {
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
   approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
+  resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }

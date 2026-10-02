@@ -412,6 +412,13 @@ class Tools:
         self._did("changed", f"Updated the note {title} ({scope}).", {"note": note["id"]})
         return note
 
+    def _said_contains(self, quote: str) -> bool:
+        """Whether a short reply ("continue", "go on") is in the person's message this turn."""
+        said = self.world.journal.read(self.turn) if self.turn else None
+        if not said or said["kind"] != "said" or said["actor"] != "person":
+            return False
+        return " ".join(quote.lower().split()) in " ".join(said["text"].lower().split())
+
     def _persons_words(self, quote: str) -> str | None:
         """None when `quote` is the person's own words in this turn; else why it isn't."""
         said = self.world.journal.read(self.turn) if self.turn else None
@@ -864,8 +871,20 @@ class Tools:
                 "note": "The build starts in the background now and reports here."}
 
     @tool
+    def plan_resume(self, plan: str, quote: str) -> dict[str, Any]:
+        """The person wants a build that stopped before it finished to carry on ("continue"):
+        quote their words from this message. It picks up from its brief, in the background."""
+        problem = self._persons_words(quote) if len(quote.split()) >= 3 else (
+            None if self._said_contains(quote) else "quote must be the person's own words.")
+        if problem:
+            return {"error": problem}
+        resumed = self.world.plans.resume(plan)
+        return {"plan": plan, "state": resumed["state"],
+                "note": "The build carries on in the background and reports here."}
+
+    @tool
     def plan_decline(self, plan: str) -> dict[str, Any]:
-        """The person doesn't want a plan you proposed."""
+        """The person doesn't want a plan you proposed, or a stopped build carried on."""
         declined = self.world.plans.decline(plan)
         if declined.get("proposal"):
             self.world.journal.append("answered", "No", actor="person",

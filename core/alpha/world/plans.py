@@ -96,7 +96,11 @@ class Plans:
         return self._move(pid, "approved", when=("proposed",), approval=approval)
 
     def decline(self, pid: str) -> dict[str, Any]:
-        return self._move(pid, "declined", when=("proposed",))
+        return self._move(pid, "declined", when=("proposed", "stopped"))
+
+    def resume(self, pid: str) -> dict[str, Any]:
+        """A build that stopped carries on from its brief, with all its runs again."""
+        return self._move(pid, "building", when=("stopped",), attempts=0, report=None)
 
     def start(self, pid: str, thread: str) -> dict[str, Any]:
         plan = self.get(pid)
@@ -109,6 +113,15 @@ class Plans:
     def stop(self, pid: str, report: str) -> dict[str, Any]:
         return self._move(pid, "stopped", when=("approved", "building", "proposed"),
                           report=report)
+
+    def recent(self) -> list[dict[str, Any]]:
+        """Plans the person may still act on: proposed, approved, building, or stopped in the
+        last two days (one that stopped can be resumed)."""
+        rows = self.store.all(
+            "SELECT * FROM plans WHERE state IN ('proposed', 'approved', 'building')"
+            " OR (state = 'stopped' AND updated_at >= datetime('now', '-2 days'))"
+            " ORDER BY created_at")
+        return [_view(r) for r in rows]
 
     def waiting(self) -> list[dict[str, Any]]:
         """Plans the scheduler should run now: approved, or building with runs left."""

@@ -12,7 +12,7 @@ import alpha.connectors.browser as browser_module
 from alpha.api.server import create_app
 from alpha.connectors.browser import Browser
 from alpha.mcp.tools import Tools
-from alpha.runtime import build, pipeline
+from alpha.runtime import build, claude_cli, pipeline
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
@@ -93,7 +93,8 @@ def test_a_build_runs_on_past_the_time_limit_and_reports_with_coverage(world: Wo
             t.source_add("Example brokers", "https://example.com/listings", module="Deals",
                          status="blocked", detail="A bot check stops automated reading.")
             t.thread_brief("# Deal tracker\n## Progress\n- Table made; next: readers.")
-            return RunResult(reply="", ok=False, error="The model took longer than 900 s.")
+            return RunResult(reply="", ok=False, error="The model took longer than 900 s.",
+                             cut_off=True)
         return RunResult(reply="Your deals table is ready.", ok=True)
 
     first = build.run_build(world, plan["id"], runner=runner)
@@ -116,7 +117,32 @@ def test_a_build_that_cannot_finish_says_what_was_done(world: World) -> None:
         return RunResult(reply="", ok=False, error="No answer from the model: boom")
 
     stopped = build.run_build(world, plan["id"], runner=runner)
-    assert stopped["state"] == "stopped" and "Made the module Tracker" in stopped["report"]
+    assert stopped["state"] == "stopped"
+    assert "So far it made the Tracker module." in stopped["report"]
+    assert 'Say "continue"' in stopped["report"]
+
+
+def test_a_build_that_used_its_steps_carries_on_and_a_stopped_one_resumes(world: World) -> None:
+    out = claude_cli.parse('{"type": "result", "subtype": "error_max_turns", "is_error": false,'
+                           ' "num_turns": 81}', "", 1)
+    assert out.cut_off and not out.ok and out.error == "It used all 80 steps one run may take."
+    plan = world.plans.propose("Tracker", "Make a table.")
+    world.plans.approve(plan["id"], "yes")
+    calls: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        calls.append(req.sentence)
+        return out
+
+    for _ in range(4):
+        last = build.run_build(world, plan["id"], runner=runner)
+    assert last["state"] == "stopped" and "didn't finish in 4 runs" in last["report"]
+    assert all(c.startswith("Continue the build") for c in calls[1:])
+    reply = Tools(world, turn=said(world, "continue"))
+    assert reply.plan_resume(plan["id"], "continue")["state"] == "building"
+    assert world.plans.get(plan["id"])["attempts"] == 0
+    done = build.run_build(world, plan["id"], runner=lambda r: RunResult(reply="Done.", ok=True))
+    assert done["state"] == "done"
 
 
 # ---- readers, sources and pipelines ----

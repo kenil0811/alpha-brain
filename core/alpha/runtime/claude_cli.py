@@ -31,6 +31,7 @@ DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task
 
 
 SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
+OUT_OF_STEPS = "It used all {} steps one run may take."
 
 
 @dataclass
@@ -43,6 +44,8 @@ class RunResult:
     cost_estimate: float | None = None
     error: str | None = None
     raw: dict[str, Any] = field(default_factory=dict)
+    # The run was cut off by a limit (time or steps), not by a problem: work can carry on.
+    cut_off: bool = False
 
 
 @dataclass
@@ -124,7 +127,8 @@ def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = No
                 stdin=subprocess.DEVNULL,
             )
         except subprocess.TimeoutExpired:
-            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.")
+            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.",
+                             cut_off=True)
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
                              " connect Claude in Settings.")
@@ -144,6 +148,11 @@ def parse(stdout: str, stderr: str, code: int) -> RunResult:
     reply = str(data.get("result") or "")
     if is_error and "not logged in" in reply.lower():
         reply = SIGNED_OUT
+    if data.get("subtype") == "error_max_turns":
+        return RunResult(reply="", ok=False, error=OUT_OF_STEPS.format(MAX_TURNS), cut_off=True,
+                         session_id=data.get("session_id"), num_turns=data.get("num_turns"),
+                         duration_ms=data.get("duration_ms"),
+                         cost_estimate=data.get("total_cost_usd"), raw=data)
     return RunResult(
         reply=reply,
         ok=not is_error and bool(reply),

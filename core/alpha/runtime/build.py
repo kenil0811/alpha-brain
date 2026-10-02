@@ -1,8 +1,9 @@
 """Builds: making what the person said yes to, in the background.
 
 An approved plan becomes the brief of a build thread, and a run builds it with BUILD_RULES. A
-run cut off by the time limit is continued from the brief and the thread's own history (threads
-are records, never remembered sessions), up to MAX_RUNS runs. When the build finishes, its
+run cut off by a limit (time, or the steps one run may take) is continued from the brief and the
+thread's own history (threads are records, never remembered sessions), up to MAX_RUNS runs; a
+build that stopped can be resumed and gets MAX_RUNS more. When the build finishes, its
 report goes into the person's conversation and ends with what the sources table says about
 coverage, so what works, what needs the person and what is blocked is never left to the model's
 wording. A build that can't finish says so, with what was done.
@@ -71,12 +72,37 @@ def _report(world: World, plan: dict[str, Any], text: str) -> str:
 
 
 def _what_was_done(world: World, thread: str) -> str:
-    made = [e["text"] for e in world.journal.recent(200, thread=thread)
-            if e["kind"] == "made"]
-    if not made:
+    """What a build made so far, in one sentence: its module, tables (with rows), readers and
+    automations."""
+    made = [e["data"] for e in world.journal.recent(500, thread=thread) if e["kind"] == "made"]
+    parts: list[str] = []
+    for d in made:
+        if d.get("module"):
+            try:
+                parts.append(f"the {world.modules.get(d['module'])['name']} module")
+            except Exception:
+                pass
+    for d in made:
+        if d.get("collection"):
+            try:
+                t = world.collections.describe(d["collection"])
+            except Exception:
+                continue
+            parts.append(f"the {t['title']} table ({t['records']} rows)")
+    readers = {d["reader"] for d in made if d.get("reader")}
+    if readers:
+        parts.append(f"{len(readers)} reader{'s' if len(readers) != 1 else ''}")
+    for d in made:
+        if d.get("automation"):
+            try:
+                a = world.automations.get(d["automation"])
+                parts.append(f"the automation that runs {a['when']}")
+            except Exception:
+                pass
+    if not parts:
         return "Nothing was made yet."
-    shown = "; ".join(made[:8]) + (f"; and {len(made) - 8} more" if len(made) > 8 else "")
-    return f"What was done: {shown}."
+    listed = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"So far it made {listed}."
 
 
 def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.run
@@ -98,11 +124,11 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner, rules=BUILD_RULES,
                            actor="alpha", timeout=BUILD_TIMEOUT_S, module=plan["module"])
-        ok, reply = outcome.ok, outcome.reply
+        ok, reply, cut_off = outcome.ok, outcome.reply, outcome.result.cut_off
         error = outcome.result.error or ""
     except Exception as e:
         log.exception("build %s failed", plan_id)
-        ok, reply, error = False, "", str(e)
+        ok, reply, cut_off, error = False, "", False, str(e)
     plan = world.plans.get(plan_id)
     if ok:
         text = _report(world, plan, reply)
@@ -111,11 +137,12 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
         world.journal.append("replied", text, data={"plan": plan_id, "thread": thread},
                              module=plan["module"])
         return world.plans.get(plan_id)
-    if "longer than" in error and plan["attempts"] < MAX_RUNS:
-        world.journal.append("did", "That run of the build ran out of time; the next one carries"
-                             " on from the brief.", actor="alpha", thread=thread,
-                             module=plan["module"])
+    if cut_off and plan["attempts"] < MAX_RUNS:
+        world.journal.append("did", f"{error} The next run carries on from the brief.",
+                             actor="alpha", thread=thread, module=plan["module"])
         return plan
+    if cut_off:
+        return stop(world, plan_id, f"it didn't finish in {MAX_RUNS} runs")
     return stop(world, plan_id, error or "it failed")
 
 
@@ -123,7 +150,9 @@ def stop(world: World, plan_id: str, why: str) -> dict[str, Any]:
     plan = world.plans.get(plan_id)
     thread = plan["thread"]
     done = _what_was_done(world, thread) if thread else "Nothing was made yet."
-    text = _report(world, plan, f"The build of {plan['title']} stopped: {why}. {done}")
+    text = _report(world, plan, f"The build of {plan['title']} stopped before it finished:"
+                   f" {why.rstrip('.')}. {done} Say \"continue\" to carry on from where it"
+                   " stopped.")
     world.plans.stop(plan_id, text)
     if thread:
         world.modules.update_thread(thread, state="done")

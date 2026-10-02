@@ -10,12 +10,15 @@ import { MicButton, useSpeech } from "../shell/voice";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 
-/** A plan Alpha proposed: nothing is built until the person says yes, here or in words. */
+/** A plan Alpha proposed (nothing is built until the person says yes, here or in words), or a
+ *  build that stopped before it finished (it can carry on from where it stopped). */
 function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onDecided: () => void }) {
   const [busy, setBusy] = useState(false);
+  const stopped = plan.state === "stopped";
   const decide = (yes: boolean) => {
     setBusy(true);
-    void (yes ? client.approvePlan(plan.id) : client.declinePlan(plan.id)).finally(() => {
+    const go = stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id);
+    void (yes ? go : client.declinePlan(plan.id)).finally(() => {
       setBusy(false);
       onDecided();
     });
@@ -24,15 +27,15 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
     <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
       <h3 className="creation__title">
         {plan.title}
-        <span className="badge badge--waiting">Plan</span>
+        <span className="badge badge--waiting">{stopped ? "Stopped" : "Plan"}</span>
       </h3>
-      <span className="faint">Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed.</span>
+      <span className="faint">{stopped ? "The build stopped before it finished. It can carry on from where it stopped." : "Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed."}</span>
       <div className="row" style={{ marginTop: 8 }}>
         <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => decide(true)}>
-          Build it
+          {stopped ? "Continue building" : "Build it"}
         </button>
         <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => decide(false)}>
-          Not now
+          {stopped ? "Leave it" : "Not now"}
         </button>
       </div>
     </div>
@@ -269,7 +272,7 @@ export function AssistantPanel({
               <Message key={e.id} e={e} />
             ))}
             {plans
-              .filter((p) => p.state === "proposed")
+              .filter((p) => p.state === "proposed" || p.state === "stopped")
               .map((p) => (
                 <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
               ))}
