@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -107,7 +108,7 @@ def test_page_to_table_reads_a_list_through_the_signin(world: World,
 
 def test_an_automation_runs_in_its_own_thread_and_reports(world: World) -> None:
     connections_table(world)
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     auto = t.automation_create("Every morning, sync LinkedIn connections", "daily 08:00",
                                "page_to_table … into connections", module="Network")
     assert auto["when"] == "every day at 08:00" and auto["thread"]
@@ -129,7 +130,7 @@ def test_an_automation_runs_in_its_own_thread_and_reports(world: World) -> None:
 
 
 def test_due_and_switching_off(world: World) -> None:
-    t = Tools(world)
+    t = building(world)
     auto = t.automation_create("Sync", "every 1h", "do it")
     assert world.automations.due() == []
     later = datetime.now(UTC) + timedelta(hours=2)
@@ -139,7 +140,7 @@ def test_due_and_switching_off(world: World) -> None:
 
 
 def test_the_api_lists_switches_and_runs_now(world: World) -> None:
-    t = Tools(world)
+    t = building(world)
     auto = t.automation_create("Sync", "every 1h", "do it")
     calls: list[str] = []
 
@@ -177,7 +178,7 @@ def test_turn_progress_steps_are_visible_while_it_runs(world: World) -> None:
     gate = {"go": False}
 
     def runner(req: TurnRequest) -> RunResult:
-        Tools(world, turn=req.turn_id).module_create("Network")
+        Tools(world, turn=req.turn_id).fact_record("person", "network", "LinkedIn")
         while not gate["go"]:
             time.sleep(0.02)
         return RunResult(reply="Built.", ok=True)
@@ -189,5 +190,5 @@ def test_turn_progress_steps_are_visible_while_it_runs(world: World) -> None:
     while time.time() < end and not steps:
         steps = c.get(f"/api/turns/{started['id']}").json()["steps"]
         time.sleep(0.05)
-    assert steps and steps[0]["text"] == "Made the module Network."
+    assert steps and steps[0]["text"] == "Suggested remembering network = LinkedIn."
     gate["go"] = True

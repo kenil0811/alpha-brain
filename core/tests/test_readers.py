@@ -4,6 +4,7 @@ import time
 from typing import Any
 
 import pytest
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -56,7 +57,7 @@ def test_save_run_and_a_broken_reader_writes_nothing(world: World,
                                                      monkeypatch: pytest.MonkeyPatch) -> None:
     table(world)
     Connections(world.store).upsert("browser", "linkedin.com", status="connected")
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     monkeypatch.setattr("alpha.connectors.browser.run_job", page([]))
     assert "Not saved" in t.reader_save("linkedin_connections", URL, "return []", "x")["error"]
     job = page(people(100))
@@ -126,7 +127,7 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
             time.sleep(0.02)
         return RunResult(reply="Synced.", ok=True)
 
-    auto = Tools(world).automation_create("Sync", "every 1h", "do it")
+    auto = building(world).automation_create("Sync", "every 1h", "do it")
     c = TestClient(create_app(world, live=False, runner=runner))
     assert c.post(f"/api/automations/{auto['id']}/run").json()["running"] is True
     end = time.time() + 5
@@ -145,7 +146,7 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
 
 def test_an_automation_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:
     table(world)
-    auto = Tools(world).automation_create("Sync", "every 1h", "page_to_table …")
+    auto = building(world).automation_create("Sync", "every 1h", "page_to_table …")
     inside = Tools(world, thread=auto["thread"])
     out = inside.page_to_table(URL, "/in/", "connections", {"name": "text", "linkedin_url": "url"})
     assert "write a reader" in out["error"].lower() or "Write a reader" in out["error"]
@@ -153,4 +154,4 @@ def test_an_automation_run_cannot_keep_a_list_with_page_to_table(world: World) -
 
 def test_a_reader_reading_part_of_a_list_the_table_holds_is_broken() -> None:
     problem = health_problem(people(10), last_ok=None, held=20)
-    assert problem and "table already holds 20" in problem and "to_end" in problem
+    assert problem and "found 20 that are still listed" in problem and "to_end" in problem

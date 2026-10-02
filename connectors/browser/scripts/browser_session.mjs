@@ -15,6 +15,8 @@
  * the page may use any request it needs for that, because many sites load the next page of a
  * list with a POST that only reads.
  *   status: whether a profile holds cookies for a site (or any of `sites`).
+ * A page that stops automated reading with a bot check or a captcha comes back as `bot_check`
+ * with nothing read: Alpha says so and never tries to get past it.
  */
 import { chromium } from "playwright-core";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -52,6 +54,22 @@ function cookieMatches(cookie, site) {
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+const CHALLENGE_TITLE = /^(just a moment|attention required|access denied|are you a human|verify you are human|security check|please verify|one more step|pardon our interruption)/i;
+const CHALLENGE_MARKS = [
+  "#challenge-form", "#challenge-running", "[id^='cf-chl']", "#cf-challenge-running",
+  "iframe[src*='hcaptcha']", "iframe[src*='recaptcha']", "iframe[src*='challenges.cloudflare']",
+  ".g-recaptcha", ".h-captcha", "#px-captcha", "[data-sitekey]",
+];
+
+/** Whether the page in front of us is a bot check rather than the page that was asked for. */
+async function isBotCheck(page) {
+  const title = (await page.title().catch(() => "")) || "";
+  if (CHALLENGE_TITLE.test(title.trim())) return true;
+  return page
+    .evaluate((marks) => marks.some((m) => document.querySelector(m)), CHALLENGE_MARKS)
+    .catch(() => false);
+}
 
 /** From the moment this is called, block every request that could change data on a site. */
 async function readOnly(context) {
@@ -133,6 +151,20 @@ async function read(job) {
     const page = context.pages()[0] || (await context.newPage());
     const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: job.timeout_ms || 30000 });
     await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+    if (await isBotCheck(page)) {
+      return {
+        status: response ? response.status() : 0,
+        final_url: page.url(),
+        title: await page.title().catch(() => ""),
+        bot_check: true,
+        blocked: false,
+        text: "",
+        links: [],
+        result: null,
+        scrolls: 0,
+        writes_blocked: 0,
+      };
+    }
     let scrolls = 0;
     if (job.scroll_to_end) {
       // Read a long list to its end. Many sites load more rows inside an inner list rather than

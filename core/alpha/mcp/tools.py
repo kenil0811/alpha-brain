@@ -19,12 +19,16 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.runtime import pipeline
 from alpha.world.knowledge import GATED_NOTES
 from alpha.world.readers import health_problem
+from alpha.world.sources import STATUSES as SOURCE_STATUSES
 from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.tools")
+# Source statuses Alpha may set; working and broken come from the reader's runs.
+ALPHA_SETS = ("not_built", "needs_signin", "blocked")
 
 
 def tool[F: Callable[..., Any]](fn: F) -> F:
@@ -74,6 +78,20 @@ class Tools:
             return False
         return self.world.store.one(
             "SELECT 1 FROM automations WHERE thread = ?", (self.thread,)) is not None
+
+    def _building(self) -> dict[str, Any] | None:
+        """The approved plan this turn is building, if it is one."""
+        plan = self.world.plans.of_thread(self.thread)
+        return plan if plan and plan["state"] == "building" else None
+
+    def _gate(self, what: str) -> dict[str, Any] | None:
+        """Lasting things are made only in the build of a plan the person said yes to."""
+        if self._building():
+            return None
+        return {"error": f"{what} happens only in the build of a plan the person approved."
+                " Understand what they want, look into it, and propose it with plan_propose;"
+                " the build starts after their yes. For a plain log with nowhere to keep it,"
+                " use table_start."}
 
     def _module_of(self, collection: str) -> str | None:
         module: str | None = self.world.collections.describe(collection)["module"]
@@ -155,6 +173,9 @@ class Tools:
         rows_are: "person" or "organisation" when each row is one (a contact, a company), with
         identity_field the field holding what identifies it for sure (an email address or a
         profile URL): every row is then linked to that person or organisation across Alpha."""
+        refused = self._gate("Making a table")
+        if refused:
+            return refused
         module_id = self.world.modules.get(module)["id"] if module else None
         identity = ({"rows_are": rows_are, "field": identity_field or ""}
                     if rows_are else None)
@@ -557,7 +578,13 @@ class Tools:
     def module_create(self, name: str, goal: str | None = None) -> dict[str, Any]:
         """Make a module: a named place for a topic the person keeps coming back to (Food, Job
         search, Cold calls). Name it the way the person would; goal in their words."""
+        refused = self._gate("Making a module")
+        if refused:
+            return refused
         module = self.world.modules.create(name, goal)
+        plan = self._building()
+        if plan and not plan["module"]:
+            self.world.plans.set_module(plan["id"], module["id"])
         self._did("made", f"Made the module {name}.", {"module": module["id"]}, module["id"])
         return module
 
@@ -655,6 +682,10 @@ class Tools:
         automations use it with reader_run, with no model call, and you repair it when it
         breaks. Saving under an existing name replaces it (its version goes up). name: e.g.
         linkedin_connections. description: what it reads, in a sentence."""
+        if name not in self.world.readers.names():
+            refused = self._gate("Writing a new reader")
+            if refused:
+                return refused
         browser = Browser(self.world)
         out = browser.script(url, script, to_end=to_end, turn=self.turn, module=self.module,
                              label=f"the new reader {name}")
@@ -672,47 +703,20 @@ class Tools:
 
     @tool
     def reader_run(self, name: str, collection: str, key_field: str,
-                   keep_person_fields: list[str] | None = None) -> dict[str, Any]:
+                   keep_person_fields: list[str] | None = None,
+                   value_map: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
         """Run a saved reader and save its rows into a table, matched on key_field (repeat runs
-        update rather than duplicate; keep_person_fields are never overwritten). The result is
-        checked first: no rows, far fewer than last time, or rows missing what the table
-        requires mean the reader is broken; then nothing is written, health says broken, and
-        you should repair it (look at the page, fix the script, reader_save, run again)."""
-        reader = self.world.readers.get(name)
-        out = Browser(self.world).script(reader["url"], reader["script"], to_end=reader["to_end"],
-                                         turn=self.turn, module=self.module,
-                                         label=f"the reader {name}")
-        if out["needs_signin"]:
-            self.world.readers.ran(name, count=0, problem="the site asked for a sign-in")
-            return {"health": "needs_signin", "note": "Offer browser_signin; nothing was written."}
-        rows = out["result"]
-        desc = self.world.collections.describe(collection)
-        required = [f["name"] for f in desc["fields"] if f.get("required")]
-        problem = health_problem(rows, last_ok=reader["last_ok_count"],
-                                 required=sorted(set(required + [key_field])),
-                                 held=desc["records"])
-        count = len(rows) if isinstance(rows, list) else 0
-        if problem:
-            self.world.readers.ran(name, count=count, problem=problem)
-            self._did("failed", f"The reader {name} looks broken: {problem}. Nothing was written.",
-                      {"reader": name}, desc["module"])
-            return {"health": "broken", "problem": problem, "rows": count,
-                    "sample": rows[:5] if isinstance(rows, list) else rows}
-        result = self.world.collections.upsert(
-            collection, key_field, rows, {"by": "alpha", "turn": self.turn, "reader": name},
-            fill_only=set(keep_person_fields or []),
-        )
-        self.world.readers.ran(name, count=count, problem=None)
-        self._did(
-            "did",
-            f"Read {count} with {name} into {desc['title']}: {result['added']} new,"
-            f" {result['updated']} updated, {result['unchanged']} unchanged"
-            + (f", {result['invalid']} set aside" if result["invalid"] else "") + ".",
-            {"collection": collection, "reader": name,
-             **{k: v for k, v in result.items() if k != "ids"}},
-            desc["module"],
-        )
-        return {"health": "ok", "rows": count, **{k: v for k, v in result.items() if k != "ids"}}
+        update rather than duplicate; keep_person_fields are never overwritten). value_map
+        turns the site's words into the table's ({"status": {"For Sale": "Active"}}). Every
+        row it returns is marked seen; its rows that stopped appearing are marked gone. The
+        result is checked first against what this reader found before: no rows, far fewer
+        than last time, or rows missing what the table requires mean it is broken; then nothing
+        is written and you should repair it (look at the page, fix the script, reader_save,
+        run again). needs_signin: offer browser_signin. blocked: the site stops automated
+        reading; say so plainly, never try to get past it."""
+        return pipeline.run_reader(self.world, name, collection, key_field,
+                                   keep=keep_person_fields, mapping=value_map,
+                                   turn_id=self.turn, module=self.module)
 
     @tool
     def readers_list(self) -> list[dict[str, Any]]:
@@ -751,21 +755,30 @@ class Tools:
 
     @tool
     def automation_create(
-        self, title: str, schedule: str, procedure: str, module: str | None = None
+        self, title: str, schedule: str, procedure: str = "",
+        steps: list[dict[str, Any]] | None = None, module: str | None = None,
     ) -> dict[str, Any]:
         """Make something run on its own from now on. title: the sentence the person reads,
-        e.g. "Every morning at 08:00, read your LinkedIn connections and update Network ›
-        LinkedIn Connections". schedule: "every 6h", "every 30m", "daily 08:00" or "weekly mon
-        08:00" (local time). procedure: exact instructions you will follow on each run, with
-        the tools, the URL, the table and the key field to use, and what counts as worth
-        telling the person. Do the first run yourself now, in this turn, before creating it.
-        Only things that read and update Alpha's own tables; never anything that sends,
-        posts or submits."""
+        e.g. "Every morning at 08:00, read the listings and tell you what's new". schedule:
+        "every 6h", "every 30m", "daily 08:00" or "weekly mon 08:00" (local time).
+        steps (the default, run with no model): [{"read": reader, "into": table, "key": field,
+        "keep": [fields the person edits], "map": {field: {site's word: table's word}}}, …,
+        {"tell": table, "where": {filter for what matters}}]; a tell step reports what is new,
+        changed and gone since the last run. You are called only if a step breaks.
+        procedure: only for work that needs judgement on every run: exact instructions you
+        will follow. Do the first run yourself now, before creating it. Only things that read
+        and update Alpha's own tables; never anything that sends, posts or submits."""
+        refused = self._gate("Setting up an automation")
+        if refused:
+            return refused
+        clean = pipeline.check_steps(self.world, steps) if steps else None
+        if not clean and not procedure.strip():
+            raise Problem("Give the automation steps (or, for judgement work, a procedure).")
         module_id = self.world.modules.get(module)["id"] if module else self.module
         thread = self.world.modules.open_thread(title, "job", module_id)
         self.world.modules.update_thread(thread["id"], state="done")
         auto = self.world.automations.create(title, schedule, procedure, module=module_id,
-                                             thread=thread["id"])
+                                             thread=thread["id"], steps=clean)
         self._did("made", f"Set up: {title} ({auto['when']}).", {"automation": auto["id"]},
                   module_id)
         return auto
@@ -778,13 +791,139 @@ class Tools:
     @tool
     def automation_update(self, id: str, enabled: bool | None = None,
                           schedule: str | None = None, procedure: str | None = None,
-                          title: str | None = None) -> dict[str, Any]:
-        """Change an automation: switch it off or on, change when it runs or what it does."""
+                          title: str | None = None,
+                          steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Change an automation: switch it off or on, change when it runs or what it does;
+        steps turn it into (or change) a pipeline run with no model."""
+        clean = pipeline.check_steps(self.world, steps) if steps else None
         auto = self.world.automations.update(id, enabled=enabled, schedule=schedule,
-                                             procedure=procedure, title=title)
+                                             procedure=procedure, title=title, steps=clean)
         self._did("changed", f"Changed: {auto['title']} ({'on' if auto['enabled'] else 'off'},"
                   f" {auto['when']}).", {"automation": id}, auto["module"])
         return auto
+
+    # ---- plans: understand and propose, then build after the person's yes ----
+
+    @tool
+    def plan_propose(self, title: str, plan: str, module: str | None = None,
+                     replaces: str | None = None) -> dict[str, Any]:
+        """Propose what you would set up, before anything is made. plan (Markdown): what you
+        understood they want and why; what you found (each source, and whether it is readable,
+        needs a sign-in or stops automated reading); what you would set up and why (tables and
+        their fields, how it stays current, what you would tell them and when); what you can't
+        reach and what to do about it; the questions that depend on them, numbered. module: an
+        existing module it extends. replaces: the plan this revises. Nothing is built until
+        they say yes."""
+        module_id = self.world.modules.get(module)["id"] if module else None
+        made = self.world.plans.propose(title, plan, module=module_id, turn=self.turn,
+                                        replaces=replaces)
+        jid = self.world.journal.append(
+            "proposed", f"Plan: {title}",
+            data={"plan": made["id"], "why": plan.strip()[:400], "turn": self.turn},
+            module=module_id, thread=self.thread,
+        )
+        self.world.plans.set_proposal(made["id"], jid)
+        if replaces:
+            old = self.world.plans.get(replaces)
+            if old.get("proposal"):
+                self.world.journal.append("answered", "Replaced by a revised plan.",
+                                          actor="alpha", data={"proposal": old["proposal"],
+                                                               "plan": replaces,
+                                                               "replaced": True})
+        return {"plan": made["id"], "state": made["state"]}
+
+    @tool
+    def plan_approve(self, plan: str, quote: str, answers: str | None = None) -> dict[str, Any]:
+        """The person said yes to a plan you proposed earlier: quote their words from this
+        message, and put their answers to your questions in answers. The build then runs in
+        the background, in its own thread, and reports in this conversation; tell them so in
+        one line. Only for a plan proposed before this message."""
+        problem = self._persons_words(quote)
+        if problem:
+            return {"error": problem}
+        current = self.world.plans.get(plan)
+        if current["turn"] == self.turn:
+            return {"error": "A plan is approved by the person's reply to it, not in the turn"
+                    " that proposed it."}
+        approval = f"\"{quote}\"" + (f"\nTheir answers: {answers}" if answers else "")
+        approved = self.world.plans.approve(plan, approval)
+        if approved.get("proposal"):
+            self.world.journal.append("answered", "Yes", actor="person",
+                                      data={"proposal": approved["proposal"], "accept": True,
+                                            "plan": plan, "turn": self.turn})
+        return {"plan": plan, "state": approved["state"],
+                "note": "The build starts in the background now and reports here."}
+
+    @tool
+    def plan_decline(self, plan: str) -> dict[str, Any]:
+        """The person doesn't want a plan you proposed."""
+        declined = self.world.plans.decline(plan)
+        if declined.get("proposal"):
+            self.world.journal.append("answered", "No", actor="person",
+                                      data={"proposal": declined["proposal"], "accept": False,
+                                            "plan": plan, "turn": self.turn})
+        return {"plan": plan, "state": declined["state"]}
+
+    @tool
+    def table_start(self, title: str, fields: list[dict[str, Any]], values: dict[str, Any],
+                    module: str | None = None, name: str | None = None,
+                    estimated: bool = False) -> dict[str, Any]:
+        """Only for a plain log with nowhere to keep it ("log two boiled eggs" and no food
+        table exists): make the simplest table for it (in module, made if it doesn't exist)
+        and add this first row. One per message. Anything more is a plan (plan_propose)."""
+        said = self.world.journal.read(self.turn) if self.turn else None
+        if not said or said["kind"] != "said" or said["actor"] != "person":
+            return {"error": "table_start is for logging what the person just said."}
+        if self.world.store.one(
+            "SELECT 1 FROM journal WHERE kind = 'made' AND json_extract(data, '$.turn') = ?"
+            " AND json_extract(data, '$.table_start') = 1", (self.turn,)):
+            return {"error": "One new table per message; propose a plan for more."}
+        module_id = None
+        if module:
+            try:
+                module_id = self.world.modules.get(module)["id"]
+            except Problem:
+                module_id = self.world.modules.create(module)["id"]
+                self._did("made", f"Made the module {module}.", {"module": module_id},
+                          module_id)
+        slug = name or "_".join("".join(ch if ch.isalnum() else " " for ch in title.lower())
+                                .split())[:40] or "log"
+        described = self.world.collections.create(slug, title, fields, module=module_id)
+        self._did("made", f"Made the table {title} to keep this.",
+                  {"collection": slug, "table_start": True}, module_id)
+        row = self.world.collections.add(
+            slug, values, {"by": "alpha", "turn": self.turn, "estimated": estimated})
+        return {"table": described, "row": row}
+
+    # ---- sources: everything a module reads from, and whether it works ----
+
+    @tool
+    def source_add(self, title: str, url: str, module: str | None = None,
+                   reader: str | None = None, status: str = "not_built",
+                   detail: str | None = None) -> dict[str, Any]:
+        """Record a place a module reads from, including the ones you can't read, so nothing
+        falls off silently: status not_built (not read yet), needs_signin (the site asks for a
+        sign-in; start browser_signin) or blocked (a bot check or captcha; never try to get
+        past it), with detail in plain words. reader: the reader that reads it. Working and
+        broken are set by the reader's runs."""
+        refused = self._gate("Recording a source")
+        if refused:
+            return refused
+        if status not in ALPHA_SETS:
+            return {"error": f"Set status {', '.join(ALPHA_SETS)}; the others"
+                    f" ({', '.join(s for s in SOURCE_STATUSES if s not in ALPHA_SETS)}) come"
+                    " from the reader's runs."}
+        plan = self._building()
+        module_id = (self.world.modules.get(module)["id"] if module
+                     else self.module or (plan["module"] if plan else None))
+        return self.world.sources.add(title, url, module=module_id, reader=reader,
+                                      status=status, detail=detail)
+
+    @tool
+    def sources_list(self, module: str | None = None) -> list[dict[str, Any]]:
+        """Where a module's data comes from, and whether each place works."""
+        module_id = self.world.modules.get(module)["id"] if module else None
+        return self.world.sources.all(module_id)
 
     # ---- the person ----
 

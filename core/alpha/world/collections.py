@@ -112,19 +112,26 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
         if kind == "datetime":
             return datetime.fromisoformat(str(value).replace("Z", "+00:00")).isoformat()
         if kind in {"choice", "status"}:
-            text = str(value)
-            if text not in field["choices"]:
+            chosen = _choice(field["choices"], value)
+            if chosen is None:
                 raise ValueError(f"one of {field['choices']}")
-            return text
+            return chosen
         if kind == "multichoice":
-            items = [str(v) for v in (value if isinstance(value, list) else [value])]
-            bad = [v for v in items if v not in field["choices"]]
-            if bad:
+            items = [_choice(field["choices"], v)
+                     for v in (value if isinstance(value, list) else [value])]
+            if None in items:
                 raise ValueError(f"values from {field['choices']}")
             return items
     except ValueError as e:
         raise Problem(f"'{name}' must be {e.args[0] if e.args else kind}; got {value!r}.") from e
     return value
+
+
+def _choice(choices: list[str], value: Any) -> str | None:
+    """The declared choice a value means, regardless of case and spacing ("PENDING" is
+    "Pending"); None when it is none of them."""
+    want = " ".join(str(value).split()).casefold()
+    return next((c for c in choices if " ".join(c.split()).casefold() == want), None)
 
 
 def _search_text(values: dict[str, Any]) -> str:
@@ -171,6 +178,8 @@ def record_view(row: sqlite3.Row) -> dict[str, Any]:
         "updated_at": row["updated_at"],
         "_provenance": loads(row["provenance"], {}),
         **({"_entity": row["entity_id"]} if row["entity_id"] else {}),
+        **({"_seen_at": row["seen_at"]} if row["seen_at"] else {}),
+        **({"_gone_at": row["gone_at"]} if row["gone_at"] else {}),
     }
 
 
@@ -388,13 +397,16 @@ class Collections:
 
     def upsert(
         self, name: str, key: str, rows: list[dict[str, Any]], provenance: dict[str, Any],
-        *, fill_only: set[str] | None = None,
+        *, fill_only: set[str] | None = None, seen_by: str | None = None,
     ) -> dict[str, Any]:
         """Add or update many records at once, matching on `key` (e.g. a URL). A record whose
         values didn't change is left alone. Fields in `fill_only` are written only where the
         record has no value yet, so the person's own edits (tags, notes) are never overwritten.
         Rows that don't fit the table are set aside, counted as `invalid` with the first few
-        reasons in `problems`, and the rest are saved. Returns counts and the ids touched."""
+        reasons in `problems`, and the rest are saved. With `seen_by` (a reader's name), every
+        row the reader returned is marked seen now, and the reader's rows it didn't return are
+        marked gone (`gone`); a row that comes back is no longer gone. Returns counts and the
+        ids touched."""
         schema = self._schema(name)
         identity = schema.get("identity")
         fields = {f["name"] for f in schema["fields"]}
@@ -409,6 +421,7 @@ class Collections:
                 existing[str(value)] = row
         counts = {"added": 0, "updated": 0, "unchanged": 0, "skipped": 0, "invalid": 0}
         touched: list[str] = []
+        seen_ids: list[str] = []
         seen: set[str] = set()
         stamp = now()
         problems: list[str] = []
@@ -426,6 +439,8 @@ class Collections:
                 counts["invalid"] += 1
                 if len(problems) < 5:
                     problems.append(f"{match}: {e}")
+                if prior is not None:
+                    seen_ids.append(prior["id"])  # still there on the page, just not saved
                 continue
             if prior is None:
                 rid = new_id("r")
@@ -441,6 +456,7 @@ class Collections:
                     )
                 counts["added"] += 1
                 touched.append(rid)
+                seen_ids.append(rid)
                 self._link(name, rid, clean, identity)
                 continue
             current = loads(prior["values"], {})
@@ -449,6 +465,7 @@ class Collections:
                 if fill_only and k in fill_only and current.get(k) not in (None, "", []):
                     continue
                 merged[k] = v
+            seen_ids.append(prior["id"])
             if merged == current:
                 counts["unchanged"] += 1
                 if identity and not prior["entity_id"]:
@@ -473,7 +490,57 @@ class Collections:
             touched.append(prior["id"])
             if identity:
                 self._link(name, prior["id"], merged, identity)
+        if seen_by:
+            counts["gone"] = self._seen(name, seen_by, seen_ids, stamp)
         return {**counts, "ids": touched, "problems": problems}
+
+    def _seen(self, name: str, reader: str, ids: list[str], stamp: str) -> int:
+        """Mark what a reader's run returned as seen, and its rows it didn't return as gone."""
+        with self.store.tx() as db:
+            for i in range(0, len(ids), 500):
+                chunk = ids[i:i + 500]
+                db.execute(
+                    "UPDATE records SET reader = ?, seen_at = ?, gone_at = NULL"
+                    f" WHERE collection = ? AND id IN ({','.join('?' * len(chunk))})",
+                    (reader, stamp, name, *chunk),
+                )
+            gone: int = db.execute(
+                "UPDATE records SET gone_at = ? WHERE collection = ? AND reader = ?"
+                " AND (seen_at IS NULL OR seen_at < ?) AND gone_at IS NULL"
+                " AND deleted_at IS NULL", (stamp, name, reader, stamp),
+            ).rowcount
+        return gone
+
+    def held_by(self, name: str, reader: str) -> int:
+        """How many rows of a table a reader returned last time and are still there."""
+        row = self.store.one(
+            "SELECT COUNT(*) AS n FROM records WHERE collection = ? AND reader = ?"
+            " AND gone_at IS NULL AND deleted_at IS NULL", (name, reader),
+        )
+        return int(row["n"]) if row else 0
+
+    def changes(self, name: str, since: str, where: dict[str, Any] | None = None
+                ) -> dict[str, list[dict[str, Any]]]:
+        """What happened to a table's rows since a moment: new rows, rows whose values
+        changed, rows gone. `where` narrows it to the rows that matter."""
+        allowed = {r["id"] for r in self.query(name, where, limit=None)} if where else None
+        new, changed, gone = [], [], []
+        for row in self.store.all(
+            "SELECT * FROM records WHERE collection = ? AND deleted_at IS NULL", (name,)
+        ):
+            if allowed is not None and row["id"] not in allowed:
+                continue
+            view = record_view(row)
+            if row["gone_at"] and row["gone_at"] >= since:
+                gone.append(view)
+            elif row["created_at"] >= since:
+                new.append(view)
+            elif self.store.one(
+                "SELECT 1 FROM record_versions WHERE collection = ? AND record_id = ?"
+                " AND replaced_at >= ?", (name, row["id"], since),
+            ):
+                changed.append(view)
+        return {"new": new, "changed": changed, "gone": gone}
 
     def get(self, name: str, rid: str) -> dict[str, Any]:
         row = self.store.one(

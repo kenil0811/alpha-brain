@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from conftest import building
+
 from alpha.mcp.server import build_server
 from alpha.mcp.tools import Tools
 from alpha.world.world import World
 
 
 def test_level_zero_flow_through_the_tools(world: World) -> None:
-    t = Tools(world, turn="j_turn")
+    t = building(world, turn="j_turn")
     module = t.module_create("Food", "Eat well")
     table = t.collection_create(
         "food_log", "Food log",
@@ -76,7 +78,7 @@ def test_server_exposes_every_tool(world: World) -> None:
 
 
 def test_journal_notes_point_at_the_module_by_id(world: World) -> None:
-    t = Tools(world)
+    t = building(world)
     m = t.module_create("Network")
     t.journal_note("did", "Synced.", module="Network")
     assert world.journal.recent(1)[0]["module"] == m["id"]

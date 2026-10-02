@@ -1,6 +1,11 @@
-"""Running automations: each run is Alpha following the automation's procedure in its own
-thread, with nobody watching. The scheduler checks every half minute while the core runs and
-runs due automations one at a time; a run missed while Alpha was closed happens once on return.
+"""Running automations and builds in the background.
+
+An automation run is either a pipeline (saved steps, no model unless a step breaks) or Alpha
+following the automation's procedure in its own thread, with nobody watching. The scheduler
+checks every half minute while the core runs and runs due automations one at a time; a run
+missed while Alpha was closed happens once on return. It also starts the build of every plan the
+person approved, continues a build whose run ran out of time, and picks builds up again after a
+restart; each build runs in its own thread so automations never wait for it.
 """
 
 from __future__ import annotations
@@ -10,7 +15,8 @@ import re
 import threading
 from typing import Any
 
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import build, claude_cli, pipeline, turn
+from alpha.world.plans import MAX_RUNS
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -42,6 +48,10 @@ thread's own history), not in your memory. Before you finish, if this run taught
 the next run needs (a decision, something that didn't work and why, the next step), rewrite the \
 brief with thread_brief: short, current, and only what you verified.
 
+If this automation only runs readers into tables (and tells the person what changed), turn \
+it into a pipeline with automation_update(steps=…): from then on the scheduler runs it with no \
+model, and you are called only when a step breaks.
+
 Your final answer is one or two lines for the automation's log: what changed (counts, names \
 that matter). If something is worth the person's attention (a change they would want to know \
 about), start the line with "Worth telling:"; otherwise just state the result.
@@ -63,7 +73,17 @@ def run(world: World, automation_id: str, *,
     if not thread:
         thread = world.modules.open_thread(auto["title"], "job", auto["module"])["id"]
         world.automations.set_thread(automation_id, thread)
+        auto = world.automations.get(automation_id)
     world.modules.update_thread(thread, state="working")
+    if auto["steps"]:
+        # A pipeline: saved steps, no model unless a step breaks.
+        try:
+            line, problem = pipeline.run_pipeline(world, auto, runner=runner)
+        except Exception as e:
+            log.exception("pipeline %s failed", automation_id)
+            line, problem = "", str(e)
+        world.modules.update_thread(thread, state="done")
+        return world.automations.finished(automation_id, result=line or None, error=problem)
     prompt = (f"Run the automation \"{auto['title']}\" now ({auto['when']}). "
               f"Procedure:\n{auto['procedure']}")
     try:
@@ -95,6 +115,7 @@ class Scheduler:
         self.runner = runner or claude_cli.run
         self.lock = threading.Lock()
         self.running: set[str] = set()
+        self.building: set[str] = set()
         self.stop_event = threading.Event()
 
     def _claim(self, aid: str) -> bool:
@@ -117,7 +138,35 @@ class Scheduler:
         if self._claim(aid):
             self._work(aid)
 
+    def builds(self) -> None:
+        """Start or continue every approved plan's build; stop one that used all its runs."""
+        for plan in self.world.plans.all(("approved", "building")):
+            if self.stop_event.is_set():
+                return
+            with self.lock:
+                if plan["id"] in self.building:
+                    continue
+                if plan["attempts"] >= MAX_RUNS:
+                    build.stop(self.world, plan["id"], f"it didn't finish in {MAX_RUNS} runs")
+                    continue
+                self.building.add(plan["id"])
+            threading.Thread(target=self._build, args=(plan["id"],), daemon=True,
+                             name=f"build-{plan['id']}").start()
+
+    def _build(self, pid: str) -> None:
+        try:
+            build.run_build(self.world, pid, runner=self.runner)
+        except Exception:
+            log.exception("build run failed")
+        finally:
+            with self.lock:
+                self.building.discard(pid)
+        # A run that ran out of time leaves the plan building: carry on at once.
+        if self.world.plans.get(pid)["state"] == "building" and not self.stop_event.is_set():
+            self.builds()
+
     def tick(self) -> None:
+        self.builds()
         for auto in self.world.automations.due():
             if self.stop_event.is_set():
                 return

@@ -66,6 +66,8 @@ def profile_dir(site: str) -> Path:
 
 
 SIGNIN_RECORD = "alpha-signin.json"
+BOT_CHECK = "The site stops automated reading with a bot check; Alpha doesn't try to get past it."
+SIGN_IN = "The site asks for a sign-in."
 
 
 def profile_of(conn: dict[str, Any]) -> Path:
@@ -193,6 +195,13 @@ class Browser:
                 return conn
         return own
 
+    def _walls(self, site: str, page: dict[str, Any]) -> None:
+        """A sign-in wall or a bot check on a page: every source on that site says so."""
+        if page.get("bot_check"):
+            self.world.sources.site_says(site, "blocked", BOT_CHECK)
+        elif page.get("blocked"):
+            self.world.sources.site_says(site, "needs_signin", SIGN_IN)
+
     def held_elsewhere(self, site: str, job: dict[str, Any],
                        timeout: int) -> tuple[dict[str, Any], dict[str, Any]] | None:
         """A page asked for a sign-in that no sign-in covers. Before anyone is asked to sign in,
@@ -251,12 +260,15 @@ class Browser:
         self.world.journal.append(
             "saw",
             f"Read {page.get('title') or url} ({site}{', signed in' if use_profile else ''})"
-            + (" — it asked for a sign-in" if page.get("blocked") else "") + ".",
+            + (" — it asked for a sign-in" if page.get("blocked") else "")
+            + (" — it stopped Alpha with a bot check" if page.get("bot_check") else "") + ".",
             data={"url": url, "final_url": page.get("final_url"), "status": page.get("status"),
                   "signed_in": use_profile, "blocked": bool(page.get("blocked")),
+                  "bot_check": bool(page.get("bot_check")),
                   "links": len(links), "turn": turn},
             module=module, source="connector:browser",
         )
+        self._walls(site, page)
         if page.get("blocked") and conn is not None:
             self.connections.synced(conn["id"], error="The site asked for a sign-in again.")
         return {
@@ -265,6 +277,7 @@ class Browser:
             "title": page.get("title"),
             "signed_in": use_profile,
             "needs_signin": bool(page.get("blocked")),
+            "bot_check": bool(page.get("bot_check")),
             "text": page.get("text", ""),
             "truncated": bool(page.get("truncated")),
             "links": links if all_links else links[:800],
@@ -305,13 +318,17 @@ class Browser:
             "saw",
             f"Ran {label or 'a script'} on {page.get('title') or url} ({site}"
             f"{', signed in' if use_profile else ''})"
-            + (f": {count} rows" if count is not None else "") + ".",
+            + (f": {count} rows" if count is not None else "")
+            + (" — it stopped Alpha with a bot check" if page.get("bot_check") else "")
+            + (" — it asked for a sign-in" if page.get("blocked") else "") + ".",
             data={"url": url, "signed_in": use_profile, "rows": count,
                   "writes_blocked": page.get("writes_blocked"), "turn": turn},
             module=module, source="connector:browser",
         )
+        self._walls(site, page)
         return {"url": url, "final_url": page.get("final_url"), "title": page.get("title"),
                 "signed_in": use_profile, "needs_signin": bool(page.get("blocked")),
+                "bot_check": bool(page.get("bot_check")),
                 "result": result, "scrolls": page.get("scrolls")}
 
     def items(self, url: str, *, link_contains: str, to_end: bool = True,

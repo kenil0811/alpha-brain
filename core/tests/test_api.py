@@ -3,16 +3,16 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
-from alpha.mcp.tools import Tools
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
 
 def seeded(world: World) -> None:
-    t = Tools(world, turn="j_seed")
+    t = building(world, turn="j_seed")
     t.module_create("Job Search", "An offer by December")
     t.collection_create("openings", "Openings", [
         {"name": "title", "kind": "text"}, {"name": "company", "kind": "text"},
@@ -140,7 +140,7 @@ def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -
 def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     from datetime import date
 
-    t = Tools(world)
+    t = building(world)
     t.module_create("Food")
     t.collection_create("food_log", "Food log", [
         {"name": "item", "kind": "text"}, {"name": "eaten_on", "kind": "date"},

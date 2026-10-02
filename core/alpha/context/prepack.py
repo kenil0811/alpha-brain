@@ -156,6 +156,10 @@ def build(world: World, sentence: str, *, module: str | None = None,
                   for t in world.modules.threads()]
     open_items += [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
                    for a in world.journal.open_asks()]
+    words = {"proposed": "proposed, waiting for their reply", "approved": "approved, starting",
+             "building": "building in the background"}
+    open_items += [f"- Plan {p['title']} ({p['id']}): {words[p['state']]}"
+                   for p in world.plans.all(("proposed", "approved", "building"))]
     if open_items:
         sections.append(("OPEN", open_items))
 

@@ -34,8 +34,8 @@ def _view(row: sqlite3.Row) -> dict[str, Any]:
 def health_problem(rows: Any, *, last_ok: int | None,
                    required: list[str] | None = None, held: int | None = None) -> str | None:
     """Why this result means the reader is broken, or None when it looks right. `held` is how
-    many rows the target table already has: a sync that returns far fewer is reading only part
-    of the list."""
+    many rows this reader found before that are not gone (other readers' rows in the same table
+    don't count): a run that returns far fewer is reading only part of the list."""
     if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
         return "the reader didn't return a list of rows"
     if not rows:
@@ -43,8 +43,8 @@ def health_problem(rows: Any, *, last_ok: int | None,
     if last_ok and len(rows) < last_ok * DROP:
         return f"the reader returned {len(rows)} rows where the last good run had {last_ok}"
     if held and len(rows) < held * HELD:
-        return (f"the reader returned {len(rows)} rows where the table already holds {held}: "
-                "it is probably reading only part of the list (does it need to_end=true?)")
+        return (f"the reader returned {len(rows)} rows where it found {held} that are still "
+                "listed: it is probably reading only part of the list (does it need to_end?)")
     for field in required or []:
         missing = sum(1 for r in rows if r.get(field) in (None, "", []))
         if missing > len(rows) * MISSING:

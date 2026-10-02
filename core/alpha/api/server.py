@@ -83,9 +83,11 @@ class NoteBody(BaseModel):
 class Turns:
     """Turns run in the background; the window polls for the answer."""
 
-    def __init__(self, world: World, runner: turns.Runner | None = None) -> None:
+    def __init__(self, world: World, runner: turns.Runner | None = None,
+                 after: Callable[[], None] | None = None) -> None:
         self.world = world
         self.runner = runner
+        self.after = after
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
 
@@ -116,6 +118,9 @@ class Turns:
                 result = {"state": "failed", "reply": f"Alpha hit an internal problem: {e}"}
             with self.lock:
                 self.state[key].update(result)
+            if self.after is not None:
+                # A plan approved in this turn starts building now, not at the next tick.
+                self.after()
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
@@ -206,8 +211,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                token: str | None = None, live: bool = True) -> FastAPI:
     world = world or World()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
-    running = Turns(world, runner)
     scheduler = Scheduler(world, runner)
+    running = Turns(world, runner, after=scheduler.builds if live else None)
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager
@@ -306,6 +311,16 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                                         actor="person",
                                         data={"proposal": pid, "accept": body.accept},
                                         module=proposal["module"])
+        plan = proposal["data"].get("plan")
+        if plan:
+            # A plan's yes starts its build in the background; its no just closes it.
+            if body.accept:
+                world.plans.approve(plan, "Approved in the app")
+                if live:
+                    scheduler.builds()
+            else:
+                world.plans.decline(plan)
+            return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
         instruction = proposal["data"].get("instruction")
         if instruction:
             # The person's yes is what makes it an instruction; nothing else needs to run.
@@ -317,6 +332,29 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         started = running.start(AskBody(text=f"Yes, go ahead: {proposal['text']}",
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}
+
+    @app.get("/api/plans", dependencies=[api])
+    def plans() -> list[dict[str, Any]]:
+        return list(reversed(world.plans.all()))[:50]
+
+    @app.post("/api/plans/{plan_id}/approve", dependencies=[api])
+    def approve_plan(plan_id: str) -> dict[str, Any]:
+        plan = world.plans.get(plan_id)
+        if plan.get("proposal"):
+            decide_proposal(plan["proposal"], DecideBody(accept=True))
+            return world.plans.get(plan_id)
+        world.plans.approve(plan_id, "Approved in the app")
+        if live:
+            scheduler.builds()
+        return world.plans.get(plan_id)
+
+    @app.post("/api/plans/{plan_id}/decline", dependencies=[api])
+    def decline_plan(plan_id: str) -> dict[str, Any]:
+        plan = world.plans.get(plan_id)
+        if plan.get("proposal"):
+            decide_proposal(plan["proposal"], DecideBody(accept=False))
+            return world.plans.get(plan_id)
+        return world.plans.decline(plan_id)
 
     @app.post("/api/facts/{fid}/decide", dependencies=[api])
     def decide_fact(fid: str, body: DecideBody) -> dict[str, Any]:
@@ -337,6 +375,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
         card["automations"] = automation_views(world, scheduler, m["id"])
+        card["sources"] = world.sources.all(m["id"])
         return card
 
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
@@ -540,7 +579,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         module_id = world.modules.get(module)["id"] if module else None
         turns_ = world.journal.recent(limit, stream=True, kinds=["said", "replied", "failed"],
                                       module=module_id)
-        return {"turns": turns_, "threads": world.modules.threads(), "running": running.running()}
+        return {"turns": turns_, "threads": world.modules.threads(), "running": running.running(),
+                "plans": world.plans.all(("proposed", "approved", "building"))}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:

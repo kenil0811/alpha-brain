@@ -29,7 +29,7 @@ from typing import Any
 
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites, site_of
-from alpha.world.store import Problem
+from alpha.world.store import Problem, now
 from alpha.world.world import World, alpha_home
 
 CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
@@ -88,6 +88,11 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["notes"] = db.execute(
             "DELETE FROM notes WHERE scope = ?", (f"module:{name}",)).rowcount
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
+        counts["sources"] = world.sources.remove_module(db, mid)
+        # Plans stay as a record of what was proposed and decided; none of them goes on.
+        db.execute("UPDATE plans SET state = 'stopped', report = COALESCE(report, ?),"
+                   " updated_at = ? WHERE module = ? AND state IN ('proposed', 'approved',"
+                   " 'building')", (f"{name} was removed.", now(), mid))
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")

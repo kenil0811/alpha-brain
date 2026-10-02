@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import building
 
 from alpha.connectors.base import Connections
-from alpha.mcp.tools import Tools
 from alpha.world.purge import clear_conversation, remove_connection, remove_module
 from alpha.world.world import World
 
 
 def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) -> None:
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     t.module_create("Network", "Keep my connections")
     t.module_create("Food")
     t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"},
@@ -64,7 +64,7 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     conn = Connections(world.store).upsert("browser", "linkedin.com",
                                            config={"profile": str(profile)})
     other = Connections(world.store).upsert("browser", "example.com")
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     t.module_create("Network")
     t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"}],
                         module="Network")

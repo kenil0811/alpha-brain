@@ -239,6 +239,40 @@ CREATE TABLE IF NOT EXISTS readers (
     updated_at TEXT NOT NULL
 );
 
+-- what Alpha proposed to set up, and its way from the person's yes to a finished build
+CREATE TABLE IF NOT EXISTS plans (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    state TEXT NOT NULL,
+    module TEXT,
+    thread TEXT,
+    turn TEXT,
+    proposal TEXT,
+    approval TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    report TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- everything a module reads from outside Alpha, and whether it works
+CREATE TABLE IF NOT EXISTS sources (
+    id TEXT PRIMARY KEY,
+    module TEXT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    site TEXT NOT NULL,
+    reader TEXT,
+    status TEXT NOT NULL,
+    detail TEXT,
+    last_checked TEXT,
+    last_rows INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (module, url)
+);
+
 -- what the model was given for each turn, so a wrong answer can be traced to what it saw
 CREATE TABLE IF NOT EXISTS turn_contexts (
     turn TEXT PRIMARY KEY,
@@ -266,6 +300,12 @@ ADDED_COLUMNS = [
     ("notes", "source", "TEXT"),
     ("entities", "source", "TEXT"),
     ("threads", "brief", "TEXT"),
+    # rows a reader keeps: which reader last returned it, when, and when it stopped returning it
+    ("records", "reader", "TEXT"),
+    ("records", "seen_at", "TEXT"),
+    ("records", "gone_at", "TEXT"),
+    # an automation that is a pipeline of saved steps, run with no model
+    ("automations", "steps", "TEXT"),
 ]
 
 
@@ -315,6 +355,10 @@ class Store:
                 if column not in have:
                     db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
             db.execute("CREATE INDEX IF NOT EXISTS records_entity ON records(entity_id)")
+            db.execute("CREATE INDEX IF NOT EXISTS records_reader ON records(collection, reader)")
+            # Rows a reader wrote before rows knew their reader.
+            db.execute("UPDATE records SET reader = json_extract(provenance, '$.reader')"
+                       " WHERE reader IS NULL AND json_extract(provenance, '$.reader') IS NOT NULL")
             # Threads are records, not remembered model sessions: nothing resumes one.
             db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL")
             # Each world is one person's; its id travels with the file.
