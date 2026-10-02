@@ -59,6 +59,11 @@ export interface RecordRow {
   entity?: string | null;
 }
 
+export interface TableData {
+  table: TableDesc;
+  records: RecordRow[];
+}
+
 export interface JournalEntry {
   id: string;
   at: string;
@@ -410,7 +415,7 @@ export class Client {
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
-  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[] }> {
+  async table(name: string): Promise<TableData> {
     const data = await this.call<{ table: TableDesc; records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
     return { table: data.table, records: data.records.map(toRow) };
   }
