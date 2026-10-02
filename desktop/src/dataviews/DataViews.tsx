@@ -1,15 +1,17 @@
 /**
  * <DataViews>: the one shell every table renders through (Bridge's DataViews on the core's
- * records). One toolbar row, always: List, View and Search on the left, Filter and ⋮ on the
- * right, nothing else. Below it the registered view for the active kind, the bar for selected
- * rows, a record drawer or page, and one pagination bar. Search, filters and sorts are applied
- * here, once, with the field kinds; views only draw.
+ * records). One toolbar row, always: List, View and Search on the left; Add, "Save as list"
+ * (when All is filtered), Filter and ⋮ on the right, as in Alpha. Under it a chip per filter and
+ * the inline add row, then the registered view for the active kind, the bar for selected rows,
+ * a record drawer or page, and one pagination bar. Search, filters and sorts are applied here,
+ * once, with the field kinds; views only draw. Changes made on one of the person's lists save
+ * back to it on their own.
  *
  * Every edit goes through the core, which journals it with who made it; the last edit to the
  * table can be undone from the pager, the ⋮ menu or ⌘Z.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Check, Filter, MoreVertical, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Filter, MoreVertical, Search } from "lucide-react";
 import type { Client, RecordRow, TableData, TableDesc } from "../core/client";
 import { Button } from "../ui/Button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../ui/DropdownMenu";
@@ -19,7 +21,7 @@ import { titleFieldOf, type FieldInfo } from "../modules/fields";
 import { applyFilters, applySorts, filterRowsByQuery, isActiveFilter, VIEW_KINDS, type DataRow, type ViewConfig, type ViewKind } from "./engine";
 import { computeEligibleKinds, ineligibleReason, migrateViewConfig, viewConfigForKind } from "./eligibility";
 import { useRelations, fieldLabel, type Link } from "./cells";
-import { FilterBuilder, KIND_LABELS, NameDialog, PaginationBar, SelectionBar, SortEditor, PAGE_SIZES, type PageSize } from "./controls";
+import { FilterBuilder, FilterChips, KIND_LABELS, NameDialog, PaginationBar, SelectionBar, SortEditor, PAGE_SIZES, type PageSize } from "./controls";
 import { PAGED, VIEW_COMPONENTS, VIEW_METADATA } from "./registry";
 import { EntityPage, NewRecordFrame, RecordPage, type Opened } from "./RecordPage";
 import { NewRecordForm } from "./views/FormView";
@@ -96,6 +98,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const [naming, setNaming] = useState<"new" | "rename" | "duplicate" | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [relVersion, setRelVersion] = useState(0);
   const boxRef = useRef<HTMLDivElement | null>(null);
 
@@ -116,6 +119,14 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [client, name]);
   useEffect(load, [load, version]);
+  // Skills the Chief of Staff attached to this table, offered in each row's menu.
+  const [rowActions, setRowActions] = useState<{ skill: string; title: string }[]>([]);
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => client.rowActions(name))
+      .then(setRowActions)
+      .catch(() => setRowActions([]));
+  }, [client, name, version]);
 
   const lists = useSavedViews(client, name, fields, data?.views ?? null);
   const list = lists.views.find((v) => v.id === listId) ?? null;
@@ -149,7 +160,12 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const relations = useRelations(client, fields, version + relVersion);
   const records = useMemo(() => new Map((data?.records ?? []).map((r) => [r.id, r])), [data]);
   const rows = useMemo(() => (data?.records ?? []).map(flat), [data]);
-  const matching = useMemo(() => applySorts(applyFilters(filterRowsByQuery(rows, search, ["id", "created_at", "updated_at"]), config.rowFilters, config.filterMatch, kinds), config.sorts), [rows, search, config, kinds]);
+  // "Hide done": the status field whose done choices say a row is finished.
+  const doneField = fields.find((f) => f.kind === "status" && f.done_choices?.length);
+  const matching = useMemo(() => {
+    const open = config.hideDone && doneField ? rows.filter((r) => !doneField.done_choices!.includes(String(r[doneField.name] ?? ""))) : rows;
+    return applySorts(applyFilters(filterRowsByQuery(open, search, ["id", "created_at", "updated_at"]), config.rowFilters, config.filterMatch, kinds), config.sorts);
+  }, [rows, search, config, kinds, doneField]);
   // A grouped table shows every row so each group's count is the whole group, not one page's.
   // ponytail: grouped tables are neither paged nor windowed; fine to a few thousand rows.
   const paged = PAGED.has(config.kind) && !(config.kind === "table" && config.groupBy);
@@ -184,11 +200,38 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
 
   const workingConfig = { ...config, search: search || undefined };
   const dirty = list ? !sameConfig(migrateViewConfig(shape, list.config as Partial<ViewConfig>), migrateViewConfig(shape, workingConfig)) || (list.config.search ?? "") !== search : false;
-  const modified = config.rowFilters.length > 0 || config.sorts.length > 0 || Boolean(config.groupBy) || (config.hidden?.length ?? 0) > 0 || search !== "";
+  const modified = config.rowFilters.length > 0 || config.sorts.length > 0 || Boolean(config.groupBy) || (config.hidden?.length ?? 0) > 0 || search !== "" || Boolean(config.hideDone);
+  const filtered = config.rowFilters.some(isActiveFilter) || search !== "" || Boolean(config.hideDone);
+
+  // Changes made while one of the person's lists is open save back to it on their own.
+  const working = JSON.stringify(workingConfig);
+  useEffect(() => {
+    if (!list || !dirty) return;
+    const timer = setTimeout(() => void lists.update(list.id, { config: JSON.parse(working) as object }), 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `lists` is new each render; the list and what changed decide
+  }, [list?.id, dirty, working]);
+
+  // Toolbar "Save as list" on All: saved at once as "List N", renamed from ⋮ if wanted.
+  function saveAsList() {
+    const taken = new Set(lists.views.map((v) => v.title));
+    let n = lists.views.length + 1;
+    while (taken.has(`List ${n}`)) n += 1;
+    void lists.save(`List ${n}`, workingConfig).then((out) => out && setListId(out.id));
+  }
+  function moveColumn(field: string, by: -1 | 1) {
+    const shown = visible.map((f) => f.name);
+    const at = shown.indexOf(field);
+    if (at < 0 || at + by < 0 || at + by >= shown.length) return;
+    shown.splice(at, 1);
+    shown.splice(at + by, 0, field);
+    setConfig({ ...config, columnOrder: [...shown, ...fields.map((f) => f.name).filter((n) => !shown.includes(n))] });
+  }
 
   // ---------- writes ----------
 
-  async function run(work: () => Promise<unknown>, done: string, undo = true): Promise<boolean> {
+  /** `failed`: what didn't happen, said before the core's reason ("Could not save the change: …"). */
+  async function run(work: () => Promise<unknown>, done: string, undo = true, failed = "Could not save the change"): Promise<boolean> {
     setStatus(null);
     try {
       await work();
@@ -197,7 +240,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
       setStatus({ text: done, undo });
       return true;
     } catch (e) {
-      setStatus({ text: e instanceof Error ? e.message : String(e), error: true });
+      setStatus({ text: `${failed}: ${e instanceof Error ? e.message : String(e)}`, error: true });
       return false;
     }
   }
@@ -206,7 +249,21 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
     if (!rec) return Promise.resolve(false);
     return run(() => client.editRecord(name, id, values, rec.revision), "Saved");
   };
-  const add = (values: Record<string, unknown>) => run(() => client.addRecord(name, values), "Added");
+  const add = (values: Record<string, unknown>) => run(() => client.addRecord(name, values), "Added", true, "Could not add it");
+  const remove = (id: string) => {
+    const rec = records.get(id);
+    if (!rec) return;
+    if (opened.some((o) => o.kind === "record" && o.id === id)) setOpened([]);
+    void run(() => client.deleteRecord(name, id, rec.revision), "Removed", true, "Could not remove it");
+  };
+  const runRowAction = (id: string, skill: string) => {
+    const title = rowActions.find((a) => a.skill === skill)?.title ?? "It";
+    setStatus({ text: `${title} is working on this row…` });
+    client
+      .runRowAction(name, id, skill)
+      .then((out) => setStatus({ text: out.summary, error: out.state === "failed" }))
+      .catch((e: unknown) => setStatus({ text: `Could not run ${title}: ${e instanceof Error ? e.message : String(e)}`, error: true }));
+  };
   const undo = () =>
     run(async () => {
       const out = await client.undo(name);
@@ -301,7 +358,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
               }, "Saved", false))
         }
         onRemove={async () => {
-          const ok = await run(() => client.deleteRecord(top.table, rec.id, rec.revision), "Removed");
+          const ok = await run(() => client.deleteRecord(top.table, rec.id, rec.revision), "Removed", true, "Could not remove it");
           if (ok) {
             if (!own) setRelVersion((v) => v + 1);
             setOpened((s) => s.slice(0, -1));
@@ -371,6 +428,14 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
           </label>
         </div>
         <div className="dv-toolbar__right">
+          <Button size="sm" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
+            {adding ? "Cancel" : "Add"}
+          </Button>
+          {listId === "all" && filtered ? (
+            <Button size="sm" variant="ghost" onClick={saveAsList}>
+              Save as list
+            </Button>
+          ) : null}
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" variant={activeFilters || config.sorts.length ? "secondary" : "outline"} aria-label="Filter">
@@ -398,7 +463,9 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
               </div>
             </PopoverContent>
           </Popover>
+          {/* Not modal: a column switched on or moved shows in the table behind the menu. */}
           <DropdownMenu
+            modal={false}
             onOpenChange={(open) => {
               if (!open) setConfirmDelete(false);
             }}
@@ -409,6 +476,13 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={load}>Reload</DropdownMenuItem>
+              {doneField ? (
+                <DropdownMenuCheckboxItem checked={Boolean(config.hideDone)} onSelect={(e) => e.preventDefault()} onCheckedChange={(on) => setConfig({ ...config, hideDone: on === true || undefined })}>
+                  <span className="dv-menu__mark">{config.hideDone ? <Check size={12} /> : null}</span>
+                  Hide done
+                </DropdownMenuCheckboxItem>
+              ) : null}
               <DropdownMenuItem
                 onSelect={() => {
                   setNewInitial({});
@@ -423,21 +497,31 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                   Columns <span className="dv-menu__note">{config.hidden?.length ? `${config.hidden.length} hidden` : "All shown"}</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  {fields.map((f) => (
-                    <DropdownMenuCheckboxItem
-                      key={f.name}
-                      checked={!(config.hidden ?? []).includes(f.name)}
-                      onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={(on) => setConfig({ ...config, hidden: on ? (config.hidden ?? []).filter((h) => h !== f.name) : [...(config.hidden ?? []), f.name] })}
-                    >
-                      <span className="dv-menu__mark">{(config.hidden ?? []).includes(f.name) ? null : <Check size={12} />}</span>
-                      {fieldLabel(f)}
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                  {[...visible, ...fields.filter((f) => !visible.includes(f))].map((f) => {
+                    const at = visible.indexOf(f);
+                    return (
+                      <div key={f.name} className="ui-menu__item menu__item--col">
+                        <label>
+                          <input type="checkbox" className="dv-check" checked={at >= 0} onChange={(e) => setConfig({ ...config, hidden: e.target.checked ? (config.hidden ?? []).filter((h) => h !== f.name) : [...(config.hidden ?? []), f.name] })} />
+                          <span className="dv-ellipsis">{fieldLabel(f)}</span>
+                        </label>
+                        {at >= 0 ? (
+                          <span className="menu__arrows">
+                            <button type="button" className="iconbtn" aria-label={`Move ${fieldLabel(f)} left`} disabled={at === 0} onClick={() => moveColumn(f.name, -1)}>
+                              <ArrowUp size={12} />
+                            </button>
+                            <button type="button" className="iconbtn" aria-label={`Move ${fieldLabel(f)} right`} disabled={at === visible.length - 1} onClick={() => moveColumn(f.name, 1)}>
+                              <ArrowDown size={12} />
+                            </button>
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                   {config.columnWidths && Object.keys(config.columnWidths).length ? (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => setConfig({ ...config, columnWidths: {} })}>Reset widths</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setConfig({ ...config, columnWidths: {} })}>Reset column widths</DropdownMenuItem>
                     </>
                   ) : null}
                 </DropdownMenuSubContent>
@@ -449,9 +533,6 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
               <DropdownMenuLabel>{list ? list.title : "List"}</DropdownMenuLabel>
               {list ? (
                 <>
-                  <DropdownMenuItem disabled={!dirty} onSelect={() => void lists.update(list.id, { config: workingConfig })}>
-                    Save changes to this list
-                  </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setNaming("rename")}>Rename list</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setNaming("duplicate")}>Duplicate list</DropdownMenuItem>
                   <DropdownMenuCheckboxItem checked={list.is_default} onCheckedChange={(on) => void lists.update(list.id, { is_default: on === true })}>
@@ -488,6 +569,12 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
           </DropdownMenu>
         </div>
       </div>
+      <FilterChips fields={filterFields} filters={config.rowFilters} onRemove={(i) => setConfig({ ...config, rowFilters: config.rowFilters.filter((_, j) => j !== i) })} />
+      {adding ? (
+        <div className="dv-addrow">
+          <NewRecordForm compact fields={fields} relations={relations} onCancel={() => setAdding(false)} onAdd={add} />
+        </div>
+      ) : null}
       {loadError ? (
         <p className="dv-error" role="alert">
           {loadError}{" "}
@@ -511,7 +598,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
         onSet={(f, value) => void run(() => client.bulkRecords(name, "set", selectedItems(), { [f.name]: value }), `Set ${fieldLabel(f).toLowerCase()} on ${selected.size} ${selected.size === 1 ? "row" : "rows"}`)}
         onDelete={async () => {
           const n = selected.size;
-          const ok = await run(() => client.bulkRecords(name, "delete", selectedItems()), `Removed ${n} ${n === 1 ? "row" : "rows"}`);
+          const ok = await run(() => client.bulkRecords(name, "delete", selectedItems()), `Removed ${n} ${n === 1 ? "row" : "rows"}`, true, "Could not remove them");
           if (ok) setSelected(new Set());
         }}
       />
@@ -541,6 +628,9 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                 selected={selected}
                 onSelect={select}
                 onChangeField={changeField}
+                onRemove={remove}
+                rowActions={rowActions}
+                onRowAction={runRowAction}
                 empty={empty}
               />
             ) : (

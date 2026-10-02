@@ -22,7 +22,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, signin_sites, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world import access, edits, taint
+from alpha.world import access, edits, links, skills, taint
 from alpha.world.actions import Actions
 from alpha.world.readers import allowed_posts, health_problem
 from alpha.world.store import Problem
@@ -386,6 +386,7 @@ class Tools:
         eq, ne, gt, gte, lt, lte, contains, in, is_null; created_at and updated_at can be
         filtered too. order: a field name, '-' in front for descending (default newest
         first)."""
+        links.check_read(self.world, self.module, self._module_of(collection))
         return self.world.collections.query(collection, where, order, limit)
 
     @tool
@@ -399,6 +400,7 @@ class Tools:
         """count, sum, avg, min or max over a table (field must be a number unless op is count),
         with the same where filters as records_query. Use it for totals such as today's
         calories instead of adding numbers up yourself."""
+        links.check_read(self.world, self.module, self._module_of(collection))
         return self.world.collections.aggregate(collection, op, field, where)
 
     @tool
@@ -445,6 +447,7 @@ class Tools:
         hidden: list[str] | None = None,
         date_field: str | None = None,
         default: bool = False,
+        hide_done: bool = False,
     ) -> dict[str, Any]:
         """Save a named view of a table, which the person then picks from the table's List
         menu ("Open roles by company"). kind: table, list, board, gallery, calendar, timeline,
@@ -452,16 +455,21 @@ class Tools:
         contains, does_not_contain, is, is_not, starts_with, ends_with, is_empty, is_not_empty,
         gt, gte, lt, lte (numbers), before, after, on_or_before, on_or_after (dates), is_any_of,
         is_none_of (choices; value comma-separated), is_checked, is_not_checked; match: all or
-        any. sorts: [{"field", "dir": "asc"|"desc"}], first wins. group_by: a field to group
-        rows (the board's columns, the chart's axis). hidden: fields not shown. date_field: the
-        date a calendar or timeline uses. default: open the table on this view. A view with the
-        same title is replaced."""
+        any. A date value may be relative so the view stays current: {"$today": 0} is today,
+        {"$today": -7} a week ago ("this week": on_or_after {"$today": -6}). sorts: [{"field",
+        "dir": "asc"|"desc"}], first wins. group_by: a field to group rows (the board's
+        columns, the chart's axis; a date field charts it over time, per day). hidden: fields
+        not shown. date_field: the date a calendar or timeline uses. hide_done: leave out rows
+        whose status is a done choice. When you build a table, save its page default with
+        default=true and the group_by and date_field that suit it. A view with the same title
+        is replaced."""
         if match not in {"all", "any"}:
             raise Problem("match is all or any.")
         config: dict[str, Any] = {
             "kind": kind,
             "rowFilters": [{"field": f.get("field"), "op": f.get("op", "is"),
-                            "value": "" if f.get("value") is None else str(f.get("value"))}
+                            "value": f["value"] if isinstance(f.get("value"), dict)
+                            else "" if f.get("value") is None else str(f.get("value"))}
                            for f in filters or []],
             "filterMatch": match,
             "sorts": [{"id": x.get("field") or x.get("id"),
@@ -471,6 +479,8 @@ class Tools:
         }
         if date_field:
             config["dateBy"] = date_field
+        if hide_done:
+            config["hideDone"] = True
         existing = self.world.views.find(collection, title.strip())
         if existing:
             view = self.world.views.update(existing["id"], config=config,
@@ -546,7 +556,8 @@ class Tools:
         otherwise it waits as a suggestion for their yes. why: the words it came from."""
         fact = self.world.knowledge.record_fact(
             subject, predicate, value,
-            source=f"turn:{self.turn}" if self.turn else "alpha",
+            source=f"module:{self.module}" if self.module
+            else f"turn:{self.turn}" if self.turn else "alpha",
             state="accepted" if stated else "suggested",
             confidence=0.95 if stated else 0.6,
             why=why,
@@ -894,3 +905,22 @@ class Tools:
                                              module=self.module)
         return {"pending_action": action["id"], "state": action["state"],
                 "note": "Waiting for the person's approval; tell them it's on Home."}
+
+    # ---- skills the person made (Intelligence › Skills) and row actions ----
+
+    @tool
+    def skills_list(self) -> list[dict[str, Any]]:
+        """The skills the person made: each a procedure in their words (what it does, the
+        steps, what it needs, the sources it may read, what it produces). When a sentence calls
+        for one, follow its steps; anything outward still goes through propose_action."""
+        return skills.all_skills(self.world.store)
+
+    @tool
+    def table_row_action(self, collection: str, skill: str) -> dict[str, Any]:
+        """Offer a skill (its id from skills_list) on every row of a table: it shows in the
+        row's menu and runs with that row's values as its inputs."""
+        actions = skills.attach_row_action(self.world.store, collection, skill)
+        self._did("changed", f"Added a row action to {collection}.",
+                  {"collection": collection, "skill": skill},
+                  module=self._module_of(collection))
+        return {"row_actions": actions}

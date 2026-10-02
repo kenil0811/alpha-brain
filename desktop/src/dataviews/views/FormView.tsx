@@ -6,7 +6,9 @@ import { humanize } from "../../modules/format";
 import { fieldLabel, fromText, type Relations } from "../cells";
 import type { ViewProps } from "../types";
 
-export function NewRecordForm({ fields, relations, onAdd, onCancel, initial = {} }: { fields: FieldInfo[]; relations: Relations; onAdd: (values: Record<string, unknown>) => Promise<boolean>; onCancel?: () => void; initial?: Record<string, string> }) {
+/** `compact`: the inline add row above a table (Alpha's AddRow): compact fields with
+ * "(optional)" on the ones that may stay empty, Add and Cancel, closing once added. */
+export function NewRecordForm({ fields, relations, onAdd, onCancel, initial = {}, compact = false }: { fields: FieldInfo[]; relations: Relations; onAdd: (values: Record<string, unknown>) => Promise<boolean>; onCancel?: () => void; initial?: Record<string, string>; compact?: boolean }) {
   const [draft, setDraft] = useState<Record<string, string>>(initial);
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState(0);
@@ -27,18 +29,19 @@ export function NewRecordForm({ fields, relations, onAdd, onCancel, initial = {}
     if (ok) {
       setDraft(initial);
       setAdded((n) => n + 1);
+      if (compact) onCancel?.();
     }
   }
   return (
-    <form className="dv-form" onSubmit={submit}>
+    <form className={compact ? "dv-form dv-form--add" : "dv-form"} onSubmit={submit} aria-label={compact ? "Add a row" : undefined}>
       {fields.map((f, i) => {
-        const id = `dv-new-${f.name}`;
+        const id = `dv-${compact ? "add" : "new"}-${f.name}`;
         const value = draft[f.name] ?? "";
         return (
           <div key={f.name} className="dv-form__field">
             <label htmlFor={id}>
               {fieldLabel(f)}
-              {f.required ? <span aria-label="required"> *</span> : null}
+              {compact ? (f.required ? "" : " (optional)") : f.required ? <span aria-label="required"> *</span> : null}
             </label>
             {f.kind === "choice" || f.kind === "status" ? (
               <select id={id} className="dv-select" value={value} onChange={(e) => set(f.name, e.target.value)}>
@@ -92,7 +95,7 @@ export function NewRecordForm({ fields, relations, onAdd, onCancel, initial = {}
       })}
       <div className="dv-form__actions">
         <Button type="submit" size="sm" disabled={busy}>
-          Add row
+          {compact ? "Add" : "Add row"}
         </Button>
         {onCancel ? (
           <Button size="sm" variant="outline" onClick={onCancel}>

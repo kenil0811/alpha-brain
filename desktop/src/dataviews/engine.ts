@@ -34,10 +34,26 @@ export type FilterOp =
   | "is_checked"
   | "is_not_checked";
 
+/** A filter's value: words, or a day relative to today (`{ $today: -7 }` is a week ago), so a
+ * saved "this week" list stays current. */
+export type FilterValue = string | { $today: number };
+
 export interface RowFilter {
   field: string;
   op: FilterOp;
-  value: string;
+  value: FilterValue;
+}
+
+/** The day `n` days from today, as the date inputs write it (local time). */
+export function dayFromToday(n: number, today = new Date()): string {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** A filter value as text, with a relative day filled in. */
+export function filterText(value: FilterValue | undefined | null): string {
+  if (value && typeof value === "object" && typeof value.$today === "number") return dayFromToday(value.$today);
+  return typeof value === "string" ? value : "";
 }
 export interface SortSpec {
   id: string;
@@ -72,6 +88,8 @@ export interface ViewConfig {
   parentBy?: string;
   /** The search box, kept with a saved list. */
   search?: string;
+  /** Leave out rows whose status is one of its done choices. */
+  hideDone?: boolean;
 }
 
 export const defaultViewConfig = (kind: ViewKind = "table"): ViewConfig => ({ kind, sorts: [], rowFilters: [], filterMatch: "all", groupBy: null });
@@ -136,7 +154,8 @@ function timestamp(raw: unknown): number {
   return text === "" ? Number.NaN : new Date(text).getTime();
 }
 
-function passesOne(row: Record<string, unknown>, f: RowFilter, kind: string | undefined): boolean {
+function passesOne(row: Record<string, unknown>, filter: RowFilter, kind: string | undefined): boolean {
+  const f = { ...filter, value: filterText(filter.value) };
   const raw = row[f.field];
   const cell = Array.isArray(raw) ? raw.join(" ") : String(raw ?? "");
   const cellLow = cell.toLowerCase();
@@ -209,7 +228,7 @@ function passesOne(row: Record<string, unknown>, f: RowFilter, kind: string | un
 }
 
 export function isActiveFilter(f: RowFilter): boolean {
-  return VALUELESS_FILTER_OPS.includes(f.op) || f.value !== "";
+  return VALUELESS_FILTER_OPS.includes(f.op) || filterText(f.value) !== "";
 }
 
 /** Apply a view's filters. `kinds` (field -> kind) makes "is" on a date match the same day. */

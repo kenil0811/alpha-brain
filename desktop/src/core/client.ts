@@ -39,7 +39,8 @@ export interface TableSummary {
 export interface Provenance {
   by?: string;
   turn?: string | null;
-  estimated?: boolean;
+  /** true: the row's numbers are estimates; a list names the estimated fields. */
+  estimated?: boolean | string[];
 }
 
 export interface RecordRow {
@@ -507,6 +508,22 @@ export class Client {
   access = (thread?: string | null) => this.call<AccessInfo>("GET", `/api/access${thread ? `?thread=${encodeURIComponent(thread)}` : ""}`);
   setAccess = (thread: string | null, mode: AccessMode | null) => this.call<AccessInfo>("PUT", "/api/access", { thread, mode });
   cancelTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${encodeURIComponent(key)}/cancel`);
+
+  // ---- About you, skills, first steps, project links, row actions (core/alpha/api/brain.py) ----
+  addFact = (predicate: string, value: string) => this.call<Fact>("POST", "/api/facts", { predicate, value });
+  forgetFact = (id: string) => this.call<{ forgotten: string }>("DELETE", `/api/facts/${id}`);
+  listSkills = () => this.call<SkillSpec[]>("GET", "/api/skills");
+  createSkill = (draft: SkillDraft) => this.call<SkillSpec>("POST", "/api/skills", draft);
+  getSkill = (id: string) => this.call<{ skill: SkillSpec; runs: SkillRun[] }>("GET", `/api/skills/${id}`);
+  retireSkill = (id: string) => this.call<{ retired: string }>("DELETE", `/api/skills/${id}`);
+  runSkill = (id: string, inputs: Record<string, unknown>) => this.call<SkillRun>("POST", `/api/skills/${id}/run`, { inputs });
+  rowActions = (table: string) => this.call<RowAction[]>("GET", `/api/tables/${encodeURIComponent(table)}/row-actions`);
+  runRowAction = (table: string, row: string, skill: string) => this.call<SkillRun>("POST", `/api/tables/${encodeURIComponent(table)}/rows/${row}/run/${skill}`);
+  onboarding = () => this.call<OnboardingStatus>("GET", "/api/onboarding");
+  answerOnboarding = (answers: Record<string, string>) => this.call<OnboardingStatus>("POST", "/api/onboarding", { answers });
+  skipOnboarding = () => this.call<OnboardingStatus>("POST", "/api/onboarding/skip");
+  projectLinks = () => this.call<ProjectLink[]>("GET", "/api/links");
+  setProjectLink = (module: string, reads: string, enabled: boolean) => this.call<ProjectLink[]>("PUT", `/api/modules/${module}/reads`, { reads, enabled });
 }
 
 // ---- P2: attachments, settings fields, access modes ----
@@ -569,4 +586,50 @@ export interface AccessInfo {
   thread: string | null;
   mode: AccessMode;
   default: AccessMode;
+}
+
+export interface SkillInput {
+  name: string;
+  description: string;
+  required: boolean;
+}
+export interface SkillDraft {
+  title: string;
+  description: string;
+  instructions: string;
+  inputs: SkillInput[];
+  sources: string[];
+  produces: string;
+}
+export interface SkillSpec extends SkillDraft {
+  id: string;
+  kind: "procedure";
+  created_at: string;
+}
+export interface SkillRun {
+  skill: string;
+  state: "done" | "failed";
+  inputs: Record<string, unknown>;
+  summary: string;
+  items: Record<string, unknown>[];
+  evidence: { title?: string; url?: string; snippet?: string }[];
+  started_at: string;
+}
+export interface RowAction {
+  skill: string;
+  title: string;
+}
+export interface OnboardingStatus {
+  done: boolean;
+  questions: { id: string; label: string; hint: string }[];
+  proposal: { skipped?: boolean; intro: string; options: { title: string; request: string; why: string }[] } | null;
+}
+export interface ProjectLink {
+  module: string;
+  name: string;
+  reads: string;
+  reads_name: string;
+  tables: string[];
+  why: string;
+  enabled: boolean;
 }

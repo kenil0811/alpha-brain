@@ -72,6 +72,17 @@ def test_alpha_saves_a_view_when_asked_and_a_second_save_replaces_it(world: Worl
     assert "error" in t.view_save("books", "Bad", kind="pie")
 
 
+def test_a_view_keeps_a_relative_day_and_hide_done(world: World) -> None:
+    t = table(world)
+    v = t.view_save("books", "This week", filters=[
+        {"field": "read_on", "op": "on_or_after", "value": {"$today": -6}}], hide_done=True)
+    assert v["config"]["rowFilters"][0]["value"] == {"$today": -6}
+    assert v["config"]["hideDone"] is True
+    bad = t.view_save("books", "Odd", filters=[
+        {"field": "read_on", "op": "after", "value": {"$yesterday": 1}}])
+    assert "relative to today" in bad["error"]
+
+
 # ---- a field changes kind ----
 
 def test_text_becomes_a_number_when_every_value_reads_as_one(world: World) -> None:

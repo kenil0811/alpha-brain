@@ -7,12 +7,22 @@ import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem, PendingAction } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { InfoTip, PageHeader, useToast } from "../ui";
+import { FirstSteps } from "./FirstSteps";
 import { projectIcon } from "./projectIcons";
 import type { Surface } from "./Rail";
 
 function greeting(): string {
   const hour = new Date().getHours();
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+}
+
+function ago(iso: string): string {
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 function timeOf(iso: string): string {
@@ -180,12 +190,27 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
   }, [client, version]);
 
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const header = <PageHeader title={greeting()} right={<span className="muted">{date}</span>} />;
+  const header = (
+    <PageHeader
+      title={
+        <>
+          {greeting()} <InfoTip content="Open a project to work with its records, or describe a new one." label="About this page" />
+        </>
+      }
+      right={<span className="muted">{date}</span>}
+    />
+  );
   if (!home) {
     return (
       <div className="page">
         {header}
-        {error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}
+        {error ? (
+          <p className="notice" role="alert">
+            Projects could not be loaded: {error}
+          </p>
+        ) : (
+          <p className="muted">Loading projects…</p>
+        )}
       </div>
     );
   }
@@ -197,17 +222,32 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
   return (
     <div className="page">
       {header}
-      <div className="today">
+      <FirstSteps client={client} onStart={onAsk} />
+      <div className="today" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         <div className="card tile">
-          <div className="tile__lab">Needs you</div>
-          <div className="tile__big num">{waiting}</div>
+          <div className="tile__lab">Projects</div>
+          <div className="tile__big num">{home.modules.length}</div>
+          <div className="tile__sub">{home.modules.length ? "Ready to use on this Mac" : "Describe what you want to make the first one"}</div>
         </div>
         <div className="card tile">
           <div className="tile__lab">
-            Done today <InfoTip content="Things Alpha read, made and changed today." label="About done today" />
+            Ran today <InfoTip content="Things Alpha read, made and changed today." label="About ran today" />
           </div>
           <div className="tile__big num">{home.ran_today}</div>
-          {home.failed_today ? <div className="tile__sub">{home.failed_today} didn't work</div> : null}
+          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work` : home.ran_today ? `${home.ran_today} finished fine` : "Nothing has run yet today"}</div>
+        </div>
+        <div className="card tile">
+          <div className="tile__lab">Needs you</div>
+          <div className="tile__big num">{waiting}</div>
+          <div className="tile__sub">
+            {waiting ? (
+              <button type="button" className="linkbtn linkbtn--primary" onClick={() => document.getElementById("needs-you")?.scrollIntoView({ behavior: "smooth" })}>
+                See what
+              </button>
+            ) : (
+              "Nothing is waiting on you"
+            )}
+          </div>
         </div>
         <div className="card tile">
           <div className="tile__lab">Coming up</div>
@@ -217,7 +257,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
       </div>
 
       {waiting ? (
-        <div className="section section--first">
+        <div className="section section--first" id="needs-you">
           <div className="section__head">
             <h2>Needs you</h2>
             <InfoTip content="Alpha never sends anything or acts for you without a yes." label="About needs you" />
@@ -273,8 +313,13 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
 
       <div className="section">
         <div className="section__head">
-          <h2>Projects</h2>
+          <h2>Your projects</h2>
           <InfoTip content="Made from what you asked for; each grows as you use it." label="About projects" />
+          <div className="section__right">
+            <button type="button" className="linkbtn linkbtn--primary" onClick={() => onGo({ kind: "activity" })}>
+              See all activity
+            </button>
+          </div>
         </div>
         <div className="modgrid">
           {home.modules.map((m) => {
@@ -286,17 +331,20 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
                   <Icon size={18} />
                 </div>
                 <div className="modcard__name">
-                  <h3>{m.name}</h3>
+                  <h3>
+                    {m.name}
+                    {m.goal ? <> <InfoTip content={m.goal} label={`About ${m.name}`} /></> : null}
+                  </h3>
                   <div className="faint">
                     {m.tables.length} {m.tables.length === 1 ? "table" : "tables"} · {m.records} {m.records === 1 ? "row" : "rows"}
                   </div>
                 </div>
               </div>
-              <p className="modcard__line">{m.goal ?? m.last_text ?? "Nothing in it yet."}</p>
+              <p className="modcard__line">{m.last_text ?? "Nothing in it yet."}</p>
               <div className="modcard__foot">
-                <span>{m.last_at ? `Last change ${when(m.last_at)}` : ""}</span>
-                <button type="button" className="btn btn--sm" onClick={() => onGo({ kind: "module", id: m.id })}>
-                  Open
+                <span>{m.last_at ? `Last change ${when(m.last_at)}` : `Made ${ago(m.created_at)}`}</span>
+                <button type="button" className="linkbtn linkbtn--primary" aria-label={`Open ${m.name}`} onClick={() => onGo({ kind: "module", id: m.id })}>
+                  Open project →
                 </button>
               </div>
             </div>

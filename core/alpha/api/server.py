@@ -29,6 +29,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 import alpha
+from alpha.api import brain
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
@@ -844,6 +845,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.get("/api/threads/{tid}", dependencies=[api])
     def thread(tid: str) -> dict[str, Any]:
         return {**world.modules.thread(tid), "journal": world.journal.recent(200, thread=tid)}
+
+    # ---- facts, skills, first steps, project links, row actions (alpha/api/brain.py) ----
+    brain.mount(app, world, api, running.runner or Router(accounts))
 
     return app
 

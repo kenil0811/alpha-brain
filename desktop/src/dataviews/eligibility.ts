@@ -12,8 +12,10 @@ export interface TableShape {
   fields: FieldInfo[];
 }
 
-/** A chart's axis: grouping free text gives one bar per row, which is a list drawn as a chart. */
-const GROUPABLE = new Set(["choice", "multichoice", "status", "bool"]);
+/** A chart's axis: grouping free text gives one bar per row, which is a list drawn as a chart.
+ * A date axis is a chart over time: one bar per day. */
+export const CHART_AXIS = new Set(["choice", "multichoice", "status", "bool", "date", "datetime"]);
+const GROUPABLE = CHART_AXIS;
 const PLACE = /(^|_)(location|address|city|country|place|where|region|town|coordinates|geo|latlng)($|_)/i;
 
 export function isPlaceField(f: FieldInfo): boolean {
@@ -27,7 +29,7 @@ export function driverField(table: TableShape, kind: ViewKind): FieldInfo | unde
   const f = table.fields;
   if (kind === "board") return f.find((x) => x.kind === "status") ?? f.find((x) => x.kind === "choice");
   if (kind === "calendar" || kind === "timeline") return f.find((x) => x.kind === "date") ?? f.find((x) => x.kind === "datetime");
-  if (kind === "chart") return f.find((x) => x.kind === "status") ?? f.find((x) => GROUPABLE.has(x.kind));
+  if (kind === "chart") return f.find((x) => x.kind === "status") ?? f.find((x) => GROUPABLE.has(x.kind) && x.kind !== "date" && x.kind !== "datetime") ?? f.find((x) => x.kind === "date") ?? f.find((x) => x.kind === "datetime");
   if (kind === "map") return f.find(isPlaceField);
   if (kind === "tree") return f.find((x) => isParentRelation(table, x));
   if (kind === "graph") return f.find((x) => x.kind === "relation" && !isParentRelation(table, x));
@@ -46,7 +48,7 @@ export function ineligibleReason(kind: ViewKind): string {
     board: "Needs a choice or status field",
     calendar: "Needs a date field",
     timeline: "Needs a date field",
-    chart: "Needs a choice, status or yes/no field",
+    chart: "Needs a choice, status, yes/no or date field",
     map: "Needs a place field (location, city, country or address)",
     graph: "Needs a link to another table or to people",
     tree: "Needs a link from this table to itself",

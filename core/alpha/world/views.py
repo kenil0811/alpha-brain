@@ -59,6 +59,12 @@ class Views:
                 unknown.append(str(f.get("field")))
             if f.get("op") not in FILTER_OPS:
                 raise Problem(f"'{f.get('op')}' is not a filter; use one of {sorted(FILTER_OPS)}.")
+            value = f.get("value")
+            # A relative day keeps a saved "this week" current: {"$today": -7} is a week ago.
+            if isinstance(value, dict) and (set(value) != {"$today"} or not isinstance(
+                    value["$today"], int) or isinstance(value["$today"], bool)):
+                raise Problem('A filter value is words, or a day relative to today as'
+                              ' {"$today": <days>}, e.g. {"$today": -7}.')
         unknown += [str(s.get("id")) for s in config.get("sorts") or [] if s.get("id") not in names]
         unknown += [str(config[k]) for k in FIELD_KEYS if config.get(k) and config[k] not in names]
         unknown += [str(h) for h in config.get("hidden") or [] if h not in names]
