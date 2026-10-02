@@ -1126,6 +1126,14 @@ thinking, it should give me options for questions and not just have me type in".
   `{message}`, click Send; the dry run composed the message and the card waits with its
   preview; nothing was sent. The second site cost no platform code beyond the placeholder fix;
   nine minutes is the price of learning a site once.
+- **Kenil's own run (22:28):** "Send LinkedIn message to Sania Hussain: hello from alpha",
+  70 s to the card in the real app. "worked pretty well! but the card didnt look good": the
+  LinkedIn urn showed as a field, the "because" line was record ids and addresses, the
+  screenshot filled the width. The card now hides identifier-like fields (names ending in
+  urn, id, slug, key, token; `urn:` values; opaque tokens), shows the first 150 characters of
+  the evidence with "more", lays the text beside a thumbnail that opens full size, and the
+  panel drops a failed attempt once the same thing was proposed again; `action_propose` asks
+  for evidence in one plain sentence, never ids.
 - A lesson for the repair loop: Alpha's diagnosis ("anti-automation") was wrong because it
   never saw the error screenshot. `action_propose`'s failure answer now carries the step log;
   giving Alpha the screenshot itself (a `page_read` of the final page, or the image) is open.

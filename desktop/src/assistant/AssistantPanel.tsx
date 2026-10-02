@@ -399,7 +399,9 @@ export function AssistantPanel({
                 <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
               ))}
             {actions
-              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || (a.state === "failed" && !a.error?.includes("declined")))
+              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
+              // A failed attempt is history once Alpha proposed the same thing again.
+              .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
               .map((a) => (
                 <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}

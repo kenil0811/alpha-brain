@@ -961,7 +961,9 @@ class Tools:
         words after the card: action_approve). A prepare-level procedure the person has allowed
         always runs at once instead. title: what it does, in their words ("Draft to Sania about
         Barcelona"). undo: what can be undone and what cannot ("the draft can be deleted" / "a
-        sent email cannot be unsent"). evidence: what it rests on (records, pages read)."""
+        sent email cannot be unsent"). evidence: what it rests on, in one plain sentence the
+        person would say (who it goes to and why, what was read), never ids, urns or
+        addresses: the card shows it."""
         proc = self.world.procedures.get(procedure)
         module_id = self.world.modules.get(module)["id"] if module else self.module
         from alpha.runtime import acting
