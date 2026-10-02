@@ -16,7 +16,6 @@ from alpha.connectors.base import skills_text
 from alpha.context import prepack
 from alpha.models import settings
 from alpha.runtime import attachments as attached
-from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world import taint
 from alpha.world.world import World
@@ -128,7 +127,7 @@ def ask(
     *,
     module: str | None = None,
     thread: str | None = None,
-    runner: Runner = claude_cli.run,
+    runner: Runner,
     rules: str = RULES,
     actor: str = "person",
     timeout: int | None = None,

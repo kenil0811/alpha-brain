@@ -56,6 +56,13 @@ Known ceiling: a public page is untrusted but doesn't taint. Text planted on one
 later fetch into carrying baseline material out. The fix would be to run research in a separate
 run with no pre-pack.
 
+## The core's API
+
+Loopback only, and a request carrying another site's `Origin` is refused, token or not. The
+main window's token reaches everything. The companion window gets its own token, which reaches
+only home, the conversation, asking, a turn's progress and transcription (`server.COMPANION`),
+so a script planted there can't approve, change settings or edit records.
+
 ## Pending actions
 
 `pending_actions` stores the exact payload. A trigger refuses any change to kind, payload,

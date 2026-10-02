@@ -4,6 +4,17 @@ Bugs found in Alpha (AB), with their status. Newest group first.
 
 Status: **open**, **fixed** (verified), **deferred** (with the reason).
 
+## 2026-10-02: Bridge and Alpha bug-class review
+
+| # | Bug | Status |
+|---|---|---|
+| 8 | A calendar sync that throws only reached the log: the connection stayed "connected" and nothing showed in Activity (Bridge's success-shaped failure). | fixed (test seen failing first): `Connections.synced` journals a new problem once, and the recovery |
+| 9 | `turn.ask`, `automation.run` and `Scheduler` defaulted to `claude_cli.run`, so `alpha ask` ran on the `claude` CLI's own login, not the chosen model (Alpha #45). | fixed: no default runner; `alpha ask` uses the Router |
+| 10 | The companion window received the main window's core token, so a script in it could approve actions or change settings (Bridge TASK-027). | fixed (test seen failing first): the companion gets its own token for home, conversation, ask, turns and transcribe only |
+| 11 | `alpha serve` without a token ran any web page's simple POST (no CORS preflight), e.g. an approve. | fixed (test seen failing first): requests from any other Origin are refused |
+| 12 | No single gate and no CI: Python and desktop checks ran separately, by hand. | fixed: `just verify` and `.github/workflows/verify.yml` |
+| 13 | The layout check is a console script, so no gate runs it. | open: needs a Playwright run |
+
 ## 2026-10-02: Alpha UI port (layout check and live review)
 
 | # | Bug | Status |

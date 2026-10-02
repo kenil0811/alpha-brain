@@ -167,9 +167,13 @@ class Calendar:
         end = datetime.now(UTC) + timedelta(days=AHEAD_DAYS)
         counts = {"added": 0, "changed": 0, "unchanged": 0, "removed": 0, "people": 0}
         seen: set[str] = set()
-        for ev in self.source.events(start, end):
-            seen.add(ev.uid)
-            counts[self._save(conn["id"], ev, counts)] += 1
+        try:
+            for ev in self.source.events(start, end):
+                seen.add(ev.uid)
+                counts[self._save(conn["id"], ev, counts)] += 1
+        except Exception as e:
+            self.connections.synced(conn["id"], error=str(e) or type(e).__name__)
+            raise
         stale = self.world.store.all(
             "SELECT id, uid, title FROM events WHERE connection = ? AND removed_at IS NULL"
             " AND starts_at >= ? AND starts_at <= ?", (conn["id"], _iso(start), _iso(end)),

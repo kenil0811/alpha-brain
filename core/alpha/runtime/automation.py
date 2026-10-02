@@ -10,7 +10,7 @@ import re
 import threading
 from typing import Any
 
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import turn
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -52,7 +52,7 @@ def worth_telling(reply: str) -> str | None:
 
 
 def run(world: World, automation_id: str, *,
-        runner: turn.Runner = claude_cli.run) -> dict[str, Any]:
+        runner: turn.Runner) -> dict[str, Any]:
     auto = world.automations.get(automation_id)
     thread = auto["thread"]
     if not thread:
@@ -85,9 +85,9 @@ class Scheduler:
     """Runs due automations while the core is up; `run_now` runs one at once in the
     background."""
 
-    def __init__(self, world: World, runner: turn.Runner | None = None) -> None:
+    def __init__(self, world: World, runner: turn.Runner) -> None:
         self.world = world
-        self.runner = runner or claude_cli.run
+        self.runner = runner
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.stop_event = threading.Event()

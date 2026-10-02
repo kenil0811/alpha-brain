@@ -129,6 +129,24 @@ def test_token_and_errors(world: World) -> None:
     assert missing.status_code == 400 and "no table" in missing.json()["error"]
 
 
+def test_the_companion_token_only_talks(world: World) -> None:
+    c = client(world, token="main", companion_token="pal", runner=lambda r: RunResult(
+        reply="Hi.", ok=True))
+    pal = {"Authorization": "Bearer pal"}
+    assert c.get("/api/home", headers=pal).status_code == 200
+    assert c.get("/api/conversation", headers=pal).status_code == 200
+    assert c.get("/api/intelligence", headers=pal).status_code == 403
+    assert c.post("/api/pending/pa_x/approve", headers=pal).status_code == 403
+    assert c.get("/api/intelligence", headers={"Authorization": "Bearer main"}).status_code == 200
+
+
+def test_a_web_page_cannot_post_to_the_core(world: World) -> None:
+    c = client(world)  # `alpha serve` with no token
+    evil = c.post("/api/pending/pa_x/approve", headers={"Origin": "https://evil.example"})
+    assert evil.status_code == 403
+    assert c.get("/api/home", headers={"Origin": "http://localhost:5173"}).status_code == 200
+
+
 def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -> None:
     seeded(world)
     data = client(world).get("/api/intelligence").json()

@@ -1,0 +1,23 @@
+name: verify
+on:
+  push:
+  pull_request:
+jobs:
+  verify:
+    runs-on: macos-latest  # EventKit, the Keychain and Tauri's macOS build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - uses: extractions/setup-just@v2
+      - run: uv sync
+      - run: cd desktop && pnpm install --frozen-lockfile
+      - run: cd connectors/browser && npm ci
+      - run: just verify

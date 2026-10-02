@@ -58,6 +58,8 @@ struct CoreProcess {
     child: Child,
     port: u16,
     token: String,
+    /// The companion window's token: the core lets it talk and listen, nothing else.
+    companion_token: String,
 }
 
 #[derive(Default)]
@@ -348,6 +350,7 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("create log dir: {e}"))?;
     let _ = HOST_LOG.set(log_dir.join("host.log"));
     let token = random_token()?;
+    let companion_token = random_token()?;
     let core_log = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -379,6 +382,7 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
         .env("PATH", path)
         .env("ALPHA_HOME", &data_dir)
         .env("ALPHA_TOKEN", &token)
+        .env("ALPHA_COMPANION_TOKEN", &companion_token)
         .env("ALPHA_CONNECTORS", repo_root().join("connectors"))
         .env("PYTHONUNBUFFERED", "1")
         .env("PYTHONDONTWRITEBYTECODE", "1")
@@ -424,7 +428,7 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
     let ready: serde_json::Value =
         serde_json::from_str(&ready_line).map_err(|e| format!("bad ready line: {e}"))?;
     let port = ready["port"].as_u64().ok_or("ready line missing port")? as u16;
-    Ok(CoreProcess { child, port, token })
+    Ok(CoreProcess { child, port, token, companion_token })
 }
 
 fn stop_core(process: &mut CoreProcess) {
@@ -450,8 +454,12 @@ fn stop_core(process: &mut CoreProcess) {
 }
 
 #[tauri::command]
-async fn core_session(state: State<'_, HostState>) -> Result<CoreSession, String> {
+async fn core_session(
+    window: tauri::WebviewWindow,
+    state: State<'_, HostState>,
+) -> Result<CoreSession, String> {
     let launch = state.launch.clone();
+    let companion = window.label() == AVATAR_LABEL;
     tauri::async_runtime::spawn_blocking(move || {
         if !launch.wait(SESSION_WAIT) {
             return Err("Alpha's core is still starting.".to_string());
@@ -460,7 +468,7 @@ async fn core_session(state: State<'_, HostState>) -> Result<CoreSession, String
         match guard.as_ref() {
             Some(core) => Ok(CoreSession {
                 base_url: format!("http://127.0.0.1:{}", core.port),
-                token: core.token.clone(),
+                token: if companion { core.companion_token.clone() } else { core.token.clone() },
             }),
             None => Err(launch
                 .launch_error

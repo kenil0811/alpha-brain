@@ -33,3 +33,8 @@ app:
 
 test-desktop:
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && pnpm typecheck && pnpm test
+
+# The one gate, for people and CI alike: everything above that can run without a screen.
+verify: lint test test-desktop
+    export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd connectors/browser && npm test
+    export PATH=$HOME/.cargo/bin:/usr/bin:/bin:$PATH && cd desktop/src-tauri && cargo check
