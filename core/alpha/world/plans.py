@@ -20,7 +20,6 @@ from typing import Any
 from alpha.world.store import Problem, Store, new_id, now
 
 STATES = ("proposed", "approved", "building", "done", "stopped", "declined", "replaced")
-MAX_RUNS = 4
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -99,7 +98,7 @@ class Plans:
         return self._move(pid, "declined", when=("proposed", "stopped"))
 
     def resume(self, pid: str) -> dict[str, Any]:
-        """A build that stopped carries on from its brief, with all its runs again."""
+        """A build that stopped carries on from its brief."""
         return self._move(pid, "building", when=("stopped",), attempts=0, report=None)
 
     def start(self, pid: str, thread: str) -> dict[str, Any]:
@@ -124,5 +123,5 @@ class Plans:
         return [_view(r) for r in rows]
 
     def waiting(self) -> list[dict[str, Any]]:
-        """Plans the scheduler should run now: approved, or building with runs left."""
-        return [p for p in self.all(("approved", "building")) if p["attempts"] < MAX_RUNS]
+        """Plans the scheduler should run now: approved, or building."""
+        return self.all(("approved", "building"))

@@ -126,7 +126,6 @@ def ask(
     runner: Runner = claude_cli.run,
     rules: str = RULES,
     actor: str = "person",
-    timeout: int | None = None,
     model: str | None = None,
     on_said: Callable[[str], None] | None = None,
 ) -> TurnOutcome:
@@ -155,7 +154,6 @@ def ask(
         thread_id=thread,
         module_id=module_id,
         model=model,
-        timeout=timeout,
     )
     result = runner(request)
     data = {
@@ -171,7 +169,8 @@ def ask(
         )
         reply = result.reply
     else:
-        reply = f"That didn't work: {result.error or 'no answer came back'}"
+        reply = (result.error or "You stopped it.") if result.stopped else (
+            f"That didn't work: {result.error or 'no answer came back'}")
         replied = world.journal.append(
             "failed", reply, data={**data, "error": result.error}, module=module_id,
             thread=thread,

@@ -534,6 +534,13 @@ subscription):
 Then the blind ETA Tracker module was removed from Kenil's world (backup first; 9 tables, 756
 rows and 8 readers; its activity stays) and the app restarted for him to ask again.
 
+**No limits; the person stops (2 Oct, after Kenil's first real build stopped on the 80-step
+cap with 11 sources to go):** no `--max-turns`, no time limit on a run, no cap on a build's runs.
+`claude_cli.LIVE` knows every run by its turn and thread and stops it with its whole process
+group; Stop in the conversation (`/api/turns/{key}/stop`) and on a running build's card
+(`/api/plans/{id}/stop`); a stopped build reports what it made and resumes on "continue" or
+Continue building (`plan_resume`, `/api/plans/{id}/resume`).
+
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
 | Piece | Path in the old repo | Used in |

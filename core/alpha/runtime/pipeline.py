@@ -26,7 +26,6 @@ from alpha.world.readers import health_problem
 from alpha.world.store import Problem
 from alpha.world.world import World
 
-REPAIR_TIMEOUT_S = 900
 NEWEST_ONLY = "Reads the newest page only, so listings that drop off it aren't counted as gone."
 
 REPAIR_RULES = """You are Alpha, repairing one of your own readers so an automation can carry \
@@ -235,6 +234,5 @@ def _repair(world: World, auto: dict[str, Any], reader: str, problem: str,
             runner: turn.Runner) -> None:
     turn.ask(world, f"The reader {reader} of the automation \"{auto['title']}\" is broken:"
              f" {problem}. Repair it and save it under the same name ({reader}).",
-             thread=auto["thread"], runner=runner, rules=REPAIR_RULES, actor="alpha",
-             timeout=REPAIR_TIMEOUT_S)
+             thread=auto["thread"], runner=runner, rules=REPAIR_RULES, actor="alpha")
 

@@ -4,8 +4,9 @@ An automation run is either a pipeline (saved steps, no model unless a step brea
 following the automation's procedure in its own thread, with nobody watching. The scheduler
 checks every half minute while the core runs and runs due automations one at a time; a run
 missed while Alpha was closed happens once on return. It also starts the build of every plan the
-person approved, continues a build whose run ran out of time, and picks builds up again after a
-restart; each build runs in its own thread so automations never wait for it.
+person approved, continues a build whose run ended before its work did, and picks builds up again
+after a restart; each build runs in its own thread so automations never wait for it. Nothing here
+has a limit on how long it may take: the person stops what isn't going anywhere.
 """
 
 from __future__ import annotations
@@ -16,13 +17,11 @@ import threading
 from typing import Any
 
 from alpha.runtime import build, claude_cli, pipeline, turn
-from alpha.world.plans import MAX_RUNS
 from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.automations")
 CHECK_EVERY_S = 30
-RUN_TIMEOUT_S = 900
 
 AUTOMATION_RULES = """You are Alpha, the person's second brain, running one of their \
 automations on your own: nobody is watching this run. Follow the procedure, with the tools it \
@@ -88,7 +87,7 @@ def run(world: World, automation_id: str, *,
               f"Procedure:\n{auto['procedure']}")
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner, rules=AUTOMATION_RULES,
-                           actor="alpha", timeout=RUN_TIMEOUT_S)
+                           actor="alpha")
     except Exception as e:
         log.exception("automation %s failed", automation_id)
         world.modules.update_thread(thread, state="done")
@@ -139,15 +138,12 @@ class Scheduler:
             self._work(aid)
 
     def builds(self) -> None:
-        """Start or continue every approved plan's build; stop one that used all its runs."""
+        """Start or continue every approved plan's build."""
         for plan in self.world.plans.all(("approved", "building")):
             if self.stop_event.is_set():
                 return
             with self.lock:
                 if plan["id"] in self.building:
-                    continue
-                if plan["attempts"] >= MAX_RUNS:
-                    build.stop(self.world, plan["id"], f"it didn't finish in {MAX_RUNS} runs")
                     continue
                 self.building.add(plan["id"])
             threading.Thread(target=self._build, args=(plan["id"],), daemon=True,
@@ -161,7 +157,7 @@ class Scheduler:
         finally:
             with self.lock:
                 self.building.discard(pid)
-        # A run that ran out of time leaves the plan building: carry on at once.
+        # A run that ended before its work did leaves the plan building: carry on at once.
         if self.world.plans.get(pid)["state"] == "building" and not self.stop_event.is_set():
             self.builds()
 

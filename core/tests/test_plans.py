@@ -122,27 +122,39 @@ def test_a_build_that_cannot_finish_says_what_was_done(world: World) -> None:
     assert 'Say "continue"' in stopped["report"]
 
 
-def test_a_build_that_used_its_steps_carries_on_and_a_stopped_one_resumes(world: World) -> None:
-    out = claude_cli.parse('{"type": "result", "subtype": "error_max_turns", "is_error": false,'
-                           ' "num_turns": 81}', "", 1)
-    assert out.cut_off and not out.ok and out.error == "It used all 80 steps one run may take."
+def test_a_build_has_no_run_limit_and_the_person_can_stop_and_resume_it(world: World) -> None:
+    out = claude_cli.parse('{"type": "result", "subtype": "error_max_turns", "is_error": false}',
+                           "", 1)
+    assert out.cut_off and not out.ok
     plan = world.plans.propose("Tracker", "Make a table.")
     world.plans.approve(plan["id"], "yes")
-    calls: list[str] = []
-
-    def runner(req: TurnRequest) -> RunResult:
-        calls.append(req.sentence)
-        return out
-
-    for _ in range(4):
-        last = build.run_build(world, plan["id"], runner=runner)
-    assert last["state"] == "stopped" and "didn't finish in 4 runs" in last["report"]
-    assert all(c.startswith("Continue the build") for c in calls[1:])
+    for _ in range(6):  # however many runs it takes
+        last = build.run_build(world, plan["id"], runner=lambda r: out)
+    assert last["state"] == "building" and last["attempts"] == 6
+    c = TestClient(create_app(world, live=False))
+    stopped = c.post(f"/api/plans/{plan['id']}/stop").json()
+    assert stopped["state"] == "stopped"
+    assert stopped["report"].startswith("You stopped the build of Tracker.")
     reply = Tools(world, turn=said(world, "continue"))
     assert reply.plan_resume(plan["id"], "continue")["state"] == "building"
-    assert world.plans.get(plan["id"])["attempts"] == 0
     done = build.run_build(world, plan["id"], runner=lambda r: RunResult(reply="Done.", ok=True))
     assert done["state"] == "done"
+
+
+def test_a_running_turn_can_be_stopped(world: World, tmp_path: Any) -> None:
+    import threading
+    import time
+
+    slow = tmp_path / "claude"
+    slow.write_text("#!/bin/sh\nsleep 30\n")
+    slow.chmod(0o755)
+    req = TurnRequest(sentence="build it", system="rules", world_path=world.path,
+                      turn_id="j_slow", thread_id="t_slow")
+    threading.Timer(0.5, lambda: claude_cli.LIVE.stop("t_slow")).start()
+    began = time.time()
+    result = claude_cli.run(req, binary=str(slow))
+    assert result.stopped and result.error == "You stopped it." and time.time() - began < 10
+    assert not claude_cli.LIVE.running("j_slow")
 
 
 # ---- readers, sources and pipelines ----

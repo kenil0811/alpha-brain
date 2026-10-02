@@ -31,7 +31,7 @@ from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
-from alpha.runtime import claude_account
+from alpha.runtime import build, claude_account, claude_cli
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world import backup
@@ -141,6 +141,16 @@ class Turns:
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
             return [dict(v) for v in self.state.values() if v["state"] == "running"]
+
+    def stop(self, key: str) -> dict[str, Any]:
+        """Stop a turn that is still working; it ends with "You stopped it."."""
+        with self.lock:
+            if key not in self.state:
+                raise Problem(f"There is no turn {key}.")
+            said = self.state[key].get("said")
+        if said:
+            claude_cli.LIVE.stop(said)
+        return self.get(key)
 
 
 def _local_midnight_utc() -> str:
@@ -348,6 +358,20 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if live:
             scheduler.builds()
         return world.plans.get(plan_id)
+
+    @app.post("/api/plans/{plan_id}/stop", dependencies=[api])
+    def stop_plan(plan_id: str) -> dict[str, Any]:
+        """Stop a build that isn't going anywhere: its run ends now and it says what it made."""
+        plan = world.plans.get(plan_id)
+        if plan["state"] not in ("approved", "building"):
+            raise Problem(f"The build of {plan['title']} isn't running.")
+        if not (plan["thread"] and claude_cli.LIVE.stop(plan["thread"])):
+            build.stop(world, plan_id, None)
+        return world.plans.get(plan_id)
+
+    @app.post("/api/turns/{key}/stop", dependencies=[api])
+    def stop_turn(key: str) -> dict[str, Any]:
+        return running.stop(key)
 
     @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
     def resume_plan(plan_id: str) -> dict[str, Any]:

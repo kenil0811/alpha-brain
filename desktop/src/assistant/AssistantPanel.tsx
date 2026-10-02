@@ -193,8 +193,13 @@ export function AssistantPanel({
   const steps = pending?.steps ?? [];
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status">
-      <div>
-        Working on it… <span className="faint">{elapsed} s</span>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span>
+          Working on it… <span className="faint">{elapsed} s</span>
+        </span>
+        <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.stopTurn(pending.id).catch(() => undefined)}>
+          Stop
+        </button>
       </div>
       {steps.length ? (
         <ul className="stages">
@@ -253,15 +258,26 @@ export function AssistantPanel({
           </>
         ) : (
           <>
-            {threads.map((t) => (
-              <button key={t.id} type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
-                <h3 className="creation__title">
-                  {t.title}
-                  <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
-                </h3>
-                <span className="faint">{t.kind === "build" && t.state === "working" ? "Building in the background · it reports here when done" : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
-              </button>
-            ))}
+            {threads.map((t) => {
+              // A build has no time limit: the person stops it when it isn't going anywhere.
+              const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
+              return (
+                <div key={t.id} className="creation-wrap">
+                  <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
+                    <h3 className="creation__title">
+                      {t.title}
+                      <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
+                    </h3>
+                    <span className="faint">{t.kind === "build" && t.state === "working" ? "Building in the background · open it to see each step · it reports here when done" : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                  </button>
+                  {build ? (
+                    <button type="button" className="btn btn--sm btn--ghost creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
+                      Stop
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
             {module ? (
               <div className="msg msg--ai">
                 I'm looking at <b>{module.name}</b>. Ask about it, tell me to add or change something, or log to it.

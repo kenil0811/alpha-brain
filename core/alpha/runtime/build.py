@@ -1,9 +1,9 @@
 """Builds: making what the person said yes to, in the background.
 
-An approved plan becomes the brief of a build thread, and a run builds it with BUILD_RULES. A
-run cut off by a limit (time, or the steps one run may take) is continued from the brief and the
-thread's own history (threads are records, never remembered sessions), up to MAX_RUNS runs; a
-build that stopped can be resumed and gets MAX_RUNS more. When the build finishes, its
+An approved plan becomes the brief of a build thread, and a run builds it with BUILD_RULES. There
+is no limit on how long a build may take: a run that ends before its work does is continued from
+the brief and the thread's own history (threads are records, never remembered sessions), and the
+person stops a build that isn't going anywhere (it can be resumed). When the build finishes, its
 report goes into the person's conversation and ends with what the sources table says about
 coverage, so what works, what needs the person and what is blocked is never left to the model's
 wording. A build that can't finish says so, with what was done.
@@ -15,11 +15,9 @@ import logging
 from typing import Any
 
 from alpha.runtime import claude_cli, turn
-from alpha.world.plans import MAX_RUNS
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.builds")
-BUILD_TIMEOUT_S = 900
 
 BUILD_RULES = """You are Alpha, building something the person approved; they are not watching. \
 THIS THREAD below holds the approved plan (the brief) and what this build has done so far. Build \
@@ -123,13 +121,15 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
               " carry on from there.")
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner, rules=BUILD_RULES,
-                           actor="alpha", timeout=BUILD_TIMEOUT_S, module=plan["module"])
+                           actor="alpha", module=plan["module"])
         ok, reply, cut_off = outcome.ok, outcome.reply, outcome.result.cut_off
-        error = outcome.result.error or ""
+        stopped, error = outcome.result.stopped, outcome.result.error or ""
     except Exception as e:
         log.exception("build %s failed", plan_id)
-        ok, reply, cut_off, error = False, "", False, str(e)
+        ok, reply, cut_off, stopped, error = False, "", False, False, str(e)
     plan = world.plans.get(plan_id)
+    if stopped or plan["state"] == "stopped":
+        return stop(world, plan_id, None) if plan["state"] != "stopped" else plan
     if ok:
         text = _report(world, plan, reply)
         world.plans.finish(plan_id, text)
@@ -137,21 +137,21 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
         world.journal.append("replied", text, data={"plan": plan_id, "thread": thread},
                              module=plan["module"])
         return world.plans.get(plan_id)
-    if cut_off and plan["attempts"] < MAX_RUNS:
+    if cut_off:
         world.journal.append("did", f"{error} The next run carries on from the brief.",
                              actor="alpha", thread=thread, module=plan["module"])
         return plan
-    if cut_off:
-        return stop(world, plan_id, f"it didn't finish in {MAX_RUNS} runs")
     return stop(world, plan_id, error or "it failed")
 
 
-def stop(world: World, plan_id: str, why: str) -> dict[str, Any]:
+def stop(world: World, plan_id: str, why: str | None) -> dict[str, Any]:
+    """End a build: `why` is the problem that ended it, or None when the person stopped it."""
     plan = world.plans.get(plan_id)
     thread = plan["thread"]
     done = _what_was_done(world, thread) if thread else "Nothing was made yet."
-    text = _report(world, plan, f"The build of {plan['title']} stopped before it finished:"
-                   f" {why.rstrip('.')}. {done} Say \"continue\" to carry on from where it"
+    head = (f"You stopped the build of {plan['title']}." if why is None else
+            f"The build of {plan['title']} stopped before it finished: {why.rstrip('.')}.")
+    text = _report(world, plan, f"{head} {done} Say \"continue\" to carry on from where it"
                    " stopped.")
     world.plans.stop(plan_id, text)
     if thread:

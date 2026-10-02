@@ -14,9 +14,11 @@ from __future__ import annotations
 import getpass
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -24,14 +26,70 @@ from typing import Any
 from alpha.runtime import claude_account
 
 DEFAULT_MODEL = "sonnet"
-TIMEOUT_S = 900
-MAX_TURNS = 80
 ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
 DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
 
 
 SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
-OUT_OF_STEPS = "It used all {} steps one run may take."
+OUT_OF_STEPS = "It reached the most steps Claude Code takes in one run."
+STOPPED = "You stopped it."
+
+
+class Live:
+    """Runs in progress, so the person can stop any of them: there is no limit on how long a run
+    or a build may take, and stopping is how work that isn't going anywhere ends. Each run is
+    known by its turn (the journal entry that started it) and its thread."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.procs: dict[str, subprocess.Popen[str]] = {}
+        self.stopped: set[int] = set()
+
+    def add(self, keys: list[str], proc: subprocess.Popen[str]) -> None:
+        with self.lock:
+            for key in keys:
+                self.procs[key] = proc
+
+    def remove(self, keys: list[str], proc: subprocess.Popen[str]) -> bool:
+        """Forget a finished run; True when the person stopped it."""
+        with self.lock:
+            for key in keys:
+                if self.procs.get(key) is proc:
+                    del self.procs[key]
+            was = proc.pid in self.stopped
+            self.stopped.discard(proc.pid)
+            return was
+
+    def running(self, key: str) -> bool:
+        with self.lock:
+            return key in self.procs
+
+    def stop(self, key: str) -> bool:
+        """Stop the run known by `key` (and everything it started); False when none is running."""
+        with self.lock:
+            proc = self.procs.get(key)
+            if proc is None:
+                return False
+            self.stopped.add(proc.pid)
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            return True
+
+        def finish() -> None:
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+
+        threading.Thread(target=finish, daemon=True).start()
+        return True
+
+
+LIVE = Live()
 
 
 @dataclass
@@ -44,8 +102,11 @@ class RunResult:
     cost_estimate: float | None = None
     error: str | None = None
     raw: dict[str, Any] = field(default_factory=dict)
-    # The run was cut off by a limit (time or steps), not by a problem: work can carry on.
+    # The run ended before its work did (Claude Code's own step ceiling), not because of a
+    # problem: work can carry on from where it got to.
     cut_off: bool = False
+    # The person stopped it.
+    stopped: bool = False
 
 
 @dataclass
@@ -57,7 +118,6 @@ class TurnRequest:
     thread_id: str | None = None
     module_id: str | None = None
     model: str | None = None
-    timeout: int | None = None
 
 
 def mcp_config(req: TurnRequest) -> dict[str, Any]:
@@ -99,8 +159,6 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "",
         "--model",
         req.model or os.environ.get("ALPHA_MODEL") or DEFAULT_MODEL,
-        "--max-turns",
-        str(MAX_TURNS),
     ]
     # Every run is stateless: the pre-pack carries the context, the journal the history. A
     # remembered model session would bring back whatever it once believed.
@@ -108,31 +166,33 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
     return args
 
 
-def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = None) -> RunResult:
-    timeout = timeout or req.timeout or TIMEOUT_S
+def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
+    """Run one turn to its end, however long it takes; the person can stop it (LIVE.stop with
+    the turn or its thread)."""
     env = dict(os.environ)
     env.setdefault("USER", getpass.getuser())
     env.pop("CLAUDE_CONFIG_DIR", None)
+    keys = [k for k in (req.turn_id, req.thread_id) if k]
     with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
         config_path = Path(tmp) / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(req)))
         try:
-            done = subprocess.run(
+            proc = subprocess.Popen(
                 argv(req, config_path, binary or claude_account.binary() or "claude"),
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                env=env,
-                cwd=tmp,
-                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                text=True, env=env, cwd=tmp, start_new_session=True,
             )
-        except subprocess.TimeoutExpired:
-            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.",
-                             cut_off=True)
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
                              " connect Claude in Settings.")
-    return parse(done.stdout, done.stderr, done.returncode)
+        LIVE.add(keys, proc)
+        try:
+            stdout, stderr = proc.communicate()
+        finally:
+            stopped = LIVE.remove(keys, proc)
+    if stopped:
+        return RunResult(reply="", ok=False, error=STOPPED, stopped=True)
+    return parse(stdout, stderr, proc.returncode)
 
 
 def parse(stdout: str, stderr: str, code: int) -> RunResult:
@@ -149,7 +209,7 @@ def parse(stdout: str, stderr: str, code: int) -> RunResult:
     if is_error and "not logged in" in reply.lower():
         reply = SIGNED_OUT
     if data.get("subtype") == "error_max_turns":
-        return RunResult(reply="", ok=False, error=OUT_OF_STEPS.format(MAX_TURNS), cut_off=True,
+        return RunResult(reply="", ok=False, error=OUT_OF_STEPS, cut_off=True,
                          session_id=data.get("session_id"), num_turns=data.get("num_turns"),
                          duration_ms=data.get("duration_ms"),
                          cost_estimate=data.get("total_cost_usd"), raw=data)
