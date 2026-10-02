@@ -40,6 +40,8 @@ export interface UsePanelControlOptions {
   /** Legacy localStorage keys to migrate from on first read, in order. */
   migrateWidthKeys?: string[];
   migrateCollapsedKeys?: string[];
+  /** Which edge of the window the panel sits on: a left panel grows as its handle moves right. */
+  side?: PanelSide;
   /** Snap to collapsed/expanded on drag release instead of a continuous width (the rail). */
   snap?: boolean;
   snapMidpoint?: number;
@@ -62,9 +64,7 @@ export interface PanelControl {
 }
 
 export function usePanelControl(opts: UsePanelControlOptions): PanelControl {
-  const { defaultWidth, minWidth, maxWidth, storageKeyWidth, storageKeyCollapsed, snap, snapMidpoint, migrateWidthKeys, migrateCollapsedKeys, initialCollapsed } = opts;
-  const side: PanelSide = "left"; // caller decides drag direction via startDrag's sign convention below
-  void side;
+  const { defaultWidth, minWidth, maxWidth, storageKeyWidth, storageKeyCollapsed, side = "left", snap, snapMidpoint, migrateWidthKeys, migrateCollapsedKeys, initialCollapsed } = opts;
 
   const [collapsed, setCollapsedState] = useState<boolean>(() => {
     let raw = readStored(storageKeyCollapsed);
@@ -118,13 +118,20 @@ export function usePanelControl(opts: UsePanelControlOptions): PanelControl {
       e.preventDefault();
       const startX = e.clientX;
       const startWidth = width;
-      const dragSide: PanelSide = opts.snap ? "left" : "right";
+      // The two-sided arrow stays while dragging, wherever the pointer goes, and nothing behind
+      // it gets selected.
+      const body = document.body.style;
+      const before = { cursor: body.cursor, userSelect: body.userSelect };
+      body.cursor = "ew-resize";
+      body.userSelect = "none";
       const onMove = (ev: globalThis.MouseEvent) => {
-        const dx = dragSide === "left" ? ev.clientX - startX : startX - ev.clientX;
+        const dx = side === "left" ? ev.clientX - startX : startX - ev.clientX;
         setDragWidth(Math.min(maxWidth, Math.max(minWidth, startWidth + dx)));
       };
       const onUp = (ev: globalThis.MouseEvent) => {
-        const dx = dragSide === "left" ? ev.clientX - startX : startX - ev.clientX;
+        body.cursor = before.cursor;
+        body.userSelect = before.userSelect;
+        const dx = side === "left" ? ev.clientX - startX : startX - ev.clientX;
         const finalWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + dx));
         setDragWidth(null);
         if (snap && snapMidpoint !== undefined) {
@@ -142,7 +149,7 @@ export function usePanelControl(opts: UsePanelControlOptions): PanelControl {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [width, minWidth, maxWidth, snap, snapMidpoint, defaultWidth, setCollapsed, setWidth, opts.snap],
+    [width, minWidth, maxWidth, side, snap, snapMidpoint, setCollapsed, setWidth],
   );
 
   const mode: PanelMode = collapsed ? "collapsed" : width > defaultWidth ? "extended" : "expanded";

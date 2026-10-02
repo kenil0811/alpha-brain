@@ -1,5 +1,5 @@
 .panel__toggle { flex: none; }
-.panel__handle { position: absolute; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 20; display: flex; align-items: center; justify-content: center; outline: none; }
+.panel__handle { position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; z-index: 20; display: flex; align-items: center; justify-content: center; outline: none; }
 .panel__handle--left { right: -5px; }
 .panel__handle--right { left: -5px; }
 .panel__handle-line { position: absolute; inset: 0 auto 0 50%; width: 1px; background: var(--bridge-steel-light, var(--border)); opacity: 0; transition: opacity 120ms ease; }

@@ -87,7 +87,7 @@ function Workspace({ injected }: { injected?: Client }) {
   const assistRef = useRef<HTMLDivElement>(null);
 
   const railPanel = usePanelControl({ defaultWidth: 220, minWidth: 76, maxWidth: 360, storageKeyWidth: "alpha.rail.width", storageKeyCollapsed: "alpha.rail.collapsed", snap: true, snapMidpoint: 148 });
-  const assistantPanel = usePanelControl({ defaultWidth: 286, minWidth: 260, maxWidth: 520, storageKeyWidth: "alpha.assistant.width", storageKeyCollapsed: "alpha.assistant.collapsed" });
+  const assistantPanel = usePanelControl({ defaultWidth: 286, minWidth: 260, maxWidth: 520, storageKeyWidth: "alpha.assistant.width", storageKeyCollapsed: "alpha.assistant.collapsed", side: "right" });
   const narrow = viewport < NARROW_BELOW;
   const compact = !narrow && viewport < COMPACT_BELOW;
   const panelKind = surface.kind === "module" ? "module" : "home";

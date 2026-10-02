@@ -43,7 +43,7 @@ Nothing spills out of its box at 1100x760 and 1440x900.
 - Nothing covers text: fixed headers are opaque; an avatar or tooltip never sits on a label.
   Nothing is cut at the top or bottom.
 - Check before shipping a layout change: run `tools/layout-check.js` (dev tools console or a
-  Playwright eval) at 1100x760 and 1440x900, with Chief of Staff at its narrowest, in every state
+  Playwright eval) at 1100x760 and 1440x900, with Zazoo at its narrowest, in every state
   the page passes through. It must return `[]`. Report 768x560 too; it is not a target. Then
   read a screenshot against these rules: the script cannot judge wording.
 
@@ -52,17 +52,17 @@ Nothing spills out of its box at 1100x760 and 1440x900.
 - A module is a **project** in everything a person reads; one inside another is a **sub
   project**. Code identifiers, routes and API paths keep "module". The core's turn rules say the
   same to the model (`core/alpha/runtime/turn.py`, rule 8).
-- The assistant is **Chief of Staff**.
+- The assistant is **Zazoo**.
 
 ## Layout (AB design §8)
 
 - A flex shell: the rail (224px; collapses to a 76px icon column; resizable 76-360) | the page |
-  Chief of Staff (380px; resizable 260-520; collapses to a 48px strip). Nothing overlays the
-  page at 1024px and wider; below that the rail shows icons and Chief of Staff opens over the
+  Zazoo (380px; resizable 260-520; collapses to a 48px strip). Nothing overlays the
+  page at 1024px and wider; below that the rail shows icons and Zazoo opens over the
   page, without changing what was saved.
 - The rail keeps AB's items: Home, Activity, the projects, Intelligence, Settings.
 - Every page starts with a 56px `PageHeader` (`src/ui/PageHeader.tsx`), level with the rail's
-  brand row and Chief of Staff's header. Page titles are serif.
+  brand row and Zazoo's header. Page titles are serif.
 - The page lives in the address (`#/m/<id>`, `#/intelligence/<tab>`), so back and forward work.
 - Light and dark both come from the tokens; never hard-code a colour.
 
@@ -82,7 +82,7 @@ These four of Alpha's rules are deliberately not part of AB's (decided by the pe
 
 - **Per-feature CSS files.** Alpha has each feature area own its own `.css`; AB keeps
   `tokens.css` plus `app.css` (and the `ui/` primitives' own files).
-- **Chat replies capped at two sentences.** AB's Chief of Staff answers as long as the answer
+- **Chat replies capped at two sentences.** AB's Zazoo answers as long as the answer
   needs.
 - **A 768x560 minimum window.** AB's window keeps its own minimum; 768x560 is reported by the
   layout check, not enforced.

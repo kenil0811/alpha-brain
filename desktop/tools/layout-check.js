@@ -1,6 +1,6 @@
 // Layout check: lists text or elements that spill out of their box on the current screen.
 // Run it in the app's dev tools console (or a Playwright/preview eval) at 1100x760 and 1440x900
-// (both must return []), and report 768x560 too, with the Chief of Staff panel at its narrowest,
+// (both must return []), and report 768x560 too, with Zazoo at its narrowest,
 // and in every state a page passes through (empty, loading, needs you, failed), not only the
 // empty screen. Empty array = clean. It cannot judge copy or density: take a screenshot and read
 // it against docs/development/ui-rules.md too. Ported from Alpha (apps/desktop/tools).

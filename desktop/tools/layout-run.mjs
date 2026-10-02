@@ -49,7 +49,7 @@ let failed = false;
 try {
   const project = (await start("uv", ["run", "python", join(desktop, "tools/layout-seed.py")], { cwd: join(repo, "core") }, (s) => s.match(/^(m_\w+)$/m)?.[1]));
   const port = await start("uv", ["run", "alpha", "serve", "--port", "0"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
-  const vite = await start("pnpm", ["exec", "vite", "--port", "5199", "--strictPort"], { cwd: desktop, env: { ...env, VITE_ALPHA_CORE_URL: `http://127.0.0.1:${port}` } }, (s) => s.match(/(http:\/\/localhost:5199)/)?.[1]);
+  const vite = await start("pnpm", ["exec", "vite", "--port", "5199", "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: "http://localhost:5199" } }, (s) => s.match(/(http:\/\/localhost:5199)/)?.[1]);
   const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
@@ -62,7 +62,8 @@ try {
       await page.goto(`${vite}/#${path}`);
       await page.waitForLoadState("networkidle");
       await page.waitForTimeout(400);
-      const found = [...(await page.evaluate(check)), ...missing];
+      const offline = (await page.locator("text=Alpha's core isn't running").count()) ? ["the window never reached the core"] : [];
+      const found = [...(await page.evaluate(check)), ...missing, ...offline];
       const where = `${width}x${height} #${path}${model ? "" : " (no model)"}`;
       if (found.length) {
         console.log(`${gate ? "FAIL" : "note"} ${where}\n  ${found.join("\n  ")}`);

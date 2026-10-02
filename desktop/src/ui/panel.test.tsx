@@ -73,4 +73,21 @@ describe("usePanelControl", () => {
     const { result } = setup({ migrateCollapsedKeys: ["legacy.collapsed"] });
     expect(result.current.collapsed).toBe(true);
   });
+
+  it("drags each side the right way, holding the two-sided arrow until release", () => {
+    const drag = (side: "left" | "right", dx: number) => {
+      window.localStorage.clear();
+      const { result } = setup({ side, snap: false, defaultWidth: 286, minWidth: 260, maxWidth: 520 });
+      act(() => result.current.startDrag({ clientX: 500, preventDefault: () => undefined } as never));
+      act(() => window.dispatchEvent(new MouseEvent("mousemove", { clientX: 500 + dx })));
+      expect(document.body.style.cursor).toBe("ew-resize");
+      expect(result.current.isDragging).toBe(true);
+      act(() => window.dispatchEvent(new MouseEvent("mouseup", { clientX: 500 + dx })));
+      expect(document.body.style.cursor).toBe("");
+      return result.current.width;
+    };
+    expect(drag("left", 40)).toBe(326);
+    expect(drag("right", -40)).toBe(326);
+    expect(drag("right", 40)).toBe(260);
+  });
 });

@@ -114,7 +114,7 @@ textarea.dv-select { height: auto; padding: 6px 8px; resize: vertical; }
 .dv-th:hover .dv-th__menu, .dv-th__menu:focus-visible, .dv-th__menu[data-state="open"] { opacity: 1; }
 .dv-th__menu:hover { background: var(--hover); color: var(--text); }
 .dv-r .dv-th__btn { justify-content: flex-end; }
-.dv-grip { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; }
+.dv-grip { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: ew-resize; }
 .dv-grip:hover { background: var(--primary-soft); }
 .dv-td { height: 36px; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dv-table--wrap .dv-td { white-space: normal; overflow-wrap: anywhere; padding-top: 6px; padding-bottom: 6px; height: auto; }

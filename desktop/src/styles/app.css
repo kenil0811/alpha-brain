@@ -568,7 +568,7 @@ body.avatar-window #root { height: 100vh; }
 
 /* Column order and widths on derived pages */
 .th--sizable { position: relative; }
-.th__grip { position: absolute; top: 0; right: -3px; width: 7px; height: 100%; cursor: col-resize; user-select: none; touch-action: none; }
+.th__grip { position: absolute; top: 0; right: -3px; width: 7px; height: 100%; cursor: ew-resize; user-select: none; touch-action: none; }
 .th__grip:hover, .th__grip:active { background: var(--primary-soft); }
 .menu__item--col { justify-content: space-between; }
 .menu__item--col label { display: flex; align-items: center; gap: 8px; flex: 1; }
