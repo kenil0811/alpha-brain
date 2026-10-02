@@ -22,6 +22,7 @@ What taints (`READS`, plus the pre-pack and page reads below):
   `records_query`, `records_undo` and `collection_change_field` (both hand back row values);
 - documents: `document_read`, `documents_list`;
 - the calendar: `calendar_events`;
+- the skills the person made: `skills_list`;
 - people, facts and notes: `entities_find`, `entity_read`, `facts_get`, `notes_list`,
   `note_read`;
 - a page read through the person's sign-in (`page_read`, `page_script`, `page_to_table`,
@@ -58,6 +59,7 @@ READS = {
     "document_read": "read the person's documents",
     "documents_list": "read the person's documents",
     "calendar_events": "read the calendar",
+    "skills_list": "read the person's skills",
     "entities_find": "read what Alpha knows about people",
     "entity_read": "read what Alpha knows about people",
     "facts_get": "read what Alpha knows about people",

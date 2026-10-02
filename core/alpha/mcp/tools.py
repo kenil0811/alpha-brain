@@ -22,7 +22,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, signin_sites, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.world import edits, taint
+from alpha.world import edits, links, skills, taint
 from alpha.world.actions import Actions
 from alpha.world.readers import allowed_posts, health_problem
 from alpha.world.store import Problem
@@ -381,6 +381,7 @@ class Tools:
         eq, ne, gt, gte, lt, lte, contains, in, is_null; created_at and updated_at can be
         filtered too. order: a field name, '-' in front for descending (default newest
         first)."""
+        links.check_read(self.world, self.module, self._module_of(collection))
         return self.world.collections.query(collection, where, order, limit)
 
     @tool
@@ -394,6 +395,7 @@ class Tools:
         """count, sum, avg, min or max over a table (field must be a number unless op is count),
         with the same where filters as records_query. Use it for totals such as today's
         calories instead of adding numbers up yourself."""
+        links.check_read(self.world, self.module, self._module_of(collection))
         return self.world.collections.aggregate(collection, op, field, where)
 
     @tool
@@ -549,7 +551,8 @@ class Tools:
         otherwise it waits as a suggestion for their yes. why: the words it came from."""
         fact = self.world.knowledge.record_fact(
             subject, predicate, value,
-            source=f"turn:{self.turn}" if self.turn else "alpha",
+            source=f"module:{self.module}" if self.module
+            else f"turn:{self.turn}" if self.turn else "alpha",
             state="accepted" if stated else "suggested",
             confidence=0.95 if stated else 0.6,
             why=why,
@@ -897,3 +900,22 @@ class Tools:
                                              module=self.module)
         return {"pending_action": action["id"], "state": action["state"],
                 "note": "Waiting for the person's approval; tell them it's on Home."}
+
+    # ---- skills the person made (Intelligence › Skills) and row actions ----
+
+    @tool
+    def skills_list(self) -> list[dict[str, Any]]:
+        """The skills the person made: each a procedure in their words (what it does, the
+        steps, what it needs, the sources it may read, what it produces). When a sentence calls
+        for one, follow its steps; anything outward still goes through propose_action."""
+        return skills.all_skills(self.world.store)
+
+    @tool
+    def table_row_action(self, collection: str, skill: str) -> dict[str, Any]:
+        """Offer a skill (its id from skills_list) on every row of a table: it shows in the
+        row's menu and runs with that row's values as its inputs."""
+        actions = skills.attach_row_action(self.world.store, collection, skill)
+        self._did("changed", f"Added a row action to {collection}.",
+                  {"collection": collection, "skill": skill},
+                  module=self._module_of(collection))
+        return {"row_actions": actions}
