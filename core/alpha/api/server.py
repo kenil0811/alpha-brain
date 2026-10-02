@@ -24,16 +24,19 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
+from alpha.models.accounts import Accounts
+from alpha.models.keychain import KeychainError
 from alpha.runtime import claude_account
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
+from alpha.runtime.route import Router
 from alpha.world import backup
 from alpha.world.purge import remove_connection
 from alpha.world.store import Problem, loads
@@ -47,6 +50,24 @@ class AskBody(BaseModel):
     text: str
     module: str | None = None
     thread: str | None = None
+
+
+class KeyBody(BaseModel):
+    key: str = Field(min_length=1, max_length=400)
+
+
+class CodeBody(BaseModel):
+    code: str = Field(min_length=1, max_length=2000)
+
+
+class ModelBody(BaseModel):
+    model: str = Field(min_length=1, max_length=200)
+
+
+class RouteBody(BaseModel):
+    thread: str | None = None
+    provider: str | None = None
+    model: str | None = Field(default=None, max_length=200)
 
 
 class RecordBody(BaseModel):
@@ -83,14 +104,23 @@ class NoteBody(BaseModel):
 class Turns:
     """Turns run in the background; the window polls for the answer."""
 
-    def __init__(self, world: World, runner: turns.Runner | None = None) -> None:
+    def __init__(self, world: World, runner: turns.Runner | None = None,
+                 accounts: Accounts | None = None) -> None:
         self.world = world
         self.runner = runner
+        self.accounts = accounts
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
 
     def start(self, body: AskBody) -> dict[str, Any]:
         key = secrets.token_hex(6)
+        if self.accounts is not None:
+            # Nothing is said into the conversation until the model it goes to is connected:
+            # the window connects it and sends the same words again.
+            provider = str(self.accounts.route(body.thread)["provider"])
+            if not self.accounts.connected(provider):
+                return {"id": key, "state": "needs_connect", "text": body.text,
+                        "provider": provider, "started_at": datetime.now(UTC).isoformat()}
         with self.lock:
             self.state[key] = {"id": key, "state": "running", "text": body.text,
                                "started_at": datetime.now(UTC).isoformat()}
@@ -108,7 +138,8 @@ class Turns:
                 out = turns.ask(self.world, body.text, **kwargs)
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
-                          "duration_ms": out.result.duration_ms}
+                          "duration_ms": out.result.duration_ms,
+                          "provider": out.result.raw.get("provider")}
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
             except Exception as e:
@@ -206,8 +237,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                token: str | None = None, live: bool = True) -> FastAPI:
     world = world or World()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
-    running = Turns(world, runner)
-    scheduler = Scheduler(world, runner)
+    accounts = Accounts(world.store)
+    # An injected runner (tests) bypasses the model routes and their connection check.
+    running = Turns(world, runner or Router(accounts), None if runner else accounts)
+    scheduler = Scheduler(world, runner or Router(accounts))
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager
@@ -251,6 +284,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.exception_handler(Problem)
     async def problem(_: Request, exc: Problem) -> JSONResponse:
         return JSONResponse({"error": str(exc)}, status_code=400)
+
+    @app.exception_handler(KeychainError)
+    async def keychain_problem(_: Request, exc: KeychainError) -> JSONResponse:
+        return JSONResponse({"error": f"The Keychain said no: {exc}"}, status_code=502)
 
     api = Depends(guard)
 
@@ -474,6 +511,63 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/claude/signout", dependencies=[api])
     def claude_sign_out() -> dict[str, Any]:
         return claude_account.sign_out()
+
+    # ---- settings: models (Settings -> Models, and the composer's + -> Advanced -> Model) ----
+
+    @app.get("/api/models", dependencies=[api])
+    def model_rows() -> dict[str, Any]:
+        return {"providers": accounts.rows()}
+
+    @app.get("/api/models/{provider}/models", dependencies=[api])
+    def provider_models(provider: str) -> dict[str, Any]:
+        """{"models": [{"id", "label"}], "selected": id | null}."""
+        return accounts.models(provider)
+
+    @app.put("/api/models/{provider}/model", dependencies=[api])
+    def select_model(provider: str, body: ModelBody) -> dict[str, Any]:
+        return accounts.select_model(provider, body.model)
+
+    @app.post("/api/models/{provider}/star", dependencies=[api])
+    def star(provider: str) -> dict[str, Any]:
+        return {"providers": accounts.star(provider)}
+
+    @app.put("/api/models/{provider}/key", dependencies=[api])
+    def save_key(provider: str, body: KeyBody) -> dict[str, Any]:
+        return {"provider": accounts.save_key(provider, body.key)}
+
+    @app.delete("/api/models/{provider}/key", dependencies=[api])
+    def remove_key(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.remove_key(provider)}
+
+    @app.post("/api/models/{provider}/test", dependencies=[api])
+    def test_provider(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.test(provider)}
+
+    @app.post("/api/models/{provider}/reconnect", dependencies=[api])
+    def reconnect(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.reconnect(provider)}
+
+    @app.post("/api/models/{provider}/sign-in", dependencies=[api])
+    def sign_in(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.sign_in(provider)}
+
+    @app.post("/api/models/{provider}/sign-in/finish", dependencies=[api])
+    def finish_sign_in(provider: str, body: CodeBody) -> dict[str, Any]:
+        return {"provider": accounts.finish_sign_in(provider, body.code)}
+
+    @app.post("/api/models/{provider}/install", dependencies=[api])
+    def install(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.install(provider)}
+
+    @app.get("/api/route", dependencies=[api])
+    def get_route(thread: str | None = None) -> dict[str, Any]:
+        """The model this conversation's next message goes to."""
+        return accounts.route(thread)
+
+    @app.put("/api/route", dependencies=[api])
+    def set_route(body: RouteBody) -> dict[str, Any]:
+        """This conversation's own model; no provider goes back to the default."""
+        return accounts.choose(body.thread, body.provider, body.model)
 
     @app.get("/api/data", dependencies=[api])
     def data_info() -> dict[str, Any]:
