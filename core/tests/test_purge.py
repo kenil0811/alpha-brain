@@ -51,7 +51,10 @@ def test_clearing_the_conversation_keeps_activity(world: World) -> None:
     world.journal.append("did", "Added Eggs to Food log.")
     world.journal.append("said", "in a thread", actor="person", thread="t_1")
     assert clear_conversation(world)["turns"] == 2
-    assert [e["kind"] for e in world.journal.recent(10)] == ["did", "said"]
+    assert [e["kind"] for e in world.journal.recent(10)] == ["did", "said", "changed"]
+    # forgotten, not deleted: the rows stay as tombstones
+    assert len(world.store.all("SELECT id FROM journal WHERE deleted_at IS NOT NULL"
+                               " AND text = ''")) == 2
 
 
 def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
