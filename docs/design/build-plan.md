@@ -467,6 +467,40 @@ Decided with Kenil after his research on memory systems; the design is §3.5–�
   sources, soft matches proposed) and the scenario suite (our journeys plus a correction, a late
   arrival, a future-dated change and a private fact), then slice 3.
 
+### 4.7 Plan first, sources, pipelines, background builds (decided 2 Oct 2026)
+
+Why: "i want a live daily tracker capturing all deals from my eta tracker list" (2 Oct) — Alpha
+read the person's CSV of 20 broker sites, built a module, 9 tables and 8 readers on its own
+guesses, set aside 54 rows over "PENDING" vs "Pending", was told four healthy readers were
+broken (the health check compared one reader's rows with the whole table's), copied rows
+between tables through the model, and was cut off at 900 s with no automation, no note and no
+reply. Rule 5 told it to build first and ask at the end. Kenil's expectations and decisions are
+in the design §6 (revision of 2 Oct). The build:
+
+- **Store**: `plans` (id, title, body, state proposed → approved → building → done | stopped |
+  declined | replaced, module, thread, turn, approval, attempts, report); `sources` (module,
+  title, url, reader, status working | needs_signin | blocked | broken | not_built, detail,
+  last_checked, last_rows); `records.reader/seen_at/gone_at`; `automations.steps`.
+- **Gate**: `module_create`, `collection_create`, a new `reader_save`, `automation_create` and
+  `source_add` refuse unless the turn is a build of an approved plan. `table_start` makes the
+  one simplest table for a log with no home, with its first row. `plan_propose` journals the
+  plan as a proposal; `plan_approve(plan, quote, answers)` needs the person's words from a
+  message after the plan; the app approves with a button (`/api/plans/{id}/approve`).
+- **Builds** (`runtime/build.py`): the scheduler starts approved plans in their own thread
+  (kicked right after a turn too); BUILD_RULES; a run cut off by the time limit continues from
+  the brief, at most four runs; the report goes into the conversation with a coverage line from
+  the sources table.
+- **Readers and pipelines** (`runtime/pipeline.py`): one `run_reader` for tools and pipelines;
+  health compares with the rows *this* reader returned last time; every healthy run marks rows
+  seen and the reader's missing rows gone; choices match regardless of case; steps
+  `{"read": reader, "into": table, "key": field, "keep": [...], "map": {field: {from: to}}}`
+  and `{"tell": table, "where": {...}}`; a broken step gets one repair turn by the model, then
+  one rerun; a sign-in wall asks the person once; a bot check marks the source blocked.
+- **Browser**: bot-check pages (challenge titles and markers, captcha frames) come back as
+  `bot_check`; reads mark that site's sources needs_signin or blocked.
+- **App**: plan proposals in Needs you (Approve / Not now); a module's sources with their status
+  in its Settings; build progress on the thread card.
+
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
 | Piece | Path in the old repo | Used in |
