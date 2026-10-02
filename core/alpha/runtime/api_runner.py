@@ -26,6 +26,9 @@ from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
 MAX_TURNS = 40
+# Waits before trying a busy or unreachable provider again. Only model calls are retried: they
+# change nothing, and the tools run between calls, not inside them.
+RETRY_DELAYS = (2.0, 8.0)
 MAX_TOKENS = 16000
 HISTORY = 30
 RESULT_CHARS = 30000
@@ -145,10 +148,17 @@ def run(req: TurnRequest, *, kind: str, base_url: str, key: str | None, model: s
 
     def guarded(url: str, headers: dict[str, str], body: dict[str, Any] | None,
                 limit: float) -> dict[str, Any]:
-        # Stopping a turn on this route ends it before its next model call.
-        if claude_cli.stopped(req.turn_id):
-            raise claude_cli.Stopped
-        return post(url, headers, body, limit)
+        for wait in (*RETRY_DELAYS, None):
+            # Stopping a turn on this route ends it before its next model call.
+            if claude_cli.stopped(req.turn_id):
+                raise claude_cli.Stopped
+            try:
+                return post(url, headers, body, limit)
+            except ProviderHTTPError as e:
+                if not e.transient or wait is None:
+                    raise
+                time.sleep(wait)
+        raise AssertionError("unreachable")
 
     world = World(req.world_path)
     try:

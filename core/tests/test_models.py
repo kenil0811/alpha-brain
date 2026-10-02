@@ -189,6 +189,41 @@ def test_the_tool_loop_stops_after_its_cap(world: World, monkeypatch: pytest.Mon
     assert not out.ok and "after 3 steps" in (out.error or "")
 
 
+def test_a_busy_provider_is_tried_again_and_a_refused_key_is_not(
+        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_runner, "RETRY_DELAYS", (0.0, 0.0))
+    answers: list[Any] = [ProviderHTTPError("The provider said 529: overloaded", 529),
+                          ProviderHTTPError("Couldn't reach it (reset).", transient=True),
+                          {"choices": [{"message": {"content": "Hello."}}]}]
+
+    def post(*_: Any) -> dict[str, Any]:
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return dict(a)
+
+    req = TurnRequest(sentence="hi", system="s", world_path=world.path, turn_id="j")
+    out = api_runner.run(req, kind="openai", base_url="u", key="k", model="m", post=post)
+    assert out.ok and out.reply == "Hello." and answers == []
+
+    tries: list[int] = []
+
+    def refused(*_: Any) -> dict[str, Any]:
+        tries.append(1)
+        raise ProviderHTTPError("The key was refused.", 401)
+
+    out = api_runner.run(req, kind="openai", base_url="u", key="k", model="m", post=refused)
+    assert not out.ok and out.error == "The key was refused." and len(tries) == 1
+
+    def always_busy(*_: Any) -> dict[str, Any]:
+        tries.append(1)
+        raise ProviderHTTPError("The provider said 503: busy", 503)
+
+    tries.clear()
+    out = api_runner.run(req, kind="openai", base_url="u", key="k", model="m", post=always_busy)
+    assert not out.ok and "503" in (out.error or "") and len(tries) == 3
+
+
 def test_codex_gets_only_alphas_tools_and_resumes_its_own_session(tmp_path: Path) -> None:
     req = TurnRequest(sentence="hi", system="RULES", world_path=tmp_path / "w.sqlite",
                       turn_id="j_1", thread_id="t_1", resume="codex:abc")
