@@ -1,7 +1,7 @@
 # Build plan
 
-1 October 2026. Written so that any session (or person) can continue from here without the
-conversation that produced it. The design it implements is `alpha-second-brain-design.md` in this
+1 October 2026; brought up to date 2 October 2026, evening (§1, §4.3, §4.5, §4.9). Written so that any session
+(or person) can continue from here without the conversation that produced it. The design it implements is `alpha-second-brain-design.md` in this
 folder; read that first. This document is the engineering side: what is decided, what is verified,
 what the first slice is exactly, and what follows.
 
@@ -17,6 +17,9 @@ what the first slice is exactly, and what follows.
 - **Sessions** are one visible stream plus threads with their own model context, opened
   automatically for any work item; no session picker; memory lives in the world, never in a
   session.
+- **Building happens in the one conversation** (Kenil, 1 Oct): an explicit "I want to build…" is
+  researched, decided and built in the same conversation, even when it takes minutes; the
+  separate deepen threads were removed. Threads remain for automations (each has its own).
 - **Modules stay first-class.** Alpha is a work tool with a companion, not a personal assistant
   with a window. Intelligence stays as a rail item (Skills · Automations · Connections ·
   Knowledge).
@@ -30,7 +33,15 @@ what the first slice is exactly, and what follows.
   world store, pre-pack, the `claude -p` runtime, the MCP server with 31 tools, the turn, the
   CLI; 25 tests, ruff and mypy strict clean. **Slice 2 is built** (1 Oct, §4.1): the files,
   browser and calendar connectors, the core's HTTP API, and the desktop app (workspace and
-  companion) hosting the core. Next is slice 3.
+  companion) hosting the core. **After slice 2** (1 Oct, §4.2): one-conversation building,
+  automations, the capability model (platform hands vs Alpha's know-how) with readers Alpha writes
+  and repairs, complete removal that keeps the audit, paginated tables, Settings with the Claude
+  connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
+  that are people, threads as records, what the model saw); plan first, sources, pipelines and
+  background builds with no limits; known, assumed or asked (provenance on every value, a second
+  opinion on every answer Alpha worked out, a trial on every build). 46 commits since 1 Oct; 112
+  core + 3 desktop tests; 63 tools. **Where we stand and what is open: §4.3, §4.5 and §4.9.**
+  Slice 3 (proactivity) and the sleep-time pass have not started.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -44,6 +55,9 @@ what the first slice is exactly, and what follows.
 | pnpm | 10.34.5 (per the old repo's pins) | old repo memory |
 | Tauri | 2.11.6, rustc 1.98.1 | old repo memory |
 | Fonts used by the shell | Geist (UI), Source Serif 4 (headings), both on Google Fonts | `apps/desktop/src/styles/app.css` |
+| Claude Code sign-in | `claude auth status` prints JSON (`loggedIn`, `authMethod` "claude.ai", `email`, `subscriptionType`) and exits 0 signed in, 1 not; `claude auth login [--claudeai\|--console]`; `claude auth logout`; installer `curl -fsSL https://claude.ai/install.sh \| bash` (per user, `~/.local/bin/claude`, no admin) | run here 1 Oct; code.claude.com docs |
+| Subscription in a product | Agent SDK docs: "Unless previously approved, Anthropic does not allow third party developers to offer claude.ai login or rate limits for their products, including agents built on the Claude Agent SDK." Fine for Kenil's own use; anyone else needs approval or API keys | code.claude.com/docs/en/agent-sdk/getting-started.md, 1 Oct |
+| Playwright / browser | `playwright-core` 1.62.0 driving the installed Google Chrome (`channel: "chrome"`), per-sign-in persistent profiles | `connectors/browser` |
 
 **CLI flags that exist in 2.1.278 and matter to us** (from `claude --help` and the old harness
 `services/core/alpha/builds/harness_claude_cli.py`, which runs in production today):
@@ -171,13 +185,13 @@ claude -p <sentence>
                                                           dontAsk refuses anything not allowed)
   --setting-sources ""
   --model $ALPHA_MODEL (default "sonnet")
-  --max-turns 20
+  --max-turns 20                        (now 80; see §4.2)
   [--no-session-persistence]            stream turns are stateless; the pre-pack carries context
   [--resume <session_id>]               a thread resumes its own session
 ```
 
 MCP config file: `{"mcpServers":{"alpha":{"command": sys.executable, "args": ["-m","alpha.mcp.server"], "env": {"ALPHA_WORLD": <store path>}}}}`.
-Environment: inherit, ensure `USER`, never set `CLAUDE_CONFIG_DIR`. Timeout 300 s; on timeout
+Environment: inherit, ensure `USER`, never set `CLAUDE_CONFIG_DIR`. Timeout 300 s (now 900 s); on timeout
 the process is killed and the turn is journaled as `failed`. The JSON result's `result` is the
 reply; `session_id` is stored on the thread when a thread runs.
 
@@ -307,18 +321,324 @@ Every change is in the journal with its turn (`alpha journal`). Found: the secon
   macOS prompt, from Intelligence › Connections › Connect calendars in the app.
 
 
-2. Browser, files and calendar connectors as skill directories with `connector.yaml`
-   (`design/research/connectors-and-sources.md` §5); the derived pages and the workspace ported
-   from the current shell into `desktop/`; the companion (avatar window) ported.
-3. Sensors, triage (rules first, System One seam second), the sleep-time pass, the digest, the
-   Inbox lanes on Home; explicit asks deepen at once in a thread.
-4. The entity registry and bi-temporal facts across sources (built minimal in slice 1, filled by
-   connectors here).
-5. The standing-things ladder with promotion from verified runs; skills and automations as
-   objects; Intelligence tabs.
-6. Pending actions and Access; per-kind standing permissions as sentences.
-Then email (Mail.app locally; Anthropic's Gmail connector on the subscription), contacts, the
-Chrome 144 bridge and the API route.
+### 4.2 After slice 2: what was built (1 Oct 2026, 10:13–23:44, 20 commits)
+
+Most of it came from using the app on the two judging journeys and from Kenil's reviews.
+
+- **One conversation, building in it** (`d4fa35d`, `98dd953`). An explicit "I want to build…"
+  is researched and built in the same conversation; Alpha's questions are closed by the person's
+  next message. The deepen side threads were removed.
+- **Automations** (`98dd953`): `automation_create/list/update` tools; schedules "every Nh/Nm",
+  "daily HH:MM", "weekly mon HH:MM"; a scheduler in the core (`runtime/automation.py`, checks
+  every 30 s, claims a run before starting it); each automation has its own thread and runs with
+  AUTOMATION_RULES; "worth telling" lines become `noticed` entries. Intelligence › Automations and
+  module Settings show a sentence, a switch and Run now with live steps; a run's note is shown
+  only when it failed (`9f561bf`).
+- **The capability model** (design §4.0, `1eee620`): the platform builds a few universal *hands*
+  and the guardrails, which Alpha can't change; Alpha writes, tests and repairs the *know-how*
+  (site readers, app connectors); effects are classed read / write inside Alpha / write outward
+  (asks first) / never (passwords, money, permanent deletion), enforced in the process boundary;
+  a gap is a hand (system owner for now), access (the person) or know-how (Alpha).
+- **Browser hand** (`1c9e60c`, `1f7fccb`, `f5993a0`, `bf2a5e8`, `afa8f11`): `page_script` runs
+  Alpha's own JavaScript in a page; reading to the end scrolls until four rounds bring no new
+  links; non-GET requests are blocked *only while Alpha's script runs* (LinkedIn pages its list
+  with a read-only POST, so blocking by method during loading cut the list to 10). A sign-in
+  covers every site its window passed through (gmail.com → google.com), recorded in
+  `alpha-signin.json` next to its profile; when a page asks for a sign-in no sign-in covers,
+  Alpha first tries the sign-ins it holds and records the one that works.
+- **Readers** (`1f7fccb`, `4582db8`, `world/readers.py`): `reader_save`/`reader_run`; a reader is
+  health-checked before it writes (no rows; under 0.5× the last good run; under 0.75× the rows
+  the table holds; required fields missing on over 20%) and a broken one is repaired by Alpha in
+  the automation's run. `page_to_table` is refused inside automations. Connector `SKILL.md`
+  bodies now reach the model (`skills_text()`).
+- **Workspace from Kenil's review** (`1eee620`, `8aeb7ea`): People & Companies removed (generic
+  only), connections only in Intelligence, module Activity shows everything 50 at a time, the
+  schedule lives in module Settings, no About-you page, no sample rows in Summary, the "Ask
+  Alpha" tab on the right edge.
+- **Tables** (`2ac0cf0`, `48c7c90`): the page loads every row (the model still reads 500 at a
+  time) and pages them itself; rows per page default to what fits the window, a fixed size can
+  be chosen; rows scroll inside the table with the header and totals held; totals and the
+  module summary count every row.
+- **Companion** (`48c7c90`): the page reports where it is drawn and the host lets clicks
+  through everywhere else (its transparent corners covered the workspace's pager).
+- **Removal and the audit** (`98ee832`, `bf2a5e8`, `485657d`, `8823e34`; `world/purge.py`):
+  `remove_module` and `remove_connection` delete the thing and what exists because of it
+  (tables and rows, readers, automations, notes, goals; a sign-in's browser profile on disk,
+  documents, events) but **never the journal**: each removal is journaled ("Removed X: …" with
+  `data.removed`), threads keep their record but lose the resumable session, open questions
+  close, and `Journal.mark_removed` marks history about removed things wherever Alpha reads it
+  (search, journal tools, pre-pack), with a rule that the journal is history.
+  `clear_conversation` deletes said/replied by design. Connection removal confirms in its own
+  row in the same words Activity records.
+- **Questions** (`9e444b5`): every Needs-you question can be dismissed; sign-in requests close
+  themselves when signed in or asked again.
+- **Settings** (`08ad89b`): Claude (status, Install, Sign in through Claude Code's browser
+  login, Sign out), companion and appearance (the theme left the rail), your data (folder, Show
+  in Finder, Back up now via SQLite's backup), defaults (rows per page); "Connect Claude to
+  start" on every page while Claude Code is missing or signed out.
+- **Runtime values now**: `--max-turns 80`, timeout 900 s, Sonnet; stream turns stateless,
+  automation threads resume their own session.
+
+### 4.3 Where we stand (recon, 2 Oct 2026)
+
+Against the design's order of work:
+
+| Step | State (end of 2 Oct) |
+|---|---|
+| 1. World store, MCP server, stream, companion | Done. Plus: row history, what the model saw per turn, threads as records (§4.6) |
+| 2. Browser, files, calendar; derived pages | Done, plus §4.2. Readers mark rows seen and gone; paged lists are read whole or say so. Calendar's real first read still not run |
+| 3. Sensors, triage, sleep-time pass, digest, Inbox | Not started |
+| 4. Entities and bi-temporal facts across sources | Partial: rows that are people link by hard key (1,548 connections are now people, §4.6); no cross-source linking yet, no sleep-time pass |
+| 5. Standing-things ladder, promotion from verified runs | Partial: automations and pipelines exist; every standing thing goes through a plan and a yes (§4.7); no ladder, no promotion from repetition |
+| 6. Pending actions and Access | Not started: every outward write is refused |
+| — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8) |
+
+Proven on real runs (the person's own world, the subscription): LinkedIn connections read in
+the person's session (1,548 rows, daily at 07:00, Alpha's own reader); Gmail read through the
+browser (tracking and shipment details from the last 100 emails; then emails from LinkedIn
+connections in the last 24 hours and what one of them said, the first answer joining two
+sources); Nutrition (tables plus a weekly review automation); the ETA deal tracker built after
+a plan and a yes (Deal Tracker, 365 rows from the readable broker sites, daily; its first build
+hit the old 80-step cap, which is why there are no limits now); the second opinion on the shake
+(160 → 215 kcal from the Morrisons page in 58 s, flavour asked). Proven only by tests: the
+calendar connect, Install and Sign in from Settings on a fresh Mac, the
+try-the-sign-ins-you-hold path, a build's trial being sent back.
+
+### 4.4 What the recon flagged
+
+1. **Decided 2 Oct: Gmail through the browser is fine** (Kenil; Q4 revised in the design). It
+   was flagged because it went against decision Q4 ("keep Gmail out of scope until a Google app is justified;
+   use Anthropic's Gmail connector meanwhile"). It is now read by driving a signed-in browser:
+   it works, it is the access path Google likes least, and it is the most sensitive source
+   Alpha reads. Needs a deliberate decision.
+2. **LinkedIn reads the whole list daily.** Q3 said "at human pace". A full scroll of 1,548
+   connections every morning is closer to what LinkedIn acts against; reading only what is new
+   would be gentler.
+3. **The make-or-break hasn't moved since slice 1.** Memory and context: beliefs going stale in
+   resumed threads (Alpha "concluded" LinkedIn caps the list and carried it), no sense of time
+   ("yesterday"), no sleep-time pass, people not linked across sources. The Gmail × LinkedIn
+   answer came from the model's cleverness in the moment, not from Alpha knowing the person.
+4. **Proactivity is close to zero**: apart from automations' notes Alpha never brings anything
+   to the person; no digest, no notifications.
+5. **The last stretch was reactive polish** (about 10 of 25 commits fixed what Kenil found
+   while using the app). Valuable, but away from the thesis.
+6. **Not shippable to anyone else**: the app runs Python from this repository's `.venv`;
+   self-signed; the subscription login needs Anthropic's approval for other users; first run on
+   a fresh Mac untested; a repository on the Desktop makes the first launch wait on macOS.
+7. **Loose ends**: desktop-control and app-scripting hands not built; how hand gaps are
+   collected across many users (Adobe) is open; `page_to_table` still carries site knowledge in
+   the platform (reduce it to a first look); the photo-vs-name half of the LinkedIn driver fix
+   sits in `git stash` as know-how Alpha should learn; whether the Python Agent SDK (which
+   bundles Claude Code) supports every flag in §3.4 is unverified, so the runtime stays on the
+   CLI.
+
+### 4.5 What next (proposed 2 Oct; where each stands at the end of the day)
+
+- **A. Sessions and memory**: foundations built (§4.6, design §3.5–§3.6). Still open: the
+  sleep-time pass (idempotent derivations, hard-key links across sources, soft matches
+  proposed) and the scenario suite.
+- **B. Slice 3, proactivity**: not started. Triage of new data, the digest, the Inbox on Home.
+- **C. The Gmail decision**: done, Gmail stays in the browser.
+- **D. A working rule**: half there. The second opinion and the build trial (§4.8) are the
+  mechanism; the three or four standing journeys every change is judged against are not yet
+  written down as a suite that runs.
+- **E. (new, 2 Oct) Plan first and trust**: done (§4.7, §4.8). What it leaves open is in §4.9.
+
+Recommended order now: finish D as a runnable suite of real journeys (it is what stops the
+next "Again!"), then A's sleep-time pass, then B.
+
+### 4.6 Memory and data foundations (built 2 Oct 2026)
+
+Decided with Kenil after his research on memory systems; the design is §3.5–§3.6.
+
+- **Row history** (`250b7b4`): `record_versions` keeps a record's previous values on every
+  update, upsert change and delete; `record_history(collection, id)`.
+- **Rows that are people** (`250b7b4`): `collection_create(rows_are, identity_field)` and
+  `collection_identify`; each write resolves the row's entity by its email or URL (zero model
+  calls) into `records.entity_id`; `entity_read` lists every row that is the entity.
+- **World identity and migrations** (`250b7b4`): `meta.world_id`; older files gain new columns
+  on open (`ADDED_COLUMNS` in `world/store.py`).
+- **Threads are records** (`2e41653`): `--no-session-persistence` on every run, never
+  `--resume`; `threads.brief` written with `thread_brief`; the pre-pack's THIS THREAD section
+  carries the brief and the thread's last 15 entries; AUTOMATION_RULES tell a run to keep the
+  brief.
+- **What the model saw** (`2e41653`): `turn_contexts` (pre-pack text plus a hash of the rules)
+  per turn; `alpha context <turn>`; clearing the conversation drops its contexts.
+- **Dates** (`2e41653`): conversation, matches and thread history lines read "Thu 1 Oct 21:21"
+  in local time.
+- **Instructions** (`2e41653`): `note_write` refuses "Standing instructions" and
+  "Permissions"; `instruction_add/remove(sentence, quote)` require the person's own words from
+  the turn's message; `instruction_propose` waits for a yes, which adds it with no further
+  turn. Notes record their source turn.
+- **Real runs** (2 Oct, on a copy of Kenil's world, Sonnet on the subscription): "Every row in
+  my LinkedIn connections is a person…" → Alpha called `collection_identify`, 1,548 rows
+  linked to 1,548 people by profile URL in 16.9 s; "From now on, always round calories to the
+  nearest 10…" → `instruction_add` with the quote, the note's source is that message (8.8 s).
+  The kept context showed dated conversation lines. Alpha's first reply overstated ("like it
+  already did with Alexander Miller": that earlier answer matched by name, not by key).
+- **Next:** the sleep-time pass (idempotent, versioned derivations; hard-key links across
+  sources, soft matches proposed) and the scenario suite (our journeys plus a correction, a late
+  arrival, a future-dated change and a private fact), then slice 3.
+
+### 4.7 Plan first, sources, pipelines, background builds (decided 2 Oct 2026)
+
+Why: "i want a live daily tracker capturing all deals from my eta tracker list" (2 Oct) — Alpha
+read the person's CSV of 20 broker sites, built a module, 9 tables and 8 readers on its own
+guesses, set aside 54 rows over "PENDING" vs "Pending", was told four healthy readers were
+broken (the health check compared one reader's rows with the whole table's), copied rows
+between tables through the model, and was cut off at 900 s with no automation, no note and no
+reply. Rule 5 told it to build first and ask at the end. Kenil's expectations and decisions are
+in the design §6 (revision of 2 Oct). The build:
+
+- **Store**: `plans` (id, title, body, state proposed → approved → building → done | stopped |
+  declined | replaced, module, thread, turn, approval, attempts, report); `sources` (module,
+  title, url, reader, status working | needs_signin | blocked | broken | not_built, detail,
+  last_checked, last_rows); `records.reader/seen_at/gone_at`; `automations.steps`.
+- **Gate**: `module_create`, `collection_create`, a new `reader_save`, `automation_create` and
+  `source_add` refuse unless the turn is a build of an approved plan. `table_start` makes the
+  one simplest table for a log with no home, with its first row. `plan_propose` journals the
+  plan as a proposal; `plan_approve(plan, quote, answers)` needs the person's words from a
+  message after the plan; the app approves with a button (`/api/plans/{id}/approve`).
+- **Builds** (`runtime/build.py`): the scheduler starts approved plans in their own thread
+  (kicked right after a turn too); BUILD_RULES; a run cut off by the time limit continues from
+  the brief, at most four runs; the report goes into the conversation with a coverage line from
+  the sources table.
+- **Readers and pipelines** (`runtime/pipeline.py`): one `run_reader` for tools and pipelines;
+  health compares with the rows *this* reader returned last time; every healthy run marks rows
+  seen and the reader's missing rows gone; choices match regardless of case; steps
+  `{"read": reader, "into": table, "key": field, "keep": [...], "map": {field: {from: to}}}`
+  and `{"tell": table, "where": {...}}`; a broken step gets one repair turn by the model, then
+  one rerun; a sign-in wall asks the person once; a bot check marks the source blocked.
+- **Browser**: bot-check pages (challenge titles and markers, captcha frames) come back as
+  `bot_check`; reads mark that site's sources needs_signin or blocked.
+- **App**: plan proposals in Needs you (Approve / Not now); a module's sources with their status
+  in its Settings; build progress on the thread card.
+
+**As built (2 Oct, `f9194aa` … `d734aab`)**, plus what the real runs added: the browser treats
+a captcha widget on a form as an ordinary page (only a challenge title, a challenge page's own
+marks or a page that is only a captcha is a bot check) and a visible password field as a sign-in;
+`reader_save` refuses a reader on a page that shows more pages until Alpha says `whole` (every
+page) or not (newest page only, whose rows are never marked gone); sources also have
+`unavailable` (nothing to read) and `skipped` (the person's choice); tables fed by readers show a
+Seen column (New today, Since, Gone) and hide gone rows; removing a module removes every reader
+that fed it. 98 core tests, ruff, mypy strict.
+
+**Real runs** (2 Oct, on copies of Kenil's world with the blind module removed, Sonnet on the
+subscription):
+
+1. "i want a live daily tracker capturing all deals from my eta tracker list" → nothing built;
+   in 137 s Alpha opened all 20 sites (reading only) and proposed one Listings table, readers that
+   page fully and a daily tell, with four questions. Three sites were wrongly called blocked (the
+   captcha-widget bug above, then fixed). Rerun after the fix: 162 s, classification right (APS
+   and Kumo need a sign-in, Sunbelt a bot check), and it asked whether general brokers' listings
+   should be all or only accounting firms.
+2. Stand-in answers (mine, not Kenil's: all listings with an accounting mark; skip BizBuySell,
+   APS, Kumo, Transworld, Sunbelt, Metro; tell at 7) → `plan_approve` with the quote, 12 s.
+3. The build, run as the scheduler would: one run, 737 s. Module ETA Deals, one Deals table (309
+   rows from 13 sites, 53 marked accounting), 13 readers, a pipeline of 13 read steps and a tell
+   step at 07:00 (no procedure), all 20 sources with a status and a reason, the module note, and
+   a report in the conversation ending "Sources: 20 in all — 13 working, 2 need your sign-in, 3
+   blocked, 2 not read yet." Found: several readers read only the first page and the report
+   admitted it for three other sites only (fixed by the more-pages check); a newest-page reader
+   would have marked rows gone daily (fixed by `whole`); dead links were filed as blocked (fixed
+   by `unavailable` and `skipped`). The more-pages check finds 4 of the 5 paged sites (not Quiet
+   Light).
+
+Then the blind ETA Tracker module was removed from Kenil's world (backup first; 9 tables, 756
+rows and 8 readers; its activity stays) and the app restarted for him to ask again.
+
+**No limits; the person stops (2 Oct, after Kenil's first real build stopped on the 80-step
+cap with 11 sources to go):** no `--max-turns`, no time limit on a run, no cap on a build's runs.
+`claude_cli.LIVE` knows every run by its turn and thread and stops it with its whole process
+group; Stop in the conversation (`/api/turns/{key}/stop`) and on a running build's card
+(`/api/plans/{id}/stop`); a stopped build reports what it made and resumes on "continue" or
+Continue building (`plan_resume`, `/api/plans/{id}/resume`).
+
+### 4.8 Known, assumed or asked (built 2 Oct 2026)
+
+Why: "i had a for godness shake 35g protien shake" (2 Oct, 14:33) was logged as 160 kcal, 3 g
+carbs, 5 g fat, estimated; the label (one search away) says 215 kcal, 16.8 g carbs, 0.7 g fat.
+Every row the Nutrition module had ever written was an estimate, the "≈" mark in a cell was the
+only sign, and the build had never tried a branded product. Rule 1 of the turn said "sensible
+estimates… No research", my implementation of "plain logging stays instant"; the module Alpha
+built had no idea where a number comes from; nothing compared Alpha's answers with reality.
+Kenil: "i want alpha to be trusted same as people would trust claude", and the principle: if
+Alpha doesn't know, ask, or at least say what it assumed; never just do anything. The build:
+
+- **Rules** (`runtime/turn.py`): a plain action is still done in the turn, but every value is
+  stated, looked up (whatever can be known is looked up and its source kept) or estimated and
+  said so; an unknown the result depends on is asked about or assumed out loud; replies say where
+  each number came from. Plans name their trial. `BUILD_RULES`: a table whose values come from
+  outside gets its way of obtaining them built and tried on a real item; fix how a value is
+  obtained, never the one row.
+- **Provenance** (`mcp/tools.py` `provenance_of`): `records_add`, `records_update` and
+  `table_start` take `source` ("stated", "estimated", or where it was read) and `assumed`;
+  journal lines say "(from label on ocado.com; assumed the 330 ml bottle)". The table page shows
+  "≈" for estimates, "?" for a value resting on an assumption, the source in the cell's title,
+  and "4 estimated, 1 on an assumption" beside the row count.
+- **The check** (`runtime/check.py`): `TurnRequest.kind` is `turn`, `independent` (web search
+  only, no MCP) or `judge` (no tools); `check(world, turn)` journals `checked` and, on a sourced
+  difference or an unstated assumption, runs a repair turn whose reply lands in the conversation.
+  `Turns` runs it in the background after a turn whose records Alpha worked out
+  (`worth_checking`); `alpha check [turn]` runs it by hand.
+- **Builds** (`runtime/build.py`): `plans.trial` and `plans.checks`; a finished build runs the
+  trial in its thread as the person would say it, checks it, removes the trial's rows, and is
+  sent back with the finding while it differs (`TRIAL_REPAIRS = 2`); the report ends with what
+  was tried and what the check said.
+
+### 4.9 Status at the end of 2 October 2026: done, pending, what changed
+
+**What changed today, in one breath.** Alpha went from "builds on a guess, runs, and calls it
+done" to: it asks and proposes first, builds only after a yes and in the background, keeps every
+place it reads from with a status, writes know-how as pipelines that run without a model, has
+no step or time limits (the person stops), knows where every value it writes comes from, and
+checks its own answers against an independent one. The three failures that drove it: the blind
+ETA build (§4.7), the LinkedIn reader "concluding" a cap from one failed attempt (§4.0 of the
+design), and the shake logged as a guess when the label was one search away (§4.8).
+
+**Done (committed, tested, run for real):**
+- Memory and data foundations: row history, rows that are people, threads as records, the kept
+  context per turn, dated lines, instructions in the person's own words (§4.6).
+- Plan first by mechanism; sources with a status and a coverage line in every report; readers
+  that mark rows seen and gone and say whether they read every page; pipelines (read steps and
+  tell steps) with one repair turn; background builds that continue from the brief, resume
+  after a stop, and have no limits; plan cards and the sources list in the app (§4.7).
+- Known, assumed or asked; provenance (`source`, `assumed`) on records and in the table page;
+  the second opinion after turns Alpha worked values out and by `alpha check`; a trial on every
+  plan, sent back up to twice (§4.8).
+- Removal: a module's readers go with it; the audit stays.
+- The app rebuilt and restarted on this (14:58).
+
+**Pending, in order of how much they matter:**
+1. **The suite of real journeys** (D above). Today's trust mechanisms check single answers; the
+   thing that stops regressions is a handful of real journeys run on a copy of the world after
+   every change: LinkedIn sync, Gmail × network, a branded food log, the ETA tracker's daily run,
+   a plan that must be proposed before building. Not written yet.
+2. **The sleep-time pass and scenario suite** (A). Beliefs still go stale only by being
+   overwritten; nothing links people across Gmail and LinkedIn; nothing consolidates.
+3. **Proactivity** (B): triage, digest, Inbox. Alpha still never brings anything to the person
+   except an automation's "Worth telling".
+4. **The old estimates**: the four food rows logged before today stay estimates until the person
+   logs or asks about them again; the check only runs on new turns. A sleep-time pass could
+   re-check old estimates; not decided.
+5. **Cost of the check**: two extra runs on the subscription after every turn where Alpha
+   worked values out, and three model runs per trial. Fine for one person; worth measuring over
+   a week before anyone else uses it.
+6. **Readers still show "not_built" after their reader ran** in one case (the Accounting Biz
+   source, 13:50): the status is set by the reader's runs, but a reader saved after the source
+   was added didn't claim it. Small, visible, not fixed.
+7. From §4.4, unchanged: LinkedIn reads the whole list daily (reading only what is new would
+   be gentler); desktop-control and app-scripting hands not built; `page_to_table` still in the
+   platform; the photo-vs-name driver fix in `git stash`; not shippable to anyone else (venv,
+   self-signed, subscription login needs Anthropic's approval); the Agent SDK's flag support
+   unverified.
+8. **Housekeeping**: a stray `alpha serve --port 53911` from an earlier session runs against a
+   scratch world (kill it); the calendar's real first read has never been run.
+
+**Decisions taken today that bind what follows:** never build on a request, propose and wait
+for the yes (by mechanism, not prompt); know-how is code (pipelines, readers), the model is for
+repair and judgement; no limits anywhere, the person stops; nothing per use case; a knowable
+value is looked up, an unknown is asked about or assumed out loud; "it ran" is not "it works".
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

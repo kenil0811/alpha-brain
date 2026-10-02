@@ -41,7 +41,7 @@ def test_the_first_step_asks_what_it_cannot_know(world: World) -> None:
         m = world.modules.create(world.modules.untitled())
         tid = world.modules.open_thread("Making it", "build", m["id"])["id"]
         world.modules.set_creation(m["id"], {"stage": "new", "thread": tid})
-        turn.ask(world, request, thread=tid, runner=runner, timeout=300)
+        turn.ask(world, request, thread=tid, runner=runner)
         creation = world.modules.get(m["id"])["creation"] or {}
         ids = {q["id"] for q in creation.get("questions", [])}
         wanted += len(unknowns)

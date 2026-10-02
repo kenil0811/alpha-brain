@@ -83,7 +83,7 @@ CODEX_PACKAGE = "@openai/codex"
 # call ("unknown option"), so this list, not a version number, decides "too old".
 CLAUDE_FLAGS = ("--output-format", "--append-system-prompt", "--mcp-config",
                 "--strict-mcp-config", "--allowedTools", "--disallowedTools", "--permission-mode",
-                "--setting-sources", "--settings", "--model", "--resume",
+                "--setting-sources", "--settings", "--model",
                 "--no-session-persistence")
 CHECK_S = 30
 STATUS_TTL_S = 20.0

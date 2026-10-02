@@ -61,9 +61,6 @@ FIELDS: tuple[Field, ...] = (
           "makes the best projects.", "choice", "default",
           (("default", "Same as the chat"), ("opus", "Claude Opus (most capable)"),
            ("sonnet", "Claude Sonnet (faster)"), ("haiku", "Claude Haiku (fastest)"))),
-    Field("build.minutes", "Making projects", "Minutes to make a project",
-          "How long one step of making a project may run before Alpha stops it. What is made "
-          "is kept.", "integer", 15, minimum=3, maximum=40, unit="min"),
     Field("access.mode", "Access", "When Alpha needs your OK",
           "Ask for approval: always ask before Alpha reads the web through its browser or "
           "removes a record. Approve for me: only ask for removing. Full access: no approval "

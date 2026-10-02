@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import building
 
 from alpha.connectors.base import Connections
-from alpha.mcp.tools import Tools
 from alpha.world.purge import clear_conversation, remove_connection, remove_module
 from alpha.world.world import World
 
 
 def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) -> None:
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     t.module_create("Network", "Keep my connections")
     t.module_create("Food")
     t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"},
@@ -27,8 +27,12 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     auto = t.automation_create("Sync", "daily 08:00", "reader_run connections", module="Network")
     world.journal.append("replied", "LinkedIn only renders 20", thread=auto["thread"])
     entity = world.entities.resolve("person", "Priya", {"email": "p@x.com"})["entity"]
+    world.readers.save("people_feed", site="x.com", url="https://x.com/feed", script="return []",
+                       description="d", to_end=False, count=1)
+    world.collections.upsert("connections", "url", [{"name": "Sam", "url": "https://x.com/in/s/"}],
+                             {"by": "alpha", "reader": "people_feed"}, seen_by="people_feed")
     out = remove_module(world, "Network")
-    assert out["tables"] == 1 and out["rows"] == 1 and out["readers"] == 1
+    assert out["tables"] == 1 and out["rows"] == 2 and out["readers"] == 2
     assert out["automations"] == 1 and out["threads"] == 1 and out["goals"] == 1
     assert world.collections.names() == ["food_log"]
     assert world.readers.all() == [] and world.automations.all() == []
@@ -39,7 +43,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert history[0]["removed"].startswith("Network was removed on ")
     assert world.modules.thread(auto["thread"])["session_ref"] is None
     assert world.journal.recent(1)[0]["text"] == (
-        "Removed Network: 1 table (1 row), 1 reader and 1 automation.")
+        "Removed Network: 1 table (2 rows), 2 readers and 1 automation.")
     assert [m["name"] for m in world.modules.all()] == ["Food"]
     assert world.entities.get(entity["id"])["name"] == "Priya"  # the person's, not the module's
     assert world.collections.describe("food_log")["records"] == 1
@@ -67,7 +71,7 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     conn = Connections(world.store).upsert("browser", "linkedin.com",
                                            config={"profile": str(profile)})
     other = Connections(world.store).upsert("browser", "example.com")
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     t.module_create("Network")
     t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"}],
                         module="Network")

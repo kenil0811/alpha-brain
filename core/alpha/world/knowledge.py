@@ -16,6 +16,9 @@ from alpha.world.store import Problem, Store, new_id, now
 
 NOTE_SCOPES = ("person", "module:", "topic:")
 RESERVED_NOTES = ("Profile", "Standing instructions", "Permissions")
+INSTRUCTIONS = "Standing instructions"
+# Notes that shape how Alpha behaves: changed only on the person's own words.
+GATED_NOTES = ("Standing instructions", "Permissions")
 GOAL_STATES = {"active", "done", "dropped"}
 FACT_STATES = {"accepted", "suggested", "rejected"}
 
@@ -26,6 +29,7 @@ def _note(row: sqlite3.Row) -> dict[str, Any]:
         "scope": row["scope"],
         "title": row["title"],
         "body": row["body"],
+        "source": row["source"],
         "updated_at": row["updated_at"],
     }
 
@@ -40,7 +44,9 @@ class Knowledge:
 
     # ---- notes ----
 
-    def write_note(self, scope: str, title: str, body: str) -> dict[str, Any]:
+    def write_note(self, scope: str, title: str, body: str,
+                   source: str | None = None) -> dict[str, Any]:
+        """Create or replace a note; `source` is the journal entry (the turn) it came from."""
         if not (scope == "person" or scope.startswith(("module:", "topic:"))):
             raise Problem("A note's scope is 'person', 'module:<name>' or 'topic:<slug>'.")
         if not title.strip():
@@ -52,17 +58,44 @@ class Knowledge:
         with self.store.tx() as db:
             if existing:
                 db.execute(
-                    "UPDATE notes SET body = ?, updated_at = ? WHERE id = ?",
-                    (body, stamp, existing["id"]),
+                    "UPDATE notes SET body = ?, source = ?, updated_at = ? WHERE id = ?",
+                    (body, source, stamp, existing["id"]),
                 )
                 nid = existing["id"]
             else:
                 nid = new_id("n")
                 db.execute(
-                    "INSERT INTO notes (id, scope, title, body, updated_at) VALUES (?,?,?,?,?)",
-                    (nid, scope, title, body, stamp),
+                    "INSERT INTO notes (id, scope, title, body, source, updated_at)"
+                    " VALUES (?,?,?,?,?,?)",
+                    (nid, scope, title, body, source, stamp),
                 )
         return self.read_note(nid)
+
+    # ---- standing instructions: the person's own words only ----
+
+    def instructions(self) -> list[str]:
+        note = self.find_note("person", INSTRUCTIONS)
+        return [line[2:].strip() for line in (note["body"] if note else "").splitlines()
+                if line.startswith("- ")]
+
+    def add_instruction(self, sentence: str, source: str) -> dict[str, Any]:
+        sentence = " ".join(sentence.split())
+        if not sentence:
+            raise Problem("An instruction needs words.")
+        current = self.instructions()
+        if sentence not in current:
+            current.append(sentence)
+        return self.write_note("person", INSTRUCTIONS, "\n".join(f"- {s}" for s in current),
+                               source=source)
+
+    def remove_instruction(self, sentence: str, source: str) -> dict[str, Any]:
+        sentence = " ".join(sentence.split())
+        current = self.instructions()
+        if sentence not in current:
+            raise Problem(f"There is no standing instruction '{sentence}'. They are: {current}.")
+        return self.write_note("person", INSTRUCTIONS,
+                               "\n".join(f"- {s}" for s in current if s != sentence),
+                               source=source)
 
     def read_note(self, nid: str) -> dict[str, Any]:
         row = self.store.one("SELECT * FROM notes WHERE id = ?", (nid,))

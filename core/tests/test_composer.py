@@ -121,12 +121,16 @@ def test_a_running_turn_can_be_stopped(world: World) -> None:
     started_run = threading.Event()
 
     def runner(req: TurnRequest) -> RunResult:
+        live = claude_cli.LIVE.begin(claude_cli.keys(req))
         started_run.set()
-        for _ in range(200):
-            if claude_cli.stopped(req.turn_id):
-                return claude_cli.stopped_result()
-            time.sleep(0.01)
-        return RunResult(reply="too late", ok=True)
+        try:
+            for _ in range(200):
+                if live.stopped:
+                    return claude_cli.stopped_result()
+                time.sleep(0.01)
+            return RunResult(reply="too late", ok=True)
+        finally:
+            claude_cli.LIVE.end(claude_cli.keys(req), live)
 
     c = TestClient(create_app(world, runner=runner, live=False))
     key = c.post("/api/ask", json={"text": "build me a tracker"}).json()["id"]
@@ -144,7 +148,7 @@ def test_cancel_stops_the_model_process(tmp_path: Path) -> None:
     slow.chmod(slow.stat().st_mode | stat.S_IEXEC)
     req = TurnRequest(sentence="hi", system="s", world_path=tmp_path / "w.sqlite",
                       turn_id="j_stop_me")
-    threading.Timer(0.3, claude_cli.cancel, ("j_stop_me",)).start()
+    threading.Timer(0.3, claude_cli.LIVE.stop, ("j_stop_me",)).start()
     began = time.monotonic()
     out = claude_cli.run(req, binary=str(slow))
     assert out.error == "You stopped it." and time.monotonic() - began < 10
@@ -157,7 +161,7 @@ def test_settings_are_validated_and_reach_the_turn(world: World) -> None:
     fields = {f["id"]: f for f in c.get("/api/settings").json()}
     assert fields["access.mode"]["group"] == "Access"
     assert fields["look.rules"]["value"] == settings.DEFAULT_LOOK_RULES
-    assert c.patch("/api/settings", json={"values": {"build.minutes": 99}}).status_code == 400
+    assert c.patch("/api/settings", json={"values": {"build.minutes": 20}}).status_code == 400
     assert c.patch("/api/settings", json={"values": {"models.effort": "max"}}).status_code == 400
     c.patch("/api/settings", json={"values": {"look.rules": "Always a board view.",
                                               "models.effort": "low"}})
@@ -176,7 +180,7 @@ def test_settings_are_validated_and_reach_the_turn(world: World) -> None:
     assert health["core_version"] and health["python_version"].count(".") == 2
 
 
-def test_effort_goes_to_claude_and_build_threads_get_their_own_limit(
+def test_effort_goes_to_claude_and_build_threads_get_their_own_model(
         world: World, offline: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(claude_oauth, "signed_in", lambda: True)
     monkeypatch.setattr(claude_account, "status", lambda: {"installed": True, "signed_in": True})
@@ -189,12 +193,11 @@ def test_effort_goes_to_claude_and_build_threads_get_their_own_limit(
         return RunResult(reply="ok", ok=True)
 
     monkeypatch.setattr(claude_cli, "run", run)
-    settings.update(world.store, {"models.effort": "high", "build.model": "opus",
-                                  "build.minutes": 20})
+    settings.update(world.store, {"models.effort": "high", "build.model": "opus"})
     thread = world.modules.open_thread("Making Jobs", "build")
     Router(Accounts(world.store))(TurnRequest(sentence="hi", system="s", world_path=world.path,
                                               turn_id="j_1", thread_id=thread["id"]))
-    assert seen[0].effort == "high" and seen[0].model == "opus" and seen[0].timeout == 1200
+    assert seen[0].effort == "high" and seen[0].model == "opus" and seen[0].timeout is None
     assert "--effort" in claude_cli.argv(seen[0], Path("/tmp/x.json"))
 
 

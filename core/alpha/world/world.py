@@ -11,7 +11,9 @@ from alpha.world.entities import Entities
 from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
 from alpha.world.modules import Modules
+from alpha.world.plans import Plans
 from alpha.world.readers import Readers
+from alpha.world.sources import Sources
 from alpha.world.store import Store
 from alpha.world.views import Views
 
@@ -34,13 +36,15 @@ class World:
         self.path = Path(path) if path is not None else default_world_path()
         self.store = Store(self.path)
         self.journal = Journal(self.store)
-        self.collections = Collections(self.store)
-        self.knowledge = Knowledge(self.store)
         self.entities = Entities(self.store)
+        self.collections = Collections(self.store, self.entities)
+        self.knowledge = Knowledge(self.store)
         self.modules = Modules(self.store)
         self.automations = Automations(self.store)
         self.readers = Readers(self.store)
         self.views = Views(self.store, self.collections)
+        self.sources = Sources(self.store)
+        self.plans = Plans(self.store)
 
     def close(self) -> None:
         self.store.close()

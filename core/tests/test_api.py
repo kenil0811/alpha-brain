@@ -3,16 +3,16 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
-from alpha.mcp.tools import Tools
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
 
 def seeded(world: World) -> None:
-    t = Tools(world, turn="j_seed")
+    t = building(world, turn="j_seed")
     t.module_create("Job Search", "An offer by December")
     t.collection_create("openings", "Openings", [
         {"name": "title", "kind": "text"}, {"name": "company", "kind": "text"},
@@ -158,7 +158,7 @@ def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -
 def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     from datetime import date
 
-    t = Tools(world)
+    t = building(world)
     t.module_create("Food")
     t.collection_create("food_log", "Food log", [
         {"name": "item", "kind": "text"}, {"name": "eaten_on", "kind": "date"},
@@ -234,3 +234,31 @@ def test_speech_goes_to_whisper_only_with_a_saved_key(world: World, monkeypatch:
     assert api.post("/api/transcribe", json={"audio_b64": "aGk=", "mime": "audio/mp4"}).json() \
         == {"text": "hi"}
     assert calls == [("whisper-1", "audio/mp4")]
+def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World) -> None:
+    from alpha.api.server import AskBody, Turns
+    from alpha.mcp.tools import Tools
+
+    building(world).collection_create("food_log", "Food log",
+                                      [{"name": "item", "kind": "text"},
+                                       {"name": "kcal", "kind": "number"}])
+    kinds: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        kinds.append(req.kind)
+        if req.kind == "independent":
+            return RunResult(reply="215 kcal (ocado.com).", ok=True)
+        if req.kind == "judge":
+            return RunResult(reply='{"agree": true, "differences": [], "unstated": []}', ok=True)
+        Tools(world, turn=req.turn_id).records_add("food_log", {"item": "Shake", "kcal": 215},
+                                                   source="label on ocado.com")
+        return RunResult(reply="Logged: 215 kcal from the label.", ok=True)
+
+    turns_ = Turns(world, runner, checks=True)
+    started = turns_.start(AskBody(text="i had a shake"))
+    for _ in range(100):
+        if kinds[-1:] == ["judge"]:
+            break
+        time.sleep(0.05)
+    assert kinds == ["turn", "independent", "judge"]
+    assert turns_.get(started["id"])["state"] == "done"
+    assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")

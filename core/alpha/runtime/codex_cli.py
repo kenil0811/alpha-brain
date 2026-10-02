@@ -3,7 +3,7 @@
 Like the Claude Code route: `codex exec` gets Alpha's rules, the pre-pack and the sentence, and
 the world as its only MCP server. The person's Codex config and rules are ignored, the shell,
 browser, computer-use, apps and image tools are switched off, and the sandbox is read-only, so
-Alpha's tools are all it can use. A thread resumes its own Codex session (`codex:<id>`).
+Alpha's tools are all it can use. Every run is ephemeral: the pre-pack carries the thread.
 Best-effort: built against `codex exec --json` 0.159; not exercised against a live account here.
 """
 
@@ -16,9 +16,8 @@ import tempfile
 from typing import Any
 
 from alpha.runtime import claude_account
-from alpha.runtime.claude_cli import RunResult, Stopped, TurnRequest, call, stopped_result
+from alpha.runtime.claude_cli import RunResult, Stopped, TurnRequest, call, keys, stopped_result
 
-TIMEOUT_S = 900
 PREFIX = "codex:"
 OFF = ["shell_tool", "unified_exec", "browser_use", "computer_use", "apps", "image_generation"]
 
@@ -31,12 +30,8 @@ def argv(req: TurnRequest, binary: str, cwd: str) -> list[str]:
     env = {"ALPHA_WORLD": str(req.world_path), "ALPHA_TURN": req.turn_id,
            "ALPHA_THREAD": req.thread_id or "", "ALPHA_MODULE": req.module_id or ""}
     env_toml = "{" + ", ".join(f"{k} = {_toml(v)}" for k, v in env.items()) + "}"
-    resume = req.resume[len(PREFIX):] if req.resume and req.resume.startswith(PREFIX) else None
-    # The sandbox and folder are `exec`'s own options, so they come before `resume`.
-    args = [binary, "exec", "-s", "read-only", "-C", cwd]
-    if resume:
-        args += ["resume", resume]
-    args += ["--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules",
+    args = [binary, "exec", "-s", "read-only", "-C", cwd, "--ephemeral",
+            "--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules",
              "-c", 'approval_policy="never"',
              # Codex's own web search would bypass the taint gate.
              "-c", 'web_search="disabled"',
@@ -45,12 +40,9 @@ def argv(req: TurnRequest, binary: str, cwd: str) -> list[str]:
              "-c", f"mcp_servers.alpha.env={env_toml}"]
     for feature in OFF:
         args += ["--disable", feature]
-    if req.thread_id is None:
-        args.append("--ephemeral")
     if req.model:
         args += ["-m", req.model]
-    prompt = req.sentence if resume else f"{req.system}\n\nTHE PERSON SAYS\n\n{req.sentence}"
-    return [*args, prompt]
+    return [*args, f"{req.system}\n\nTHE PERSON SAYS\n\n{req.sentence}"]
 
 
 def parse(stdout: str, stderr: str) -> RunResult:
@@ -90,15 +82,15 @@ def parse(stdout: str, stderr: str) -> RunResult:
 
 
 def run(req: TurnRequest, *, binary: str) -> RunResult:
-    timeout = req.timeout or TIMEOUT_S
     with tempfile.TemporaryDirectory(prefix="alpha-codex-") as tmp:
         try:
-            stdout, stderr, _ = call(argv(req, binary, tmp), turn_id=req.turn_id,
-                                     timeout=timeout, env=claude_account.child_env(), cwd=tmp)
+            stdout, stderr, _ = call(argv(req, binary, tmp), keys=keys(req),
+                                     timeout=req.timeout, env=claude_account.child_env(), cwd=tmp)
         except Stopped:
             return stopped_result()
         except subprocess.TimeoutExpired:
-            return RunResult(reply="", ok=False, error=f"The model took longer than {timeout} s.",
+            return RunResult(reply="", ok=False,
+                             error=f"The model took longer than {req.timeout} s.",
                              raw={"timeout": True})
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="Codex isn't on this Mac yet.",

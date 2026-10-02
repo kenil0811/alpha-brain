@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -13,7 +14,7 @@ from alpha.world.world import World
 
 
 def table(world: World) -> dict[str, str]:
-    t = Tools(world, turn="j_seed")
+    t = building(world, turn="j_seed")
     t.collection_create("openings", "Openings", [{"name": "title", "kind": "text"}])
     rec = t.records_add("openings", {"title": "Backend Engineer"})
     return {"id": rec["id"]}
@@ -72,7 +73,7 @@ def test_automations_and_project_making_are_not_held(world: World) -> None:
 
 def test_no_mode_lifts_the_never_list_or_outward_approval(world: World) -> None:
     settings.update(world.store, {"access.mode": "full"})
-    t = Tools(world, turn="j_t")
+    t = building(world, turn="j_t")
     out = t.propose_action("send_email", "Send Priya a note", {"to": "p@example.com"})
     assert out["state"] == "pending"  # an outward write still waits, even in Full access
     refused = t.propose_action("pay_invoice", "Pay the invoice", {"amount": 10})

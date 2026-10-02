@@ -8,7 +8,7 @@
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronLeft, Plus } from "lucide-react";
-import type { AttachmentWire, Client, JournalEntry, ModuleCard, Session, Thread, Turn } from "../core/client";
+import type { AttachmentWire, Client, JournalEntry, ModuleCard, Plan, Session, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ConnectCard } from "../shell/models";
 import { usePushToTalk } from "../shell/ptt";
@@ -36,6 +36,37 @@ function autoGrow(el: HTMLTextAreaElement | null) {
   if (!el) return;
   el.style.height = "auto";
   el.style.height = `${el.scrollHeight}px`;
+}
+
+/** A plan Alpha proposed (nothing is built until the person says yes, here or in words), or a
+ *  build that stopped before it finished (it can carry on from where it stopped). */
+function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onDecided: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const stopped = plan.state === "stopped";
+  const decide = (yes: boolean) => {
+    setBusy(true);
+    const go = stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id);
+    void (yes ? go : client.declinePlan(plan.id)).finally(() => {
+      setBusy(false);
+      onDecided();
+    });
+  };
+  return (
+    <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
+      <span className="creation__title">
+        <span className="creation__name">{plan.title}</span>
+        <span className="badge badge--waiting">{stopped ? "Stopped" : "Plan"}</span>
+      </span>
+      <div className="row plancard__actions">
+        <Button size="sm" disabled={busy} onClick={() => decide(true)}>
+          {stopped ? "Continue building" : "Build it"}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
+          {stopped ? "Leave it" : "Not now"}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function Message({ e, onPage }: { e: JournalEntry; onPage: boolean }) {
@@ -128,6 +159,7 @@ export function AssistantPanel({
   const choose = onThread ?? setOwn;
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [earlier, setEarlier] = useState<Session[]>([]);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
@@ -153,6 +185,7 @@ export function AssistantPanel({
       client.conversation().then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
+        setPlans(c.plans ?? []);
       }),
       client.sessions(moduleId).then((all) => setEarlier(all.slice(0, 8))),
     ];
@@ -273,8 +306,13 @@ export function AssistantPanel({
   const steps = pending?.steps ?? [];
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status">
-      <div>
-        Working on it… <span className="faint">{clock(elapsed)}</span>
+      <div className="row msg__working">
+        <span>
+          Working on it… <span className="faint">{clock(elapsed)}</span>
+        </span>
+        <Button size="sm" variant="ghost" onClick={() => void client.cancelTurn(pending.id).catch(() => undefined)}>
+          Stop
+        </Button>
       </div>
       {steps.length ? (
         <ul className="stages">
@@ -412,17 +450,33 @@ export function AssistantPanel({
           </>
         ) : (
           <>
-            {threads.map((t) => (
-              <button key={t.id} type="button" className="creation" title={t.state === "waiting" ? "Waiting for your answer: open it to reply here" : "Its own thread: open it to talk about this work"} onClick={() => choose(t.id)}>
-                <span className="creation__title">
-                  <span className="creation__name">{t.title}</span>
-                  <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
-                </span>
-              </button>
-            ))}
+            {threads.map((t) => {
+              // A build has no time limit: the person stops it when it isn't going anywhere.
+              const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
+              return (
+                <div key={t.id} className="creation-wrap">
+                  <button type="button" className="creation" title={t.kind === "build" && t.state === "working" ? "Building in the background: open it to see each step; it reports here when done" : t.state === "waiting" ? "Waiting for your answer: open it to reply here" : "Its own thread: open it to talk about this work"} onClick={() => choose(t.id)}>
+                    <span className="creation__title">
+                      <span className="creation__name">{t.title}</span>
+                      <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
+                    </span>
+                  </button>
+                  {build ? (
+                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
+                      Stop
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })}
             {turns.map((e) => (
               <Message key={e.id} e={e} onPage={false} />
             ))}
+            {plans
+              .filter((p) => p.state === "proposed" || p.state === "stopped")
+              .map((p) => (
+                <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
+              ))}
           </>
         )}
         {workingNote}

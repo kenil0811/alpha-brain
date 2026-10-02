@@ -189,13 +189,13 @@ def test_the_tool_loop_stops_after_its_cap(world: World, monkeypatch: pytest.Mon
     assert not out.ok and "after 3 steps" in (out.error or "")
 
 
-def test_codex_gets_only_alphas_tools_and_resumes_its_own_session(tmp_path: Path) -> None:
+def test_codex_gets_only_alphas_tools_and_never_resumes_a_session(tmp_path: Path) -> None:
     req = TurnRequest(sentence="hi", system="RULES", world_path=tmp_path / "w.sqlite",
-                      turn_id="j_1", thread_id="t_1", resume="codex:abc")
+                      turn_id="j_1", thread_id="t_1")
     args = codex_cli.argv(req, "codex", str(tmp_path))
     assert args[:6] == ["codex", "exec", "-s", "read-only", "-C", str(tmp_path)]
-    assert args[6:8] == ["resume", "abc"] and "--ignore-user-config" in args
-    assert "shell_tool" in args and args[-1] == "hi"
+    assert "resume" not in args and "--ephemeral" in args and "--ignore-user-config" in args
+    assert "shell_tool" in args and args[-1].endswith("THE PERSON SAYS\n\nhi")
     out = codex_cli.parse('{"type":"thread.started","thread_id":"s9"}\n'
                           '{"type":"item.completed","item":{"type":"agent_message","text":"Ok"}}',
                           "")

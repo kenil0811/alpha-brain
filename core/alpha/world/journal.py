@@ -24,6 +24,8 @@ KINDS = {
     "made",
     "changed",
     "failed",
+    # Alpha's answer compared with an independent one (web search, no Alpha tools)
+    "checked",
 }
 
 
@@ -154,6 +156,16 @@ class Journal:
             " AND json_extract(b.data, '$.ask') = a.id) ORDER BY a.at"
         )
         return [entry(r) for r in rows]
+
+    def keep_context(self, turn: str, context: str, rules: str) -> None:
+        """What the model was given for a turn: the pre-pack, and which rules (by hash)."""
+        with self.store.tx() as db:
+            db.execute("INSERT OR REPLACE INTO turn_contexts (turn, at, context, rules)"
+                       " VALUES (?,?,?,?)", (turn, now(), context, rules))
+
+    def context(self, turn: str) -> dict[str, Any] | None:
+        row = self.store.one("SELECT * FROM turn_contexts WHERE turn = ?", (turn,))
+        return {k: row[k] for k in row.keys()} if row else None
 
     def removals(self) -> dict[str, str]:
         """Everything the person removed (modules, connections, their threads, automations and

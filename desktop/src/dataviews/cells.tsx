@@ -132,15 +132,20 @@ export function CellValue({ field, value, row, relations, onOpenLink }: { field:
   // An estimate is marked per field when the core names the fields, else on a row's numbers.
   const est = row?.provenance?.estimated;
   const estimated = Array.isArray(est) ? est.includes(field.name) : Boolean(est) && isNumeric(field.kind);
+  // Where a number came from, or what Alpha assumed for it, on hover.
+  const source = row?.provenance?.source;
+  const assumed = row?.provenance?.assumed;
+  const lookedUp = isNumeric(field.kind) && Boolean(source) && source !== "stated" && source !== "estimated";
+  const rests = [estimated ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed && isNumeric(field.kind) ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   return (
-    <>
+    <span title={rests ? `${rests} Click the cell to correct it.` : undefined}>
       {showValue(value, field.kind, field.unit)}
       {estimated ? (
-        <span className="dv-est" title="An estimate. Click the cell to correct it." aria-label="estimate">
+        <span className="dv-est" aria-label="estimate">
           ≈
         </span>
       ) : null}
-    </>
+    </span>
   );
 }
 

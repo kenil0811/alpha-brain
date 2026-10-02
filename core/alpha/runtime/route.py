@@ -70,22 +70,14 @@ class Router:
         thread = store.one("SELECT kind FROM threads WHERE id = ?", (req.thread_id,)) \
             if req.thread_id else None
         if thread and thread["kind"] == "build":
-            # Making a project: Settings -> Builds says how long a step may run, and (on
-            # Claude) which model makes it.
-            req = replace(req, timeout=int(settings.get(store, "build.minutes")) * 60)
+            # Making a project: Settings -> Builds says which model makes it (on Claude).
             chosen = settings.get(store, "build.model")
             if provider == "claude" and chosen != "default" and not route["chosen"]:
                 model = str(chosen)
-        # A thread's saved session belongs to the CLI that made it.
-        codex_session = bool(req.resume and req.resume.startswith(codex_cli.PREFIX))
         if provider == "claude":
-            result = claude_cli.run(replace(req, model=model,
-                                            resume=None if codex_session else req.resume),
-                                    extra_env=claude_oauth.cli_env())
+            result = claude_cli.run(replace(req, model=model), extra_env=claude_oauth.cli_env())
         elif provider == "chatgpt":
-            result = codex_cli.run(replace(req, model=model,
-                                           resume=req.resume if codex_session else None),
-                                   binary=codex_binary() or "codex")
+            result = codex_cli.run(replace(req, model=model), binary=codex_binary() or "codex")
         elif not model:
             result = RunResult(reply="", ok=False, error=f"{spec['label']} has no model to use.")
         else:

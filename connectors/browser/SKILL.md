@@ -23,10 +23,16 @@ description: Read web pages, including sites behind a sign-in (LinkedIn, job boa
   runs update; `keep_person_fields` are never overwritten). Return rows already clean (a name
   is a name, not a photo label; a date is a date), so nothing needs fixing afterwards.
 - A list the person wants kept current is synced by Alpha, never by the person: after the first
-  `reader_run`, `automation_create` with a schedule that fits how fast it changes (connections:
-  daily; job boards: every few hours) and a procedure that is the `reader_run` call.
+  `reader_run`, `automation_create` with a schedule that fits how fast it changes and `steps`
+  (a read step per reader, then a tell step): the scheduler runs it with no model. Rows are
+  marked seen on every run, and the reader's rows that stop appearing are marked gone, so a tell
+  step reports what is new, changed and gone, and tables need no first-seen, last-seen or gone
+  fields of their own (the table page shows them).
 - When `reader_run` says the reader is broken (sites change), repair it: look at the page again,
   rewrite, try, `reader_save` under the same name, run again.
+- Every place a module reads from is a source with a status (`source_add`, `sources_list`),
+  including the ones that can't be read. A page that stops automated reading with a bot check
+  comes back as `bot_check`: say so plainly and never try to get past it.
 - `page_to_table` is only a rough first look at a list page (one row per link, the link's words
   and its card's text). Don't keep lists with it.
 - Never ask the person to export, download, copy or paste what Alpha can read. Never conclude a

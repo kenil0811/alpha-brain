@@ -36,11 +36,15 @@ export interface TableSummary {
   records: number;
 }
 
+/** What a row's values rest on: "stated" by the person, "estimated" by Alpha, or where Alpha
+ * looked them up (a URL or a few words naming the page); `assumed` is what Alpha had to assume. */
 export interface Provenance {
   by?: string;
   turn?: string | null;
   /** true: the row's numbers are estimates; a list names the estimated fields. */
   estimated?: boolean | string[];
+  source?: string;
+  assumed?: string;
 }
 
 export interface RecordRow {
@@ -50,6 +54,10 @@ export interface RecordRow {
   created_at: string;
   updated_at: string;
   provenance: Provenance;
+  /** Rows a reader keeps: when it last returned the row, and when it stopped returning it. */
+  seen_at?: string | null;
+  gone_at?: string | null;
+  entity?: string | null;
 }
 
 export interface SavedView {
@@ -155,6 +163,34 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   note: Note | null;
   goals: Goal[];
   automations: Automation[];
+  sources: Source[];
+}
+
+/** A place a module reads from, and whether it works (kept by the platform from what happened). */
+export interface Source {
+  id: string;
+  module: string | null;
+  title: string;
+  url: string;
+  site: string;
+  reader: string | null;
+  status: "working" | "needs_signin" | "blocked" | "broken" | "not_built" | "unavailable" | "skipped";
+  detail: string | null;
+  last_checked: string | null;
+  last_rows: number | null;
+}
+
+/** What Alpha proposed to set up, and its way from the person's yes to a finished build. */
+export interface Plan {
+  id: string;
+  title: string;
+  body: string;
+  state: "proposed" | "approved" | "building" | "done" | "stopped" | "declined" | "replaced";
+  module: string | null;
+  thread: string | null;
+  proposal: string | null;
+  report: string | null;
+  created_at: string;
 }
 
 export interface TableSummaryData {
@@ -181,6 +217,7 @@ export interface NeedItem {
   at: string;
   options?: string[];
   module?: string | null;
+  plan?: string | null;
 }
 
 /** Something Alpha wants to do outside its own space, waiting for the person's yes (core
@@ -368,6 +405,7 @@ export interface Conversation {
   turns: JournalEntry[];
   threads: Thread[];
   running: Turn[];
+  plans: Plan[];
 }
 
 export interface SearchResult {
@@ -383,11 +421,11 @@ export class CoreError extends Error {
   }
 }
 
-type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance };
+type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
 
 export function toRow(raw: Raw): RecordRow {
-  const { id, revision, created_at, updated_at, _provenance, ...values } = raw;
-  return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {} };
+  const { id, revision, created_at, updated_at, _provenance, _seen_at, _gone_at, _entity, ...values } = raw;
+  return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {}, seen_at: _seen_at ?? null, gone_at: _gone_at ?? null, entity: _entity ?? null };
 }
 
 export class Client {
@@ -500,6 +538,10 @@ export class Client {
   pending = () => this.call<PendingAction[]>("GET", "/api/pending");
   approvePending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/approve`);
   rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
+  approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);
+  declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
+  resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
+  stopPlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/stop`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
   // ---- P2: settings fields, access modes, stopping a turn ----

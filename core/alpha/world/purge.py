@@ -65,9 +65,18 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     mid, name = module["id"], module["name"]
     store = world.store
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
-    autos = store.all("SELECT id, thread, procedure FROM automations WHERE module = ?", (mid,))
+    autos = store.all("SELECT id, thread, procedure, steps FROM automations WHERE module = ?",
+                      (mid,))
+    # The readers that feed this module: named after its tables, used by its automations
+    # (procedure or steps), recorded on its sources, or the readers its rows came from.
+    fed = {r["reader"] for t in tables for r in store.all(
+        "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
+    fed |= {r["reader"] for r in store.all(
+        "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
     readers = [r["name"] for r in store.all("SELECT name FROM readers")
-               if r["name"] in tables or any(r["name"] in a["procedure"] for a in autos)]
+               if r["name"] in tables or r["name"] in fed
+               or any(r["name"] in (a["procedure"] or "") or r["name"] in (a["steps"] or "")
+                      for a in autos)]
     threads = {r["id"] for r in store.all("SELECT id FROM threads WHERE module = ?", (mid,))}
     threads |= {a["thread"] for a in autos if a["thread"]}
     asks = [a["id"] for a in world.journal.open_asks() if a["module"] == mid]
@@ -78,6 +87,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             records += db.execute("DELETE FROM records WHERE collection = ?", (table,)).rowcount
             db.execute("DELETE FROM records_fts WHERE collection = ?", (table,))
             db.execute("DELETE FROM views WHERE collection = ?", (table,))
+            db.execute("DELETE FROM record_versions WHERE collection = ?", (table,))
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
@@ -92,6 +102,11 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
         counts["sub_projects"] = db.execute(
             "UPDATE modules SET project = NULL WHERE project = ?", (mid,)).rowcount
+        counts["sources"] = world.sources.remove_module(db, mid)
+        # Plans stay as a record of what was proposed and decided; none of them goes on.
+        db.execute("UPDATE plans SET state = 'stopped', report = COALESCE(report, ?),"
+                   " updated_at = ? WHERE module = ? AND state IN ('proposed', 'approved',"
+                   " 'building')", (f"{name} was removed.", now(), mid))
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
@@ -106,6 +121,9 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
 def clear_conversation(world: World) -> dict[str, int]:
     marks = ",".join("?" * len(CONVERSATION_KINDS))
     with world.store.tx() as db:
+        # What the model was shown for those turns quotes the conversation too.
+        db.execute("DELETE FROM turn_contexts WHERE turn IN (SELECT id FROM journal"
+                   " WHERE thread IS NULL AND kind = 'said')")
         removed = db.execute(
             "UPDATE journal SET text = '', data = '{}', deleted_at = ?"
             f" WHERE thread IS NULL AND deleted_at IS NULL AND kind IN ({marks})",

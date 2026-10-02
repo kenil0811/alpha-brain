@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -14,7 +15,7 @@ from alpha.world.world import World
 
 
 def table(world: World) -> Tools:
-    t = Tools(world, turn=world.journal.append("said", "Track my reading", actor="person"))
+    t = building(world, turn=world.journal.append("said", "Track my reading", actor="person"))
     t.collection_create("books", "Books", [
         {"name": "title", "kind": "text"}, {"name": "pages", "kind": "text"},
         {"name": "shelf", "kind": "text"}, {"name": "read_on", "kind": "datetime"},
@@ -190,4 +191,4 @@ def test_a_records_history_says_who_and_in_which_turn(world: World) -> None:
     history = c.get(f"/api/tables/books/records/{dune['id']}/history").json()
     assert [(h["actor"], h["said"]) for h in history] == [("alpha", "Track my reading"),
                                                           ("person", None)]
-    assert history[0]["text"] == "Added Dune to Books."
+    assert history[0]["text"] == "Added Dune to Books (estimated)."

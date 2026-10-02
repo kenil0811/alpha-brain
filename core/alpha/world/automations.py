@@ -1,9 +1,10 @@
 """Automations: things Alpha does on its own, on a schedule.
 
 An automation is a sentence the person can read ("Every morning at 08:00, read my LinkedIn
-connections and update Network › Connections"), a schedule, and a procedure: the instructions
-Alpha follows on each run. Each one has its own thread, so its runs keep their own context and
-never crowd the person's conversation. The person can switch it off or run it now.
+connections and update Network › Connections"), a schedule, and either a pipeline (`steps`:
+saved steps the scheduler runs with no model, the default) or a procedure (instructions Alpha
+follows on each run, for work that needs judgement throughout). Each one has its own thread, so
+its runs never crowd the person's conversation. The person can switch it off or run it now.
 
 Schedules are small and plain: `every 6h`, `every 30m`, `daily 08:00`, `weekly mon 08:00` (local
 time). A run Alpha missed while the Mac was asleep or Alpha was closed happens once when Alpha
@@ -12,6 +13,7 @@ is back, never several times over.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -88,6 +90,7 @@ def _view(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
     out["enabled"] = bool(row["enabled"])
     out["when"] = describe(row["schedule"])
+    out["steps"] = json.loads(row["steps"]) if row["steps"] else None
     return out
 
 
@@ -96,18 +99,21 @@ class Automations:
         self.store = store
 
     def create(self, title: str, schedule: str, procedure: str, *, module: str | None = None,
-               thread: str | None = None) -> dict[str, Any]:
-        if not title.strip() or not procedure.strip():
-            raise Problem("An automation needs a sentence saying what it does and a procedure.")
+               thread: str | None = None,
+               steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        if not title.strip() or not (procedure.strip() or steps):
+            raise Problem("An automation needs a sentence saying what it does, and steps or a"
+                          " procedure.")
         clean = check_schedule(schedule)
         aid = new_id("a")
         stamp = now()
         first = next_run(clean, datetime.now(UTC)).isoformat()
         with self.store.tx() as db:
             db.execute(
-                "INSERT INTO automations (id, title, module, thread, schedule, procedure, enabled,"
-                " next_run_at, created_at, updated_at) VALUES (?,?,?,?,?,?,1,?,?,?)",
-                (aid, title.strip(), module, thread, clean, procedure.strip(), first, stamp, stamp),
+                "INSERT INTO automations (id, title, module, thread, schedule, procedure, steps,"
+                " enabled, next_run_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,1,?,?,?)",
+                (aid, title.strip(), module, thread, clean, procedure.strip(),
+                 json.dumps(steps) if steps else None, first, stamp, stamp),
             )
         return self.get(aid)
 
@@ -126,7 +132,8 @@ class Automations:
         return [_view(r) for r in rows]
 
     def update(self, aid: str, *, enabled: bool | None = None, schedule: str | None = None,
-               procedure: str | None = None, title: str | None = None) -> dict[str, Any]:
+               procedure: str | None = None, title: str | None = None,
+               steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         current = self.get(aid)
         clean = check_schedule(schedule) if schedule else current["schedule"]
         on = current["enabled"] if enabled is None else enabled
@@ -134,8 +141,10 @@ class Automations:
         with self.store.tx() as db:
             db.execute(
                 "UPDATE automations SET enabled = ?, schedule = ?, procedure = ?, title = ?,"
-                " next_run_at = ?, updated_at = ? WHERE id = ?",
+                " steps = ?, next_run_at = ?, updated_at = ? WHERE id = ?",
                 (int(on), clean, procedure or current["procedure"], title or current["title"],
+                 json.dumps(steps) if steps else (json.dumps(current["steps"])
+                                                  if current["steps"] else None),
                  upcoming, now(), aid),
             )
         return self.get(aid)

@@ -35,6 +35,7 @@ def _view(row: sqlite3.Row) -> dict[str, Any]:
         "aliases": loads(row["aliases"], []),
         "keys": loads(row["keys"], {}),
         "merged_into": row["merged_into"],
+        "source": row["source"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -101,7 +102,8 @@ class Entities:
         return [_view(r) for r in rows]
 
     def resolve(
-        self, kind: str, name: str, keys: dict[str, Any] | None = None
+        self, kind: str, name: str, keys: dict[str, Any] | None = None,
+        source: str | None = None,
     ) -> dict[str, Any]:
         """The entity these details identify: an existing one when a hard key matches (its keys
         and aliases grow), else a new one. Same-name entities without a shared key come back as
@@ -133,9 +135,9 @@ class Entities:
         eid = new_id("e")
         with self.store.tx() as db:
             db.execute(
-                "INSERT INTO entities (id, kind, canonical, keys, created_at, updated_at)"
-                " VALUES (?,?,?,?,?,?)",
-                (eid, kind, name, dumps(clean), stamp, stamp),
+                "INSERT INTO entities (id, kind, canonical, keys, source, created_at,"
+                " updated_at) VALUES (?,?,?,?,?,?,?)",
+                (eid, kind, name, dumps(clean), source, stamp, stamp),
             )
             self._index(db, eid, clean)
         return {"entity": self.get(eid), "created": True, "maybe": maybe}

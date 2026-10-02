@@ -159,7 +159,12 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
 
   const relations = useRelations(client, fields, version + relVersion);
   const records = useMemo(() => new Map((data?.records ?? []).map((r) => [r.id, r])), [data]);
-  const rows = useMemo(() => (data?.records ?? []).map(flat), [data]);
+  // A table fed by readers knows when each row was first seen and when it stopped appearing;
+  // gone rows stay out of the views unless the person asks for them.
+  const [showGone, setShowGone] = useState(false);
+  const tracked = useMemo(() => (data?.records ?? []).some((r) => r.seen_at || r.gone_at), [data]);
+  const goneCount = useMemo(() => (data?.records ?? []).filter((r) => r.gone_at).length, [data]);
+  const rows = useMemo(() => (data?.records ?? []).filter((r) => showGone || !r.gone_at).map(flat), [data, showGone]);
   // "Hide done": the status field whose done choices say a row is finished.
   const doneField = fields.find((f) => f.kind === "status" && f.done_choices?.length);
   const matching = useMemo(() => {
@@ -172,6 +177,10 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const size = pageSize === "fit" ? fit : pageSize;
   const at = offset >= matching.length ? 0 : offset;
   const shownRows = paged ? matching.slice(at, at + size) : matching;
+  // How many rows rest on an estimate or an assumption, for the footer.
+  const guesses = (data?.records ?? []).filter((r) => r.provenance?.estimated).length;
+  const assumed = (data?.records ?? []).filter((r) => r.provenance?.assumed && !r.provenance?.estimated).length;
+  const resting = [guesses ? `${guesses.toLocaleString()} estimated` : "", assumed ? `${assumed.toLocaleString()} on an assumption` : ""].filter(Boolean).join(", ");
 
   const visible = useMemo(() => {
     const order = config.columnOrder ?? [];
@@ -483,6 +492,12 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                   Hide done
                 </DropdownMenuCheckboxItem>
               ) : null}
+              {tracked && goneCount ? (
+                <DropdownMenuCheckboxItem checked={showGone} onSelect={(e) => e.preventDefault()} onCheckedChange={(on) => setShowGone(on === true)}>
+                  <span className="dv-menu__mark">{showGone ? <Check size={12} /> : null}</span>
+                  Show gone ({goneCount})
+                </DropdownMenuCheckboxItem>
+              ) : null}
               <DropdownMenuItem
                 onSelect={() => {
                   setNewInitial({});
@@ -615,6 +630,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                 rows={shownRows}
                 matching={matching}
                 record={(id) => records.get(id)}
+                seen={tracked}
                 relations={relations}
                 onViewChange={setConfig}
                 onOpen={openRecord}
@@ -641,6 +657,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
         {panel()}
       </div>
       <PaginationBar
+        resting={resting}
         total={paged ? matching.length : matching.length}
         all={rows.length}
         offset={paged ? at : 0}

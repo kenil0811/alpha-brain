@@ -376,3 +376,23 @@ def test_the_bug_log_counts_and_fixes(world: World) -> None:
     assert (log.read() or "").split("## Fixed")[1].count("the model didn't answer") == 1
     assert client(world, stage_runner()).get("/api/bugs").json()["text"] == log.read()
 
+
+
+def test_a_project_page_makes_lasting_things_only_after_build_is_pressed(world: World) -> None:
+    seen: list[Any] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        t = Tools(world, turn=req.turn_id, thread=req.thread_id, module=req.module_id)
+        seen.append(t.collection_create("grades", "Grades", [{"name": "student", "kind": "text"}]))
+        return RunResult(reply="ok", ok=True)
+
+    c = client(world, runner)
+    blank = c.post("/api/modules", json={}).json()
+    turn = c.post(f"/api/modules/{blank['id']}/creation/answer",
+                  json={"text": "keep grades"}).json()["turn"]
+    wait(c, turn)
+    assert "error" in seen[-1]  # the model can't build on its own say-so
+    turn = c.post(f"/api/modules/{blank['id']}/creation/answer",
+                  json={"build": True}).json()["turn"]
+    wait(c, turn)
+    assert "error" not in seen[-1] and world.collections.describe("grades")

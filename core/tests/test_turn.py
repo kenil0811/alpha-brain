@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from alpha.context import prepack
@@ -41,8 +42,9 @@ def test_a_failed_turn_is_journaled_plainly(world: World) -> None:
     assert world.journal.read(out.replied)["kind"] == "failed"
 
 
-def test_a_thread_resumes_its_own_session(world: World) -> None:
+def test_a_thread_starts_fresh_from_its_brief_and_history(world: World) -> None:
     t = world.modules.open_thread("Salary column", "build")
+    world.modules.set_brief(t["id"], "Salaries are in GBP; the site hides them for some roles.")
     runs: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
@@ -51,9 +53,26 @@ def test_a_thread_resumes_its_own_session(world: World) -> None:
 
     ask(world, "add a salary column", thread=t["id"], runner=runner)
     ask(world, "flag the ones without", thread=t["id"], runner=runner)
-    assert runs[0].resume is None and runs[1].resume == "sess-7"
+    assert world.modules.thread(t["id"])["session_ref"] is None
+    second = runs[1].system
+    assert "THIS THREAD" in second and "Salaries are in GBP" in second
+    assert "add a salary column" in second  # its own history, not a remembered session
+    args = claude_cli.argv(runs[1], Path("/tmp/mcp.json"))
+    assert "--no-session-persistence" in args and "--resume" not in args
     # thread turns stay out of the stream
     assert all(e["thread"] is None for e in world.journal.recent(50, stream=True))
+
+
+def test_what_the_model_saw_is_kept_with_dates(world: World) -> None:
+    def runner(req: TurnRequest) -> RunResult:
+        return RunResult(reply="Noted.", ok=True)
+
+    ask(world, "log two boiled eggs", runner=runner)
+    out = ask(world, "what did I eat yesterday", runner=runner)
+    kept = world.journal.context(out.said)
+    assert kept is not None and "RECENT CONVERSATION" in kept["context"]
+    line = next(x for x in kept["context"].splitlines() if "log two boiled eggs" in x)
+    assert re.match(r"- (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2} \d\d:\d\d ", line)
 
 
 def test_cli_invocation_is_locked_down(tmp_path: Path) -> None:
@@ -84,3 +103,9 @@ def test_prepack_states_the_clock_and_emptiness(world: World) -> None:
     assert "Today's date is" in text and "created_at >=" in text
     assert "Nothing yet: no modules, no tables." in text
     assert "This is the first." in text
+
+
+def test_signed_out_says_where_to_sign_in() -> None:
+    out = claude_cli.parse(json.dumps({"type": "result", "is_error": True,
+                                       "result": "Not logged in · Please run /login"}), "", 1)
+    assert not out.ok and out.error == claude_cli.SIGNED_OUT

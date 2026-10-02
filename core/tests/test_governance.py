@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -46,7 +47,7 @@ ROWS = [{"name": f"P{i}", "url": f"https://www.linkedin.com/in/p{i}/"} for i in 
 
 def test_reader_allow_posts_is_checked_kept_passed_and_journaled(
         world: World, monkeypatch: pytest.MonkeyPatch) -> None:
-    t = Tools(world, turn="j_1")
+    t = building(world, turn="j_1")
     job = driver(ROWS, posts_allowed=[{"method": "POST",
                                        "url": "https://www.linkedin.com/voyager/api/graphql"}])
     monkeypatch.setattr("alpha.connectors.browser.run_job", job)

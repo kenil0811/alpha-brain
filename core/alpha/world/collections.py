@@ -112,14 +112,14 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
         if kind == "datetime":
             return datetime.fromisoformat(str(value).replace("Z", "+00:00")).isoformat()
         if kind in {"choice", "status"}:
-            text = str(value)
-            if text not in field["choices"]:
+            chosen = _choice(field["choices"], value)
+            if chosen is None:
                 raise ValueError(f"one of {field['choices']}")
-            return text
+            return chosen
         if kind == "multichoice":
-            items = [str(v) for v in (value if isinstance(value, list) else [value])]
-            bad = [v for v in items if v not in field["choices"]]
-            if bad:
+            items = [_choice(field["choices"], v)
+                     for v in (value if isinstance(value, list) else [value])]
+            if None in items:
                 raise ValueError(f"values from {field['choices']}")
             return items
     except ValueError as e:
@@ -174,6 +174,11 @@ def _convert(old: dict[str, Any], new: dict[str, Any], value: Any) -> Any:
         raise Problem(f"{_label(old)} can't become {KIND_WORDS[new['kind']]}: a row holds"
                       f" {value!r}, which {e.args[0]}.") from e
     return out
+def _choice(choices: list[str], value: Any) -> str | None:
+    """The declared choice a value means, regardless of case and spacing ("PENDING" is
+    "Pending"); None when it is none of them."""
+    want = " ".join(str(value).split()).casefold()
+    return next((c for c in choices if " ".join(c.split()).casefold() == want), None)
 
 
 def _search_text(values: dict[str, Any]) -> str:
@@ -186,6 +191,31 @@ def _search_text(values: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+ROWS_ARE = {"person", "organisation"}
+
+
+def _check_identity(identity: dict[str, str], names: list[str]) -> dict[str, str]:
+    rows_are, field = identity.get("rows_are"), identity.get("field")
+    if rows_are not in ROWS_ARE:
+        raise Problem(f"Rows can be {sorted(ROWS_ARE)}; got '{rows_are}'.")
+    if field not in names:
+        raise Problem(f"The identity field '{field}' is not one of the fields {names}.")
+    return {"rows_are": str(rows_are), "field": str(field)}
+EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+URL = re.compile(r"^https?://\S+$", re.I)
+
+
+def hard_key(value: Any) -> tuple[str, str] | None:
+    """The identifying key a value is, if it is one: an email address or a web address. A name
+    alone never is (two people share names; a wrong merge poisons what links to it)."""
+    text = str(value or "").strip()
+    if EMAIL.match(text):
+        return "email", text
+    if URL.match(text):
+        return "url", text
+    return None
+
+
 def record_view(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -194,12 +224,21 @@ def record_view(row: sqlite3.Row) -> dict[str, Any]:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "_provenance": loads(row["provenance"], {}),
+        **({"_entity": row["entity_id"]} if row["entity_id"] else {}),
+        **({"_seen_at": row["seen_at"]} if row["seen_at"] else {}),
+        **({"_gone_at": row["gone_at"]} if row["gone_at"] else {}),
     }
 
 
 class Collections:
-    def __init__(self, store: Store) -> None:
+    """The person's tables. A table can say its rows are people or organisations, naming the
+    field that identifies each (an email or a profile address): every write then links the row
+    to that entity in the registry by that hard key, with no model call. Every change keeps the
+    record's previous values in `record_versions`."""
+
+    def __init__(self, store: Store, entities: Any = None) -> None:
         self.store = store
+        self.entities = entities
 
     # ---- tables ----
 
@@ -211,11 +250,12 @@ class Collections:
         *,
         module: str | None = None,
         title_field: str | None = None,
+        identity: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         _check_name(name, "table")
         if self.store.one("SELECT 1 FROM collections WHERE name = ?", (name,)):
             raise Problem(f"A table named '{name}' exists already; describe it or add fields.")
-        schema = {"fields": normalise_fields(fields)}
+        schema: dict[str, Any] = {"fields": normalise_fields(fields)}
         names = [f["name"] for f in schema["fields"]]
         if title_field is None:
             title_field = next(
@@ -223,6 +263,8 @@ class Collections:
             )
         elif title_field not in names:
             raise Problem(f"The title field '{title_field}' is not one of the fields {names}.")
+        if identity:
+            schema["identity"] = _check_identity(identity, names)
         stamp = now()
         with self.store.tx() as db:
             db.execute(
@@ -304,6 +346,7 @@ class Collections:
         stamp = now()
         with self.store.tx() as db:
             for rid, values in changed:
+                self._keep(db, name, rid)
                 db.execute(
                     'UPDATE records SET "values" = ?, revision = revision + 1'
                     " WHERE collection = ? AND id = ?", (dumps(values), name, rid))
@@ -315,6 +358,74 @@ class Collections:
                        (dumps(schema), stamp, name))
         return {"before": old, "after": new, "rewritten": len(changed),
                 "table": self.describe(name)}
+    def identify(self, name: str, rows_are: str, field: str) -> dict[str, Any]:
+        """Say that each row of a table is a person or an organisation, identified by `field`;
+        rows already there are linked now."""
+        current = self._schema(name)
+        current["identity"] = _check_identity({"rows_are": rows_are, "field": field},
+                                              [f["name"] for f in current["fields"]])
+        with self.store.tx() as db:
+            db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
+                       (dumps(current), now(), name))
+        linked = 0
+        for row in self.store.all(
+            "SELECT id, \"values\" FROM records WHERE collection = ? AND deleted_at IS NULL"
+            " AND entity_id IS NULL", (name,)
+        ):
+            if self._link(name, row["id"], loads(row["values"], {})):
+                linked += 1
+        return {**self.describe(name), "linked": linked}
+
+    def _identity(self, name: str) -> dict[str, str] | None:
+        identity: dict[str, str] | None = self._schema(name).get("identity")
+        return identity
+
+    def _link(self, name: str, rid: str, values: dict[str, Any],
+              identity: dict[str, str] | None = None) -> str | None:
+        """Link one row to the entity its identity field names; None when it names none."""
+        identity = identity or self._identity(name)
+        if not identity or self.entities is None:
+            return None
+        key = hard_key(values.get(identity["field"]))
+        if key is None:
+            return None
+        title_field = self.store.one("SELECT title_field FROM collections WHERE name = ?",
+                                     (name,))
+        label = values.get(title_field["title_field"]) if title_field else None
+        entity = self.entities.resolve(identity["rows_are"], str(label or key[1]),
+                                       {key[0]: key[1]}, source=f"record:{name}/{rid}")["entity"]
+        with self.store.tx() as db:
+            db.execute("UPDATE records SET entity_id = ? WHERE collection = ? AND id = ?",
+                       (entity["id"], name, rid))
+        return str(entity["id"])
+
+    def linked_to(self, entity_id: str) -> list[dict[str, Any]]:
+        """The rows, in any table, that are this entity."""
+        ids = [entity_id] + [r["id"] for r in self.store.all(
+            "SELECT id FROM entities WHERE merged_into = ?", (entity_id,))]
+        marks = ",".join("?" * len(ids))
+        return [{"collection": r["collection"], "id": r["id"], **loads(r["values"], {})}
+                for r in self.store.all(
+                    "SELECT collection, id, \"values\" FROM records"
+                    f" WHERE entity_id IN ({marks}) AND deleted_at IS NULL", tuple(ids))]
+
+    @staticmethod
+    def _keep(db: sqlite3.Connection, name: str, rid: str) -> None:
+        """Keep a record's current values before they change."""
+        db.execute(
+            "INSERT OR IGNORE INTO record_versions (collection, record_id, revision,"
+            " \"values\", provenance, replaced_at) SELECT collection, id, revision,"
+            " \"values\", provenance, ? FROM records WHERE collection = ? AND id = ?",
+            (now(), name, rid),
+        )
+
+    def history(self, name: str, rid: str) -> list[dict[str, Any]]:
+        """What a record was before each change, newest first."""
+        return [{"revision": r["revision"], "values": loads(r["values"], {}),
+                 "by": loads(r["provenance"], {}), "until": r["replaced_at"]}
+                for r in self.store.all(
+                    "SELECT * FROM record_versions WHERE collection = ? AND record_id = ?"
+                    " ORDER BY revision DESC", (name, rid))]
 
     def describe(self, name: str) -> dict[str, Any]:
         row = self.store.one("SELECT * FROM collections WHERE name = ?", (name,))
@@ -330,6 +441,8 @@ class Collections:
             "module": row["module"],
             "title_field": row["title_field"],
             "fields": loads(row["schema"])["fields"],
+            **({"identity": loads(row["schema"])["identity"]}
+               if "identity" in loads(row["schema"]) else {}),
             "records": count["n"] if count else 0,
             "created_at": row["created_at"],
         }
@@ -393,18 +506,25 @@ class Collections:
                 "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                 (name, rid, _search_text(clean)),
             )
+        self._link(name, rid, clean)
         return self.get(name, rid)
 
     def upsert(
         self, name: str, key: str, rows: list[dict[str, Any]], provenance: dict[str, Any],
-        *, fill_only: set[str] | None = None,
+        *, fill_only: set[str] | None = None, seen_by: str | None = None,
+        mark_gone: bool = True,
     ) -> dict[str, Any]:
         """Add or update many records at once, matching on `key` (e.g. a URL). A record whose
         values didn't change is left alone. Fields in `fill_only` are written only where the
         record has no value yet, so the person's own edits (tags, notes) are never overwritten.
         Rows that don't fit the table are set aside, counted as `invalid` with the first few
-        reasons in `problems`, and the rest are saved. Returns counts and the ids touched."""
-        fields = {f["name"] for f in self._schema(name)["fields"]}
+        reasons in `problems`, and the rest are saved. With `seen_by` (a reader's name), every
+        row the reader returned is marked seen now, and the reader's rows it didn't return are
+        marked gone (`gone`); a row that comes back is no longer gone. Returns counts and the
+        ids touched."""
+        schema = self._schema(name)
+        identity = schema.get("identity")
+        fields = {f["name"] for f in schema["fields"]}
         if key not in fields:
             raise Problem(f"'{name}' has no field '{key}' to match records on.")
         existing: dict[str, sqlite3.Row] = {}
@@ -416,6 +536,7 @@ class Collections:
                 existing[str(value)] = row
         counts = {"added": 0, "updated": 0, "unchanged": 0, "skipped": 0, "invalid": 0}
         touched: list[str] = []
+        seen_ids: list[str] = []
         seen: set[str] = set()
         stamp = now()
         problems: list[str] = []
@@ -433,6 +554,8 @@ class Collections:
                 counts["invalid"] += 1
                 if len(problems) < 5:
                     problems.append(f"{match}: {e}")
+                if prior is not None:
+                    seen_ids.append(prior["id"])  # still there on the page, just not saved
                 continue
             if prior is None:
                 rid = new_id("r")
@@ -448,6 +571,8 @@ class Collections:
                     )
                 counts["added"] += 1
                 touched.append(rid)
+                seen_ids.append(rid)
+                self._link(name, rid, clean, identity)
                 continue
             current = loads(prior["values"], {})
             merged = dict(current)
@@ -455,10 +580,14 @@ class Collections:
                 if fill_only and k in fill_only and current.get(k) not in (None, "", []):
                     continue
                 merged[k] = v
+            seen_ids.append(prior["id"])
             if merged == current:
                 counts["unchanged"] += 1
+                if identity and not prior["entity_id"]:
+                    self._link(name, prior["id"], current, identity)
                 continue
             with self.store.tx() as db:
+                self._keep(db, name, prior["id"])
                 db.execute(
                     'UPDATE records SET "values" = ?, revision = revision + 1, provenance = ?,'
                     " updated_at = ? WHERE collection = ? AND id = ?",
@@ -474,7 +603,63 @@ class Collections:
                 )
             counts["updated"] += 1
             touched.append(prior["id"])
+            if identity:
+                self._link(name, prior["id"], merged, identity)
+        if seen_by:
+            counts["gone"] = self._seen(name, seen_by, seen_ids, stamp, mark_gone=mark_gone)
         return {**counts, "ids": touched, "problems": problems}
+
+    def _seen(self, name: str, reader: str, ids: list[str], stamp: str, *,
+              mark_gone: bool = True) -> int:
+        """Mark what a reader's run returned as seen, and (for a reader that returns its whole
+        list) its rows it didn't return as gone."""
+        with self.store.tx() as db:
+            for i in range(0, len(ids), 500):
+                chunk = ids[i:i + 500]
+                db.execute(
+                    "UPDATE records SET reader = ?, seen_at = ?, gone_at = NULL"
+                    f" WHERE collection = ? AND id IN ({','.join('?' * len(chunk))})",
+                    (reader, stamp, name, *chunk),
+                )
+            if not mark_gone:
+                return 0
+            gone: int = db.execute(
+                "UPDATE records SET gone_at = ? WHERE collection = ? AND reader = ?"
+                " AND (seen_at IS NULL OR seen_at < ?) AND gone_at IS NULL"
+                " AND deleted_at IS NULL", (stamp, name, reader, stamp),
+            ).rowcount
+        return gone
+
+    def held_by(self, name: str, reader: str) -> int:
+        """How many rows of a table a reader returned last time and are still there."""
+        row = self.store.one(
+            "SELECT COUNT(*) AS n FROM records WHERE collection = ? AND reader = ?"
+            " AND gone_at IS NULL AND deleted_at IS NULL", (name, reader),
+        )
+        return int(row["n"]) if row else 0
+
+    def changes(self, name: str, since: str, where: dict[str, Any] | None = None
+                ) -> dict[str, list[dict[str, Any]]]:
+        """What happened to a table's rows since a moment: new rows, rows whose values
+        changed, rows gone. `where` narrows it to the rows that matter."""
+        allowed = {r["id"] for r in self.query(name, where, limit=None)} if where else None
+        new, changed, gone = [], [], []
+        for row in self.store.all(
+            "SELECT * FROM records WHERE collection = ? AND deleted_at IS NULL", (name,)
+        ):
+            if allowed is not None and row["id"] not in allowed:
+                continue
+            view = record_view(row)
+            if row["gone_at"] and row["gone_at"] >= since:
+                gone.append(view)
+            elif row["created_at"] >= since:
+                new.append(view)
+            elif self.store.one(
+                "SELECT 1 FROM record_versions WHERE collection = ? AND record_id = ?"
+                " AND replaced_at >= ?", (name, row["id"], since),
+            ):
+                changed.append(view)
+        return {"new": new, "changed": changed, "gone": gone}
 
     def get(self, name: str, rid: str) -> dict[str, Any]:
         row = self.store.one(
@@ -497,8 +682,10 @@ class Collections:
         current = self.get(name, rid)
         merged = {k: v for k, v in current.items() if k not in SYSTEM_FIELDS | {"revision",
                                                                                 "_provenance"}}
+        merged = {k: v for k, v in merged.items() if not k.startswith("_")}
         merged.update(clean)
         with self.store.tx() as db:
+            self._keep(db, name, rid)
             cur = db.execute(
                 'UPDATE records SET "values" = ?, revision = revision + 1, provenance = ?,'
                 " updated_at = ? WHERE collection = ? AND id = ? AND revision = ?"
@@ -516,10 +703,12 @@ class Collections:
                 "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                 (name, rid, _search_text(merged)),
             )
+        self._link(name, rid, merged)
         return self.get(name, rid)
 
     def delete(self, name: str, rid: str, revision: int) -> None:
         with self.store.tx() as db:
+            self._keep(db, name, rid)
             cur = db.execute(
                 "UPDATE records SET deleted_at = ? WHERE collection = ? AND id = ?"
                 " AND revision = ? AND deleted_at IS NULL",

@@ -18,12 +18,19 @@ from alpha.world.world import World
 
 MAX_CHARS = 12_000
 RECENT_TURNS = 12
+THREAD_HISTORY = 15
 MATCHES = 5
 
 
 def _clip(text: str, n: int) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def when(iso: str) -> str:
+    """A journal time as the person would say it, in local time: "Thu 1 Oct 20:21"."""
+    local = datetime.fromisoformat(iso).astimezone()
+    return f"{local.strftime('%a')} {local.day} {local.strftime('%b %H:%M')}"
 
 
 def clock(at: datetime | None = None) -> list[str]:
@@ -38,12 +45,13 @@ def clock(at: datetime | None = None) -> list[str]:
     ]
 
 
-def build(world: World, sentence: str, *, module: str | None = None) -> str:
-    return build_with_taint(world, sentence, module=module)[0]
+def build(world: World, sentence: str, *, module: str | None = None,
+          thread: str | None = None) -> str:
+    return build_with_taint(world, sentence, module=module, thread=thread)[0]
 
 
-def build_with_taint(world: World, sentence: str, *,
-                     module: str | None = None) -> tuple[str, str | None]:
+def build_with_taint(world: World, sentence: str, *, module: str | None = None,
+                     thread: str | None = None) -> tuple[str, str | None]:
     """The pre-pack, and why it taints the run (alpha.world.taint) if it carries more than the
     person's own words: today's calendar, records, documents, what Alpha saw in a source, or a
     reply from a run that was tainted."""
@@ -125,7 +133,7 @@ def build_with_taint(world: World, sentence: str, *,
         who_said = "person" if e["kind"] == "said" else "alpha"
         if e["data"].get("tainted"):
             taints.append("carries a reply that drew on private material")
-        recent.append(f"- {e['at'][11:16]}Z {who_said}: {_clip(e['text'], 400)}")
+        recent.append(f"- {when(e['at'])} {who_said}: {_clip(e['text'], 400)}")
     sections.append(("RECENT CONVERSATION (oldest first)", recent or ["- This is the first."]))
 
     matches = []
@@ -143,17 +151,37 @@ def build_with_taint(world: World, sentence: str, *,
         if hit["kind"] == "saw" or hit["source"]:
             taints.append("read what Alpha saw in a source")
         gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
-        matches.append(f"- {hit['at'][:16]}Z {hit['kind']} ({hit['id']}):"
+        matches.append(f"- {when(hit['at'])} {hit['kind']} ({hit['id']}):"
                        f" {_clip(hit['snippet'], 160)}{gone}")
         if len(matches) >= MATCHES * 2:
             break
     if matches:
         sections.append(("MATCHES FOR THIS SENTENCE", matches))
 
+    if thread:
+        t = world.modules.thread(thread)
+        lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
+                 f"- Brief: {t['brief']}" if t.get("brief") else
+                 "- Brief: none yet. Write one with thread_brief when you learn how this work"
+                 " should go."]
+        history = world.journal.mark_removed(world.journal.recent(THREAD_HISTORY, thread=thread))
+        for e in history:
+            if e["data"].get("tainted"):
+                taints.append("carries a reply that drew on private material")
+            if e["kind"] == "saw" or e["source"]:
+                taints.append("read what Alpha saw in a source")
+        lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
+        sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))
+
     open_items = [f"- Thread {t['title']} ({t['id']}, {t['kind']}, {t['state']})"
                   for t in world.modules.threads()]
     open_items += [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
                    for a in world.journal.open_asks()]
+    words = {"proposed": "proposed, waiting for their reply", "approved": "approved, starting",
+             "building": "building in the background",
+             "stopped": "stopped before it finished; plan_resume if they say continue"}
+    open_items += [f"- Plan {p['title']} ({p['id']}): {words[p['state']]}"
+                   for p in world.plans.recent()]
     if open_items:
         sections.append(("OPEN", open_items))
 

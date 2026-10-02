@@ -88,6 +88,16 @@ CREATE TABLE IF NOT EXISTS records (
     PRIMARY KEY (collection, id)
 );
 CREATE INDEX IF NOT EXISTS records_created ON records(collection, created_at);
+-- what a record was before each change: the world changed, and history keeps the old values
+CREATE TABLE IF NOT EXISTS record_versions (
+    collection TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    "values" TEXT NOT NULL,
+    provenance TEXT NOT NULL,
+    replaced_at TEXT NOT NULL,
+    PRIMARY KEY (collection, record_id, revision)
+);
 CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     collection UNINDEXED, record_id UNINDEXED, text, tokenize='porter unicode61'
 );
@@ -289,6 +299,47 @@ CREATE TABLE IF NOT EXISTS taints (
     at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS taints_thread ON taints(thread);
+-- what Alpha proposed to set up, and its way from the person's yes to a finished build
+CREATE TABLE IF NOT EXISTS plans (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    state TEXT NOT NULL,
+    module TEXT,
+    thread TEXT,
+    turn TEXT,
+    proposal TEXT,
+    approval TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    report TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- everything a module reads from outside Alpha, and whether it works
+CREATE TABLE IF NOT EXISTS sources (
+    id TEXT PRIMARY KEY,
+    module TEXT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    site TEXT NOT NULL,
+    reader TEXT,
+    status TEXT NOT NULL,
+    detail TEXT,
+    last_checked TEXT,
+    last_rows INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (module, url)
+);
+
+-- what the model was given for each turn, so a wrong answer can be traced to what it saw
+CREATE TABLE IF NOT EXISTS turn_contexts (
+    turn TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    context TEXT NOT NULL,
+    rules TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
@@ -303,23 +354,30 @@ CREATE TABLE IF NOT EXISTS threads (
 """
 
 
-# Columns added after a store may already exist: (table, column, declaration).
+# Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
+    ("records", "entity_id", "TEXT"),
+    ("notes", "source", "TEXT"),
+    ("entities", "source", "TEXT"),
+    ("threads", "brief", "TEXT"),
+    # rows a reader keeps: which reader last returned it, when, and when it stopped returning it
+    ("records", "reader", "TEXT"),
+    ("records", "seen_at", "TEXT"),
+    ("records", "gone_at", "TEXT"),
+    # an automation that is a pipeline of saved steps, run with no model
+    ("automations", "steps", "TEXT"),
+    # whether a reader returns its whole list (only then do rows it no longer returns count as gone)
+    ("readers", "whole", "INTEGER NOT NULL DEFAULT 1"),
+    # the first thing the person will do with what a plan builds, as they would say it, and how
+    # many times the build's trial of it disagreed with an independent answer
+    ("plans", "trial", "TEXT"),
+    ("plans", "checks", "INTEGER NOT NULL DEFAULT 0"),
     ("readers", "allow_posts", "TEXT NOT NULL DEFAULT '[]'"),
     ("modules", "icon", "TEXT"),
     # Where making the project stands (JSON, world/modules.py `set_creation`); NULL for a
     # project that was never made through the creation process.
     ("modules", "creation", "TEXT"),
 ]
-
-
-def migrate(db: sqlite3.Connection) -> None:
-    """Bring a store made by an earlier version up to the schema (new tables and triggers come
-    from SCHEMA's IF NOT EXISTS; new columns are added here)."""
-    for table, column, declaration in ADDED_COLUMNS:
-        have = {r[1] for r in db.execute(f"PRAGMA table_info({table})")}
-        if column not in have:
-            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
 
 class Problem(Exception):
@@ -359,7 +417,28 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
-        migrate(self.db)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        with self.tx() as db:
+            for table, column, decl in ADDED_COLUMNS:
+                have = {r["name"] for r in db.execute(f"PRAGMA table_info({table})")}
+                if column not in have:
+                    db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            db.execute("CREATE INDEX IF NOT EXISTS records_entity ON records(entity_id)")
+            db.execute("CREATE INDEX IF NOT EXISTS records_reader ON records(collection, reader)")
+            # Rows a reader wrote before rows knew their reader.
+            db.execute("UPDATE records SET reader = json_extract(provenance, '$.reader')"
+                       " WHERE reader IS NULL AND json_extract(provenance, '$.reader') IS NOT NULL")
+            # Threads are records, not remembered model sessions: nothing resumes one.
+            db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL")
+            # Each world is one person's; its id travels with the file.
+            db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('world_id', ?)",
+                       (new_id("w"),))
+            # When the world began: its first journal entry, for a file older than this field.
+            first = db.execute("SELECT MIN(at) AS at FROM journal").fetchone()
+            db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
+                       ((first["at"] if first and first["at"] else None) or now(),))
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:

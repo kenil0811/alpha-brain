@@ -7,6 +7,7 @@
     alpha show food_log [--limit 20]
     alpha notes
     alpha prepack "how much protein today"
+    alpha check [j_turn | --last]   (check a reply against an independent answer)
     alpha mcp                      (the MCP server the model talks to)
 
 ALPHA_HOME picks the data directory. `ask` runs on the model chosen in Settings -> Models.
@@ -58,6 +59,11 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("remove-module", help="delete a module and everything that belongs to it")
     p.add_argument("module")
     sub.add_parser("clear-conversation", help="delete the conversation (activity stays)")
+    p = sub.add_parser("context", help="print what the model was given for a turn")
+    p.add_argument("turn", help="the turn's journal id (its 'said' entry)")
+    p = sub.add_parser("check", help="check a turn's reply against an independent answer")
+    p.add_argument("turn", nargs="?", help="the turn's journal id; default: the last one")
+    p.add_argument("--no-repair", action="store_true", help="only judge; don't let Alpha fix")
     p = sub.add_parser("prepack", help="print what the model would see first")
     p.add_argument("text", nargs="+")
     p.add_argument("--module")
@@ -143,6 +149,13 @@ def main(argv: list[str] | None = None) -> int:
                 print("A window is open: sign in there, then close it.", file=sys.stderr)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0
+        if args.command == "context":
+            kept = world.journal.context(args.turn)
+            if kept is None:
+                print(f"No context was kept for {args.turn}.")
+                return 1
+            print(f"{kept['at']} · rules {kept['rules']}\n\n{kept['context']}")
+            return 0
         if args.command == "remove-module":
             from alpha.world.purge import remove_module
 
@@ -156,6 +169,25 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "prepack":
             print(prepack.build(world, " ".join(args.text), module=args.module))
             return 0
+        if args.command == "check":
+            from alpha.runtime import check
+
+            turn_id = args.turn
+            if not turn_id:
+                last = world.journal.recent(1, stream=True, kinds=["said"])
+                if not last:
+                    print("Nothing has been said yet.", file=sys.stderr)
+                    return 1
+                turn_id = last[0]["id"]
+            result = check.check(world, turn_id, repair=not args.no_repair)
+            if not result["checked"]:
+                print(result["why"], file=sys.stderr)
+                return 1
+            print(check.words(result))
+            print(f"\nIndependent answer:\n{result['independent']}")
+            if result.get("repaired"):
+                print(f"\nAlpha: {result['repaired']}")
+            return 0 if result["agree"] else 1
     except Problem as e:
         print(str(e), file=sys.stderr)
         return 2

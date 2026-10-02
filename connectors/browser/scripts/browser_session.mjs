@@ -20,6 +20,8 @@
  * another site) is blocked, so nothing the page holds can be carried off in an address. Typing
  * into a password or card field is refused, whatever the script does. Counts come back as
  * `writes_blocked` and `egress_blocked`; allowed POSTs as `posts_allowed`.
+ * A page that stops automated reading with a bot check or a captcha comes back as `bot_check`
+ * with nothing read: Alpha says so and never tries to get past it.
  */
 import { chromium } from "playwright-core";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -57,6 +59,55 @@ function cookieMatches(cookie, site) {
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+const CHALLENGE_TITLE = /^(just a moment|attention required|access denied|are you a human|verify you are human|security check|please verify|one more step|pardon our interruption)/i;
+// Marks only a challenge page carries (Cloudflare, PerimeterX, DataDome).
+const CHALLENGE_MARKS = [
+  "#challenge-form", "#challenge-running", "[id^='cf-chl']", "#cf-challenge-running",
+  "iframe[src*='challenges.cloudflare']", "#px-captcha", "iframe[src*='captcha-delivery']",
+];
+// A captcha widget is also found on ordinary login and contact forms: it only means a bot check
+// when the captcha is all the page is.
+const CAPTCHA_WIDGETS = [".g-recaptcha", ".h-captcha", "iframe[src*='recaptcha']", "iframe[src*='hcaptcha']"];
+
+/** Whether the page in front of us is a bot check rather than the page that was asked for. */
+async function isBotCheck(page) {
+  const title = (await page.title().catch(() => "")) || "";
+  if (CHALLENGE_TITLE.test(title.trim())) return true;
+  return page
+    .evaluate(([marks, widgets]) => {
+      if (marks.some((m) => document.querySelector(m))) return true;
+      const words = (document.body ? document.body.innerText : "").trim().length;
+      const links = document.querySelectorAll("a[href]").length;
+      return widgets.some((w) => document.querySelector(w)) && words < 400 && links < 10;
+    }, [CHALLENGE_MARKS, CAPTCHA_WIDGETS])
+    .catch(() => false);
+}
+
+/** Whether the list on this page goes on over more pages (a next link, numbered pages, a load
+ *  more button): a reader that returns only what is on screen would read part of the list. */
+async function hasMorePages(page) {
+  return page
+    .evaluate(() => {
+      if (document.querySelector("link[rel=next], a[rel=next]")) return true;
+      const words = [...document.querySelectorAll("a, button, [role=button]")]
+        .map((el) => (el.innerText || el.getAttribute("aria-label") || "").trim());
+      if (words.some((t) => /^(next|next page|next ›|›|»|load more|show more|more results|view more)$/i.test(t))) return true;
+      return words.filter((t) => /^\d{1,3}$/.test(t)).length >= 3;
+    })
+    .catch(() => false);
+}
+
+/** Whether the page in front of us asks for a sign-in: the address says so, or it shows a
+ *  password field. */
+async function isSignIn(page, askedFor) {
+  const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
+  if (wall.test(page.url()) && !wall.test(askedFor)) return true;
+  return page
+    .evaluate(() => [...document.querySelectorAll("input[type=password]")]
+      .some((el) => el.offsetParent !== null))
+    .catch(() => false);
+}
 
 function pathPattern(path) {
   const body = String(path).split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*");
@@ -225,6 +276,20 @@ async function read(job) {
     const page = context.pages()[0] || (await context.newPage());
     const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: job.timeout_ms || 30000 });
     await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+    if (await isBotCheck(page)) {
+      return {
+        status: response ? response.status() : 0,
+        final_url: page.url(),
+        title: await page.title().catch(() => ""),
+        bot_check: true,
+        blocked: false,
+        text: "",
+        links: [],
+        result: null,
+        scrolls: 0,
+        ...counts(),
+      };
+    }
     let scrolls = 0;
     if (job.scroll_to_end) {
       // Read a long list to its end. Many sites load more rows inside an inner list rather than
@@ -273,17 +338,18 @@ async function read(job) {
       walls.locked = true;
       await context.addInitScript(NEVER_TYPE);
       for (const frame of page.frames()) await frame.evaluate(NEVER_TYPE).catch(() => {});
+      const morePages = job.scroll_to_end ? false : await hasMorePages(page);
       const value = await page.evaluate(async (body) => {
         const fn = new Function(`return (async () => { ${body} })();`);
         return await fn();
       }, job.script);
       const finalUrl = page.url();
-      const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
       return {
         status: response ? response.status() : 0,
         final_url: finalUrl,
         title: await page.title(),
-        blocked: wall.test(finalUrl) && !wall.test(job.url),
+        blocked: await isSignIn(page, job.url),
+        more_pages: morePages,
         result: value === undefined ? null : value,
         scrolls,
         ...counts(),
@@ -324,8 +390,7 @@ async function read(job) {
     }, maxChars);
     const html = job.html ? await page.content() : null;
     const finalUrl = page.url();
-    const wall = /\/(login|authwall|checkpoint|signin|sign-in|signup|uas\/login)/i;
-    const blocked = wall.test(finalUrl) && !wall.test(job.url);
+    const blocked = await isSignIn(page, job.url);
     return {
       status: response ? response.status() : 0,
       final_url: finalUrl,

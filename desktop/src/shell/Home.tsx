@@ -139,8 +139,8 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
           {item.why ? <InfoTip content={item.why} label="Why Alpha suggests this" /> : null}
         </div>
         <div className="row">
-          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), "On it. Alpha is doing that now.")}>
-            Yes, do it
+          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
+            {item.plan ? "Build it" : "Yes, do it"}
           </button>
           <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
             Not now

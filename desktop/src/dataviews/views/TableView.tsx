@@ -13,6 +13,7 @@ import { formatNumber, humanize } from "../../modules/format";
 import { AGGREGATE_LABELS, availableAggregates, computeAggregate, filterOpsForKind, groupBy, NO_VALUE, type AggregateKind, type DataRow, type ViewConfig } from "../engine";
 import { CellEditor, CellValue, fieldLabel } from "../cells";
 import { KIND_LABELS, NameDialog } from "../controls";
+import type { RecordRow } from "../../core/client";
 import type { ViewProps } from "../types";
 
 const SELECT_W = 56;
@@ -107,7 +108,7 @@ export function TableView(p: ViewProps) {
   const shown = windowed ? virtual.map((v) => items[v.index]!) : items;
   const padTop = windowed && virtual.length ? virtual[0]!.start : 0;
   const padBottom = windowed && virtual.length ? virtualizer.getTotalSize() - virtual[virtual.length - 1]!.end : 0;
-  const colSpan = fields.length + 1;
+  const colSpan = fields.length + (p.seen ? 2 : 1);
   const rowIndex = useMemo(() => new Map(rows.map((r, i) => [r.id, i])), [rows]);
 
   const pageIds = rows.map((r) => r.id);
@@ -161,6 +162,7 @@ export function TableView(p: ViewProps) {
           {fields.map((f) => (
             <col key={f.name} style={{ width: widthOf(f) }} />
           ))}
+          {p.seen ? <col style={{ width: 110 }} /> : null}
         </colgroup>
         <thead>
           <tr>
@@ -216,6 +218,7 @@ export function TableView(p: ViewProps) {
                 </th>
               );
             })}
+            {p.seen ? <th className="dv-th">Seen</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -304,6 +307,7 @@ export function TableView(p: ViewProps) {
                     </td>
                   );
                 })}
+                {p.seen ? <SeenCell row={p.record(item.row.id)} /> : null}
               </tr>
             ),
           )}
@@ -359,6 +363,7 @@ export function TableView(p: ViewProps) {
                 </td>
               );
             })}
+            {p.seen ? <td className="dv-foot" /> : null}
           </tr>
         </tfoot>
       </table>
@@ -432,4 +437,13 @@ function ColumnMenu({ field, p, onRename }: { field: FieldInfo; p: ViewProps; on
       ) : null}
     </DropdownMenuContent>
   );
+}
+
+/** When a reader-fed row came and went, in words: "New today", "Since 2 Oct", "Gone 5 Oct". */
+function SeenCell({ row }: { row: RecordRow | undefined }) {
+  if (!row) return <td className="dv-td" />;
+  const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  if (row.gone_at) return <td className="dv-td"><span className="dv-pill">Gone {day(row.gone_at)}</span></td>;
+  if (new Date(row.created_at).toDateString() === new Date().toDateString()) return <td className="dv-td"><span className="dv-pill dv-pill--good">New today</span></td>;
+  return <td className="dv-td dv-faint">Since {day(row.created_at)}</td>;
 }

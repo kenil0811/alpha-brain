@@ -174,18 +174,16 @@ class Modules:
         return _row(row)
 
     def update_thread(
-        self, tid: str, *, state: str | None = None, session_ref: str | None = None,
-        title: str | None = None,
+        self, tid: str, *, state: str | None = None, title: str | None = None,
     ) -> dict[str, Any]:
         current = self.thread(tid)
         if state is not None and state not in THREAD_STATES:
             raise Problem(f"A thread's state is one of {sorted(THREAD_STATES)}; got '{state}'.")
         with self.store.tx() as db:
             db.execute(
-                "UPDATE threads SET state = ?, session_ref = ?, title = ?, updated_at = ?"
-                " WHERE id = ?",
-                (state or current["state"], session_ref or current["session_ref"],
-                 (title or "").strip()[:60] or current["title"], now(), tid),
+                "UPDATE threads SET state = ?, title = ?, updated_at = ? WHERE id = ?",
+                (state or current["state"], (title or "").strip()[:60] or current["title"], now(),
+                 tid),
             )
         return self.thread(tid)
 
@@ -199,6 +197,16 @@ class Modules:
             (module, include_done),
         )
         return [_row(r) for r in rows]
+
+    def set_brief(self, tid: str, brief: str) -> dict[str, Any]:
+        """A thread's brief: what this work is for, what was decided, what didn't work and why,
+        what is open, what comes next. Each run starts from it and the thread's own journal,
+        never from a remembered model conversation."""
+        self.thread(tid)
+        with self.store.tx() as db:
+            db.execute("UPDATE threads SET brief = ?, updated_at = ? WHERE id = ?",
+                       (brief.strip(), now(), tid))
+        return self.thread(tid)
 
     def threads(self, state: str | None = None) -> list[dict[str, Any]]:
         if state is None:

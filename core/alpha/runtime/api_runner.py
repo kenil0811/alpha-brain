@@ -140,13 +140,16 @@ def run(req: TurnRequest, *, kind: str, base_url: str, key: str | None, model: s
         post: Post = request, timeout: float = 300) -> RunResult:
     """`kind` is "anthropic" (Messages API) or "openai" (chat completions)."""
     started = time.monotonic()
-    if claude_cli.stopped(req.turn_id):
+    keys = claude_cli.keys(req)
+    live = claude_cli.LIVE.begin(keys)
+    if live.stopped:
+        claude_cli.LIVE.end(keys, live)
         return claude_cli.stopped_result()
 
     def guarded(url: str, headers: dict[str, str], body: dict[str, Any] | None,
                 limit: float) -> dict[str, Any]:
         # Stopping a turn on this route ends it before its next model call.
-        if claude_cli.stopped(req.turn_id):
+        if live.stopped:
             raise claude_cli.Stopped
         return post(url, headers, body, limit)
 
@@ -168,6 +171,7 @@ def run(req: TurnRequest, *, kind: str, base_url: str, key: str | None, model: s
                              duration_ms=int((time.monotonic() - started) * 1000))
     finally:
         world.close()
+        claude_cli.LIVE.end(keys, live)
     return RunResult(reply=reply, ok=bool(reply), num_turns=n,
                      duration_ms=int((time.monotonic() - started) * 1000),
                      error=None if reply else "No answer came back.",

@@ -42,7 +42,7 @@ from alpha.context.summary import module_summary
 from alpha.models import settings
 from alpha.models.accounts import Accounts
 from alpha.models.keychain import KeychainError
-from alpha.runtime import claude_cli, transcription
+from alpha.runtime import build, check, claude_cli, transcription
 from alpha.runtime import turn as turns
 from alpha.runtime.attachments import MAX_ATTACHMENTS, AttachmentIn
 from alpha.runtime.automation import Scheduler
@@ -51,7 +51,7 @@ from alpha.world import access, backup, edits
 from alpha.world.actions import Actions
 from alpha.world.bundle import export_module, import_module
 from alpha.world.purge import remove_connection, remove_module
-from alpha.world.store import Problem, loads
+from alpha.world.store import Problem, loads, now
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.api")
@@ -191,10 +191,15 @@ class Turns:
     """Turns run in the background; the window polls for the answer."""
 
     def __init__(self, world: World, runner: turns.Runner | None = None,
-                 accounts: Accounts | None = None) -> None:
+                 accounts: Accounts | None = None, after: Callable[[], None] | None = None,
+                 checks: bool = True) -> None:
         self.world = world
         self.runner = runner
         self.accounts = accounts
+        self.after = after
+        # After a turn in which Alpha wrote values it worked out itself, an independent answer
+        # checks them in the background and Alpha corrects itself in the conversation.
+        self.checks = checks
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
 
@@ -218,7 +223,7 @@ class Turns:
                     self.state[key]["said"] = jid
                     stopping = self.state[key].get("stopping")
                 if stopping:  # stopped before the model started: it never does
-                    claude_cli.cancel(jid)
+                    claude_cli.LIVE.stop(jid, before_start=True)
 
             try:
                 kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread,
@@ -248,9 +253,30 @@ class Turns:
                 result = {"state": "failed", "reply": f"Alpha hit an internal problem: {e}"}
             with self.lock:
                 self.state[key].update(result)
+            if self.after is not None:
+                # A plan approved in this turn starts building now, not at the next tick.
+                self.after()
+            said_id = result.get("said")
+            if self.checks and result["state"] == "done" and said_id:
+                self.check(str(said_id))
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def check(self, said: str) -> None:
+        if not check.worth_checking(self.world, said):
+            return
+
+        def work() -> None:
+            try:
+                kwargs: dict[str, Any] = {}
+                if self.runner is not None:
+                    kwargs["runner"] = self.runner
+                check.check(self.world, said, **kwargs)
+            except Exception:
+                log.exception("check failed")
+
+        threading.Thread(target=work, daemon=True, name=f"check-{said}").start()
 
     def get(self, key: str) -> dict[str, Any]:
         with self.lock:
@@ -275,12 +301,13 @@ class Turns:
             entry["stopping"] = True
             said = entry.get("said")
         if said:
-            claude_cli.cancel(said)
+            claude_cli.LIVE.stop(said, before_start=True)
         return self.get(key)
 
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
             return [dict(v) for v in self.state.values() if v["state"] == "running"]
+
 
 
 def _local_midnight_utc() -> str:
@@ -301,7 +328,8 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     for p in world.journal.recent(50, kinds=["proposed"]):
         if p["id"] not in answered:
             items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
-                          "why": p["data"].get("why"), "at": p["at"], "module": p["module"]})
+                          "why": p["data"].get("why"), "at": p["at"], "module": p["module"],
+                          "plan": p["data"].get("plan")})
     for f in world.knowledge.facts("person", states=("suggested",)):
         items.append({"kind": "fact", "id": f["id"], "text": f"{f['predicate']}: {f['value']}",
                       "why": f["why"], "at": f["recorded_at"]})
@@ -371,8 +399,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         companion_token = os.environ.get("ALPHA_COMPANION_TOKEN")
     accounts = Accounts(world.store)
     # An injected runner (tests) bypasses the model routes and their connection check.
-    running = Turns(world, runner or Router(accounts), None if runner else accounts)
-    scheduler = Scheduler(world, runner or Router(accounts))
+    route = runner or Router(accounts)
+    scheduler = Scheduler(world, route)
+    running = Turns(world, route, None if runner else accounts,
+                    after=scheduler.builds if live else None, checks=live)
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager
@@ -512,12 +542,75 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
-        world.journal.append("answered", "Yes" if body.accept else "No", actor="person",
-                             data={"proposal": pid, "accept": body.accept},
-                             module=proposal["module"])
+        answered = world.journal.append("answered", "Yes" if body.accept else "No",
+                                        actor="person",
+                                        data={"proposal": pid, "accept": body.accept},
+                                        module=proposal["module"])
+        plan = proposal["data"].get("plan")
+        if plan:
+            # A plan's yes starts its build in the background; its no just closes it.
+            if body.accept:
+                world.plans.approve(plan, "Approved in the app")
+                if live:
+                    scheduler.builds()
+            else:
+                world.plans.decline(plan)
+            return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
+        instruction = proposal["data"].get("instruction")
+        if instruction:
+            # The person's yes is what makes it an instruction; nothing else needs to run.
+            if body.accept:
+                world.knowledge.add_instruction(instruction, answered)
+                world.journal.append("changed", f"Added a standing instruction: {instruction}",
+                                     actor="person", data={"proposal": pid})
+            return {"decided": pid, "turn": None}
         started = running.start(AskBody(text=f"Yes, go ahead: {proposal['text']}",
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}
+
+    @app.get("/api/plans", dependencies=[api])
+    def plans() -> list[dict[str, Any]]:
+        return list(reversed(world.plans.all()))[:50]
+
+    @app.post("/api/plans/{plan_id}/approve", dependencies=[api])
+    def approve_plan(plan_id: str) -> dict[str, Any]:
+        plan = world.plans.get(plan_id)
+        if plan.get("proposal"):
+            decide_proposal(plan["proposal"], DecideBody(accept=True))
+            return world.plans.get(plan_id)
+        world.plans.approve(plan_id, "Approved in the app")
+        if live:
+            scheduler.builds()
+        return world.plans.get(plan_id)
+
+    @app.post("/api/plans/{plan_id}/stop", dependencies=[api])
+    def stop_plan(plan_id: str) -> dict[str, Any]:
+        """Stop a build that isn't going anywhere: its run ends now and it says what it made."""
+        plan = world.plans.get(plan_id)
+        if plan["state"] not in ("approved", "building"):
+            raise Problem(f"The build of {plan['title']} isn't running.")
+        if not (plan["thread"] and claude_cli.LIVE.stop(plan["thread"])):
+            build.stop(world, plan_id, None)
+        return world.plans.get(plan_id)
+
+    @app.post("/api/turns/{key}/stop", dependencies=[api])
+    def stop_turn(key: str) -> dict[str, Any]:
+        return running.cancel(key)
+
+    @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
+    def resume_plan(plan_id: str) -> dict[str, Any]:
+        plan = world.plans.resume(plan_id)
+        if live:
+            scheduler.builds()
+        return plan
+
+    @app.post("/api/plans/{plan_id}/decline", dependencies=[api])
+    def decline_plan(plan_id: str) -> dict[str, Any]:
+        plan = world.plans.get(plan_id)
+        if plan.get("proposal"):
+            decide_proposal(plan["proposal"], DecideBody(accept=False))
+            return world.plans.get(plan_id)
+        return world.plans.decline(plan_id)
 
     @app.post("/api/facts/{fid}/decide", dependencies=[api])
     def decide_fact(fid: str, body: DecideBody) -> dict[str, Any]:
@@ -546,6 +639,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         # The turn making it, while one runs (the page shows its clock and Stop).
         making = (m["creation"] or {}).get("thread")
         card["running"] = [t for t in running.running() if making and t.get("thread") == making]
+        card["sources"] = world.sources.all(m["id"])
         return card
 
     @app.patch("/api/modules/{ref}", dependencies=[api])
@@ -910,7 +1004,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         module_id = world.modules.get(module)["id"] if module else None
         turns_ = world.journal.recent(limit, stream=True, kinds=["said", "replied", "failed"],
                                       module=module_id)
-        return {"turns": turns_, "threads": world.modules.threads(), "running": running.running()}
+        return {"turns": turns_, "threads": world.modules.threads(), "running": running.running(),
+                "plans": world.plans.recent()}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:
@@ -989,6 +1084,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                               *lines])
         if not text.strip():
             raise Problem("Pick an answer first.")
+        if body.build or body.carry_on:
+            # The person's yes to the plan on the page: making lasting things is open from now.
+            world.modules.set_creation(m["id"], {"approved_at": now()})
         return {"turn": running.start(AskBody(text=text, module=m["id"], thread=tid))}
 
     @app.post("/api/threads", dependencies=[api])

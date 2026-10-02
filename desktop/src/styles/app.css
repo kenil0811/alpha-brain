@@ -874,3 +874,9 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .quick__plus { flex: none; color: var(--primary); }
 .quick--table .quick__status { flex: none; padding: 0; }
 /* ---------- end P1 ---------- */
+.creation-wrap { position: relative; }
+.creation-wrap > .creation { width: 100%; }
+.creation__stop { position: absolute; top: 8px; right: 8px; }
+.plancard__actions { gap: 6px; margin-top: 8px; }
+.msg__working { justify-content: space-between; gap: 8px; }
+.creation-wrap:has(> .creation__stop) > .creation { padding-right: 72px; }

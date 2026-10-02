@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -32,7 +33,7 @@ def test_a_fact_is_added_corrected_and_forgotten(world: World) -> None:
     facts = c.get("/api/intelligence").json()["knowledge"]["facts"]
     assert [f["value"] for f in facts] == ["PM"]
     # The model recorded one too: forgetting blanks the journal entry that holds the words.
-    t = Tools(world, turn="j_t")
+    t = building(world, turn="j_t")
     noted = t.fact_record("person", "salary_floor", "150k", stated=True)
     assert c.delete(f"/api/facts/{noted['id']}").json() == {"forgotten": noted["id"]}
     assert c.delete(f"/api/facts/{fixed['id']}").status_code == 200
@@ -44,7 +45,7 @@ def test_a_fact_is_added_corrected_and_forgotten(world: World) -> None:
 
 
 def test_a_fact_in_a_project_says_so(world: World) -> None:
-    t = Tools(world, turn="j_seed")
+    t = building(world, turn="j_seed")
     m = t.module_create("Job Search", "An offer")
     fact = Tools(world, turn="j_t", module=m["id"]).fact_record("person", "degree", "MSc")
     assert fact["source"] == f"module:{m['id']}"
@@ -89,7 +90,7 @@ def test_reading_skills_taints_the_run(world: World) -> None:
 
 def test_a_row_action_runs_a_skill_on_one_row(world: World) -> None:
     c, seen = client(world, '{"summary": "Researched Lumen.", "items": []}')
-    t = Tools(world, turn="j_seed")
+    t = building(world, turn="j_seed")
     t.collection_create("companies", "Companies", [{"name": "name", "kind": "text"}])
     row = t.records_add("companies", {"name": "Lumen"})
     sid = c.post("/api/skills", json={"title": "Research", "instructions": "Look."}).json()["id"]
@@ -126,7 +127,7 @@ def test_first_steps_fall_back_when_the_reply_is_not_json(world: World) -> None:
 
 
 def test_a_project_link_can_be_switched_off(world: World) -> None:
-    t = Tools(world, turn="j_seed")
+    t = building(world, turn="j_seed")
     crm = t.module_create("CRM", "Know everyone")
     jobs = t.module_create("Job Search", "An offer")
     t.collection_create("contacts", "Contacts", [{"name": "name", "kind": "text"}], module="CRM")

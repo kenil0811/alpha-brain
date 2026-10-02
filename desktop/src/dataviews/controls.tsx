@@ -259,7 +259,7 @@ export function SortEditor({ fields, sorts, onChange }: { fields: FieldInfo[]; s
 export type PageSize = "fit" | number;
 export const PAGE_SIZES = [25, 50, 100, 250];
 
-export function PaginationBar({ total, all, offset, size, pageSize, fit, onOffset, onPageSize, status }: { total: number; all: number; offset: number; size: number; pageSize?: PageSize; fit: number; onOffset: (n: number) => void; onPageSize: (s: PageSize) => void; status?: React.ReactNode }) {
+export function PaginationBar({ total, all, offset, size, pageSize, fit, onOffset, onPageSize, status, resting }: { total: number; all: number; offset: number; size: number; pageSize?: PageSize; fit: number; onOffset: (n: number) => void; onPageSize: (s: PageSize) => void; status?: React.ReactNode; resting?: string }) {
   const n = (x: number) => x.toLocaleString();
   const rows = (x: number) => `${n(x)} ${x === 1 ? "row" : "rows"}`;
   const pages = Math.max(1, Math.ceil(total / size));
@@ -267,7 +267,14 @@ export function PaginationBar({ total, all, offset, size, pageSize, fit, onOffse
   const counted = total > size ? `${n(offset + 1)}–${n(Math.min(total, offset + size))} of ${total === all ? rows(total) : `${n(total)} matching`}` : total === all ? rows(total) : `${n(total)} of ${rows(all)}`;
   return (
     <div className="dv-pager">
-      <span className="dv-num dv-ellipsis">{counted}</span>
+      <span className="dv-num dv-ellipsis">
+        {counted}
+        {resting ? (
+          <span className="dv-faint" title="Numbers Alpha estimated or assumed something for. Click a cell to correct it.">
+            {` · ${resting}`}
+          </span>
+        ) : null}
+      </span>
       {status}
       <span className="dv-spacer" />
       {pageSize === undefined ? null : (

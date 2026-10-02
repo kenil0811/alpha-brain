@@ -18,6 +18,8 @@ export interface ViewProps {
   /** Every row that matches, for footers that summarise past the page. */
   matching: DataRow[];
   record: (id: string) => RecordRow | undefined;
+  /** A table fed by readers: show when each row was first seen and when it went. */
+  seen?: boolean;
   relations: Relations;
   onViewChange: (next: ViewConfig) => void;
   onOpen: (id: string) => void;
