@@ -48,6 +48,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [needs, setNeeds] = useState(0);
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
+  const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
 
@@ -193,7 +194,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
             ) : null}
           </div>
         ) : surface.kind === "home" ? (
-          <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft(text); togglePanel(true); }} onNew={startNew} />
+          <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft(text); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "settings" ? (
@@ -205,7 +206,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         )}
       </main>
       {client ? (
-        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} />
+        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} />
       ) : null}
     </div>
   );

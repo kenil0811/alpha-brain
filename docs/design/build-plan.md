@@ -40,8 +40,10 @@ what the first slice is exactly, and what follows.
   connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
   that are people, threads as records, what the model saw); plan first, sources, pipelines and
   background builds with no limits; known, assumed or asked (provenance on every value, a second
-  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 113
-  core + 3 desktop tests; 63 tools; ruff and mypy strict clean (2 Oct evening).
+  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 124
+  core + 3 desktop tests; 69 tools; ruff and mypy strict clean (2 Oct evening). **Later the
+  same evening:** the journey suite (§4.11), the trust holes closed (§4.12), the write route
+  (§4.13, Q24), builds watched live on Home (§4.14).
   **Where we stand and what is open: §4.3, §4.5 and §4.9; what the code read of 2 Oct evening
   found: §4.10.** Slice 3 (proactivity) and the sleep-time pass have not started.
 
@@ -444,7 +446,7 @@ Against the design's order of work:
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | Not started |
 | 4. Entities and bi-temporal facts across sources | Partial: rows that are people link by hard key (1,548 connections are now people, §4.6); no cross-source linking yet, no sleep-time pass; same-name maybes shown nowhere; merge only by an API route the app never calls, unmerge unreachable (§4.10) |
 | 5. Standing-things ladder, promotion from verified runs | Partial: automations and pipelines exist; every standing thing goes through a plan and a yes (§4.7); no ladder, no promotion from repetition |
-| 6. Pending actions and Access | Not started: every outward write is refused |
+| 6. Pending actions and Access | Built as actions (§4.13, Q24): a dry-run card, the person's yes, prepare-level standing sentences; the first real draft was made in Kenil's Gmail. No Access page; sends have no sentences yet |
 | — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8). Holes: the opinion never fires for upserted or reader-written rows; an omitted `source` defaults to estimated (§4.10) |
 | — Hands free of site vocabulary (Q17) | Done 2 Oct evening (Q23): generic wall and paging detection, one `url` key with a migration, no Sites section (§4.10) |
 | — No limits (Q18) | Holds for turns and builds; one floor by decision, 30 minutes between an automation's runs (Q22); the hands' own timeouts (§4.10) |
@@ -674,6 +676,10 @@ design), and the shake logged as a guess when the label was one search away (§4
    overwritten; nothing links people across Gmail and LinkedIn; nothing consolidates.
 3. **Proactivity** (B): triage, digest, Inbox. Alpha still never brings anything to the person
    except an automation's "Worth telling".
+3a. **The write route, next steps** (§4.13): rerun `gmail_draft` after Alpha repairs its verify
+   check in the app; a send journey (a fresh yes, verified in Sent); a LinkedIn message as the
+   second procedure with no new platform code; sentences for sends after real approvals;
+   upload steps; say on the card when a dry run already leaves something behind (autosave).
 4. **The old estimates**: the four food rows logged before today stay estimates until the person
    logs or asks about them again; the check only runs on new turns. A sleep-time pass could
    re-check old estimates; not decided.
@@ -876,6 +882,80 @@ after a change, so each "Again!" was found by Kenil using the app. §4.9 item 1.
   calendar's first-sync journal flood, the LinkedIn automation's procedure naming the old
   `linkedin` key (Alpha's own know-how; the error now says to use `url`).
 
+
+### 4.13 The write route (built 2 Oct 2026, evening; Q24)
+
+Why: "preprae a draft email to saniahussain417@gmail.com … make it as a poem" was answered
+with a note and "Alpha can't send emails yet". Kenil wanted acting opened generically, with
+guardrails and approvals, not a Gmail-only send. The design is §6.1 of the design document.
+
+- **Store**: `procedures` (name, site, url, description, effect prepare | send, steps JSON,
+  verify JSON, fields, version, health untried | ok | broken), `actions` (procedure, title,
+  payload, evidence, undo, effect, site, state proposed → approved → running → done | failed,
+  or declined; proposal, approval, preview, shots, result, error), `permissions` (sentence,
+  procedure, effect, granted_at, revoked_at). `world/actions.py` validates steps: one of
+  goto, click, click_text, fill, type, press, wait, wait_ms, expect, expect_text per step; a
+  fill or type value is exactly one `{field}` of the payload; the last step is a click,
+  click_text or press (the commit).
+- **The hand**: the driver's `act` op (`browser_session.mjs`): the person's profile, the
+  steps, the payload values, `stop_before_last` for a dry run, screenshots `before`,
+  `preview` / `after`, `error`, `verify`; it refuses to type into a field whose type,
+  autocomplete, name, id, label or placeholder says password, passcode, one-time code, card,
+  CVV, IBAN, SSN or passport, whatever the step says; bot checks and sign-in walls stop it
+  before any step. `Browser.act` requires a connected sign-in for the site and journals every
+  run with its step log and screenshots.
+- **The runtime** (`runtime/acting.py`): `dry_run` (every step but the commit; the preview on
+  the card), `perform` (all steps, then the procedure's `verify` checks; on a failed step or
+  check the action fails, the procedure is marked broken and, in the app, a repair turn with
+  `REPAIR_RULES` has Alpha look at the page, fix the procedure and propose afresh), `approve`
+  (the person's yes; `always` grants the standing sentence for a prepare-level procedure),
+  `decline`. The scheduler's tick performs approved actions the app missed.
+- **Tools**: `procedure_save`, `procedures_list`, `action_propose` (dry-runs at once; runs
+  at once under a standing permission), `action_approve` (the person's words after the card;
+  refused in the proposing turn), `action_decline`, `actions_list`. Rule 9 of the turn now
+  says how; the browser skill has an Acting section.
+- **API and app**: Needs you shows a proposed action as a card (its own `proposed` entry is
+  not shown twice); `/api/actions`, `/api/actions/{id}`, `/shots/{name}`, `PATCH` to change
+  the text before the yes (the preview goes stale), `/approve {always}` (runs in the
+  background), `/decline`; `/api/intelligence` lists procedures and standing permissions;
+  `/api/permissions/{id}/revoke`. `ActionCard` (Home and the conversation): payload, the
+  dry-run screenshot, the undo statement, Do it / Always allow (prepare) / Change / Not now;
+  Knowledge has "Standing permissions" with Revoke. Removing a connection deletes its
+  procedures, declines their pending actions and revokes their permissions.
+- **Tests**: `core/tests/test_actions.py` (the step walls, the dry run, the yes, always and
+  revoke, a send never gets a sentence, a failed run marks the procedure broken and calls the
+  repair, the API, removal). 124 core tests, lint and types clean.
+- **The real run** (journey `gmail_draft`, 18:20–18:32, a copy of Kenil's world, his real
+  Gmail profile): Alpha read the inbox, ran five scripts to see Gmail's compose controls, and
+  in about two minutes kept `gmail_draft` (open `#inbox?compose=new`; fill "To recipients";
+  fill the subject box; type into "Message Body"; click "Save & close"; verify
+  `expect_text: "Draft saved"`), proposed the action with the poem as payload, and the dry run
+  filled a real compose window and stopped before the last step: the preview screenshot shows
+  the draft with "Draft saved" in its header. The suite's yes performed every step in 28 s.
+  The draft exists in Kenil's Gmail (Drafts went from 1 to 2 in the after-screenshot). Alpha's
+  own verify check then failed, because after Save & close the "Draft saved" text is no
+  longer on screen, so the action is `failed` and the procedure `broken`: the right answer
+  for a check that is wrong, and Alpha's to repair in the app (the suite runs with no
+  repair). **Found:** (1) Gmail autosaves while the body is typed, so a dry run already leaves
+  a draft; a prepare-level dry run is not side-effect-free on sites that autosave, which is
+  fine for a draft and must be said on the card for anything else. (2) The suite continued a
+  build copied from the live world (Kenil's Founding Engineer tracker, state `building`) and
+  spent the subscription twice until I killed it; the suite now settles only plans it
+  proposed, and the profile copy tolerates Chrome's transient files. (3) A stray core on port
+  53911 from an earlier session was pointed at by `desktop/.env.development.local` (untracked);
+  stopped, and the file now names the scratch core used for checking the app.
+
+### 4.14 A build is watched, not waited for (2 Oct 2026, evening)
+
+Kenil, looking at Home while a build ran: "I should be able to see whats happening while its
+getting built". `/api/home` and `/api/conversation` now return each open thread with its last
+six journal entries (`thread_views`: did, saw, made, changed, failed, noticed, asked, checked;
+the build prompts left out) and a step count; Home's "Alpha is working on" card lists them live
+and has Open, which opens the thread in the conversation panel; the panel's thread card shows
+the latest step and the open thread view refreshes every four seconds while it works. Checked
+in the browser pane against a scratch core on a copy of his world: the Founding Engineer build
+showed its seven steps (table made, two readers written, the automation set up, the brief
+updated) and Open landed in "Thread · working".
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

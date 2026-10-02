@@ -98,6 +98,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             "DELETE FROM notes WHERE scope = ?", (f"module:{name}",)).rowcount
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
         counts["sources"] = world.sources.remove_module(db, mid)
+        counts["actions"] = world.actions.remove_module(db, mid)
         # Plans stay as a record of what was proposed and decided; none of them goes on.
         db.execute("UPDATE plans SET state = 'stopped', report = COALESCE(report, ?),"
                    " updated_at = ? WHERE module = ? AND state IN ('proposed', 'approved',"
@@ -143,6 +144,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     conn = Connections(store).get(cid)
     kind, target = conn["connector"], conn["target"]
     readers: list[str] = []
+    procedures: list[str] = []
     autos: list[dict[str, Any]] = []
     profile: Path | None = None
     documents: list[str] = []
@@ -156,6 +158,8 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
                      "SELECT id, title, thread, procedure, steps FROM automations")
                  if any(n in (a["procedure"] or "") or n in (a["steps"] or "") for n in readers)
                  or any(site in (a["procedure"] or "").lower() for site in sites)]
+        procedures = [p["name"] for p in store.all("SELECT name, site, url FROM procedures")
+                      if p["site"] in sites or _site(p["url"]) in sites]
         candidate = profile_of(conn).resolve()
         if candidate.is_relative_to((alpha_home() / "browser").resolve()) and candidate.exists():
             profile = candidate
@@ -170,6 +174,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     what = [w for w in (
         "Alpha's sign-in" if profile is not None else "",
         plural(len(readers), "reader") if readers else "",
+        plural(len(procedures), "procedure") if procedures else "",
         plural(len(autos), "automation") if autos else "",
         plural(len(documents), "document") if documents else "",
         plural(len(events), "event") if events else "",
@@ -178,6 +183,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         "connection": cid, "connector": kind, "target": target,
         "what": and_join(what),
         "readers": readers,
+        "procedures": procedures,
         "automations": [a["title"] for a in autos],
     }
     if dry_run:
@@ -186,6 +192,12 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     with store.tx() as db:
         for name in readers:
             db.execute("DELETE FROM readers WHERE name = ?", (name,))
+        for name in procedures:
+            db.execute("DELETE FROM procedures WHERE name = ?", (name,))
+            db.execute("UPDATE permissions SET revoked_at = ? WHERE procedure = ?"
+                       " AND revoked_at IS NULL", (now(), name))
+            db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE procedure = ?"
+                       " AND state IN ('proposed', 'approved')", (now(), name))
             # The module still reads from that place; it just has no reader for it now.
             db.execute("UPDATE sources SET reader = NULL, status = 'not_built', detail = ?,"
                        " updated_at = ? WHERE reader = ?",

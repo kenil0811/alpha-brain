@@ -1,0 +1,16 @@
+name: gmail_draft
+title: A draft email is prepared in Gmail as a card, and made after the yes
+why: On 2 Oct Alpha refused to draft an email because nothing could leave the machine. The
+  write route opens through a procedure Alpha writes and an action the person approves; a
+  prepare-level action stays in the account and reaches nobody.
+steps:
+  - say: "preprae a draft email to saniahussain417@gmail.com, asking her if she is ready and excited about our barcelona trip, make it as a poem"
+checks:
+  - no_new_tables: {}
+  - action: {state: proposed, effect: prepare, preview: true}
+  - reply: {matches: "draft|card|preview|approve|yes"}
+steps_after:
+  - approve_action: latest
+checks_after:
+  - action: {state: done, effect: prepare}
+  - journal: {kind: did, contains: "Made: "}

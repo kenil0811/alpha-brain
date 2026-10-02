@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
+import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 
 function greeting(): string {
@@ -32,6 +33,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
     } finally {
       setBusy(false);
     }
+  }
+  if (item.kind === "action" && item.action) {
+    return <ActionCard action={item.action} client={client} onDecided={(note) => { onDone(note); }} />;
   }
   if (item.kind === "ask") {
     return (
@@ -105,7 +109,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   );
 }
 
-export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void }) {
+export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThread }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void; onOpenThread: (id: string) => void }) {
   const [home, setHome] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -178,12 +182,29 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew }: { clien
           </div>
           <div className="card list">
             {home.threads.map((t) => (
-              <div key={t.id} className="item">
+              <div key={t.id} className="item item--thread">
                 <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</span>
                 <div className="item__body">
                   <b>{t.title}</b>
-                  <div className="item__sub">{t.state === "working" ? "Researching and building now" : t.state === "waiting" ? "Waiting for your answer above" : "Started"} · {when(t.created_at)}</div>
+                  <div className="item__sub">
+                    {t.state === "working" ? `${t.step_count ?? 0} steps so far` : t.state === "waiting" ? "Waiting for your answer above" : "Started"} · started {when(t.created_at)}
+                    {t.last_at && t.state === "working" ? ` · last ${when(t.last_at)}` : ""}
+                  </div>
+                  {t.steps?.length ? (
+                    <ul className="stages thread__live" aria-label="What Alpha did lately">
+                      {t.steps.map((s, i) => (
+                        <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : ""}>
+                          {s.kind === "failed" ? "✗" : s.kind === "saw" ? "👁" : "✓"} {s.text}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : t.state === "working" ? (
+                    <div className="item__sub">Starting…</div>
+                  ) : null}
                 </div>
+                <button type="button" className="btn btn--sm" onClick={() => onOpenThread(t.id)}>
+                  Open
+                </button>
               </div>
             ))}
           </div>

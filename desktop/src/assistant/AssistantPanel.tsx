@@ -4,8 +4,9 @@
  * view. The companion is the same stream.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import type { Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
+import type { Action, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
+import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
@@ -91,6 +92,7 @@ export function AssistantPanel({
   onChanged,
   draft,
   onDraftTaken,
+  focusThread,
 }: {
   client: Client;
   open: boolean;
@@ -101,10 +103,12 @@ export function AssistantPanel({
   onChanged: () => void;
   draft: string | null;
   onDraftTaken: () => void;
+  focusThread?: { id: string; at: number } | null;
 }) {
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [actions, setActions] = useState<Action[]>([]);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
@@ -120,10 +124,22 @@ export function AssistantPanel({
         setTurns(c.turns);
         setThreads(c.threads);
         setPlans(c.plans ?? []);
+        setActions(c.actions ?? []);
       })
       .catch(() => undefined);
   }, [client]);
   useEffect(load, [load, version]);
+  // A thread opened from elsewhere (Home's Open on a build) shows here with each step.
+  useEffect(() => {
+    if (!focusThread) return;
+    void client.thread(focusThread.id).then(setThreadView).catch(() => undefined);
+  }, [client, focusThread]);
+  // While a thread view is open and Alpha works in it, its steps keep arriving.
+  useEffect(() => {
+    if (!threadView || threadView.state !== "working") return;
+    const id = window.setInterval(() => void client.thread(threadView.id).then(setThreadView).catch(() => undefined), 4000);
+    return () => window.clearInterval(id);
+  }, [client, threadView?.id, threadView?.state]);
   // Alpha works on its own too (a deepen pass, a folder that changed): look again every 5 s
   // while a thread is working, every 15 s otherwise.
   const working = threads.some((t) => t.state === "working");
@@ -268,7 +284,8 @@ export function AssistantPanel({
                       {t.title}
                       <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
                     </h3>
-                    <span className="faint">{t.kind === "build" && t.state === "working" ? "Building in the background · open it to see each step · it reports here when done" : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                    <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                    {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
                   {build ? (
                     <button type="button" className="btn btn--sm btn--ghost creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
@@ -291,6 +308,11 @@ export function AssistantPanel({
               .filter((p) => p.state === "proposed" || p.state === "stopped")
               .map((p) => (
                 <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
+              ))}
+            {actions
+              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || (a.state === "failed" && !a.error?.includes("declined")))
+              .map((a) => (
+                <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
           </>
         )}

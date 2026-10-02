@@ -656,3 +656,20 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .creation-wrap > .creation { width: 100%; }
 .creation__stop { position: absolute; top: 8px; right: 8px; }
 .creation-wrap:has(> .creation__stop) > .creation { padding-right: 72px; }
+
+/* an outward action's card: the text as it will be typed, the dry-run screenshot, the decision */
+.action__payload { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+.action__payload dt { color: var(--text-2); text-transform: capitalize; padding-top: 2px; }
+.action__payload dd { margin: 0; min-width: 0; }
+.action__payload input, .action__payload textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--surface); font: inherit; color: var(--text); }
+.action__text { margin: 0; white-space: pre-wrap; font: inherit; line-height: 1.45; }
+.action__shot { width: 100%; max-height: 320px; object-fit: cover; object-position: top; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.action--settled { border-left-color: var(--border); }
+.badge--good { color: var(--good); background: var(--good-soft); }
+
+/* a working thread on Home: its latest steps, live */
+.item--thread { align-items: flex-start; }
+.item--thread .badge { margin-top: 2px; }
+.thread__live { margin-top: 6px; font-size: 12.5px; color: var(--text-2); }
+.thread__live li { overflow-wrap: anywhere; }
+.thread__last { display: block; margin-top: 4px; font-size: 12px; overflow-wrap: anywhere; }

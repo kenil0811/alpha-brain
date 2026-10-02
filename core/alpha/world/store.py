@@ -273,6 +273,61 @@ CREATE TABLE IF NOT EXISTS sources (
     UNIQUE (module, url)
 );
 
+-- know-how Alpha writes to act in a web app: declarative steps for one task on one site
+CREATE TABLE IF NOT EXISTS procedures (
+    name TEXT PRIMARY KEY,
+    site TEXT NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT NOT NULL,
+    effect TEXT NOT NULL,
+    steps TEXT NOT NULL,
+    verify TEXT NOT NULL DEFAULT '[]',
+    fields TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    health TEXT NOT NULL DEFAULT 'untried',
+    last_problem TEXT,
+    last_run_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- an outward effect Alpha proposed; nothing leaves Alpha's space until the person's yes
+CREATE TABLE IF NOT EXISTS actions (
+    id TEXT PRIMARY KEY,
+    procedure TEXT NOT NULL,
+    title TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    evidence TEXT,
+    undo TEXT NOT NULL,
+    effect TEXT NOT NULL,
+    site TEXT NOT NULL,
+    state TEXT NOT NULL,
+    module TEXT,
+    thread TEXT,
+    turn TEXT,
+    proposal TEXT,
+    approval TEXT,
+    preview TEXT,
+    preview_note TEXT,
+    shots TEXT NOT NULL DEFAULT '[]',
+    result TEXT,
+    error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS actions_state ON actions(state, created_at);
+
+-- standing permissions, as sentences the person granted and can revoke
+CREATE TABLE IF NOT EXISTS permissions (
+    id TEXT PRIMARY KEY,
+    sentence TEXT NOT NULL,
+    procedure TEXT NOT NULL,
+    effect TEXT NOT NULL,
+    granted_at TEXT NOT NULL,
+    revoked_at TEXT,
+    source TEXT
+);
+
 -- what the model was given for each turn, so a wrong answer can be traced to what it saw
 CREATE TABLE IF NOT EXISTS turn_contexts (
     turn TEXT PRIMARY KEY,

@@ -10,6 +10,7 @@ A journey file:
       - reader: {name: linkedin_connections, into: linkedin_connections, key: profile_url}
       - automation: "Daily deal tracker"                   # run one automation now, by title
       - build: latest                                      # approve the newest plan, build it
+      - approve_action: latest   # (in steps_after) the person's yes to the newest action
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
       - row: {collection: food_log, source_not: [estimated]}   # a row this journey added
@@ -34,6 +35,7 @@ scratch directory the report names; the person's own world is never touched.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -50,6 +52,8 @@ from alpha.runtime import automation as automation_runtime
 from alpha.runtime import build, check, claude_cli, pipeline, turn
 from alpha.world.store import Problem, now
 from alpha.world.world import World
+
+log = logging.getLogger(__name__)
 
 APP_HOME = Path.home() / "Library" / "Application Support" / "com.alpha.brain"
 
@@ -94,8 +98,13 @@ def copy_home(source_world: Path, into: Path) -> Path:
         src.close()
     profiles = source_world.parent / "browser"
     if profiles.is_dir():
-        shutil.copytree(profiles, into / "browser", dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns("Singleton*", "lockfile", "*.lock"))
+        try:
+            shutil.copytree(profiles, into / "browser", dirs_exist_ok=True,
+                            ignore_dangling_symlinks=True,
+                            ignore=shutil.ignore_patterns("Singleton*", "lockfile", "*.lock",
+                                                          "RunningChromeVersion"))
+        except shutil.Error as e:  # a file Chrome had open vanished mid-copy: not a cookie
+            log.warning("profile copy skipped %d files: %s", len(e.args[0]), e.args[0][:2])
     (into / "logs").mkdir(exist_ok=True)
     return target
 
@@ -142,6 +151,7 @@ class Run:
         self.last_turn: str | None = None
         self.last_reply: str = ""
         self.last_automation: dict[str, Any] | None = None
+        self.last_action: dict[str, Any] | None = None
         self.mark = mark(world)
 
     # steps
@@ -169,6 +179,19 @@ class Run:
             record = {"automation": auto["title"], "ok": not self.last_automation.get("last_error"),
                       "result": self.last_automation.get("last_result"),
                       "problem": self.last_automation.get("last_error")}
+        elif "approve_action" in spec:
+            from alpha.runtime import acting
+
+            pending = [a for a in self.world.actions.all(("proposed",))
+                       if a["created_at"] >= self.mark.at]
+            if not pending:
+                raise Problem("No action was proposed in this journey to approve.")
+            action = sorted(pending, key=lambda a: a["created_at"])[-1]
+            done = acting.approve(self.world, action["id"], "Approved by the journey suite",
+                                  runner=self.runner, repair=False)
+            self.last_action = self.world.actions.get(action["id"])
+            record = {"approve_action": action["title"], "ok": bool(done.get("ok")),
+                      "detail": done.get("text") or done.get("why")}
         elif "build" in spec:
             plan = self._latest_plan()
             self.world.plans.approve(plan["id"], "Approved by the journey suite")
@@ -184,7 +207,10 @@ class Run:
         """Run every approved or building plan to its end, as the scheduler would."""
         last: dict[str, Any] = {}
         for _ in range(50):
-            pending = self.world.plans.all(("approved", "building"))
+            # Only plans this journey proposed: a build copied from the live world is not ours
+            # to continue (it would spend the subscription twice).
+            pending = [p for p in self.world.plans.all(("approved", "building"))
+                       if p["id"] not in self.mark.plans]
             if not pending:
                 break
             for plan in pending:
@@ -327,6 +353,24 @@ class Run:
             return False, f"Problem: {problem}"
         return True, f"{result[:160]}" + (f" Problem allowed: {problem}" if problem else "")
 
+    def check_action(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        new = [a for a in self.world.actions.all() if a["created_at"] >= self.mark.at]
+        if not new:
+            return False, "No action was proposed."
+        action = self.last_action or sorted(new, key=lambda a: a["created_at"])[-1]
+        action = self.world.actions.get(action["id"])
+        words = (f"\"{action['title']}\" ({action['effect']} on {action['site']}):"
+                 f" {action['state']}"
+                 + (f"; {action['error']}" if action.get("error") else "")
+                 + (f"; preview {Path(action['preview']).name}" if action.get("preview") else ""))
+        if "state" in arg and action["state"] != arg["state"]:
+            return False, words
+        if "effect" in arg and action["effect"] != arg["effect"]:
+            return False, words
+        if arg.get("preview") and not (action.get("preview") and Path(action["preview"]).exists()):
+            return False, words + "; no preview screenshot"
+        return True, words
+
     def check_journal(self, arg: dict[str, Any]) -> tuple[bool, str]:
         entries = [e for e in self.world.journal.recent(200, kinds=[arg["kind"]])
                    if e["at"] >= self.mark.at
@@ -347,6 +391,10 @@ def run_journey(world: World, journey: dict[str, Any],
         for spec in journey.get("steps", []):
             out.steps.append(run.step(spec))
         for spec in journey.get("checks", []):
+            out.checks.append(run.check(spec))
+        for spec in journey.get("steps_after", []):
+            out.steps.append(run.step(spec))
+        for spec in journey.get("checks_after", []):
             out.checks.append(run.check(spec))
     except Exception as e:  # a journey that breaks is a failed journey, not a crashed suite
         out.error = f"{type(e).__name__}: {e}"
@@ -381,7 +429,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next(k for k in ("say", "reader", "automation", "build") if k in s)
+            kind = next(k for k in ("say", "reader", "automation", "build", "approve_action")
+                        if k in s)
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s[kind]!s:.80} · {s['seconds']} s · {state}"
             detail = (s.get("reply") or s.get("result") or s.get("report") or s.get("detail")

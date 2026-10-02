@@ -1,0 +1,72 @@
+[
+ {
+  "name": "gmail_draft",
+  "title": "A draft email is prepared in Gmail as a card, and made after the yes",
+  "steps": [
+   {
+    "say": "preprae a draft email to saniahussain417@gmail.com, asking her if she is ready and excited about our barcelona trip, make it as a poem",
+    "ok": true,
+    "reply": "I've set up a proper Gmail draft action (not just a note) — it filled in the To, subject, and poem body in a real compose window, and you'll see a preview card to approve before it actually saves as a draft; nothing has been written to your account yet.",
+    "steps": 11,
+    "seconds": 650.5
+   },
+   {
+    "approve_action": "Draft to Sania asking if she's ready and excited for Barcelona, as a poem",
+    "ok": false,
+    "detail": "done, but the check afterwards failed",
+    "seconds": 28.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "prepare",
+     "preview": true
+    },
+    "ok": true,
+    "why": "\"Draft to Sania asking if she's ready and excited for Barcelona, as a poem\" (prepare on google.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "draft|card|preview|approve|yes"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "action",
+    "arg": {
+     "state": "done",
+     "effect": "prepare"
+    },
+    "ok": false,
+    "why": "\"Draft to Sania asking if she's ready and excited for Barcelona, as a poem\" (prepare on google.com): failed; done, but the check afterwards failed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "did",
+     "contains": "Made: "
+    },
+    "ok": false,
+    "why": "0 did entries.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 679.1,
+  "error": null
+ }
+]

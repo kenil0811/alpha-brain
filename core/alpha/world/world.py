@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from alpha.world.actions import Actions, Permissions, Procedures
 from alpha.world.automations import Automations
 from alpha.world.collections import Collections
 from alpha.world.entities import Entities
@@ -43,6 +44,9 @@ class World:
         self.readers = Readers(self.store)
         self.sources = Sources(self.store)
         self.plans = Plans(self.store)
+        self.procedures = Procedures(self.store)
+        self.actions = Actions(self.store)
+        self.permissions = Permissions(self.store)
 
     def close(self) -> None:
         self.store.close()
