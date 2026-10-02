@@ -257,7 +257,7 @@ export interface ModelProvider {
   id: string;
   label: string;
   kind: "sign_in" | "key" | "local";
-  state: "connected" | "needs_sign_in" | "cli_missing" | "needs_key" | "not_running";
+  state: "connected" | "needs_sign_in" | "cli_missing" | "cli_too_old" | "needs_key" | "not_running";
   dot: { color: "green" | "grey" | "red"; tooltip: string };
   /** One line: why the last call or check failed. */
   error: string | null;
@@ -351,7 +351,7 @@ export interface Reader {
 
 export interface Turn {
   id: string;
-  state: "running" | "done" | "failed" | "needs_connect";
+  state: "running" | "done" | "failed" | "needs_connect" | "cancelled";
   text: string;
   /** The model it went (or would go) to. */
   provider?: string | null;
@@ -475,12 +475,12 @@ export class Client {
   search = (q: string) => this.call<SearchResult>("GET", `/api/search?q=${encodeURIComponent(q)}`);
 
   conversation = (module?: string | null) => this.call<Conversation>("GET", `/api/conversation${module ? `?module=${encodeURIComponent(module)}` : ""}`);
-  ask = (text: string, opts: { module?: string | null; thread?: string | null } = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null });
+  ask = (text: string, opts: AskOptions = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null, attachments: opts.attachments ?? [] });
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
   thread = (id: string) => this.call<Thread & { journal: JournalEntry[] }>("GET", `/api/threads/${id}`);
 
   /** Ask and wait for the answer, polling once a second. */
-  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null } = {}, onTick?: (t: Turn) => void): Promise<Turn> {
+  async askAndWait(text: string, opts: AskOptions = {}, onTick?: (t: Turn) => void): Promise<Turn> {
     let turn = await this.ask(text, opts);
     while (turn.state === "running") {
       await new Promise((r) => setTimeout(r, 1000));
@@ -500,4 +500,73 @@ export class Client {
   rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
+  // ---- P2: settings fields, access modes, stopping a turn ----
+  runtimeInfo = () => this.call<HealthInfo>("GET", "/api/health");
+  settings = () => this.call<SettingField[]>("GET", "/api/settings");
+  updateSettings = (values: Record<string, unknown>) => this.call<SettingField[]>("PATCH", "/api/settings", { values });
+  access = (thread?: string | null) => this.call<AccessInfo>("GET", `/api/access${thread ? `?thread=${encodeURIComponent(thread)}` : ""}`);
+  setAccess = (thread: string | null, mode: AccessMode | null) => this.call<AccessInfo>("PUT", "/api/access", { thread, mode });
+  cancelTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${encodeURIComponent(key)}/cancel`);
+}
+
+// ---- P2: attachments, settings fields, access modes ----
+
+export interface ModelProvider {
+  /** Codex's install ended without Codex: "Retry install". */
+  install_failed?: boolean;
+  /** Groq: a key used only to turn speech into text; never starred. */
+  transcribe_only?: boolean;
+  /** When the last call (or Check again) worked, and how long it took. */
+  last_ok?: { at: string; latency_ms: number | null } | null;
+  why?: string | null;
+}
+
+export interface Turn {
+  /** On needs_connect after a failed call: how the row connects. */
+  connect_kind?: "sign_in" | "key" | null;
+}
+
+/** One thing attached to a message, as the core reads it (runtime/attachments.py). */
+export interface AttachmentWire {
+  kind: "file" | "image" | "folder" | "audio";
+  name: string;
+  size: number | null;
+  mime: string | null;
+  path: string | null;
+  content_b64: string | null;
+}
+
+export interface AskOptions {
+  module?: string | null;
+  thread?: string | null;
+  attachments?: AttachmentWire[];
+}
+
+export interface HealthInfo {
+  ok: boolean;
+  world: string;
+  core_version: string;
+  python_version: string;
+}
+
+export interface SettingField {
+  id: string;
+  group: string;
+  title: string;
+  description: string;
+  kind: "choice" | "integer" | "text";
+  default: string | number;
+  value: string | number;
+  options: { value: string; label: string }[];
+  minimum: number | null;
+  maximum: number | null;
+  unit: string | null;
+}
+
+export type AccessMode = "ask" | "approve_for_me" | "full";
+
+export interface AccessInfo {
+  thread: string | null;
+  mode: AccessMode;
+  default: AccessMode;
 }
