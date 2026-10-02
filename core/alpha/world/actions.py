@@ -9,9 +9,10 @@ runs, so a crash or a second click never runs it again. The decision is journale
 allowed once, rejected, or unavailable (nothing in Alpha can do that kind yet, or it is never
 allowed); a proposal not decided within a week expires.
 
-Executors are registered per kind (`register`). AB has no outward-write connector yet, so the
-registry ships empty and every approval comes back unavailable; a connector that gains a write
-registers its executor here, and that is the only place it may run from.
+Executors are registered per kind (`register`), and that is the only place an outward write may
+run from. The core registers two: an access-mode call that waited for approval (`access`) and
+saving a new document into a shared folder (`files.save_document`). Any other kind comes back
+unavailable.
 
 The never list (`never`) is checked before anything else, on proposing and again on approving:
 moving money, permanent deletion outside Alpha's space, and passwords, card numbers or similar

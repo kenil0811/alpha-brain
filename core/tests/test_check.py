@@ -221,7 +221,7 @@ def test_a_finished_build_tries_the_first_thing_and_is_sent_back_when_wrong(worl
     assert world.collections.describe("food_log")["records"] == 0  # the trial's row is gone
     thread = world.journal.recent(50, thread=first["thread"])
     assert any(e["kind"] == "checked" for e in thread)
-    assert any("Fix how this module obtains such values" in e["text"] for e in thread)
+    assert any("Fix how this project obtains such values" in e["text"] for e in thread)
     assert world.journal.recent(5, stream=True, kinds=["replied"]) == []  # nothing told yet
     done = build.run_build(world, plan["id"], runner=runner)
     assert done["state"] == "done"

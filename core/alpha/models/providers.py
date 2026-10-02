@@ -19,9 +19,12 @@ ANTHROPIC_VERSION = "2023-06-01"
 class ProviderHTTPError(Exception):
     """A provider call failed: bad key, network, or an answer of the wrong shape."""
 
-    def __init__(self, message: str, status: int | None = None) -> None:
+    def __init__(self, message: str, status: int | None = None, *,
+                 transient: bool = False) -> None:
         super().__init__(message)
         self.status = status
+        # Worth one more try: the provider was busy or the connection never got there.
+        self.transient = transient or status in {429, 500, 502, 503, 504, 529}
 
 
 def auth_headers(kind: str, key: str | None) -> dict[str, str]:
@@ -56,7 +59,7 @@ def request(url: str, headers: dict[str, str], body: dict[str, Any] | None = Non
             raise ProviderHTTPError("The key was refused.", exc.code) from exc
         raise ProviderHTTPError(f"The provider said {exc.code}: {detail}", exc.code) from exc
     except urllib.error.URLError as exc:
-        raise ProviderHTTPError(f"Couldn't reach it ({exc.reason}).") from exc
+        raise ProviderHTTPError(f"Couldn't reach it ({exc.reason}).", transient=True) from exc
     except TimeoutError as exc:
         raise ProviderHTTPError("It took too long to answer.") from exc
     except ValueError as exc:

@@ -12,3 +12,7 @@ description: Read and search documents in folders the person shared (resumes, no
 - Readable kinds: Markdown, text, CSV/TSV, JSON, YAML, HTML, PDF, Word (.docx), Excel (.xlsx),
   PowerPoint (.pptx). A scanned PDF with no text layer reads as empty; say so.
 - Alpha never changes, moves or deletes the person's files.
+- To save something new for them (notes, a draft, a CSV), propose it: `propose_action` with
+  kind `save_document`, connector `files`, payload `{folder, name, text}`. The folder must be
+  one they shared (or inside one), the name a plain `.md`, `.txt` or `.csv` file name. It is
+  written once they approve, and never over an existing file.

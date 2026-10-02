@@ -192,7 +192,7 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.ru
             world.plans.checked(plan_id)
             world.journal.append(
                 "did", f"The trial \"{plan['trial']}\" gave: {tried['reply']} {tried['words']}"
-                " Fix how this module obtains such values (look them up from their source and"
+                " Fix how this project obtains such values (look them up from their source and"
                 " keep the way of doing it), then the trial runs again.",
                 actor="alpha", thread=thread, module=plan["module"],
                 data={"plan": plan_id, "trial": tried["said"]})

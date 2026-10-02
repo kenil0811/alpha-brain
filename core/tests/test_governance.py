@@ -91,7 +91,7 @@ def old_store(path: Path) -> None:
     world.close()
     db = sqlite3.connect(path)
     db.executescript("DROP TRIGGER journal_no_delete; DROP TRIGGER journal_only_forget;"
-                     " ALTER TABLE readers DROP COLUMN allow_posts;")
+                     " ALTER TABLE readers DROP COLUMN allow_posts; PRAGMA user_version = 0;")
     db.close()
 
 

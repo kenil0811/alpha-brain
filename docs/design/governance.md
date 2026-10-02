@@ -81,8 +81,12 @@ Each decision is journaled as `answered`, and the result as `did` or `failed`.
 Only the person decides. `approve` and `reject` refuse inside a model run (`ALPHA_TURN` is set in
 the tools' process), and no tool can decide. An automation can therefore only propose.
 
-Executors live in `actions.EXECUTORS`. AB ships none yet. A connector that gains a write
-registers one there, and that is the only place an outward write can run from.
+Executors live in `actions.EXECUTORS`, and that is the only place an outward write can run
+from. The core registers two: a call held by the conversation's access mode (`access.enable`),
+and `save_document`, a new `.md`, `.txt` or `.csv` file in a folder the person shared, never
+over an existing one (`files.enable`; `test_saving_a_document_waits_for_approval_and_never_
+overwrites` walks propose, approve, run once and the refusals). Any other kind is
+`unavailable`.
 
 ## Access modes
 

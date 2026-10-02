@@ -7,12 +7,14 @@ from typing import Any
 
 import pytest
 
+from alpha.connectors import files
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser, site_of
 from alpha.connectors.calendar import Attendee, Calendar, CalendarEvent
 from alpha.connectors.files import Files
 from alpha.context import prepack
 from alpha.mcp.tools import Tools
+from alpha.world.actions import Actions
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -186,6 +188,36 @@ def test_a_page_asking_for_a_signin_tries_the_signins_alpha_holds_first(
 def test_read_refuses_local_addresses(world: World) -> None:
     with pytest.raises(Problem, match="local network"):
         Browser(world, lambda j, t: {}).read("http://192.168.1.1/admin")
+
+
+def test_saving_a_document_waits_for_approval_and_never_overwrites(
+        world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ALPHA_TURN", raising=False)
+    shared = tmp_path / "Notes"
+    shared.mkdir()
+    Files(world).watch(str(shared))
+    files.enable(world)
+    actions = Actions(world)
+
+    def save(name: str, folder: Path = shared) -> dict[str, Any]:
+        aid = actions.propose("save_document", f"Save {name}", {
+            "folder": str(folder), "name": name, "text": "Thank Priya."}, connector="files")["id"]
+        return actions.approve(aid, by="person")
+
+    assert not (shared / "thanks.md").exists()
+    done = save("thanks.md")
+    assert done["state"] == "approved" and done["result"]["path"] == str(shared / "thanks.md")
+    assert (shared / "thanks.md").read_text() == "Thank Priya."
+    with pytest.raises(Problem, match="already approved"):
+        actions.approve(done["id"], by="person")  # once, whatever the clicks
+
+    (shared / "thanks.md").write_text("Theirs now.")
+    again = save("thanks.md")
+    assert "nothing was overwritten" in again["result"]["error"]
+    assert (shared / "thanks.md").read_text() == "Theirs now."
+    assert "isn't a plain file name" in save("../escape.md")["result"]["error"]
+    assert "isn't a folder you shared" in save("x.md", tmp_path)["result"]["error"]
+    assert not (tmp_path / "x.md").exists() and not (tmp_path / "escape.md").exists()
 
 
 # ---- calendar ----

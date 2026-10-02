@@ -3,8 +3,27 @@ use std::process::Command;
 
 fn main() {
     tauri_build::build();
+    bake_commit();
     #[cfg(target_os = "macos")]
     build_stt_helper();
+}
+
+/// The commit this app is built from (`ALPHA_APP_COMMIT`), compared at launch with the one the
+/// core reports: the app runs the core from the checkout, which can move on without a rebuild.
+fn bake_commit() {
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    };
+    // logs/HEAD changes on every commit and checkout, so a new commit rebuilds this value.
+    if let Some(log) = git(&["rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD"]) {
+        println!("cargo:rerun-if-changed={log}");
+    }
+    println!("cargo:rustc-env=ALPHA_APP_COMMIT={}", git(&["rev-parse", "HEAD"]).unwrap_or_default());
 }
 
 /// Compiles `native/stt_helper.swift` (native macOS speech-to-text; see that file for why it's

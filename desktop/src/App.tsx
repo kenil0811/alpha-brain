@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { Bell, Boxes, Home as HomeIcon, Settings as SettingsIcon } from "lucide-react";
 import { Client } from "./core/client";
-import { resolveSession } from "./core/session";
+import { driftNotice, resolveSession } from "./core/session";
 import { AssistantPanel, type ChatChoice } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { CommandMenu } from "./shell/CommandMenu";
@@ -52,7 +52,7 @@ function remember(key: string, value: unknown) {
   }
 }
 
-type Runtime = { kind: "connecting" } | { kind: "connected"; client: Client } | { kind: "unavailable"; reason: string };
+type Runtime = { kind: "connecting" } | { kind: "connected"; client: Client; drift?: string | null } | { kind: "unavailable"; reason: string };
 
 export function App({ client: injected }: { client?: Client } = {}) {
   return (
@@ -170,7 +170,7 @@ function Workspace({ injected }: { injected?: Client }) {
       const client = new Client(resolution.session);
       try {
         await client.health();
-        if (!cancelled) setRuntime({ kind: "connected", client });
+        if (!cancelled) setRuntime({ kind: "connected", client, drift: driftNotice(resolution.session) });
       } catch (e) {
         if (!cancelled) setRuntime({ kind: "unavailable", reason: e instanceof Error ? e.message : String(e) });
       }
@@ -346,6 +346,11 @@ function Workspace({ injected }: { injected?: Client }) {
           </div>
         ) : (
           <>
+            {runtime.drift ? (
+              <p className="notice page__line" role="status">
+                {runtime.drift}
+              </p>
+            ) : null}
             {canThink === false && surface.kind !== "settings" ? (
               <div className="page firstrun">
                 <div className="card firstrun__card">

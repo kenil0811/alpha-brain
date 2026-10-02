@@ -13,6 +13,7 @@ automations, connections, knowledge), Activity, the conversation, and turns.
 from __future__ import annotations
 
 import base64
+import functools
 import json
 import logging
 import os
@@ -34,6 +35,7 @@ from pydantic import BaseModel, Field
 import alpha
 from alpha.api import brain
 from alpha.bugs import bug_log
+from alpha.connectors import files
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
@@ -472,6 +474,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def health() -> dict[str, Any]:
         return {"ok": True, "world": str(world.path), "running_turns": len(running.running()),
                 "core_version": alpha.__version__,
+                "core_commit": source_commit(),
                 "python_version": platform.python_version()}
 
     # ---- Home ----
@@ -909,6 +912,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     # ---- P2: settings fields, access modes, stopping a turn ----
 
     access.enable(world)
+    files.enable(world)
 
     @app.get("/api/settings", dependencies=[api])
     def get_settings() -> list[dict[str, Any]]:
@@ -955,6 +959,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/data/backup", dependencies=[api])
     def data_backup() -> dict[str, Any]:
         return backup.back_up(world)
+
+    @app.post("/api/data/backups/{name}/restore", dependencies=[api])
+    def data_restore(name: str) -> dict[str, Any]:
+        return backup.restore(world, name)
 
     @app.get("/api/connections/{cid}/removal", dependencies=[api])
     def connection_removal(cid: str) -> dict[str, Any]:
@@ -1151,6 +1159,22 @@ def read_project_file(path: str) -> dict[str, Any]:
 READY_PREFIX = "ALPHA_CORE_READY "
 
 
+@functools.cache
+def source_commit() -> str | None:
+    """The commit the core's code was loaded from (once: later commits don't change running
+    code), so the app can tell when its own build is older or newer (the app runs the core from
+    the checkout, which moves on without it)."""
+    import subprocess
+
+    repo = Path(__file__).resolve().parents[3]
+    try:
+        done = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True,
+                              text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return (done.stdout.strip() or None) if done.returncode == 0 else None
+
+
 def serve(port: int = 53900) -> None:
     """Listen on 127.0.0.1 (port 0 picks a free one) and say so on one stdout line,
     `ALPHA_CORE_READY {"port": …}`, which the app's host waits for."""
@@ -1166,7 +1190,8 @@ def serve(port: int = 53900) -> None:
     sock.bind(("127.0.0.1", port))
     sock.listen(128)
     world = World()
-    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid()}
+    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid(),
+             "commit": source_commit()}
     print(READY_PREFIX + json.dumps(ready), flush=True)
     config = uvicorn.Config(create_app(world), log_level="warning")
     uvicorn.Server(config).run(sockets=[sock])

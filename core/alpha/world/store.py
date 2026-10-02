@@ -14,7 +14,7 @@ import json
 import sqlite3
 import threading
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -380,6 +380,31 @@ ADDED_COLUMNS = [
 ]
 
 
+def _add_columns(db: sqlite3.Connection) -> None:
+    for table, column, declaration in ADDED_COLUMNS:
+        have = {r[1] for r in db.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+
+
+# Upgrades in order; a store at version n has had the first n. New tables and triggers come from
+# SCHEMA's IF NOT EXISTS; anything else (a column, a rename, a backfill) is a new step at the
+# end, never an edit to an old one. Version 1 is every store made before versions were kept.
+STEPS: list[Callable[[sqlite3.Connection], None]] = [_add_columns]
+VERSION = len(STEPS)
+
+
+def version_of(db: sqlite3.Connection) -> int:
+    return int(db.execute("PRAGMA user_version").fetchone()[0])
+
+
+def migrate(db: sqlite3.Connection) -> None:
+    """Bring a store made by an earlier version up to this one, one step at a time."""
+    for n in range(version_of(db), VERSION):
+        STEPS[n](db)
+        db.execute(f"PRAGMA user_version = {n + 1}")
+
+
 class Problem(Exception):
     """Something the caller asked for cannot be done; the message is plain words for the model
     and the person, never a stack trace."""
@@ -415,9 +440,16 @@ class Store:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA busy_timeout=10000")
         self.db.execute("PRAGMA foreign_keys=ON")
+        found = version_of(self.db)
+        if found > VERSION:
+            self.db.close()
+            raise Problem(f"This world was made by a newer Alpha (version {found}; this one knows "
+                          f"{VERSION}). Update Alpha before opening it.")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
+        # Upkeep every open (columns, indexes, backfills), then the numbered steps and version.
         self._migrate()
+        migrate(self.db)
 
     def _migrate(self) -> None:
         with self.tx() as db:
@@ -478,6 +510,25 @@ class Store:
         try:
             with self._lock:
                 self.db.backup(copy)
+        finally:
+            copy.close()
+
+    def replace_with(self, path: Path) -> None:
+        """Make this world the copy at `path` (a backup), in place and while Alpha runs, then bring
+        it up to this version. The caller keeps a copy of what it replaces."""
+        copy = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            if copy.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise Problem(f"The backup {path.name} is damaged; it was left alone.")
+            found = version_of(copy)
+            if found > VERSION:
+                raise Problem(f"The backup {path.name} was made by a newer Alpha (version "
+                              f"{found}); update Alpha before going back to it.")
+            with self._lock:
+                copy.backup(self.db)
+                self.db.executescript(SCHEMA)
+                self._migrate()
+                migrate(self.db)
         finally:
             copy.close()
 

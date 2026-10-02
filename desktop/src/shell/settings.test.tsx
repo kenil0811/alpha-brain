@@ -41,6 +41,21 @@ describe("Settings", () => {
     await waitFor(() => expect(client.updateSettings).toHaveBeenCalledWith({ "access.mode": "full" }));
   });
 
+  it("goes back to a backup only after the person confirms", async () => {
+    const client = fake();
+    const backups = [{ name: "world-20261002-090000.sqlite", size: 4096, at: new Date().toISOString() }];
+    (client.dataInfo as ReturnType<typeof vi.fn>).mockResolvedValue({ folder: "/tmp/alpha", size: 2048, backups });
+    (client as unknown as { restoreBackup: unknown }).restoreBackup = vi.fn().mockResolvedValue({ folder: "/tmp/alpha", size: 2048, backups });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<Settings client={client} theme="light" onTheme={() => undefined} section="data" onSection={() => undefined} />);
+    const goBack = await screen.findByRole("button", { name: "Go back" });
+    fireEvent.click(goBack);
+    expect(client.restoreBackup).not.toHaveBeenCalled();
+    fireEvent.click(goBack);
+    await waitFor(() => expect(client.restoreBackup).toHaveBeenCalledWith("world-20261002-090000.sqlite"));
+    confirm.mockRestore();
+  });
+
   it("badges the default, says who is signed in, and gives Groq no star", async () => {
     render(<ProviderAccounts client={fake()} />);
     expect(await screen.findByText("Default")).toBeInTheDocument();

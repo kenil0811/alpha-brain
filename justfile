@@ -43,3 +43,8 @@ test-desktop:
 verify: lint test test-desktop
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd connectors/browser && npm test
     export PATH=$HOME/.cargo/bin:/usr/bin:/bin:$PATH && cd desktop/src-tauri && cargo check
+    just layout
+
+# Every page, seeded, at 1100x760 and 1440x900 through tools/layout-check.js (needs Chrome or Edge).
+layout:
+    export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && node tools/layout-run.mjs
