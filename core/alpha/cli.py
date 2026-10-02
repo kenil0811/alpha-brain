@@ -9,7 +9,7 @@
     alpha prepack "how much protein today"
     alpha mcp                      (the MCP server the model talks to)
 
-ALPHA_HOME picks the data directory; ALPHA_MODEL the model alias (default sonnet).
+ALPHA_HOME picks the data directory. `ask` runs on the model chosen in Settings -> Models.
 """
 
 from __future__ import annotations
@@ -83,7 +83,13 @@ def main(argv: list[str] | None = None) -> int:
     world = World()
     try:
         if args.command == "ask":
-            outcome = turn.ask(world, " ".join(args.text), module=args.module, thread=args.thread)
+            # The same route the app uses: the chosen model and Alpha's own sign-in, never the
+            # `claude` CLI's login (Alpha bugs #45).
+            from alpha.models.accounts import Accounts
+            from alpha.runtime.route import Router
+
+            outcome = turn.ask(world, " ".join(args.text), module=args.module, thread=args.thread,
+                               runner=Router(Accounts(world.store)))
             print(outcome.reply)
             r = outcome.result
             if r.duration_ms is not None:

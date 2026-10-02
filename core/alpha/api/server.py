@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import re
 import secrets
 import threading
 from collections.abc import AsyncIterator, Callable
@@ -270,10 +271,28 @@ def timeline(world: World, entity_id: str, limit: int = 100) -> list[dict[str, A
     return [entry(r) for r in rows]
 
 
+# The app's own pages, and Vite on any local port in development.
+ORIGINS = ["tauri://localhost", "http://tauri.localhost"]
+DEV_ORIGIN = r"^http://(localhost|127\.0\.0\.1):\d+$"
+
+# What the companion window may do with its token: talk and listen. Approving, settings, keys
+# and edits need the main window's token, so a script planted in the companion reaches none.
+COMPANION = [("GET", r"/api/home"), ("GET", r"/api/conversation"), ("POST", r"/api/ask"),
+             ("GET", r"/api/turns/[^/]+"), ("GET", r"/api/transcribe"),
+             ("POST", r"/api/transcribe")]
+
+
+def companion_may(method: str, path: str) -> bool:
+    return any(method == m and re.fullmatch(p, path) for m, p in COMPANION)
+
+
 def create_app(world: World | None = None, *, runner: turns.Runner | None = None,
-               token: str | None = None, live: bool = True) -> FastAPI:
+               token: str | None = None, companion_token: str | None = None,
+               live: bool = True) -> FastAPI:
     world = world or World()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
+    if companion_token is None:
+        companion_token = os.environ.get("ALPHA_COMPANION_TOKEN")
     accounts = Accounts(world.store)
     # An injected runner (tests) bypasses the model routes and their connection check.
     running = Turns(world, runner or Router(accounts), None if runner else accounts)
@@ -306,10 +325,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     app = FastAPI(title="Alpha", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["tauri://localhost", "http://tauri.localhost"],
+        allow_origins=ORIGINS,
         # The window in development: Vite on any local port (each worktree runs its own); the
         # token still guards when the app hosts the core.
-        allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
+        allow_origin_regex=DEV_ORIGIN,
         allow_methods=["*"], allow_headers=["*"],
     )
 
@@ -317,8 +336,21 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         host = request.client.host if request.client else ""
         if host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
             raise HTTPException(403, "Alpha only answers this Mac.")
-        if token and request.headers.get("authorization") != f"Bearer {token}":
-            raise HTTPException(401, "This window isn't signed in to Alpha's core.")
+        # CORS only hides the answer; a web page's simple POST still runs. Refuse any page
+        # that isn't Alpha's own, which matters most for `alpha serve` without a token.
+        origin = request.headers.get("origin")
+        if origin and origin not in ORIGINS and not re.fullmatch(DEV_ORIGIN, origin):
+            raise HTTPException(403, "Alpha only answers its own windows.")
+        if not token:
+            return
+        sent = request.headers.get("authorization")
+        if sent == f"Bearer {token}":
+            return
+        if companion_token and sent == f"Bearer {companion_token}":
+            if companion_may(request.method, request.url.path):
+                return
+            raise HTTPException(403, "The companion can't do that; open the main window.")
+        raise HTTPException(401, "This window isn't signed in to Alpha's core.")
 
     @app.exception_handler(Problem)
     async def problem(_: Request, exc: Problem) -> JSONResponse:

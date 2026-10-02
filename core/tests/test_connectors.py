@@ -242,6 +242,29 @@ def test_calendar_without_access_needs_ok(world: World) -> None:
         cal.sync()
 
 
+def test_calendar_failure_reaches_the_journal_once_and_recovery_too(world: World) -> None:
+    source = FakeCalendar()
+    cal = Calendar(world, source)
+    cal.connect()
+
+    def broken(start: datetime, end: datetime) -> list[CalendarEvent]:
+        raise RuntimeError("EventKit stopped answering")
+
+    source.events = broken  # type: ignore[method-assign]
+    for _ in range(3):  # the poll keeps failing: one entry, not three
+        with pytest.raises(RuntimeError):
+            cal.sync()
+    conn = Connections(world.store).find("calendar", "macos")
+    assert conn and conn["status"] == "broken"
+    assert conn["last_error"] == "EventKit stopped answering"
+    failed = world.journal.recent(20, kinds=["failed"])
+    assert [e["text"] for e in failed] == [
+        "Couldn't read calendar (macos): EventKit stopped answering"]
+    del source.events
+    cal.sync()
+    assert world.journal.recent(1)[0]["text"] == "Reading calendar (macos) works again."
+
+
 # ---- the pre-pack and tools see it ----
 
 
