@@ -40,8 +40,8 @@ what the first slice is exactly, and what follows.
   connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
   that are people, threads as records, what the model saw); plan first, sources, pipelines and
   background builds with no limits; known, assumed or asked (provenance on every value, a second
-  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 128
-  core + 3 desktop tests; 69 tools; ruff and mypy strict clean (2 Oct evening). **Later the
+  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 136
+  core + 3 desktop tests; 70 tools; ruff and mypy strict clean (2 Oct late evening). **Later the
   same evening:** the journey suite (§4.11), the trust holes closed (§4.12), the write route
   (§4.13, Q24), builds watched live on Home (§4.14).
   **Where we stand and what is open: §4.3, §4.5 and §4.9; what the code read of 2 Oct evening
@@ -1025,6 +1025,127 @@ relevant attachments from Vikas Badami". The core log and the journal gave two f
 The world after: the plan is `stopped` and can be resumed (the Advisory module, its
 attachments table and reader exist; the trial never ran); the nineteen stop reports stay in
 the journal, as history does. 128 core tests; lint and types clean; the app rebuilt.
+
+### 4.17 Files in and out (built 2 Oct 2026, late evening; Q25)
+
+Kenil: downloads from connections (attachments) and uploads (a module that takes files), "lets
+discuss"; the five decisions are Q25. Built:
+
+- **Store and world**: `documents.module`, `documents.origin`; `Files.take(path, module,
+  origin, move, by)` keeps a file in `files/<module>` under the data directory, extracts text
+  where it can, makes the document and its entity, journals (`did` for Alpha, `changed` for the
+  person); `Files.document`, `Files.of_module`; field kind `file` (a document id); a module's
+  removal deletes its documents and files (inside Alpha's folder only).
+- **The hand**: driver `download` (direct address through `context.request` with the
+  session's cookies, or the file a control hands back via Playwright's download event; an HTML
+  answer is a wall, not a file) and an `upload` step (`setInputFiles`, only under
+  `files_root`); `Browser.download` with the journal line; `Browser.act` passes the resolved
+  file paths; `acting._files` resolves payload fields of upload steps to documents Alpha keeps
+  and refuses others.
+- **Tools and rules**: `page_download(url, module, click, click_text, name)`; rule 8 (fetch
+  only when the plan said so or on an ask; a dropped file arrives as a turn), rule 9 (an
+  upload is a send); the browser and files skills.
+- **API and app**: `GET /api/tables/{name}` carries a `files` map for file fields;
+  `POST /api/tables/{name}/export {csv|xlsx}` writes to `exports/` and journals;
+  `GET /api/documents/{id}`; `POST /api/files` (multipart: module, or table/record/field)
+  keeps the files and starts Alpha's reading turn (actor alpha, journaled as "Read X the person
+  added"); `Turns.start` takes an actor. The app: a file cell (name, size, Open, Show in
+  Finder, Add file), a drop zone on the module page, Download as CSV / Excel in the table
+  menu, file names on action cards; host commands `open_path` and `reveal_path` (inside the
+  data folder only); `dragDropEnabled: false` so the webview gets HTML5 drops.
+- **Tests**: `core/tests/test_files_in_out.py` (a fetched file lands as a document and on a
+  row; a page instead of a file is not a download; dropped files are kept and the row path;
+  removal takes the files; an upload step sends only a file Alpha keeps; CSV and Excel export).
+  134 core tests; lint and types clean.
+- **Journey** `attachment_in` ("fetch the ETA Tracker CSV that Vikas Badami emailed me into
+  the Advisory module and tell me how many rows it has"), 2 Oct 21:59, a copy of Kenil's world,
+  his Gmail profile: Alpha opened the "Data" email, fetched "ETA Tracker Accounting Vikas
+  (email attachment).csv" through the session (2,068 bytes, 50 words), kept it in
+  `files/advisory` as a document, and answered "20 data rows … plus a header row" (right),
+  39 s in all; it also noticed an older copy of the same file in the watched "alpha docs"
+  folder. The suite's first run failed on the journey file (an unquoted colon; bad YAML is now a
+  plain error) and the second on the reply check's regex (bold marks between "20" and "rows";
+  widened). The mechanism itself passed first time.
+
+### 4.18 The conversation, Claude-like (2 Oct 2026, late evening)
+
+Kenil: "very similar to claude, thinking, getting the thinking messages, the motion when it's
+thinking, it should give me options for questions and not just have me type in".
+
+- **The run is streamed.** `claude -p` now runs with `--output-format stream-json --verbose`;
+  `claude_cli.run` reads events as they arrive and keeps, per turn and thread, what the model
+  is doing in plain words (`LIVE.progress`: the latest interim text as `thought`, the current
+  tool as `doing` through `plain_tool`, a tool count); the `result` event ends the run as
+  before (`parse_result`; `parse` still reads a whole output for tests). `/api/turns/{id}`
+  and every thread view carry `live`.
+- **The panel** shows a Claude-like working state: a pulsing dot, a shimmering headline (the
+  current step in words, else "Thinking"), animated dots, the elapsed clock (keyed on the
+  turn's id, so it no longer restarted on every poll), the model's interim thought in italics,
+  and the steps collapsed behind "N steps ▸" with the latest shown. Home's working-thread card
+  shows the same live line.
+- **Questions are choices.** The conversation returns open asks; the panel renders each as a
+  card with its options as pills, "Or say it your way", Answer and Skip; tapping an option
+  posts the answer, which starts the next turn, and the panel follows it. Rule 10 tells Alpha
+  to ask with 2–4 options when the answers are a few natural choices, and not to repeat the
+  question in prose. Checked in the browser pane on a copy of the world: a planted "Which size
+  was the shake?" with three options; "330 ml" posted the answer, "Thinking · 7 s · Stop"
+  showed, the shake was logged with that size.
+- **A step removed from every turn.** The stream showed the model's first step on each turn
+  was Claude Code's own ToolSearch: with 70 MCP tools, Claude Code deferred their schemas
+  behind a search. Runs now set `ENABLE_TOOL_SEARCH=false`, so every schema is in context up
+  front. The cost is context per turn; the gain is one fewer round trip on every turn (a
+  real question answered in 34 s on the copy before the change; to be measured after).
+- 135 core tests (a streamed run is watched and read); lint and types clean; the app rebuilt.
+
+### 4.19 Three more journeys, and a hole in the hand (2 Oct 2026, 22:02–22:30)
+
+`docs/journeys/2026-10-02-2202.md`, a copy of Kenil's world, his profiles:
+
+- **gmail_send** (a send with a fresh yes): Alpha wrote a compose-and-send procedure against
+  Gmail (196 s, the earlier `gmail_send_draft` sends an existing draft, so a new one was
+  needed), the dry run filled the compose window, the suite's yes sent it in 11 s and the
+  verify passed ("Sent … Checked afterwards"). The email went to Kenil's own address.
+  **Passed.**
+- **plan_declined** (a no builds nothing): "keep track of every book i read this year with my
+  rating" → a Books plan with three numbered questions in 29 s; the decline through the app's
+  route closed it in 2 s; no table, no module. **Passed.** (The questions were prose, not
+  `ask_person` options: the run started before rule 10 changed.)
+- **linkedin_message** (the second site, no new platform code): Alpha found Mitansh's profile,
+  wrote `linkedin_message` four times over 381 s, and every dry run timed out waiting for the
+  message box; it concluded LinkedIn blocks automated messaging. The error screenshot said
+  otherwise: "This page doesn't exist". Alpha had written the procedure's address as
+  `https://www.linkedin.com/in/{profile_slug}/` and a selector with `{profile_urn}`, expecting
+  the hand to fill them from the payload as it fills typed text, and the hand opened the
+  literal address. **Failed, platform's fault.** Fixed: a `{field}` placeholder anywhere in the
+  address, a selector, a click text or a goto is filled from the approved payload (the payload
+  is on the card, so nothing hidden reaches the site); every placeholder must be a declared
+  field; proven on example.com (address and selector filled, step done).
+- **linkedin_message, rerun** (22:16, `docs/journeys/2026-10-02-2216.md`): **passed** in 550 s.
+  Alpha wrote `linkedin_message` seven times and landed on four steps: `goto` LinkedIn's
+  compose overlay with `{recipient_urn}` in the address, wait for the message box, type
+  `{message}`, click Send; the dry run composed the message and the card waits with its
+  preview; nothing was sent. The second site cost no platform code beyond the placeholder fix;
+  nine minutes is the price of learning a site once.
+- **Kenil's own run (22:28):** "Send LinkedIn message to Sania Hussain: hello from alpha",
+  70 s to the card in the real app. "worked pretty well! but the card didnt look good": the
+  LinkedIn urn showed as a field, the "because" line was record ids and addresses, the
+  screenshot filled the width. The card now hides identifier-like fields (names ending in
+  urn, id, slug, key, token; `urn:` values; opaque tokens), shows the first 150 characters of
+  the evidence with "more", lays the text beside a thumbnail that opens full size, and the
+  panel drops a failed attempt once the same thing was proposed again; `action_propose` asks
+  for evidence in one plain sentence, never ids.
+- **Kenil's run, the dangerous part (21:29):** his yes sent the message to Sania; Alpha's
+  verify step then failed (text LinkedIn never shows), the platform called the action failed,
+  and the repair loop had Alpha fix the check and **propose the same message again**: a card
+  that, pressed, would have messaged her twice. Withdrawn by hand at 22:35 (journaled). Fixed:
+  when every step ran, the commit included, and only the check afterwards failed, the action
+  is `done` as "Sent, not confirmed … look in linkedin.com to be sure", the procedure is marked
+  broken for its check, and the repair turn is told to fix only the verify steps and never
+  propose again (test added). The same shape had hit the first Gmail draft (§4.13); it is now
+  "Made, not confirmed" rather than a second draft.
+- A lesson for the repair loop: Alpha's diagnosis ("anti-automation") was wrong because it
+  never saw the error screenshot. `action_propose`'s failure answer now carries the step log;
+  giving Alpha the screenshot itself (a `page_read` of the final page, or the image) is open.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

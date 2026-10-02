@@ -9,18 +9,19 @@
  *
  * Every edit goes through the core, which journals it with who made it.
  */
-import { IconButton } from "../ui/IconButton";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Filter, MoreVertical, Search } from "lucide-react";
 import type { Client, RecordRow, TableData, TableDesc } from "../core/client";
+import { host } from "../core/host";
 import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../ui/DropdownMenu";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/Popover";
 import { StandardDropdown } from "../ui/StandardDropdown";
 import { titleFieldOf, type FieldInfo } from "../modules/fields";
 import { applyFilters, applySorts, filterRowsByQuery, isActiveFilter, VIEW_KINDS, type DataRow, type ViewConfig, type ViewKind } from "./engine";
 import { computeEligibleKinds, ineligibleReason, migrateViewConfig, viewConfigForKind } from "./eligibility";
-import { useRelations, fieldLabel, type Link } from "./cells";
+import { FilesContext, useRelations, fieldLabel, type Link } from "./cells";
 import { FilterBuilder, FilterChips, NameDialog, PaginationBar, SelectionBar, SortEditor, PAGE_SIZES, type PageSize } from "./controls";
 import { PAGED, VIEW_COMPONENTS, VIEW_METADATA } from "./registry";
 import { EntityPage, NewRecordFrame, RecordPage, type Opened } from "./RecordPage";
@@ -357,7 +358,32 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const filterFields = [...fields, { name: "created_at", kind: "datetime", label: "Added" }, { name: "updated_at", kind: "datetime", label: "Last changed" }] as FieldInfo[];
   const page = top && mode === "page";
 
+  const filesCtx = useMemo(
+    () => ({
+      files: data?.files ?? {},
+      add: (row: RecordRow, field: FieldInfo, file: File) =>
+        void client
+          .addFiles([file], { table: name, record: row.id, field: field.name })
+          .then(() => {
+            load();
+            onChanged();
+          })
+          .catch((e: unknown) => setStatus({ text: `Couldn't add ${file.name}: ${e instanceof Error ? e.message : String(e)}`, error: true })),
+    }),
+    [client, name, data, load, onChanged],
+  );
+  async function exportAs(format: "csv" | "xlsx") {
+    try {
+      const out = await client.exportTable(name, format);
+      if (host.available()) await host.revealPath(out.path);
+      setStatus({ text: `Exported ${out.rows} rows to ${out.name}${host.available() ? "" : ` (${out.path})`}.` });
+    } catch (e) {
+      setStatus({ text: `Couldn't export: ${e instanceof Error ? e.message : String(e)}`, error: true });
+    }
+  }
+
   return (
+    <FilesContext.Provider value={filesCtx}>
     <div
       className="dv"
       aria-label={table.title}
@@ -458,6 +484,13 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={load}>Reload</DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>Download</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onSelect={() => void exportAs("csv")}>As CSV</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void exportAs("xlsx")}>As Excel</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               {doneField ? (
                 <DropdownMenuCheckboxItem checked={Boolean(config.hideDone)} onSelect={(e) => e.preventDefault()} onCheckedChange={(on) => setConfig({ ...config, hideDone: on === true || undefined })}>
                   <span className="dv-menu__mark">{config.hideDone ? <Check size={12} /> : null}</span>
@@ -657,6 +690,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
         />
       ) : null}
     </div>
+    </FilesContext.Provider>
   );
 }
 

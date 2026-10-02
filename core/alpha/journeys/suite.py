@@ -11,6 +11,7 @@ A journey file:
       - automation: "Daily deal tracker"                   # run one automation now, by title
       - build: latest                                      # approve the newest plan, build it
       - approve_action: latest   # (in steps_after) the person's yes to the newest action
+      - decline_plan: latest     # the person's no, through the app's route
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
       - row: {collection: food_log, source_not: [estimated]}   # a row this journey added
@@ -69,7 +70,10 @@ def load(names: list[str] | None = None, folder: Path | None = None) -> list[dic
     folder = folder or journeys_dir()
     out = []
     for path in sorted(folder.glob("*.yaml")):
-        data = yaml.safe_load(path.read_text()) or {}
+        try:
+            data = yaml.safe_load(path.read_text()) or {}
+        except yaml.YAMLError as e:
+            raise Problem(f"The journey file {path.name} isn't valid YAML: {e}") from e
         data.setdefault("name", path.stem)
         if names and data["name"] not in names:
             continue
@@ -192,6 +196,19 @@ class Run:
             self.last_action = self.world.actions.get(action["id"])
             record = {"approve_action": action["title"], "ok": bool(done.get("ok")),
                       "detail": done.get("text") or done.get("why")}
+        elif "decline_plan" in spec:
+            from fastapi.testclient import TestClient
+
+            from alpha.api.server import create_app
+
+            plan = self._latest_plan()
+            # Through the same route the card uses, with the scheduler live, as in the app.
+            with TestClient(create_app(self.world, live=True, runner=self.runner)) as c:
+                answer = c.post(f"/api/plans/{plan['id']}/decline")
+                time.sleep(2)  # anything wrongly started would show by now
+            final = self.world.plans.get(plan["id"])
+            record = {"decline_plan": plan["title"], "ok": answer.status_code == 200
+                      and final["state"] == "declined", "state": final["state"]}
         elif "build" in spec:
             plan = self._latest_plan()
             self.world.plans.approve(plan["id"], "Approved by the journey suite")
@@ -371,6 +388,18 @@ class Run:
             return False, words + "; no preview screenshot"
         return True, words
 
+    def check_document(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        module = self.world.modules.get(arg["module"])["id"] if arg.get("module") else None
+        rows = [r for r in self.world.store.all(
+            "SELECT * FROM documents WHERE removed_at IS NULL AND indexed_at >= ?"
+            " ORDER BY indexed_at", (self.mark.at,))
+            if (module is None or r["module"] == module)
+            and (not arg.get("kind") or r["kind"] == arg["kind"])]
+        if not rows:
+            return False, "No such document was kept."
+        return True, ", ".join(f"{r['title']} ({r['size']} bytes, {len(r['text'].split())} words)"
+                               for r in rows) + "."
+
     def check_journal(self, arg: dict[str, Any]) -> tuple[bool, str]:
         entries = [e for e in self.world.journal.recent(200, kinds=[arg["kind"]])
                    if e["at"] >= self.mark.at
@@ -429,8 +458,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next(k for k in ("say", "reader", "automation", "build", "approve_action")
-                        if k in s)
+            kind = next(k for k in ("say", "reader", "automation", "build", "approve_action",
+                                    "decline_plan") if k in s)
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s[kind]!s:.80} · {s['seconds']} s · {state}"
             detail = (s.get("reply") or s.get("result") or s.get("report") or s.get("detail")

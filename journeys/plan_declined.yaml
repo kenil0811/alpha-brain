@@ -1,0 +1,15 @@
+name: plan_declined
+title: A plan the person declines builds nothing
+why: "On 2 Oct the panel's Not now also approved; a declined plan was built. The no must close
+  the plan and start nothing."
+steps:
+  - say: "i want to keep track of every book i read this year with my rating"
+checks:
+  - plan: proposed
+  - no_new_tables: {}
+steps_after:
+  - decline_plan: latest
+checks_after:
+  - plan: declined
+  - no_new_tables: {}
+  - no_new_modules: {}

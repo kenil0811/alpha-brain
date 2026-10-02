@@ -59,11 +59,6 @@ export interface RecordRow {
   entity?: string | null;
 }
 
-export interface TableData {
-  table: TableDesc;
-  records: RecordRow[];
-}
-
 export interface JournalEntry {
   id: string;
   at: string;
@@ -90,6 +85,7 @@ export interface Thread {
   steps?: { at: string; kind: string; text: string }[];
   step_count?: number;
   last_at?: string;
+  live?: Live | null;
 }
 
 export interface ModuleCard {
@@ -186,10 +182,36 @@ export interface Action {
   preview: string | null;
   preview_note: string | null;
   shots: Record<string, string>;
+  files?: Record<string, { id: string; name: string; size: number }>;
   result: string | null;
   error: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FileInfo {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  kind: string;
+}
+
+export interface TableData {
+  table: TableDesc;
+  records: RecordRow[];
+  /** The documents the table's file fields point at, by id. */
+  files: Record<string, FileInfo>;
+}
+
+export interface DocumentInfo {
+  id: string;
+  path: string;
+  title: string;
+  kind: string;
+  size: number;
+  module: string | null;
+  origin: string | null;
 }
 
 export interface Permission {
@@ -344,11 +366,28 @@ export interface Reader {
   last_count: number | null;
 }
 
+export interface Live {
+  thought: string | null;
+  doing: string | null;
+  tools: number;
+  at: number | null;
+}
+
+export interface Ask {
+  id: string;
+  text: string;
+  at: string;
+  options: string[];
+  thread: string | null;
+  module: string | null;
+}
+
 export interface Turn {
   id: string;
   state: "running" | "done" | "failed";
   text: string;
   steps?: { at: string; kind: string; text: string }[];
+  live?: Live | null;
   reply?: string;
   said?: string;
   replied?: string;
@@ -362,6 +401,7 @@ export interface Conversation {
   running: Turn[];
   plans: Plan[];
   actions?: Action[];
+  asks?: Ask[];
 }
 
 export interface SearchResult {
@@ -416,8 +456,8 @@ export class Client {
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
   async table(name: string): Promise<TableData> {
-    const data = await this.call<{ table: TableDesc; records: Raw[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
-    return { table: data.table, records: data.records.map(toRow) };
+    const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo> }>("GET", `/api/tables/${encodeURIComponent(name)}`);
+    return { table: data.table, records: data.records.map(toRow), files: data.files ?? {} };
   }
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
@@ -443,6 +483,21 @@ export class Client {
   };
   search = (q: string) => this.call<SearchResult>("GET", `/api/search?q=${encodeURIComponent(q)}`);
 
+  /** Files the person dropped: kept for the module and read by Alpha. */
+  addFiles = async (files: File[], where: { module?: string | null; table?: string; record?: string; field?: string }): Promise<{ documents: DocumentInfo[]; turn: Turn | null }> => {
+    const form = new FormData();
+    for (const f of files) form.append("files", f, f.name);
+    if (where.module) form.append("module", where.module);
+    if (where.table) form.append("table", where.table);
+    if (where.record) form.append("record", where.record);
+    if (where.field) form.append("field", where.field);
+    const response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form });
+    const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string; documents?: DocumentInfo[]; turn?: Turn | null };
+    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    return { documents: data.documents ?? [], turn: data.turn ?? null };
+  };
+  exportTable = (name: string, format: "csv" | "xlsx") => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format });
+  document = (id: string) => this.call<DocumentInfo>("GET", `/api/documents/${id}`);
   conversation = (module?: string | null) => this.call<Conversation>("GET", `/api/conversation${module ? `?module=${encodeURIComponent(module)}` : ""}`);
   ask = (text: string, opts: { module?: string | null; thread?: string | null } = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null });
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);

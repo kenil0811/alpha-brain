@@ -127,7 +127,7 @@ def test_propose_dry_runs_up_to_the_commit_and_waits_for_the_person(world: World
         action = world.actions.get(out["action"])
         assert action["state"] == "proposed" and action["preview"].endswith("preview.png")
         job = driver.jobs[-1]
-        assert job["stop_before_last"] is True and job["values"] == PAYLOAD
+        assert job["stop_before_last"] is True and job["values"] == {**PAYLOAD, "__files": {}}
         assert job["profile"].endswith("google.com")
         # Journaled as a proposal with the action, and as the dry run the hand did.
         kinds = [e["kind"] for e in world.journal.recent(5)]
@@ -344,5 +344,46 @@ def test_an_error_in_the_hand_is_a_failure_never_a_sent(world: World) -> None:
         assert action["state"] == "failed" and "profile in use" in action["error"]
         assert not any(e["text"].startswith("Sent") for e in world.journal.recent(20))
         assert world.procedures.get("gmail_draft")["health"] == "broken"
+    finally:
+        restore()
+
+
+def test_a_placeholder_anywhere_must_be_a_payload_field() -> None:
+    with pytest.raises(Problem, match="not in fields"):
+        check_steps([{"click": "a[href*='{slug}']"}, {"click_text": "Send"}], ["message"],
+                    effect="send")
+    steps, _ = check_steps([{"goto": "https://x.example/in/{slug}/"}, {"click_text": "Message"},
+                            {"type": ".box", "value": "{message}"}, {"click_text": "Send"}],
+                           ["slug", "message"], effect="send")
+    assert steps[0]["goto"].endswith("{slug}/")
+
+
+def test_a_failed_check_after_the_commit_is_unconfirmed_never_redone(world: World) -> None:
+    """21:29 on 2 Oct: the LinkedIn message went out, Alpha's check afterwards failed, the
+    repair proposed the same message again. Once the commit ran, it happened."""
+    gmail_connected(world)
+    driver = Driver()
+    driver.verified = False
+    with_fake(driver)
+    prompts: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        prompts.append(req.sentence)
+        return RunResult(ok=True, reply="Fixed the check.")
+
+    try:
+        t = keep_procedure(world, turn=said(world, "send it"), effect="send")
+        aid = t.action_propose("gmail_draft", "Email to Sania", PAYLOAD,
+                               "cannot be unsent")["action"]
+        out = acting.approve(world, aid, "yes", runner=runner)
+        action = world.actions.get(aid)
+        assert out["ok"] and out["unconfirmed"] and action["state"] == "done"
+        assert action["result"].startswith("Sent, not confirmed: Email to Sania")
+        assert world.procedures.get("gmail_draft")["health"] == "broken"
+        assert prompts and "Do NOT propose the action again" in prompts[0]
+        assert not [a for a in world.actions.all() if a["id"] != aid]
+        done = [e for e in world.journal.recent(10) if e["kind"] == "did"
+                and e["data"].get("unconfirmed")]
+        assert done and done[-1]["text"].startswith("Sent, not confirmed")
     finally:
         restore()

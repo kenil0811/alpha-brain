@@ -5,8 +5,8 @@
  * dictation, which works in any text field.
  */
 import { Mic, Square } from "lucide-react";
-import { IconButton } from "../ui/IconButton";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IconButton } from "../ui/IconButton";
 
 interface RecognitionResultEvent {
   resultIndex: number;

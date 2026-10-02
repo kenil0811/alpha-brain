@@ -3,8 +3,6 @@
  * proposes, facts to confirm), what's coming up, and their projects. Nothing here is
  * decoration: each card is something to answer or open.
  */
-import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
 import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
@@ -13,6 +11,8 @@ import { InfoTip, PageHeader, useToast } from "../ui";
 import { ActionCard } from "./ActionCard";
 import { projectIcon } from "./projectIcons";
 import type { Surface } from "./Rail";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -224,6 +224,13 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                     {t.state === "working" ? `${t.step_count ?? 0} steps so far` : t.state === "waiting" ? "Waiting for your answer above" : "Started"} · started {when(t.created_at)}
                     {t.last_at && t.state === "working" ? ` · last ${when(t.last_at)}` : ""}
                   </div>
+                  {t.state === "working" && (t.live?.doing || t.live?.thought) ? (
+                    <div className="thread__now">
+                      <span className="working__pulse" aria-hidden="true" />
+                      <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
+                      {t.live?.thought ? <span className="faint"> · {t.live.thought.slice(0, 140)}</span> : null}
+                    </div>
+                  ) : null}
                   {t.steps?.length ? (
                     <ul className="stages thread__live" aria-label="What Alpha did lately">
                       {t.steps.map((s, i) => (

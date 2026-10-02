@@ -171,7 +171,7 @@ export function TableView(p: ViewProps) {
   function startEdit(row: DataRow, f: FieldInfo) {
     clicks.cancel();
     if (f.kind === "bool") void commit(row, f, !row[f.name]);
-    else setEditing({ id: row.id, field: f.name });
+    else if (f.kind !== "file") setEditing({ id: row.id, field: f.name });
   }
 
   // A double click on a column's edge: as wide as its widest drawn value or its name.

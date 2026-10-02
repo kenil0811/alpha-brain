@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,23 @@ class Live:
         self.lock = threading.Lock()
         self.procs: dict[str, subprocess.Popen[str]] = {}
         self.stopped: set[int] = set()
+        # What each run is doing right now, in plain words, for the window.
+        self.progress: dict[str, dict[str, Any]] = {}
+
+    def note(self, keys: list[str], **what: Any) -> None:
+        with self.lock:
+            for key in keys:
+                current = self.progress.setdefault(key, {"thought": None, "doing": None,
+                                                         "tools": 0, "at": None})
+                current.update({k: v for k, v in what.items() if v is not None})
+                current["at"] = time.time()
+
+    def progress_for(self, key: str | None) -> dict[str, Any] | None:
+        if not key:
+            return None
+        with self.lock:
+            found = self.progress.get(key)
+            return dict(found) if found else None
 
     def add(self, keys: list[str], proc: subprocess.Popen[str]) -> None:
         with self.lock:
@@ -56,6 +74,7 @@ class Live:
             for key in keys:
                 if self.procs.get(key) is proc:
                     del self.procs[key]
+                self.progress.pop(key, None)
             was = proc.pid in self.stopped
             self.stopped.discard(proc.pid)
             return was
@@ -154,7 +173,8 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "-p",
         req.sentence,
         "--output-format",
-        "json",
+        "stream-json",  # events as they happen: the person watches, not waits
+        "--verbose",
         "--append-system-prompt",
         req.system,
     ]
@@ -188,6 +208,9 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     env = dict(os.environ)
     env.setdefault("USER", getpass.getuser())
     env.pop("CLAUDE_CONFIG_DIR", None)
+    # Alpha's tools are the whole point of a run: put every schema in context up front rather
+    # than behind Claude Code's tool search, which cost a "find the tool" step on every turn.
+    env.setdefault("ENABLE_TOOL_SEARCH", "false")
     keys = [k for k in (req.turn_id, req.thread_id) if k]
     with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
         config_path = Path(tmp) / "mcp.json"
@@ -202,23 +225,113 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
             return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
                              " connect Claude in Settings.")
         LIVE.add(keys, proc)
+        errors: list[str] = []
+
+        def drain() -> None:
+            assert proc.stderr is not None
+            errors.append(proc.stderr.read())
+
+        reader = threading.Thread(target=drain, daemon=True)
+        reader.start()
+        final: dict[str, Any] = {}
+        tail: list[str] = []
         try:
-            stdout, stderr = proc.communicate()
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                tail = (tail + [line])[-3:]
+                event = _event(line)
+                if event is None:
+                    continue
+                if event.get("type") == "result" or "result" in event and "is_error" in event:
+                    final = event
+                else:
+                    _watch(keys, event)
+            proc.wait()
         finally:
             stopped = LIVE.remove(keys, proc)
+        reader.join(timeout=2)
     if stopped:
         return RunResult(reply="", ok=False, error=STOPPED, stopped=True)
-    return parse(stdout, stderr, proc.returncode)
+    return parse_result(final, "".join(errors) or "".join(tail), proc.returncode)
+
+
+def _event(line: str) -> dict[str, Any] | None:
+    line = line.strip()
+    if not line.startswith("{"):
+        return None
+    try:
+        data = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _watch(keys: list[str], event: dict[str, Any]) -> None:
+    """Turn a stream event into what the run is doing, in plain words."""
+    if event.get("type") != "assistant":
+        return
+    for block in (event.get("message") or {}).get("content") or []:
+        if block.get("type") == "text" and str(block.get("text", "")).strip():
+            LIVE.note(keys, thought=str(block["text"]).strip()[:400])
+        elif block.get("type") == "tool_use":
+            LIVE.note(keys, doing=plain_tool(str(block.get("name", "")),
+                                             block.get("input") or {}),
+                      tools=(LIVE.progress_for(keys[0]) or {}).get("tools", 0) + 1)
+
+
+TOOL_WORDS = {
+    "search": "Searching what Alpha holds", "journal_recent": "Looking back at what happened",
+    "journal_read": "Reading an earlier entry", "collections_list": "Looking at the tables",
+    "collection_describe": "Looking at a table", "collection_create": "Making a table",
+    "records_add": "Adding a row", "records_update": "Changing a row",
+    "records_upsert": "Updating rows", "records_query": "Reading rows",
+    "records_aggregate": "Adding things up", "table_start": "Starting a table",
+    "page_read": "Reading a page", "page_script": "Looking closely at a page",
+    "page_to_table": "Reading a list from a page", "page_download": "Fetching a file",
+    "reader_save": "Keeping a reader", "reader_run": "Running a reader",
+    "browser_signin": "Opening a sign-in window", "document_read": "Reading a document",
+    "documents_list": "Looking at the documents", "folder_watch": "Starting to read a folder",
+    "calendar_events": "Looking at the calendar", "fact_record": "Remembering something",
+    "note_write": "Writing a note", "instruction_add": "Keeping an instruction",
+    "plan_propose": "Writing the plan", "plan_approve": "Taking the yes",
+    "procedure_save": "Keeping the steps", "action_propose": "Preparing it for your yes",
+    "automation_create": "Setting up the automation", "ask_person": "Asking you",
+    "entity_resolve": "Linking a person", "thread_brief": "Updating the brief",
+    "source_add": "Noting a source", "goal_set": "Keeping a goal",
+}
+
+
+def plain_tool(name: str, inputs: dict[str, Any]) -> str:
+    short = name.removeprefix("mcp__alpha__")
+    if short == "ToolSearch":
+        return "Finding the right tool"
+    if short == "WebSearch":
+        return f"Searching the web for {str(inputs.get('query', ''))[:60]}".rstrip()
+    if short == "WebFetch":
+        return f"Reading {str(inputs.get('url', ''))[:70]}".rstrip()
+    words = TOOL_WORDS.get(short, short.replace("_", " ").capitalize())
+    target = inputs.get("url") or inputs.get("collection") or inputs.get("name") \
+        or inputs.get("title") or inputs.get("question")
+    if isinstance(target, str) and target and short not in ("ask_person",):
+        return f"{words}: {target[:70]}"
+    return words
 
 
 def parse(stdout: str, stderr: str, code: int) -> RunResult:
-    text = stdout.strip()
-    try:
-        data: dict[str, Any] = json.loads(text.splitlines()[-1]) if text else {}
-    except json.JSONDecodeError:
-        data = {}
+    """The result of a finished run from its output: the `result` event of a stream, or the one
+    JSON object of a plain `json` run."""
+    data: dict[str, Any] = {}
+    for line in reversed(stdout.strip().splitlines()):
+        event = _event(line)
+        if event and (event.get("type") == "result" or "result" in event):
+            data = event
+            break
+    return parse_result(data, stderr, code)
+
+
+def parse_result(data: dict[str, Any], stderr: str, code: int) -> RunResult:
     if not data:
-        tail = (stderr or stdout).strip()[-400:] or f"exit code {code}"
+        tail = (stderr or "").strip()[-400:] or f"exit code {code}"
         return RunResult(reply="", ok=False, error=f"No answer from the model: {tail}")
     is_error = bool(data.get("is_error")) or data.get("subtype") not in (None, "success")
     reply = str(data.get("result") or "")

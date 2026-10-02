@@ -9,7 +9,6 @@
  * beside the graph shows what it is, what it links to and the same edits as its own page; its
  * neighbours light up on hover or focus, and Esc lets go.
  */
-import { Button } from "../ui/Button";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { X } from "lucide-react";
 import type { Entity } from "../core/client";
@@ -18,6 +17,7 @@ import { IconButton } from "../ui";
 import { eggHalfWidth, eggRadii, seedPositions, settle, type SimEdge, type SimNode } from "./forceLayout";
 import { EditField, EntityDetailView, FactDetail, type ItemContext } from "./IntelItem";
 import type { Surface } from "./Rail";
+import { Button } from "../ui/Button";
 
 type Kind = "you" | "module" | "fact" | "entity";
 interface GraphNode {

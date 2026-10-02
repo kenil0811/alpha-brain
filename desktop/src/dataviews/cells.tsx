@@ -3,12 +3,14 @@
  * table, a property on a card, a field on the record page. Relation values are resolved to the
  * record or person they name and shown as links that open it.
  */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Check } from "lucide-react";
-import type { Client, RecordRow } from "../core/client";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { Check, FolderOpen } from "lucide-react";
+import type { Client, FileInfo, RecordRow } from "../core/client";
+import { host } from "../core/host";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "../ui/DropdownMenu";
 import { editText, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "../modules/fields";
 import { humanize } from "../modules/format";
+import { IconButton } from "../ui/IconButton";
 
 export const fieldLabel = (f: FieldInfo) => f.label ?? humanize(f.name);
 
@@ -113,7 +115,45 @@ export function useOpenOnClick() {
 
 // ---------- showing ----------
 
+/** The documents a table's file fields point at, and how to add one; DataViews provides it. */
+export const FilesContext = createContext<{ files: Record<string, FileInfo>; add: (row: RecordRow, field: FieldInfo, file: File) => void } | null>(null);
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** A file field: the document, opened with the Mac's own app, or a way to add one. */
+function FileValue({ field, value, row }: { field: FieldInfo; value: unknown; row?: RecordRow }) {
+  const ctx = useContext(FilesContext);
+  const id = value ? String(value) : "";
+  const info = id ? ctx?.files[id] : undefined;
+  if (info)
+    return (
+      <span className="dv-file" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
+          {info.name}
+        </button>
+        <span className="dv-faint"> · {formatBytes(info.size)}</span>
+        {host.available() ? (
+          <IconButton size="sm" aria-label="Show in Finder" title="Show in Finder" onClick={() => void host.revealPath(info.path)}>
+            <FolderOpen size={12} />
+          </IconButton>
+        ) : null}
+      </span>
+    );
+  if (!ctx || !row) return <span className="dv-faint">{id ? "File missing" : "—"}</span>;
+  return (
+    <label className="linkbtn faint" onClick={(e) => e.stopPropagation()}>
+      {id ? "File missing · " : ""}Add file
+      <input type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) ctx.add(row, field, f); e.target.value = ""; }} />
+    </label>
+  );
+}
+
 export function CellValue({ field, value, row, relations, onOpenLink }: { field: FieldInfo; value: unknown; row?: RecordRow; relations?: Relations; onOpenLink?: (link: Link) => void }) {
+  if (field.kind === "file") return <FileValue field={field} value={value} row={row} />;
   if (value === null || value === undefined || value === "" || (Array.isArray(value) && !value.length)) {
     return field.kind === "bool" ? <span className="dv-faint">No</span> : <span className="dv-faint">—</span>;
   }
@@ -277,6 +317,7 @@ function MultiEditor({ field, value, onDone }: { field: FieldInfo; value: unknow
  * when focused): the record page, cards. A single click is left to what holds it (a card opens). */
 export function EditInPlace({ field, value, row, relations, onCommit, onOpenLink }: { field: FieldInfo; value: unknown; row?: RecordRow; relations?: Relations; onCommit: (value: unknown) => void; onOpenLink?: (link: Link) => void }) {
   const [editing, setEditing] = useState(false);
+  if (field.kind === "file") return <CellValue field={field} value={value} row={row} />;
   if (field.kind === "bool") {
     return (
       <input type="checkbox" className="dv-check" checked={Boolean(value)} aria-label={fieldLabel(field)} onChange={(e) => onCommit(e.target.checked)} onClick={(e) => e.stopPropagation()} />

@@ -17,9 +17,11 @@ const DATA: TableData = {
     fields: [
       { name: "role", kind: "text" },
       { name: "stage", kind: "status", choices: ["applied", "interview"] },
+      { name: "cv", kind: "file" },
     ],
   } as TableData["table"],
-  records: [{ id: "r1", revision: 1, values: { role: "Designer", stage: "applied" }, created_at: "2026-10-01T10:00:00Z", updated_at: "2026-10-01T10:00:00Z", provenance: {} }],
+  records: [{ id: "r1", revision: 1, values: { role: "Designer", stage: "applied", cv: "d1" }, created_at: "2026-10-01T10:00:00Z", updated_at: "2026-10-01T10:00:00Z", provenance: {} }],
+  files: { d1: { id: "d1", name: "cv.pdf", path: "/tmp/cv.pdf", size: 2048, kind: "pdf" } },
 };
 
 function setup() {
@@ -39,6 +41,13 @@ describe("DataViews", () => {
     expect(await screen.findByRole("complementary", { name: "Designer" })).toBeInTheDocument();
   });
 
+  it("shows a file field's document, and a double click doesn't turn it into text", async () => {
+    const user = userEvent.setup();
+    setup();
+    const doc = await screen.findByRole("button", { name: "cv.pdf" });
+    await user.dblClick(doc);
+    expect(screen.queryByRole("textbox", { name: "Cv" })).not.toBeInTheDocument();
+  });
   it("edits a cell on a double click: Enter saves, Escape cancels, and the row stays shut", async () => {
     const user = userEvent.setup();
     const { editRecord } = setup();

@@ -27,6 +27,7 @@ FIELD_KINDS = {
     "status",
     "url",
     "relation",
+    "file",
 }
 NAME = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 SYSTEM_FIELDS = {"id", "created_at", "updated_at"}
@@ -89,7 +90,7 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
     if value is None:
         return None
     try:
-        if kind in {"text", "long_text", "url", "relation"}:
+        if kind in {"text", "long_text", "url", "relation", "file"}:
             text = str(value)
             if kind == "url" and not re.match(r"^https?://", text):
                 raise ValueError("a web address starting with http:// or https://")

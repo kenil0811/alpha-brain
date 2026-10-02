@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -53,6 +53,10 @@ class AskBody(BaseModel):
 class RecordBody(BaseModel):
     values: dict[str, Any]
     revision: int | None = None
+
+
+class ExportBody(BaseModel):
+    format: str = "csv"
 
 
 class ActionEditBody(BaseModel):
@@ -103,7 +107,8 @@ class Turns:
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
 
-    def start(self, body: AskBody) -> dict[str, Any]:
+    def start(self, body: AskBody, *, actor: str = "person",
+              journal_as: str | None = None) -> dict[str, Any]:
         key = secrets.token_hex(6)
         with self.lock:
             self.state[key] = {"id": key, "state": "running", "text": body.text,
@@ -116,7 +121,8 @@ class Turns:
 
             try:
                 kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread,
-                                          "on_said": said}
+                                          "on_said": said, "actor": actor,
+                                          "journal_as": journal_as}
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
                 out = turns.ask(self.world, body.text, **kwargs)
@@ -166,6 +172,7 @@ class Turns:
             for e in self.world.journal.recent(200)
             if said and e["data"].get("turn") == said and e["kind"] != "replied"
         ]
+        out["live"] = claude_cli.LIVE.progress_for(said)
         return out
 
     def running(self) -> list[dict[str, Any]]:
@@ -187,6 +194,12 @@ def _local_midnight_utc() -> str:
     local = datetime.now().astimezone()
     midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
     return midnight.astimezone(UTC).replace(microsecond=0).isoformat()
+
+
+def _cell(value: Any) -> Any:
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value)
+    return value
 
 
 def needs_you(world: World) -> list[dict[str, Any]]:
@@ -218,10 +231,27 @@ def _is_action_proposal(world: World, item: dict[str, Any]) -> bool:
     return bool(entry["data"].get("action"))
 
 
+_WORLD_FOR_VIEW: World | None = None
+
+
 def action_view(a: dict[str, Any]) -> dict[str, Any]:
     """An action for the app: the card's contents, with screenshot names instead of paths."""
     shots = {Path(p).stem: Path(p).name for p in a.get("shots") or []}
-    return {**{k: a[k] for k in ("id", "procedure", "title", "payload", "evidence", "undo",
+    files: dict[str, dict[str, Any]] = {}
+    try:
+        from alpha.world.actions import file_fields
+
+        proc = _WORLD_FOR_VIEW.procedures.get(a["procedure"]) if _WORLD_FOR_VIEW else None
+        for field in file_fields(proc["steps"]) if proc else set():
+            did = str(a["payload"].get(field, ""))
+            row = _WORLD_FOR_VIEW.store.one("SELECT title, size FROM documents WHERE id = ?",
+                                            (did,)) if _WORLD_FOR_VIEW else None
+            if row is not None:
+                files[field] = {"id": did, "name": row["title"], "size": row["size"]}
+    except Exception:  # a view never fails the request
+        pass
+    return {"files": files,
+            **{k: a[k] for k in ("id", "procedure", "title", "payload", "evidence", "undo",
                                  "effect", "site", "state", "module", "preview_note", "result",
                                  "error", "created_at", "updated_at")},
             "preview": Path(a["preview"]).name if a.get("preview") else None, "shots": shots}
@@ -258,7 +288,8 @@ def thread_views(world: World) -> list[dict[str, Any]]:
                  if e["kind"] in STEP_KINDS and not e["text"].startswith(("Build the approved",
                                                                           "Continue the build"))]
         out.append({**t, "steps": steps[-6:], "step_count": len(steps),
-                    "last_at": entries[-1]["at"] if entries else t["updated_at"]})
+                    "last_at": entries[-1]["at"] if entries else t["updated_at"],
+                    "live": claude_cli.LIVE.progress_for(t["id"])})
     return out
 
 
@@ -286,6 +317,8 @@ def timeline(world: World, entity_id: str, limit: int = 100) -> list[dict[str, A
 def create_app(world: World | None = None, *, runner: turns.Runner | None = None,
                token: str | None = None, live: bool = True) -> FastAPI:
     world = world or World()
+    global _WORLD_FOR_VIEW
+    _WORLD_FOR_VIEW = world
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     scheduler = Scheduler(world, runner)
     runner_fn = runner or claude_cli.run
@@ -491,7 +524,96 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if q:
             hits = {h["id"] for h in world.collections.search(q, 500) if h["collection"] == name}
             records = [r for r in records if r["id"] in hits]
-        return {"table": desc, "records": records}
+        # A file field holds a document id; the page shows the file's name and opens it.
+        file_fields = [f["name"] for f in desc["fields"] if f["kind"] == "file"]
+        files: dict[str, dict[str, Any]] = {}
+        if file_fields:
+            ids = {str(r[f]) for r in records for f in file_fields if r.get(f)}
+            for did in ids:
+                row = world.store.one("SELECT * FROM documents WHERE id = ?", (did,))
+                if row is not None:
+                    files[did] = {"id": did, "name": row["title"], "path": row["path"],
+                                  "size": row["size"], "kind": row["kind"]}
+        return {"table": desc, "records": records, "files": files}
+
+    @app.post("/api/tables/{name}/export", dependencies=[api])
+    def export_table(name: str, body: ExportBody) -> dict[str, Any]:
+        """The table as a CSV or Excel file in Alpha's exports folder, for the person to open
+        or share; the app reveals it."""
+        from alpha.connectors.files import unique_path
+        from alpha.world.world import alpha_home
+
+        desc = world.collections.describe(name)
+        rows = world.collections.query(name, None, None, None)
+        cols = [f["name"] for f in desc["fields"]]
+        stamp = datetime.now().strftime("%Y-%m-%d %H.%M")
+        folder = alpha_home() / "exports"
+        if body.format == "xlsx":
+            from openpyxl import Workbook
+
+            wb = Workbook()
+            ws = wb.create_sheet(desc["title"][:31] or "Table", 0)
+            ws.append([f.get("label") or f["name"] for f in desc["fields"]])
+            for r in rows:
+                ws.append([_cell(r.get(c)) for c in cols])
+            target = unique_path(folder, f"{desc['title']} {stamp}.xlsx")
+            wb.save(str(target))
+        else:
+            import csv
+
+            target = unique_path(folder, f"{desc['title']} {stamp}.csv")
+            with open(target, "w", newline="", encoding="utf-8") as fh:
+                w = csv.writer(fh)
+                w.writerow([f.get("label") or f["name"] for f in desc["fields"]])
+                for r in rows:
+                    w.writerow([_cell(r.get(c)) for c in cols])
+        world.journal.append("did", f"Exported {desc['title']} ({len(rows)} rows) to"
+                             f" {target.name}.", actor="person",
+                             data={"collection": name, "path": str(target)},
+                             module=desc["module"])
+        return {"path": str(target), "name": target.name, "rows": len(rows)}
+
+    @app.get("/api/documents/{did}", dependencies=[api])
+    def document(did: str) -> dict[str, Any]:
+        return Files(world).document(did)
+
+    @app.post("/api/files", dependencies=[api])
+    async def add_files(files: list[UploadFile], module: str | None = Form(None),
+                        table: str | None = Form(None), record: str | None = Form(None),
+                        field: str | None = Form(None)) -> dict[str, Any]:
+        """Files the person dropped onto a module or a row: kept in Alpha's folder for the
+        module, made documents, and read by Alpha into the module's tables in a turn that
+        follows. With table/record/field, the first file is put on that row's file field."""
+        import tempfile
+
+        taken = []
+        module_id = world.modules.get(module)["id"] if module else None
+        if table and not module_id:
+            module_id = world.collections.describe(table)["module"]
+        for up in files:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(up.filename or "").suffix
+                                             ) as tmp:
+                tmp.write(await up.read())
+            doc = Files(world).take(Path(tmp.name), module=module_id, origin="the person",
+                                    name=up.filename or "file", move=True, by="person")
+            taken.append(doc)
+        if table and record and field and taken:
+            current = world.collections.get(table, record)
+            world.collections.update(table, record, {field: taken[0]["id"]},
+                                     current["revision"], {"by": "person"})
+            person_did("changed", f"Put {taken[0]['title']} on a row of {table}.", table,
+                       {"record": record, "document": taken[0]["id"]})
+        started = None
+        if module_id and live and not (table and record):
+            names = ", ".join(d["title"] for d in taken)
+            started = running.start(AskBody(
+                text=f"The person added {names} to this module. Read what Alpha can read of"
+                     " it and put what belongs in the module's tables, saying where each value"
+                     " came from (source=the file's name); keep the document's id on a file"
+                     " field where a table has one. If the file isn't a kind Alpha reads, say"
+                     " so in one line.", module=module_id), actor="alpha",
+                journal_as=f"Read {names} the person added.")
+        return {"documents": taken, "turn": started}
 
     def person_did(kind: str, text: str, collection: str, data: dict[str, Any]) -> None:
         world.journal.append(kind, text, actor="person", data={"collection": collection, **data},
@@ -741,7 +863,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                                       module=module_id)
         return {"turns": turns_, "threads": thread_views(world), "running": running.running(),
                 "plans": world.plans.recent(),
-                "actions": [action_view(a) for a in world.actions.all(limit=20)]}
+                "actions": [action_view(a) for a in world.actions.all(limit=20)],
+                "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
+                          "options": a["data"].get("options", []), "thread": a["thread"],
+                          "module": a["module"]} for a in world.journal.open_asks()]}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:

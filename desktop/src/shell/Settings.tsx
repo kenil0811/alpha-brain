@@ -6,7 +6,6 @@
  * `section` / `onSection` come from the address (#/settings/<section>); without them the last
  * section is remembered per window.
  */
-import { Button } from "../ui/Button";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Cpu, HardDrive, Info, type LucideIcon, Monitor, Palette, PawPrint, RotateCcw, Settings as SettingsIcon } from "lucide-react";
 import { ACCESSORIES, type AvatarLook, BODY_COLORS, DEFAULT_LOOK, kindLabel, saveLook, SHIRT_COLORS, speciesOf, SUIT_COLORS, TIE_COLORS, useLook } from "../avatar/look";
@@ -18,12 +17,13 @@ import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { InfoTip } from "../ui";
-import { Badge } from "../ui/Badge";
 import { StandardDropdown } from "../ui/StandardDropdown";
 import { Segmented } from "../ui/Segmented";
 import { ACCENTS, CORNERS, DENSITIES, FONTS, SIZES, useAppearance } from "./appearance";
 import { COMPANION_PALETTES } from "./palettes";
 import { ThemeControl, type Theme } from "./theme";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 
 const SECTION_KEY = "alpha.settings.section";
 export const SETTINGS_SECTIONS: { value: string; label: string; icon: LucideIcon }[] = [

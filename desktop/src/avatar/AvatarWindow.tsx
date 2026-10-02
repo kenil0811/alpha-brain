@@ -6,13 +6,13 @@
  * panel (growing box, mic) to say or type one thing, answered at once; a final spoken sentence
  * sends by itself. Anything that needs the full window is handed to the workspace.
  */
-import { Button } from "../ui/Button";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { ArrowUp, Maximize2, X } from "lucide-react";
 import type { ClaudeStatus, Client, Home, JournalEntry, Thread, Turn } from "../core/client";
 import { MicButton, useSpeech } from "../shell/voice";
 import { IconButton } from "../ui";
 import { type AvatarState, Character, type Mood } from "./Character";
+import { Button } from "../ui/Button";
 
 export const HANDOFF_KEY = "alpha.handoff";
 

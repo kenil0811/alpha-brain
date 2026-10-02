@@ -4,8 +4,6 @@
  * read, switch or correct, never a configuration form. Each item opens its own page
  * (`./IntelItem.tsx`); the second brain is its own place to look and edit.
  */
-import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
 import { type FormEvent, useEffect, useState } from "react";
 import { CalendarDays, Folder, Globe, Link, Puzzle, ScanText } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
@@ -17,6 +15,8 @@ import { AutomationTable } from "./Automations";
 import { INSTRUCTIONS, IntelItemPage, OpenRow, OpenTitle, type ItemContext } from "./IntelItem";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 
 export type IntelTab = "brain" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string; hint: string }[] = [

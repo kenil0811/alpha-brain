@@ -3,13 +3,13 @@
  * and the person's say over every one of them. A suggestion from a project or a conversation
  * waits for a yes.
  */
-import { Button } from "../ui/Button";
 import { useState } from "react";
 import type { Client, Fact, ModuleCard } from "../core/client";
 import { humanize } from "../modules/format";
 import { InfoTip } from "../ui";
 import { OpenRow, OpenTitle, sourceWords } from "./IntelItem";
 import "../dataviews/dataviews.css";
+import { Button } from "../ui/Button";
 
 export { sourceWords };
 

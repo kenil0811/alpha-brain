@@ -9,10 +9,10 @@
  * acts when focus is inside this panel (or no dialog/menu is open) so it never steals
  * Escape from an open overlay.
  */
-import { IconButton } from "./IconButton";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ChevronsLeft, ChevronsRight, MoveHorizontal, PanelLeftClose, PanelRightClose } from "lucide-react";
 import "./panel.css";
+import { IconButton } from "./IconButton";
 
 export type PanelSide = "left" | "right";
 export type PanelMode = "collapsed" | "expanded" | "extended";

@@ -3,12 +3,12 @@
  * to reorder, open, hide), New project, and Intelligence and Settings at the foot. Activity is
  * the bell in Zazoo's header. It collapses to icons and resizes (ui/panel).
  */
-import { IconButton } from "../ui/IconButton";
 import { useRef, useState } from "react";
 import { EyeOff, FolderOpen, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import type { ModuleCard } from "../core/client";
 import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, type PanelControl } from "../ui";
 import { projectIcon } from "./projectIcons";
+import { IconButton } from "../ui/IconButton";
 
 export type Surface =
   | { kind: "home" }

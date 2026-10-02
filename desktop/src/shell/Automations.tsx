@@ -2,7 +2,6 @@
  * What runs on its own: each automation as the sentence the person reads, when it runs next,
  * how its last run went, an on/off switch and Run now.
  */
-import { Button } from "../ui/Button";
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { Automation, Client, ModuleCard } from "../core/client";
@@ -11,6 +10,7 @@ import { ModuleIcon } from "../ui/ModuleIcon";
 import { OpenTitle } from "./IntelItem";
 import { projectIcon } from "./projectIcons";
 import "../dataviews/dataviews.css";
+import { Button } from "../ui/Button";
 
 export function AutomationList({ client, items, onChanged, empty }: { client: Client; items: Automation[]; onChanged: () => void; empty: string }) {
   const [busy, setBusy] = useState<string | null>(null);

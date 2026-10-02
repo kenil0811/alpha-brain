@@ -5,15 +5,15 @@
  * saved directly where the core has a route for it, otherwise drafted for Zazoo to do (the person
  * sends it). The same details show in the second brain's card beside the graph.
  */
-import { Input, Textarea } from "../ui/Input";
-import { Button } from "../ui/Button";
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, Pencil } from "lucide-react";
 import type { Client, ConnectionRemoval, EntityDetail, Fact, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { IconButton, InfoTip, PageHeader } from "../ui";
-import { Badge } from "../ui/Badge";
 import type { Surface } from "./Rail";
+import { Input, Textarea } from "../ui/Input";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 
 export interface ItemContext {
   client: Client;

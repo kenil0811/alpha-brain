@@ -11,8 +11,6 @@
  * place reopens the thread last open there (`alpha.sessions`). New project starts the sentence
  * in Zazoo ("I want to ").
  */
-import { Button } from "./ui/Button";
-import { IconButton } from "./ui/IconButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Boxes, Home as HomeIcon, Settings as SettingsIcon } from "lucide-react";
 import { Client } from "./core/client";
@@ -29,6 +27,8 @@ import { useTheme } from "./shell/theme";
 import { PageHeader, ResizeHandle, ToastProvider, TooltipProvider, usePanelControl } from "./ui";
 import { ZazooIcon } from "./ui/ZazooIcon";
 import type { ClaudeStatus, ModuleCard } from "./core/client";
+import { Button } from "./ui/Button";
+import { IconButton } from "./ui/IconButton";
 
 const SURFACE_KEY = "alpha.surface";
 export const HANDOFF_KEY = "alpha.handoff";

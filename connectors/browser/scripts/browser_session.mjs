@@ -15,6 +15,9 @@
  * the page may use any request it needs for that, because many sites load the next page of a
  * list with a POST that only reads.
  *   status: whether a profile holds cookies for a site (or any of `sites`).
+ *   download: fetch a file through the person's session: a direct address (the site's
+ *           cookies go with the request), or the file a page hands back when a control is
+ *           pressed. Saved under `dest_dir`, never run. A read.
  *   act:    the one write operation. Performs an approved action's procedure in the person's
  *           own session: declarative steps (click, click_text, fill, type, press, wait,
  *           expect). Fills and typing take only values of the approved payload. With
@@ -342,17 +345,26 @@ async function sensitive(locator) {
     .catch(() => null);
 }
 
-function target(page, step) {
+/** `{field}` in an address, a selector or a text comes from the approved payload (a profile
+ *  slug, a subject to find): it steers where the steps go; only fill, type and upload put
+ *  payload text into the site. */
+function filled(text, values) {
+  return String(text).replace(/\{([a-z][a-z0-9_]*)\}/g, (m, name) => (name in (values || {}) && name !== "__files" ? String(values[name]) : m));
+}
+
+function target(page, step, values) {
   if (step.click_text !== undefined) {
-    const text = String(step.click_text);
+    const text = filled(step.click_text, values);
     return page
       .locator(`button, [role=button], a, [role=link], [role=menuitem], [role=tab], label, [role=option]`)
       .filter({ hasText: new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i") })
       .first();
   }
-  const selector = step.click ?? step.fill ?? step.type ?? step.wait ?? step.expect;
-  return page.locator(String(selector)).first();
+  const selector = step.click ?? step.fill ?? step.type ?? step.wait ?? step.expect ?? step.upload;
+  return page.locator(filled(String(selector), values)).first();
 }
+
+let job_files_root = null;
 
 async function performStep(page, step, values, log) {
   const began = Date.now();
@@ -360,17 +372,17 @@ async function performStep(page, step, values, log) {
   const entry = { step: kind, ok: false, ms: 0 };
   try {
     if (kind === "goto") {
-      await page.goto(String(step.goto), { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.goto(filled(step.goto, values), { waitUntil: "domcontentloaded", timeout: 30000 });
       await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
     } else if (kind === "click" || kind === "click_text") {
-      const el = target(page, step);
+      const el = target(page, step, values);
       await el.waitFor({ state: "visible", timeout: 15000 });
       await el.click({ timeout: 10000 });
       await page.waitForTimeout(600);
     } else if (kind === "fill" || kind === "type") {
       const field = String(step.value).replace(/^\{|\}$/g, "");
       if (!(field in values)) throw new Error(`no value for {${field}}`);
-      const el = target(page, step);
+      const el = target(page, step, values);
       await el.waitFor({ state: "visible", timeout: 15000 });
       const why = await sensitive(el);
       if (why) throw new Error(`refused: Alpha never types into ${why}`);
@@ -381,17 +393,26 @@ async function performStep(page, step, values, log) {
         await page.keyboard.type(String(values[field]), { delay: 8 });
       }
       await page.waitForTimeout(300);
+    } else if (kind === "upload") {
+      const field = String(step.value).replace(/^\{|\}$/g, "");
+      const file = (job_files_root && values.__files && values.__files[field]) || null;
+      if (!file) throw new Error(`no file for {${field}}`);
+      if (!String(file).startsWith(job_files_root)) throw new Error("refused: Alpha uploads only files it keeps itself");
+      const el = target(page, { fill: step.upload }, values);
+      await el.waitFor({ state: "attached", timeout: 15000 });
+      await el.setInputFiles(String(file));
+      await page.waitForTimeout(800);
     } else if (kind === "press") {
       await page.keyboard.press(String(step.press));
       await page.waitForTimeout(600);
     } else if (kind === "wait") {
-      await target(page, step).waitFor({ state: "visible", timeout: 20000 });
+      await target(page, step, values).waitFor({ state: "visible", timeout: 20000 });
     } else if (kind === "wait_ms") {
       await page.waitForTimeout(Number(step.wait_ms));
     } else if (kind === "expect") {
-      await target(page, step).waitFor({ state: "visible", timeout: 15000 });
+      await target(page, step, values).waitFor({ state: "visible", timeout: 15000 });
     } else if (kind === "expect_text") {
-      await page.getByText(String(step.expect_text), { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
+      await page.getByText(filled(step.expect_text, values), { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
     } else {
       throw new Error(`unknown step ${JSON.stringify(step)}`);
     }
@@ -405,6 +426,7 @@ async function performStep(page, step, values, log) {
 }
 
 async function act(job) {
+  job_files_root = job.files_root || null;
   if (!job.profile) throw new Error("acting needs the person's sign-in profile for the site");
   mkdirSync(job.shots_dir, { recursive: true });
   const context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
@@ -417,13 +439,14 @@ async function act(job) {
   const log = [];
   try {
     const page = context.pages()[0] || (await context.newPage());
-    const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const startUrl = filled(job.url, job.values || {});
+    const response = await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
     if (await isBotCheck(page)) {
       await shoot(page, "error");
       return { bot_check: true, blocked: false, done: 0, log, shots, final_url: page.url(), title: await page.title().catch(() => "") };
     }
-    if (await isSignIn(page, job.url)) {
+    if (await isSignIn(page, startUrl)) {
       await shoot(page, "error");
       return { bot_check: false, blocked: true, done: 0, log, shots, final_url: page.url(), title: await page.title().catch(() => "") };
     }
@@ -458,6 +481,60 @@ async function act(job) {
   }
 }
 
+// ---- downloading: a file comes in through the person's session; nothing goes out ----
+
+async function download(job) {
+  mkdirSync(job.dest_dir, { recursive: true });
+  let browser = null;
+  let context;
+  if (job.profile) {
+    context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
+  } else {
+    browser = await chromium.launch(launchOptions(job, true));
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT });
+  }
+  try {
+    const page = context.pages()[0] || (await context.newPage());
+    if (job.click || job.click_text) {
+      // The file the page hands back when a control is pressed (an attachment icon, Export).
+      await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+      if (await isBotCheck(page)) return { bot_check: true, blocked: false };
+      if (await isSignIn(page, job.url)) return { bot_check: false, blocked: true };
+      const el = target(page, job.click ? { click: job.click } : { click_text: job.click_text }, {});
+      await el.waitFor({ state: "visible", timeout: 15000 });
+      const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), el.click({ timeout: 10000 })]);
+      const name = dl.suggestedFilename() || "download";
+      const file = join(job.dest_dir, name);
+      await dl.saveAs(file);
+      return { bot_check: false, blocked: false, path: file, name, final_url: page.url() };
+    }
+    // A direct address: fetched with the session's cookies. A page that comes back instead of a
+    // file (a sign-in wall, say) is not a download.
+    const response = await context.request.get(job.url, { timeout: 60000, maxRedirects: 10 });
+    const type = (response.headers()["content-type"] || "").toLowerCase();
+    const body = await response.body();
+    if (!response.ok()) return { bot_check: false, blocked: response.status() === 401 || response.status() === 403, status: response.status() };
+    if (type.includes("text/html")) {
+      const head = body.toString("utf8", 0, 4000).toLowerCase();
+      return { bot_check: /challenge|captcha|verify you are human/.test(head), blocked: /password|sign in|log in/.test(head), html: true, status: response.status() };
+    }
+    const disposition = response.headers()["content-disposition"] || "";
+    const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+    let name = m ? decodeURIComponent(m[1]) : "";
+    if (!name) {
+      try { name = decodeURIComponent(new URL(job.url).pathname.split("/").pop() || ""); } catch { name = ""; }
+    }
+    name = (job.name || name || "download").replace(/[\/\\]/g, "_");
+    const file = join(job.dest_dir, name);
+    writeFileSync(file, body);
+    return { bot_check: false, blocked: false, path: file, name, size: body.length, content_type: type, status: response.status() };
+  } finally {
+    await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
 const rl = createInterface({ input: process.stdin });
 rl.once("line", async (line) => {
   let job;
@@ -472,6 +549,7 @@ rl.once("line", async (line) => {
     else if (job.op === "read" || job.op === "script") await out(await read(job));
     else if (job.op === "status") await out(await status(job));
     else if (job.op === "act") await out(await act(job));
+    else if (job.op === "download") await out(await download(job));
     else await out({ error: `unknown job ${job.op}` });
   } catch (error) {
     await out({ error: String((error && error.message) || error) });

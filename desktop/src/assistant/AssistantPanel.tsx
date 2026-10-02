@@ -3,12 +3,12 @@
  * threads as cards that open here. The companion is the same conversation.
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, ChevronLeft } from "lucide-react";
-import type { Action, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
+import { ArrowUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import type { Action, Ask, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Button, CollapseToggleButton, IconButton } from "../ui";
+import { Button, CollapseToggleButton, IconButton, Input } from "../ui";
 import { ZazooIcon } from "../ui/ZazooIcon";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
@@ -54,6 +54,49 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
           {stopped ? "Leave it" : "Not now"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** A question Zazoo asked, as choices to tap (or words to type); the answer starts the next
+ *  turn, so the person never has to repeat the question. */
+function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnswered: (turn: Turn | null) => void }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const answer = async (words: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const out = await client.answerAsk(ask.id, words);
+      onAnswered(out.turn);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="askcard" role="group" aria-label="Zazoo asks">
+      <p className="askcard__q">{ask.text}</p>
+      {ask.options.length ? (
+        <div className="askcard__options">
+          {ask.options.map((o) => (
+            <Button key={o} variant="outline" size="sm" className="askcard__opt" disabled={busy} onClick={() => void answer(o)}>
+              {o}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
+        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
+        <Button type="submit" size="sm" disabled={busy || !text.trim()}>
+          Answer
+        </Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
+          Skip
+        </Button>
+      </form>
+      {error ? <p className="notice">{error}</p> : null}
     </div>
   );
 }
@@ -138,6 +181,8 @@ export function AssistantPanel({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
+  const [asks, setAsks] = useState<Ask[]>([]);
+  const [showSteps, setShowSteps] = useState(false);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
@@ -156,6 +201,7 @@ export function AssistantPanel({
         setThreads(c.threads);
         setPlans(c.plans ?? []);
         setActions(c.actions ?? []);
+        setAsks(c.asks ?? []);
       }),
     ];
     if (typeof chat === "string") work.push(client.thread(chat).then(setThreadView));
@@ -209,12 +255,14 @@ export function AssistantPanel({
       input.current?.setSelectionRange(end, end);
     }, 30);
   }, [draft, onDraftTaken]);
+  const pendingId = pending?.id ?? null;
   useEffect(() => {
-    if (!pending) return;
+    // Keyed on the turn's id, not the polled object: the clock must not restart every second.
+    if (!pendingId) return;
     const started = Date.now();
     const timer = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
     return () => clearInterval(timer);
-  }, [pending]);
+  }, [pendingId]);
 
   const send = useCallback(
     async (sentence: string) => {
@@ -247,6 +295,25 @@ export function AssistantPanel({
     void send(sendNow.text);
   }, [sendNow, pending, send]);
 
+  // An answered question starts a turn of its own; follow it like a sent message.
+  const follow = useCallback(
+    async (turn: Turn | null) => {
+      if (!turn) return;
+      setPending(turn);
+      setElapsed(0);
+      let current = turn;
+      while (current.state === "running") {
+        await new Promise((r) => setTimeout(r, 1000));
+        current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
+        setPending(current);
+      }
+      setPending(null);
+      load();
+      onChanged();
+    },
+    [client, load, onChanged],
+  );
+
   // Words spoken are added after whatever was already typed.
   const typedBefore = useRef("");
   const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
@@ -263,27 +330,48 @@ export function AssistantPanel({
   };
 
   const steps = pending?.steps ?? [];
+  const latest = steps.length ? steps[steps.length - 1].text : null;
+  const thought = pending?.live?.thought ?? null;
+  const headline = pending?.live?.doing ?? (elapsed < 2 || !latest ? "Thinking" : "Working");
   const workingNote = pending ? (
-    <div className="msg msg--ai msg--working" role="status">
-      <div className="row msg__working">
-        <span>
-          Working on it… <span className="faint">{clock(elapsed)}</span>
+    <div className="msg msg--ai msg--working" role="status" aria-live="polite">
+      <div className="working__head">
+        <span className="working__pulse" aria-hidden="true" />
+        <span className="shimmer">{headline}</span>
+        <span className="working__dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
         </span>
+        <span className="faint working__time">{clock(elapsed)}</span>
         <Button size="sm" variant="ghost" onClick={() => void client.stopTurn(pending.id).catch(() => undefined)}>
           Stop
         </Button>
       </div>
+      {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
+        <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
+          {showSteps ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
+        </button>
+      ) : null}
+      {showSteps && steps.length ? (
         <ul className="stages">
-          {steps.slice(-8).map((s, i) => (
-            <li key={`${s.at}-${i}`} className="stages__done">
-              ✓ {s.text}
+          {steps.slice(-12).map((s, i) => (
+            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
+              {s.kind === "failed" ? "✗" : "✓"} {s.text}
             </li>
           ))}
         </ul>
       ) : null}
     </div>
   ) : null;
+  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : a.thread === null));
+  const askCards = !pending
+    ? openAsks.map((a) => (
+        <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+      ))
+    : null;
 
   const inThread = Boolean(threadView && threadView.kind !== "topic");
   const label = threadView ? threadView.title : scopeName;
@@ -331,6 +419,7 @@ export function AssistantPanel({
             {!threadView.journal.some((e) => e.kind === "said") ? (
               <div className="msg msg--ai">{threadView.kind === "topic" ? "What's on your mind?" : "Nothing in this thread yet."}</div>
             ) : null}
+            {askCards}
           </>
         ) : fresh ? (
           <>
@@ -407,10 +496,13 @@ export function AssistantPanel({
                 <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
               ))}
             {actions
-              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || (a.state === "failed" && !a.error?.includes("declined")))
+              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
+              // A failed attempt is history once Zazoo proposed the same thing again.
+              .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
               .map((a) => (
                 <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
+            {askCards}
           </>
         )}
         {workingNote}
