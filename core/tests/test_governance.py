@@ -70,24 +70,15 @@ def test_page_scripts_never_carry_an_allowlist_and_report_what_was_blocked(
 
 
 def old_store(path: Path) -> None:
-    """A world file as an earlier version left it: no allow_posts, no journal guards."""
+    """A world file as the previous version left it: no allow_posts, no journal guards."""
+    world = World(path)
+    world.journal.append("said", "hello", actor="person")
+    world.readers.save("old", site="example.com", url="https://example.com/", script="return []",
+                       description="x", to_end=False, count=1)
+    world.close()
     db = sqlite3.connect(path)
-    db.executescript("""
-        CREATE TABLE journal (id TEXT PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL,
-            actor TEXT NOT NULL, text TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}',
-            module TEXT, thread TEXT, entity_ids TEXT NOT NULL DEFAULT '[]', source TEXT,
-            deleted_at TEXT);
-        INSERT INTO journal (id, at, kind, actor, text) VALUES
-            ('j_old', '2026-09-01T00:00:00+00:00', 'said', 'person', 'hello');
-        CREATE TABLE readers (name TEXT PRIMARY KEY, site TEXT NOT NULL, url TEXT NOT NULL,
-            script TEXT NOT NULL, to_end INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL,
-            version INTEGER NOT NULL DEFAULT 1, health TEXT NOT NULL DEFAULT 'ok',
-            last_problem TEXT, last_run_at TEXT, last_count INTEGER, last_ok_count INTEGER,
-            created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-        INSERT INTO readers (name, site, url, script, description, created_at, updated_at)
-            VALUES ('old', 'example.com', 'https://example.com/', 'return []', 'x', 'a', 'a');
-    """)
-    db.commit()
+    db.executescript("DROP TRIGGER journal_no_delete; DROP TRIGGER journal_only_forget;"
+                     " ALTER TABLE readers DROP COLUMN allow_posts;")
     db.close()
 
 
@@ -96,6 +87,29 @@ def test_an_existing_store_is_migrated(tmp_path: Path) -> None:
     world = World(tmp_path / "world.sqlite")
     try:
         assert world.readers.get("old")["allow_posts"] == []
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+            world.store.db.execute("DELETE FROM journal")
+        world.journal.forget(world.journal.recent(1)[0]["id"])
     finally:
         world.close()
 
+
+
+# ---- 4. the journal is append-only in the database itself ----
+
+def test_journal_rows_cannot_be_deleted_or_rewritten_only_forgotten(world: World) -> None:
+    jid = world.journal.append("said", "my card ends 4242", actor="person")
+    db = world.store.db
+    for sql in ("DELETE FROM journal",
+                "UPDATE journal SET text = 'something else'",
+                "UPDATE journal SET kind = 'did'",
+                "UPDATE journal SET at = '2020-01-01T00:00:00+00:00'",
+                "UPDATE journal SET text = '', data = '{}', deleted_at = 'x', actor = 'alpha'"):
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+            db.execute(sql)
+    world.journal.forget(jid)
+    row = world.store.one("SELECT * FROM journal WHERE id = ?", (jid,))
+    assert row is not None and row["text"] == "" and row["deleted_at"]
+    assert world.journal.search("card") == []
+    with pytest.raises(sqlite3.IntegrityError, match="append-only"):  # forgotten once, for good
+        db.execute("UPDATE journal SET deleted_at = NULL WHERE id = ?", (jid,))
