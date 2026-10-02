@@ -1,13 +1,15 @@
-/** The appearance setting: follow the Mac, or force light or dark. Kept per window. */
+/** The appearance setting: follow the Mac, force light or dark, or Ambient (light from 7:00 to
+ * 19:00, dark otherwise). Kept per window. */
 import { useCallback, useEffect, useState } from "react";
+import { applyAppearance, readAppearance } from "./appearance";
 
-export type Theme = "system" | "light" | "dark";
+export type Theme = "system" | "light" | "dark" | "ambient";
 const KEY = "alpha.theme";
 
 function readTheme(): Theme {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw === "light" || raw === "dark" ? raw : "system";
+    return raw === "light" || raw === "dark" || raw === "ambient" ? raw : "system";
   } catch {
     return "system";
   }
@@ -16,12 +18,21 @@ function readTheme(): Theme {
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   if (theme === "system") delete root.dataset.theme;
-  else root.dataset.theme = theme;
+  else if (theme === "ambient") {
+    const hour = new Date().getHours();
+    root.dataset.theme = hour >= 7 && hour < 19 ? "light" : "dark";
+  } else root.dataset.theme = theme;
 }
 
 export function useTheme(): [Theme, (next: Theme) => void] {
+  useEffect(() => applyAppearance(readAppearance()), []);
   const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "system" : readTheme()));
-  useEffect(() => applyTheme(theme), [theme]);
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== "ambient") return;
+    const timer = window.setInterval(() => applyTheme(theme), 60_000);
+    return () => window.clearInterval(timer);
+  }, [theme]);
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
     try {
@@ -35,7 +46,7 @@ export function useTheme(): [Theme, (next: Theme) => void] {
 }
 
 export function ThemeControl({ theme, onChange, compact = false }: { theme: Theme; onChange: (next: Theme) => void; compact?: boolean }) {
-  const options: [Theme, string][] = compact ? [["light", "Light"], ["dark", "Dark"]] : [["system", "Match Mac"], ["light", "Light"], ["dark", "Dark"]];
+  const options: [Theme, string][] = compact ? [["light", "Light"], ["dark", "Dark"]] : [["system", "Match Mac"], ["light", "Light"], ["dark", "Dark"], ["ambient", "Ambient"]];
   return (
     <div className="theme" role="group" aria-label="Appearance">
       {options.map(([value, label]) => (

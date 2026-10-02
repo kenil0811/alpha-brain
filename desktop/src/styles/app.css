@@ -652,3 +652,37 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .firstrun__card { border-color: var(--warn); }
 .firstrun__head { display: flex; flex-direction: column; gap: 4px; padding: 16px 16px 4px; }
 .firstrun__head h2 { margin: 0; font-size: 18px; }
+
+/* ---------- Settings / Models (stream B: Settings sections, Models rows, composer +) ---------- */
+.settings__tabs { margin: 14px 0 16px; }
+.settings__section { display: flex; flex-direction: column; gap: 14px; }
+.settings__swatches { display: flex; gap: 6px; flex: none; }
+.settings__swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); padding: 0; }
+.settings__swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--text); }
+.settings__select { width: min(240px, 45%); flex: none; }
+.settings .item__body > b + .ui-infotip, .firstrun .item__body > b + .ui-infotip { margin-left: 4px; vertical-align: middle; }
+.models__row { flex-wrap: wrap; gap: 8px 10px; padding: 10px 14px; }
+.models__row--default { background: var(--surface-2); }
+.models__star { color: var(--text-3); }
+.models__star--on { color: var(--warn); }
+.models__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--text-3); }
+.models__dot--green { background: var(--good); }
+.models__dot--red { background: var(--bad); }
+.models__body { min-width: 120px; flex: 1 1 120px; }
+.models__name { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.models__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.models__line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); overflow-wrap: normal; }
+.models__controls { display: flex; align-items: center; gap: 6px; margin-left: auto; min-width: 0; max-width: 100%; }
+.models__field { width: clamp(240px, 36vw, 320px); min-width: 0; flex: 0 1 auto; height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.models__field::placeholder { color: var(--text-3); }
+.models__picker { display: inline-flex; min-width: 0; max-width: 220px; }
+.models__picker .ui-std-dropdown__trigger { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.models__problem { padding: 10px 14px 0; }
+.models__connect { display: flex; flex-direction: column; gap: 8px; }
+.models__connect-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.models__connect .list { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.models__connect .models__field { width: 100%; flex: 1 1 160px; }
+.firstrun__card .models { border: 0; }
+.firstrun__head { flex-direction: row; align-items: center; justify-content: space-between; }
+.composer__plus { flex: none; align-self: flex-end; }
+/* ---------- end Settings / Models ---------- */
