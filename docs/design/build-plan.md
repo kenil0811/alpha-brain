@@ -501,6 +501,39 @@ in the design §6 (revision of 2 Oct). The build:
 - **App**: plan proposals in Needs you (Approve / Not now); a module's sources with their status
   in its Settings; build progress on the thread card.
 
+**As built (2 Oct, `f9194aa` … `d734aab`)**, plus what the real runs added: the browser treats
+a captcha widget on a form as an ordinary page (only a challenge title, a challenge page's own
+marks or a page that is only a captcha is a bot check) and a visible password field as a sign-in;
+`reader_save` refuses a reader on a page that shows more pages until Alpha says `whole` (every
+page) or not (newest page only, whose rows are never marked gone); sources also have
+`unavailable` (nothing to read) and `skipped` (the person's choice); tables fed by readers show a
+Seen column (New today, Since, Gone) and hide gone rows; removing a module removes every reader
+that fed it. 98 core tests, ruff, mypy strict.
+
+**Real runs** (2 Oct, on copies of Kenil's world with the blind module removed, Sonnet on the
+subscription):
+
+1. "i want a live daily tracker capturing all deals from my eta tracker list" → nothing built;
+   in 137 s Alpha opened all 20 sites (reading only) and proposed one Listings table, readers that
+   page fully and a daily tell, with four questions. Three sites were wrongly called blocked (the
+   captcha-widget bug above, then fixed). Rerun after the fix: 162 s, classification right (APS
+   and Kumo need a sign-in, Sunbelt a bot check), and it asked whether general brokers' listings
+   should be all or only accounting firms.
+2. Stand-in answers (mine, not Kenil's: all listings with an accounting mark; skip BizBuySell,
+   APS, Kumo, Transworld, Sunbelt, Metro; tell at 7) → `plan_approve` with the quote, 12 s.
+3. The build, run as the scheduler would: one run, 737 s. Module ETA Deals, one Deals table (309
+   rows from 13 sites, 53 marked accounting), 13 readers, a pipeline of 13 read steps and a tell
+   step at 07:00 (no procedure), all 20 sources with a status and a reason, the module note, and
+   a report in the conversation ending "Sources: 20 in all — 13 working, 2 need your sign-in, 3
+   blocked, 2 not read yet." Found: several readers read only the first page and the report
+   admitted it for three other sites only (fixed by the more-pages check); a newest-page reader
+   would have marked rows gone daily (fixed by `whole`); dead links were filed as blocked (fixed
+   by `unavailable` and `skipped`). The more-pages check finds 4 of the 5 paged sites (not Quiet
+   Light).
+
+Then the blind ETA Tracker module was removed from Kenil's world (backup first; 9 tables, 756
+rows and 8 readers; its activity stays) and the app restarted for him to ask again.
+
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
 | Piece | Path in the old repo | Used in |
