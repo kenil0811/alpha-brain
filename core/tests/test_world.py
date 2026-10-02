@@ -223,6 +223,7 @@ def test_modules_and_threads(world: World) -> None:
         world.modules.create("FOOD")
     t = world.modules.open_thread("Make the food tracker good", "research", m["id"])
     assert world.modules.threads()[0]["id"] == t["id"]
-    world.modules.update_thread(t["id"], state="done", session_ref="s-1")
+    world.modules.update_thread(t["id"], state="done")
     assert world.modules.threads() == []
-    assert world.modules.thread(t["id"])["session_ref"] == "s-1"
+    assert world.modules.set_brief(t["id"], "Keep it to whole foods.")["brief"] == \
+        "Keep it to whole foods."

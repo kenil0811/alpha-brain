@@ -2,13 +2,16 @@
 
 1. the sentence is journaled (`said`);
 2. the pre-pack is assembled for the scope;
-3. the model runs with the world's tools (stateless for the stream; a thread resumes its own
-   session so its to-and-fro stays out of the stream);
-4. the answer is journaled (`replied`), or the failure (`failed`) in plain words.
+3. what the model is given is recorded with the turn (`turn_contexts`), so a wrong answer can
+   be traced to what it saw;
+4. the model runs with the world's tools, always from a fresh session: a thread's run starts
+   from the thread's brief and its own journal, never from a remembered conversation;
+5. the answer is journaled (`replied`), or the failure (`failed`) in plain words.
 """
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -35,7 +38,10 @@ history. If it is not in the world, say so. The journal is history: what exists 
 the pre-pack and the tools show, and an entry marked removed is about something the person \
 removed, so never act on it or speak of it as current.
 4. When the person states something about themselves, remember it with \
-fact_record(stated=true). Things you infer are suggestions (stated=false).
+fact_record(stated=true). Things you infer are suggestions (stated=false). When they say how \
+they always want something done ("always…", "never…", "from now on…"), keep it with \
+instruction_add, quoting their words; a rule they didn't state goes through \
+instruction_propose, never straight into their instructions.
 5. When the person asks for something they will keep using ("I want to build/track/keep/\
 maintain…", "keep an eye on", "a … tracker", "every week…"), do the whole job in this turn, \
 however long it takes; they would rather wait a few minutes than come back later:
@@ -63,7 +69,9 @@ the person, all together at the end of your reply, numbered.
 them to sign in in the window that opened and then say "done" here; you carry on from there.
 6. Reading is free once connected: any web page, folders they name (folder_watch), their \
 calendar (calendar_connect). Link people and companies you meet with entity_resolve using \
-hard keys (email, LinkedIn URL).
+hard keys (email, profile URL). A table whose rows are people or companies says so: \
+rows_are and identity_field in collection_create (collection_identify for one that exists), \
+so each row is linked to the person or company across everything Alpha keeps.
 7. Nothing may leave the machine in this version: no messages, emails, posts, applications or \
 purchases, and nothing is clicked or submitted on a site. If asked, say it isn't possible yet \
 and offer what you can prepare (a draft in a table or a note).
@@ -141,15 +149,16 @@ def ask(
     )
     if on_said is not None:
         on_said(said)
-    context = prepack.build(world, sentence, module=module_id)
+    context = prepack.build(world, sentence, module=module_id, thread=thread)
+    fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
+    world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
     request = TurnRequest(
         sentence=sentence,
-        system=f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}\n\n{context}",
+        system=f"{fixed}\n\n{context}",
         world_path=world.path,
         turn_id=said,
         thread_id=thread,
         module_id=module_id,
-        resume=thread_row["session_ref"] if thread_row else None,
         model=model,
         timeout=timeout,
     )
@@ -172,7 +181,5 @@ def ask(
             "failed", reply, data={**data, "error": result.error}, module=module_id,
             thread=thread,
         )
-    if thread and result.session_id:
-        world.modules.update_thread(thread, session_ref=result.session_id)
     return TurnOutcome(reply=reply, ok=result.ok, said=said, replied=replied, result=result,
                        opened=threads_opened_by(world, said))

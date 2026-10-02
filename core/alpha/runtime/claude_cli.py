@@ -50,7 +50,6 @@ class TurnRequest:
     turn_id: str
     thread_id: str | None = None
     module_id: str | None = None
-    resume: str | None = None
     model: str | None = None
     timeout: int | None = None
 
@@ -97,11 +96,9 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--max-turns",
         str(MAX_TURNS),
     ]
-    if req.resume:
-        args += ["--resume", req.resume]
-    elif req.thread_id is None:
-        # The stream is stateless: the pre-pack carries the context, the journal the history.
-        args += ["--no-session-persistence"]
+    # Every run is stateless: the pre-pack carries the context, the journal the history. A
+    # remembered model session would bring back whatever it once believed.
+    args += ["--no-session-persistence"]
     return args
 
 

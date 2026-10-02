@@ -58,6 +58,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("remove-module", help="delete a module and everything that belongs to it")
     p.add_argument("module")
     sub.add_parser("clear-conversation", help="delete the conversation (activity stays)")
+    p = sub.add_parser("context", help="print what the model was given for a turn")
+    p.add_argument("turn", help="the turn's journal id (its 'said' entry)")
     p = sub.add_parser("prepack", help="print what the model would see first")
     p.add_argument("text", nargs="+")
     p.add_argument("--module")
@@ -136,6 +138,13 @@ def main(argv: list[str] | None = None) -> int:
                 result = Browser(world).start_signin(args.target)
                 print("A window is open: sign in there, then close it.", file=sys.stderr)
             print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "context":
+            kept = world.journal.context(args.turn)
+            if kept is None:
+                print(f"No context was kept for {args.turn}.")
+                return 1
+            print(f"{kept['at']} · rules {kept['rules']}\n\n{kept['context']}")
             return 0
         if args.command == "remove-module":
             from alpha.world.purge import remove_module

@@ -37,6 +37,11 @@ If a site asks for a sign-in or the run cannot be done, don't retry in a loop: s
 line, and call ask_person once with what the person needs to do (for example "sign in to \
 linkedin.com again"), unless an identical question is already open (see OPEN below).
 
+This run starts fresh: what earlier runs learned is in THIS THREAD below (the brief and the \
+thread's own history), not in your memory. Before you finish, if this run taught you something \
+the next run needs (a decision, something that didn't work and why, the next step), rewrite the \
+brief with thread_brief: short, current, and only what you verified.
+
 Your final answer is one or two lines for the automation's log: what changed (counts, names \
 that matter). If something is worth the person's attention (a change they would want to know \
 about), start the line with "Worth telling:"; otherwise just state the result.

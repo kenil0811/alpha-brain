@@ -302,9 +302,18 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
-        world.journal.append("answered", "Yes" if body.accept else "No", actor="person",
-                             data={"proposal": pid, "accept": body.accept},
-                             module=proposal["module"])
+        answered = world.journal.append("answered", "Yes" if body.accept else "No",
+                                        actor="person",
+                                        data={"proposal": pid, "accept": body.accept},
+                                        module=proposal["module"])
+        instruction = proposal["data"].get("instruction")
+        if instruction:
+            # The person's yes is what makes it an instruction; nothing else needs to run.
+            if body.accept:
+                world.knowledge.add_instruction(instruction, answered)
+                world.journal.append("changed", f"Added a standing instruction: {instruction}",
+                                     actor="person", data={"proposal": pid})
+            return {"decided": pid, "turn": None}
         started = running.start(AskBody(text=f"Yes, go ahead: {proposal['text']}",
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}

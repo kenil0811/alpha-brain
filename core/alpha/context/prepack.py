@@ -18,12 +18,19 @@ from alpha.world.world import World
 
 MAX_CHARS = 12_000
 RECENT_TURNS = 12
+THREAD_HISTORY = 15
 MATCHES = 5
 
 
 def _clip(text: str, n: int) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def when(iso: str) -> str:
+    """A journal time as the person would say it, in local time: "Thu 1 Oct 20:21"."""
+    local = datetime.fromisoformat(iso).astimezone()
+    return f"{local.strftime('%a')} {local.day} {local.strftime('%b %H:%M')}"
 
 
 def clock(at: datetime | None = None) -> list[str]:
@@ -38,7 +45,8 @@ def clock(at: datetime | None = None) -> list[str]:
     ]
 
 
-def build(world: World, sentence: str, *, module: str | None = None) -> str:
+def build(world: World, sentence: str, *, module: str | None = None,
+          thread: str | None = None) -> str:
     sections: list[tuple[str, list[str]]] = []
     k = world.knowledge
 
@@ -113,7 +121,7 @@ def build(world: World, sentence: str, *, module: str | None = None) -> str:
     recent = []
     for e in world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"]):
         who_said = "person" if e["kind"] == "said" else "alpha"
-        recent.append(f"- {e['at'][11:16]}Z {who_said}: {_clip(e['text'], 400)}")
+        recent.append(f"- {when(e['at'])} {who_said}: {_clip(e['text'], 400)}")
     sections.append(("RECENT CONVERSATION (oldest first)", recent or ["- This is the first."]))
 
     matches = []
@@ -127,12 +135,22 @@ def build(world: World, sentence: str, *, module: str | None = None) -> str:
         if hit["id"] in recent_ids:
             continue
         gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
-        matches.append(f"- {hit['at'][:16]}Z {hit['kind']} ({hit['id']}):"
+        matches.append(f"- {when(hit['at'])} {hit['kind']} ({hit['id']}):"
                        f" {_clip(hit['snippet'], 160)}{gone}")
         if len(matches) >= MATCHES * 2:
             break
     if matches:
         sections.append(("MATCHES FOR THIS SENTENCE", matches))
+
+    if thread:
+        t = world.modules.thread(thread)
+        lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
+                 f"- Brief: {t['brief']}" if t.get("brief") else
+                 "- Brief: none yet. Write one with thread_brief when you learn how this work"
+                 " should go."]
+        history = world.journal.mark_removed(world.journal.recent(THREAD_HISTORY, thread=thread))
+        lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
+        sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))
 
     open_items = [f"- Thread {t['title']} ({t['id']}, {t['kind']}, {t['state']})"
                   for t in world.modules.threads()]

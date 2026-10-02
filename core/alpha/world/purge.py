@@ -75,6 +75,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         for table in tables:
             records += db.execute("DELETE FROM records WHERE collection = ?", (table,)).rowcount
             db.execute("DELETE FROM records_fts WHERE collection = ?", (table,))
+            db.execute("DELETE FROM record_versions WHERE collection = ?", (table,))
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
@@ -101,6 +102,9 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
 def clear_conversation(world: World) -> dict[str, int]:
     marks = ",".join("?" * len(CONVERSATION_KINDS))
     with world.store.tx() as db:
+        # What the model was shown for those turns quotes the conversation too.
+        db.execute("DELETE FROM turn_contexts WHERE turn IN (SELECT id FROM journal"
+                   " WHERE thread IS NULL AND kind = 'said')")
         removed = db.execute(
             f"DELETE FROM journal WHERE thread IS NULL AND kind IN ({marks})", CONVERSATION_KINDS
         ).rowcount

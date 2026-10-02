@@ -19,6 +19,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser, site_of
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.world.knowledge import GATED_NOTES
 from alpha.world.readers import health_problem
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -379,13 +380,75 @@ class Tools:
 
     @tool
     def note_write(self, scope: str, title: str, body: str) -> dict[str, Any]:
-        """Create or replace a note (Markdown). Scope person with title 'Standing instructions'
-        holds how the person wants things done; 'Profile' a short portrait; module:<name> with
-        the module's name as title holds what the module is for, what is in it, what was tried
-        and what is open. Write only what the person said or what you verified."""
-        note = self.world.knowledge.write_note(scope, title, body)
+        """Create or replace a note (Markdown). Scope person with title 'Profile' holds a short
+        portrait; module:<name> with the module's name as title holds what the module is for,
+        what is in it, what was tried and what is open. Write only what the person said or
+        what you verified. Standing instructions are not written here: see instruction_add."""
+        if scope == "person" and title in GATED_NOTES:
+            return {"error": f"'{title}' changes only on the person's own words: use"
+                    " instruction_add with their words from this turn, or instruction_propose."}
+        note = self.world.knowledge.write_note(scope, title, body, source=self.turn)
         self._did("changed", f"Updated the note {title} ({scope}).", {"note": note["id"]})
         return note
+
+    def _persons_words(self, quote: str) -> str | None:
+        """None when `quote` is the person's own words in this turn; else why it isn't."""
+        said = self.world.journal.read(self.turn) if self.turn else None
+        if not said or said["kind"] != "said" or said["actor"] != "person":
+            return "Only the person can change standing instructions, in their own message."
+        squash = " ".join(quote.lower().split())
+        if len(squash.split()) < 3 or squash not in " ".join(said["text"].lower().split()):
+            return ("quote must be the person's own words from this message (at least three"
+                    " words, exactly as they said them).")
+        return None
+
+    @tool
+    def instruction_add(self, sentence: str, quote: str) -> dict[str, Any]:
+        """Add a standing instruction (how the person always wants something done) when they
+        say it: "always…", "never…", "from now on…". sentence: the instruction, short and
+        clear. quote: their exact words from this message that say it. Anything else that
+        should become an instruction goes through instruction_propose."""
+        problem = self._persons_words(quote)
+        if problem:
+            return {"error": problem}
+        note = self.world.knowledge.add_instruction(sentence, str(self.turn))
+        self._did("changed", f"Added a standing instruction: {sentence}",
+                  {"note": note["id"], "quote": quote})
+        return {"instructions": self.world.knowledge.instructions()}
+
+    @tool
+    def instruction_remove(self, sentence: str, quote: str) -> dict[str, Any]:
+        """Drop a standing instruction when the person says so. quote: their exact words."""
+        problem = self._persons_words(quote)
+        if problem:
+            return {"error": problem}
+        note = self.world.knowledge.remove_instruction(sentence, str(self.turn))
+        self._did("changed", f"Dropped the standing instruction: {sentence}",
+                  {"note": note["id"], "quote": quote})
+        return {"instructions": self.world.knowledge.instructions()}
+
+    @tool
+    def instruction_propose(self, sentence: str, why: str) -> dict[str, Any]:
+        """Suggest a standing instruction the person didn't state (a pattern you noticed, a
+        lesson from a run). It becomes one only on their yes."""
+        jid = self.world.journal.append(
+            "proposed", f"Make this a standing instruction: {sentence}",
+            data={"instruction": sentence, "why": why, "turn": self.turn},
+            module=self.module, thread=self.thread,
+        )
+        return {"proposed": jid}
+
+    @tool
+    def thread_brief(self, brief: str, id: str | None = None) -> dict[str, Any]:
+        """Write this thread's brief (the automation's, in a run): what the work is for, what was
+        decided and why, what didn't work and why, what is open, what comes next. Every later
+        run starts from it, so keep it short, current and true; replace it, don't append."""
+        tid = id or self.thread
+        if not tid:
+            return {"error": "This turn isn't in a thread; there is no brief to write."}
+        thread = self.world.modules.set_brief(tid, brief)
+        self._did("changed", f"Updated the brief of {thread['title']}.", {"thread": tid})
+        return thread
 
     @tool
     def goals_list(self, state: str = "active") -> list[dict[str, Any]]:
