@@ -141,6 +141,8 @@ class Tools:
         fields: list[dict[str, Any]],
         module: str | None = None,
         title_field: str | None = None,
+        rows_are: str | None = None,
+        identity_field: str | None = None,
     ) -> dict[str, Any]:
         """Create a table for a kind of thing the person keeps. name: snake_case, e.g.
         food_log. fields: [{"name", "kind", "label"?, "unit"?, "required"?, "choices"?,
@@ -148,10 +150,15 @@ class Tools:
         multichoice, status, url, relation. id, created_at and updated_at exist on every record
         already. Design it the way a thoughtful product person would: the fields the person
         will want to see and filter by, units on numbers, a date field when things happen on a
-        day. module: the module's id or name it belongs to (create the module first)."""
+        day. module: the module's id or name it belongs to (create the module first).
+        rows_are: "person" or "organisation" when each row is one (a contact, a company), with
+        identity_field the field holding what identifies it for sure (an email address or a
+        profile URL): every row is then linked to that person or organisation across Alpha."""
         module_id = self.world.modules.get(module)["id"] if module else None
+        identity = ({"rows_are": rows_are, "field": identity_field or ""}
+                    if rows_are else None)
         described = self.world.collections.create(
-            name, title, fields, module=module_id, title_field=title_field
+            name, title, fields, module=module_id, title_field=title_field, identity=identity
         )
         self._did(
             "made",
@@ -161,6 +168,22 @@ class Tools:
             module_id,
         )
         return described
+
+    @tool
+    def collection_identify(self, name: str, rows_are: str, identity_field: str) -> dict[str, Any]:
+        """Say that each row of an existing table is a person or an organisation, identified by
+        identity_field (an email address or a profile URL). Rows are linked to the people and
+        organisations Alpha knows, now and on every write."""
+        described = self.world.collections.identify(name, rows_are, identity_field)
+        self._did("changed", f"Linked {described['title']} to {rows_are}s by {identity_field}"
+                  f" ({described['linked']} rows).", {"collection": name}, described["module"])
+        return described
+
+    @tool
+    def record_history(self, collection: str, id: str) -> list[dict[str, Any]]:
+        """What a record was before each change, newest first: the values, who changed them
+        and until when. Use it for questions about how something used to be."""
+        return self.world.collections.history(collection, id)
 
     @tool
     def collection_add_fields(self, name: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
@@ -450,9 +473,10 @@ class Tools:
 
     @tool
     def entity_read(self, id: str) -> dict[str, Any]:
-        """An entity with its current facts."""
+        """An entity with its current facts and the rows, in any table, that are it."""
         entity = self.world.entities.get(id)
         entity["facts"] = self.world.knowledge.facts(f"entity:{entity['id']}")
+        entity["rows"] = self.world.collections.linked_to(entity["id"])
         return entity
 
     # ---- modules and threads ----

@@ -73,6 +73,16 @@ CREATE TABLE IF NOT EXISTS records (
     PRIMARY KEY (collection, id)
 );
 CREATE INDEX IF NOT EXISTS records_created ON records(collection, created_at);
+-- what a record was before each change: the world changed, and history keeps the old values
+CREATE TABLE IF NOT EXISTS record_versions (
+    collection TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    "values" TEXT NOT NULL,
+    provenance TEXT NOT NULL,
+    replaced_at TEXT NOT NULL,
+    PRIMARY KEY (collection, record_id, revision)
+);
 CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     collection UNINDEXED, record_id UNINDEXED, text, tokenize='porter unicode61'
 );
@@ -229,6 +239,14 @@ CREATE TABLE IF NOT EXISTS readers (
     updated_at TEXT NOT NULL
 );
 
+-- what the model was given for each turn, so a wrong answer can be traced to what it saw
+CREATE TABLE IF NOT EXISTS turn_contexts (
+    turn TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    context TEXT NOT NULL,
+    rules TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -240,6 +258,15 @@ CREATE TABLE IF NOT EXISTS threads (
     updated_at TEXT NOT NULL
 );
 """
+
+
+# Columns added after a world file was first made; added in place when the file is opened.
+ADDED_COLUMNS = [
+    ("records", "entity_id", "TEXT"),
+    ("notes", "source", "TEXT"),
+    ("entities", "source", "TEXT"),
+    ("threads", "brief", "TEXT"),
+]
 
 
 class Problem(Exception):
@@ -279,6 +306,22 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        with self.tx() as db:
+            for table, column, decl in ADDED_COLUMNS:
+                have = {r["name"] for r in db.execute(f"PRAGMA table_info({table})")}
+                if column not in have:
+                    db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            db.execute("CREATE INDEX IF NOT EXISTS records_entity ON records(entity_id)")
+            # Threads are records, not remembered model sessions: nothing resumes one.
+            db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL")
+            # Each world is one person's; its id travels with the file.
+            db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('world_id', ?)",
+                       (new_id("w"),))
+            db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
+                       (now(),))
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
