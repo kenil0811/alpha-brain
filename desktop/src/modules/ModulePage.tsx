@@ -154,6 +154,8 @@ const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> =
   blocked: { pill: "pill--bad", words: "Blocked" },
   broken: { pill: "pill--bad", words: "Being repaired" },
   not_built: { pill: "pill--gray", words: "Not read yet" },
+  unavailable: { pill: "pill--gray", words: "Nothing to read" },
+  skipped: { pill: "pill--gray", words: "Skipped by you" },
 };
 
 function sourceSummary(sources: Source[]): string {

@@ -33,13 +33,16 @@ is in it, how it stays current, what is open).
 - Record every place the data comes from with source_add, including the ones you can't read: \
 not_built until something reads it; needs_signin when the site asks for a sign-in (start \
 browser_signin so the person can sign in, and carry on with the rest); blocked when a bot check \
-or captcha stops you (never try to get past it). Readers mark their sources working or broken \
-when they run.
+or captcha stops you (never try to get past it); unavailable when there is nothing to read (a \
+dead link, no list on the page); skipped when the person chose to leave it out. Readers mark \
+their sources working or broken when they run.
 - For each source you can read: look at the real page with page_script (the HTML of one or two \
 items), write a reader that returns clean rows with values already in the table's words, try it \
-with page_script, keep it with reader_save (to_end when the list pages or scrolls), and run it \
-with reader_run. Several readers can feed one table. Don't add first-seen, last-seen or gone \
-fields: the platform keeps them for every row a reader writes, and the table shows them.
+with page_script, keep it with reader_save, and run it with reader_run. A list that goes on over \
+more pages is read whole (to_end for lists that scroll or show more, or the script fetching the \
+next pages) unless the plan wants only the newest; reader_save asks you to say which. Several \
+readers can feed one table. Don't add first-seen, last-seen or gone fields: the platform keeps \
+them for every row a reader writes, and the table shows them.
 - Keep it current with an automation made of steps: automation_create with a read step per \
 reader and a tell step for what the person wants to hear about. Use a procedure only for work \
 that needs judgement on every run.

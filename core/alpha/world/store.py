@@ -306,6 +306,8 @@ ADDED_COLUMNS = [
     ("records", "gone_at", "TEXT"),
     # an automation that is a pipeline of saved steps, run with no model
     ("automations", "steps", "TEXT"),
+    # whether a reader returns its whole list (only then do rows it no longer returns count as gone)
+    ("readers", "whole", "INTEGER NOT NULL DEFAULT 1"),
 ]
 
 

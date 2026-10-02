@@ -28,6 +28,7 @@ MISSING = 0.2
 def _view(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
     out["to_end"] = bool(row["to_end"])
+    out["whole"] = bool(row["whole"])
     return out
 
 
@@ -57,7 +58,7 @@ class Readers:
         self.store = store
 
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
-             to_end: bool, count: int) -> dict[str, Any]:
+             to_end: bool, count: int, whole: bool = True) -> dict[str, Any]:
         if not NAME.match(name):
             raise Problem("A reader's name is lower-case words joined by _, e.g. "
                           "linkedin_connections.")
@@ -66,18 +67,20 @@ class Readers:
         with self.store.tx() as db:
             if prior:
                 db.execute(
-                    "UPDATE readers SET site = ?, url = ?, script = ?, to_end = ?, description = ?,"
-                    " version = version + 1, health = 'ok', last_problem = NULL, last_run_at = ?,"
-                    " last_count = ?, last_ok_count = ?, updated_at = ? WHERE name = ?",
-                    (site, url, script, int(to_end), description, stamp, count, count, stamp, name),
+                    "UPDATE readers SET site = ?, url = ?, script = ?, to_end = ?, whole = ?,"
+                    " description = ?, version = version + 1, health = 'ok', last_problem = NULL,"
+                    " last_run_at = ?, last_count = ?, last_ok_count = ?, updated_at = ?"
+                    " WHERE name = ?",
+                    (site, url, script, int(to_end), int(whole), description, stamp, count, count,
+                     stamp, name),
                 )
             else:
                 db.execute(
-                    "INSERT INTO readers (name, site, url, script, to_end, description,"
+                    "INSERT INTO readers (name, site, url, script, to_end, whole, description,"
                     " last_run_at, last_count, last_ok_count, created_at, updated_at)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                    (name, site, url, script, int(to_end), description, stamp, count, count,
-                     stamp, stamp),
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (name, site, url, script, int(to_end), int(whole), description, stamp, count,
+                     count, stamp, stamp),
                 )
         return self.get(name)
 

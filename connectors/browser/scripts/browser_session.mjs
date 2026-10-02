@@ -79,6 +79,20 @@ async function isBotCheck(page) {
     .catch(() => false);
 }
 
+/** Whether the list on this page goes on over more pages (a next link, numbered pages, a load
+ *  more button): a reader that returns only what is on screen would read part of the list. */
+async function hasMorePages(page) {
+  return page
+    .evaluate(() => {
+      if (document.querySelector("link[rel=next], a[rel=next]")) return true;
+      const words = [...document.querySelectorAll("a, button, [role=button]")]
+        .map((el) => (el.innerText || el.getAttribute("aria-label") || "").trim());
+      if (words.some((t) => /^(next|next page|next ›|›|»|load more|show more|more results|view more)$/i.test(t))) return true;
+      return words.filter((t) => /^\d{1,3}$/.test(t)).length >= 3;
+    })
+    .catch(() => false);
+}
+
 /** Whether the page in front of us asks for a sign-in: the address says so, or it shows a
  *  password field. */
 async function isSignIn(page, askedFor) {
@@ -228,6 +242,7 @@ async function read(job) {
     if (job.op === "script") {
       // Alpha's own code, run in the page: a function body that may use `document` and must
       // return something JSON can carry (a list of rows, usually). Writes are blocked first.
+      const morePages = job.scroll_to_end ? false : await hasMorePages(page);
       blockedCount = await readOnly(context);
       const value = await page.evaluate(async (body) => {
         const fn = new Function(`return (async () => { ${body} })();`);
@@ -239,6 +254,7 @@ async function read(job) {
         final_url: finalUrl,
         title: await page.title(),
         blocked: await isSignIn(page, job.url),
+        more_pages: morePages,
         result: value === undefined ? null : value,
         scrolls,
         writes_blocked: blockedCount(),

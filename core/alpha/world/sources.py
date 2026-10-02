@@ -7,7 +7,9 @@ when there is one, and a status the platform keeps from what actually happened:
 - needs_signin: the site asked for a sign-in (the person can fix it);
 - blocked: the site stops automated reading with a bot check or captcha (nobody can, safely);
 - broken: its reader failed its health check (Alpha repairs it);
-- not_built: known, but nothing reads it yet.
+- not_built: known, but nothing reads it yet;
+- unavailable: there is nothing to read (a dead link, no list on the page);
+- skipped: the person chose not to read it.
 
 Nothing falls off silently: a source Alpha could not read is still a row with a status the
 person can see.
@@ -21,9 +23,11 @@ from urllib.parse import urlparse
 
 from alpha.world.store import Problem, Store, new_id, now
 
-STATUSES = ("working", "needs_signin", "blocked", "broken", "not_built")
+STATUSES = ("working", "needs_signin", "blocked", "broken", "not_built", "unavailable",
+            "skipped")
 WORDS = {"working": "working", "needs_signin": "need your sign-in", "blocked": "blocked",
-         "broken": "broken", "not_built": "not read yet"}
+         "broken": "broken", "not_built": "not read yet", "unavailable": "nothing to read",
+         "skipped": "skipped by you"}
 
 
 def site_of(url: str) -> str:
@@ -98,12 +102,12 @@ class Sources:
     def site_says(self, site: str, status: str, detail: str) -> int:
         """A page on `site` asked for a sign-in or stopped Alpha with a bot check: every
         source on that site says so (one that was working stays working until its own reader
-        fails, since one page's wall isn't another's)."""
+        fails, since one page's wall isn't another's; one the person skipped stays skipped)."""
         site = site.removeprefix("www.")
         with self.store.tx() as db:
             return db.execute(
                 "UPDATE sources SET status = ?, detail = ?, last_checked = ?, updated_at = ?"
-                " WHERE (site = ? OR site LIKE ?) AND status != 'working'",
+                " WHERE (site = ? OR site LIKE ?) AND status NOT IN ('working', 'skipped')",
                 (status, detail, now(), now(), site, f"%.{site}"),
             ).rowcount
 

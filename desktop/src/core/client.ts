@@ -125,7 +125,7 @@ export interface Source {
   url: string;
   site: string;
   reader: string | null;
-  status: "working" | "needs_signin" | "blocked" | "broken" | "not_built";
+  status: "working" | "needs_signin" | "blocked" | "broken" | "not_built" | "unavailable" | "skipped";
   detail: string | null;
   last_checked: string | null;
   last_rows: number | null;

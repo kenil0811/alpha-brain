@@ -398,6 +398,7 @@ class Collections:
     def upsert(
         self, name: str, key: str, rows: list[dict[str, Any]], provenance: dict[str, Any],
         *, fill_only: set[str] | None = None, seen_by: str | None = None,
+        mark_gone: bool = True,
     ) -> dict[str, Any]:
         """Add or update many records at once, matching on `key` (e.g. a URL). A record whose
         values didn't change is left alone. Fields in `fill_only` are written only where the
@@ -491,11 +492,13 @@ class Collections:
             if identity:
                 self._link(name, prior["id"], merged, identity)
         if seen_by:
-            counts["gone"] = self._seen(name, seen_by, seen_ids, stamp)
+            counts["gone"] = self._seen(name, seen_by, seen_ids, stamp, mark_gone=mark_gone)
         return {**counts, "ids": touched, "problems": problems}
 
-    def _seen(self, name: str, reader: str, ids: list[str], stamp: str) -> int:
-        """Mark what a reader's run returned as seen, and its rows it didn't return as gone."""
+    def _seen(self, name: str, reader: str, ids: list[str], stamp: str, *,
+              mark_gone: bool = True) -> int:
+        """Mark what a reader's run returned as seen, and (for a reader that returns its whole
+        list) its rows it didn't return as gone."""
         with self.store.tx() as db:
             for i in range(0, len(ids), 500):
                 chunk = ids[i:i + 500]
@@ -504,6 +507,8 @@ class Collections:
                     f" WHERE collection = ? AND id IN ({','.join('?' * len(chunk))})",
                     (reader, stamp, name, *chunk),
                 )
+            if not mark_gone:
+                return 0
             gone: int = db.execute(
                 "UPDATE records SET gone_at = ? WHERE collection = ? AND reader = ?"
                 " AND (seen_at IS NULL OR seen_at < ?) AND gone_at IS NULL"

@@ -27,6 +27,7 @@ from alpha.world.store import Problem
 from alpha.world.world import World
 
 REPAIR_TIMEOUT_S = 900
+NEWEST_ONLY = "Reads the newest page only, so listings that drop off it aren't counted as gone."
 
 REPAIR_RULES = """You are Alpha, repairing one of your own readers so an automation can carry \
 on; nobody is watching. A reader is a script that turns a page into rows. Look at the page as \
@@ -105,10 +106,11 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
                 "sample": rows[:5] if isinstance(rows, list) else rows}
     result = world.collections.upsert(
         collection, key, rows, {"by": "alpha", "turn": turn_id, "reader": name},
-        fill_only=set(keep or []), seen_by=name,
+        fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"],
     )
     world.readers.ran(name, count=count, problem=None)
-    world.sources.ran(name, status="working", detail=None, rows=count)
+    world.sources.ran(name, status="working", rows=count,
+                      detail=None if reader["whole"] else NEWEST_ONLY)
     world.journal.append(
         "did",
         f"Read {count} with {name} into {desc['title']}: {result['added']} new,"

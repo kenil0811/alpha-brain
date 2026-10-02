@@ -28,7 +28,7 @@ from alpha.world.world import World
 
 log = logging.getLogger("alpha.tools")
 # Source statuses Alpha may set; working and broken come from the reader's runs.
-ALPHA_SETS = ("not_built", "needs_signin", "blocked")
+ALPHA_SETS = ("not_built", "needs_signin", "blocked", "unavailable", "skipped")
 
 
 def tool[F: Callable[..., Any]](fn: F) -> F:
@@ -676,12 +676,16 @@ class Tools:
 
     @tool
     def reader_save(self, name: str, url: str, script: str, description: str,
-                    to_end: bool = False) -> dict[str, Any]:
+                    to_end: bool = False, whole: bool | None = None) -> dict[str, Any]:
         """Keep a reader you wrote: a page_script that turns a page into rows (a list of
         objects with the same keys). It is run once now and only kept if it returns rows; then
         automations use it with reader_run, with no model call, and you repair it when it
         breaks. Saving under an existing name replaces it (its version goes up). name: e.g.
-        linkedin_connections. description: what it reads, in a sentence."""
+        linkedin_connections. description: what it reads, in a sentence. whole: true when it
+        returns the whole list (every page: to_end for lists that scroll or show more, or your
+        script fetching the next pages), false when it deliberately reads only the newest page
+        (then rows that drop off it are not counted as gone). When the page shows more pages
+        you must say which."""
         if name not in self.world.readers.names():
             refused = self._gate("Writing a new reader")
             if refused:
@@ -693,9 +697,14 @@ class Tools:
         problem = health_problem(rows, last_ok=None)
         if problem:
             raise Problem(f"Not saved: {problem}. Fix the script and try again.")
+        if out.get("more_pages") and whole is None:
+            return {"error": f"Not saved: this page shows more pages, and the reader returned"
+                    f" {len(rows)} rows. If it reads every page (to_end, or your script fetching"
+                    " the next pages), save with whole=true; if reading only the newest page is"
+                    " what you want, save with whole=false. Say which in the description too."}
         reader = self.world.readers.save(name, site=site_of(url), url=url, script=script,
                                          description=description, to_end=to_end,
-                                         count=len(rows))
+                                         count=len(rows), whole=whole is not False)
         self._did("made", f"{'Updated' if reader['version'] > 1 else 'Wrote'} the reader {name}"
                   f" ({description}); it read {len(rows)} rows.", {"reader": name})
         return {"name": name, "version": reader["version"], "rows": len(rows),
@@ -903,9 +912,10 @@ class Tools:
                    detail: str | None = None) -> dict[str, Any]:
         """Record a place a module reads from, including the ones you can't read, so nothing
         falls off silently: status not_built (not read yet), needs_signin (the site asks for a
-        sign-in; start browser_signin) or blocked (a bot check or captcha; never try to get
-        past it), with detail in plain words. reader: the reader that reads it. Working and
-        broken are set by the reader's runs."""
+        sign-in; start browser_signin), blocked (a bot check or captcha; never try to get past
+        it), unavailable (nothing to read: a dead link, no list on the page) or skipped (the
+        person chose not to read it), with detail in plain words. reader: the reader that
+        reads it. Working and broken are set by the reader's runs."""
         refused = self._gate("Recording a source")
         if refused:
             return refused

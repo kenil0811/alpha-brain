@@ -8,6 +8,7 @@ from typing import Any
 from conftest import building
 from fastapi.testclient import TestClient
 
+import alpha.connectors.browser as browser_module
 from alpha.api.server import create_app
 from alpha.connectors.browser import Browser
 from alpha.mcp.tools import Tools
@@ -236,3 +237,54 @@ def test_a_bot_check_on_any_read_marks_that_sites_sources(world: World) -> None:
     source = world.sources.all(world.modules.get("Deals")["id"])[0]
     assert source["status"] == "blocked" and "bot check" in source["detail"]
     assert "stopped Alpha with a bot check" in world.journal.recent(5, kinds=["saw"])[-1]["text"]
+
+
+def test_a_reader_on_a_paged_list_must_say_whether_it_reads_every_page(world: World) -> None:
+    t = building(world)
+    t.module_create("Deals")
+    pages = Pages()
+    pages.pages = {"https://a.example/listings": {"result": listings(12), "more_pages": True}}
+    original = browser_module.run_job
+    browser_module.run_job = pages
+    try:
+        refused = t.reader_save("a_list", "https://a.example/listings", "return rows", "A list")
+        assert "shows more pages" in refused["error"] and "12 rows" in refused["error"]
+        saved = t.reader_save("a_list", "https://a.example/listings", "return rows",
+                              "The newest listings on A", whole=False)
+        assert saved["rows"] == 12 and world.readers.get("a_list")["whole"] is False
+    finally:
+        browser_module.run_job = original
+
+
+def test_a_newest_page_reader_never_marks_rows_gone(world: World) -> None:
+    pages, auto = setup_pipeline(world)
+    world.readers.save("big", site="a.example", url="https://a.example/listings",
+                       script="return []", description="Newest on A", to_end=False, count=20,
+                       whole=False)
+    browser = Browser(world, runner=pages)
+    pipeline.run_pipeline(world, world.automations.get(auto["id"]), browser=browser)
+    with world.store.tx() as db:
+        db.execute("UPDATE records SET seen_at = '2026-01-01T07:00:00+00:00'")
+    pages.pages["https://a.example/listings"]["result"] = listings(20)[5:]
+    pipeline.run_pipeline(world, world.automations.get(auto["id"]), browser=browser)
+    assert not any(r.get("_gone_at") for r in world.collections.query("deals", limit=None)
+                   if "a.example" in r["url"])
+    source = next(s for s in world.sources.all(auto["module"]) if s["reader"] == "big")
+    assert source["status"] == "working" and "newest page only" in source["detail"]
+
+
+def test_a_source_the_person_skipped_stays_skipped(world: World) -> None:
+    t = building(world)
+    t.module_create("Deals")
+    t.source_add("Big marketplace", "https://big.example/", module="Deals", status="skipped",
+                 detail="Skipped for now: no filter yet.")
+    t.source_add("Old broker", "https://old.example/x", module="Deals", status="unavailable",
+                 detail="The address is dead.")
+    pages = Pages()
+    pages.pages = {"https://big.example/": {"bot_check": True}}
+    Browser(world, runner=pages).read("https://big.example/")
+    deals = world.modules.get("Deals")["id"]
+    statuses = {s["title"]: s["status"] for s in world.sources.all(deals)}
+    assert statuses == {"Big marketplace": "skipped", "Old broker": "unavailable"}
+    assert world.sources.coverage_line(world.modules.get("Deals")["id"]) == (
+        "Sources: 2 in all — 1 nothing to read, 1 skipped by you.")

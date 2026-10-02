@@ -329,6 +329,7 @@ class Browser:
         return {"url": url, "final_url": page.get("final_url"), "title": page.get("title"),
                 "signed_in": use_profile, "needs_signin": bool(page.get("blocked")),
                 "bot_check": bool(page.get("bot_check")),
+                "more_pages": bool(page.get("more_pages")),
                 "result": result, "scrolls": page.get("scrolls")}
 
     def items(self, url: str, *, link_contains: str, to_end: bool = True,
