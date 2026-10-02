@@ -124,9 +124,12 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
     return args
 
 
-def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = None) -> RunResult:
+def run(req: TurnRequest, *, binary: str | None = None, timeout: int | None = None,
+        extra_env: dict[str, str] | None = None) -> RunResult:
+    """`extra_env` carries the sign-in Alpha holds (CLAUDE_CODE_OAUTH_TOKEN), when it holds one."""
     timeout = timeout or req.timeout or TIMEOUT_S
-    env = claude_account.child_env()
+    # Only the allowlisted environment, plus the sign-in Alpha holds (if any).
+    env = {**claude_account.child_env(), **(extra_env or {})}
     with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
         config_path = Path(tmp) / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(req)))

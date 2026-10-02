@@ -1,17 +1,25 @@
 /**
- * Settings: only what a person decides. How Alpha thinks (their Claude, through Claude Code on
- * this Mac), the companion and how the app looks, where their world is kept and copies of it,
- * and the defaults set elsewhere in the app. Each row says what is so and offers the one thing
- * to do about it.
+ * Settings: only what a person decides, in four sections. Models (every way Alpha can reach a
+ * model, the starred default, each one's model), Appearance (theme, accent, font, text size, rows
+ * per page), Your data (where it is kept, backups) and Companion. Explanations sit behind (i).
  */
 import { useCallback, useEffect, useState } from "react";
-import type { ClaudeStatus, Client, DataInfo } from "../core/client";
+import type { Client, DataInfo } from "../core/client";
 import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
+import { InfoTip, Tabs } from "../ui";
+import { ACCENTS, FONTS, SIZES, useAppearance } from "./appearance";
+import { ProviderAccounts } from "./models";
 import { ThemeControl, type Theme } from "./theme";
 
-const WAIT_EVERY_MS = 3000;
+const SECTION_KEY = "alpha.settings.section";
+const SECTIONS = [
+  { value: "models", label: "Models" },
+  { value: "appearance", label: "Appearance" },
+  { value: "data", label: "Your data" },
+  { value: "companion", label: "Companion" },
+];
 
 function bytes(n: number): string {
   if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -27,102 +35,18 @@ function readPageSize(): PageSize {
   }
 }
 
-/** Claude: connected or not, and the one step that gets there. Also used on first run. */
-export function ClaudeRow({ client, status, onStatus }: { client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void }) {
-  const [waiting, setWaiting] = useState<"install" | "signin" | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // While the installer runs or the person signs in in their browser, check until it's done.
-  useEffect(() => {
-    if (!waiting) return;
-    const timer = setInterval(() => {
-      client
-        .claude()
-        .then((s) => {
-          onStatus(s);
-          if ((waiting === "install" && s.installed) || (waiting === "signin" && s.signed_in)) setWaiting(null);
-        })
-        .catch(() => undefined);
-    }, WAIT_EVERY_MS);
-    return () => clearInterval(timer);
-  }, [waiting, client, onStatus]);
-
-  async function act(work: () => Promise<unknown>, next: "install" | "signin" | null) {
-    setError(null);
-    try {
-      await work();
-      setWaiting(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+function readSection(): string {
+  try {
+    const raw = localStorage.getItem(SECTION_KEY);
+    return SECTIONS.some((s) => s.value === raw) ? (raw as string) : "models";
+  } catch {
+    return "models";
   }
-
-  const connected = Boolean(status?.signed_in);
-  const words = !status
-    ? "Checking…"
-    : confirming
-      ? "Alpha can't think until you sign in again."
-      : waiting === "install"
-        ? "Installing Claude Code… this takes a minute."
-        : waiting === "signin"
-          ? "Finish signing in in your browser."
-          : connected
-            ? [status.email, status.plan ? `${status.plan} plan` : null, "through Claude Code on this Mac"].filter(Boolean).join(" · ")
-            : status.installed
-              ? "Sign in with your Claude account; your browser opens."
-              : "Alpha thinks with Claude Code. Installing it takes a minute and needs no password.";
-  return (
-    <div className="item">
-      <div className="item__ico" aria-hidden="true">
-        ✳
-      </div>
-      <div className="item__body">
-        <b>Claude</b>
-        <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
-        {error ? <div className="notice" style={{ fontSize: 12 }}>{error}</div> : null}
-      </div>
-      {status ? <span className={`pill ${connected ? "pill--good" : "pill--warn"}`}>{connected ? "Connected" : "Not connected"}</span> : null}
-      {!status ? null : connected ? (
-        confirming ? (
-          <>
-            <button type="button" className="btn btn--sm" onClick={() => setConfirming(false)}>
-              Keep it
-            </button>
-            <button type="button" className="btn btn--sm btn--danger" onClick={() => void act(() => client.signOutClaude().then(onStatus), null).then(() => setConfirming(false))}>
-              Sign out
-            </button>
-          </>
-        ) : (
-          <button type="button" className="btn btn--sm btn--ghost" onClick={() => setConfirming(true)}>
-            Sign out
-          </button>
-        )
-      ) : status.installed ? (
-        <button type="button" className="btn btn--sm btn--primary" disabled={waiting !== null} onClick={() => void act(() => client.signInClaude(), "signin")}>
-          {waiting === "signin" ? "Waiting…" : "Sign in"}
-        </button>
-      ) : (
-        <button type="button" className="btn btn--sm btn--primary" disabled={waiting !== null} onClick={() => void act(() => client.installClaude(), "install")}>
-          {waiting === "install" ? "Installing…" : "Install"}
-        </button>
-      )}
-    </div>
-  );
 }
 
-export function Settings({ client, theme, onTheme, claude, onClaude }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void }) {
-  const [companion, setCompanion] = useState<boolean | null>(null);
-  const [data, setData] = useState<DataInfo | null>(null);
+function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => void }) {
+  const [appearance, update] = useAppearance();
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    void host.companionVisible().then(setCompanion).catch(() => setCompanion(null));
-    client.dataInfo().then(setData).catch(() => undefined);
-    client.claude().then(onClaude).catch(() => undefined);
-  }, [client, onClaude]);
-
   const choosePageSize = useCallback((next: PageSize) => {
     setPageSize(next);
     try {
@@ -131,96 +55,169 @@ export function Settings({ client, theme, onTheme, claude, onClaude }: { client:
       /* the choice lasts this session */
     }
   }, []);
+  return (
+    <div className="card list" aria-label="Appearance">
+      <div className="item">
+        <div className="item__body">
+          <b>Theme</b>
+          <InfoTip content="Match Mac follows the Mac's setting. Ambient is light from 7:00 to 19:00 and dark otherwise." label="About theme" />
+        </div>
+        <ThemeControl theme={theme} onChange={onTheme} />
+      </div>
+      <div className="item">
+        <div className="item__body">
+          <b>Accent colour</b>
+        </div>
+        <div className="settings__swatches" role="radiogroup" aria-label="Accent colour">
+          {ACCENTS.map((a) => (
+            <button key={a.value} type="button" role="radio" aria-checked={appearance.accent === a.value} aria-label={a.label} title={a.label} className="settings__swatch" style={{ background: a.color ?? "#4d7ea8" }} onClick={() => update({ accent: a.value })} />
+          ))}
+        </div>
+      </div>
+      <div className="item">
+        <div className="item__body">
+          <b>
+            <label htmlFor="appearance-font">Font</label>
+          </b>
+        </div>
+        <select id="appearance-font" className="btn btn--sm settings__select" value={appearance.font} onChange={(e) => update({ font: e.target.value })}>
+          {FONTS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="item">
+        <div className="item__body">
+          <b>Text size</b>
+        </div>
+        <div className="theme" role="group" aria-label="Text size">
+          {SIZES.map((s) => (
+            <button key={s.value} type="button" aria-pressed={appearance.size === s.value} onClick={() => update({ size: s.value })}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="item">
+        <div className="item__body">
+          <b>
+            <label htmlFor="rows-per-page">Rows per page</label>
+          </b>
+          <InfoTip content="How many rows a table shows at once." label="About rows per page" />
+        </div>
+        <select id="rows-per-page" className="btn btn--sm settings__select" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
+          <option value="fit">Fit to window</option>
+          {PAGE_SIZES.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
 
+function YourData({ client }: { client: Client }) {
+  const [data, setData] = useState<DataInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    client.dataInfo().then(setData).catch(() => undefined);
+  }, [client]);
   const last = data?.backups[0];
   return (
-    <div className="page">
-      <div className="home__head">
-        <h1>Settings</h1>
-        <span className="muted">How Alpha thinks, looks and keeps your data</span>
+    <div className="card list" aria-label="Your data">
+      <div className="item">
+        <div className="item__body">
+          <b>Kept on this Mac</b>
+          <div className="item__sub models__line" title={data?.folder}>
+            {data ? `${data.folder} · ${bytes(data.size)}` : "…"}
+          </div>
+        </div>
+        {host.available() ? (
+          <button type="button" className="btn btn--sm" onClick={() => void host.revealData()}>
+            Show in Finder
+          </button>
+        ) : null}
       </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Claude</h2>
-        </div>
-        <div className="card list">
-          <ClaudeRow client={client} status={claude} onStatus={onClaude} />
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Companion and appearance</h2>
-        </div>
-        <div className="card list">
-          {companion !== null ? (
-            <div className="item">
-              <div className="item__body">
-                <b>Companion</b>
-                <div className="item__sub">Alpha's character, always on top, for quick asks</div>
-              </div>
-              <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
+      <div className="item">
+        <div className="item__body">
+          <b>Backups</b>
+          <div className="item__sub">{!data ? "…" : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}</div>
+          {problem ? (
+            <div className="notice models__line" role="alert">
+              {problem}
             </div>
           ) : null}
-          <div className="item">
-            <div className="item__body">
-              <b>Appearance</b>
-              <div className="item__sub">Light, dark, or the same as your Mac</div>
-            </div>
-            <ThemeControl theme={theme} onChange={onTheme} />
-          </div>
         </div>
+        <button
+          type="button"
+          className="btn btn--sm"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            setProblem(null);
+            client
+              .backUp()
+              .then(setData)
+              .catch((e: unknown) => setProblem(e instanceof Error ? e.message : String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          {busy ? "Backing up…" : "Back up now"}
+        </button>
       </div>
+    </div>
+  );
+}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Your data</h2>
+function Companion() {
+  const [companion, setCompanion] = useState<boolean | null>(null);
+  useEffect(() => {
+    void host.companionVisible().then(setCompanion).catch(() => setCompanion(null));
+  }, []);
+  return (
+    <div className="card list" aria-label="Companion">
+      <div className="item">
+        <div className="item__body">
+          <b>Companion</b>
+          <InfoTip content="Alpha's character, always on top, for quick asks." label="About the companion" />
         </div>
-        <div className="card list">
-          <div className="item">
-            <div className="item__body">
-              <b>Kept on this Mac</b>
-              <div className="item__sub">{data ? `${data.folder} · ${bytes(data.size)}` : "…"}</div>
-            </div>
-            {host.available() ? (
-              <button type="button" className="btn btn--sm" onClick={() => void host.revealData()}>
-                Show in Finder
-              </button>
-            ) : null}
-          </div>
-          <div className="item">
-            <div className="item__body">
-              <b>Backups</b>
-              <div className="item__sub">{!data ? "…" : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}</div>
-            </div>
-            <button type="button" className="btn btn--sm" disabled={busy} onClick={() => { setBusy(true); client.backUp().then(setData).catch(() => undefined).finally(() => setBusy(false)); }}>
-              {busy ? "Backing up…" : "Back up now"}
-            </button>
-          </div>
-        </div>
+        {companion !== null ? (
+          <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
+        ) : (
+          <span className="faint">Mac app only</span>
+        )}
       </div>
+    </div>
+  );
+}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Defaults</h2>
-        </div>
-        <div className="card list">
-          <div className="item">
-            <div className="item__body">
-              <b>Rows per page</b>
-              <div className="item__sub">How many rows a table shows at once</div>
-            </div>
-            <select className="btn btn--sm" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))} aria-label="Rows per page">
-              <option value="fit">Fit to window</option>
-              {PAGE_SIZES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+export function Settings({ client, theme, onTheme }: { client: Client; theme: Theme; onTheme: (t: Theme) => void }) {
+  const [section, setSectionState] = useState(readSection);
+  const setSection = (next: string) => {
+    setSectionState(next);
+    try {
+      localStorage.setItem(SECTION_KEY, next);
+    } catch {
+      /* per-window convenience only */
+    }
+  };
+  return (
+    <div className="page settings">
+      <div className="home__head">
+        <h1>Settings</h1>
+        <InfoTip content="How Alpha thinks, looks and keeps your data on this Mac." label="About Settings" />
+      </div>
+      <Tabs items={SECTIONS} value={section} onChange={setSection} aria-label="Settings sections" className="settings__tabs" />
+      <div className="settings__section">
+        {section === "models" ? <ProviderAccounts client={client} /> : null}
+        {section === "appearance" ? <Appearance theme={theme} onTheme={onTheme} /> : null}
+        {section === "data" ? <YourData client={client} /> : null}
+        {section === "companion" ? <Companion /> : null}
       </div>
     </div>
   );

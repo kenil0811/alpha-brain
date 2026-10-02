@@ -200,6 +200,33 @@ export interface ClaudeStatus {
   via?: "subscription" | "console";
 }
 
+/** Settings -> Models: one way of reaching a model (a sign-in, a key, or Ollama on this Mac). */
+export interface ModelProvider {
+  id: string;
+  label: string;
+  kind: "sign_in" | "key" | "local";
+  state: "connected" | "needs_sign_in" | "cli_missing" | "needs_key" | "not_running";
+  dot: { color: "green" | "grey" | "red"; tooltip: string };
+  /** One line: why the last call or check failed. */
+  error: string | null;
+  key_last4: string | null;
+  installing: boolean;
+  who: string | null;
+  default: boolean;
+  needs_code?: boolean;
+}
+
+export interface ProviderModel {
+  id: string;
+  label: string;
+}
+
+export interface ModelRoute {
+  provider: string;
+  model: string | null;
+  chosen: boolean;
+}
+
 export interface DataInfo {
   folder: string;
   size: number;
@@ -272,8 +299,10 @@ export interface Reader {
 
 export interface Turn {
   id: string;
-  state: "running" | "done" | "failed";
+  state: "running" | "done" | "failed" | "needs_connect";
   text: string;
+  /** The model it went (or would go) to. */
+  provider?: string | null;
   steps?: { at: string; kind: string; text: string }[];
   reply?: string;
   said?: string;
@@ -332,6 +361,19 @@ export class Client {
   installClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/install");
   signInClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/signin");
   signOutClaude = () => this.call<ClaudeStatus>("POST", "/api/claude/signout");
+  modelProviders = async () => (await this.call<{ providers: ModelProvider[] }>("GET", "/api/models")).providers;
+  providerModels = (id: string) => this.call<{ models: ProviderModel[]; selected: string | null }>("GET", `/api/models/${id}/models`);
+  setProviderModel = (id: string, model: string) => this.call<{ models: ProviderModel[]; selected: string | null }>("PUT", `/api/models/${id}/model`, { model });
+  starProvider = async (id: string) => (await this.call<{ providers: ModelProvider[] }>("POST", `/api/models/${id}/star`)).providers;
+  saveProviderKey = async (id: string, key: string) => (await this.call<{ provider: ModelProvider }>("PUT", `/api/models/${id}/key`, { key })).provider;
+  removeProviderKey = async (id: string) => (await this.call<{ provider: ModelProvider }>("DELETE", `/api/models/${id}/key`)).provider;
+  testProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/test`)).provider;
+  reconnectProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/reconnect`)).provider;
+  signInProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/sign-in`)).provider;
+  finishProviderSignIn = async (id: string, code: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/sign-in/finish`, { code })).provider;
+  installProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/install`)).provider;
+  route = (thread?: string | null) => this.call<ModelRoute>("GET", `/api/route${thread ? `?thread=${encodeURIComponent(thread)}` : ""}`);
+  setRoute = (thread: string | null, provider: string | null, model: string | null = null) => this.call<ModelRoute>("PUT", "/api/route", { thread, provider, model });
   dataInfo = () => this.call<DataInfo>("GET", "/api/data");
   backUp = () => this.call<DataInfo>("POST", "/api/data/backup");
   home = () => this.call<Home>("GET", "/api/home");

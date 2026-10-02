@@ -12,9 +12,10 @@ import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { ModulePage } from "./modules/ModulePage";
-import { ClaudeRow, Settings } from "./shell/Settings";
+import { Settings } from "./shell/Settings";
+import { ProviderAccounts } from "./shell/models";
 import { useTheme } from "./shell/theme";
-import type { ClaudeStatus, ModuleCard } from "./core/client";
+import type { ModuleCard } from "./core/client";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
@@ -49,7 +50,8 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
-  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
+  // Whether any model is connected (Settings -> Models); null until known.
+  const [canThink, setCanThink] = useState<boolean | null>(null);
 
   const setSurface = useCallback((next: Surface) => {
     setSurfaceState(next);
@@ -108,11 +110,15 @@ export function App({ client: injected }: { client?: Client } = {}) {
     };
   }, [client, version]);
 
-  // Whether Alpha can think: checked at start and every minute (the person may sign Claude
-  // Code in or out elsewhere).
+  // Whether Alpha can think: checked at start and every minute (the person may sign in or out
+  // elsewhere).
   useEffect(() => {
     if (!client) return;
-    const check = () => client.claude().then(setClaude).catch(() => undefined);
+    const check = () =>
+      client
+        .modelProviders()
+        .then((rows) => setCanThink(rows.some((r) => r.state === "connected")))
+        .catch(() => undefined);
     check();
     const timer = setInterval(check, 60_000);
     return () => clearInterval(timer);
@@ -162,16 +168,16 @@ export function App({ client: injected }: { client?: Client } = {}) {
             Ask Alpha
           </button>
         ) : null}
-        {runtime.kind === "connected" && claude && !claude.signed_in && surface.kind !== "settings" ? (
+        {runtime.kind === "connected" && canThink === false && surface.kind !== "settings" ? (
           <div className="page firstrun">
             <div className="card firstrun__card">
               <div className="firstrun__head">
-                <h2>Connect Claude to start</h2>
-                <span className="muted">Alpha thinks with your Claude account. It takes a minute, once.</span>
+                <h2>Connect a model to start</h2>
+                <button type="button" className="btn btn--sm" onClick={() => setCanThink(null)}>
+                  Done
+                </button>
               </div>
-              <div className="list">
-                <ClaudeRow client={runtime.client} status={claude} onStatus={setClaude} />
-              </div>
+              <ProviderAccounts client={runtime.client} />
             </div>
           </div>
         ) : null}
@@ -197,7 +203,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} />
         ) : (
