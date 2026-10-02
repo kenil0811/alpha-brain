@@ -73,6 +73,55 @@ Two mechanisms, in this order:
 - **Before compaction** of a long session: flush facts and notes first, then summarise.
 - **Recall is not use.** Agents acted on a correctly retrieved value only 55% of the time (MERIT), and sixteen systems passed recall tests while failing the matching behaviour tests (2607.29433). So the pre-pack states the facts that matter as instructions in context ("calorie target 2,000; 1,450 so far today"), and every action's result is checked against them.
 
+### 3.5 How the data is organised (decided 2 October 2026)
+
+After reviewing Kenil's research on memory systems (`context_memory_mgmt.docx`: Mem0, past.dev,
+Supermemory, Claude Code, DeepSeek Harness, Graphiti, Letta, Hindsight, OpenClaw and others).
+Its central lesson matches this design: keep evidence apart from every interpretation of it,
+build a bounded context for each run, and make every change traceable. Five rules:
+
+1. **Rows, entities, facts.** Rows are the person's working data, shaped per module. Entities
+   exist only for the world's primitives (people, organisations, documents, messages, events).
+   A table whose rows are people or organisations says so (`rows_are`, `identity_field`) and
+   every write links each row to its entity by hard key (an email address or a profile URL),
+   never by name, with no model call. Facts are only claims that have validity and matter
+   across modules (works_at, email, lives_in), not every column. Cross-module answers come from
+   a join through entities, not from the model's cleverness in the moment.
+2. **History is kept.** Every change to a record keeps its previous values
+   (`record_versions`): the world changed, and "what was their title before" stays
+   answerable. The journal records the change; the old values live beside the record.
+3. **Modules are what was asked for, with what it needs**: a goal, tables, a note,
+   automations. Links between modules go through entities, never by moving tables. One note
+   per module, one for the person, topic notes only for what fits neither.
+4. **One world per person.** Each world file carries its own id (`meta.world_id`). Sharing,
+   later, means syncing explicit records with their provenance, never a shared database or
+   scope columns added to everything.
+5. **Everything derived says where it came from.** Facts, notes and entities record the turn
+   or record that produced them, so a claim can be traced to its source and invalidated or
+   regenerated when that source turns out wrong. Search indexes are rebuildable views.
+
+### 3.6 Sessions, context and memory (decided 2 October 2026)
+
+- **No remembered model sessions.** Every run, conversation or automation, starts fresh from
+  the world. A thread is a record: its run starts from the thread's **brief** (what the work
+  is for, what was decided and why, what didn't work and why, what is open, what comes next;
+  Alpha keeps it short and current with `thread_brief`) and the thread's own recent history.
+  A belief from an old run can't return unseen: it is in the brief or the journal, visible and
+  correctable, or it is gone.
+- **What the model saw is kept** with every turn (`turn_contexts`), so a wrong answer can be
+  traced to retrieval or to reasoning. Every line of conversation, history and matches carries
+  its local date and time.
+- **The person's instructions are the person's.** Standing instructions change only on the
+  person's own words in that message (`instruction_add` checks a quote against what they
+  said); anything else Alpha would make an instruction is proposed and becomes one on a yes.
+  Learned memory is never automatically an instruction.
+- **Remembering:** stated facts are kept at once with their source; inferred ones wait as
+  suggestions (Q5). The sleep-time pass (§3.3) will consolidate with a version on every
+  derivation so a rerun never duplicates or strengthens a belief, linking entities on hard
+  keys and proposing soft matches, every write visible in Activity.
+- **Not yet, by the research's own advice:** embeddings, a graph store, a profile service,
+  reflection. Each waits for a logged failure that needs it.
+
 ### 3.4 Size and locality
 
 Tens of thousands of journal rows and records are small for SQLite and FTS5 (milliseconds at millions of rows). One database per person, on the device; encryption at rest later.

@@ -30,6 +30,9 @@ ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
 DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
 
 
+SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
+
+
 @dataclass
 class RunResult:
     reply: str
@@ -139,6 +142,8 @@ def parse(stdout: str, stderr: str, code: int) -> RunResult:
         return RunResult(reply="", ok=False, error=f"No answer from the model: {tail}")
     is_error = bool(data.get("is_error")) or data.get("subtype") not in (None, "success")
     reply = str(data.get("result") or "")
+    if is_error and "not logged in" in reply.lower():
+        reply = SIGNED_OUT
     return RunResult(
         reply=reply,
         ok=not is_error and bool(reply),

@@ -103,3 +103,9 @@ def test_prepack_states_the_clock_and_emptiness(world: World) -> None:
     assert "Today's date is" in text and "created_at >=" in text
     assert "Nothing yet: no modules, no tables." in text
     assert "This is the first." in text
+
+
+def test_signed_out_says_where_to_sign_in() -> None:
+    out = claude_cli.parse(json.dumps({"type": "result", "is_error": True,
+                                       "result": "Not logged in · Please run /login"}), "", 1)
+    assert not out.ok and out.error == claude_cli.SIGNED_OUT
