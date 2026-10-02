@@ -1093,8 +1093,11 @@ thinking, it should give me options for questions and not just have me type in".
 - **A step removed from every turn.** The stream showed the model's first step on each turn
   was Claude Code's own ToolSearch: with 70 MCP tools, Claude Code deferred their schemas
   behind a search. Runs now set `ENABLE_TOOL_SEARCH=false`, so every schema is in context up
-  front. The cost is context per turn; the gain is one fewer round trip on every turn (a
-  real question answered in 34 s on the copy before the change; to be measured after).
+  front. The cost is context per turn; the gain is one fewer round trip on every turn.
+  Measured (one run each, the same question "how many deals do i have, and from how many
+  sites?" on a copy): 34 s with tool search, 40 s without. One sample is noise, not a verdict;
+  the step is gone, the time did not move. Leave it off for the simpler run, and measure
+  across the journey suite before deciding anything more.
 - 135 core tests (a streamed run is watched and read); lint and types clean; the app rebuilt.
 
 ### 4.19 Three more journeys, and a hole in the hand (2 Oct 2026, 22:02–22:30)
