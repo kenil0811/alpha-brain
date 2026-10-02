@@ -956,3 +956,7 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .brain__link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .intel-node { cursor: pointer; outline: none; }
 .intel-node:focus-visible circle { stroke: var(--primary); stroke-width: 3px; }
+/* ---- clickable rows and cards (a click opens what they stand for) ---- */
+.modcard--open, .item--open { cursor: pointer; }
+.modcard--open:hover { border-color: var(--primary); }
+.item--open:hover { background: var(--hover); }

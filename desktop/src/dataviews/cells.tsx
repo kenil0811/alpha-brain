@@ -3,7 +3,7 @@
  * table, a property on a card, a field on the record page. Relation values are resolved to the
  * record or person they name and shown as links that open it.
  */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Check } from "lucide-react";
 import type { Client, RecordRow } from "../core/client";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "../ui/DropdownMenu";
@@ -85,6 +85,32 @@ export function useRelations(client: Client, fields: FieldInfo[], version: numbe
   );
 }
 
+// ---------- clicking ----------
+
+/** A click on the row, card or item itself, not on a link, button, checkbox or menu inside it
+ * (a menu drawn in a portal still bubbles here through React, so it counts as outside). */
+export function isOwnClick(e: MouseEvent) {
+  const target = e.target as Element;
+  if (!e.currentTarget.contains(target)) return false;
+  const control = target.closest("a, button, input, select, textarea, label");
+  return !control || control === e.currentTarget || !e.currentTarget.contains(control);
+}
+
+/** Single click opens, double click edits, as on the desktop: the open waits out a double
+ * click's second press, and `cancel` (on double click) drops it. */
+export function useOpenOnClick() {
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return {
+    click(e: MouseEvent, open: () => void) {
+      if (!isOwnClick(e)) return;
+      clearTimeout(timer.current);
+      if (e.detail <= 1) timer.current = setTimeout(open, 220);
+    },
+    cancel: () => clearTimeout(timer.current),
+  };
+}
+
 // ---------- showing ----------
 
 export function CellValue({ field, value, row, relations, onOpenLink }: { field: FieldInfo; value: unknown; row?: RecordRow; relations?: Relations; onOpenLink?: (link: Link) => void }) {
@@ -138,7 +164,7 @@ export function CellValue({ field, value, row, relations, onOpenLink }: { field:
   const lookedUp = isNumeric(field.kind) && Boolean(source) && source !== "stated" && source !== "estimated";
   const rests = [estimated ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed && isNumeric(field.kind) ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   return (
-    <span title={rests ? `${rests} Click the cell to correct it.` : undefined}>
+    <span title={rests ? `${rests} Double-click to correct it.` : undefined}>
       {showValue(value, field.kind, field.unit)}
       {estimated ? (
         <span className="dv-est" aria-label="estimate">
@@ -247,7 +273,8 @@ function MultiEditor({ field, value, onDone }: { field: FieldInfo; value: unknow
   );
 }
 
-/** A field that shows its value and turns into its editor on click: the record page, cards. */
+/** A field that shows its value and turns into its editor on a double click (or Enter or F2
+ * when focused): the record page, cards. A single click is left to what holds it (a card opens). */
 export function EditInPlace({ field, value, row, relations, onCommit, onOpenLink }: { field: FieldInfo; value: unknown; row?: RecordRow; relations?: Relations; onCommit: (value: unknown) => void; onOpenLink?: (link: Link) => void }) {
   const [editing, setEditing] = useState(false);
   if (field.kind === "bool") {
@@ -268,8 +295,20 @@ export function EditInPlace({ field, value, row, relations, onCommit, onOpenLink
       />
     );
   return (
-    <div className={`dv-inplace${field.kind === "long_text" ? " dv-inplace--long" : ""}`} role="button" tabIndex={0} title="Click to edit" onClick={() => setEditing(true)} onKeyDown={(e) => e.key === "Enter" && setEditing(true)}>
-      {field.kind === "long_text" && (value === null || value === undefined || value === "") ? <span className="dv-faint">Nothing yet. Click to write.</span> : <CellValue field={field} value={value} row={row} relations={relations} onOpenLink={onOpenLink} />}
+    <div
+      className={`dv-inplace${field.kind === "long_text" ? " dv-inplace--long" : ""}`}
+      role="button"
+      tabIndex={0}
+      title="Double-click to edit"
+      onDoubleClick={(e) => isOwnClick(e) && setEditing(true)}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== "F2") return;
+        e.preventDefault();
+        e.stopPropagation();
+        setEditing(true);
+      }}
+    >
+      {field.kind === "long_text" && (value === null || value === undefined || value === "") ? <span className="dv-faint">Nothing yet. Double-click to write.</span> : <CellValue field={field} value={value} row={row} relations={relations} onOpenLink={onOpenLink} />}
     </div>
   );
 }

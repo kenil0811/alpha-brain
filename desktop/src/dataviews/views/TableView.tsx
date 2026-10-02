@@ -1,17 +1,20 @@
 /**
  * The table: Bridge's TableView on the core's records. Every grid mechanic (widths, order,
  * frozen columns, wrapping, grouping, collapsed groups, footer summaries) is view config, so a
- * saved list brings it back. Long pages are windowed; a cell edits in place; the checkbox
- * column is always there.
+ * saved list brings it back. Long pages are windowed; the checkbox column is always there.
+ *
+ * As on the desktop: a click on a row opens it, a double click (or Enter or F2) on a cell edits
+ * it there, Cmd-click and Shift-click select, right-click opens the row's menu, and a double
+ * click on a column's edge fits the column to what it holds.
  */
-import { useEffect, useMemo, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, MoreHorizontal, PanelRight, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../../ui/DropdownMenu";
 import { CHOICE_KINDS, isNumeric, type FieldInfo } from "../../modules/fields";
 import { formatNumber, humanize } from "../../modules/format";
 import { AGGREGATE_LABELS, availableAggregates, computeAggregate, filterOpsForKind, groupBy, NO_VALUE, type AggregateKind, type DataRow, type ViewConfig } from "../engine";
-import { CellEditor, CellValue, fieldLabel } from "../cells";
+import { CellEditor, CellValue, fieldLabel, isOwnClick, useOpenOnClick } from "../cells";
 import { KIND_LABELS } from "../controls";
 import type { RecordRow } from "../../core/client";
 import type { ViewProps } from "../types";
@@ -41,6 +44,10 @@ export function TableView(p: ViewProps) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<string | null>(null);
+  const [tableEl, setTableEl] = useState<HTMLTableElement | null>(null);
+  const clicks = useOpenOnClick();
+  // Where a Shift-click selection runs from: the row last clicked or ticked.
+  const anchor = useRef<string | null>(null);
   const collapsed = view.collapsedGroups ?? [];
   const byName = useMemo(() => new Map(p.allFields.map((f) => [f.name, f])), [p.allFields]);
 
@@ -146,6 +153,41 @@ export function TableView(p: ViewProps) {
     requestAnimationFrame(() => requestAnimationFrame(go));
   }
 
+  // Cmd-click adds or takes away one row, Shift-click selects the run from the last one; a plain
+  // click opens the row.
+  function clickRow(e: MouseEvent, row: DataRow) {
+    if ((e.target as Element).closest(".dv-td--check")) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey) {
+      if (!isOwnClick(e)) return;
+      const from = anchor.current ? rows.findIndex((r) => r.id === anchor.current) : -1;
+      const to = rows.findIndex((r) => r.id === row.id);
+      if (e.shiftKey && from >= 0) p.onSelect(rows.slice(Math.min(from, to), Math.max(from, to) + 1).map((r) => r.id), true);
+      else p.onSelect([row.id], !p.selected.has(row.id));
+      anchor.current = row.id;
+      return;
+    }
+    clicks.click(e, () => p.onOpen(row.id));
+  }
+  function startEdit(row: DataRow, f: FieldInfo) {
+    clicks.cancel();
+    if (f.kind === "bool") void commit(row, f, !row[f.name]);
+    else setEditing({ id: row.id, field: f.name });
+  }
+
+  // A double click on a column's edge: as wide as its widest drawn value or its name.
+  function autoFit(f: FieldInfo, i: number) {
+    if (!tableEl) return;
+    const range = document.createRange();
+    const measure = (el: Element | null, pad: number) => {
+      if (!el) return 0;
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().width + pad;
+    };
+    const cells = [...tableEl.querySelectorAll(`[data-cell$="-${i}"]`)].map((td) => measure(td, 24));
+    const w = Math.max(measure(tableEl.querySelectorAll(".dv-th__btn")[i] ?? null, 48), ...cells);
+    patch({ columnWidths: { ...(view.columnWidths ?? {}), [f.name]: Math.round(Math.min(480, Math.max(64, w))) } });
+  }
+
   async function commit(row: DataRow, f: FieldInfo, value: unknown) {
     setEditing(null);
     if (value === undefined || JSON.stringify(value ?? null) === JSON.stringify(row[f.name] ?? null)) return;
@@ -154,7 +196,7 @@ export function TableView(p: ViewProps) {
 
   return (
     <div className="dv-tablebox" ref={setScrollEl}>
-      <table className={`dv-table${view.wrapCells ? " dv-table--wrap" : ""}`} style={{ width: totalWidth }} onKeyDown={onKeys}>
+      <table ref={setTableEl} className={`dv-table${view.wrapCells ? " dv-table--wrap" : ""}`} style={{ width: totalWidth }} onKeyDown={onKeys}>
         <colgroup>
           <col style={{ width: SELECT_W }} />
           {fields.map((f) => (
@@ -212,6 +254,10 @@ export function TableView(p: ViewProps) {
                       e.stopPropagation();
                       setResizing({ name: f.name, startX: e.clientX, startW: widthOf(f), w: widthOf(f) });
                     }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      autoFit(f, i);
+                    }}
                   />
                 </th>
               );
@@ -239,6 +285,8 @@ export function TableView(p: ViewProps) {
               <tr
                 key={item.row.id}
                 className={p.selected.has(item.row.id) ? "dv-row dv-row--on" : "dv-row"}
+                onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+                onClick={(e) => clickRow(e, item.row)}
                 onContextMenu={(e) => {
                   if ((e.target as HTMLElement).closest("input, textarea, select")) return;
                   e.preventDefault();
@@ -246,7 +294,11 @@ export function TableView(p: ViewProps) {
                 }}
               >
                 <td className="dv-td dv-td--check" style={frozenAt >= 0 ? { position: "sticky", left: 0, zIndex: 1 } : undefined}>
-                  <input type="checkbox" className="dv-check" aria-label="Select row" checked={p.selected.has(item.row.id)} onChange={(e) => p.onSelect([item.row.id], e.target.checked)} />
+                  <input type="checkbox" className="dv-check" aria-label="Select row" checked={p.selected.has(item.row.id)} onChange={(e) => {
+                      anchor.current = item.row.id;
+                      p.onSelect([item.row.id], e.target.checked);
+                    }}
+                  />
                   <DropdownMenu open={rowMenu === item.row.id} onOpenChange={(open) => setRowMenu(open ? item.row.id : null)}>
                     <DropdownMenuTrigger asChild>
                       <button type="button" className="dv-rowmenu" aria-label="Row menu">
@@ -272,8 +324,17 @@ export function TableView(p: ViewProps) {
                       style={sticky(i)}
                       tabIndex={0}
                       data-cell={`${rowIndex.get(item.row.id)}-${i}`}
-                      onClick={() => (f.kind === "bool" ? void commit(item.row, f, !value) : setEditing({ id: item.row.id, field: f.name }))}
-                      onKeyDown={(e) => e.key === "Enter" && !isEditing && setEditing({ id: item.row.id, field: f.name })}
+                      // A value longer than its column ends in an ellipsis, by design: the column
+                      // widens by dragging or double-clicking its edge, or the cells wrap.
+                      data-overflow-ok=""
+                      onDoubleClick={(e) => !isEditing && isOwnClick(e) && startEdit(item.row, f)}
+                      onKeyDown={(e) => {
+                        if (isEditing || e.target !== e.currentTarget) return;
+                        if (e.key === "Enter" || e.key === "F2") startEdit(item.row, f);
+                        else if (e.key === " ") p.onOpen(item.row.id);
+                        else return;
+                        e.preventDefault();
+                      }}
                     >
                       {isEditing ? (
                         <CellEditor field={f} value={value} relations={p.relations} onDone={(v) => void commit(item.row, f, v)} />
@@ -282,17 +343,6 @@ export function TableView(p: ViewProps) {
                           <span className="dv-ellipsis">
                             <CellValue field={f} value={value} row={p.record(item.row.id)} relations={p.relations} onOpenLink={p.onOpenLink} />
                           </span>
-                          <button
-                            type="button"
-                            className="dv-open"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              p.onOpen(item.row.id);
-                            }}
-                          >
-                            <PanelRight size={12} aria-hidden="true" />
-                            Open
-                          </button>
                         </span>
                       ) : (
                         <CellValue field={f} value={value} row={p.record(item.row.id)} relations={p.relations} onOpenLink={p.onOpenLink} />

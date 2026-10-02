@@ -1,9 +1,18 @@
 .ui-std-dropdown__trigger { width: 100%; text-align: left; }
 .ui-std-dropdown { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
 .ui-std-dropdown__search { margin-bottom: 2px; }
-.ui-std-dropdown__list { display: flex; flex-direction: column; max-height: 240px; overflow: auto; }
-.ui-std-dropdown__item { text-align: left; padding: 6px 8px; border-radius: var(--radius-sm); background: none; border: 0; font-size: var(--text-sm); color: var(--text); }
-.ui-std-dropdown__item:hover { background: var(--hover); }
+.ui-std-dropdown__list { display: flex; flex-direction: column; max-height: min(360px, 60vh); overflow: auto; }
+.ui-std-dropdown__row { display: flex; align-items: center; gap: 2px; }
+.ui-std-dropdown__item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px; border-radius: var(--radius-sm); background: none; border: 0; font-size: var(--text-sm); color: var(--text); }
+.ui-std-dropdown__item:hover:not(:disabled) { background: var(--hover); }
+.ui-std-dropdown__item:disabled { color: var(--text-3); cursor: not-allowed; }
+.ui-std-dropdown__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-std-dropdown__trigger { gap: 6px; }
+.ui-std-dropdown__trigger > svg { flex: none; color: var(--text-2); }
+.ui-std-dropdown__star { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-3); cursor: pointer; opacity: 0.55; }
+.ui-std-dropdown__row:hover .ui-std-dropdown__star, .ui-std-dropdown__star:focus-visible { opacity: 1; }
+.ui-std-dropdown__star:hover { background: var(--hover); color: var(--text); }
+.ui-std-dropdown__star--on { color: var(--color-warning); opacity: 1; }
 .ui-std-dropdown__item--current { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
 .ui-std-dropdown__empty { color: var(--text-3); font-size: var(--text-sm); padding: 6px 8px; margin: 0; }
 .ui-std-dropdown__add { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-top: 1px solid var(--border); background: none; border-left: 0; border-right: 0; border-bottom: 0; color: var(--primary); font-size: var(--text-sm); font-weight: 500; }

@@ -5,7 +5,7 @@
  * the inline add row, then the registered view for the active kind, the bar for selected rows,
  * a record drawer or page, and one pagination bar. Search, filters and sorts are applied here,
  * once, with the field kinds; views only draw. Changes made on one of the person's lists save
- * back to it on their own.
+ * back to it on their own. A star in the List and View pickers marks what the table opens on.
  *
  * Every edit goes through the core, which journals it with who made it.
  */
@@ -61,6 +61,11 @@ function workingView(table: string): Partial<ViewConfig> {
   };
 }
 
+/** What a table opens on: a list (or "all"), and on All rows a kind of view (a list keeps its own).
+ * ponytail: per-window storage, like the lists; into the core with them once it has a views API. */
+type Defaults = { list?: string; kind?: ViewKind };
+const defaultsKey = (table: string) => `alpha.dv.${table}.defaults`;
+
 const flat = (r: RecordRow): DataRow => ({ ...r.values, id: r.id, created_at: r.created_at, updated_at: r.updated_at });
 const sameConfig = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 type Status = { text: string; error?: boolean } | null;
@@ -75,6 +80,13 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const titleField = titleFieldOf(fields, table.title_field);
   const kinds = useMemo(() => Object.fromEntries([...fields.map((f) => [f.name, f.kind]), ["created_at", "datetime"], ["updated_at", "datetime"]]), [fields]);
 
+  const lists = useSavedViews(name);
+  // Seeded once from the list the older "Open on this list" starred.
+  const [defaults, setDefaultsState] = useState<Defaults>(() => read<Defaults | null>(defaultsKey(name), null) ?? { list: lists.views.find((v) => v.is_default)?.id });
+  const setDefaults = (next: Defaults) => {
+    setDefaultsState(next);
+    write(defaultsKey(name), next);
+  };
   const [config, setConfigState] = useState<ViewConfig>(() => migrateViewConfig(shape, workingView(name)));
   const [listId, setListId] = useState<string>(() => read<string>(`alpha.dv.${name}.list`, "all"));
   const [search, setSearch] = useState(() => config.search ?? "");
@@ -88,6 +100,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const [status, setStatus] = useState<Status>(null);
   const [naming, setNaming] = useState<"new" | "rename" | "duplicate" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRemoveRows, setConfirmRemoveRows] = useState(false);
   const [adding, setAdding] = useState(false);
   const [relVersion, setRelVersion] = useState(0);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -110,24 +123,27 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   }, [client, name]);
   useEffect(load, [load, version]);
 
-  const lists = useSavedViews(name);
   const list = lists.views.find((v) => v.id === listId) ?? null;
-  // Open on the list marked for it, the first time this table opens in this window.
+  // Each time the table opens: on its starred list (and, on All rows, its starred kind of view),
+  // else where it was left.
   const opening = useRef(true);
   useEffect(() => {
     if (!data || !opening.current) return;
     opening.current = false;
-    const preferred = lists.views.find((v) => v.is_default);
-    const remembered = lists.views.find((v) => v.id === listId);
-    if (preferred && !remembered) choose(preferred.id);
-    else if (listId !== "all" && !remembered) setListId("all");
+    const exists = (id: string | undefined) => id === "all" || lists.views.some((v) => v.id === id);
+    const start = exists(defaults.list) ? defaults.list! : exists(listId) ? listId : "all";
+    const kind = defaults.kind && computeEligibleKinds(shape).includes(defaults.kind) ? defaults.kind : undefined;
+    if (start !== "all") {
+      if (start !== listId) choose(start);
+    } else if (listId !== "all") choose("all", kind);
+    else if (kind && kind !== config.kind) setConfig(viewConfigForKind(shape, kind, config));
   }, [data]);
 
-  function choose(id: string) {
+  function choose(id: string, kind: ViewKind = config.kind) {
     setSelected(new Set());
     if (id === "all") {
       setListId("all");
-      setConfig(viewConfigForKind(shape, config.kind, { kind: config.kind }));
+      setConfig(viewConfigForKind(shape, kind, { kind }));
       setSearch("");
       return;
     }
@@ -258,6 +274,9 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
       return next;
     });
   }
+  useEffect(() => {
+    if (!selected.size) setConfirmRemoveRows(false);
+  }, [selected.size]);
   const selectedRows = () => [...selected].map((id) => records.get(id)).filter((r): r is RecordRow => Boolean(r));
   // ponytail: one request per row; a bulk endpoint makes it one change (backend-requests.md).
   const eachSelected = (work: (r: RecordRow) => Promise<unknown>) => async () => {
@@ -332,47 +351,48 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
 
   const eligible = computeEligibleKinds(shape);
   const Component = VIEW_COMPONENTS[config.kind];
-  const ViewIcon = VIEW_METADATA[config.kind].icon;
   const activeFilters = config.rowFilters.filter(isActiveFilter).length;
   const empty = !data ? null : matching.length ? null : rows.length ? "Nothing matches" : "Nothing here yet";
   const filterFields = [...fields, { name: "created_at", kind: "datetime", label: "Added" }, { name: "updated_at", kind: "datetime", label: "Last changed" }] as FieldInfo[];
   const page = top && mode === "page";
 
   return (
-    <div className="dv" aria-label={table.title}>
+    <div
+      className="dv"
+      aria-label={table.title}
+      onKeyDown={(e) => {
+        // Delete or Backspace on selected rows asks to remove them, as in a file list.
+        if ((e.key !== "Delete" && e.key !== "Backspace") || !selected.size) return;
+        if ((e.target as Element).closest("input:not([type=checkbox]), textarea, select, [contenteditable]")) return;
+        e.preventDefault();
+        setConfirmRemoveRows(true);
+      }}
+    >
       <div className="dv-toolbar">
         <div className="dv-toolbar__left">
           <span className="dv-list-picker">
-            <StandardDropdown ariaLabel="List" options={[{ value: "all", label: "All rows" }, ...lists.views.map((v) => ({ value: v.id, label: v.title }))]} value={listId} onChange={choose} onAdd={() => setNaming("new")} addLabel="Save as a list" />
+            <StandardDropdown
+              ariaLabel="List"
+              options={[{ value: "all", label: "All rows" }, ...lists.views.map((v) => ({ value: v.id, label: v.title }))]}
+              value={listId}
+              onChange={choose}
+              onAdd={() => setNaming("new")}
+              addLabel="Save as a list"
+              defaultValue={defaults.list ?? null}
+              onDefaultChange={(id) => setDefaults({ ...defaults, list: id ?? undefined })}
+            />
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="dv-viewpick" aria-label="View">
-                <ViewIcon size={14} aria-hidden="true" />
-                <span className="dv-ellipsis">{VIEW_METADATA[config.kind].label}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {VIEW_KINDS.filter((k) => eligible.includes(k)).map((k) => {
-                const Icon = VIEW_METADATA[k].icon;
-                return (
-                  <DropdownMenuItem key={k} onSelect={() => setConfig(viewConfigForKind(shape, k, config))} className={k === config.kind ? "dv-menu--current" : ""}>
-                    <Icon size={14} aria-hidden="true" /> {VIEW_METADATA[k].label}
-                  </DropdownMenuItem>
-                );
-              })}
-              {VIEW_KINDS.some((k) => !eligible.includes(k)) ? <DropdownMenuSeparator /> : null}
-              {VIEW_KINDS.filter((k) => !eligible.includes(k)).map((k) => {
-                const Icon = VIEW_METADATA[k].icon;
-                return (
-                  <DropdownMenuItem key={k} disabled title={ineligibleReason(k)}>
-                    <Icon size={14} aria-hidden="true" /> {VIEW_METADATA[k].label}
-                    <span className="dv-menu__note">{ineligibleReason(k)}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <span className="dv-list-picker dv-viewpick">
+            <StandardDropdown
+              ariaLabel="View"
+              searchable={false}
+              options={[...VIEW_KINDS.filter((k) => eligible.includes(k)), ...VIEW_KINDS.filter((k) => !eligible.includes(k))].map((k) => ({ value: k, label: VIEW_METADATA[k].label, icon: VIEW_METADATA[k].icon, disabledReason: eligible.includes(k) ? undefined : ineligibleReason(k) }))}
+              value={config.kind}
+              onChange={(k) => setConfig(viewConfigForKind(shape, k as ViewKind, config))}
+              defaultValue={defaults.kind ?? null}
+              onDefaultChange={(k) => setDefaults({ ...defaults, kind: (k as ViewKind | null) ?? undefined })}
+            />
+          </span>
           <label className="dv-search">
             <Search size={14} aria-hidden="true" />
             <input
@@ -497,8 +517,8 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
                 <>
                   <DropdownMenuItem onSelect={() => setNaming("rename")}>Rename list</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setNaming("duplicate")}>Duplicate list</DropdownMenuItem>
-                  <DropdownMenuCheckboxItem checked={list.is_default} onCheckedChange={(on) => void lists.update(list.id, { is_default: on === true })}>
-                    <span className="dv-menu__mark">{list.is_default ? <Check size={12} /> : null}</span>
+                  <DropdownMenuCheckboxItem checked={defaults.list === list.id} onCheckedChange={(on) => setDefaults({ ...defaults, list: on === true ? list.id : undefined })}>
+                    <span className="dv-menu__mark">{defaults.list === list.id ? <Check size={12} /> : null}</span>
                     Open on this list
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuItem
@@ -552,6 +572,8 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
         relations={relations}
         onSelectAll={() => setSelected(new Set(matching.map((r) => r.id)))}
         onClear={() => setSelected(new Set())}
+        confirming={confirmRemoveRows}
+        onConfirming={setConfirmRemoveRows}
         onSet={(f, value) => void run(eachSelected((r) => client.editRecord(name, r.id, { [f.name]: value }, r.revision)), `Set ${fieldLabel(f).toLowerCase()} on ${selected.size} ${selected.size === 1 ? "row" : "rows"}`)}
         onDelete={async () => {
           const n = selected.size;

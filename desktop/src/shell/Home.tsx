@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
+import { isOwnClick } from "../dataviews/cells";
 import { InfoTip, PageHeader, useToast } from "../ui";
 import { ActionCard } from "./ActionCard";
 import { projectIcon } from "./projectIcons";
@@ -213,7 +214,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           </div>
           <div className="card list">
             {home.threads.map((t) => (
-              <div key={t.id} className="item item--thread">
+              <div key={t.id} className="item item--thread item--open" onClick={(e) => isOwnClick(e) && onOpenThread(t.id)}>
                 <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</span>
                 <div className="item__body">
                   <b>{t.title}</b>
@@ -275,7 +276,8 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           {home.modules.map((m) => {
             const Icon = projectIcon(m);
             return (
-            <div key={m.id} className="card modcard">
+            // A click anywhere on the card opens the project; the button is its keyboard way in.
+            <div key={m.id} className="card modcard modcard--open" onClick={(e) => isOwnClick(e) && onGo({ kind: "module", id: m.id })}>
               <div className="modcard__top">
                 <div className="modcard__ico" aria-hidden="true">
                   <Icon size={18} />
