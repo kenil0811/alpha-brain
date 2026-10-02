@@ -310,8 +310,8 @@ export function PaginationBar({ total, all, offset, size, pageSize, fit, onOffse
 // ---------- many rows ----------
 
 /** Shown only while rows are selected: set one field on all of them, or remove them. */
-export function SelectionBar({ count, matching, fields, relations, onSelectAll, onClear, onSet, onDelete }: { count: number; matching: number; fields: FieldInfo[]; relations: Relations; onSelectAll: () => void; onClear: () => void; onSet: (field: FieldInfo, value: unknown) => void; onDelete: () => Promise<void> }) {
-  const [confirming, setConfirming] = useState(false);
+/** `confirming`: the remove button is asking "Remove N rows?" (the shell asks on Delete too). */
+export function SelectionBar({ count, matching, fields, relations, onSelectAll, onClear, onSet, onDelete, confirming, onConfirming: setConfirming }: { count: number; matching: number; fields: FieldInfo[]; relations: Relations; onSelectAll: () => void; onClear: () => void; onSet: (field: FieldInfo, value: unknown) => void; onDelete: () => Promise<void>; confirming: boolean; onConfirming: (on: boolean) => void }) {
   const [setting, setSetting] = useState<FieldInfo | null>(null);
   if (count === 0) return null;
   const rows = `${count.toLocaleString()} ${count === 1 ? "row" : "rows"}`;
@@ -369,7 +369,7 @@ export function SelectionBar({ count, matching, fields, relations, onSelectAll, 
       )}
       {confirming ? (
         <>
-          <Button size="sm" variant="destructive" onClick={() => void onDelete().then(() => setConfirming(false))}>
+          <Button size="sm" variant="destructive" autoFocus onClick={() => void onDelete().then(() => setConfirming(false))}>
             Remove {rows}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>

@@ -120,12 +120,9 @@ textarea.dv-select { height: auto; padding: 6px 8px; resize: vertical; }
 .dv-table--wrap .dv-td { white-space: normal; overflow-wrap: anywhere; padding-top: 6px; padding-bottom: 6px; height: auto; }
 .dv-row:hover .dv-td { background: var(--hover); }
 .dv-row--on .dv-td { background: var(--primary-soft); }
-.dv-td--edit { cursor: text; }
+.dv-row { cursor: pointer; }
 .dv-td--edit:hover { box-shadow: inset 0 0 0 1px var(--border); }
 .dv-td--editing { padding: 2px 4px; overflow: visible; }
-.dv-open { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: var(--dv-12); font-weight: 500; opacity: 0; cursor: pointer; box-shadow: 0 1px 2px rgba(26, 43, 60, 0.08); }
-.dv-row:hover .dv-open, .dv-open:focus-visible { opacity: 1; }
-.dv-open:hover { color: var(--text); }
 .dv-titlecell { position: relative; display: flex; align-items: center; min-width: 0; font-weight: 500; }
 .dv-grouprow td { padding: 0; background: var(--surface-2); border-bottom: 1px solid var(--border); position: sticky; left: 0; }
 .dv-group { display: inline-flex; align-items: center; gap: 6px; height: 32px; border: 0; background: none; font-size: var(--dv-13); color: var(--text); cursor: pointer; }
@@ -267,6 +264,8 @@ textarea.dv-editor { height: auto; min-height: 72px; padding: 6px; resize: verti
 .dv-kv__row dd { margin: 0; min-width: 0; }
 .dv-inplace { min-height: 28px; display: flex; align-items: center; padding: 2px 6px; border-radius: 4px; cursor: text; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dv-inplace:hover { box-shadow: inset 0 0 0 1px var(--border); }
+.dv-card .dv-inplace, .dv-list__row .dv-inplace { min-height: 0; padding: 0; cursor: inherit; }
+.dv-card .dv-inplace:hover, .dv-list__row .dv-inplace:hover { box-shadow: none; }
 .dv-inplace--long { white-space: pre-wrap; align-items: flex-start; overflow-wrap: anywhere; line-height: 1.5; }
 .dv-rec__long h4, .dv-rec__history h4 { margin: 0 0 6px; font-size: var(--dv-12); font-weight: 600; color: var(--text-2); }
 .dv-rec__history { display: flex; flex-direction: column; gap: 6px; }

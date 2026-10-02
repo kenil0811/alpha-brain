@@ -899,3 +899,8 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .thread__live { margin-top: 6px; font-size: var(--text-xs); color: var(--text-2); }
 .thread__live li { overflow-wrap: anywhere; }
 .thread__last { display: block; margin-top: 4px; font-size: var(--text-xs); overflow-wrap: anywhere; }
+
+/* ---- clickable rows and cards (a click opens what they stand for) ---- */
+.modcard--open, .item--open { cursor: pointer; }
+.modcard--open:hover { border-color: var(--primary); }
+.item--open:hover { background: var(--hover); }

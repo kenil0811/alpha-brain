@@ -52,7 +52,8 @@ try {
   const project = (await start("uv", ["run", "python", join(desktop, "tools/layout-seed.py")], { cwd: join(repo, "core") }, (s) => s.match(/^(m_\w+)$/m)?.[1]));
   const port = await start("uv", ["run", "alpha", "serve", "--port", "0"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
   const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
-  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`];
+  // "<path>:<table>" is the project page again, on that table's tab (kept in localStorage).
+  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`, `/m/${project}:openings`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
     for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {
@@ -61,7 +62,9 @@ try {
       // The window may only call routes the core has: a 404/405 means a page asks for one it lacks.
       const missing = [];
       page.on("response", (r) => r.url().includes("/api/") && [404, 405].includes(r.status()) && missing.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`));
-      await page.goto(`${vite}/#${path}`);
+      const [route, tab] = path.split(":");
+      if (tab) await page.addInitScript(([id, t]) => localStorage.setItem(`alpha.module.${id}.tab`, t), [project, tab]);
+      await page.goto(`${vite}/#${route}`);
       await page.waitForLoadState("networkidle");
       await page.waitForTimeout(400);
       const offline = (await page.locator("text=Alpha's core isn't running").count()) ? ["the window never reached the core"] : [];
