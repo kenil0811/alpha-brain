@@ -13,7 +13,9 @@ Status: **open**, **fixed** (verified), **deferred** (with the reason).
 | 10 | The companion window received the main window's core token, so a script in it could approve actions or change settings (Bridge TASK-027). | fixed (test seen failing first): the companion gets its own token for home, conversation, ask, turns and transcribe only |
 | 11 | `alpha serve` without a token ran any web page's simple POST (no CORS preflight), e.g. an approve. | fixed (test seen failing first): requests from any other Origin are refused |
 | 12 | No single gate and no CI: Python and desktop checks ran separately, by hand. | fixed: `just verify` and `.github/workflows/verify.yml` |
-| 13 | The layout check is a console script, so no gate runs it. | open: needs a Playwright run |
+| 13 | The layout check is a console script, so no gate runs it. | fixed: `just layout` runs it over every page, seeded, inside `just verify` |
+| 14 | At 1100x760 with the Chief of Staff panel open the main column is 496px: the Intelligence tabs need 522px of 440, so "Knowledge" is cut off (#1 came back). | open (found by `just layout`) |
+| 15 | At 1100x760 Knowledge's "Facts about you" table needs 782px of 438: Where from, Since and Add run under the Chief of Staff panel. | open (found by `just layout`) |
 
 ## 2026-10-02: Alpha UI port (layout check and live review)
 

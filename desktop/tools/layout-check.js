@@ -4,8 +4,8 @@
 // and in every state a page passes through (empty, loading, needs you, failed), not only the
 // empty screen. Empty array = clean. It cannot judge copy or density: take a screenshot and read
 // it against docs/development/ui-rules.md too. Ported from Alpha (apps/desktop/tools).
-// ponytail: a console script, not a CI test (jsdom has no layout); move it into a Playwright
-// run if one is ever added.
+// `just layout` (tools/layout-run.mjs) runs it headless over every page with a seeded world;
+// it still works pasted into the dev tools console.
 (() => {
   const out = [];
   const fonts = new Set();
