@@ -1,7 +1,8 @@
-/** ⌘K: jump to a page or a project, start a new one, or ask Alpha whatever was typed. A plain
- *  substring filter and a small listbox (Arrow, Enter, Esc) on the shared Dialog. */
+/** ⌘K: jump to a page (Connections and About you too) or a project, start a new one, or ask
+ *  Alpha whatever was typed. A plain substring filter and a small listbox (Arrow, Enter, Esc)
+ *  on the shared Dialog, with the keys spelled out underneath. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Activity, FolderPlus, Home, MessageCircle, Settings, Sparkles, type LucideIcon } from "lucide-react";
+import { Activity, FolderPlus, Home, Link2, MessageCircle, Settings, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import type { ModuleCard } from "../core/client";
 import { Dialog, DialogContent, Input } from "../ui";
 import { projectIcon } from "./projectIcons";
@@ -39,11 +40,13 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
 
   const items = useMemo<Command[]>(
     () => [
-      { id: "home", label: "Home", icon: Home, run: () => onGo({ kind: "home" }) },
-      { id: "activity", label: "Activity", icon: Activity, run: () => onGo({ kind: "activity" }) },
-      { id: "intelligence", label: "Intelligence", icon: Sparkles, run: () => onGo({ kind: "intelligence" }) },
-      { id: "settings", label: "Settings", icon: Settings, run: () => onGo({ kind: "settings" }) },
-      ...modules.map((m) => ({ id: `m-${m.id}`, label: m.name, icon: projectIcon(m), run: () => onGo({ kind: "module", id: m.id }) })),
+      { id: "home", label: "Go to Home", icon: Home, run: () => onGo({ kind: "home" }) },
+      { id: "activity", label: "Go to Activity", icon: Activity, run: () => onGo({ kind: "activity" }) },
+      { id: "connections", label: "Go to Connections", icon: Link2, run: () => onGo({ kind: "intelligence", tab: "connections" }) },
+      { id: "about", label: "Go to About you", icon: UserRound, run: () => onGo({ kind: "intelligence", tab: "knowledge" }) },
+      { id: "intelligence", label: "Go to Intelligence", icon: Sparkles, run: () => onGo({ kind: "intelligence" }) },
+      { id: "settings", label: "Go to Settings", icon: Settings, run: () => onGo({ kind: "settings" }) },
+      ...modules.map((m) => ({ id: `m-${m.id}`, label: `Open ${m.name}`, icon: projectIcon(m), run: () => onGo({ kind: "module", id: m.id }) })),
       { id: "new", label: "New project", icon: FolderPlus, run: onNew },
     ],
     [modules, onGo, onNew],
@@ -76,7 +79,7 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {open ? (
-        <DialogContent title="Go to">
+        <DialogContent title="Jump to…">
           <Input
             ref={input}
             value={query}
@@ -85,8 +88,8 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
               setActive(0);
             }}
             onKeyDown={onKeyDown}
-            placeholder="A page, a project, or ask…"
-            aria-label="Go to"
+            placeholder="Go to a page, open a project…"
+            aria-label="Command menu"
             role="combobox"
             aria-expanded
             aria-controls="command-menu-list"
@@ -103,6 +106,10 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
               );
             })}
           </ul>
+          <div className="command-menu__hint">
+            <kbd>↑</kbd>
+            <kbd>↓</kbd> to move · <kbd>Enter</kbd> to choose · <kbd>Esc</kbd> to close · <kbd>⌘K</kbd> to reopen
+          </div>
         </DialogContent>
       ) : null}
     </Dialog>

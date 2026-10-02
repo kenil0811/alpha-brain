@@ -1,10 +1,11 @@
 /**
- * Rename, Change icon, Export and Delete for a project: the same items and dialogs on the rail's
- * project row (its ⋮ or a right-click) and on the project page. A project file is saved to
- * Downloads on the Mac, or downloaded in a browser; adding one makes a new project from it.
+ * Open (on the rail), Rename, Change icon, Export and Delete for a project: the same items and
+ * dialogs on the rail's project row (its ⋮ or a right-click) and on the project page. A project
+ * file holds its structure (Export…) or its structure and rows (Export with data…); it is saved
+ * to Downloads on the Mac, or downloaded in a browser; adding one makes a new project from it.
  */
 import { useEffect, useState } from "react";
-import { EyeOff, FileDown, Pencil, Shapes, Trash2 } from "lucide-react";
+import { Database, EyeOff, FileDown, FolderOpen, Pencil, Shapes, Trash2 } from "lucide-react";
 import type { Client, ModuleCard } from "../core/client";
 import { hasTauri } from "../core/session";
 import { Button, Dialog, DialogContent, DropdownMenuItem, DropdownMenuSeparator, Input } from "../ui";
@@ -13,17 +14,25 @@ import { PROJECT_ICONS } from "./projectIcons";
 export type ProjectEdit = "rename" | "icon" | "delete";
 export const PROJECT_FILE = ".alphaproject";
 
-export function ProjectMenuItems({ onPick, onExport, onHide }: { onPick: (edit: ProjectEdit) => void; onExport: () => void; onHide?: () => void }) {
+export function ProjectMenuItems({ onPick, onExport, onHide, onOpen }: { onPick: (edit: ProjectEdit) => void; onExport: (rows: boolean) => void; onHide?: () => void; onOpen?: () => void }) {
   return (
     <>
+      {onOpen ? (
+        <DropdownMenuItem onSelect={onOpen}>
+          <FolderOpen size={14} strokeWidth={1.75} aria-hidden="true" /> Open
+        </DropdownMenuItem>
+      ) : null}
       <DropdownMenuItem onSelect={() => onPick("rename")}>
         <Pencil size={14} strokeWidth={1.75} aria-hidden="true" /> Rename
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => onPick("icon")}>
         <Shapes size={14} strokeWidth={1.75} aria-hidden="true" /> Change icon
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={onExport}>
+      <DropdownMenuItem onSelect={() => onExport(false)}>
         <FileDown size={14} strokeWidth={1.75} aria-hidden="true" /> Export…
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onExport(true)}>
+        <Database size={14} strokeWidth={1.75} aria-hidden="true" /> Export with data…
       </DropdownMenuItem>
       {onHide ? (
         <DropdownMenuItem onSelect={onHide}>
@@ -40,8 +49,8 @@ export function ProjectMenuItems({ onPick, onExport, onHide }: { onPick: (edit: 
 
 /** Saves a project's file and says where it went (a path on the Mac; nothing in a browser,
  *  whose own download bar shows it). */
-export async function exportProject(client: Client, m: ModuleCard): Promise<string> {
-  const bundle = await client.exportModule(m.id);
+export async function exportProject(client: Client, m: ModuleCard, rows = false): Promise<string> {
+  const bundle = await client.exportModule(m.id, rows);
   const filename = `${m.name.replace(/[^\w .-]+/g, "").trim() || "project"}${PROJECT_FILE}`;
   const text = JSON.stringify(bundle, null, 2);
   if (hasTauri()) {
@@ -75,7 +84,7 @@ export async function importProject(client: Client, file: File): Promise<ModuleC
 }
 
 /** One dialog for whichever edit was picked. */
-export function ProjectEditDialog({ client, project, edit, onClose, onChanged, onDeleted }: { client: Client; project: ModuleCard | null; edit: ProjectEdit | null; onClose: () => void; onChanged: () => void; onDeleted: (id: string) => void }) {
+export function ProjectEditDialog({ client, project, edit, onClose, onChanged, onDeleted, subProjects = 0 }: { client: Client; project: ModuleCard | null; edit: ProjectEdit | null; onClose: () => void; onChanged: () => void; onDeleted: (id: string) => void; subProjects?: number }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -144,7 +153,7 @@ export function ProjectEditDialog({ client, project, edit, onClose, onChanged, o
           ) : (
             <>
               <p className="projedit__what">
-                Removes {tables} {tables === 1 ? "table" : "tables"} ({project.records} {project.records === 1 ? "row" : "rows"}), its automations, note and goals. Activity keeps the history.
+                Removes {tables} {tables === 1 ? "table" : "tables"} ({project.records} {project.records === 1 ? "row" : "rows"}), its automations, note and goals. Activity keeps the history.{subProjects ? " Its sub projects move back to the top level." : ""} This cannot be undone.
               </p>
               <div className="projedit__actions">
                 <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
