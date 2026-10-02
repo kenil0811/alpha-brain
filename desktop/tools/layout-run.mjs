@@ -45,11 +45,13 @@ const BROWSER = [process.env.ALPHA_TEST_BROWSER, "/Applications/Google Chrome.ap
 // checked too, on its own).
 const CONNECTED = { installed: true, signed_in: true, email: "layout@example.com", plan: "Max" };
 
+// ALPHA_LAYOUT_PORT lets two checkouts run it at once.
+const WEB_PORT = process.env.ALPHA_LAYOUT_PORT ?? "5199";
 let failed = false;
 try {
   const project = (await start("uv", ["run", "python", join(desktop, "tools/layout-seed.py")], { cwd: join(repo, "core") }, (s) => s.match(/^(m_\w+)$/m)?.[1]));
   const port = await start("uv", ["run", "alpha", "serve", "--port", "0"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
-  const vite = await start("pnpm", ["exec", "vite", "--port", "5199", "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: "http://localhost:5199" } }, (s) => s.match(/(http:\/\/localhost:5199)/)?.[1]);
+  const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
   const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
