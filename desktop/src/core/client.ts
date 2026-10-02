@@ -80,6 +80,8 @@ export interface ModuleCard {
   id: string;
   name: string;
   goal: string | null;
+  /** A lucide icon name the person picked (shell/projectIcons.ts); null until they pick one. */
+  icon?: string | null;
   tables: TableSummary[];
   records: number;
   last_at: string | null;
@@ -337,6 +339,11 @@ export class Client {
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
+  updateModule = (ref: string, patch: { name?: string; icon?: string }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
+  removeModule = (ref: string) => this.call<{ module: string; tables: number; rows: number }>("DELETE", `/api/modules/${encodeURIComponent(ref)}`);
+  /** A project as a file: its tables and rows, note, goals and automations. */
+  exportModule = (ref: string) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export`);
+  importModule = (bundle: unknown) => this.call<ModuleCard>("POST", "/api/modules/import", bundle);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
   async table(name: string): Promise<{ table: TableDesc; records: RecordRow[] }> {

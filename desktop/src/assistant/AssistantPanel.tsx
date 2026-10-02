@@ -4,9 +4,13 @@
  * view. The companion is the same stream.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUp, ChevronLeft } from "lucide-react";
 import type { Client, JournalEntry, ModuleCard, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
+import { usePushToTalk } from "../shell/ptt";
 import { MicButton, useSpeech } from "../shell/voice";
+import { CollapseToggleButton, IconButton } from "../ui";
+import { ZazooIcon } from "../ui/ZazooIcon";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 
@@ -51,8 +55,7 @@ function Rich({ text }: { text: string }) {
 
 export function AssistantPanel({
   client,
-  open,
-  onOpen,
+  onCollapse,
   scopeName,
   module,
   version,
@@ -61,8 +64,7 @@ export function AssistantPanel({
   onDraftTaken,
 }: {
   client: Client;
-  open: boolean;
-  onOpen: (open: boolean) => void;
+  onCollapse: () => void;
   scopeName: string;
   module: ModuleCard | null;
   version: number;
@@ -144,9 +146,21 @@ export function AssistantPanel({
     [client, module, pending, threadView, load, onChanged],
   );
 
-  const speech = useSpeech((final, interim) => {
-    setText(final || interim);
-  });
+  // Words spoken are added after whatever was already typed.
+  const typedBefore = useRef("");
+  const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
+  const toggleMic = () => {
+    if (!speech.listening) typedBefore.current = text;
+    speech.toggle();
+  };
+  // Hold Fn (or the shortcut chosen in Settings) to talk; letting go stops listening.
+  usePushToTalk(
+    useCallback(() => {
+      typedBefore.current = text;
+      speech.start();
+    }, [speech, text]),
+    useCallback(() => speech.stop(), [speech]),
+  );
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || !e.shiftKey)) {
       e.preventDefault();
@@ -155,7 +169,6 @@ export function AssistantPanel({
     }
   };
 
-  if (!open) return null;
   const steps = pending?.steps ?? [];
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status">
@@ -170,39 +183,32 @@ export function AssistantPanel({
             </li>
           ))}
         </ul>
-      ) : elapsed > 8 ? (
-        <span className="faint">Researching and deciding; steps show here as they happen.</span>
       ) : null}
     </div>
   ) : null;
 
   return (
-    <aside className="assist" aria-label="Assistant">
-      {threadView ? (
-        <div className="assist__head">
-          <button type="button" className="assist__back" onClick={() => setThreadView(null)}>
-            ‹ Back
-          </button>
-          <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>{threadView.title}</b>
-            <div className="assist__ctx">Thread · {threadView.state === "open" ? "open" : threadView.state}</div>
+    <aside className="assist__panel" aria-label="Chief of Staff">
+      <div className="assist__head">
+        {threadView ? (
+          <IconButton aria-label="Back to the conversation" title="Back" size="sm" onClick={() => setThreadView(null)}>
+            <ChevronLeft size={16} />
+          </IconButton>
+        ) : (
+          <CollapseToggleButton side="right" collapsed={false} controls="panel-right" onClick={onCollapse} />
+        )}
+        <div className="assist__title">
+          {threadView ? null : <ZazooIcon size={32} />}
+          <div className="assist__titletext">
+            <b className="assist__name" title={threadView?.title}>
+              {threadView ? threadView.title : "Chief of Staff"}
+            </b>
+            <span className="assist__ctx" title={scopeName}>
+              {threadView ? `Thread · ${THREAD_STATE[threadView.state] ?? threadView.state}` : scopeName}
+            </span>
           </div>
         </div>
-      ) : (
-        <div className="assist__head">
-          <div className="assist__mark" aria-hidden="true">
-            A
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>Assistant</b>
-            <div className="assist__ctx">{scopeName}</div>
-          </div>
-          <span style={{ marginLeft: "auto" }} />
-          <button type="button" className="iconbtn" onClick={() => onOpen(false)} aria-label="Close the assistant">
-            ›
-          </button>
-        </div>
-      )}
+      </div>
       <div className="assist__body" ref={body}>
         {threadView ? (
           <>
@@ -215,25 +221,24 @@ export function AssistantPanel({
                 </div>
               ),
             )}
-            {!threadView.journal.length ? <p className="muted">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
+            {!threadView.journal.length ? <p className="assist-empty">Nothing in this thread yet.</p> : null}
           </>
         ) : (
           <>
             {threads.map((t) => (
-              <button key={t.id} type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
-                <h3 className="creation__title">
-                  {t.title}
+              <button key={t.id} type="button" className="creation" title={t.state === "waiting" ? "Waiting for your answer: open it to reply here" : "Its own thread: open it to talk about this work"} onClick={() => void client.thread(t.id).then(setThreadView)}>
+                <span className="creation__title">
+                  <span className="creation__name">{t.title}</span>
                   <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
-                </h3>
-                <span className="faint">{t.state === "working" ? "Alpha is researching and building this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                </span>
               </button>
             ))}
             {module ? (
               <div className="msg msg--ai">
-                I'm looking at <b>{module.name}</b>. Ask about it, tell me to add or change something, or log to it.
+                Ask about <b>{module.name}</b>, or tell me what to add or change.
               </div>
             ) : null}
-            {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
+            {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, look up or do.</div> : null}
             {turns.map((e) => (
               <Message key={e.id} e={e} />
             ))}
@@ -246,19 +251,30 @@ export function AssistantPanel({
           </p>
         ) : null}
       </div>
-      <div className="composer">
+      <form
+        className="composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (speech.listening) speech.stop();
+          void send(text);
+        }}
+      >
         <div className="composer__box">
-          <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
-          <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-          <button type="button" className="btn btn--primary btn--sm" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
-            Send
-          </button>
+          {/* The + menu (attach context, Advanced) sits first in the pill. */}
+          <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply…" : "Ask…"} aria-label="Message Alpha" />
+          <MicButton listening={speech.listening} supported={speech.supported} onToggle={toggleMic} small />
+          <IconButton aria-label="Send" title="Enter to send, Shift+Enter for a new line" type="submit" className="composer__send" disabled={!text.trim() || Boolean(pending)}>
+            <ArrowUp size={16} />
+          </IconButton>
         </div>
-        <div className="composer__row">
-          <span>Uses your Claude subscription</span>
-          <span style={{ marginLeft: "auto" }}>⏎ to send</span>
-        </div>
-      </div>
+        {speech.error ? (
+          <div className="composer__row">
+            <span className="notice" role="alert">
+              {speech.error}
+            </span>
+          </div>
+        ) : null}
+      </form>
     </aside>
   );
 }

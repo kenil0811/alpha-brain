@@ -1,21 +1,30 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
-import { Rail, knownSurface, sameSurface } from "./Rail";
+import { ToastProvider, TooltipProvider, type PanelControl } from "../ui";
+import { Rail, knownSurface, sameSurface, surfaceFromPath, surfacePath } from "./Rail";
+
+const panel: PanelControl = { collapsed: false, mode: "expanded", width: 224, displayWidth: 224, isDragging: false, setCollapsed: vi.fn(), toggleCollapsed: vi.fn(), resizeBy: vi.fn(), startDrag: vi.fn(), handleEscape: () => false };
 
 describe("the rail", () => {
   it("marks the right item current", () => {
     expect(sameSurface({ kind: "intelligence", tab: "connections" }, { kind: "intelligence" })).toBe(true);
     expect(knownSurface({ kind: "people" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
+    expect(surfaceFromPath(`#${surfacePath({ kind: "module", id: "m_1" })}`)).toEqual({ kind: "module", id: "m_1" });
   });
 
-  it("lists the modules and what needs the person", () => {
+  it("lists the projects and what needs the person", () => {
     render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
     );
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: /^Home/ })).toHaveTextContent("2");
+    expect(screen.getByText("Projects")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
