@@ -8,14 +8,15 @@
  * its own <svg>, so THIS wrapper is the clip — without it the body and tail
  * spill past the 96px Tauri window edge.
  *
- * Honors `prefers-reduced-motion` with the static ZazooCompact head — the
- * director's spring/blink/breath loop never runs for those users. (The old
- * AvatarFigure overlay hardcoded reducedMotion={false}; this fixes that
- * inconsistency instead of copying it.)
+ * Draws the person's chosen animal and outfit (avatar/look.ts). Honors
+ * `prefers-reduced-motion` and Settings' Reduce motion with one still frame of
+ * the same painted character — the director's spring/blink/breath loop never
+ * runs for those users.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { readAppearance } from "../../shell/appearance";
+import { speciesOf, useLook, useLookChange } from "../look";
 import { ZazooAvatar } from "./ZazooAvatar";
-import { ZazooCompact } from "./ZazooCompact";
 import type { ZazooDirector } from "./director";
 
 /** Full-body width that puts the head nicely inside a square crop of `size`. */
@@ -37,7 +38,10 @@ export function usePrefersReducedMotion(): boolean {
     query.addEventListener("change", onChange);
     return () => query.removeEventListener("change", onChange);
   }, []);
-  return reduced;
+  // Settings' own Reduce motion, in this window or another.
+  const [setting, setSetting] = useState(() => typeof window !== "undefined" && readAppearance().motion === "reduce");
+  useLookChange(useCallback(() => setSetting(readAppearance().motion === "reduce"), []));
+  return reduced || setting;
 }
 
 /** Portrait aspect of the full-body ZazooAvatar artboard (viewBox 240×310). */
@@ -61,14 +65,9 @@ export function CompanionZazooFace({
   crop?: boolean;
   animate?: boolean;
 }) {
-  const reducedMotion = usePrefersReducedMotion();
-  if (reducedMotion) {
-    return (
-      <div role="img" aria-label={label}>
-        <ZazooCompact size={size} />
-      </div>
-    );
-  }
+  const still = usePrefersReducedMotion() || !animate;
+  const look = useLook();
+  const species = speciesOf(look);
   if (!crop) {
     return (
       <div
@@ -83,7 +82,7 @@ export function CompanionZazooFace({
         }}
       >
         <span aria-hidden="true">
-          <ZazooAvatar director={director} width={size * FULL_BODY_ASPECT} animate={animate} />
+          <ZazooAvatar key={`${look.species} ${look.accessory} ${look.glasses}`} director={director} width={size * FULL_BODY_ASPECT} animate={!still} species={species} appearance={look} />
         </span>
       </div>
     );
@@ -105,7 +104,7 @@ export function CompanionZazooFace({
        *  an empty aria-label is ignored by name computation and ZazooAvatar's own hardcoded
        *  "Zazoo, your companion" svg label leaks into an ancestor button's accessible name. */}
       <div aria-hidden="true" style={{ marginTop: size * HEAD_OFFSET_RATIO }}>
-        <ZazooAvatar director={director} width={size * BODY_WIDTH_RATIO} animate={animate} />
+        <ZazooAvatar key={`${look.species} ${look.accessory} ${look.glasses}`} director={director} width={size * BODY_WIDTH_RATIO} animate={!still} species={species} appearance={look} />
       </div>
     </div>
   );

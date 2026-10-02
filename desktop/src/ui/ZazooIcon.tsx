@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { CompanionZazooFace } from "../avatar/zazoo/CompanionZazooFace";
 import { ZazooDirector } from "../avatar/zazoo/director";
 
-/** Zazoo, the assistant, as a static icon — the same painted panda the floating
- *  companion (avatar/Character.tsx) shows, held on one resting frame and cropped to the
- *  head, so the rail mark, panel headers and module button all read as one character.
- *  (prefers-reduced-motion users see the plush ZazooCompact head, same as the companion.) */
+/** Zazoo, the assistant, as a static icon — the same character the floating companion
+ *  (avatar/Character.tsx) shows, in the person's chosen animal and outfit, held on one resting
+ *  frame and cropped to the head, so the rail mark, panel headers and module button all read
+ *  as one character. */
 export function ZazooIcon({ size = 32, className, label = "Zazoo" }: { size?: number; className?: string; label?: string }) {
   const director = useMemo(() => new ZazooDirector(), []);
   return (

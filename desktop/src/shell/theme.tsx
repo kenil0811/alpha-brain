@@ -1,12 +1,13 @@
 /** The appearance setting: follow the Mac, force light or dark, or Ambient (light from 7:00 to
  * 19:00, dark otherwise). Light until the person picks another, as in Alpha. Kept per window. */
 import { useCallback, useEffect, useState } from "react";
-import { applyAppearance, readAppearance } from "./appearance";
+import { useLookChange } from "../avatar/look";
+import { reapplyAppearance } from "./appearance";
 
 export type Theme = "system" | "light" | "dark" | "ambient";
 const KEY = "alpha.theme";
 
-function readTheme(): Theme {
+export function readTheme(): Theme {
   try {
     const raw = window.localStorage.getItem(KEY);
     return raw === "system" || raw === "dark" || raw === "ambient" ? raw : "light";
@@ -25,7 +26,9 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function useTheme(): [Theme, (next: Theme) => void] {
-  useEffect(() => applyAppearance(readAppearance()), []);
+  useEffect(reapplyAppearance, []);
+  // A new companion can bring its own colours, so the palette follows the avatar too.
+  useLookChange(reapplyAppearance);
   const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "light" : readTheme()));
   useEffect(() => {
     applyTheme(theme);

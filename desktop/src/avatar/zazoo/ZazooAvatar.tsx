@@ -12,7 +12,7 @@
  * that has to deform per frame (eyes, brows, mouth, cheeks, ears, body)
  * stays vector so it can squash, blink and recolor.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { ZazooDirector, type ZazooFrame } from "./director";
 import { MOUTH_PARTS, MOUTH_SHAPES, BROW_PARTS, BROW_SHAPES, LOOP_N, type Loop } from "./parts";
 import { DEFAULT_SPECIES, type ZazooSpecies } from "./species";
@@ -235,6 +235,10 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
   // `pandaArt` gates only the sheets that are panda anatomy — the ear caps,
   // the eye patches, the snout, the dark eye.
   const pandaArt = species.nose === "painted";
+  // Several avatars can share a page (rail mark, panel header, Settings' preview), each in its
+  // own colours, so every gradient, filter and clip id is this avatar's own.
+  const uid = `zz${useId().replace(/[^a-zA-Z0-9]/g, "")}-`;
+  const url = (name: string) => `url(#${uid}${name})`;
   const painted: boolean = true;
   const back = facing === "back";
   const mouthImgRefs = useRef<(SVGImageElement | null)[]>([]);
@@ -273,6 +277,7 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
     beakUpper: useRef<SVGGElement>(null),
     beakLower: useRef<SVGGElement>(null),
     shadow: useRef<SVGEllipseElement>(null),
+    contact: useRef<SVGEllipseElement>(null),
     zzz: useRef<SVGTextElement>(null),
   };
 
@@ -283,10 +288,21 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
     const mouthBufA = new Float64Array(LOOP_N * 2);
     const mouthBufB = new Float64Array(LOOP_N * 2);
     const browBuf = new Float64Array(LOOP_N * 2);
+    // Follow-through: ears and whiskers trail the head and the hop on a lagged copy, so a
+    // turn or a landing ripples through them a beat later instead of moving as one block.
+    let lagX = 0, lagHop = 0, lastT = 0;
 
     const apply = (f: ZazooFrame) => {
       const r = refs;
       if (!r.root.current) return;
+      const t = performance.now() / 1000;
+      const dt = lastT ? Math.min(0.1, t - lastT) : 1;
+      lastT = t;
+      const chase = Math.min(1, dt * 7);
+      lagX += (f.headGazeX * 4.2 - lagX) * chase;
+      lagHop += (f.hopY - lagHop) * chase;
+      const trail = (lagX - f.headGazeX * 4.2) * 2.6; // deg: ears lean back from a turn
+      const flop = (f.hopY - lagHop) * 0.9; // deg: droop rising, perk landing
       r.root.current.setAttribute("transform", `translate(0 ${f.hopY.toFixed(2)}) rotate(${f.wiggle.toFixed(2)} 120 240)`);
 
       // hide: Zazoo ROLLS forward and wraps itself into its own suit —
@@ -331,6 +347,9 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
       const air = Math.min(1, Math.abs(f.hopY) / 20);
       r.shadow.current!.setAttribute("rx", (62 - air * 14).toFixed(1));
       r.shadow.current!.setAttribute("opacity", (0.1 - air * 0.05).toFixed(3));
+      // the contact shadow right under the feet goes first when it leaves the floor
+      r.contact.current!.setAttribute("rx", (40 - air * 18).toFixed(1));
+      r.contact.current!.setAttribute("opacity", (0.22 * (1 - air)).toFixed(3));
 
       const wag = Math.sin(f.tailWagPhase) * (3 + f.wagAmount * 22);
       r.tail.current!.setAttribute("transform", `rotate(${(f.tailCurl * 16 - 6 + wag).toFixed(2)} 190 238)`);
@@ -341,11 +360,11 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
       const { pivotLx, pivotRx, pivotY } = RIG.ear;
       r.earL.current!.setAttribute(
         "transform",
-        `translate(${pivotLx} ${pivotY}) scale(${es}) translate(${-pivotLx} ${-pivotY}) rotate(${(-f.earL * 0.8).toFixed(2)} ${pivotLx} ${pivotY})`,
+        `translate(${pivotLx} ${pivotY}) scale(${es}) translate(${-pivotLx} ${-pivotY}) rotate(${(-f.earL * 0.8 + trail - flop).toFixed(2)} ${pivotLx} ${pivotY})`,
       );
       r.earR.current!.setAttribute(
         "transform",
-        `translate(${pivotRx} ${pivotY}) scale(${es}) translate(${-pivotRx} ${-pivotY}) rotate(${(f.earR * 0.8).toFixed(2)} ${pivotRx} ${pivotY})`,
+        `translate(${pivotRx} ${pivotY}) scale(${es}) translate(${-pivotRx} ${-pivotY}) rotate(${(f.earR * 0.8 + trail + flop).toFixed(2)} ${pivotRx} ${pivotY})`,
       );
 
       // eyes lead, head follows: the face turns on the LAGGED gaze while the
@@ -357,14 +376,17 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
       r.face.current!.setAttribute("transform", headXf);
       // the cheeks sit in a different layer (under the suit) but belong to the
       // same head, so they take the identical transform
-      r.cheekFace.current!.setAttribute("transform", headXf);
+      // …and a blink pushes them up a touch: the lid squashes the whole eye area, not just the eye
+      r.cheekFace.current!.setAttribute("transform", `translate(0 ${(-f.blink * 0.9).toFixed(2)}) ${headXf}`);
 
       // fully-closable: 0 collapses the eye to nothing and the drawn lid arc
       // (opacity ramps in below) takes over — meditation is a CLOSED eye,
       // not a squint
       const eo = Math.max(0, Math.min(1.15, f.eyeOpen));
-      r.eyeL.current!.setAttribute("transform", `translate(${RIG.eye.lx} ${RIG.eye.y}) scale(1 ${eo.toFixed(3)}) translate(${-RIG.eye.lx} ${-RIG.eye.y})`);
-      r.eyeR.current!.setAttribute("transform", `translate(${RIG.eye.rx} ${RIG.eye.y}) scale(1 ${eo.toFixed(3)}) translate(${-RIG.eye.rx} ${-RIG.eye.y})`);
+      // squash, not just shut: a closing eye widens a little as it flattens (volume again)
+      const ew = (1 + Math.max(0, 1 - eo) * 0.1).toFixed(3);
+      r.eyeL.current!.setAttribute("transform", `translate(${RIG.eye.lx} ${RIG.eye.y}) scale(${ew} ${eo.toFixed(3)}) translate(${-RIG.eye.lx} ${-RIG.eye.y})`);
+      r.eyeR.current!.setAttribute("transform", `translate(${RIG.eye.rx} ${RIG.eye.y}) scale(${ew} ${eo.toFixed(3)}) translate(${-RIG.eye.rx} ${-RIG.eye.y})`);
       // A shut dark eye would vanish inside the black patch, so the closing
       // lid is drawn as its own pale arc that fades in as the eye goes flat.
       const lid = Math.max(0, Math.min(1, 1 - eo * 3.2)).toFixed(3);
@@ -489,7 +511,7 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
       // whisker's tip is at -x, so the same on-screen "tips up" is +deg on
       // the left group and -deg on the right.
       if (r.whiskerL.current) {
-        const tipsUp = f.whiskerSway - f.whiskerDroop * 13;
+        const tipsUp = f.whiskerSway - f.whiskerDroop * 13 + flop * 1.4;
         r.whiskerL.current.setAttribute("transform", `rotate(${tipsUp.toFixed(2)} 98 138)`);
         r.whiskerR.current!.setAttribute("transform", `rotate(${(-tipsUp).toFixed(2)} 142 138)`);
       }
@@ -699,74 +721,83 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
       role="img"
     >
       <defs>
-        <radialGradient id="zz-body" cx="0.38" cy="0.24" r="0.92">
+        <radialGradient id={uid + "body"} cx="0.38" cy="0.24" r="0.92">
           <stop offset="0%" stopColor={bodyLight} />
           <stop offset="62%" stopColor={body} />
           <stop offset="100%" stopColor={bodyDark} />
         </radialGradient>
-        <radialGradient id="zz-ear" cx="0.36" cy="0.26" r="0.9">
+        <radialGradient id={uid + "ear"} cx="0.36" cy="0.26" r="0.9">
           <stop offset="0%" stopColor="#2F3038" />
           <stop offset="100%" stopColor="#0E0F12" />
         </radialGradient>
-        <radialGradient id="zz-patch" cx="0.4" cy="0.3" r="0.95">
+        <radialGradient id={uid + "patch"} cx="0.4" cy="0.3" r="0.95">
           <stop offset="0%" stopColor="#26272E" />
           <stop offset="100%" stopColor={patchInk} />
         </radialGradient>
-        <radialGradient id="zz-eye" cx="0.36" cy="0.3" r="0.85">
+        <radialGradient id={uid + "eye"} cx="0.36" cy="0.3" r="0.85">
           <stop offset="0%" stopColor="#4A4854" />
           <stop offset="100%" stopColor="#1E1D24" />
         </radialGradient>
         {/* The rolled-up bundle takes the suit's color. */}
-        <radialGradient id="zz-bundle" cx="0.42" cy="0.3" r="0.9">
+        <radialGradient id={uid + "bundle"} cx="0.42" cy="0.3" r="0.9">
           <stop offset="0%" stopColor={shade(suit, 0.3)} />
           <stop offset="100%" stopColor={suitDark} />
         </radialGradient>
         {/* Soft key light on the upper-left of the felt. */}
-        <filter id="zz-soft" x="-40%" y="-40%" width="180%" height="180%">
+        <filter id={uid + "soft"} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="7" />
         </filter>
-        <filter id="zz-soft2" x="-40%" y="-40%" width="180%" height="180%">
+        <filter id={uid + "soft2"} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="4.5" />
         </filter>
+        <filter id={uid + "contact"} x="-40%" y="-200%" width="180%" height="500%">
+          <feGaussianBlur stdDeviation="1.6" />
+        </filter>
+        {/* Sclera: the upper lid shades the top of the eye, as a real lid does. */}
+        <linearGradient id={uid + "sclera"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#DCD6CE" />
+          <stop offset="42%" stopColor="#FFFEFA" />
+        </linearGradient>
         {/* Bevels the charcoal mitts so they read against the charcoal suit:
             a lit edge up-left, a cast shadow down-right. */}
-        <filter id="zz-mitt" x="-40%" y="-40%" width="180%" height="180%">
+        <filter id={uid + "mitt"} x="-40%" y="-40%" width="180%" height="180%">
           <feDropShadow dx="1.2" dy="2" stdDeviation="1.5" floodColor="#000" floodOpacity="0.6" />
           <feDropShadow dx="-0.7" dy="-0.9" stdDeviation="0.5" floodColor="#8E8F98" floodOpacity="0.85" />
         </filter>
-        <clipPath id="zz-bodyclip">
+        <clipPath id={uid + "bodyclip"}>
           <path d={BODY_PATH} />
         </clipPath>
         {/* The suit is fully vector now, so tints are direct fills — no
             alpha masks, no screen blending, no raster sheets. */}
-        <clipPath id="zz-suitclip">
+        <clipPath id={uid + "suitclip"}>
           <path d={SUIT_JACKET} />
         </clipPath>
-        <radialGradient id="zz-suitg" cx="0.42" cy="0.2" r="1.05">
+        <radialGradient id={uid + "suitg"} cx="0.42" cy="0.2" r="1.05">
           <stop offset="0%" stopColor={shade(suit, 0.14)} />
           <stop offset="55%" stopColor={suit} />
           <stop offset="100%" stopColor={shade(suit, -0.28)} />
         </radialGradient>
-        <radialGradient id="zz-mittg" cx="0.38" cy="0.28" r="0.95">
+        <radialGradient id={uid + "mittg"} cx="0.38" cy="0.28" r="0.95">
           <stop offset="0%" stopColor="#34353E" />
           <stop offset="100%" stopColor="#17181D" />
         </radialGradient>
         {/* Painted suit/tie stay swatch-pickable: duotone remaps the
             artist's own shading through the picked color instead of
             replacing the art with a flat vector fill. */}
-        {painted && <DuotoneFilter id="zz-suit-tint" color={suit} />}
-        {painted && <DuotoneFilter id="zz-tie-tint" color={tie} />}
-        {painted && <DuotoneFilter id="zz-shirt-tint" color={shirt} />}
-        {back && <DuotoneFilter id="zz-back-tint" color={suit} lo={-0.55} hi={-0.15} />}
-        {!pandaArt && <DuotoneFilter id="zz-body-tint" color={body} lo={-0.5} hi={0.06} />}
+        {painted && <DuotoneFilter id={uid + "suit-tint"} color={suit} />}
+        {painted && <DuotoneFilter id={uid + "tie-tint"} color={tie} />}
+        {painted && <DuotoneFilter id={uid + "shirt-tint"} color={shirt} />}
+        {back && <DuotoneFilter id={uid + "back-tint"} color={suit} lo={-0.55} hi={-0.15} />}
+        {!pandaArt && <DuotoneFilter id={uid + "body-tint"} color={body} lo={-0.5} hi={0.06} />}
       </defs>
 
       <g ref={refs.root}>
-        <ellipse ref={refs.shadow} data-layer="shadow" cx="120" cy="294" rx="62" ry="7" fill="#000" opacity="0.10" />
+        <ellipse ref={refs.shadow} data-layer="shadow" cx="120" cy="294" rx="62" ry="7" fill="#000" opacity="0.10" filter={url("soft2")} />
+        <ellipse ref={refs.contact} data-layer="shadow" cx="120" cy="291" rx="40" ry="3.2" fill="#000" opacity="0.22" filter={url("contact")} />
 
         {/* Compact cloth bundle shown in the hide pose. */}
         <g ref={refs.bundle} opacity="0">
-          <ellipse cx="120" cy="274" rx="24" ry="17" fill="url(#zz-bundle)" />
+          <ellipse cx="120" cy="274" rx="24" ry="17" fill={url("bundle")} />
           <ellipse cx="113" cy="268" rx="7" ry="5" fill="#E3E5E9" opacity="0.7" />
         </g>
 
@@ -911,17 +942,17 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
               <g transform={CANVAS} data-layer="body">
                 <image
                   href={pandaShell} x={P.shell[0]} y={P.shell[1]} width={P.shell[2]} height={P.shell[3]}
-                  filter={pandaArt ? undefined : "url(#zz-body-tint)"}
+                  filter={pandaArt ? undefined : url("body-tint")}
                 />
               </g>
             ) : (
               <>
-                <path d={BODY_PATH} fill="url(#zz-body)" data-layer="body" />
-                <g clipPath="url(#zz-bodyclip)">
-                  <ellipse cx="88" cy="112" rx="34" ry="26" fill="#FFF" opacity="0.34" filter="url(#zz-soft)" />
+                <path d={BODY_PATH} fill={url("body")} data-layer="body" />
+                <g clipPath={url("bodyclip")}>
+                  <ellipse cx="88" cy="112" rx="34" ry="26" fill="#FFF" opacity="0.34" filter={url("soft")} />
                   {/* rim light down the shaded side, opposite the key */}
-                  <ellipse cx="177" cy="132" rx="15" ry="48" fill="#FFF" opacity="0.2" filter="url(#zz-soft)" transform="rotate(-14 177 132)" />
-                  <ellipse cx="120" cy="292" rx="70" ry="26" fill={bodyDeep} opacity="0.22" filter="url(#zz-soft)" />
+                  <ellipse cx="177" cy="132" rx="15" ry="48" fill="#FFF" opacity="0.2" filter={url("soft")} transform="rotate(-14 177 132)" />
+                  <ellipse cx="120" cy="292" rx="70" ry="26" fill={bodyDeep} opacity="0.22" filter={url("soft")} />
                   <path d={BODY_PATH} fill="none" stroke={shade(body, -0.42)} strokeWidth="2.2" />
                 </g>
               </>
@@ -944,28 +975,28 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                 the egg (the sheet's suit piece runs a few px past it). Each
                 piece is duotone-tinted so it stays swatch-pickable. */}
             {painted && (
-              <g data-layer="suit" clipPath="url(#zz-bodyclip)">
+              <g data-layer="suit" clipPath={url("bodyclip")}>
                 <g transform={CANVAS}>
                   <image
                     href={pandaShirt} x={P.shirt[0]} y={P.shirt[1]} width={P.shirt[2]} height={P.shirt[3]}
-                    filter={back ? "url(#zz-back-tint)" : "url(#zz-shirt-tint)"}
+                    filter={back ? url("back-tint") : url("shirt-tint")}
                   />
                   {accessory === "tie" && !back && (
-                    <image href={pandaTie} x={P.tie[0]} y={P.tie[1]} width={P.tie[2]} height={P.tie[3]} filter="url(#zz-tie-tint)" />
+                    <image href={pandaTie} x={P.tie[0]} y={P.tie[1]} width={P.tie[2]} height={P.tie[3]} filter={url("tie-tint")} />
                   )}
-                  <image href={pandaSuit} x={P.suit[0]} y={P.suit[1]} width={P.suit[2]} height={P.suit[3]} filter="url(#zz-suit-tint)" />
+                  <image href={pandaSuit} x={P.suit[0]} y={P.suit[1]} width={P.suit[2]} height={P.suit[3]} filter={url("suit-tint")} />
                 </g>
               </g>
             )}
             {!painted && (
             <g data-layer="suit">
-              <g clipPath="url(#zz-bodyclip)">
-                <path d={SUIT_JACKET} fill="url(#zz-suitg)" />
+              <g clipPath={url("bodyclip")}>
+                <path d={SUIT_JACKET} fill={url("suitg")} />
                 <path d={SUIT_JACKET} fill="none" stroke={shade(suit, -0.42)} strokeWidth="2" />
                 {/* chin occlusion — clipped inside the jacket so the blur
                     can't band across the collar edge */}
-                <g clipPath="url(#zz-suitclip)">
-                  <path d="M 56,150 Q 120,198 184,150" fill="none" stroke="#000" strokeWidth="7" opacity="0.15" filter="url(#zz-soft2)" />
+                <g clipPath={url("suitclip")}>
+                  <path d="M 56,150 Q 120,198 184,150" fill="none" stroke="#000" strokeWidth="7" opacity="0.15" filter={url("soft2")} />
                 </g>
               </g>
               {/* shirt V */}
@@ -1001,28 +1032,39 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
               </g>
             )}
 
+            {/* bow tie and scarf take the tie colour, so the one swatch dresses all three */}
             {accessory === "bowtie" && (
-              <g fill="#1D1E23">
+              <g fill={tie} stroke={shade(tie, -0.4)} strokeWidth="0.8" strokeLinejoin="round">
                 <path d="M 119,170 L 106,163 L 106,179 Z" />
                 <path d="M 121,170 L 134,163 L 134,179 Z" />
-                <ellipse cx="120" cy="171" rx="4.2" ry="3.8" fill="#2A2B31" />
+                <ellipse cx="120" cy="171" rx="4.2" ry="3.8" fill={shade(tie, -0.15)} />
               </g>
             )}
             {accessory === "scarf" && (
               <g>
-                <path d="M 101,161 C 110,171 130,171 139,161 L 137,175 C 127,182 113,182 103,175 Z" fill="#C96F52" />
-                <path d="M 113,175 L 120,175 L 118,199 L 109,197 Z" fill="#B8603F" />
+                <path d="M 101,161 C 110,171 130,171 139,161 L 137,175 C 127,182 113,182 103,175 Z" fill={tie} />
+                <path d="M 113,175 L 120,175 L 118,199 L 109,197 Z" fill={shade(tie, -0.12)} />
               </g>
             )}
 
             {/* the back of the jacket: one centre seam and a collar arc, so
                 the turned-away silhouette reads as tailoring, not a blank egg */}
             {back && (
-              <g data-layer="suit" clipPath="url(#zz-bodyclip)" opacity="0.45" fill="none" stroke={shade(suit, -0.42)}>
+              <g data-layer="suit" clipPath={url("bodyclip")} opacity="0.45" fill="none" stroke={shade(suit, -0.42)}>
                 <path d="M 120,172 L 120,286" strokeWidth="1.6" />
                 <path d="M 92,150 Q 120,172 148,150" strokeWidth="1.8" />
               </g>
             )}
+
+            {/* Studio light over the paint and the suit (the face sits above it): a soft key
+                bloom up-left, a cool rim down the shaded side, a warm bounce from the floor and
+                occlusion where the body meets it. Soft-light keeps the artist's shading. */}
+            <g clipPath={url("bodyclip")} data-layer="body" style={{ mixBlendMode: "soft-light" }} pointerEvents="none">
+              <ellipse cx="86" cy="106" rx="34" ry="28" fill="#FFF" opacity="0.6" filter={url("soft")} />
+              <ellipse cx="186" cy="160" rx="12" ry="62" fill="#EAF2FF" opacity="0.75" filter={url("soft")} transform="rotate(-10 186 160)" />
+              <ellipse cx="120" cy="280" rx="72" ry="16" fill="#FFD9A8" opacity="0.45" filter={url("soft")} />
+              <ellipse cx="120" cy="294" rx="60" ry="7" fill="#000" opacity="0.5" filter={url("soft2")} />
+            </g>
 
             {/* face */}
             <g ref={refs.face} data-layer="face" opacity={back ? 0 : 1}>
@@ -1050,8 +1092,8 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                 </g>
               ) : (
                 <>
-                  <ellipse cx={88.9} cy={125.4} rx={10.4} ry={8.6} fill="url(#zz-patch)" transform="rotate(-26 88.9 125.4)" />
-                  <ellipse cx={151.1} cy={125.4} rx={10.4} ry={8.6} fill="url(#zz-patch)" transform="rotate(26 151.1 125.4)" />
+                  <ellipse cx={88.9} cy={125.4} rx={10.4} ry={8.6} fill={url("patch")} transform="rotate(-26 88.9 125.4)" />
+                  <ellipse cx={151.1} cy={125.4} rx={10.4} ry={8.6} fill={url("patch")} transform="rotate(26 151.1 125.4)" />
                 </>
               ))}
 
@@ -1114,6 +1156,10 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                         )}
                       </g>
                     </g>
+                    <path
+                      d={`M ${ex - erx * 0.9},${RIG.eye.y + RIG.eye.ry_ * 0.8} q ${erx * 0.9},${RIG.eye.ry_ * 0.45} ${erx * 1.8},0`}
+                      fill="none" stroke="#FFF" strokeWidth="0.55" strokeLinecap="round" opacity="0.4"
+                    />
                   </g>
                 ) : (
                   // everyone else: white sclera + centered dark pupil, with
@@ -1124,7 +1170,7 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                   // which is what sells a LOOK rather than an eye sliding.
                   <g key={i} ref={eyeRef} data-layer="eyes">
                     <g transform={`rotate(${dir * (species.eyeTilt ?? 0)} ${ex} ${RIG.eye.y})`}>
-                      <ellipse cx={ex} cy={RIG.eye.y} rx={4.7 * (species.eyeScale ?? 1)} ry={5.15 * (species.eyeScale ?? 1)} fill="#FFFEFA" stroke={feltLine} strokeWidth="1" />
+                      <ellipse cx={ex} cy={RIG.eye.y} rx={4.7 * (species.eyeScale ?? 1)} ry={5.15 * (species.eyeScale ?? 1)} fill={url("sclera")} stroke={feltLine} strokeWidth="1" />
                       <g ref={pupilRef}>
                         <ellipse
                           cx={ex} cy={RIG.eye.y}
@@ -1135,6 +1181,11 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                         <circle cx={ex - dir * 0.8} cy={RIG.eye.y - 0.9} r={0.85 * (species.pupilSize ?? 1)} fill="#FFF" opacity="0.95" />
                         <circle ref={sparkRef} cx={ex + dir * 1.1} cy={RIG.eye.y + 1.2} r={0.5} fill="#FFF" opacity="0.5" />
                       </g>
+                      {/* the wet line: light caught along the lower lid */}
+                      <path
+                        d={`M ${ex - 3.2 * (species.eyeScale ?? 1)},${RIG.eye.y + 3 * (species.eyeScale ?? 1)} q ${3.2 * (species.eyeScale ?? 1)},${2.4 * (species.eyeScale ?? 1)} ${6.4 * (species.eyeScale ?? 1)},0`}
+                        fill="none" stroke="#FFF" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"
+                      />
                     </g>
                   </g>
                 ),
@@ -1296,10 +1347,10 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                 [RIG.paw.lx, -1, refs.pawL],
                 [RIG.paw.rx, 1, refs.pawR],
               ] as const).map(([px, dir, pawRef], i) => (
-                <g key={i} ref={pawRef} data-layer="paws" filter="url(#zz-mitt)">
+                <g key={i} ref={pawRef} data-layer="paws" filter={url("mitt")}>
                   <g transform={`rotate(${dir * RIG.paw.tilt} ${px} ${RIG.paw.y})`}>
-                    <ellipse cx={px} cy={RIG.paw.y} rx={9.8} ry={10.3} fill="url(#zz-mittg)" />
-                    <ellipse cx={px + dir * 6.8} cy={RIG.paw.y - 5.2} rx={3.8} ry={4.6} fill="url(#zz-mittg)" transform={`rotate(${dir * 24} ${px + dir * 6.8} ${RIG.paw.y - 5.2})`} />
+                    <ellipse cx={px} cy={RIG.paw.y} rx={9.8} ry={10.3} fill={url("mittg")} />
+                    <ellipse cx={px + dir * 6.8} cy={RIG.paw.y - 5.2} rx={3.8} ry={4.6} fill={url("mittg")} transform={`rotate(${dir * 24} ${px + dir * 6.8} ${RIG.paw.y - 5.2})`} />
                   </g>
                 </g>
               ))

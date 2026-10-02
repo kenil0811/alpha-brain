@@ -2,8 +2,8 @@
  * Alpha's character: Bridge's Zazoo companion rig, ported wholesale from
  * platform/apps/web/src/app/avatar/zazoo/ (director + full painted-panda avatar). Same rig
  * Bridge's own desktop companion uses — breathing, blinking, saccades, mood-driven pose and
- * a `setTalking` mouth-flap while Alpha speaks — with the built-in prefers-reduced-motion
- * fallback to a static head (CompanionZazooFace -> ZazooCompact).
+ * a `setTalking` mouth-flap while Alpha speaks — with one still frame under reduced motion
+ * (CompanionZazooFace). Its eyes follow the pointer while it is over the window.
  *
  * `state` is what Alpha is really doing (pr1's avatar state, derived in AvatarWindow), performed
  * by the rig (pr1's PERFORMANCE map); a moment's mood (listening, talking, sorry) overrides it,
@@ -35,17 +35,48 @@ export const PERFORMANCE: Record<AvatarState, ZazooPerformance> = {
   disconnected: { emotion: "sleepy", action: "idle", energy: 0.15, warmth: 0.6, attention: "user" },
 };
 
-/** One-shot when work lands without a problem: auto-reverts to the state's own pose. */
-export const DONE_PERFORMANCE: ZazooPerformance = { emotion: "happy", warmth: 0.9, energy: 0.6, duration: 2.5 };
+/** One-shot when work lands without a problem: a little hop (anticipation, squash and
+ *  stretch), then back to the state's own pose. */
+export const DONE_PERFORMANCE: ZazooPerformance = { emotion: "celebrating", warmth: 0.9, energy: 0.6, duration: 2.2 };
 
 export function Character({ mood, state = "idle", done = 0, size = 96 }: { mood: Mood; state?: AvatarState; done?: number; size?: number }) {
   const director = useMemo(() => new ZazooDirector(), []);
+  const box = useRef<HTMLSpanElement>(null);
+  // Where it looks when the pointer isn't over the window; while it is, it watches the pointer.
+  const rest = useRef<ZazooPerformance["attention"]>("cursor");
+  const pointerIn = useRef(false);
   useEffect(() => {
     // A moment's mood wins over the standing state; idle hands the pose back to the state.
-    if (mood === "idle") director.perform(PERFORMANCE[state]);
-    else director.perform({ emotion: EMOTION[mood], attention: "user" });
+    const p: ZazooPerformance = mood === "idle" ? PERFORMANCE[state] : { emotion: EMOTION[mood], attention: "user" };
+    rest.current = p.attention;
+    director.perform(pointerIn.current ? { ...p, attention: "cursor" } : p);
     director.setTalking(mood === "talking");
   }, [director, mood, state]);
+  // Eyes follow the pointer while it is over the window (the rig's head follows on a lag);
+  // outside the window the host doesn't say where it is, so the gaze goes back to its own.
+  useEffect(() => {
+    const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+    const move = (e: PointerEvent) => {
+      const r = box.current?.getBoundingClientRect();
+      if (!r) return;
+      // A full look at about 1.5 character widths from its face.
+      const reach = r.width * 1.5;
+      director.setCursor({ x: clamp((e.clientX - (r.left + r.width / 2)) / reach), y: clamp((e.clientY - (r.top + r.height * 0.35)) / reach) });
+      if (!pointerIn.current) director.perform({ attention: "cursor" });
+      pointerIn.current = true;
+    };
+    const leave = () => {
+      pointerIn.current = false;
+      director.setCursor(null);
+      director.perform({ attention: rest.current });
+    };
+    window.addEventListener("pointermove", move);
+    document.documentElement.addEventListener("pointerleave", leave);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      document.documentElement.removeEventListener("pointerleave", leave);
+    };
+  }, [director]);
   const lastDone = useRef(done);
   useEffect(() => {
     if (done === lastDone.current) return;
@@ -53,5 +84,9 @@ export function Character({ mood, state = "idle", done = 0, size = 96 }: { mood:
     director.perform(DONE_PERFORMANCE);
   }, [director, done]);
   const label = mood !== "idle" ? mood : state === "idle" ? "here" : state;
-  return <CompanionZazooFace director={director} size={size} label={`Alpha is ${label}`} crop={false} />;
+  return (
+    <span ref={box} className="avatar__character">
+      <CompanionZazooFace director={director} size={size} label={`Alpha is ${label}`} crop={false} />
+    </span>
+  );
 }

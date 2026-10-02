@@ -1,24 +1,31 @@
 /**
  * Settings, as in Alpha: a header, then a second nav column (icon, label, a dot on the current
- * section) beside the section. Claude (how Alpha thinks), Appearance, Desktop (the companion),
+ * section) beside the section. Claude (how Alpha thinks), Appearance, Avatar (the companion's
+ * animal, outfit and colours), Desktop (the companion window),
  * Data, and About (what leaves this Mac, shortcuts). Explanations sit behind (i).
  * `section` / `onSection` come from the address (#/settings/<section>); without them the last
  * section is remembered per window.
  */
-import { useCallback, useEffect, useState } from "react";
-import { Cpu, HardDrive, Info, type LucideIcon, Monitor, Palette, Settings as SettingsIcon } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { Cpu, HardDrive, Info, type LucideIcon, Monitor, Palette, PawPrint, RotateCcw, Settings as SettingsIcon } from "lucide-react";
+import { ACCESSORIES, type AvatarLook, BODY_COLORS, DEFAULT_LOOK, kindLabel, saveLook, SHIRT_COLORS, speciesOf, SUIT_COLORS, TIE_COLORS, useLook } from "../avatar/look";
+import { CompanionZazooFace } from "../avatar/zazoo/CompanionZazooFace";
+import { ZazooDirector } from "../avatar/zazoo/director";
+import { SPECIES } from "../avatar/zazoo/species";
 import type { ClaudeStatus, Client, DataInfo } from "../core/client";
 import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { InfoTip } from "../ui";
-import { ACCENTS, DENSITIES, FONTS, SIZES, useAppearance } from "./appearance";
+import { ACCENTS, CORNERS, DENSITIES, FONTS, SIZES, useAppearance } from "./appearance";
+import { COMPANION_PALETTES } from "./palettes";
 import { ThemeControl, type Theme } from "./theme";
 
 const SECTION_KEY = "alpha.settings.section";
 export const SETTINGS_SECTIONS: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "claude", label: "Claude", icon: Cpu },
   { value: "appearance", label: "Appearance", icon: Palette },
+  { value: "avatar", label: "Avatar", icon: PawPrint },
   { value: "desktop", label: "Desktop", icon: Monitor },
   { value: "data", label: "Data", icon: HardDrive },
   { value: "about", label: "About", icon: Info },
@@ -152,8 +159,56 @@ export function ClaudeRow({ client, status, onStatus }: { client: Client; status
   );
 }
 
+/** A row of colour swatches, one of which is chosen. */
+function Swatches({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string; color: string }[]; onChange: (value: string) => void }) {
+  return (
+    <div className="settings__swatches" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.value} type="button" role="radio" aria-checked={value.toLowerCase() === o.value.toLowerCase()} aria-label={o.label} title={o.label} className="settings__swatch" style={{ background: o.color }} onClick={() => onChange(o.value)} />
+      ))}
+    </div>
+  );
+}
+
+/** A choice of a few in Alpha's segmented style. */
+function Segmented({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
+  return (
+    <div className="theme" role="group" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Row({ title, tip, children }: { title: ReactNode; tip?: string; children: ReactNode }) {
+  return (
+    <div className="item">
+      <div className="item__body">
+        <b>{title}</b>
+        {tip ? <InfoTip content={tip} label={`About ${typeof title === "string" ? title.toLowerCase() : "this"}`} /> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const CONTRASTS = [
+  { value: "standard", label: "Standard" },
+  { value: "high", label: "High" },
+];
+const MOTIONS = [
+  { value: "system", label: "Match Mac" },
+  { value: "reduce", label: "Reduce" },
+];
+
 function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => void }) {
   const [appearance, update] = useAppearance();
+  const look = useLook();
+  const kind = kindLabel(speciesOf(look));
+  const companion = COMPANION_PALETTES[look.species];
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
   const choosePageSize = useCallback((next: PageSize) => {
     setPageSize(next);
@@ -163,31 +218,22 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
       /* the choice lasts this session */
     }
   }, []);
+  const accents = [
+    ...(companion ? [{ value: "companion", label: `${kind} (your companion)`, color: companion[0] }] : []),
+    ...ACCENTS.map((a) => ({ value: a.value, label: a.label, color: a.pair?.[0] ?? "#4d7ea8" })),
+  ];
   return (
     <div className="card list" aria-label="Appearance">
-      <div className="item">
-        <div className="item__body">
-          <b>Theme</b>
-          <InfoTip content="Match Mac follows the Mac's setting. Ambient is light from 7:00 to 19:00 and dark otherwise." label="About theme" />
-        </div>
+      <Row title="Theme" tip="Match Mac follows the Mac's setting. Ambient is light from 7:00 to 19:00 and dark otherwise.">
         <ThemeControl theme={theme} onChange={onTheme} />
-      </div>
-      <div className="item">
-        <div className="item__body">
-          <b>Accent colour</b>
-        </div>
-        <div className="settings__swatches" role="radiogroup" aria-label="Accent colour">
-          {ACCENTS.map((a) => (
-            <button key={a.value} type="button" role="radio" aria-checked={appearance.accent === a.value} aria-label={a.label} title={a.label} className="settings__swatch" style={{ background: a.color ?? "#4d7ea8" }} onClick={() => update({ accent: a.value })} />
-          ))}
-        </div>
-      </div>
-      <div className="item">
-        <div className="item__body">
-          <b>
-            <label htmlFor="appearance-font">Font</label>
-          </b>
-        </div>
+      </Row>
+      <Row title="Companion colours" tip={`Tints the page, cards and borders with your companion's colours (the ${kind.toLowerCase()} now) and takes its accent. Pick another accent to keep your own.`}>
+        <Segmented label="Companion colours" value={appearance.companion ? "on" : "off"} options={[{ value: "on", label: "On" }, { value: "off", label: "Off" }]} onChange={(v) => update(v === "on" ? { companion: true, accent: "companion" } : { companion: false, accent: appearance.accent === "companion" ? "steel" : appearance.accent })} />
+      </Row>
+      <Row title="Accent colour">
+        <Swatches label="Accent colour" value={appearance.accent} options={accents} onChange={(accent) => update({ accent })} />
+      </Row>
+      <Row title={<label htmlFor="appearance-font">Font</label>}>
         <select id="appearance-font" className="btn btn--sm settings__select" value={appearance.font} onChange={(e) => update({ font: e.target.value })}>
           {FONTS.map((f) => (
             <option key={f.value} value={f.value}>
@@ -195,39 +241,23 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
             </option>
           ))}
         </select>
-      </div>
-      <div className="item">
-        <div className="item__body">
-          <b>Text size</b>
-        </div>
-        <div className="theme" role="group" aria-label="Text size">
-          {SIZES.map((s) => (
-            <button key={s.value} type="button" aria-pressed={appearance.size === s.value} onClick={() => update({ size: s.value })}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="item">
-        <div className="item__body">
-          <b>Density</b>
-          <InfoTip content="How much room forms, tables and cards take. Compact fits more on screen." label="About density" />
-        </div>
-        <div className="theme" role="group" aria-label="Density">
-          {DENSITIES.map((d) => (
-            <button key={d.value} type="button" aria-pressed={appearance.density === d.value} onClick={() => update({ density: d.value })}>
-              {d.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="item">
-        <div className="item__body">
-          <b>
-            <label htmlFor="rows-per-page">Rows per page</label>
-          </b>
-          <InfoTip content="How many rows a table shows at once." label="About rows per page" />
-        </div>
+      </Row>
+      <Row title="Text size">
+        <Segmented label="Text size" value={appearance.size} options={SIZES} onChange={(size) => update({ size })} />
+      </Row>
+      <Row title="Density" tip="How much room forms, tables and cards take. Compact fits more on screen.">
+        <Segmented label="Density" value={appearance.density} options={DENSITIES} onChange={(density) => update({ density })} />
+      </Row>
+      <Row title="Corners">
+        <Segmented label="Corners" value={appearance.corners} options={CORNERS} onChange={(corners) => update({ corners })} />
+      </Row>
+      <Row title="Contrast" tip="High makes secondary text and borders darker in light mode and brighter in dark mode.">
+        <Segmented label="Contrast" value={appearance.contrast} options={CONTRASTS} onChange={(contrast) => update({ contrast })} />
+      </Row>
+      <Row title="Motion" tip="Reduce stops animations and holds your companion still. Match Mac follows the Mac's Reduce motion setting.">
+        <Segmented label="Motion" value={appearance.motion} options={MOTIONS} onChange={(motion) => update({ motion })} />
+      </Row>
+      <Row title={<label htmlFor="rows-per-page">Rows per page</label>} tip="How many rows a table shows at once.">
         <select id="rows-per-page" className="btn btn--sm settings__select" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
           <option value="fit">Fit to window</option>
           {PAGE_SIZES.map((n) => (
@@ -236,7 +266,85 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
             </option>
           ))}
         </select>
+      </Row>
+    </div>
+  );
+}
+
+const swatches = (colors: [string, string][]) => colors.map(([color, label]) => ({ value: color, label, color }));
+
+/** The companion: which animal, what it wears (Bridge's Zazoo Lab wardrobe), and its colours. */
+function AvatarSettings() {
+  const look = useLook();
+  const [appearance, updateAppearance] = useAppearance();
+  const species = speciesOf(look);
+  const kind = kindLabel(species);
+  const director = useMemo(() => new ZazooDirector(), []);
+  const change = (next: Partial<AvatarLook>) => {
+    saveLook({ ...look, ...next });
+    director.perform({ emotion: "happy", warmth: 0.9, duration: 1.4 });
+  };
+  const palette = COMPANION_PALETTES[species.id];
+  const themed = appearance.companion && appearance.accent === "companion";
+  const furs: [string, string][] = [[species.body, `${kind}'s own`], ...BODY_COLORS.filter(([c]) => c.toLowerCase() !== species.body.toLowerCase())];
+  return (
+    <div className="card list" aria-label="Avatar">
+      <div className="item avatar-settings__head">
+        <div className="avatar-settings__preview">
+          <CompanionZazooFace director={director} size={112} label={`Zazoo as a ${kind.toLowerCase()}`} crop={false} />
+        </div>
+        <div className="item__body stack avatar-settings__pick">
+          <b>
+            <label htmlFor="avatar-species">Animal</label>
+          </b>
+          <select id="avatar-species" className="btn btn--sm settings__select" value={species.id} onChange={(e) => change({ species: e.target.value, body: SPECIES.find((s) => s.id === e.target.value)?.body ?? look.body })}>
+            {SPECIES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {kindLabel(s)}
+              </option>
+            ))}
+          </select>
+          <div className="row">
+            <button type="button" className="btn btn--sm" onClick={() => saveLook(DEFAULT_LOOK)} disabled={JSON.stringify(look) === JSON.stringify(DEFAULT_LOOK)}>
+              <RotateCcw size={14} aria-hidden="true" /> Reset to Zazoo
+            </button>
+          </div>
+        </div>
       </div>
+      {palette ? (
+        <Row title={`${kind} colours`} tip="Tints the page, cards and borders with these colours and uses its accent. Appearance can turn it off or keep your own accent.">
+          <span className="avatar-settings__palette" aria-hidden="true">
+            {palette.map((c) => (
+              <i key={c} style={{ background: c }} />
+            ))}
+          </span>
+          {themed ? (
+            <span className="pill pill--info">In use</span>
+          ) : (
+            <button type="button" className="btn btn--sm" onClick={() => updateAppearance({ companion: true, accent: "companion" })}>
+              Use
+            </button>
+          )}
+        </Row>
+      ) : null}
+      <Row title="Fur">
+        <Swatches label="Fur" value={look.body} options={swatches(furs)} onChange={(body) => change({ body })} />
+      </Row>
+      <Row title="Suit">
+        <Swatches label="Suit" value={look.suit} options={swatches(SUIT_COLORS)} onChange={(suit) => change({ suit })} />
+      </Row>
+      <Row title="Tie" tip="Also colours the bow tie and the scarf.">
+        <Swatches label="Tie" value={look.tie} options={swatches(TIE_COLORS)} onChange={(tie) => change({ tie })} />
+      </Row>
+      <Row title="Shirt">
+        <Swatches label="Shirt" value={look.shirt} options={swatches(SHIRT_COLORS)} onChange={(shirt) => change({ shirt })} />
+      </Row>
+      <Row title="Neckwear">
+        <Segmented label="Neckwear" value={look.accessory} options={ACCESSORIES} onChange={(accessory) => change({ accessory: accessory as AvatarLook["accessory"] })} />
+      </Row>
+      <Row title="Glasses">
+        <Toggle label="Glasses" on={look.glasses} onChange={(glasses) => change({ glasses })} labels={["On", "Off"]} />
+      </Row>
     </div>
   );
 }
@@ -407,6 +515,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, section: re
             </div>
           ) : null}
           {section === "appearance" ? <Appearance theme={theme} onTheme={onTheme} /> : null}
+          {section === "avatar" ? <AvatarSettings /> : null}
           {section === "desktop" ? (
             <>
               <AvatarSetting />

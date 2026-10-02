@@ -899,3 +899,29 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .thread__live { margin-top: 6px; font-size: var(--text-xs); color: var(--text-2); }
 .thread__live li { overflow-wrap: anywhere; }
 .thread__last { display: block; margin-top: 4px; font-size: var(--text-xs); overflow-wrap: anywhere; }
+
+/* ---- appearance: corners, contrast, motion (Settings -> Appearance) ---- */
+/* Corners: the radius tokens (src/ui primitives, dataviews) plus the shell's own boxes. */
+:root[data-corners="sharp"] { --radius-card: 4px; --radius-button: 3px; --radius-composer: 6px; --radius-sm: 2px; --radius-md: 3px; --radius-lg: 4px; --dv-radius: 3px; }
+:root[data-corners="sharp"] :is(.card, .dv-table, .action, .folded, .run, .msg, .interpretation, .question, .brief, .creation, .toast, .dv-board__col) { border-radius: 4px; }
+:root[data-corners="sharp"] :is(.btn, .button, .iconbtn, .navbtn, .navrow, .theme, .toggle, .search, .example, .recent__item, .settings-nav__item, .field input, .field select, .field textarea, .item__ico, .modcard__ico, .modhead__ico) { border-radius: 3px; }
+:root[data-corners="sharp"] :is(.theme button, .toggle button) { border-radius: 2px; }
+:root[data-corners="round"] { --radius-card: 18px; --radius-button: 999px; --radius-composer: 22px; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px; --dv-radius: 10px; }
+:root[data-corners="round"] :is(.card, .dv-table, .action, .folded, .run, .interpretation, .question, .brief, .creation, .dv-board__col) { border-radius: 18px; }
+:root[data-corners="round"] .msg { border-radius: 16px; }
+:root[data-corners="round"] :is(.btn, .button, .iconbtn, .theme, .theme button, .toggle, .toggle button, .search, .chip) { border-radius: 999px; }
+:root[data-corners="round"] :is(.navbtn, .navrow, .settings-nav__item, .example, .recent__item, .field input, .field select, .field textarea) { border-radius: 12px; }
+:root[data-corners="round"] :is(.item__ico, .modcard__ico, .modhead__ico) { border-radius: 50%; }
+/* High contrast: secondary text reads as text, faint text as secondary, borders firmer. */
+:root[data-contrast="high"] { --text-2: var(--bridge-navy); --text-3: var(--bridge-navy-mid); --border: color-mix(in srgb, var(--bridge-navy) 34%, var(--bridge-surface)); --line: color-mix(in srgb, var(--bridge-navy) 18%, var(--bridge-surface)); }
+/* Reduce motion: no animations or transitions anywhere (the companion holds a still pose). */
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+
+/* ---- avatar (Settings -> Avatar) ---- */
+.avatar-settings__head { align-items: center; gap: 16px; }
+.avatar-settings__preview { flex: none; width: 112px; height: 112px; border-radius: var(--radius-card); background: radial-gradient(circle at 50% 40%, var(--surface), var(--surface-2)); display: grid; place-items: center; }
+.avatar-settings__pick { gap: 8px; align-items: flex-start; }
+.avatar-settings__pick .settings__select { min-width: 200px; }
+.avatar-settings__palette { display: inline-flex; gap: 4px; flex: none; }
+.avatar-settings__palette i { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 1px var(--border); }
+.avatar__character { display: inline-block; line-height: 0; }
