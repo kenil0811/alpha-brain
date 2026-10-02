@@ -26,7 +26,7 @@ export { StandardDropdown } from "./StandardDropdown";
 export type { StandardDropdownOption } from "./StandardDropdown";
 export { Tabs } from "./Tabs";
 export type { TabItem } from "./Tabs";
-export { ToastProvider, useToast } from "./toast";
+export { ToastProvider, useOptionalToast, useToast } from "./toast";
 export { PageHeader } from "./PageHeader";
 export {
   usePanelControl,

@@ -8,7 +8,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MoreVertical, Star } from "lucide-react";
 import type { Client, ModelProvider, ProviderModel } from "../core/client";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, StandardDropdown } from "../ui";
+import { when } from "../modules/format";
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, StandardDropdown, useOptionalToast } from "../ui";
 
 const POLL_MS = 3000;
 const DOT_ORDER = { red: 0, green: 1, grey: 2 } as const;
@@ -22,7 +23,18 @@ const HOW: Record<string, string> = {
   grok: "A key from console.x.ai. No web search on this route.",
   deepseek: "A key from platform.deepseek.com. No web search on this route.",
   ollama: "Models running on this Mac, free and private. Install Ollama from ollama.com and pull a model; it shows up here.",
+  groq: "A key from console.groq.com, used only to turn speech into text.",
 };
+
+const GIVE_UP_NOTE = "Sign-in didn't finish. Try again when you're ready.";
+
+/** The line under a connected sign-in row: who, and when a call last worked. */
+function connectedLine(p: ModelProvider): string | null {
+  if (p.state !== "connected") return null;
+  const last = p.last_ok ? `last call ${when(p.last_ok.at)}` : null;
+  if (p.who) return last ? `Signed in as ${p.who} · ${last}` : `Signed in as ${p.who}`;
+  return last ? last.charAt(0).toUpperCase() + last.slice(1) : null;
+}
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -87,9 +99,12 @@ export function ProviderRow({
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState<Waiting>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const started = useRef(false);
   const keyField = useRef<HTMLInputElement>(null);
   const connected = p.state === "connected";
+  const toast = useOptionalToast();
 
   const act = useCallback(
     async (work: () => Promise<ModelProvider | void>) => {
@@ -110,6 +125,7 @@ export function ProviderRow({
   );
 
   const signIn = useCallback(async () => {
+    setNote(null);
     const next = await act(() => client.signInProvider(p.id));
     if (!next) return;
     if (next.needs_code) setCode("");
@@ -126,7 +142,7 @@ export function ProviderRow({
   const connect = useCallback(() => {
     if (p.kind === "key") keyField.current?.focus();
     else if (p.kind === "local") void act(() => client.testProvider(p.id));
-    else if (p.state === "cli_missing" && p.id !== "claude") void install();
+    else if ((p.state === "cli_missing" && p.id !== "claude") || p.state === "cli_too_old") void install();
     else void signIn();
   }, [p.kind, p.state, p.id, act, client, install, signIn]);
 
@@ -154,7 +170,10 @@ export function ProviderRow({
         })
         .catch(() => undefined);
     }, POLL_MS);
-    const stop = window.setTimeout(() => setWaiting(null), 5 * 60 * 1000);
+    const stop = window.setTimeout(() => {
+      setWaiting(null);
+      if (waiting === "sign_in") setNote(GIVE_UP_NOTE);
+    }, 5 * 60 * 1000);
     return () => {
       window.clearInterval(timer);
       window.clearTimeout(stop);
@@ -163,14 +182,21 @@ export function ProviderRow({
 
   const wasConnected = useRef(connected);
   useEffect(() => {
-    if (connected && !wasConnected.current) onConnected?.();
+    if (connected && !wasConnected.current) {
+      if (p.kind === "sign_in") toast?.show(`${p.label}: signed in.`);
+      onConnected?.();
+    }
     wasConnected.current = connected;
-  }, [connected, onConnected]);
+  }, [connected, onConnected, p.kind, p.label, toast]);
 
   const saveKey = () => {
     const key = draft.trim();
     if (!key) return;
-    void act(() => client.saveProviderKey(p.id, key)).then((next) => next && setDraft(""));
+    void act(() => client.saveProviderKey(p.id, key)).then((next) => {
+      if (!next) return;
+      setDraft("");
+      toast?.show(`${p.label}: key saved.`);
+    });
   };
   const sendCode = () => {
     if (!code?.trim()) return;
@@ -179,18 +205,56 @@ export function ProviderRow({
   const reconnect = async () => {
     const next = await act(() => client.reconnectProvider(p.id));
     if (!next) return;
+    toast?.show(`${p.label}: disconnected. Connect again to carry on.`);
     if (p.kind === "sign_in") void signIn();
-    else if (p.kind === "key") window.setTimeout(() => keyField.current?.focus(), 0);
+    else if (p.kind === "key") {
+      setNote("Paste a new key.");
+      window.setTimeout(() => keyField.current?.focus(), 0);
+    }
+  };
+  const check = async () => {
+    setChecking(true);
+    await act(() => client.testProvider(p.id));
+    setChecking(false);
+  };
+  const removeKey = async () => {
+    if (await act(() => client.removeProviderKey(p.id))) toast?.show(`${p.label}: key removed.`);
   };
 
+  const installing = waiting === "install" || p.installing;
   const line =
     problem ??
     p.error ??
-    (waiting === "install" || p.installing ? "Installing…" : waiting === "sign_in" ? "Finish signing in in your browser." : code !== null ? "Paste the code your browser shows." : autoConnect && p.kind === "local" && !connected ? p.dot.tooltip : null);
-  const isError = Boolean(problem ?? p.error);
+    (checking
+      ? "Checking…"
+      : installing
+        ? "Installing…"
+        : waiting === "sign_in"
+          ? "Finish signing in in your browser."
+          : code !== null
+            ? "Approve in your browser, then paste the code it shows."
+            : (note ?? (p.state === "cli_too_old" || p.install_failed ? (p.why ?? null) : (connectedLine(p) ?? (autoConnect && p.kind === "local" && !connected ? p.dot.tooltip : null)))));
+  const isError = Boolean(problem ?? p.error) || (!checking && !installing && (p.state === "cli_too_old" || Boolean(p.install_failed)));
+  const signInLabel =
+    p.state === "cli_too_old"
+      ? installing
+        ? "Updating…"
+        : "Update"
+      : p.state === "cli_missing" && p.id !== "claude"
+        ? installing
+          ? "Installing…"
+          : p.install_failed
+            ? "Retry install"
+            : "Install Codex"
+        : waiting === "sign_in"
+          ? "Open sign-in again"
+          : p.id === "chatgpt"
+            ? "Connect"
+            : "Sign in";
   return (
     <div className={`item models__row${p.default ? " models__row--default" : ""}`}>
-      {onStar ? (
+      {onStar && p.transcribe_only ? <span className="models__nostar" aria-hidden="true" /> : null}
+      {onStar && !p.transcribe_only ? (
         <IconButton size="sm" aria-label={p.default ? `${p.label} is the default` : `Make ${p.label} the default`} aria-pressed={p.default} title={p.default ? "Default" : "Make default"} onClick={() => !p.default && onStar()}>
           <Star size={14} aria-hidden="true" className={p.default ? "models__star models__star--on" : "models__star"} fill={p.default ? "currentColor" : "none"} />
         </IconButton>
@@ -202,6 +266,7 @@ export function ProviderRow({
             {p.label}
           </b>
           {HOW[p.id] ? <InfoTip content={HOW[p.id]} label={`About ${p.label}`} /> : null}
+          {p.default ? <Badge variant="warning">Default</Badge> : null}
         </span>
         {line ? (
           <div className={isError ? "notice models__line" : "item__sub models__line"} role={isError ? "alert" : "status"} title={line}>
@@ -219,8 +284,8 @@ export function ProviderRow({
             </button>
           </>
         ) : p.kind === "sign_in" && !connected ? (
-          <button type="button" className="btn btn--sm btn--primary" disabled={busy || waiting !== null || p.installing} onClick={connect}>
-            {p.state === "cli_missing" && p.id !== "claude" ? (p.installing || waiting === "install" ? "Installing…" : "Install") : waiting === "sign_in" ? "Waiting…" : "Sign in"}
+          <button type="button" className="btn btn--sm btn--primary" disabled={busy || installing} onClick={waiting === "sign_in" ? () => void signIn() : connect}>
+            {signInLabel}
           </button>
         ) : null}
         {p.kind === "key" ? (
@@ -251,10 +316,10 @@ export function ProviderRow({
             </IconButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => void act(() => client.testProvider(p.id))}>Check again</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void check()}>Check again</DropdownMenuItem>
             {p.kind !== "local" ? <DropdownMenuItem onSelect={() => void reconnect()}>Reconnect</DropdownMenuItem> : null}
             {p.kind === "key" && p.key_last4 ? (
-              <DropdownMenuItem className="ui-menu__item--danger" onSelect={() => void act(() => client.removeProviderKey(p.id))}>
+              <DropdownMenuItem className="ui-menu__item--danger" onSelect={() => void removeKey()}>
                 Remove key
               </DropdownMenuItem>
             ) : null}
@@ -271,6 +336,7 @@ export function ProviderAccounts({ client }: { client: Client }) {
   const [problem, setProblem] = useState<string | null>(null);
   // Sorted once per load, so a row doesn't jump while the person works on it.
   const [order, setOrder] = useState<string[]>([]);
+  const toast = useOptionalToast();
 
   const load = useCallback(() => {
     client
@@ -287,7 +353,10 @@ export function ProviderAccounts({ client }: { client: Client }) {
   const star = (id: string) => {
     const before = rows;
     setRows((all) => all && all.map((r) => ({ ...r, default: r.id === id })));
-    client.starProvider(id).then(setRows, (e: unknown) => {
+    client.starProvider(id).then((next) => {
+      setRows(next);
+      toast?.show(`${next.find((r) => r.id === id)?.label ?? id} is now the default.`);
+    }, (e: unknown) => {
       setRows(before);
       setProblem(message(e));
     });
@@ -315,10 +384,36 @@ export function ProviderAccounts({ client }: { client: Client }) {
   );
 }
 
-/** The conversation's card when a message goes to a model that isn't connected: it connects by
- *  itself, and `onConnected` sends the message again. */
-export function ConnectCard({ client, provider, onConnected, onCancel }: { client: Client; provider: string; onConnected: () => void; onCancel: () => void }) {
+/** Settings -> Models, from anywhere in the workspace (the address the rail reads). */
+export function openModelSettings(): void {
+  window.history.pushState(null, "", "#/settings/models");
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+/** The conversation's card when a message goes to a model that isn't connected, before the call
+ *  or because the call itself failed on the connection (after Alpha's NotConnectedCard): it
+ *  connects by itself, and `onConnected` sends the message again. `kind` "generic" is a model
+ *  that couldn't answer for another reason: the card offers Try again. */
+export function ConnectCard({
+  client,
+  provider,
+  onConnected,
+  onCancel,
+  kind = "sign_in",
+  reason = null,
+  inWorkspace = true,
+}: {
+  client: Client;
+  provider: string;
+  onConnected: () => void;
+  onCancel: () => void;
+  kind?: "sign_in" | "key" | "generic";
+  reason?: string | null;
+  /** The companion has no Settings to open. */
+  inWorkspace?: boolean;
+}) {
   const [row, setRow] = useState<ModelProvider | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const done = useRef(onConnected);
   done.current = onConnected;
   const connected = useCallback(() => done.current(), []);
@@ -329,25 +424,61 @@ export function ConnectCard({ client, provider, onConnected, onCancel }: { clien
       .then((rows) => {
         const found = rows.find((r) => r.id === provider) ?? null;
         if (!live) return;
-        if (found?.state === "connected") connected();
+        if (found?.state === "connected" && kind !== "generic" && !found.error) connected();
         else setRow(found);
       })
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [client, provider, connected]);
+  }, [client, provider, connected, kind]);
   if (!row) return null;
+  const recheck = () => {
+    setNote(null);
+    client
+      .testProvider(provider)
+      .then((next) => {
+        setRow(next);
+        if (next.dot.color === "green") connected();
+        else setNote(next.dot.tooltip);
+      })
+      .catch((e: unknown) => setNote(message(e)));
+  };
+  const why = reason?.replace(/^I can't reach (the|that) model( right now)?[:.]?\s*/i, "").trim();
   return (
     <div className="msg msg--ai models__connect" role="group" aria-label={`Connect ${row.label}`}>
       <div className="models__connect-head">
-        <b>Connect {row.label} to send this</b>
+        <b>{kind === "generic" ? `${row.label} couldn't answer.` : `Not connected to ${row.label}.`}</b>
         <button type="button" className="btn btn--sm btn--ghost" onClick={onCancel}>
           Not now
         </button>
       </div>
-      <div className="list">
-        <ProviderRow client={client} provider={row} onChange={setRow} autoConnect onConnected={connected} />
+      {why && !/^try again/i.test(why) ? (
+        <div className="faint models__line" title={reason ?? undefined}>
+          {why.charAt(0).toUpperCase() + why.slice(1)}
+        </div>
+      ) : null}
+      {note ? <div className="faint models__line">{note}</div> : null}
+      {kind === "generic" ? null : (
+        <div className="list">
+          <ProviderRow client={client} provider={row} onChange={setRow} autoConnect onConnected={connected} />
+        </div>
+      )}
+      <div className="row models__connect-actions">
+        {kind === "generic" ? (
+          <button type="button" className="btn btn--sm" onClick={connected}>
+            Try again
+          </button>
+        ) : row.kind === "sign_in" ? (
+          <button type="button" className="btn btn--sm" onClick={recheck}>
+            I've signed in
+          </button>
+        ) : null}
+        {inWorkspace ? (
+          <button type="button" className="btn btn--sm btn--ghost" onClick={openModelSettings}>
+            Open Settings → Models
+          </button>
+        ) : null}
       </div>
     </div>
   );

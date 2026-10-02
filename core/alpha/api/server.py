@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import platform
 import secrets
 import threading
 from collections.abc import AsyncIterator, Callable
@@ -27,18 +28,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+import alpha
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
+from alpha.models import settings
 from alpha.models.accounts import Accounts
 from alpha.models.keychain import KeychainError
-from alpha.runtime import transcription
+from alpha.runtime import claude_cli, transcription
 from alpha.runtime import turn as turns
+from alpha.runtime.attachments import MAX_ATTACHMENTS, AttachmentIn
 from alpha.runtime.automation import Scheduler
 from alpha.runtime.route import Router
-from alpha.world import backup, edits
+from alpha.world import access, backup, edits
 from alpha.world.actions import Actions
 from alpha.world.bundle import export_module, import_module
 from alpha.world.purge import remove_connection, remove_module
@@ -53,6 +57,16 @@ class AskBody(BaseModel):
     text: str
     module: str | None = None
     thread: str | None = None
+    attachments: list[AttachmentIn] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
+
+
+class SettingsBody(BaseModel):
+    values: dict[str, Any]
+
+
+class AccessBody(BaseModel):
+    thread: str | None = None
+    mode: str | None = None
 
 
 class KeyBody(BaseModel):
@@ -166,17 +180,30 @@ class Turns:
             def said(jid: str) -> None:
                 with self.lock:
                     self.state[key]["said"] = jid
+                    stopping = self.state[key].get("stopping")
+                if stopping:  # stopped before the model started: it never does
+                    claude_cli.cancel(jid)
 
             try:
                 kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread,
                                           "on_said": said}
+                if body.attachments:
+                    kwargs["attachments"] = body.attachments
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
                 out = turns.ask(self.world, body.text, **kwargs)
+                raw = out.result.raw
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
                           "duration_ms": out.result.duration_ms,
-                          "provider": out.result.raw.get("provider")}
+                          "provider": raw.get("provider")}
+                if not out.ok and raw.get("cancelled"):
+                    result["state"] = "cancelled"
+                elif not out.ok and raw.get("needs_connect"):
+                    # The call itself showed a connection problem: the window shows the
+                    # connect card for that row, and sends the words again once it's green.
+                    result.update(state="needs_connect", provider=raw["needs_connect"],
+                                  connect_kind=raw.get("connect_kind"))
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
             except Exception as e:
@@ -200,6 +227,19 @@ class Turns:
             if said and e["data"].get("turn") == said and e["kind"] != "replied"
         ]
         return out
+
+    def cancel(self, key: str) -> dict[str, Any]:
+        with self.lock:
+            if key not in self.state:
+                raise Problem(f"There is no turn {key}.")
+            entry = self.state[key]
+            if entry["state"] != "running":
+                return dict(entry)
+            entry["stopping"] = True
+            said = entry.get("said")
+        if said:
+            claude_cli.cancel(said)
+        return self.get(key)
 
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
@@ -332,7 +372,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.get("/api/health", dependencies=[api])
     def health() -> dict[str, Any]:
-        return {"ok": True, "world": str(world.path), "running_turns": len(running.running())}
+        return {"ok": True, "world": str(world.path), "running_turns": len(running.running()),
+                "core_version": alpha.__version__,
+                "python_version": platform.python_version()}
 
     # ---- Home ----
 
@@ -689,6 +731,36 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def set_route(body: RouteBody) -> dict[str, Any]:
         """This conversation's own model; no provider goes back to the default."""
         return accounts.choose(body.thread, body.provider, body.model)
+    # ---- P2: settings fields, access modes, stopping a turn ----
+
+    access.enable(world)
+
+    @app.get("/api/settings", dependencies=[api])
+    def get_settings() -> list[dict[str, Any]]:
+        return settings.all_fields(world.store)
+
+    @app.patch("/api/settings", dependencies=[api])
+    def update_settings(body: SettingsBody) -> list[dict[str, Any]]:
+        return settings.update(world.store, body.values)
+
+    @app.get("/api/access", dependencies=[api])
+    def get_access(thread: str | None = None) -> dict[str, Any]:
+        """How much Alpha may do in this conversation before it asks."""
+        return {"thread": thread, "mode": settings.access_mode(world.store, thread),
+                "default": settings.get(world.store, "access.mode")}
+
+    @app.put("/api/access", dependencies=[api])
+    def set_access(body: AccessBody) -> dict[str, Any]:
+        """This conversation's own mode; no mode goes back to the default."""
+        mode = settings.set_access_mode(world.store, body.thread, body.mode)
+        return {"thread": body.thread, "mode": mode,
+                "default": settings.get(world.store, "access.mode")}
+
+    @app.post("/api/turns/{key}/cancel", dependencies=[api])
+    def cancel_turn(key: str) -> dict[str, Any]:
+        """Stop a running turn: its model process ends, and the journal says "You stopped it"."""
+        return running.cancel(key)
+
     @app.get("/api/transcribe", dependencies=[api])
     def can_transcribe() -> dict[str, bool]:
         return {"available": transcription.available()}

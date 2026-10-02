@@ -1,17 +1,23 @@
 /**
  * The companion: Alpha's character in a small always-on-top window. It shows what Alpha is
- * doing (here, listening, working, needs you); a bubble carries the one thing that needs the
- * person; a click opens a small panel to say or type one thing, answered at once. Anything that
- * needs the full window is handed to the workspace, which comes forward.
+ * really doing, most pressing first (pr1's avatar state): not connected, something failed,
+ * waiting for the person, making a project, thinking, working, here. A bubble carries the one
+ * thing that needs the person; a click opens a small panel with the same composer as the Chief
+ * of Staff panel (+ menu, growing box, mic) to say or type one thing, answered at once; a final
+ * spoken sentence sends by itself. A model that isn't connected shows the connect card and the
+ * words go again once it is. Anything that needs the full window is handed to the workspace.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { ArrowUp, Maximize2, X } from "lucide-react";
-import type { Client, Home, JournalEntry } from "../core/client";
+import type { Client, Home, JournalEntry, ModelProvider, Thread, Turn } from "../core/client";
+import { AttachMenu, AttachmentChips, sentAttachments, useAttachments } from "../assistant/AttachMenu";
+import { autoGrow, useComposerDrop, usePasteAttachments } from "../assistant/attachments";
+import { ConnectCard } from "../shell/models";
 import { usePushToTalk } from "../shell/ptt";
 import { useTts } from "../shell/tts";
 import { MicButton, useSpeech } from "../shell/voice";
 import { IconButton } from "../ui";
-import { Character, type Mood } from "./Character";
+import { type AvatarState, Character, type Mood } from "./Character";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
@@ -26,6 +32,24 @@ export interface AvatarHost {
 }
 
 const HOT = ".avatar__panel, .avatar__bubble, .avatar__dock";
+const GREETING = "Tell me what to do: log a meal, check the boards, open a project, or ask for something new.";
+const BUBBLE_MS = 9_000;
+/** A failed request is shown for this long, then the companion lets it go (Activity keeps it). */
+const FAILURE_SHOWN_MS = 15 * 60 * 1000;
+
+/** What the companion shows, from real state only, most pressing first (pr1 avatar/state.ts). */
+export function avatarView(s: { busy: boolean; star: ModelProvider | null; turns: JournalEntry[]; needs: number; threads: Thread[]; running: number }, now = Date.now()): { state: AvatarState; text: string } {
+  if (s.star && s.star.dot.color !== "green") return { state: "disconnected", text: s.star.dot.tooltip };
+  const last = s.turns[s.turns.length - 1];
+  if (last?.kind === "failed" && now - new Date(last.at).getTime() < FAILURE_SHOWN_MS) return { state: "error", text: "Your last request didn't work out" };
+  if (s.needs) return { state: "awaiting", text: s.needs === 1 ? "One thing needs you" : `${s.needs} things need you` };
+  const making = s.threads.find((t) => t.kind === "build" && t.state === "working");
+  if (making) return { state: "building", text: making.title };
+  if (s.busy) return { state: "thinking", text: "Working out your request" };
+  const active = s.running + s.threads.filter((t) => t.state === "working").length;
+  if (active) return { state: "working", text: "Working on it…" };
+  return { state: "idle", text: "Here" };
+}
 
 function handOff(value: Record<string, unknown>, host?: AvatarHost) {
   try {
@@ -44,14 +68,32 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const [mood, setMood] = useState<Mood>("idle");
   const [bubble, setBubble] = useState<string | null>(null);
   const [home, setHome] = useState<Home | null>(null);
+  const [star, setStar] = useState<ModelProvider | null>(null);
+  const [running, setRunning] = useState<Turn[]>([]);
+  const [connect, setConnect] = useState<{ provider: string; text: string; kind?: "sign_in" | "key"; reason?: string } | null>(null);
+  const [done, setDone] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attach = useAttachments(client);
+  const drop = useComposerDrop(attach.add, formRef);
+  const paste = usePasteAttachments(attach.add);
 
   const refresh = useCallback(() => {
-    client.conversation().then((c) => setTurns(c.turns.slice(-12))).catch(() => undefined);
+    client
+      .conversation()
+      .then((c) => {
+        setTurns(c.turns.slice(-12));
+        setRunning(c.running);
+      })
+      .catch(() => undefined);
     client.home().then(setHome).catch(() => undefined);
+    client
+      .modelProviders()
+      .then((rows) => setStar(rows.find((r) => r.default) ?? null))
+      .catch(() => undefined);
   }, [client]);
   useEffect(() => {
     refresh();
@@ -104,7 +146,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       bubbleTimer.current = setTimeout(() => {
         setBubble(null);
         setMood("idle");
-      }, 12_000);
+      }, BUBBLE_MS);
     },
     [tts],
   );
@@ -116,9 +158,20 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       setBusy(true);
       setMood("thinking");
       setText("");
+      if (inputRef.current) inputRef.current.style.height = "";
+      const attachments = attach.wire();
+      attach.clear();
       try {
-        const turn = await client.askAndWait(clean);
-        say(turn.reply ?? "", turn.state === "done" ? "talking" : "sorry");
+        const turn = await client.askAndWait(clean, { attachments });
+        if (turn.state === "needs_connect" && turn.provider) {
+          // Not connected (before the call or because of it): the card connects, then resends.
+          setMood("idle");
+          setExpanded(true);
+          setConnect({ provider: turn.provider, text: clean, kind: turn.connect_kind ?? undefined, reason: turn.reply });
+        } else {
+          say(turn.reply ?? "", turn.state === "done" ? "talking" : "sorry");
+          if (turn.state === "done") setDone((n) => n + 1);
+        }
       } catch (e) {
         say(e instanceof Error ? e.message : String(e), "sorry");
       } finally {
@@ -126,11 +179,15 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         refresh();
       }
     },
-    [busy, client, say, refresh],
+    [busy, client, say, refresh, attach],
   );
 
+  // A final spoken sentence goes at once, as in Alpha; while speaking, the words show in the box.
+  const sendRef = useRef(send);
+  sendRef.current = send;
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
+    if (final) void sendRef.current(final);
   });
   useEffect(() => {
     setMood((m) => (speech.listening ? "listening" : m === "listening" ? "idle" : m));
@@ -146,9 +203,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   );
 
   const needs = home?.needs_you ?? [];
-  const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
-  const label = { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: "Here" }[state];
-  const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
+  const view = avatarView({ busy, star, turns, needs: needs.length, threads: home?.threads ?? [], running: running.length });
+  // The ring and dot keep their four looks: listening, working, needs you, here.
+  const state = speech.listening ? "listening" : view.state === "thinking" || view.state === "working" || view.state === "building" ? "working" : view.state === "idle" ? "idle" : "needs";
+  const label = speech.listening ? "Listening…" : view.text;
+  const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && view.state === "disconnected" ? view.text : null);
   const mode: AvatarMode = expanded ? "open" : shownBubble ? "bubble" : "idle";
   useEffect(() => {
     host?.layout(mode).catch(() => undefined);
@@ -194,24 +253,76 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             </IconButton>
           </header>
           <div className="avatar__turns" ref={listRef}>
-            {!turns.length ? <p className="panel__hint">Tell me what to do.</p> : null}
+            {!turns.length ? <p className="panel__hint">{GREETING}</p> : null}
             {turns.map((t) => (
               <div key={t.id} className={t.kind === "said" ? "avatar__said" : "avatar__reply"}>
+                {t.kind === "said" ? <AttachmentChips items={sentAttachments(t.data)} /> : null}
                 {t.text}
               </div>
             ))}
+            {connect ? (
+              <ConnectCard
+                client={client}
+                provider={connect.provider}
+                kind={connect.kind}
+                reason={connect.reason}
+                inWorkspace={false}
+                onConnected={() => {
+                  const again = connect.text;
+                  setConnect(null);
+                  void send(again);
+                }}
+                onCancel={() => {
+                  setText(connect.text);
+                  setConnect(null);
+                }}
+              />
+            ) : null}
             {busy ? (
               <p className="panel__hint" role="status">
                 Working on it…
               </p>
             ) : null}
           </div>
-          <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
-            <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask…" aria-label="What should Alpha do" disabled={busy} />
-            <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-            <IconButton type="submit" size="sm" className="avatar__send" aria-label="Send" title="Send" disabled={busy || !text.trim()}>
-              <ArrowUp size={14} aria-hidden="true" />
-            </IconButton>
+          <form
+            ref={formRef}
+            className="avatar__composer"
+            onDrop={drop.onDrop}
+            onDragOver={drop.onDragOver}
+            onPaste={paste}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (speech.listening) speech.stop();
+              void send(text);
+            }}
+          >
+            <AttachmentChips items={attach.items} onRemove={attach.remove} />
+            <div className="avatar__ask">
+              <AttachMenu client={client} thread={null} onAdd={attach.add} />
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  autoGrow(e.target);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    if (speech.listening) speech.stop();
+                    void send(text);
+                  }
+                }}
+                placeholder="Ask…"
+                aria-label="What should Alpha do"
+                disabled={busy}
+              />
+              <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
+              <IconButton type="submit" size="sm" className="avatar__send" aria-label="Send" title="Replies use the model chosen in Settings → Models · Enter to send, Shift+Enter for a new line" disabled={busy || !text.trim()}>
+                <ArrowUp size={14} aria-hidden="true" />
+              </IconButton>
+            </div>
           </form>
         </section>
       ) : null}
@@ -232,7 +343,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           ⋯
         </div>
         <button type="button" className={`avatar__button is-${state}`} {...dragHandlers} onClick={() => (dragged.current ? (dragged.current = false) : toggle())} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
-          <Character mood={busy ? "thinking" : speech.listening ? "listening" : tts.speaking ? "talking" : mood} size={expanded ? 56 : 80} />
+          <Character mood={busy ? "thinking" : speech.listening ? "listening" : tts.speaking ? "talking" : mood} state={view.state} done={done} size={expanded ? 56 : 88} />
         </button>
       </div>
     </div>

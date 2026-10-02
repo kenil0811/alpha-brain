@@ -37,6 +37,7 @@ and the pre-pack. The run becomes **tainted** when it reads beyond that baseline
 - search, the journal or records;
 - documents, the calendar, people or facts, or notes;
 - a page read through a sign-in;
+- files, a folder, images or audio the person attached to the message;
 - a pre-pack that carries calendar, record, document or source matches, or an earlier reply from
   a tainted run.
 
@@ -75,6 +76,22 @@ the tools' process), and no tool can decide. An automation can therefore only pr
 
 Executors live in `actions.EXECUTORS`. AB ships none yet. A connector that gains a write
 registers one there, and that is the only place an outward write can run from.
+
+## Access modes
+
+The composer's + -> Advanced -> Access, seeded from Settings -> Builds (`alpha/world/access.py`,
+`alpha/models/settings.py`). A mode only adds approvals; none takes one away.
+
+| Mode | Waits for the person's yes |
+|---|---|
+| Ask for approval (default) | reading the web through Alpha's browser (`page_read`, `page_script`, `page_to_table`, `reader_run`) and removing a record |
+| Approve for me | removing a record |
+| Full access | nothing beyond the rules above |
+
+A call that waits is stored as a pending action of kind `approved_call` with the exact call as
+its payload, and approving runs that call once, from the core. In every mode, writes outward are
+still only pending actions, the never list still refuses, and the taint gate still applies.
+Automations and the turns that make a project (`build` threads) are not held, as in Alpha.
 
 ## The never list
 

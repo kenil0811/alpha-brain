@@ -15,11 +15,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +50,10 @@ PROVIDERS: dict[str, dict[str, Any]] = {
                  "default_model": "deepseek-chat"},
     "ollama": {"label": "Ollama", "kind": "openai", "base_url": f"{OLLAMA_URL}/v1", "local": True,
                "default_model": None},
+    # Only turns speech into text (Whisper, runtime/transcription.py): never the default, never
+    # a conversation's model.
+    "groq": {"label": "Groq", "kind": "openai", "base_url": "https://api.groq.com/openai/v1",
+             "transcribe_only": True, "default_model": None},
 }
 # Shown before a provider's own list can be fetched (and for the CLI sign-ins, which have none).
 PINNED: dict[str, list[dict[str, str]]] = {
@@ -71,6 +79,13 @@ CODEX_BUNDLES = (
     "~/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
 )
 CODEX_PACKAGE = "@openai/codex"
+# Every flag claude_cli.argv passes that `claude --help` lists: a CLI missing one refuses the
+# call ("unknown option"), so this list, not a version number, decides "too old".
+CLAUDE_FLAGS = ("--output-format", "--append-system-prompt", "--mcp-config",
+                "--strict-mcp-config", "--allowedTools", "--disallowedTools", "--permission-mode",
+                "--setting-sources", "--settings", "--model", "--resume",
+                "--no-session-persistence")
+CHECK_S = 30
 STATUS_TTL_S = 20.0
 MODELS_TTL_S = 600.0
 SIGN_IN_S = 300.0
@@ -99,6 +114,51 @@ def note_working(provider: str) -> None:
 def failed(provider: str) -> str | None:
     with _ERRORS_LOCK:
         return _ERRORS.get(provider)
+
+
+# provider -> (when the last call worked, how long it took in ms): "last call 2 min ago".
+_LAST_OK: dict[str, tuple[float, int | None]] = {}
+
+
+def note_call(provider: str, ms: int | None) -> None:
+    with _ERRORS_LOCK:
+        _LAST_OK[provider] = (time.time(), ms)
+
+
+def last_ok(provider: str) -> dict[str, Any] | None:
+    with _ERRORS_LOCK:
+        hit = _LAST_OK.get(provider)
+    if not hit:
+        return None
+    return {"at": datetime.fromtimestamp(hit[0], UTC).isoformat(), "latency_ms": hit[1]}
+
+
+_PROBES: dict[tuple[str, float], dict[str, Any]] = {}
+
+
+def claude_probe(binary: str) -> dict[str, Any]:
+    """{version, too_old}: from `claude --version` and a `--help` scan for every flag Alpha
+    passes, cached until the binary changes (an update)."""
+    try:
+        key = (os.path.realpath(binary), os.stat(binary).st_mtime)
+    except OSError:
+        return {"version": None, "too_old": False}
+    if key in _PROBES:
+        return _PROBES[key]
+    try:
+        env = claude_account.child_env()
+        version = subprocess.run([binary, "--version"], capture_output=True, text=True,
+                                 timeout=20, env=env, stdin=subprocess.DEVNULL).stdout.strip()
+        helped = subprocess.run([binary, "--help"], capture_output=True, text=True, timeout=20,
+                                env=env, stdin=subprocess.DEVNULL).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return {"version": None, "too_old": False}
+    missing = [f for f in CLAUDE_FLAGS
+               if not re.search(rf"(?<![\w-]){re.escape(f)}(?![\w-])", helped)]
+    out = {"version": version.split()[0] if version else None, "too_old": bool(helped and missing)}
+    _PROBES.clear()
+    _PROBES[key] = out
+    return out
 
 
 def codex_binary() -> str | None:
@@ -155,7 +215,8 @@ class Accounts:
 
     def default(self) -> str:
         chosen = self.prefs.get("models.default")
-        return chosen if chosen in PROVIDERS else "claude"
+        ok = chosen in PROVIDERS and not PROVIDERS[chosen].get("transcribe_only")
+        return chosen if ok else "claude"
 
     def rows(self) -> list[dict[str, Any]]:
         with ThreadPoolExecutor(max_workers=len(PROVIDERS)) as pool:
@@ -182,6 +243,12 @@ class Accounts:
                 held = claude_oauth.signed_in()
                 if not st["installed"]:
                     return {"state": "cli_missing", "why": "Claude Code isn't on this Mac yet."}
+                found = claude_account.binary()
+                probe = claude_probe(found) if found else {"version": None, "too_old": False}
+                if probe["too_old"]:
+                    return {"state": "cli_too_old", "version": probe["version"],
+                            "why": f"Claude Code {probe['version'] or ''} is too old for Alpha."
+                                   .replace("  ", " ")}
                 if held or st["signed_in"]:
                     return {"state": "connected", "who": None if held else st.get("email")}
                 return {"state": "needs_sign_in", "why": "Not signed in."}
@@ -205,13 +272,20 @@ class Accounts:
     def describe(self, provider: str) -> dict[str, Any]:
         spec = self.spec(provider)
         row: dict[str, Any] = {"id": provider, "label": spec["label"], "key_last4": None,
-                               "installing": False, "who": None}
+                               "installing": False, "who": None, "install_failed": False,
+                               "transcribe_only": bool(spec.get("transcribe_only")),
+                               "last_ok": last_ok(provider)}
         if spec["kind"] in ("claude_cli", "codex"):
             row["kind"] = "sign_in"
             st = self._sign_in_state(provider)
             row.update(state=st["state"], who=st.get("who"), why=st.get("why"))
             proc = self._procs.get(f"install:{provider}")
             row["installing"] = proc is not None and proc.poll() is None
+            # Codex's npm install ended without Codex: say so, offer Retry install.
+            row["install_failed"] = (proc is not None and proc.poll() not in (None, 0)
+                                     and st["state"] == "cli_missing")
+            if row["install_failed"]:
+                row["why"] = "Codex didn't install. Retry, or use ChatGPT API."
         elif spec.get("local"):
             row["kind"] = "local"
             found = self._cached(provider, lambda: {"models": ollama_models()})["models"]
@@ -247,7 +321,7 @@ class Accounts:
             return str(chosen)
         default = self.spec(provider)["default_model"]
         if provider == "chatgpt":
-            return None  # Codex's own default for the account
+            return codex_fallback_model()
         if default:
             return str(default)
         found = listed if listed is not None else (ollama_models() or [])
@@ -288,7 +362,8 @@ class Accounts:
     # ---- the default, and a conversation's own choice ----
 
     def star(self, provider: str) -> list[dict[str, Any]]:
-        self.spec(provider)
+        if self.spec(provider).get("transcribe_only"):
+            raise Problem(f"{self.spec(provider)['label']} only turns speech into text.")
         self.prefs.set("models.default", provider)
         return self.rows()
 
@@ -297,8 +372,8 @@ class Accounts:
         return chosen if isinstance(chosen, dict) and chosen.get("provider") in PROVIDERS else None
 
     def choose(self, thread: str | None, provider: str | None, model: str | None) -> dict[str, Any]:
-        if provider is not None:
-            self.spec(provider)
+        if provider is not None and self.spec(provider).get("transcribe_only"):
+            raise Problem(f"{self.spec(provider)['label']} only turns speech into text.")
         self.prefs.set(f"route.{thread or 'stream'}",
                        {"provider": provider, "model": model} if provider else None)
         return self.route(thread)
@@ -341,21 +416,45 @@ class Accounts:
         self._forget(provider)
         return self.describe(provider)
 
-    def test(self, provider: str) -> dict[str, Any]:
-        """A live check: a key row lists its models, Ollama answers, a sign-in row asks its
-        CLI. Red with the reason when it fails."""
+    def test(self, provider: str, runner: Any = None) -> dict[str, Any]:
+        """A live check: a key row lists its models, Ollama answers, and a sign-in row makes
+        one tiny real call through its CLI ("Reply OK" on Haiku, or Codex), so a green dot
+        means a call works. Red with the reason when it fails."""
         spec = self.spec(provider)
         self._forget(provider)
         if spec["kind"] in ("anthropic", "openai"):
             key = keychain.get_key(provider)
             if key or spec.get("local"):
                 try:
+                    started = time.monotonic()
                     list_models(spec["base_url"], auth_headers(spec["kind"], key), timeout=10)
                     note_working(provider)
+                    note_call(provider, int((time.monotonic() - started) * 1000))
                 except ProviderHTTPError as e:
                     note_failed(provider, f"{spec['label']}: {e}")
-        else:
+            return self.describe(provider)
+        if self._sign_in_state(provider)["state"] != "connected":
+            return self.describe(provider)
+        from alpha.runtime import claude_cli, codex_cli
+        from alpha.runtime.claude_cli import TurnRequest
+
+        with tempfile.TemporaryDirectory(prefix="alpha-check-") as tmp:
+            req = TurnRequest(sentence="Reply with the single word OK.", system="Answer in one "
+                              "word.", world_path=Path(tmp) / "check.sqlite",
+                              turn_id=f"check-{provider}-{time.monotonic_ns()}", timeout=CHECK_S,
+                              model="haiku" if provider == "claude" else None)
+            if runner is not None:
+                result = runner(req)
+            elif provider == "claude":
+                result = claude_cli.run(req, extra_env=claude_oauth.cli_env())
+            else:
+                result = codex_cli.run(req, binary=codex_binary() or "codex")
+        if result.ok:
             note_working(provider)
+            note_call(provider, result.duration_ms)
+        else:
+            note_failed(provider, result.error or "The check call got no answer.")
+        self._forget(provider)
         return self.describe(provider)
 
     # ---- sign-ins and installs ----
@@ -412,7 +511,10 @@ class Accounts:
         self.spec(provider)
         self._forget(provider)
         if provider == "claude":
-            claude_account.install()
+            if self._sign_in_state(provider)["state"] == "cli_too_old":
+                claude_account.update()
+            else:
+                claude_account.install()
             return self.describe(provider)
         if provider != "chatgpt":
             raise Problem("There is nothing to install for this one.")
@@ -458,3 +560,17 @@ def codex_models() -> list[dict[str, str]]:
         return []
     return [{"id": str(m["slug"]), "label": str(m.get("display_name") or m["slug"])}
             for m in listed if m.get("slug")]
+
+
+def codex_fallback_model() -> str | None:
+    """None lets Codex use its own config's model; but when ~/.codex/config.toml names a model
+    the account doesn't list, ChatGPT refuses it (400), so the first listed one goes instead."""
+    try:
+        config = tomllib.loads((Path.home() / ".codex" / "config.toml").read_text())
+        configured = config.get("model")
+    except (OSError, ValueError):
+        return None
+    listed = codex_models()
+    if not configured or not listed or any(m["id"] == configured for m in listed):
+        return None
+    return listed[0]["id"]

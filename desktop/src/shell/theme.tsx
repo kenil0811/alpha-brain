@@ -1,5 +1,5 @@
 /** The appearance setting: follow the Mac, force light or dark, or Ambient (light from 7:00 to
- * 19:00, dark otherwise). Kept per window. */
+ * 19:00, dark otherwise). Light until the person picks another, as in Alpha. Kept per window. */
 import { useCallback, useEffect, useState } from "react";
 import { applyAppearance, readAppearance } from "./appearance";
 
@@ -9,9 +9,9 @@ const KEY = "alpha.theme";
 function readTheme(): Theme {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw === "light" || raw === "dark" || raw === "ambient" ? raw : "system";
+    return raw === "system" || raw === "dark" || raw === "ambient" ? raw : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 
@@ -26,7 +26,7 @@ export function applyTheme(theme: Theme): void {
 
 export function useTheme(): [Theme, (next: Theme) => void] {
   useEffect(() => applyAppearance(readAppearance()), []);
-  const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "system" : readTheme()));
+  const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "light" : readTheme()));
   useEffect(() => {
     applyTheme(theme);
     if (theme !== "ambient") return;
@@ -36,8 +36,7 @@ export function useTheme(): [Theme, (next: Theme) => void] {
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
     try {
-      if (next === "system") window.localStorage.removeItem(KEY);
-      else window.localStorage.setItem(KEY, next);
+      window.localStorage.setItem(KEY, next);
     } catch {
       /* per-window convenience only */
     }

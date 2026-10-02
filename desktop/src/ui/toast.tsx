@@ -20,6 +20,11 @@ export function useToast(): ToastApi {
   return ctx;
 }
 
+/** The toast API where there is one (the workspace), or null (the companion window). */
+export function useOptionalToast(): ToastApi | null {
+  return useContext(ToastContext);
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(0);

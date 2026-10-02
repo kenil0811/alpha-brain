@@ -10,14 +10,21 @@ import { when } from "../modules/format";
 import { ConnectCard } from "../shell/models";
 import { usePushToTalk } from "../shell/ptt";
 import { MicButton, useSpeech } from "../shell/voice";
-import { AttachMenu } from "./AttachMenu";
+import { AttachMenu, AttachmentChips, sentAttachments, useAttachments } from "./AttachMenu";
+import { useComposerDrop, usePasteAttachments } from "./attachments";
 import { CollapseToggleButton, IconButton } from "../ui";
 import { ZazooIcon } from "../ui/ZazooIcon";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 
 function Message({ e }: { e: JournalEntry }) {
-  if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
+  if (e.kind === "said")
+    return (
+      <div className="msg msg--user">
+        <AttachmentChips items={sentAttachments(e.data)} />
+        {e.text}
+      </div>
+    );
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
   return (
     <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
@@ -82,9 +89,14 @@ export function AssistantPanel({
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   // A message whose model isn't connected yet: the card connects it, then it goes again.
-  const [connect, setConnect] = useState<{ provider: string; text: string } | null>(null);
+  const [connect, setConnect] = useState<{ provider: string; text: string; kind?: "sign_in" | "key"; reason?: string } | null>(null);
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  // P2: what is attached to the next message (the composer's + menu, a drop or a paste).
+  const composer = useRef<HTMLFormElement>(null);
+  const attach = useAttachments(client);
+  const drop = useComposerDrop(attach.add, composer);
+  const paste = usePasteAttachments(attach.add);
 
   const load = useCallback(() => {
     client
@@ -134,10 +146,12 @@ export function AssistantPanel({
       setError(null);
       setElapsed(0);
       const threadId = threadView?.id ?? null;
-      setTurns((all) => (threadId ? all : [...all, { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text: clean, data: {}, module: null, thread: null, entity_ids: [], source: null }]));
+      const attachments = attach.wire();
+      attach.clear();
+      setTurns((all) => (threadId ? all : [...all, { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text: clean, data: { attachments }, module: null, thread: null, entity_ids: [], source: null }]));
       try {
-        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId }, setPending);
-        if (final.state === "needs_connect" && final.provider) setConnect({ provider: final.provider, text: clean });
+        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, attachments }, setPending);
+        if (final.state === "needs_connect" && final.provider) setConnect({ provider: final.provider, text: clean, kind: final.connect_kind ?? undefined, reason: final.reply });
         else if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -148,7 +162,7 @@ export function AssistantPanel({
         onChanged();
       }
     },
-    [client, module, pending, threadView, load, onChanged],
+    [client, module, pending, threadView, load, onChanged, attach],
   );
 
   // Words spoken are added after whatever was already typed.
@@ -254,6 +268,8 @@ export function AssistantPanel({
           <ConnectCard
             client={client}
             provider={connect.provider}
+            kind={connect.kind}
+            reason={connect.reason}
             onConnected={() => {
               const again = connect.text;
               setConnect(null);
@@ -272,15 +288,20 @@ export function AssistantPanel({
         ) : null}
       </div>
       <form
+        ref={composer}
         className="composer"
+        onDrop={drop.onDrop}
+        onDragOver={drop.onDragOver}
+        onPaste={paste}
         onSubmit={(e) => {
           e.preventDefault();
           if (speech.listening) speech.stop();
           void send(text);
         }}
       >
+        <AttachmentChips items={attach.items} onRemove={attach.remove} />
         <div className="composer__box">
-          <AttachMenu client={client} thread={threadView?.id ?? null} />
+          <AttachMenu client={client} thread={threadView?.id ?? null} onAdd={attach.add} />
           <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply…" : "Ask…"} aria-label="Message Alpha" />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={toggleMic} small />
           <IconButton aria-label="Send" title="Enter to send, Shift+Enter for a new line" type="submit" className="composer__send" disabled={!text.trim() || Boolean(pending)}>

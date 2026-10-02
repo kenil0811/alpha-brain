@@ -98,7 +98,8 @@ struct HostState {
 const AVATAR_LABEL: &str = "avatar";
 /// The companion's window only covers what it shows: the character, the character with a
 /// bubble, or the open panel. (Even a transparent window catches clicks.)
-const AVATAR_IDLE: (f64, f64) = (112.0, 124.0);
+/// Idle is Alpha's 132x148, with the character at 88 (56 while the panel is open).
+const AVATAR_IDLE: (f64, f64) = (132.0, 148.0);
 const AVATAR_BUBBLE: (f64, f64) = (320.0, 230.0);
 const AVATAR_OPEN: (f64, f64) = (380.0, 560.0);
 /// Default spot, measured from the screen's bottom-right corner (not the work area), so the
@@ -493,6 +494,8 @@ fn stop_all(app: &AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        // The composer's + menu: native pickers for files, a folder and audio.
+        .plugin(tauri_plugin_dialog::init())
         .manage(HostState::default())
         .manage(ptt::PttState::default())
         .manage(speech::SpeechState::default())
