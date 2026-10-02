@@ -3,9 +3,11 @@
  * how its last run went, an on/off switch and Run now.
  */
 import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import type { Automation, Client, ModuleCard } from "../core/client";
 import { when } from "../modules/format";
 import { ModuleIcon } from "../ui/ModuleIcon";
+import { OpenTitle } from "./IntelItem";
 import { projectIcon } from "./projectIcons";
 import "../dataviews/dataviews.css";
 
@@ -85,8 +87,9 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
   );
 }
 
-/** Intelligence › Automations (Alpha's): every schedule across the projects as one table. */
-export function AutomationTable({ client, items, modules, onOpenModule, onChanged }: { client: Client; items: Automation[]; modules: ModuleCard[]; onOpenModule: (id: string) => void; onChanged: () => void }) {
+/** Intelligence › Automations (Alpha's): every schedule across the projects as one table; a row
+ *  opens the automation's own page. */
+export function AutomationTable({ client, items, modules, onOpenModule, onOpen, onChanged }: { client: Client; items: Automation[]; modules: ModuleCard[]; onOpenModule: (id: string) => void; onOpen: (id: string) => void; onChanged: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   if (!items.length) return <p className="empty">Nothing runs on its own yet.</p>;
   return (
@@ -99,13 +102,14 @@ export function AutomationTable({ client, items, modules, onOpenModule, onChange
             <th>When</th>
             <th>Last ran</th>
             <th>On</th>
+            <th className="table__chev" aria-label="Open" />
           </tr>
         </thead>
         <tbody>
           {items.map((a) => {
             const m = modules.find((x) => x.id === a.module);
             return (
-              <tr key={a.id}>
+              <tr key={a.id} className="row--link" onClick={(e) => !(e.target as Element).closest("button") && onOpen(a.id)}>
                 <td>
                   {m ? (
                     <button type="button" className="linklike" onClick={() => onOpenModule(m.id)}>
@@ -115,7 +119,9 @@ export function AutomationTable({ client, items, modules, onOpenModule, onChange
                     <span className="faint">No project</span>
                   )}
                 </td>
-                <td title={a.title}>{a.title}</td>
+                <td title={a.title}>
+                  <OpenTitle open={() => onOpen(a.id)}>{a.title}</OpenTitle>
+                </td>
                 <td>{a.when}</td>
                 <td className={a.last_error ? "notice" : undefined} title={a.last_error ?? undefined}>
                   {a.running ? "Running now" : a.last_error ? "Failed last time" : a.last_run_at ? new Date(a.last_run_at).toLocaleString() : "Not yet"}
@@ -139,6 +145,9 @@ export function AutomationTable({ client, items, modules, onOpenModule, onChange
                         });
                     }}
                   />
+                </td>
+                <td className="table__chev">
+                  <ChevronRight size={16} className="item__chev" aria-hidden="true" />
                 </td>
               </tr>
             );

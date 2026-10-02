@@ -1,15 +1,17 @@
 /**
  * Intelligence: everything Alpha can do (skills), runs on its own (automations), reaches
  * (connections) and knows (knowledge: facts, notes, goals). Each is a sentence the person can
- * read, switch or correct, never a configuration form.
+ * read, switch or correct, never a configuration form. Each item opens its own page
+ * (`./IntelItem.tsx`); the second brain is its own place to look and edit.
  */
 import { type FormEvent, useEffect, useState } from "react";
-import { CalendarDays, Folder, Globe, Link } from "lucide-react";
+import { CalendarDays, Folder, Globe, Link, Puzzle, ScanText } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { InfoTip, PageHeader, Tabs } from "../ui";
 import { AboutYou } from "./AboutYou";
 import { AutomationTable } from "./Automations";
+import { INSTRUCTIONS, IntelItemPage, OpenRow, OpenTitle, type ItemContext } from "./IntelItem";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
 
@@ -40,7 +42,7 @@ function removalWords(plan: ConnectionRemoval): string {
   return `Removes ${plan.what}. ${plan.connector === "files" ? "Your files stay." : "Your tables keep their rows."}`;
 }
 
-function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
+function Connections({ client, data, onChanged, onOpen }: { client: Client; data: Data; onChanged: () => void; onOpen: (id: string) => void }) {
   const [folder, setFolder] = useState("");
   const [site, setSite] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -84,12 +86,12 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
           const meta = CONNECTOR[c.connector] ?? { icon: Link, label: () => c.target, reach: "" };
           const Icon = meta.icon;
           return (
-            <div key={c.id} className="item">
+            <OpenRow key={c.id} open={() => onOpen(c.id)}>
               <div className="item__ico" aria-hidden="true">
                 <Icon size={16} />
               </div>
               <div className="item__body">
-                <b>{meta.label(c)}</b>
+                <OpenTitle open={() => onOpen(c.id)}>{meta.label(c)}</OpenTitle>
                 <div className={`item__sub${removing?.id === c.id ? " item__sub--warn" : ""}`}>
                   {removing?.id === c.id ? (
                     removing.plan ? removalWords(removing.plan) : "…"
@@ -122,7 +124,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
                   </button>
                 </>
               )}
-            </div>
+            </OpenRow>
           );
         })}
       </div>
@@ -174,43 +176,14 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   );
 }
 
-function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onChanged: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [body, setBody] = useState(note.body);
-  return (
-    <div className="card card--pad intel__card">
-      <div className="intel__head">
-        <h3>{note.title}</h3>
-        <span className="faint">{note.scope === "person" ? "about you" : note.scope.replace(/^module:/, "")}</span>
-      </div>
-      {editing ? (
-        <>
-          <textarea className="note__edit" rows={6} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit ${note.title}`} />
-          <div className="row" style={{ marginTop: 8 }}>
-            <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.writeNote(note.scope, note.title, body).then(() => { setEditing(false); onChanged(); })}>
-              Save
-            </button>
-            <button type="button" className="btn btn--sm btn--ghost" onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-          </div>
-        </>
-      ) : (
-        <p className="muted editable note__body" onClick={() => setEditing(true)}>
-          {note.body}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Knowledge({ client, data, modules, onChanged }: { client: Client; data: Data; modules: ModuleCard[]; onChanged: () => void }) {
+function Knowledge({ client, data, modules, onChanged, onOpen }: { client: Client; data: Data; modules: ModuleCard[]; onChanged: () => void; onOpen: (id: string) => void }) {
   const { facts, notes, goals } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
-  const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
+  const instructions = notes.find((n) => n.scope === "person" && n.title === INSTRUCTIONS.title);
+  const shownNotes: Note[] = instructions ? notes : [INSTRUCTIONS, ...notes];
   return (
     <div className="stack">
-    <AboutYou client={client} facts={facts} modules={modules} onChanged={onChanged} />
+    <AboutYou client={client} facts={facts} modules={modules} onChanged={onChanged} onOpen={onOpen} />
     <div className="intel">
       <div className="card card--pad intel__card">
         <div className="intel__head">
@@ -218,14 +191,16 @@ function Knowledge({ client, data, modules, onChanged }: { client: Client; data:
           <InfoTip content={'Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.'} label="About goals" />
         </div>
         {!goals.length ? <p className="empty">No goals yet.</p> : null}
-        <div className="stack">
+        <div className="list">
           {goals.map((g) => (
-            <div key={g.id}>
-              <b className="goal__text">{g.text}</b>
-              <div className="item__sub">
-                {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
+            <OpenRow key={g.id} open={() => onOpen(g.id)} className="item item--link item--flush">
+              <div className="item__body">
+                <OpenTitle open={() => onOpen(g.id)}>{g.text}</OpenTitle>
+                <div className="item__sub">
+                  {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
+                </div>
               </div>
-            </div>
+            </OpenRow>
           ))}
         </div>
       </div>
@@ -235,31 +210,45 @@ function Knowledge({ client, data, modules, onChanged }: { client: Client; data:
           <span className="faint">what Alpha may do without asking; anything sent asks every time</span>
         </div>
         {!permissions.length ? <p className="empty">None yet. When Alpha proposes a draft or a message, "Always allow" on its card makes one.</p> : null}
-        <div className="stack">
+        <div className="list">
           {permissions.map((p) => (
-            <div key={p.id} className="row" style={{ justifyContent: "space-between" }}>
-              <span>
-                {p.sentence} <span className="faint">· since {when(p.granted_at)}</span>
-              </span>
+            <OpenRow key={p.id} open={() => onOpen(p.id)} className="item item--link item--flush">
+              <div className="item__body">
+                <OpenTitle open={() => onOpen(p.id)}>{p.sentence}</OpenTitle>
+                <div className="item__sub">since {when(p.granted_at)}</div>
+              </div>
               <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
                 Revoke
               </button>
-            </div>
+            </OpenRow>
           ))}
         </div>
       </div>
-      {instructions ? null : (
-        <NoteCard note={{ id: "new", scope: "person", title: "Standing instructions", body: "Ask before sending anything to anyone.", updated_at: "" }} client={client} onChanged={onChanged} />
-      )}
-      {notes.map((n) => (
-        <NoteCard key={n.id} note={n} client={client} onChanged={onChanged} />
-      ))}
+      <div className="card card--pad intel__card">
+        <div className="intel__head">
+          <h3>Notes</h3>
+          <InfoTip content="What Alpha keeps in mind, by topic. Yours to read and correct." label="About notes" />
+        </div>
+        <div className="list">
+          {shownNotes.map((n) => (
+            <OpenRow key={n.id} open={() => onOpen(n.id)} className="item item--link item--flush">
+              <div className="item__body">
+                <OpenTitle open={() => onOpen(n.id)}>{n.title}</OpenTitle>
+                <div className="item__sub">
+                  {n.scope === "person" ? "About you" : n.scope.replace(/^(module|topic):/, "")}
+                  {n.updated_at ? ` · ${when(n.updated_at)}` : " · not written yet"}
+                </div>
+              </div>
+            </OpenRow>
+          ))}
+        </div>
+      </div>
     </div>
     </div>
   );
 }
 
-export function Intelligence({ client, modules, tab, version, onTab, onGo, onChanged }: { client: Client; modules: ModuleCard[]; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onGo: (s: Surface) => void; onChanged: () => void }) {
+export function Intelligence({ client, modules, tab, item, version, onTab, onGo, onChanged, onAsk }: { client: Client; modules: ModuleCard[]; tab: IntelTab; item?: string; version: number; onTab: (t: IntelTab) => void; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -268,6 +257,12 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, [client, version]);
+  const open = (id: string) => onGo({ kind: "intelligence", tab, item: id });
+  const ctx: ItemContext | null = data ? { client, data, modules, onGo, onAsk, onChanged } : null;
+  if (item) {
+    if (ctx) return <IntelItemPage tab={tab} item={item} ctx={ctx} />;
+    return <div className="page">{error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}</div>;
+  }
   return (
     <div className="page">
       <PageHeader title={<>Intelligence <InfoTip content="What Alpha knows and can do across your projects." label="About Intelligence" /></>} />
@@ -275,7 +270,7 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
       {!data ? (
         error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "brain" ? (
-        <SecondBrain client={client} modules={modules} facts={data.knowledge.facts} onOpenModule={(id) => onGo({ kind: "module", id })} onOpenKnowledge={() => onTab("knowledge")} />
+        <SecondBrain ctx={ctx!} onOpenKnowledge={() => onTab("knowledge")} />
       ) : tab === "skills" ? (
         <div className="stack">
           <div className="section__head section__head--tight">
@@ -283,45 +278,43 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
               Built in <InfoTip content="What Alpha can reach without being taught, and the site readers it made." label="About built-in abilities" />
             </h2>
           </div>
-          <div className="intel">
+          <div className="card list">
             {data.skills.map((s) => (
-              <div key={s.name} className="card card--pad intel__card">
-                <div className="intel__head">
-                  <h3>{s.title}</h3>
-                  <InfoTip content={s.description ?? ""} label={`About ${s.title}`} />
-                  <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+              <OpenRow key={s.name} open={() => open(s.name)}>
+                <div className="item__ico" aria-hidden="true">
+                  <Puzzle size={16} />
                 </div>
-                <div className="skill__meta">
-                  {s.tools.map((t) => (
-                    <span key={t.name} className="faint" title={t.description}>
-                      {humanize(t.name)}
-                      {t.effect === "write" ? " (asks first)" : ""}
-                    </span>
-                  ))}
+                <div className="item__body">
+                  <OpenTitle open={() => open(s.name)}>{s.title}</OpenTitle>
+                  <div className="item__sub">{s.tools.map((t) => humanize(t.name) + (t.effect === "write" ? " (asks first)" : "")).join(" · ")}</div>
                 </div>
-              </div>
+                <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+              </OpenRow>
             ))}
             {data.readers.map((r) => (
-              <div key={r.name} className="card card--pad intel__card">
-                <div className="intel__head">
-                  <h3>{r.description}</h3>
-                  <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
+              <OpenRow key={r.name} open={() => open(`reader:${r.name}`)}>
+                <div className="item__ico" aria-hidden="true">
+                  <ScanText size={16} />
                 </div>
-                <p className="muted">
-                  Reads {r.site} · version {r.version}
-                  {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
-                </p>
-                {r.last_problem ? <p className="notice notice--sm">{r.last_problem}</p> : null}
-              </div>
+                <div className="item__body">
+                  <OpenTitle open={() => open(`reader:${r.name}`)}>{r.description}</OpenTitle>
+                  <div className="item__sub">
+                    Reads {r.site} · version {r.version}
+                    {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
+                    {r.last_problem ? ` · ${r.last_problem}` : ""}
+                  </div>
+                </div>
+                <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
+              </OpenRow>
             ))}
           </div>
         </div>
       ) : tab === "automations" ? (
-        <AutomationTable client={client} items={data.automations} modules={modules} onOpenModule={(id) => onGo({ kind: "module", id })} onChanged={onChanged} />
+        <AutomationTable client={client} items={data.automations} modules={modules} onOpenModule={(id) => onGo({ kind: "module", id })} onOpen={open} onChanged={onChanged} />
       ) : tab === "connections" ? (
-        <Connections client={client} data={data} onChanged={onChanged} />
+        <Connections client={client} data={data} onChanged={onChanged} onOpen={open} />
       ) : (
-        <Knowledge client={client} data={data} modules={modules} onChanged={onChanged} />
+        <Knowledge client={client} data={data} modules={modules} onChanged={onChanged} onOpen={open} />
       )}
     </div>
   );

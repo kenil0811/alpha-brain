@@ -236,7 +236,7 @@ input:placeholder-shown:not([type="checkbox"]):not([type="radio"]) { flex-shrink
 .item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .item:last-child { border-bottom: 0; }
 .item__ico { width: 30px; height: 30px; border-radius: 8px; background: var(--surface-2); display: grid; place-items: center; color: var(--text-2); flex: none; }
-.item__body { flex: 1; min-width: 0; }
+.item__body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .item__body b { font-weight: 500; }
 .item__sub { font-size: var(--text-xs); color: var(--text-3); overflow-wrap: anywhere; }
 .switch { width: 34px; height: 20px; border-radius: 999px; background: var(--good); position: relative; flex: none; border: 0; padding: 0; }
@@ -691,7 +691,6 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .intel-graph-card { padding: 0; overflow: hidden; }
 .intel-graph { display: block; width: 100%; height: 56vh; min-height: 360px; touch-action: none; cursor: grab; background: var(--surface); }
 .intel-graph text { font-size: var(--text-xs); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.intel-node--open { cursor: pointer; }
 .intel-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .intel-legend { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-2); font-size: var(--text-xs); cursor: pointer; }
 .intel-legend.active { border-color: var(--primary); color: var(--text); background: var(--primary-soft); font-weight: 600; }
@@ -925,3 +924,35 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .avatar-settings__palette { display: inline-flex; gap: 4px; flex: none; }
 .avatar-settings__palette i { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 1px var(--border); }
 .avatar__character { display: inline-block; line-height: 0; }
+/* ---- Intelligence items: rows that open a page, the item page, the second brain's card ---- */
+.item--link { cursor: pointer; }
+.item--link:hover { background: var(--hover); }
+.item--flush { padding: 8px 6px; border-radius: 8px; border-bottom: 0; }
+.item__chev { flex: none; color: var(--text-3); }
+.item--link:hover .item__chev, .row--link:hover .item__chev { color: var(--text-2); }
+.item__open { background: none; border: 0; padding: 0; font: inherit; font-weight: 500; color: var(--text); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.item__open:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.row--link { cursor: pointer; }
+.row--link:hover td { background: var(--hover); }
+.row--link .item__open { font-weight: 400; }
+.table .table__chev { width: 28px; min-width: 0; padding-left: 0; }
+.crumbs { display: inline-flex; align-items: center; gap: 8px; }
+.crumbs__up { background: none; border: 0; padding: 0; font: inherit; color: var(--text-2); cursor: pointer; }
+.crumbs__up:hover { color: var(--text); }
+.ipage { max-width: 760px; gap: 14px; }
+.ifield { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ifield__label { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-3); }
+.ifield__via { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
+.ifield__value { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.ifield__value > .editable { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 3px 0; border-radius: 4px; }
+.ifield__value > .editable:hover { outline: 1px solid var(--border); outline-offset: 3px; }
+.ifield__long { white-space: pre-wrap; }
+.ifield__input { width: 100%; }
+.brain { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.brain > .intel-graph-card { flex: 1 1 420px; min-width: 0; }
+.brain__card { flex: 1 1 280px; gap: 12px; }
+.brain__close { margin-left: auto; }
+.brain__links { gap: 4px; }
+.brain__link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.intel-node { cursor: pointer; outline: none; }
+.intel-node:focus-visible circle { stroke: var(--primary); stroke-width: 3px; }
