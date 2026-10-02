@@ -50,14 +50,20 @@ def _reply_of(world: World, turn_id: str) -> dict[str, Any] | None:
 def records_of(world: World, turn_id: str) -> list[dict[str, Any]]:
     """The records a turn added or changed, with their provenance."""
     rows = world.store.all(
-        "SELECT json_extract(data, '$.collection') AS c, json_extract(data, '$.record') AS r"
+        "SELECT json_extract(data, '$.collection') AS c, json_extract(data, '$.record') AS r,"
+        " json_extract(data, '$.records') AS rs"
         " FROM journal WHERE kind IN ('did', 'changed') AND deleted_at IS NULL"
-        " AND json_extract(data, '$.turn') = ? AND json_extract(data, '$.record') IS NOT NULL",
+        " AND json_extract(data, '$.turn') = ? AND json_extract(data, '$.collection') IS NOT NULL",
         (turn_id,))
+    pairs: list[tuple[str, str]] = []
+    for row in rows:
+        if row["r"]:
+            pairs.append((str(row["c"]), str(row["r"])))
+        for rid in json.loads(row["rs"]) if row["rs"] else []:
+            pairs.append((str(row["c"]), str(rid)))
     out: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
-    for row in rows:
-        key = (str(row["c"]), str(row["r"]))
+    for key in pairs:
         if key in seen:
             continue
         seen.add(key)
@@ -76,6 +82,8 @@ def worth_checking(world: World, turn_id: str) -> bool:
         return False
     for rec in records_of(world, turn_id):
         prov = rec.get("_provenance") or {}
+        if prov.get("synced") or prov.get("reader"):
+            continue  # rows copied from a page are not values Alpha worked out
         if prov.get("by") == "alpha" and prov.get("source") != "stated":
             return True
     return False

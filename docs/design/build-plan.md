@@ -667,10 +667,9 @@ design), and the shake logged as a guess when the label was one search away (§4
 - The app rebuilt and restarted on this (14:58).
 
 **Pending, in order of how much they matter:**
-1. **The suite of real journeys** (D above). Today's trust mechanisms check single answers; the
-   thing that stops regressions is a handful of real journeys run on a copy of the world after
-   every change: LinkedIn sync, Gmail × network, a branded food log, the ETA tracker's daily run,
-   a plan that must be proposed before building. Not written yet.
+1. **The suite of real journeys**: built the same evening (§4.11), first run 4 of 5 with the
+   one failure in a check's wording; it runs with `just journeys` after any change to how Alpha
+   behaves.
 2. **The sleep-time pass and scenario suite** (A). Beliefs still go stale only by being
    overwritten; nothing links people across Gmail and LinkedIn; nothing consolidates.
 3. **Proactivity** (B): triage, digest, Inbox. Alpha still never brings anything to the person
@@ -695,9 +694,8 @@ design), and the shake logged as a guess when the label was one search away (§4
    scratch world (kill it); the calendar's real first read has never been run.
 9. **From the code read of 2 Oct evening (§4.10).** Decided and done the same evening: the
    schedule floor is 30 minutes (Q22); the site vocabulary is out of the hands (Q23); `just
-   lint` is clean again. Still to fix: the second opinion for upserted rows; `source`
-   defaulting to estimated; the DataPage kind names; the conversation panel loading unscoped;
-   `remove_connection` not reading pipeline `steps`; the dead code list. The app must be
+   lint` is clean again; the trust holes are closed (§4.12). Still to fix: the dead code list
+   and the smaller inconsistencies in §4.10. The app must be
    rebuilt (`just app`) to pick the evening's changes up; Kenil's world folds its old
    `linkedin` keys into `url` on the next open.
 
@@ -812,6 +810,72 @@ show which rules applied; the `cli.py` and `prepack.py` docstrings and the brows
 
 **Counts, measured (end of the evening):** 113 core tests in 12 files; 3 desktop tests; 63
 tools; ruff clean; mypy strict clean (the 16 errors in three test files fixed); `tsc` clean.
+
+### 4.11 The journey suite (built 2 Oct 2026, evening)
+
+Why: every trust mechanism so far checks one answer; nothing re-ran the journeys that matter
+after a change, so each "Again!" was found by Kenil using the app. §4.9 item 1.
+
+- **What a journey is**: a YAML file in `journeys/` with `steps` (a `say` as the person, a
+  `reader` run, an `automation` run by title, or `build` of the newest plan) and `checks`
+  (`independent`: the second opinion on the last turn agrees; `row` / `near`: a row this
+  journey added, its source and a value within a tolerance; `no_new_tables`,
+  `no_new_modules`, `plan`: nothing lasting before a yes; `reply`; `judge`: a rubric judged by
+  a no-tools run; `count`, `reader_health`, `automation`, `journal`). Every step and check is
+  timed and says why.
+- **Where it runs**: `core/alpha/journeys/suite.py` copies the world with SQLite's backup and
+  the browser profiles (minus Chrome's lock files) into a scratch `ALPHA_HOME`, so signed-in
+  sites read as the person and the live world is never written. The same `turn.ask`,
+  `run_reader`, `automation.run` and `build.run_build` the app uses; builds run to the end as
+  the scheduler would. The report is `docs/journeys/<stamp>.md` + `.json`. `alpha journeys
+  [names] [--world] [--keep] [--list]`; `just journeys` wraps it in `caffeinate`.
+- **The five journeys**: `branded_food` (a 45 g Cadbury Dairy Milk bar: a row not estimated,
+  calories within 10% of 240, the second opinion agrees); `vague_tracker` ("keep track of all
+  the AI conferences in London this year": no table, no module, a plan proposed, numbered
+  questions); `linkedin_sync` (the person's reader reads the whole list: health ok, at least
+  95% of its last good count); `gmail_network` ("which of my LinkedIn connections emailed me
+  in the last 7 days": Gmail was read, and a judge checks the answer names senders from the
+  table or says plainly none / needs sign-in, never invents); `eta_daily` (the pipeline runs
+  with no model and reports "Read N of M sources", only sign-in and bot-check problems
+  allowed).
+- **Tests**: `core/tests/test_journeys.py` runs a journey with a fake model on a copy and
+  shows the live world untouched. 115 core tests.
+- **First real run** (2 Oct 17:49, Sonnet, a copy of Kenil's world; `docs/journeys/2026-10-02-1749.md`):
+  4 of 5 passed in 7½ minutes. Branded food: 240 kcal from fatsecret.com in 33 s, the second
+  opinion agreed (58 s in all). Deal pipeline: 15 of 15 sources read with no model, 111 s.
+  LinkedIn: 1,551 of 1,551 through the generic driver (Q23 holds on the real site), 147 s.
+  Vague tracker: a plan with one source found and numbered questions, nothing built, 59 s.
+  Gmail × network: the answer named one connection with what he wrote and excluded three
+  senders not in the table; the judge passed it, my `journal` check failed because it matched
+  the entry's text for `mail.google.com` while the text says "(google.com, signed in)" (fixed:
+  the check now matches the entry's URL). **Found by the run:** the pipeline's tell step
+  reported "818 new" on a table of 831 because a first run measured changes from the
+  automation's creation, so rows made while the module was built counted as new.
+
+### 4.12 Trust holes closed (2 Oct 2026, evening; §4.9 item 9, §4.10)
+
+- **Tell steps measure from the last run only.** A first run sets the baseline and says so
+  ("First run: what is new, changed or gone is reported from the next run"); nothing is journaled
+  as `noticed` on it (`runtime/pipeline.py`).
+- **Synced rows are known as synced.** `records_upsert` and `page_to_table` mark provenance
+  `synced: true` and journal the ids they touched (capped at 500, `records` in the entry's
+  data), as reader runs now do too. `check.records_of` reads both `record` and `records`, so a
+  trial can remove rows it upserted; `worth_checking` skips synced and reader-written rows (a
+  page copied is not a value Alpha worked out) and still checks looked-up and estimated ones.
+- **`source` is required on `records_add`.** A forgotten argument is a tool error the model
+  sees, never a stated value filed as a guess. `table_start` defaults to `stated` (it logs what
+  the person just said); `records_update` keeps "left out means unchanged".
+- **The app's field kinds match the core's** (`bool`, `multichoice`): a bool field edits as
+  Yes / No again and shows ✓.
+- **The conversation panel loads the stream scoped to the page's module**, as it sends.
+- **Removing a connection reads pipeline `steps`** as well as procedures for the readers it
+  takes, and the sources those readers fed go to `not_built` with "Its reader went with the
+  linkedin.com connection", so the module still shows where it reads from.
+- Still open from §4.10: the dead code list, `clear_conversation`'s physical delete,
+  `Entities._index`'s silent key conflicts, `decide_fact` overwriting `recorded_at`, the
+  calendar's first-sync journal flood, the LinkedIn automation's procedure naming the old
+  `linkedin` key (Alpha's own know-how; the error now says to use `url`).
+
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 

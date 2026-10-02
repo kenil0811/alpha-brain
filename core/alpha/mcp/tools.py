@@ -53,6 +53,14 @@ def provenance_of(source: str, assumed: str | None, *, turn: str | None) -> dict
     return prov
 
 
+def counts_and_ids(result: dict[str, Any]) -> dict[str, Any]:
+    """An upsert's counts for the journal, plus the ids it touched (capped) so a check or a
+    trial can find the rows a turn wrote in bulk."""
+    out = {k: v for k, v in result.items() if k != "ids"}
+    out["records"] = list(result.get("ids") or [])[:500]
+    return out
+
+
 def provenance_words(prov: dict[str, Any]) -> str:
     """The bracket after "Added X to Y": (estimated), (from the label on ocado.com), (assumed
     the 330 ml bottle), or nothing when the person stated it all."""
@@ -260,11 +268,11 @@ class Tools:
 
     @tool
     def records_add(
-        self, collection: str, values: dict[str, Any], source: str = "estimated",
+        self, collection: str, values: dict[str, Any], source: str,
         assumed: str | None = None,
     ) -> dict[str, Any]:
-        """Add one record to a table. values: field name → value. source: where the values
-        Alpha worked out come from: "stated" when the person gave every value; the page or
+        """Add one record to a table. values: field name → value. source (required): where the
+        values come from: "stated" when the person gave every value; the page or
         document they were read from (a URL, or "label on ocado.com") when looked up; "estimated"
         only for what could not be looked up. assumed: anything you had to assume because it was
         unknown and could not be found ("the 330 ml bottle"), so the record and the person both
@@ -291,7 +299,7 @@ class Tools:
         anything synced from a source. keep_person_fields: fields only written where the record
         has none yet (tags, notes, priority the person sets), so syncs never overwrite them."""
         result = self.world.collections.upsert(
-            collection, key_field, rows, {"by": "alpha", "turn": self.turn},
+            collection, key_field, rows, {"by": "alpha", "turn": self.turn, "synced": True},
             fill_only=set(keep_person_fields or []),
         )
         desc = self.world.collections.describe(collection)
@@ -299,7 +307,7 @@ class Tools:
             "did",
             f"Synced {desc['title']}: {result['added']} new, {result['updated']} updated,"
             f" {result['unchanged']} unchanged.",
-            {"collection": collection, **{k: v for k, v in result.items() if k != "ids"}},
+            {"collection": collection, **counts_and_ids(result)},
             desc["module"],
         )
         return {k: v for k, v in result.items() if k != "ids"}
@@ -346,7 +354,8 @@ class Tools:
         rows = [{f: item[src] for f, src in fields.items() if item.get(src)}
                 for item in page["items"]]
         result = self.world.collections.upsert(
-            collection, key, rows, {"by": "alpha", "turn": self.turn, "source": url},
+            collection, key, rows,
+            {"by": "alpha", "turn": self.turn, "source": url, "synced": True},
             fill_only=set(keep_person_fields or []),
         )
         desc = self.world.collections.describe(collection)
@@ -356,7 +365,7 @@ class Tools:
             f" {result['added']} new, {result['updated']} updated, {result['unchanged']}"
             " unchanged.",
             {"collection": collection, "url": url, "items": len(page["items"]),
-             **{k: v for k, v in result.items() if k != "ids"}},
+             **counts_and_ids(result)},
             desc["module"],
         )
         held = desc["records"]
@@ -956,7 +965,7 @@ class Tools:
     @tool
     def table_start(self, title: str, fields: list[dict[str, Any]], values: dict[str, Any],
                     module: str | None = None, name: str | None = None,
-                    source: str = "estimated", assumed: str | None = None) -> dict[str, Any]:
+                    source: str = "stated", assumed: str | None = None) -> dict[str, Any]:
         """Only for a plain log with nowhere to keep it ("log two boiled eggs" and no food
         table exists): make the simplest table for it (in module, made if it doesn't exist)
         and add this first row. One per message. Anything more is a plan (plan_propose).

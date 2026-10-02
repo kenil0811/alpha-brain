@@ -68,7 +68,8 @@ class Entities:
         out: dict[str, list[str]] = {}
         for key, raw in (keys or {}).items():
             if key not in KEYS:
-                raise Problem(f"'{key}' is not an identifying key; use one of {sorted(KEYS)}.")
+                raise Problem(f"'{key}' is not an identifying key; use one of {sorted(KEYS)}"
+                              " (a profile or page address is 'url').")
             values = raw if isinstance(raw, list) else [raw]
             clean = [_norm(key, str(v)) for v in values if str(v).strip()]
             if clean:

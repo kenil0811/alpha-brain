@@ -41,7 +41,7 @@ def test_level_zero_flow_through_the_tools(world: World) -> None:
 
 def test_problems_come_back_as_errors(world: World) -> None:
     t = Tools(world)
-    assert "no table" in t.records_add("nope", {"a": 1})["error"]
+    assert "no table" in t.records_add("nope", {"a": 1}, source="stated")["error"]
     assert "kind of journal" not in str(t.journal_note("did", "Checked the page."))
     assert "error" in t.journal_note("replied", "x")
     assert "error" in t.goal_update("g_missing", "done")

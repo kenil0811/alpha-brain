@@ -18,8 +18,8 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"},
                         {"name": "url", "kind": "url"}], module="Network")
     t.collection_create("food_log", "Food log", [{"name": "item", "kind": "text"}], module="Food")
-    t.records_add("connections", {"name": "Priya", "url": "https://x.com/in/p/"})
-    t.records_add("food_log", {"item": "Eggs"})
+    t.records_add("connections", {"name": "Priya", "url": "https://x.com/in/p/"}, source="stated")
+    t.records_add("food_log", {"item": "Eggs"}, source="stated")
     t.goal_set("Keep my connections", module="Network")
     t.note_write("module:Network", "Network", "Notes")
     world.readers.save("connections", site="x.com", url="https://x.com", script="return []",
@@ -72,7 +72,7 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     t.module_create("Network")
     t.collection_create("connections", "Connections", [{"name": "name", "kind": "text"}],
                         module="Network")
-    t.records_add("connections", {"name": "Priya"})
+    t.records_add("connections", {"name": "Priya"}, source="stated")
     world.readers.save("linkedin_connections", site="linkedin.com",
                        url="https://www.linkedin.com/mynetwork/", script="return []",
                        description="d", to_end=True, count=1)

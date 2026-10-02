@@ -1,0 +1,11 @@
+name: branded_food
+title: A branded food is logged from its label, not guessed
+why: On 2 Oct a 35 g protein shake was logged at 160 kcal, estimated; the label said 215. A
+  knowable value is looked up and its source kept.
+steps:
+  - say: "i had a 45g bar of cadbury dairy milk"
+    module: Nutrition
+checks:
+  - row: {collection: food_log, source_not: [estimated]}
+  - near: {collection: food_log, field: calories, value: 240, within: 0.1}
+  - independent: {}

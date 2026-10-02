@@ -115,7 +115,7 @@ export function AssistantPanel({
 
   const load = useCallback(() => {
     client
-      .conversation()
+      .conversation(module?.id ?? null)
       .then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);

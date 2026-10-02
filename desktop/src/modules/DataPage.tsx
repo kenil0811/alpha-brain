@@ -563,7 +563,7 @@ function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCo
               </option>
             ))}
           </select>
-        ) : field.kind === "boolean" ? (
+        ) : field.kind === "bool" ? (
           <select autoFocus value={text || "false"} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label}>
             <option value="false">No</option>
             <option value="true">Yes</option>
@@ -571,7 +571,7 @@ function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCo
         ) : field.kind === "long_text" ? (
           <textarea autoFocus rows={3} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} />
         ) : (
-          <input autoFocus type={inputType(field.kind)} step={field.kind === "number" ? "any" : undefined} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multiselect" ? (field.choices ?? []).join(", ") : undefined} />
+          <input autoFocus type={inputType(field.kind)} step={field.kind === "number" ? "any" : undefined} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />
         )}
       </td>
     );
@@ -579,7 +579,7 @@ function Cell({ row, field, onCommit }: { row: RecordRow; field: FieldInfo; onCo
   const words = showValue(value, field.kind, field.unit);
   return (
     <td className={`${numeric ? "r num" : ""} editable`.trim()} onClick={(e) => begin(e)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && begin(e)} title={rests ? `${rests} Click to correct it.` : "Click to edit"}>
-      {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill ${field.done_choices?.includes(String(value)) ? "pill--good" : "pill--gray"}`}>{words}</span> : field.kind === "boolean" ? (value ? "✓" : <span className="faint">—</span>) : words}
+      {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill ${field.done_choices?.includes(String(value)) ? "pill--good" : "pill--gray"}`}>{words}</span> : field.kind === "bool" ? (value ? "✓" : <span className="faint">—</span>) : words}
       {estimate ? (
         <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="estimated">
           ≈
@@ -605,7 +605,7 @@ function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; co
     const values: Record<string, unknown> = {};
     for (const f of fields) {
       const text = draft[f.name] ?? "";
-      if (f.kind === "boolean") values[f.name] = text === "true";
+      if (f.kind === "bool") values[f.name] = text === "true";
       else if (text.trim() !== "") values[f.name] = coerce(text, f.kind);
     }
     setBusy(true);
@@ -634,7 +634,7 @@ function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; co
                   </option>
                 ))}
               </select>
-            ) : f.kind === "boolean" ? (
+            ) : f.kind === "bool" ? (
               <select id={id} value={draft[f.name] ?? "false"} onChange={(e) => set(f.name, e.target.value)}>
                 <option value="false">No</option>
                 <option value="true">Yes</option>
@@ -642,7 +642,7 @@ function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; co
             ) : f.kind === "long_text" ? (
               <textarea id={id} rows={3} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} />
             ) : (
-              <input ref={i === 0 ? first : undefined} id={id} type={inputType(f.kind)} step={f.kind === "number" ? "any" : undefined} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} placeholder={f.kind === "multiselect" ? (f.choices ?? []).join(", ") : undefined} />
+              <input ref={i === 0 ? first : undefined} id={id} type={inputType(f.kind)} step={f.kind === "number" ? "any" : undefined} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} placeholder={f.kind === "multichoice" ? (f.choices ?? []).join(", ") : undefined} />
             )}
           </div>
         );

@@ -1,0 +1,11 @@
+name: linkedin_sync
+title: The LinkedIn connections reader reads the whole list in the person's session
+why: The first sync read 20 of 1,574; a later guard cut it to 10. The reader Alpha wrote
+  must read to the real end through the signed-in profile, with no site knowledge in the hand.
+steps:
+  - reader: {name: linkedin_connections, into: linkedin_connections, key: profile_url,
+             keep: [company, tags, notes]}
+checks:
+  - reader_health: linkedin_connections
+  - count: {collection: linkedin_connections, reader: linkedin_connections,
+            at_least_fraction_of_last_ok: 0.95}

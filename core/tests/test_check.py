@@ -100,7 +100,8 @@ def test_only_turns_where_alpha_worked_values_out_are_checked(world: World) -> N
     world.journal.append("replied", "Logged.", data={"turn": stated})
     assert not check.worth_checking(world, stated)
     guessed = said(world, "i had a shake")
-    Tools(world, turn=guessed).records_add("food_log", {"item": "Shake", "kcal": 160})
+    Tools(world, turn=guessed).records_add("food_log", {"item": "Shake", "kcal": 160},
+                                           source="estimated")
     assert not check.worth_checking(world, guessed)  # no reply yet
     world.journal.append("replied", "Logged, ~160 kcal (estimated).", data={"turn": guessed})
     assert check.worth_checking(world, guessed)
@@ -120,7 +121,8 @@ def test_a_wrong_answer_is_caught_and_alpha_corrects_itself(world: World) -> Non
     food_log(world)
     turn_id = said(world, "i had a for goodness shakes 35g protein shake")
     t = Tools(world, turn=turn_id)
-    rec = t.records_add("food_log", {"item": "FGS shake", "kcal": 160, "protein": 35})
+    rec = t.records_add("food_log", {"item": "FGS shake", "kcal": 160, "protein": 35},
+                        source="estimated")
     world.journal.append("replied", "Logged: FGS shake, ~160 kcal (estimated).",
                          data={"turn": turn_id})
     runs: list[TurnRequest] = []
@@ -163,7 +165,8 @@ def test_a_wrong_answer_is_caught_and_alpha_corrects_itself(world: World) -> Non
 def test_an_agreeing_answer_leaves_things_alone(world: World) -> None:
     food_log(world)
     turn_id = said(world, "i had two boiled eggs")
-    Tools(world, turn=turn_id).records_add("food_log", {"item": "Two eggs", "kcal": 155})
+    Tools(world, turn=turn_id).records_add("food_log", {"item": "Two eggs", "kcal": 155},
+                                           source="estimated")
     world.journal.append("replied", "Logged two eggs, ~155 kcal (estimated).",
                          data={"turn": turn_id})
     kinds: list[str] = []

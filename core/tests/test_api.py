@@ -19,7 +19,7 @@ def seeded(world: World) -> None:
         {"name": "fit", "kind": "number"},
         {"name": "status", "kind": "status", "choices": ["new", "applied"]}], module="Job Search")
     t.records_add("openings", {"title": "Backend Engineer", "company": "Lumen", "fit": 88,
-                               "status": "new"})
+                               "status": "new"}, source="stated")
     priya = t.entity_resolve("person", "Priya Raman", {"email": "priya@lumen.example"})
     world.journal.append("saw", "Email from Priya about Friday", entity_ids=[
         priya["entity"]["id"]], source="connector:mail")
@@ -148,10 +148,11 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
         {"name": "meal", "kind": "choice", "choices": ["breakfast", "lunch"]}], module="Food")
     today = date.today().isoformat()
     t.records_add("food_log", {"item": "Eggs", "eaten_on": today, "calories": 155,
-                               "meal": "breakfast"})
+                               "meal": "breakfast"}, source="stated")
     t.records_add("food_log", {"item": "Salad", "eaten_on": today, "calories": 520,
-                               "meal": "lunch"})
-    t.records_add("food_log", {"item": "Old", "eaten_on": "2020-01-01", "calories": 999})
+                               "meal": "lunch"}, source="stated")
+    t.records_add("food_log", {"item": "Old", "eaten_on": "2020-01-01", "calories": 999},
+                  source="stated")
     data = client(world).get("/api/modules/Food/summary").json()
     table = data["tables"][0]
     assert table["rows"] == 3 and table["added_this_week"] == 3

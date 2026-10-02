@@ -1,0 +1,12 @@
+name: gmail_network
+title: A question across Gmail and the network is answered from both, or says plainly why not
+why: The first cross-source answer came from the model's cleverness in the moment; it has to
+  keep working, and never invent a sender.
+steps:
+  - say: "which of my linkedin connections emailed me in the last 7 days, and what did each say?"
+checks:
+  - journal: {kind: saw, url_contains: "mail.google.com"}
+  - judge: "The answer must either name senders who are in the person's LinkedIn connections
+      with a line on what each wrote, or say plainly that none did, or say plainly that Gmail
+      needs a sign-in. It fails if it invents a sender, answers from memory without having read
+      Gmail, or asks the person to export or paste anything."
