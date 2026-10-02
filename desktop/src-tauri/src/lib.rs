@@ -20,6 +20,11 @@ use tauri::{
     WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
+#[cfg(target_os = "macos")]
+mod ptt;
+#[cfg(target_os = "macos")]
+mod speech;
+
 const READY_PREFIX: &str = "ALPHA_CORE_READY ";
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
 const SESSION_WAIT: Duration = Duration::from_secs(120);
@@ -96,7 +101,10 @@ const AVATAR_LABEL: &str = "avatar";
 const AVATAR_IDLE: (f64, f64) = (112.0, 124.0);
 const AVATAR_BUBBLE: (f64, f64) = (320.0, 230.0);
 const AVATAR_OPEN: (f64, f64) = (380.0, 560.0);
-const AVATAR_MARGIN: f64 = 20.0;
+/// Default spot, measured from the screen's bottom-right corner (not the work area), so the
+/// companion rests beside the Dock rather than above it (Alpha, chosen by the person 2026-09-30).
+const AVATAR_MARGIN_RIGHT: f64 = 17.0;
+const AVATAR_MARGIN_BOTTOM: f64 = 8.0;
 const AVATAR_HIDDEN_MARKER: &str = "avatar-hidden";
 /// Even sized to what it shows, the companion's window is a rectangle around a round character
 /// and a bubble. The page reports where it is drawn; everywhere else the window lets clicks
@@ -116,9 +124,9 @@ fn place_bottom_right(window: &WebviewWindow, size: (f64, f64)) -> tauri::Result
     };
     if let Some(monitor) = monitor {
         let scale = monitor.scale_factor();
-        let area = monitor.work_area();
-        let x = area.position.x as f64 + area.size.width as f64 - (size.0 + AVATAR_MARGIN) * scale;
-        let y = area.position.y as f64 + area.size.height as f64 - (size.1 + AVATAR_MARGIN) * scale;
+        let (origin, frame) = (monitor.position(), monitor.size());
+        let x = origin.x as f64 + frame.width as f64 - (size.0 + AVATAR_MARGIN_RIGHT) * scale;
+        let y = origin.y as f64 + frame.height as f64 - (size.1 + AVATAR_MARGIN_BOTTOM) * scale;
         window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32))?;
     }
     Ok(())
@@ -252,6 +260,34 @@ fn reveal_data() -> Result<(), String> {
         .status()
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Save an exported project (a small text file) to Downloads and reveal it in Finder. The name
+/// is used as-is if free, else suffixed `(2)`, `(3)`, ... so an earlier export is never
+/// overwritten.
+/// ponytail: macOS-only (`open -R`, `$HOME/Downloads`), like the rest of the host.
+#[tauri::command]
+fn save_to_downloads(filename: String, text: String) -> Result<String, String> {
+    if filename.contains('/') || filename.starts_with('.') {
+        return Err("That file name can't be used.".into());
+    }
+    let home = std::env::var("HOME").map_err(|_| "no home directory".to_string())?;
+    let downloads = PathBuf::from(home).join("Downloads");
+    std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
+    let stem_ext = filename.rsplit_once('.');
+    let mut path = downloads.join(&filename);
+    let mut n = 2;
+    while path.exists() {
+        let candidate = match stem_ext {
+            Some((stem, ext)) => format!("{stem} ({n}).{ext}"),
+            None => format!("{filename} ({n})"),
+        };
+        path = downloads.join(candidate);
+        n += 1;
+    }
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    let _ = Command::new("/usr/bin/open").arg("-R").arg(&path).status();
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -458,6 +494,8 @@ fn stop_all(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .manage(HostState::default())
+        .manage(ptt::PttState::default())
+        .manage(speech::SpeechState::default())
         .invoke_handler(tauri::generate_handler![
             core_session,
             avatar_layout,
@@ -465,9 +503,18 @@ pub fn run() {
             avatar_visible,
             avatar_is_visible,
             show_main,
-            reveal_data
+            reveal_data,
+            save_to_downloads,
+            ptt::ptt_permission,
+            ptt::ptt_request_permission,
+            ptt::ptt_set_shortcut,
+            speech::stt_start,
+            speech::stt_stop,
+            speech::tts_speak,
+            speech::tts_stop
         ])
         .setup(|app| {
+            ptt::start(app.handle().clone(), app.state::<ptt::PttState>().inner());
             let handle = app.handle().clone();
             let launch = app.state::<HostState>().launch.clone();
             std::thread::Builder::new()
@@ -492,8 +539,10 @@ pub fn run() {
                 MenuItem::with_id(app, "avatar", "Show or hide the companion", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit Alpha", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &avatar_item, &quit_item])?;
+            // A monochrome silhouette, not the app icon: macOS recolours a template to the menu
+            // bar, and the full-colour panda reads as a solid blob there.
             TrayIconBuilder::with_id("main")
-                .icon(app.default_window_icon().cloned().expect("window icon"))
+                .icon(tauri::include_image!("icons/tray@2x.png"))
                 .icon_as_template(true)
                 .tooltip("Alpha")
                 .menu(&menu)

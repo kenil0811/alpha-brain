@@ -4,9 +4,13 @@
  * person; a click opens a small panel to say or type one thing, answered at once. Anything that
  * needs the full window is handed to the workspace, which comes forward.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import { ArrowUp, Maximize2, X } from "lucide-react";
 import type { Client, Home, JournalEntry } from "../core/client";
+import { usePushToTalk } from "../shell/ptt";
+import { useTts } from "../shell/tts";
 import { MicButton, useSpeech } from "../shell/voice";
+import { IconButton } from "../ui";
 import { Character, type Mood } from "./Character";
 
 export const HANDOFF_KEY = "alpha.handoff";
@@ -64,15 +68,46 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     if (next) setTimeout(() => inputRef.current?.focus(), 50);
   }, [expanded]);
 
-  const say = useCallback((reply: string, tone: Mood) => {
-    setMood(tone);
-    setBubble(reply.length > 220 ? `${reply.slice(0, 217)}…` : reply);
-    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = setTimeout(() => {
-      setBubble(null);
-      setMood("idle");
-    }, 12_000);
-  }, []);
+  // Drag the character itself: past a small threshold the window follows the pointer so the
+  // character's centre stays under it; a press without movement stays a click.
+  const dragged = useRef(false);
+  const press = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  const dragHandlers = {
+    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      press.current = { x: e.screenX, y: e.screenY, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+      dragged.current = false;
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    onPointerMove: (e: PointerEvent<HTMLButtonElement>) => {
+      const p = press.current;
+      if (!p || (!dragged.current && Math.hypot(e.screenX - p.x, e.screenY - p.y) < 4)) return;
+      dragged.current = true;
+      void import("@tauri-apps/api/window")
+        .then(({ getCurrentWindow, LogicalPosition }) => getCurrentWindow().setPosition(new LogicalPosition(Math.round(e.screenX - p.cx), Math.round(e.screenY - p.cy))))
+        .catch(() => undefined);
+    },
+    onPointerUp: (e: PointerEvent<HTMLButtonElement>) => {
+      press.current = null;
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+    },
+  };
+
+  const tts = useTts();
+  const say = useCallback(
+    (reply: string, tone: Mood) => {
+      setMood(tone);
+      setBubble(reply.length > 220 ? `${reply.slice(0, 217)}…` : reply);
+      if (tone === "talking") tts.speak(reply);
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = setTimeout(() => {
+        setBubble(null);
+        setMood("idle");
+      }, 12_000);
+    },
+    [tts],
+  );
 
   const send = useCallback(
     async (sentence: string) => {
@@ -99,7 +134,16 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   });
   useEffect(() => {
     setMood((m) => (speech.listening ? "listening" : m === "listening" ? "idle" : m));
-  }, [speech.listening]);
+    // Barge-in: the person started talking, so whatever Alpha was saying stops at once.
+    if (speech.listening) tts.stop();
+  }, [speech.listening, tts]);
+  usePushToTalk(
+    useCallback(() => {
+      if (!expanded) toggle();
+      speech.start();
+    }, [expanded, toggle, speech]),
+    useCallback(() => speech.stop(), [speech]),
+  );
 
   const needs = home?.needs_you ?? [];
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
@@ -135,21 +179,22 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   return (
     <div ref={rootRef} className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
       {expanded ? (
-        <section className="avatar__panel" aria-label="Alpha companion">
+        <section className="avatar__panel" aria-label="Chief of Staff">
           <header className="avatar__head" data-tauri-drag-region>
             <span className={`presence presence--${state}`} aria-hidden="true" />
-            <span className="faint" data-tauri-drag-region>
+            <b data-tauri-drag-region>Chief of Staff</b>
+            <span className="faint avatar__state" data-tauri-drag-region>
               {label}
             </span>
-            <button type="button" className="iconbtn iconbtn--sm" aria-label="Open the workspace" title="Open the workspace" onClick={() => handOff({ panel: true }, host)}>
-              ⤢
-            </button>
-            <button type="button" className="iconbtn iconbtn--sm" aria-label="Close" onClick={() => toggle()}>
-              ×
-            </button>
+            <IconButton size="sm" aria-label="Open the workspace" title="Open the workspace" onClick={() => handOff({ panel: true }, host)}>
+              <Maximize2 size={14} aria-hidden="true" />
+            </IconButton>
+            <IconButton size="sm" aria-label="Close" title="Close" onClick={() => toggle()}>
+              <X size={14} aria-hidden="true" />
+            </IconButton>
           </header>
           <div className="avatar__turns" ref={listRef}>
-            {!turns.length ? <p className="panel__hint">Tell me what to do: log a meal, check a board, ask what's coming up.</p> : null}
+            {!turns.length ? <p className="panel__hint">Tell me what to do.</p> : null}
             {turns.map((t) => (
               <div key={t.id} className={t.kind === "said" ? "avatar__said" : "avatar__reply"}>
                 {t.text}
@@ -162,11 +207,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             ) : null}
           </div>
           <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
+            <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask…" aria-label="What should Alpha do" disabled={busy} />
             <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-            <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Log two eggs… what's on today…" aria-label="What should Alpha do" disabled={busy} />
-            <button type="submit" className="btn btn--sm btn--primary" disabled={busy || !text.trim()}>
-              Do it
-            </button>
+            <IconButton type="submit" size="sm" className="avatar__send" aria-label="Send" title="Send" disabled={busy || !text.trim()}>
+              <ArrowUp size={14} aria-hidden="true" />
+            </IconButton>
           </form>
         </section>
       ) : null}
@@ -175,7 +220,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           <div className="avatar__bubble" role="status">
             <p>{shownBubble}</p>
             {!bubble && needs.length ? (
-              <div className="row" style={{ marginTop: 6 }}>
+              <div className="row">
                 <button type="button" className="btn btn--sm btn--primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
                   Open
                 </button>
@@ -186,8 +231,8 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         <div className="avatar__grip" data-tauri-drag-region title="Drag to move Alpha" aria-hidden="true">
           ⋯
         </div>
-        <button type="button" className={`avatar__button is-${state}`} onClick={() => toggle()} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
-          <Character mood={busy ? "thinking" : mood} size={expanded ? 56 : 80} />
+        <button type="button" className={`avatar__button is-${state}`} {...dragHandlers} onClick={() => (dragged.current ? (dragged.current = false) : toggle())} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
+          <Character mood={busy ? "thinking" : speech.listening ? "listening" : tts.speaking ? "talking" : mood} size={expanded ? 56 : 80} />
         </button>
       </div>
     </div>

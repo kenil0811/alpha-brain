@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Alpha's own windows: typed host commands only, plus dragging the companion.",
+  "description": "Alpha's own windows: typed host commands only, plus dragging and moving the companion.",
   "windows": ["main", "avatar"],
-  "permissions": ["core:default", "core:window:allow-show", "core:window:allow-set-focus", "core:window:allow-start-dragging"]
+  "permissions": ["core:default", "core:window:allow-show", "core:window:allow-set-focus", "core:window:allow-start-dragging", "core:window:allow-set-position"]
 }
