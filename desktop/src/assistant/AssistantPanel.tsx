@@ -4,11 +4,40 @@
  * view. The companion is the same stream.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import type { Client, JournalEntry, ModuleCard, Thread, Turn } from "../core/client";
+import type { Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { MicButton, useSpeech } from "../shell/voice";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
+
+/** A plan Alpha proposed: nothing is built until the person says yes, here or in words. */
+function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onDecided: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const decide = (yes: boolean) => {
+    setBusy(true);
+    void (yes ? client.approvePlan(plan.id) : client.declinePlan(plan.id)).finally(() => {
+      setBusy(false);
+      onDecided();
+    });
+  };
+  return (
+    <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
+      <h3 className="creation__title">
+        {plan.title}
+        <span className="badge badge--waiting">Plan</span>
+      </h3>
+      <span className="faint">Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed.</span>
+      <div className="row" style={{ marginTop: 8 }}>
+        <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => decide(true)}>
+          Build it
+        </button>
+        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => decide(false)}>
+          Not now
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Message({ e }: { e: JournalEntry }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
@@ -72,6 +101,7 @@ export function AssistantPanel({
 }) {
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
@@ -86,6 +116,7 @@ export function AssistantPanel({
       .then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
+        setPlans(c.plans ?? []);
       })
       .catch(() => undefined);
   }, [client]);
@@ -225,7 +256,7 @@ export function AssistantPanel({
                   {t.title}
                   <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
                 </h3>
-                <span className="faint">{t.state === "working" ? "Alpha is researching and building this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                <span className="faint">{t.kind === "build" && t.state === "working" ? "Building in the background · it reports here when done" : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
               </button>
             ))}
             {module ? (
@@ -237,6 +268,11 @@ export function AssistantPanel({
             {turns.map((e) => (
               <Message key={e.id} e={e} />
             ))}
+            {plans
+              .filter((p) => p.state === "proposed")
+              .map((p) => (
+                <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
+              ))}
           </>
         )}
         {workingNote}

@@ -110,6 +110,34 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   note: Note | null;
   goals: Goal[];
   automations: Automation[];
+  sources: Source[];
+}
+
+/** A place a module reads from, and whether it works (kept by the platform from what happened). */
+export interface Source {
+  id: string;
+  module: string | null;
+  title: string;
+  url: string;
+  site: string;
+  reader: string | null;
+  status: "working" | "needs_signin" | "blocked" | "broken" | "not_built";
+  detail: string | null;
+  last_checked: string | null;
+  last_rows: number | null;
+}
+
+/** What Alpha proposed to set up, and its way from the person's yes to a finished build. */
+export interface Plan {
+  id: string;
+  title: string;
+  body: string;
+  state: "proposed" | "approved" | "building" | "done" | "stopped" | "declined" | "replaced";
+  module: string | null;
+  thread: string | null;
+  proposal: string | null;
+  report: string | null;
+  created_at: string;
 }
 
 export interface TableSummaryData {
@@ -136,6 +164,7 @@ export interface NeedItem {
   at: string;
   options?: string[];
   module?: string | null;
+  plan?: string | null;
 }
 
 export interface CalendarItem {
@@ -286,6 +315,7 @@ export interface Conversation {
   turns: JournalEntry[];
   threads: Thread[];
   running: Turn[];
+  plans: Plan[];
 }
 
 export interface SearchResult {
@@ -388,6 +418,8 @@ export class Client {
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
+  approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);
+  declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }

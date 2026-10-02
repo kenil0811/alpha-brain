@@ -3,7 +3,7 @@
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, ModuleDetail, ModuleSummary } from "../core/client";
+import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -110,6 +110,31 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
               ))}
             </div>
           </div>
+          {detail.sources.length ? (
+            <div className="section">
+              <div className="section__head">
+                <h2>Where it reads from</h2>
+                <span className="faint">{sourceSummary(detail.sources)}</span>
+              </div>
+              <div className="card list">
+                {detail.sources.map((src) => (
+                  <div key={src.id} className="item">
+                    <div className="item__body">
+                      <b>
+                        <a href={src.url} target="_blank" rel="noreferrer">
+                          {src.title}
+                        </a>
+                      </b>
+                      <div className="item__sub">
+                        {src.detail ?? (src.status === "working" ? `${src.last_rows ?? 0} rows${src.last_checked ? ` · read ${when(src.last_checked)}` : ""}` : src.site)}
+                      </div>
+                    </div>
+                    <span className={`pill ${SOURCE_STATUS[src.status].pill}`}>{SOURCE_STATUS[src.status].words}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
@@ -121,6 +146,19 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
       ) : null}
     </div>
   );
+}
+
+const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> = {
+  working: { pill: "pill--good", words: "Working" },
+  needs_signin: { pill: "pill--warn", words: "Needs your sign-in" },
+  blocked: { pill: "pill--bad", words: "Blocked" },
+  broken: { pill: "pill--bad", words: "Being repaired" },
+  not_built: { pill: "pill--gray", words: "Not read yet" },
+};
+
+function sourceSummary(sources: Source[]): string {
+  const working = sources.filter((s) => s.status === "working").length;
+  return `${working} of ${sources.length} working`;
 }
 
 const PAGE = 50;
