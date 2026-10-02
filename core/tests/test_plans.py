@@ -3,7 +3,7 @@ status; pipelines that run with no model."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from conftest import building
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ from alpha.runtime import build, claude_cli, pipeline
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
-FIELDS = [{"name": "title", "kind": "text"}, {"name": "url", "kind": "url"},
+FIELDS: list[dict[str, Any]] = [{"name": "title", "kind": "text"}, {"name": "url", "kind": "url"},
           {"name": "status", "kind": "choice", "choices": ["Active", "Pending", "Sold"]}]
 
 
@@ -287,7 +287,7 @@ def test_a_reader_on_a_paged_list_must_say_whether_it_reads_every_page(world: Wo
     pages = Pages()
     pages.pages = {"https://a.example/listings": {"result": listings(12), "more_pages": True}}
     original = browser_module.run_job
-    browser_module.run_job = pages
+    browser_module.run_job = cast(Any, pages)
     try:
         refused = t.reader_save("a_list", "https://a.example/listings", "return rows", "A list")
         assert "shows more pages" in refused["error"] and "12 rows" in refused["error"]

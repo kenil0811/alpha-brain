@@ -80,15 +80,15 @@ def test_a_plain_log_with_no_home_is_journaled_with_its_source(world: World) -> 
 
 
 def test_independent_and_judging_runs_never_see_alpha(world: World) -> None:
-    base = dict(system="x", world_path=world.path, turn_id="j1")
-    independent = claude_cli.argv(TurnRequest(sentence="s", kind="independent", **base),
-                                  Path("/tmp/mcp.json"))
+    def req(kind: str = "turn") -> TurnRequest:
+        return TurnRequest(sentence="s", system="x", world_path=world.path, turn_id="j1", kind=kind)
+    independent = claude_cli.argv(req("independent"), Path("/tmp/mcp.json"))
     assert "--mcp-config" not in independent
     assert independent[independent.index("--allowedTools") + 1:][:2] == ["WebSearch", "WebFetch"]
-    judge = claude_cli.argv(TurnRequest(sentence="s", kind="judge", **base), Path("/tmp/m.json"))
+    judge = claude_cli.argv(req("judge"), Path("/tmp/m.json"))
     assert "--allowedTools" not in judge and "--mcp-config" not in judge
     assert "WebSearch" in judge[judge.index("--disallowedTools") + 1:]
-    ordinary = claude_cli.argv(TurnRequest(sentence="s", **base), Path("/tmp/m.json"))
+    ordinary = claude_cli.argv(req(), Path("/tmp/m.json"))
     assert "--mcp-config" in ordinary and "mcp__alpha" in ordinary
 
 

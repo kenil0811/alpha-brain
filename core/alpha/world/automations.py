@@ -33,8 +33,8 @@ def check_schedule(schedule: str) -> str:
     if m:
         amount, unit = int(m.group(1)), m.group(2)[0]
         minutes = amount * {"m": 1, "h": 60, "d": 1440}[unit]
-        if minutes < 15:
-            raise Problem("An automation runs at most every 15 minutes.")
+        if minutes < 30:
+            raise Problem("An automation runs at most every 30 minutes.")
         return f"every {amount}{unit}"
     m = DAILY.match(text)
     if m and int(m.group(1)) < 24 and int(m.group(2)) < 60:

@@ -27,8 +27,9 @@ def test_schedules_parse_and_describe() -> None:
     assert check_schedule("weekly monday 09:00") == "weekly mon 09:00"
     assert describe("daily 08:05") == "every day at 08:05"
     assert describe("every 1h") == "every hour"
-    with pytest.raises(Problem, match="15 minutes"):
-        check_schedule("every 5m")
+    with pytest.raises(Problem, match="30 minutes"):
+        check_schedule("every 20m")
+    assert check_schedule("every 30m") == "every 30m"
     with pytest.raises(Problem, match="understands"):
         check_schedule("whenever")
 

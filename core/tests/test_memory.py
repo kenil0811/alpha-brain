@@ -83,12 +83,13 @@ def test_an_older_world_file_is_brought_up_to_date(tmp_path: Path) -> None:
     assert "brief" in columns
     assert world.modules.thread("t_1")["session_ref"] is None
     began = world.store.one("SELECT value FROM meta WHERE key = 'created_at'")
-    assert began["value"] == "2026-09-30T08:00:00+00:00"
+    assert began is not None and began["value"] == "2026-09-30T08:00:00+00:00"
     first = world.store.one("SELECT value FROM meta WHERE key = 'world_id'")
+    assert first is not None
     world.close()
     again = World(path)
-    assert again.store.one("SELECT value FROM meta WHERE key = 'world_id'")["value"] == \
-        first["value"]
+    same = again.store.one("SELECT value FROM meta WHERE key = 'world_id'")
+    assert same is not None and same["value"] == first["value"]
     again.close()
 
 
@@ -125,3 +126,21 @@ def test_notes_know_the_turn_that_wrote_them(world: World) -> None:
     said = world.journal.append("said", "note this", actor="person")
     note = Tools(world, turn=said).note_write("topic:cooking", "Cooking", "Batch on Sundays.")
     assert note["source"] == said
+
+
+def test_old_linkedin_keys_become_url_keys(tmp_path: Path) -> None:
+    path = tmp_path / "keys.sqlite"
+    world = World(path)
+    priya = world.entities.resolve("person", "Priya Raman",
+                                   {"url": "https://www.linkedin.com/in/priya/"})["entity"]
+    with world.store.tx() as db:  # as a world written before 2 Oct would have it
+        db.execute("UPDATE entity_keys SET key = 'linkedin' WHERE entity_id = ?", (priya["id"],))
+        db.execute("UPDATE entities SET keys = ? WHERE id = ?",
+                   ('{"linkedin":["linkedin.com/in/priya"]}', priya["id"]))
+    world.close()
+    again = World(path)
+    found = again.entities.find(keys={"url": "https://linkedin.com/in/priya"})
+    assert [e["id"] for e in found] == [priya["id"]]
+    assert again.entities.get(priya["id"])["keys"] == {"url": ["linkedin.com/in/priya"]}
+    assert again.store.one("SELECT 1 AS x FROM entity_keys WHERE key = 'linkedin'") is None
+    again.close()

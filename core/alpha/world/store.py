@@ -365,6 +365,17 @@ class Store:
             # Rows a reader wrote before rows knew their reader.
             db.execute("UPDATE records SET reader = json_extract(provenance, '$.reader')"
                        " WHERE reader IS NULL AND json_extract(provenance, '$.reader') IS NOT NULL")
+            # Addresses are one key: the old 'linkedin' key kind becomes 'url' (2 Oct).
+            db.execute("INSERT OR IGNORE INTO entity_keys (key, value, entity_id)"
+                       " SELECT 'url', value, entity_id FROM entity_keys WHERE key = 'linkedin'")
+            db.execute("DELETE FROM entity_keys WHERE key = 'linkedin'")
+            for row in db.execute("SELECT id, keys FROM entities WHERE keys LIKE '%\"linkedin\"%'"
+                                  ).fetchall():
+                keys = loads(row["keys"])
+                urls = list(dict.fromkeys(keys.get("url", []) + keys.pop("linkedin", [])))
+                if urls:
+                    keys["url"] = urls
+                db.execute("UPDATE entities SET keys = ? WHERE id = ?", (dumps(keys), row["id"]))
             # Threads are records, not remembered model sessions: nothing resumes one.
             db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL")
             # Each world is one person's; its id travels with the file.

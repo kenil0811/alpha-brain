@@ -317,11 +317,11 @@ class Tools:
         """A rough first look at a list page, not a way to keep a list: for anything you will sync,
         write a reader (page_script, then reader_save) and use reader_run. Reads a list page
         (through the person's sign-in where they connected the site), takes
-        one item per distinct link whose address contains link_contains (e.g. "/in/" for
-        people on LinkedIn, "/jobs/view/" for openings), and save every item into a table in
-        one go, matched on its link so repeat runs update rather than duplicate. fields maps
-        table fields to what to take from each item: "url", "text" (the link's words, e.g. a
-        name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
+        one item per distinct link whose address contains link_contains (the part of the
+        address every item of the list shares, e.g. "/listing/"), and save every item into a
+        table in one go, matched on its link so repeat runs update rather than duplicate. fields
+        maps table fields to what to take from each item: "url", "text" (the link's words, e.g.
+        a name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
         words, e.g. a headline). The url-mapped field is the key. Use it for any list that
         should be kept whole and current; then refine individual rows if needed."""
         if self._in_automation():
@@ -598,7 +598,7 @@ class Tools:
         if email:
             keys["email"] = email
         if url:
-            keys["linkedin" if "linkedin.com" in url else "url"] = url
+            keys["url"] = url
         return self.world.entities.find(name=name, kind=kind, keys=keys or None)
 
     @tool
@@ -606,9 +606,10 @@ class Tools:
         self, kind: str, name: str, keys: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """The one entity these details identify, creating it when new. kind: person,
-        organisation, place, document, message, event. keys: {email, linkedin, phone, url, path,
-        uid, domain}. A matching key finds the existing entity; a name alone never merges, and
-        same-name entities come back under 'maybe' for the person to decide."""
+        organisation, place, document, message, event. keys: {email, url (a profile or page
+        address), phone, path, uid, domain}. A matching key finds the existing entity; a name
+        alone never merges, and same-name entities come back under 'maybe' for the person to
+        decide."""
         result = self.world.entities.resolve(kind, name, keys)
         if result["created"]:
             self._did("saw", f"Started keeping {name} ({kind}).",
@@ -741,7 +742,7 @@ class Tools:
         objects with the same keys). It is run once now and only kept if it returns rows; then
         automations use it with reader_run, with no model call, and you repair it when it
         breaks. Saving under an existing name replaces it (its version goes up). name: e.g.
-        linkedin_connections. description: what it reads, in a sentence. whole: true when it
+        site_listings. description: what it reads, in a sentence. whole: true when it
         returns the whole list (every page: to_end for lists that scroll or show more, or your
         script fetching the next pages), false when it deliberately reads only the newest page
         (then rows that drop off it are not counted as gone). When the page shows more pages
@@ -796,7 +797,7 @@ class Tools:
 
     @tool
     def browser_signin(self, site: str) -> dict[str, Any]:
-        """Open a window on a site (e.g. linkedin.com) so the person signs in themselves; Alpha
+        """Open a window on a site (e.g. example.com) so the person signs in themselves; Alpha
         never sees what they type. Only after a page read says needs_signin: reads already use
         every sign-in Alpha holds, including one made on another site (gmail.com for
         google.com). Returns at once; tell them to sign in and close the window, and the next
