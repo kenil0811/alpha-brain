@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef } from "react";
 import { hasTauri } from "../core/session";
+import { permissionOn } from "./Permissions";
 
 export type PttShortcut =
   | { mode: "fn" }
@@ -99,7 +100,7 @@ export function usePushToTalk(onStart: () => void, onStop: () => void): void {
     void pushShortcutToHost(readShortcut());
     void import("@tauri-apps/api/event").then(({ listen }) => {
       if (disposed) return;
-      void listen("ptt://start", () => startRef.current()).then((un) => (disposed ? un() : unlisten.push(un)));
+      void listen("ptt://start", () => permissionOn("input") && startRef.current()).then((un) => (disposed ? un() : unlisten.push(un)));
       void listen("ptt://stop", () => stopRef.current()).then((un) => (disposed ? un() : unlisten.push(un)));
     });
     return () => {

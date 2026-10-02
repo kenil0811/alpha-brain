@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { hasTauri, resolveSession } from "../core/session";
+import { permissionOn } from "./Permissions";
 
 export type TranscriptionMode = "automatic" | "native" | "groq" | "openai";
 const MODE_KEY = "alpha.transcription.mode";
@@ -299,11 +300,15 @@ export function useSpeech(onText: (final: string, interim: string) => void) {
     };
   }, [mode]);
 
-  if (mode === "groq" || mode === "openai") return cloud;
-  if (mode === "native") return hasTauri() ? native : browser;
+  const [blocked, setBlocked] = useState<string | null>(null);
+  const local = hasTauri() ? native : browser;
   // "automatic": while still checking, fall back to on-this-Mac rather than block the mic.
-  if (autoCloud) return cloud;
-  return hasTauri() ? native : browser;
+  const chosen = mode === "groq" || mode === "openai" || (mode === "automatic" && autoCloud) ? cloud : local;
+  // Alpha's own switches (Settings → Permissions), read each render so a change applies at once.
+  const off = !permissionOn("microphone") ? "Microphone" : chosen === native && !permissionOn("speech") ? "Speech recognition" : null;
+  if (!off) return chosen;
+  const refuse = () => setBlocked(`${off} is off in Settings → Permissions.`);
+  return { ...chosen, listening: false, error: blocked, start: refuse, toggle: refuse };
 }
 
 /** The mic itself: red and pulsing while it listens, quiet otherwise. */
