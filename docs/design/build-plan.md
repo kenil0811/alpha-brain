@@ -40,7 +40,7 @@ what the first slice is exactly, and what follows.
   connection. **2 Oct** (§4.6–§4.8, 18 commits): memory and data foundations (row history, rows
   that are people, threads as records, what the model saw); plan first, sources, pipelines and
   background builds with no limits; known, assumed or asked (provenance on every value, a second
-  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 135
+  opinion on every answer Alpha worked out, a trial on every build). 45 commits since 1 Oct; 136
   core + 3 desktop tests; 70 tools; ruff and mypy strict clean (2 Oct late evening). **Later the
   same evening:** the journey suite (§4.11), the trust holes closed (§4.12), the write route
   (§4.13, Q24), builds watched live on Home (§4.14).
@@ -1096,6 +1096,33 @@ thinking, it should give me options for questions and not just have me type in".
   front. The cost is context per turn; the gain is one fewer round trip on every turn (a
   real question answered in 34 s on the copy before the change; to be measured after).
 - 135 core tests (a streamed run is watched and read); lint and types clean; the app rebuilt.
+
+### 4.19 Three more journeys, and a hole in the hand (2 Oct 2026, 22:02–22:30)
+
+`docs/journeys/2026-10-02-2202.md`, a copy of Kenil's world, his profiles:
+
+- **gmail_send** (a send with a fresh yes): Alpha wrote a compose-and-send procedure against
+  Gmail (196 s, the earlier `gmail_send_draft` sends an existing draft, so a new one was
+  needed), the dry run filled the compose window, the suite's yes sent it in 11 s and the
+  verify passed ("Sent … Checked afterwards"). The email went to Kenil's own address.
+  **Passed.**
+- **plan_declined** (a no builds nothing): "keep track of every book i read this year with my
+  rating" → a Books plan with three numbered questions in 29 s; the decline through the app's
+  route closed it in 2 s; no table, no module. **Passed.** (The questions were prose, not
+  `ask_person` options: the run started before rule 10 changed.)
+- **linkedin_message** (the second site, no new platform code): Alpha found Mitansh's profile,
+  wrote `linkedin_message` four times over 381 s, and every dry run timed out waiting for the
+  message box; it concluded LinkedIn blocks automated messaging. The error screenshot said
+  otherwise: "This page doesn't exist". Alpha had written the procedure's address as
+  `https://www.linkedin.com/in/{profile_slug}/` and a selector with `{profile_urn}`, expecting
+  the hand to fill them from the payload as it fills typed text, and the hand opened the
+  literal address. **Failed, platform's fault.** Fixed: a `{field}` placeholder anywhere in the
+  address, a selector, a click text or a goto is filled from the approved payload (the payload
+  is on the card, so nothing hidden reaches the site); every placeholder must be a declared
+  field; proven on example.com (address and selector filled, step done). Rerun below.
+- A lesson for the repair loop: Alpha's diagnosis ("anti-automation") was wrong because it
+  never saw the error screenshot. `action_propose`'s failure answer now carries the step log;
+  giving Alpha the screenshot itself (a `page_read` of the final page, or the image) is open.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
