@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
-from alpha.world.store import Problem, Store, now
+from alpha.world.store import Problem, Store, dumps, loads, now
 
 NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 DROP = 0.5
@@ -28,6 +30,26 @@ MISSING = 0.2
 def _view(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
     out["to_end"] = bool(row["to_end"])
+    out["allow_posts"] = loads(row["allow_posts"], [])
+    return out
+
+
+def allowed_posts(rules: list[dict[str, Any]] | None, site: str,
+                  site_of: Callable[[str], str]) -> list[dict[str, str]]:
+    """A reader's read-only POSTs, checked: each is an origin on the reader's own site and a path
+    (`*` matches anything). Everything else a read session sends that isn't GET is blocked."""
+    out = []
+    for rule in rules or []:
+        origin, path = str(rule.get("origin", "")), str(rule.get("path", ""))
+        parsed = urlparse(origin)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.path not in ("", "/"):
+            raise Problem(f"allow_posts origin '{origin}' must be like https://www.{site}.")
+        if site_of(origin) != site:
+            raise Problem(f"allow_posts may only name {site}, not {parsed.hostname}.")
+        if not path.startswith("/"):
+            raise Problem(f"allow_posts path '{path}' must start with /.")
+        out.append({"origin": f"https://{parsed.hostname}"
+                    + (f":{parsed.port}" if parsed.port else ""), "path": path})
     return out
 
 
@@ -57,7 +79,8 @@ class Readers:
         self.store = store
 
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
-             to_end: bool, count: int) -> dict[str, Any]:
+             to_end: bool, count: int,
+             allow_posts: list[dict[str, str]] | None = None) -> dict[str, Any]:
         if not NAME.match(name):
             raise Problem("A reader's name is lower-case words joined by _, e.g. "
                           "linkedin_connections.")
@@ -68,16 +91,18 @@ class Readers:
                 db.execute(
                     "UPDATE readers SET site = ?, url = ?, script = ?, to_end = ?, description = ?,"
                     " version = version + 1, health = 'ok', last_problem = NULL, last_run_at = ?,"
-                    " last_count = ?, last_ok_count = ?, updated_at = ? WHERE name = ?",
-                    (site, url, script, int(to_end), description, stamp, count, count, stamp, name),
+                    " last_count = ?, last_ok_count = ?, updated_at = ?, allow_posts = ?"
+                    " WHERE name = ?",
+                    (site, url, script, int(to_end), description, stamp, count, count, stamp,
+                     dumps(allow_posts or []), name),
                 )
             else:
                 db.execute(
                     "INSERT INTO readers (name, site, url, script, to_end, description,"
-                    " last_run_at, last_count, last_ok_count, created_at, updated_at)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    " last_run_at, last_count, last_ok_count, created_at, updated_at, allow_posts)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     (name, site, url, script, int(to_end), description, stamp, count, count,
-                     stamp, stamp),
+                     stamp, stamp, dumps(allow_posts or [])),
                 )
         return self.get(name)
 

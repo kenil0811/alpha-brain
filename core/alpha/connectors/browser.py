@@ -254,7 +254,8 @@ class Browser:
             + (" — it asked for a sign-in" if page.get("blocked") else "") + ".",
             data={"url": url, "final_url": page.get("final_url"), "status": page.get("status"),
                   "signed_in": use_profile, "blocked": bool(page.get("blocked")),
-                  "links": len(links), "turn": turn},
+                  "links": len(links), "writes_blocked": page.get("writes_blocked"),
+                  "turn": turn},
             module=module, source="connector:browser",
         )
         if page.get("blocked") and conn is not None:
@@ -273,7 +274,8 @@ class Browser:
         }
 
     def script(self, url: str, script: str, *, to_end: bool = False, turn: str | None = None,
-               module: str | None = None, label: str | None = None) -> dict[str, Any]:
+               module: str | None = None, label: str | None = None,
+               allow_posts: list[dict[str, str]] | None = None) -> dict[str, Any]:
         """Run Alpha's own JavaScript (a function body that returns JSON) in a page, read
         through the person's sign-in where they connected the site. Read-only by mechanism:
         the driver blocks every request that could change data on the site."""
@@ -290,7 +292,7 @@ class Browser:
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected"
         job: dict[str, Any] = {"op": "script", "url": url, "script": script, "channel": "chrome",
-                               "scroll_to_end": to_end}
+                               "scroll_to_end": to_end, "allow_posts": allow_posts or []}
         if use_profile and conn is not None:
             job["profile"] = str(profile_of(conn))
         timeout = READ_TIMEOUT_S * 3 if to_end else READ_TIMEOUT_S
@@ -307,12 +309,16 @@ class Browser:
             f"{', signed in' if use_profile else ''})"
             + (f": {count} rows" if count is not None else "") + ".",
             data={"url": url, "signed_in": use_profile, "rows": count,
-                  "writes_blocked": page.get("writes_blocked"), "turn": turn},
+                  "writes_blocked": page.get("writes_blocked"),
+                  "egress_blocked": page.get("egress_blocked"),
+                  "posts_allowed": page.get("posts_allowed") or [], "turn": turn},
             module=module, source="connector:browser",
         )
         return {"url": url, "final_url": page.get("final_url"), "title": page.get("title"),
                 "signed_in": use_profile, "needs_signin": bool(page.get("blocked")),
-                "result": result, "scrolls": page.get("scrolls")}
+                "result": result, "scrolls": page.get("scrolls"),
+                "writes_blocked": page.get("writes_blocked") or 0,
+                "egress_blocked": page.get("egress_blocked") or 0}
 
     def items(self, url: str, *, link_contains: str, to_end: bool = True,
               turn: str | None = None, module: str | None = None) -> dict[str, Any]:

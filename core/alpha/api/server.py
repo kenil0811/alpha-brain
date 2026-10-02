@@ -36,6 +36,7 @@ from alpha.runtime import claude_account, transcription
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world import backup
+from alpha.world.actions import Actions
 from alpha.world.bundle import export_module, import_module
 from alpha.world.purge import remove_connection, remove_module
 from alpha.world.store import Problem, loads
@@ -298,8 +299,29 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             "brief": None,
         }
 
+    actions = Actions(world)
+
+    @app.get("/api/pending", dependencies=[api])
+    def pending() -> list[dict[str, Any]]:
+        return actions.pending()
+
+    # The one approve path: these two, and an answer to a pending action's question, all end in
+    # Actions.approve / reject, which runs the stored payload once.
+    @app.post("/api/pending/{aid}/approve", dependencies=[api])
+    def approve(aid: str) -> dict[str, Any]:
+        return actions.approve(aid, by="person")
+
+    @app.post("/api/pending/{aid}/reject", dependencies=[api])
+    def reject(aid: str) -> dict[str, Any]:
+        return actions.reject(aid, by="person")
+
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
+        action = actions.by_ask(ask_id)
+        if action is not None:
+            yes = body.text.strip().lower() in {"approve", "yes", "approved"}
+            decided = (actions.approve if yes else actions.reject)(action["id"], by="person")
+            return {"pending_action": decided}
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
@@ -310,7 +332,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
     def dismiss(ask_id: str) -> dict[str, Any]:
-        # Closed without an answer: nothing runs.
+        # Closed without an answer: nothing runs (a pending action is rejected).
+        action = actions.by_ask(ask_id)
+        if action is not None:
+            return {"pending_action": actions.reject(action["id"], by="person")}
         return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
 
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])

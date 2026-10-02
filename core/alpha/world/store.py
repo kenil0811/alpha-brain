@@ -1,7 +1,8 @@
 """The store: one SQLite file per person, holding every layer of the world.
 
 Conventions: ids are `<prefix>_<12 hex>`; times are UTC ISO-8601 with seconds; JSON columns hold
-JSON text. The journal is append-only (a deletion is a tombstone that blanks the text); every
+JSON text. The journal is append-only, enforced by triggers (a deletion is a tombstone that
+blanks the text and data); every
 other table can be rebuilt from journal rows plus the records. Several processes open the same
 file (the turn runner and the MCP server it starts), so the file runs in WAL mode with a busy
 timeout.
@@ -46,6 +47,20 @@ CREATE TRIGGER IF NOT EXISTS journal_ai AFTER INSERT ON journal BEGIN
 END;
 CREATE TRIGGER IF NOT EXISTS journal_ad AFTER DELETE ON journal BEGIN
     INSERT INTO journal_fts(journal_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
+END;
+-- Append-only, by the database itself: no row is ever deleted, and the one change allowed is
+-- forgetting (text and data blanked, deleted_at set once, everything else as it was).
+CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON journal BEGIN
+    SELECT RAISE(ABORT, 'The journal is append-only: its rows are never deleted.');
+END;
+CREATE TRIGGER IF NOT EXISTS journal_only_forget BEFORE UPDATE ON journal
+WHEN NOT (old.deleted_at IS NULL AND new.deleted_at IS NOT NULL AND new.text = ''
+          AND new.data = '{}' AND new.rowid IS old.rowid AND new.id IS old.id
+          AND new.at IS old.at AND new.kind IS old.kind AND new.actor IS old.actor
+          AND new.module IS old.module AND new.thread IS old.thread
+          AND new.entity_ids IS old.entity_ids AND new.source IS old.source)
+BEGIN
+    SELECT RAISE(ABORT, 'The journal is append-only: a row can only be forgotten.');
 END;
 CREATE TRIGGER IF NOT EXISTS journal_au AFTER UPDATE OF text ON journal BEGIN
     INSERT INTO journal_fts(journal_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
@@ -226,8 +241,42 @@ CREATE TABLE IF NOT EXISTS readers (
     last_count INTEGER,
     last_ok_count INTEGER,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    allow_posts TEXT NOT NULL DEFAULT '[]'
 );
+
+-- Outward writes waiting for the person (alpha.world.actions): the exact payload, run once.
+CREATE TABLE IF NOT EXISTS pending_actions (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    effect TEXT NOT NULL,
+    connector TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_by TEXT,
+    thread TEXT,
+    module TEXT,
+    asked TEXT,
+    state TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    decided_at TEXT,
+    result TEXT
+);
+CREATE TRIGGER IF NOT EXISTS pending_actions_payload_fixed BEFORE UPDATE OF kind, payload,
+    connector, effect ON pending_actions
+BEGIN
+    SELECT RAISE(ABORT, 'A pending action runs exactly what was proposed.');
+END;
+
+-- Runs that have read private or third-party material (alpha.world.taint).
+CREATE TABLE IF NOT EXISTS taints (
+    turn TEXT PRIMARY KEY,
+    thread TEXT,
+    reason TEXT NOT NULL,
+    at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS taints_thread ON taints(thread);
 
 CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY,
@@ -240,6 +289,22 @@ CREATE TABLE IF NOT EXISTS threads (
     updated_at TEXT NOT NULL
 );
 """
+
+
+# Columns added after a store may already exist: (table, column, declaration).
+ADDED_COLUMNS = [
+    ("readers", "allow_posts", "TEXT NOT NULL DEFAULT '[]'"),
+    ("modules", "icon", "TEXT"),
+]
+
+
+def migrate(db: sqlite3.Connection) -> None:
+    """Bring a store made by an earlier version up to the schema (new tables and triggers come
+    from SCHEMA's IF NOT EXISTS; new columns are added here)."""
+    for table, column, declaration in ADDED_COLUMNS:
+        have = {r[1] for r in db.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
 
 class Problem(Exception):
@@ -279,9 +344,7 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
-        # Columns added after a world file was first made.
-        if "icon" not in {r[1] for r in self.db.execute("PRAGMA table_info(modules)")}:
-            self.db.execute("ALTER TABLE modules ADD COLUMN icon TEXT")
+        migrate(self.db)
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:

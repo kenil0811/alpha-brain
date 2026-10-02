@@ -16,9 +16,10 @@ that use them; for a folder, the documents read from it; for the calendar, its e
 Alpha wrote into the person's tables stays: those rows are the person's, and removing the
 module is how they go.
 
-`clear_conversation` deletes the person's conversation with Alpha: everything said and replied
-outside any thread, with the questions Alpha asked there and their answers. What Alpha did and
-read (Activity) and every module's data stay.
+`clear_conversation` forgets the person's conversation with Alpha: everything said and replied
+outside any thread, with the questions Alpha asked there and their answers, is blanked (the
+journal's tombstone: the rows stay, their words go, and the clearing itself is journaled). What
+Alpha did and read (Activity) and every module's data stay.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from typing import Any
 
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites, site_of
-from alpha.world.store import Problem
+from alpha.world.store import Problem, now
 from alpha.world.world import World, alpha_home
 
 CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
@@ -102,8 +103,12 @@ def clear_conversation(world: World) -> dict[str, int]:
     marks = ",".join("?" * len(CONVERSATION_KINDS))
     with world.store.tx() as db:
         removed = db.execute(
-            f"DELETE FROM journal WHERE thread IS NULL AND kind IN ({marks})", CONVERSATION_KINDS
+            "UPDATE journal SET text = '', data = '{}', deleted_at = ?"
+            f" WHERE thread IS NULL AND deleted_at IS NULL AND kind IN ({marks})",
+            (now(), *CONVERSATION_KINDS),
         ).rowcount
+    world.journal.append("changed", f"You cleared the conversation ({plural(removed, 'message')}).",
+                         actor="person")
     return {"turns": removed}
 
 
