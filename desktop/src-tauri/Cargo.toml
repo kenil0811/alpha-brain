@@ -17,6 +17,8 @@ tauri = { version = "=2.11.6", features = ["tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 libc = "0.2"
+# The composer's + menu (Add files or images / Add a folder / Add audio file), as in Alpha.
+tauri-plugin-dialog = "=2.7.3"
 
 # Push-to-talk (Fn hold): Fn is a modifier flag, not a key a global-shortcut plugin can register,
 # so ptt.rs drives a CGEventTap directly. Both crates are already in Cargo.lock (pulled in by
