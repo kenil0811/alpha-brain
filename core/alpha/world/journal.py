@@ -163,7 +163,11 @@ class Journal:
             "SELECT at, data FROM journal WHERE kind = 'changed'"
             " AND json_extract(data, '$.removed') IS NOT NULL"
         ):
-            removed = loads(r["data"], {})["removed"]
+            data = loads(r["data"], {})
+            removed = data["removed"]
+            # A removed table row carries the row itself; only modules and connections count.
+            if data.get("collection") or not isinstance(removed, dict) or "name" not in removed:
+                continue
             words = f"{removed['name']} was removed on {r['at'][:10]}"
             for key in [removed["id"], *removed.get("threads", []),
                         *removed.get("automations", []), *removed.get("readers", [])]:

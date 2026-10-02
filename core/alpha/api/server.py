@@ -34,7 +34,7 @@ from alpha.context.summary import module_summary
 from alpha.runtime import claude_account
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
-from alpha.world import backup
+from alpha.world import backup, edits
 from alpha.world.purge import remove_connection
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
@@ -52,6 +52,29 @@ class AskBody(BaseModel):
 class RecordBody(BaseModel):
     values: dict[str, Any]
     revision: int | None = None
+
+
+class ViewBody(BaseModel):
+    title: str | None = None
+    config: dict[str, Any] | None = None
+    is_default: bool | None = None
+
+
+class FieldChangeBody(BaseModel):
+    kind: str | None = None
+    label: str | None = None
+    choices: list[str] | None = None
+    relation: str | None = None
+
+
+class FieldsBody(BaseModel):
+    fields: list[dict[str, Any]]
+
+
+class BulkBody(BaseModel):
+    action: str
+    items: list[dict[str, Any]]
+    values: dict[str, Any] | None = None
 
 
 class DecideBody(BaseModel):
@@ -236,8 +259,9 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     app = FastAPI(title="Alpha", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:1430", "http://127.0.0.1:1430", "tauri://localhost",
-                       "http://tauri.localhost"],
+        allow_origins=["tauri://localhost", "http://tauri.localhost"],
+        # The window in development: Vite on any local port.
+        allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
         allow_methods=["*"], allow_headers=["*"],
     )
 
@@ -343,7 +367,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if q:
             hits = {h["id"] for h in world.collections.search(q, 500) if h["collection"] == name}
             records = [r for r in records if r["id"] in hits]
-        return {"table": desc, "records": records}
+        last = edits.last_edit(world, name)
+        return {"table": desc, "records": records, "views": world.views.all(name),
+                "last_edit": {"text": last["text"], "at": last["at"], "actor": last["actor"]}
+                if last else None}
 
     def person_did(kind: str, text: str, collection: str, data: dict[str, Any]) -> None:
         world.journal.append(kind, text, actor="person", data={"collection": collection, **data},
@@ -376,6 +403,61 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         person_did("changed", f"You removed a row from {title}.", name,
                    {"record": rid, "removed": before})
         return {"removed": rid}
+
+    @app.post("/api/tables/{name}/records/bulk", dependencies=[api])
+    def bulk_records(name: str, body: BulkBody) -> dict[str, Any]:
+        return edits.bulk(world, name, body.action, body.items, body.values, actor="person",
+                          provenance={"by": "person"})
+
+    @app.get("/api/tables/{name}/records/{rid}/history", dependencies=[api])
+    def record_history(name: str, rid: str) -> list[dict[str, Any]]:
+        return edits.history(world, name, rid)
+
+    @app.post("/api/tables/{name}/undo", dependencies=[api])
+    def undo_edit(name: str) -> dict[str, Any]:
+        return edits.undo(world, name, actor="person", provenance={"by": "person"})
+
+    @app.post("/api/tables/{name}/fields", dependencies=[api])
+    def add_fields(name: str, body: FieldsBody) -> dict[str, Any]:
+        desc = world.collections.add_fields(name, body.fields)
+        person_did("changed", f"You added {', '.join(str(f.get('name')) for f in body.fields)}"
+                   f" to {desc['title']}.", name, {})
+        return desc
+
+    @app.patch("/api/tables/{name}/fields/{field}", dependencies=[api])
+    def change_field(name: str, field: str, body: FieldChangeBody) -> dict[str, Any]:
+        return edits.change_field(world, name, field, actor="person",
+                                  **body.model_dump(exclude_none=True))
+
+    # ---- saved views ----
+
+    @app.get("/api/tables/{name}/views", dependencies=[api])
+    def views(name: str) -> list[dict[str, Any]]:
+        world.collections.describe(name)
+        return world.views.all(name)
+
+    @app.post("/api/tables/{name}/views", dependencies=[api])
+    def save_view(name: str, body: ViewBody) -> dict[str, Any]:
+        view = world.views.create(name, body.title or "", body.config or {}, by="person",
+                                  is_default=bool(body.is_default))
+        person_did("made", f"You saved the view {view['title']} on "
+                   f"{world.collections.describe(name)['title']}.", name, {"view": view["id"]})
+        return view
+
+    @app.patch("/api/views/{vid}", dependencies=[api])
+    def update_view(vid: str, body: ViewBody) -> dict[str, Any]:
+        view = world.views.update(vid, title=body.title, config=body.config,
+                                  is_default=body.is_default)
+        person_did("changed", f"You updated the view {view['title']}.", view["collection"],
+                   {"view": vid})
+        return view
+
+    @app.delete("/api/views/{vid}", dependencies=[api])
+    def delete_view(vid: str) -> dict[str, Any]:
+        view = world.views.delete(vid)
+        person_did("changed", f"You deleted the view {view['title']}.", view["collection"],
+                   {"view": vid, "view_config": view["config"]})
+        return {"deleted": vid}
 
     # ---- people and companies ----
 
