@@ -13,6 +13,7 @@ from fastapi import FastAPI, Form, UploadFile
 
 from alpha.api.bodies import (
     AskBody,
+    CreateModuleBody,
     ExportBody,
     ListBody,
     MoveModuleBody,
@@ -55,6 +56,17 @@ def routes(app: FastAPI, s: Served) -> None:
         card["automations"] = [a for i in ids for a in automation_views(world, scheduler, i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
         return card
+
+    @app.post("/api/modules", dependencies=[api])
+    def create_module(body: CreateModuleBody) -> dict[str, Any]:
+        """A module the person makes themselves in the window: a place to hold others (Avilo
+        above Advisory and Deal Tracker). Nothing is built; Alpha's own making stays behind a
+        plan."""
+        made = world.modules.create(body.name, body.goal, parent=body.parent or None)
+        where = f" inside {world.modules.path_words(made['parent'])}" if made["parent"] else ""
+        world.journal.append("changed", f"You made the module {made['name']}{where}.",
+                             actor="person", module=made["id"], data={"module": made["id"]})
+        return module_card(world, made)
 
     @app.post("/api/modules/{ref}/move", dependencies=[api])
     def move_module(ref: str, body: MoveModuleBody) -> dict[str, Any]:

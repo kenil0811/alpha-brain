@@ -28,6 +28,12 @@ class MoveModuleBody(BaseModel):
     parent: str | None = None
 
 
+class CreateModuleBody(BaseModel):
+    name: str
+    goal: str | None = None
+    parent: str | None = None
+
+
 class RecordBody(BaseModel):
     values: dict[str, Any]
     revision: int | None = None

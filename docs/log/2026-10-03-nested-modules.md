@@ -49,3 +49,16 @@ and its summary rolls up Job Listings' 118 rows from the child; the panel says "
 Job and what it holds"; Job Search's page carries the crumb "Job ›" and, in Settings, "Where it
 sits: Inside Job". `just check-desktop home settings`: 2 of 2 pages clean at every size
 (`docs/checks/2026-10-03-2212.md`).
+
+**Redone after Kenil saw it** ("very bad looking"; "what if i want a new parent module? eg. i
+want to create avilo and have deals and advisory in it"). "Where it sits" was a bare native
+select on a card; it is now a list card in the kit's own rows: the module with where it sits and
+a Move… menu (a new module above it…; to the top level; Inside: every module it could go under,
+by path), and a second row, Inside it, naming what it holds with a Move a module in… menu (every
+module that could come in: never itself, what is already here, or anything above it). "A new
+module above it…" asks for a name in the row, makes the module where this one sits (the window's
+own `POST /api/modules`, journaled as "You made the module Avilo."; nothing is built, so it
+needs no plan) and moves this one into it; the others move in from its page or from theirs. So
+Avilo over Advisory and Deal Tracker is: Advisory › Settings › Move… › a new module above it
+"Avilo", then Deal Tracker › Settings › Move… › Avilo. Looked at in the browser pane on the
+nested copy: the rows and the menu match the rest of the window. 205 core tests.

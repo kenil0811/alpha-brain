@@ -95,3 +95,21 @@ def test_removing_a_module_takes_what_it_holds(world: World) -> None:
     assert [i["module"] for i in out["inside"]] == ["Resume", "Search"]
     assert world.modules.all() == []
     assert world.collections.overview() == []
+
+
+def test_the_person_makes_a_parent_in_the_window_and_moves_modules_into_it(world: World) -> None:
+    """Kenil, 3 Oct: "i want to create avilo and have deals and advisory in it"."""
+    t = building(world)
+    advisory = t.module_create("Advisory", "clients")["id"]
+    deals = t.module_create("Deal Tracker", "deals")["id"]
+    c = TestClient(create_app(world, live=False))
+    made = c.post("/api/modules", json={"name": "Avilo", "goal": None, "parent": None}).json()
+    assert made["name"] == "Avilo" and made["path"] == ["Avilo"] and made["tables"] == []
+    assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == "You made the module Avilo."
+    c.post(f"/api/modules/{advisory}/move", json={"parent": made["id"]})
+    c.post(f"/api/modules/{deals}/move", json={"parent": "Avilo"})
+    assert [m["name"] for m in world.modules.children(made["id"])] == ["Advisory", "Deal Tracker"]
+    again = c.post("/api/modules", json={"name": "Avilo"})
+    assert again.status_code == 400 and "already" in again.json()["error"]
+    inside = c.post("/api/modules", json={"name": "Clients", "parent": "Avilo"}).json()
+    assert inside["path"] == ["Avilo", "Clients"]

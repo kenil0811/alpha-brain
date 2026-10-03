@@ -612,6 +612,8 @@ export class Client {
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
   /** Put a module inside another (or at the top with null); everything in it moves with it. */
   moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
+  /** A module the person makes here: a place to hold others. Nothing is built. */
+  createModule = (name: string, goal: string | null, parent: string | null) => this.call<ModuleCard>("POST", "/api/modules", { name, goal, parent });
   /** The module's page of Alpha's wiki, or none yet. */
   modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 

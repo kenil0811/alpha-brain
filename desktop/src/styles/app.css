@@ -152,7 +152,8 @@ a { color: var(--primary); }
 .navfold { flex: none; width: 22px; height: 26px; border: 0; background: none; color: var(--text-3); cursor: pointer; border-radius: 6px; font-size: var(--text-sm); }
 .navfold:hover { background: var(--hover); color: var(--text); }
 .crumbs { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 2px; }
-.select { font: inherit; font-size: var(--text-md); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; }
+.textfield { font: inherit; font-size: var(--text-md); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; min-width: 200px; }
+.textfield:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
 .empty { color: var(--text-3); font-size: var(--text-md); padding: 24px; text-align: center; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 10px; }

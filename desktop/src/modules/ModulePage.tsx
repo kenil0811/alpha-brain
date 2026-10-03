@@ -9,7 +9,7 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
-import { Button, Tabs } from "../ui";
+import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
@@ -65,6 +65,10 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
   }, [client, moduleId, version]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
+  // Where this module could go (never itself, what it holds, or where it already is), and
+  // what could come in (never itself, what is already here, or anything above it).
+  const canHoldMe = useMemo(() => modules.filter((m) => m.id !== moduleId && m.id !== (detail?.parent ?? null) && !(m.path ?? []).includes(detail?.name ?? "")), [modules, moduleId, detail?.parent, detail?.name]);
+  const canMoveIn = useMemo(() => modules.filter((m) => m.id !== moduleId && m.parent !== moduleId && !(detail?.path ?? []).slice(0, -1).includes(m.name)), [modules, moduleId, detail?.path]);
   // The ids behind the path's names, from the rail's cards (the page itself knows the names).
   const pathIds = useMemo(() => {
     const ids: string[] = [];
@@ -76,6 +80,8 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     return ids;
   }, [modules, moduleId]);
   const [moveNote, setMoveNote] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
   async function moveUnder(parent: string | null) {
     try {
       const card = await client.moveModule(moduleId, parent);
@@ -83,6 +89,31 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
       onChanged();
     } catch (e) {
       setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  /** A new module above this one: made where this one sits, then this one moves into it
+   *  ("create Avilo and have Deals and Advisory in it": make it above one, move the other in). */
+  async function makeParent() {
+    const name = newName.trim();
+    if (!name) return;
+    try {
+      const made = await client.createModule(name, null, detail?.parent ?? null);
+      await client.moveModule(moduleId, made.id);
+      setMoveNote(`${detail?.name ?? "It"} now sits inside ${made.name}.`);
+      setNaming(false);
+      setNewName("");
+      onChanged();
+    } catch (e) {
+      setMoveNote(`Couldn't make it: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  async function moveIn(id: string) {
+    try {
+      const card = await client.moveModule(id, moduleId);
+      setMoveNote(`${card.name} now sits inside ${detail?.name ?? "this module"}.`);
+      onChanged();
+    } catch (e) {
+      setMoveNote(`Couldn't move it in: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
   if (!detail) {
@@ -187,21 +218,81 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
               <h2>Where it sits</h2>
               <span className="faint">A module can live inside another; everything in it moves with it</span>
             </div>
-            <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <label className="faint" htmlFor="module-parent">
-                Inside
-              </label>
-              <select id="module-parent" className="select" value={detail.parent ?? ""} onChange={(e) => void moveUnder(e.target.value || null)}>
-                <option value="">Nothing (top level)</option>
-                {modules
-                  .filter((m) => m.id !== moduleId && !(m.path ?? []).includes(detail.name))
-                  .map((m) => (
-                    <option key={m.id} value={m.id}>
+            <div className="card list">
+              <div className="item">
+                <div className="item__ico" aria-hidden="true">
+                  <ModuleIcon size={16} />
+                </div>
+                <div className="item__body">
+                  <b>{detail.name}</b>
+                  <div className="item__sub">{detail.path && detail.path.length > 1 ? `Inside ${detail.path.slice(0, -1).join(" › ")}` : "At the top level"}</div>
+                </div>
+                <Menu
+                  trigger={
+                    <Button size="sm" aria-label={`Move ${detail.name}`}>
+                      Move…
+                    </Button>
+                  }
+                >
+                  <MenuItem onSelect={() => setNaming(true)}>A new module above it…</MenuItem>
+                  {detail.parent ? <MenuItem onSelect={() => void moveUnder(null)}>To the top level</MenuItem> : null}
+                  {canHoldMe.length ? <MenuHeading>Inside</MenuHeading> : null}
+                  {canHoldMe.map((m) => (
+                    <MenuItem key={m.id} onSelect={() => void moveUnder(m.id)}>
                       {moduleWords(m)}
-                    </option>
+                    </MenuItem>
                   ))}
-              </select>
-              {moveNote ? <span className={`notice${moveNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{moveNote}</span> : null}
+                </Menu>
+              </div>
+              {naming ? (
+                <div className="item">
+                  <div className="item__ico" aria-hidden="true">
+                    <ModuleIcon size={16} />
+                  </div>
+                  <div className="item__body">
+                    <b>A new module above {detail.name}</b>
+                    <div className="item__sub">Made where {detail.name} sits now; {detail.name} moves into it. Move others in from here afterwards.</div>
+                  </div>
+                  <input className="textfield" aria-label="The new module's name" placeholder="Its name, e.g. Avilo" value={newName} autoFocus onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void makeParent(); if (e.key === "Escape") setNaming(false); }} />
+                  <Button size="sm" variant="primary" disabled={!newName.trim()} onClick={() => void makeParent()}>
+                    Make it
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setNaming(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : null}
+              <div className="item">
+                <div className="item__ico" aria-hidden="true">
+                  <ModuleIcon size={16} />
+                </div>
+                <div className="item__body">
+                  <b>Inside it</b>
+                  <div className="item__sub">{detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet. Other modules can move in here."}</div>
+                </div>
+                {canMoveIn.length ? (
+                  <Menu
+                    trigger={
+                      <Button size="sm" aria-label={`Move a module into ${detail.name}`}>
+                        Move a module in…
+                      </Button>
+                    }
+                  >
+                    {canMoveIn.map((m) => (
+                      <MenuItem key={m.id} onSelect={() => void moveIn(m.id)}>
+                        {moduleWords(m)}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                ) : null}
+              </div>
+              {moveNote ? (
+                <div className="item">
+                  <span className={`notice${moveNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">
+                    {moveNote}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
           <div className="section">
