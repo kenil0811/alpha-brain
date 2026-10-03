@@ -56,6 +56,18 @@ describe("the companion", () => {
     expect(screen.queryByText("Logged lunch.")).toBeNull();
   });
 
+  it("closes on a click outside the chat, or when the window loses focus", async () => {
+    setup();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ask Zazoo" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Ask Zazoo" }));
+    fireEvent.pointerDown(screen.getByRole("textbox", { name: "What should Zazoo do" }));
+    expect(screen.getByRole("textbox", { name: "What should Zazoo do" })).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("textbox", { name: "What should Zazoo do" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ask Zazoo" }));
+    fireEvent.blur(window);
+    expect(screen.queryByRole("textbox", { name: "What should Zazoo do" })).toBeNull();
+  });
   it("names what needs the person in one line that opens the whole chat", async () => {
     setup([{ kind: "ask", id: "j_1", text: "Which board first?", at: "", options: ["LinkedIn"] }, { kind: "ask", id: "j_2", text: "Which day?", at: "", options: [] }]);
     await waitFor(() => expect(screen.getByRole("button", { name: "Ask Zazoo" })).toBeInTheDocument());

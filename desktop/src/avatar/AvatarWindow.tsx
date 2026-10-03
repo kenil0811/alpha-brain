@@ -125,6 +125,25 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     setExpanded(next);
     if (!next) setReply(null);
   }, [expanded]);
+  // A click anywhere outside the open chat closes it: elsewhere in this window, or in another
+  // app (the window loses focus). The character's own click toggles it already.
+  useEffect(() => {
+    if (!expanded) return;
+    const close = () => {
+      setExpanded(false);
+      setReply(null);
+    };
+    const onDown = (e: globalThis.PointerEvent) => {
+      const at = e.target as Element | null;
+      if (!at?.closest(".avatar__panel, .avatar__button")) close();
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("blur", close);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("blur", close);
+    };
+  }, [expanded]);
   // The box is focused on open and again when the view switches (it is drawn anew).
   useEffect(() => {
     if (expanded) setTimeout(() => inputRef.current?.focus(), 50);

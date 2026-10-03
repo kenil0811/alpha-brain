@@ -9,6 +9,7 @@ import { FileUp, FolderPlus, Home as HomeIcon, MoreVertical, Settings as Setting
 import type { ModuleCard } from "../core/client";
 import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, useComingSoon, type PanelControl } from "../ui";
 import { ProjectMenuItems } from "./ProjectMenu";
+import { ZazooIcon } from "../ui/ZazooIcon";
 import { projectIcon } from "./projectIcons";
 import { IconButton } from "../ui/IconButton";
 
@@ -223,7 +224,9 @@ export function Rail({
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha" style={{ width: panel.displayWidth }}>
       <div className="brand" data-tauri-drag-region>
         <Tooltip content={runtimeLabel}>
-          <div className={`brand__mark brand__mark--${runtime}`} role="status">
+          <div className="brand__logo" role="status">
+            <ZazooIcon size={24} label="" />
+            <span className={`brand__mark brand__mark--${runtime}`} aria-hidden="true" />
             <span className="sr-only">{runtimeLabel}</span>
           </div>
         </Tooltip>
