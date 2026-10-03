@@ -55,7 +55,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [modules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
   const [version, setVersion] = useState(0);
-  const [draft, setDraft] = useState<string | null>(null);
+  // A sentence handed to the panel: put in the composer (an "Ask Alpha…" button), or sent at
+  // once (quick entry on a table).
+  const [draft, setDraft] = useState<{ text: string; send: boolean } | null>(null);
   const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
   const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
@@ -190,7 +192,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       return !c;
     });
   const startNew = () => {
-    setDraft("I want to ");
+    setDraft({ text: "I want to ", send: false });
     togglePanel(true);
   };
 
@@ -243,9 +245,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
             ) : null}
           </div>
         ) : surface.kind === "home" ? (
-          <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft(text); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
+          <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
-          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
+          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} />
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} />
         ) : surface.kind === "people" ? (
@@ -253,16 +255,16 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "entity" ? (
           <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={version} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
         ) : surface.kind === "skill" ? (
-          <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={version} onGo={setSurface} onAsk={(text) => { setDraft(text); togglePanel(true); }} onChanged={changed} />
+          <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={version} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "automation" ? (
-          <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={version} onGo={setSurface} onAsk={(text) => { setDraft(text); togglePanel(true); }} onChanged={changed} />
+          <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={version} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} />
         ) : (
           <Activity client={runtime.client} version={version} onChanged={changed} />
         )}
       </main>
-      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft(text); togglePanel(true); }} /> : null}
+      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (
         <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} />
       ) : null}

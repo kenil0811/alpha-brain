@@ -13,7 +13,7 @@ import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
 
-export function ModulePage({ client, moduleId, version, onChanged }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
+export function ModulePage({ client, moduleId, version, onChanged, onSay }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void }) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("app");
@@ -98,7 +98,7 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
             ]}
           />
           {table ? (
-            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
+            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} />
           ) : (
             <>
               <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />

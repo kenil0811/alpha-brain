@@ -150,7 +150,7 @@ export function AssistantPanel({
   module: ModuleCard | null;
   version: number;
   onChanged: () => void;
-  draft: string | null;
+  draft: { text: string; send: boolean } | null;
   onDraftTaken: () => void;
   focusThread?: { id: string; at: number } | null;
   focusConversation?: { id: string; at: number } | null;
@@ -221,16 +221,6 @@ export function AssistantPanel({
   useEffect(() => {
     body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
-  useEffect(() => {
-    if (draft === null) return;
-    setText(draft);
-    onDraftTaken();
-    setTimeout(() => {
-      input.current?.focus();
-      const end = input.current?.value.length ?? 0;
-      input.current?.setSelectionRange(end, end);
-    }, 30);
-  }, [draft, onDraftTaken]);
   const pendingId = pending?.id ?? null;
   useEffect(() => {
     // Keyed on the turn's id, not the polled object: the clock must not restart every second.
@@ -270,6 +260,24 @@ export function AssistantPanel({
     },
     [client, module, pending, threadView, active, load, onChanged],
   );
+
+  // A sentence from the window: sent at once (quick entry), unless a turn is already running,
+  // in which case it waits in the composer where the person can see it; or put in the composer
+  // to finish ("Ask Alpha to change this").
+  useEffect(() => {
+    if (draft === null) return;
+    onDraftTaken();
+    if (draft.send && !pending) {
+      void send(draft.text);
+      return;
+    }
+    setText(draft.text);
+    setTimeout(() => {
+      input.current?.focus();
+      const end = input.current?.value.length ?? 0;
+      input.current?.setSelectionRange(end, end);
+    }, 30);
+  }, [draft, onDraftTaken, pending, send]);
 
   const follow = useCallback(
     async (turn: Turn | null) => {

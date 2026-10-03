@@ -80,3 +80,26 @@ describe("the table page", () => {
     await waitFor(() => expect(client.deleteRecord).toHaveBeenCalledWith("deals", "r1", 3));
   });
 });
+
+describe("quick entry", () => {
+  it("a sentence goes to Alpha naming the table, and the field clears", async () => {
+    const user = userEvent.setup();
+    const onSay = vi.fn();
+    render(
+      <TooltipProvider>
+        <DataPage client={fakeClient([row("r1", "Bakery", 300)])} table={desc} version={0} onChanged={vi.fn()} onSay={onSay} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    const field = screen.getByRole("textbox", { name: "Add to Deals in a sentence" });
+    await user.type(field, "a cafe in Leeds asking 40k{Enter}");
+    expect(onSay).toHaveBeenCalledWith("Add to Deals: a cafe in Leeds asking 40k");
+    expect(field).toHaveValue("");
+  });
+
+  it("is absent when the page has no way to speak", async () => {
+    page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    expect(screen.queryByRole("textbox", { name: "Add to Deals in a sentence" })).not.toBeInTheDocument();
+  });
+});

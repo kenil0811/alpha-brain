@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late afternoon.** Last entries: the desktop check and the type scale
+**As of 3 October 2026, late afternoon.** Last entries: quick entry on a table
+([`log/2026-10-03-quick-entry.md`](log/2026-10-03-quick-entry.md)), the desktop check and the type scale
 ([`log/2026-10-03-desktop-check.md`](log/2026-10-03-desktop-check.md)), the table views, ⌘K,
 fact origins, the module's page and the item pages
 ([`log/2026-10-03-table-views-1.md`](log/2026-10-03-table-views-1.md)), the desktop foundations
@@ -17,7 +18,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | | |
 |---|---|
 | Core tests | 184, in about 13 s; ruff and mypy strict clean |
-| Desktop tests | 35, in ten files; typecheck clean |
+| Desktop tests | 37, in ten files; typecheck clean |
 | Tools the model sees | 71 |
 | Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
 | Desktop check | latest report `docs/checks/2026-10-03-1622.md`, 61 of 61 pages clean at every size (the fourth run of the day; the first three found the defects the log names) |
@@ -36,7 +37,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
-| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale. **Left:** a record page with a back stack, the form view, quick entry, the companion's characters, a graph (designed first). |
+| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation. **Left:** a record page with a back stack, the form view, the companion's characters, a graph (designed first). |
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
 
@@ -62,7 +63,7 @@ copy of Kenil's world (see the numbers).
 
 **In flight (the port of pull request #3's ideas, Q27–Q28):** ~~foundations~~ → the table views
 (left: a record page with a back stack, the form view) → ~~⌘K~~ → ~~item pages, fact origins,
-the module's page~~ → ~~the desktop check and the UI rules~~ → quick entry on a table → the
+the module's page~~ → ~~the desktop check and the UI rules~~ → ~~quick entry on a table~~ → the
 companion's characters (Bridge's art with Manish's permission, our own rig, the person picks
 the animal and its look) → a graph, designed first.
 

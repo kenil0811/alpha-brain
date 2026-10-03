@@ -15,6 +15,7 @@ import { applyQuery, ofKinds, pageOf, provenanceCounts, type Sort } from "./view
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
 import { AddRow } from "./views/AddRow";
+import { QuickEntry } from "./views/QuickEntry";
 import { BoardView } from "./views/BoardView";
 import { CalendarView } from "./views/CalendarView";
 import { ChartView } from "./views/ChartView";
@@ -65,7 +66,7 @@ function remember(key: string, value: unknown) {
   }
 }
 
-export function DataPage({ client, table, version, onChanged }: { client: Client; table: TableDesc; version: number; onChanged: () => void }) {
+export function DataPage({ client, table, version, onChanged, onSay }: { client: Client; table: TableDesc; version: number; onChanged: () => void; onSay?: (sentence: string) => void }) {
   const fields = table.fields as FieldInfo[];
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
   const key = `alpha.page.${table.name}`;
@@ -349,6 +350,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   return (
     <div className="stack stack--fill" aria-label={table.title}>
       <div className="card card--fill">
+        {onSay ? <QuickEntry table={table} onSay={onSay} /> : null}
         <div className="toolbar toolbar--page">
           {searchable.length ? (
             <div className="search">
