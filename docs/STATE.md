@@ -53,7 +53,15 @@ connect, Install and Sign in on a fresh Mac, the first-run experience as a whole
 - The desktop polls about 26 requests a minute idle and 140 during a turn, never paused when
   hidden; nothing supervises the core; 26 swallowed errors; three tests.
 
-## Pending, in order (from the checkpoint's §10)
+## Pending, in order (from the checkpoint's §10, then the PR #3 port of 3 Oct evening)
+
+**In flight (3 Oct evening, Q27–Q28):** the ideas from pull request #3 rebuilt on main, in this
+order: foundations (self-hosted fonts, a UI kit on Radix and lucide, reduced motion and
+contrast from the Mac, pages with addresses, resizable rail and panel) → the table views in
+stages with saved lists in the core → ⌘K on search → Intelligence item pages, fact provenance,
+the module's page → the desktop acceptance check and the UI rules → quick entry → the
+companion's characters (Bridge's art with permission, our rig) → a graph, designed first.
+
 
 1. ~~The docs' shape~~ — done 3 Oct: this page, the log, the design as intent.
 2. ~~Harden the model boundary and the store~~ — done 3 Oct evening: a silent run is ended,

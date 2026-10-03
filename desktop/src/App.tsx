@@ -12,6 +12,8 @@ import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
+import { currentHashSurface, pushAddress } from "./shell/address";
+import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
 import { ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
@@ -42,7 +44,8 @@ type Runtime = { kind: "connecting" } | { kind: "connected"; client: Client } | 
 export function App({ client: injected }: { client?: Client } = {}) {
   const [runtime, setRuntime] = useState<Runtime>(injected ? { kind: "connected", client: injected } : { kind: "connecting" });
   const [attempt, setAttempt] = useState(0);
-  const [surface, setSurfaceState] = useState<Surface>(() => knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  // The address wins when it names a page; otherwise the remembered place.
+  const [surface, setSurfaceState] = useState<Surface>(() => currentHashSurface() ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
   const [panelOpen, setPanelOpen] = useState<boolean>(() => remembered<boolean>(PANEL_KEY, true));
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>("alpha.rail.collapsed", false));
   const [modules, setModules] = useState<ModuleCard[]>([]);
@@ -57,7 +60,29 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const setSurface = useCallback((next: Surface) => {
     setSurfaceState(next);
     remember(SURFACE_KEY, next);
+    pushAddress(next);
   }, []);
+  // Back and forward move between pages; a typed address opens one.
+  useEffect(() => {
+    const onPop = () => {
+      const named = currentHashSurface();
+      if (named) {
+        setSurfaceState(named);
+        remember(SURFACE_KEY, named);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onPop);
+    pushAddress(surface);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onPop);
+    };
+    // once: the listeners read the address, not this render's surface
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const rail = useDragWidth("alpha.rail.width", 224, 160, 360, "right");
+  const panel = useDragWidth("alpha.panel.width", 380, 280, 560, "left");
   const changed = useCallback(() => setVersion((v) => v + 1), []);
 
   useEffect(() => {
@@ -158,8 +183,13 @@ export function App({ client: injected }: { client?: Client } = {}) {
     surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   return (
-    <div className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}`}>
+    <div
+      className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
+      style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: `${panel.width}px` }}
+    >
       <Rail surface={surface} modules={modules} needs={needs} runtime={runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
+      {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} onPointerDown={rail.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" /> : null}
+      {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the conversation panel" /> : null}
       <main className="main">
         {!panelOpen && runtime.kind === "connected" ? (
           <button type="button" className="btn btn--primary assist__reopen" onClick={() => togglePanel(true)}>
