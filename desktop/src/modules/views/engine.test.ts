@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
-import { applyQuery, byDay, compare, groupBy, nextSort, pageOf, provenanceCounts, totalsFor } from "./engine";
+import { applyQuery, byDay, byMonth, compare, groupBy, nextSort, ofKinds, pageOf, provenanceCounts, totalsFor } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -50,5 +50,13 @@ describe("a view's query", () => {
     const days = byDay(rows, { name: "when", kind: "date" });
     expect([...days.keys()]).toEqual(["2026-10-02", "2026-10-05"]);
     expect(days.get("2026-10-02")?.length).toBe(2);
+  });
+});
+
+describe("time and field helpers", () => {
+  it("buckets months newest first and lists the fields of some kinds", () => {
+    const months = byMonth([...rows, row("e", { title: "Older", when: "2026-09-12" })], { name: "when", kind: "date" });
+    expect(months.map((m) => [m.month, m.rows.map((r) => r.id)])).toEqual([["2026-10", ["c", "a", "b"]], ["2026-09", ["e"]]]);
+    expect(ofKinds([status, { name: "when", kind: "date" }, { name: "n", kind: "number" }], new Set(["date", "datetime"])).map((f) => f.name)).toEqual(["when"]);
   });
 });

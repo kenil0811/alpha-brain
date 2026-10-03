@@ -111,3 +111,22 @@ export function byDay(rows: RecordRow[], field: FieldInfo): Map<string, RecordRo
   }
   return out;
 }
+
+/** Rows by the month of a date field, newest month first, each month's rows newest first. */
+export function byMonth(rows: RecordRow[], field: FieldInfo): { month: string; rows: RecordRow[] }[] {
+  const groups = new Map<string, RecordRow[]>();
+  for (const row of rows) {
+    const raw = row.values[field.name];
+    if (typeof raw !== "string" || raw.length < 7) continue;
+    const month = raw.slice(0, 7);
+    groups.set(month, [...(groups.get(month) ?? []), row]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([month, rs]) => ({ month, rows: [...rs].sort((x, y) => String(y.values[field.name]).localeCompare(String(x.values[field.name]))) }));
+}
+
+/** The fields a view can run on: every one of these kinds, in the table's order. */
+export function ofKinds(fields: FieldInfo[], kinds: Set<string>): FieldInfo[] {
+  return fields.filter((f) => kinds.has(f.kind));
+}

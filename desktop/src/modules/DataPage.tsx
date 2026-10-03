@@ -11,7 +11,9 @@ import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from ".
 import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
-import { applyQuery, pageOf, provenanceCounts, type Sort } from "./views/engine";
+import { applyQuery, ofKinds, pageOf, provenanceCounts, type Sort } from "./views/engine";
+import { GalleryView } from "./views/GalleryView";
+import { TimelineView } from "./views/TimelineView";
 import { AddRow } from "./views/AddRow";
 import { BoardView } from "./views/BoardView";
 import { CalendarView } from "./views/CalendarView";
@@ -20,12 +22,14 @@ import { ListView } from "./views/ListView";
 import { RecordPanel } from "./views/RecordPanel";
 import { TableView } from "./views/TableView";
 
-export type PageView = "table" | "board" | "list" | "calendar" | "chart";
+export type PageView = "table" | "board" | "list" | "gallery" | "calendar" | "timeline" | "chart";
 const VIEWS: { id: PageView; label: string }[] = [
   { id: "table", label: "Table" },
   { id: "board", label: "Board" },
   { id: "list", label: "List" },
+  { id: "gallery", label: "Gallery" },
   { id: "calendar", label: "Calendar" },
+  { id: "timeline", label: "Timeline" },
   { id: "chart", label: "Chart" },
 ];
 /** Rows per page: by default as many as fit the window; the person can pick a fixed size, and
@@ -67,8 +71,14 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const key = `alpha.page.${table.name}`;
   const titleField = titleFieldOf(fields, table.title_field);
   const statusField = useMemo(() => fields.find((f) => f.kind === "status"), [fields]);
-  const groupField = useMemo(() => statusField ?? firstOfKind(fields, new Set(["choice"])), [statusField, fields]);
-  const dateField = useMemo(() => firstOfKind(fields, DATE_KINDS), [fields]);
+  // A board groups by a choice or status field, a calendar, timeline or chart runs on a date
+  // field: the first of each by default, the person's pick when there are several.
+  const choiceFields = useMemo(() => ofKinds(fields, new Set(["status", "choice"])).sort((a, b) => (a.kind === "status" ? -1 : b.kind === "status" ? 1 : 0)), [fields]);
+  const dateFields = useMemo(() => ofKinds(fields, DATE_KINDS), [fields]);
+  const [groupBy, setGroupBy] = useState<string | null>(null);
+  const [dateBy, setDateBy] = useState<string | null>(null);
+  const groupField = useMemo(() => choiceFields.find((f) => f.name === groupBy) ?? choiceFields[0], [choiceFields, groupBy]);
+  const dateField = useMemo(() => dateFields.find((f) => f.name === dateBy) ?? dateFields[0], [dateFields, dateBy]);
   const numericField = useMemo(() => firstOfKind(fields, new Set(["number"])), [fields]);
 
   const [view, setView] = useState<PageView>(() => remembered<PageView>(`${key}.view`, "table"));
@@ -277,6 +287,8 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
         setHidden(c.hidden ?? []);
         setSort(c.sort ?? null);
         if (c.view) setView(c.view as PageView);
+        setGroupBy(c.group_by ?? null);
+        setDateBy(c.date_by ?? null);
       }
     },
     [lists],
@@ -288,7 +300,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
     const starred = lists.find((l) => l.is_default);
     if (starred) applyList(starred.id, lists);
   }, [lists, applyList]);
-  const currentConfig = (): SavedList["config"] => ({ search, filters, hide_done: hideDone, hidden, sort, view });
+  const currentConfig = (): SavedList["config"] => ({ search, filters, hide_done: hideDone, hidden, sort, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
   async function saveList(title: string) {
     if (!title.trim()) return;
     const ok = await run(async () => {
@@ -344,7 +356,25 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${table.title.toLowerCase()}`} aria-label="Search" />
             </div>
           ) : null}
-          <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart") && dateField))} />
+          <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
+          {view === "board" && choiceFields.length > 1 ? (
+            <select className="btn btn--sm" value={groupField?.name ?? ""} onChange={(e) => setGroupBy(e.target.value)} aria-label="Group by">
+              {choiceFields.map((f) => (
+                <option key={f.name} value={f.name}>
+                  By {humanize(f.name).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {(view === "calendar" || view === "timeline" || view === "chart") && dateFields.length > 1 ? (
+            <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
+              {dateFields.map((f) => (
+                <option key={f.name} value={f.name}>
+                  By {humanize(f.name).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          ) : null}
           {lists.length ? (
             <select className="btn btn--sm" value={listId} onChange={(e) => applyList(e.target.value)} aria-label="Saved list">
               <option value="all">All</option>
@@ -488,6 +518,8 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
           ) : null}
           {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
           {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
+          {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={setOpenId} /> : null}
+          {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={setOpenId} /> : null}
           {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={setOpenId} /> : null}
           {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
         </div>

@@ -16,7 +16,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 | | |
 |---|---|
 | Core tests | 177, in about 12 s; ruff and mypy strict clean |
-| Desktop tests | 18, in four files; typecheck clean |
+| Desktop tests | 23, in five files; typecheck clean |
 | Tools the model sees | 71 (`list_save` added 3 Oct) |
 | Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
 | Commits | 79 total; 67 since 1 Oct 2026 |
@@ -58,9 +58,12 @@ connect, Install and Sign in on a fresh Mac, the first-run experience as a whole
 **In flight (3 Oct evening, Q27–Q28):** the ideas from pull request #3 rebuilt on main, in this
 order: ~~foundations (self-hosted fonts, a UI kit on Radix and lucide, reduced motion and
 contrast from the Mac, pages with addresses, resizable rail and panel)~~ done
-(`log/2026-10-03-desktop-foundations.md`) → the table views in stages (one and two done:
-the views package, saved lists in the world, `log/2026-10-03-table-views-1.md`; three to come:
-more views, field pickers, selection, the record page) in
+(`log/2026-10-03-desktop-foundations.md`) → the table views (three stages done:
+the views package, saved lists in the world, the interaction model, selection, gallery and
+timeline, field pickers, `log/2026-10-03-table-views-1.md`; left: a record page with a back
+stack, the form view) → ⌘K on search → Intelligence item pages, fact provenance, the
+module's page → the desktop acceptance check and the UI rules → quick entry → the companion's
+characters → a graph, designed first. (The earlier wording of this line listed the same order.)
 stages with saved lists in the core → ⌘K on search → Intelligence item pages, fact provenance,
 the module's page → the desktop acceptance check and the UI rules → quick entry → the
 companion's characters (Bridge's art with permission, our rig) → a graph, designed first.

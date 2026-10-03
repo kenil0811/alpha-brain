@@ -34,7 +34,20 @@ filtered to Active, saved as "Active deals", made the default, the page reloaded
 ★ Active deals with 199 of 837 rows; the core confirmed the list, its filter and the star.
 The app rebuilt and reopened.
 
-**Stage three, next:** the views the page lacks (gallery, timeline, a form view, a graph of
-relations), choosing the field a board, calendar or chart uses, click-to-open with double-click
-or Enter to edit, selection with bulk delete after a confirmation, the record page with a back
-stack for links, and the tests for the page itself.
+**Stage three (the same night).** The interaction model from the pull request, rebuilt: a
+click opens the row, a double-click, Enter or F2 edits a cell (the tooltips say so); rows
+open from the keyboard too. A selection column with a bar (N selected · Remove · Clear);
+removing asks with a `Confirm` from the kit (the dangerous button names what it does) and
+reports how many went when one refused; the record panel asks before Remove. Two new views:
+**Gallery** (cards with the title and up to four values) and **Timeline** (months newest first,
+each row on its day), and pickers for which field a board groups by and which date field a
+calendar, timeline or chart runs on when a table has several; a saved list keeps those choices
+(`group_by`, `date_by`, `measure` in the core's config keys, checked against the table's
+fields). Four tests of the page itself with a fake client (rows and the estimated mark; click
+opens, double-click edits, Enter saves with the revision; bulk remove after a yes; the panel
+asks); the test setup now cleans the document between tests. Checked in the browser pane
+against a backup copy: the gallery of Deal Listings, the board grouped by source with its
+picker, the food log's timeline. 177 core tests, 23 desktop.
+
+**Still to come in the table views:** a record page with a back stack for links to other
+tables' records, and the form view; the graph waits for the knowledge graph's design.

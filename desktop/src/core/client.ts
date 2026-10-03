@@ -51,7 +51,7 @@ export interface SavedList {
   id: string;
   collection: string;
   title: string;
-  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; hidden?: string[]; sort?: { field: string; direction: "asc" | "desc" } | null; view?: string };
+  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; hidden?: string[]; sort?: { field: string; direction: "asc" | "desc" } | null; view?: string; group_by?: string; date_by?: string; measure?: string };
   is_default: boolean;
   source: string | null;
   created_at: string;

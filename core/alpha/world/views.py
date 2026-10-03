@@ -15,7 +15,7 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-CONFIG_KEYS = {"search", "filters", "hide_done", "hidden", "sort", "view"}
+CONFIG_KEYS = {"search", "filters", "hide_done", "hidden", "sort", "view", "group_by", "date_by", "measure"}
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -45,6 +45,9 @@ class Views:
         sort = clean.get("sort")
         if sort and sort.get("field") not in fields:
             raise Problem(f"'{collection}' has no field '{sort.get('field')}' to sort by.")
+        for key in ("group_by", "date_by", "measure"):
+            if clean.get(key) and clean[key] not in fields:
+                raise Problem(f"'{collection}' has no field '{clean[key]}' ({key}).")
         clean["hidden"] = [h for h in clean.get("hidden") or [] if h in fields]
         return clean
 
