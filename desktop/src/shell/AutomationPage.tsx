@@ -52,7 +52,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
       </Button>
       <div className="modhead" style={{ marginTop: 12 }}>
         <div className="modhead__title" style={{ display: "block" }}>
-          <h1>{auto.title}</h1>
+          <h1 style={auto.title.length > 60 ? { fontSize: 22, lineHeight: 1.3 } : undefined}>{auto.title}</h1>
           <div className="row" style={{ marginTop: 6 }}>
             <Badge tone={auto.running ? "info" : auto.enabled ? "good" : "gray"}>{auto.running ? "Running now" : auto.enabled ? "On" : "Off"}</Badge>
             <span className="faint">
