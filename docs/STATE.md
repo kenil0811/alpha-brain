@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late night.** Last entries: the desktop's four
+**As of 3 October 2026, late night.** Last entries: a plain yes, a plan not asked about twice,
+Add files ([`log/2026-10-03-yes-and-add-files.md`](log/2026-10-03-yes-and-add-files.md)), the desktop's four
 ([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)), fast turns
 ([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)), the split
 ([`log/2026-10-03-the-split.md`](log/2026-10-03-the-split.md)), the map of the brain
@@ -47,7 +48,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
-| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map (Intelligence › Map, Q29–Q30): the person's world as the default view with Alpha's proposed links as suggested facts, the map of work as a toggle, refresh only on demand; the host watches the core and restarts it on the same port, the window asks one question for what changed (nothing while hidden) and says what failed with Try again, the words come back when a send is lost. **Left:** the links worth having wait on people-for-real (pending item 6) and noticing over what Alpha reads. |
+| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map (Intelligence › Map, Q29–Q30): the person's world as the default view with Alpha's proposed links as suggested facts, the map of work as a toggle, refresh only on demand; the host watches the core and restarts it on the same port, the window asks one question for what changed (nothing while hidden) and says what failed with Try again, the words come back when a send is lost; Add files on every module's page (the Mac's picker, the same route as a drop). **Left:** the links worth having wait on people-for-real (pending item 6) and noticing over what Alpha reads. |
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
 
@@ -76,6 +77,9 @@ killed by hand twice came back on the same port within two seconds and the windo
   remain where nothing is shown anyway (a screenshot that didn't load, a module-name lookup).
 - The window's minimum is 1100×560 since the desktop check: below 1100 wide the panel used to
   float over the page.
+- Noticing keeps session state as suggested facts about the person ("using_module =
+  Advisory", 3 Oct 20:21), which then show in Needs you and the companion's bubble; it needs
+  a rule, by mechanism, for what a fact about a person is.
 - "What was said yesterday" fails on this world (2 of 3 runs on 3 Oct): the day's journal is
   crowded by Alpha's own reader lines naming Vikas, and neither the pack nor a search puts the
   person's own words first by structure. Sara Ramos across email and calendar passes or fails
@@ -108,7 +112,8 @@ pending item 6, people for real, and noticing over what Alpha reads.
 7. Proactivity, the smallest honest version: a digest at two fixed times, as cards on Home.
 8. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
-   crowded out by Alpha's own lines), the first-run experience on a clean Mac, the smaller
+   crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
+   first-run experience on a clean Mac, the smaller
    items in [`log/2026-10-02-4-9-status-at-the-end-of.md`](log/2026-10-02-4-9-status-at-the-end-of.md).
 
 ## How to verify any of this

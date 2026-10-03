@@ -4,7 +4,27 @@ from __future__ import annotations
 
 from typing import Any
 
+from alpha.context.prepack import when
 from alpha.mcp.tools.base import Base, tool
+
+
+def plan_words(plan: dict[str, Any]) -> str:
+    """What to tell the model about a plan that is past being proposed, so it says so instead
+    of asking for a yes it already has (3 Oct: a plan approved on Home was asked about three
+    more times in the conversation)."""
+    at = when(plan["updated_at"])
+    how = plan.get("approval") or "the person's yes"
+    return {
+        "approved": f"Already approved ({how}, {at}); its build starts on its own. Nothing to"
+                    " approve again: tell the person it is on its way.",
+        "building": f"Already approved ({how}) and being built now ({at}): tell the person it"
+                    " is in progress; it reports in this conversation when done.",
+        "done": f"Already approved ({how}) and built ({at}): tell the person it is done and"
+                " what it made.",
+        "declined": f"The person declined this plan ({at}); propose afresh if they want it.",
+        "stopped": f"Its build stopped before it finished ({at}); plan_resume if they say to"
+                   " carry on.",
+    }.get(plan["state"], f"This plan is {plan['state']} ({at}).")
 
 
 class Planning(Base):
@@ -47,11 +67,15 @@ class Planning(Base):
         """The person said yes to a plan you proposed earlier: quote their words from this
         message, and put their answers to your questions in answers. The build then runs in
         the background, in its own thread, and reports in this conversation; tell them so in
-        one line. Only for a plan proposed before this message."""
+        one line. Only for a plan proposed before this message. A plan they already approved
+        (in the app, or in an earlier message) comes back with its state: say so, never ask
+        them to approve again."""
+        current = self.world.plans.get(plan)
+        if current["state"] != "proposed":
+            return {"plan": plan, "state": current["state"], "note": plan_words(current)}
         problem = self._persons_words(quote)
         if problem:
             return {"error": problem}
-        current = self.world.plans.get(plan)
         if current["turn"] == self.turn:
             return {"error": "A plan is approved by the person's reply to it, not in the turn"
                     " that proposed it."}

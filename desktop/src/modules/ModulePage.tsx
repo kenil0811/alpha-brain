@@ -2,7 +2,7 @@
  * A module: its summary, a page per table, what Alpha did here, and what it is made of. The
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
-import { type DragEvent, useEffect, useMemo, useState } from "react";
+import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
 import type { Client, ModuleDetail, ModuleSummary, Note, Source } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
@@ -19,10 +19,11 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
   const [section, setSection] = useState<Section>("app");
   const [dragging, setDragging] = useState(false);
   const [dropNote, setDropNote] = useState<string | null>(null);
-  async function dropped(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragging(false);
-    const files = Array.from(e.dataTransfer.files ?? []);
+  // Files come in by the Add files button (the Mac's picker) or by dropping them anywhere on
+  // the page; both take the same route (3 Oct: with only the drop, an empty attachments table
+  // had no visible way in).
+  const picker = useRef<HTMLInputElement>(null);
+  async function added(files: File[]) {
     if (!files.length) return;
     try {
       const out = await client.addFiles(files, { module: moduleId });
@@ -32,6 +33,11 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
       setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
     }
     window.setTimeout(() => setDropNote(null), 6000);
+  }
+  async function dropped(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    await added(Array.from(e.dataTransfer.files ?? []));
   }
   const [tab, setTab] = useState<string>(() => {
     try {
@@ -76,6 +82,10 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
             <div className="faint">{subtitle}</div>
           </div>
         </div>
+        <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void added(files); }} />
+        <Button size="sm" title="Add files to this module from your Mac; Alpha reads them into its tables" onClick={() => picker.current?.click()}>
+          Add files
+        </Button>
         <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />
       </div>
 

@@ -144,8 +144,13 @@ class Base:
         said = self.world.journal.read(self.turn) if self.turn else None
         if not said or said["kind"] != "said" or said["actor"] != "person":
             return "Only the person can change standing instructions, in their own message."
-        squash = " ".join(quote.lower().split())
-        if len(squash.split()) < 3 or squash not in " ".join(said["text"].lower().split()):
-            return ("quote must be the person's own words from this message (at least three"
-                    " words, exactly as they said them).")
+        squash = " ".join(quote.lower().split()).strip(" .!")
+        whole = " ".join(said["text"].lower().split()).strip(" .!")
+        if squash and squash == whole:
+            # The whole message is the quote ("yes", "go ahead"): their words, however few
+            # (3 Oct: a plain "yes" after a plan was refused three times for being short).
+            return None
+        if len(squash.split()) < 3 or squash not in whole:
+            return ("quote must be the person's own words from this message (their whole"
+                    " message, or at least three words of it, exactly as they said them).")
         return None
