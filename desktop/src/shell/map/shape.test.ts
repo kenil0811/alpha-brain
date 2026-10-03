@@ -53,5 +53,8 @@ describe("the map's shape", () => {
     expect(same).toBe(signature(graph));
     const broke = { ...graph, nodes: graph.nodes.map((n) => (n.id === "skill:brokers" ? { ...n, state: "broken" } : n)) };
     expect(signature(broke)).not.toBe(signature(graph));
+    const decided = { ...graph, edges: [...graph.edges, { from: "skill:brokers", to: "table:deals", kind: "related" as const, state: "accepted" as const, fact: "f1" }] };
+    const pending = { ...graph, edges: [...graph.edges, { from: "skill:brokers", to: "table:deals", kind: "related" as const, state: "suggested" as const, fact: "f1" }] };
+    expect(signature(decided)).not.toBe(signature(pending));
   });
 });

@@ -43,6 +43,19 @@ export function shape(graph: WorkGraph): Shaped {
   const settle = (id: string, via: string) => {
     if (!home.has(id) && home.has(via)) home.set(id, home.get(via)!);
   };
+  // A person or an organisation belongs with the area that named them most.
+  const naming = new Map<string, Map<string, number>>();
+  for (const e of edges) {
+    if (e.kind !== "named in" && e.kind !== "row in") continue;
+    const target = byId.get(e.to);
+    const area = target?.kind === "module" ? target.module : target?.module;
+    if (!area) continue;
+    const tally = naming.get(e.from) ?? naming.set(e.from, new Map()).get(e.from)!;
+    tally.set(area, (tally.get(area) ?? 0) + (e.count ?? 1));
+  }
+  for (const [id, tally] of naming) {
+    if (!home.has(id)) home.set(id, [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0]);
+  }
   for (let pass = 0; pass < 3; pass += 1) {
     for (const e of edges) {
       if (e.kind === "reads into" || e.kind === "tells") settle(e.from, e.to);
@@ -60,6 +73,6 @@ export function shape(graph: WorkGraph): Shaped {
 /** A stable signature of a graph's facts, to tell a refresh that changed nothing from one that did. */
 export function signature(graph: WorkGraph): string {
   const nodes = graph.nodes.map((n) => `${n.id}|${n.state ?? ""}|${n.rows ?? ""}|${n.runs ?? ""}|${n.failed ?? ""}|${n.subtitle ?? ""}`).sort();
-  const edges = graph.edges.map((e) => `${e.from}>${e.to}:${e.kind}:${e.count ?? ""}`).sort();
+  const edges = graph.edges.map((e) => `${e.from}>${e.to}:${e.kind}:${e.count ?? ""}:${e.state ?? ""}:${e.fact ?? ""}`).sort();
   return `${nodes.join("\n")}\n${edges.join("\n")}`;
 }

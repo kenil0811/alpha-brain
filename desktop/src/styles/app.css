@@ -26,6 +26,7 @@
      title and big numbers. */
   /* The map of work's kinds (shell/map). */
   --k-module: var(--navy); --k-table: var(--primary); --k-read: var(--good); --k-act: var(--warn); --k-run: #8a6d3b; --k-automation: #7a5c8a; --k-source: var(--chart-3); --k-connection: #5f6b78;
+  --k-you: #b8485c; --k-person: #2f6b73; --k-organisation: #4e6a8a; --k-document: #8a6d3b; --k-page: #5a7a52; --k-goal: #a7542b;
   --text-xs: 11px; --text-sm: 12px; --text-md: 13px; --text-base: 14px; --text-lg: 16px; --text-xl: 20px; --text-2xl: 26px;
   /* the older component classes below read these */
   --color-bg: var(--bg); --color-surface: var(--surface); --color-surface-muted: var(--surface-2);
@@ -42,7 +43,7 @@
     --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220;
     --navy: #e6ebf0; --chart: #7fa5c5; --chart-2: #d9b07a; --chart-3: #9cb39a;
   --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6;
-    --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6;
+    --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 }
@@ -886,3 +887,12 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__links .linkbtn { text-align: left; }
 @keyframes map-pulse { 0%, 100% { stroke-width: 3; } 50% { stroke-width: 6; } }
 @media (prefers-reduced-motion: reduce) { .map__node--bad circle { animation: none; } }
+.map__edge--related { stroke: var(--k-you); }
+.map__edge--suggested { stroke-dasharray: 3 5; opacity: 0.8; }
+.map__node--lonely circle { stroke: var(--text-3); stroke-dasharray: 3 3; }
+.map__asof { font-size: var(--text-xs); color: var(--text-3); margin-left: 4px; }
+.map__glance { position: absolute; right: 10px; bottom: 10px; width: 250px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 12px; font-size: var(--text-sm); color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
+.map__glance b { color: var(--text); }
+.map__glance .linkbtn { text-align: left; padding: 0; }
+.map__think { background: var(--primary-soft); border-radius: 8px; padding: 6px 8px; font-size: var(--text-md); }
+.map__busy { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow); }

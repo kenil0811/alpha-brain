@@ -342,7 +342,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
       {!data ? (
         error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "map" ? (
-        <WorkMap client={client} version={version} onGo={onGo} />
+        <WorkMap client={client} onGo={onGo} />
       ) : tab === "skills" ? (
         <div className="intel">
           {data.skills.length ? (

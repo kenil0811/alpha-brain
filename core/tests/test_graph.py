@@ -2,12 +2,14 @@
 (3 Oct 2026, the graph proposal's option C)."""
 from __future__ import annotations
 
+from typing import Any
+
 from conftest import building
 from fastapi.testclient import TestClient
 
-from alpha.api.graph import work_graph
 from alpha.api.server import create_app
 from alpha.connectors.base import Connections
+from alpha.context.graph import work_graph
 from alpha.world.world import World
 
 
@@ -60,8 +62,111 @@ def test_the_map_links_what_feeds_what(world: World) -> None:
     # an edge never points at a node that is not on the map
     ids = set(by_id)
     assert all(e["from"] in ids and e["to"] in ids for e in data["edges"])
-    assert c.get("/api/graph?kind=world").status_code == 400
+    assert c.get("/api/graph?kind=people").status_code == 400
 
 
 def test_an_empty_world_is_an_empty_map(world: World) -> None:
     assert work_graph(world, [])["nodes"] == []
+
+
+def _brain(world: World) -> tuple[str, str]:
+    t = building(world)
+    module = t.module_create("Advisory", "help clients")["id"]
+    t.collection_create("clients", "Clients", [{"name": "name", "kind": "text"}], module=module)
+    world.collections.add("clients", {"name": "RestoPros"}, {"source": "stated"})
+    person = world.entities.resolve("person", "Vikas Badami",
+                                    keys={"email": ["v@x.com"]})["entity"]
+    world.knowledge.set_goal("Keep the books honest", module=module)
+    world.knowledge.write_note("module:Advisory", "Advisory", "## What this is for\\nClients.")
+    world.knowledge.record_fact("person", "age", "27", source="turn:j_1", state="accepted")
+    said = world.journal.append("said", "Vikas sent the exports.", actor="person",
+                                module=module, entity_ids=[person["id"]])
+    world.journal.append("made", f"Noted the journal entry {said}.", data={})
+    doc = world.entities.resolve("document", "RestoPros P&L")["entity"]["id"]
+    with world.store.tx() as db:
+        db.execute("INSERT INTO documents (id, entity_id, title, kind, path, text, size,"
+                   " modified_at, indexed_at, module) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                   ("d_1", doc, "RestoPros P&L", "xlsx", "/tmp/pl.xlsx", "Profit", 10,
+                    "2026-10-01T00:00:00+00:00", "2026-10-01T00:00:00+00:00", module))
+    return module, person["id"]
+
+
+def test_the_map_of_the_brain_holds_what_the_world_holds(world: World) -> None:
+    from alpha.context.graph import world_graph
+
+    module, person = _brain(world)
+    g = world_graph(world)
+    kinds = {n["kind"] for n in g["nodes"]}
+    assert {"you", "module", "table", "goal", "person", "document", "page"} <= kinds
+    you = next(n for n in g["nodes"] if n["id"] == "you")
+    assert you["facts"] == [{"predicate": "age", "value": "27"}]
+    rel = {(e["from"], e["to"], e["kind"]) for e in g["edges"]}
+    assert ("table:clients", f"module:{module}", "in") in rel
+    assert ("document:d_1", f"module:{module}", "in") in rel
+    assert (f"entity:{person}", f"module:{module}", "named in") in rel
+    page = next(n for n in g["nodes"] if n["kind"] == "page")
+    assert (page["id"], f"module:{module}", "about") in rel
+    assert next(n for n in g["nodes"] if n["id"] == f"module:{module}")["activity"] >= 1
+    assert "document" not in {n["kind"] for n in g["nodes"] if n["id"].startswith("entity:")}
+
+
+def test_connecting_keeps_grounded_links_as_suggestions_and_drops_the_rest(world: World) -> None:
+    from alpha.runtime import connecting
+    from alpha.runtime.claude_cli import RunResult
+
+    module, person = _brain(world)
+    seen: dict[str, Any] = {}
+
+    def runner(req: Any) -> RunResult:
+        seen["system"] = req.system
+        seen["sentence"] = req.sentence
+        return RunResult(ok=True, reply=(
+            '[{"from": "entity:' + person + '", "to": "document:d_1", "relation": "sent",'
+            ' "why": "Vikas sent the exports the document holds.",'
+            ' "source": "' + world.journal.recent(5, kinds=["said"])[-1]["id"] + '"},'
+            ' {"from": "entity:' + person + '", "to": "module:' + module + '",'
+            ' "relation": "works with", "why": "no evidence", "source": "a dream"},'
+            ' {"from": "document:d_1", "to": "module:' + module + '", "relation": "in",'
+            ' "why": "it is there", "source": "RestoPros"},'
+            ' {"from": "table:clients", "to": "document:d_1", "relation": "about",'
+            ' "why": "same name", "source": "RestoPros"},'
+            ' {"from": "table:clients", "to": "module:' + module + '", "relation": "about",'
+            ' "why": "same name", "source": "RestoPros"}]'))
+
+    out = connecting.connect(world, runner=runner)
+    assert "NOT LINKED" in seen["sentence"] and "JSON only" in seen["system"]
+    kept = out["proposed"]
+    # kept: the grounded one about a person, and the one about a document (the table end cannot
+    # carry a fact, so the document is the subject through its entity); dropped: the ungrounded
+    # one, the one already known (the document's own area), the one between a table and an area
+    assert [(k["from"], k["to"]) for k in kept] == [
+        (f"entity:{person}", "document:d_1"), ("document:d_1", "table:clients")]
+    facts = world.knowledge.facts(f"entity:{person}", states=("suggested",))
+    assert len(facts) == 1 and facts[0]["predicate"] == "related_to"
+    assert facts[0]["value"] == "document:d_1" and facts[0]["why"].startswith("sent: ")
+    g = world_graph_of(world)
+    related = {(e["from"], e["to"]): e for e in g["edges"] if e["kind"] == "related"}
+    assert set(related) == {(f"entity:{person}", "document:d_1"),
+                            ("document:d_1", "table:clients")}
+    mine = related[(f"entity:{person}", "document:d_1")]
+    assert mine["state"] == "suggested" and mine["fact"] == facts[0]["id"]
+    world.knowledge.decide_fact(facts[0]["id"], True)
+    after = world_graph_of(world)["edges"]
+    assert sorted(e["state"] for e in after if e["kind"] == "related") == ["accepted", "suggested"]
+    assert world.journal.recent(5, kinds=["noticed"])[-1]["text"].startswith("Looked over the map")
+
+
+def world_graph_of(world: World) -> dict[str, Any]:
+    from alpha.context.graph import world_graph
+
+    return world_graph(world)
+
+
+def test_connecting_with_a_bad_reply_proposes_nothing(world: World) -> None:
+    from alpha.runtime import connecting
+    from alpha.runtime.claude_cli import RunResult
+
+    _brain(world)
+    out = connecting.connect(world, runner=lambda req: RunResult(ok=True, reply="I am not sure."))
+    assert out["proposed"] == []
+    assert connecting.parse("```json\n[{\"from\": \"a\"}]\n```") == [{"from": "a"}]

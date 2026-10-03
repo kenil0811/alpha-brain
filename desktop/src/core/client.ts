@@ -31,9 +31,10 @@ export interface TableDesc {
 
 /** The map of Alpha's own work (`/api/graph`): what Intelligence lists, as nodes, and how
  * each feeds the other, as edges with their source in the world. */
+export type GraphKind = "work" | "world";
 export interface GraphNode {
   id: string;
-  kind: "module" | "table" | "skill" | "automation" | "source" | "connection";
+  kind: "module" | "table" | "skill" | "automation" | "source" | "connection" | "you" | "person" | "organisation" | "document" | "page" | "goal";
   title: string;
   subtitle?: string;
   /** A skill's role: read, act or run. */
@@ -49,14 +50,22 @@ export interface GraphNode {
   failed?: number;
   /** A source's site (its subtitle is its address). */
   site?: string;
+  /** The brain's map: how much happened here in 30 days; what Alpha knows about the person. */
+  activity?: number;
+  facts?: { predicate: string; value: string }[];
+  entity?: string;
 }
 export interface GraphEdge {
   from: string;
   to: string;
-  kind: "in" | "runs" | "reads into" | "tells" | "read by" | "signed in at" | "feeds";
+  kind: "in" | "runs" | "reads into" | "tells" | "read by" | "signed in at" | "feeds" | "about" | "row in" | "named in" | "related" | "of";
   order?: number;
   count?: number;
   source?: string;
+  /** A `related` edge is a fact: suggested by Alpha until the person decides, then accepted. */
+  state?: "suggested" | "accepted";
+  fact?: string;
+  why?: string;
 }
 export interface WorkGraph {
   nodes: GraphNode[];
@@ -594,7 +603,9 @@ export class Client {
   merge = (keep: string, other: string) => this.call<Entity>("POST", `/api/entities/${keep}/merge/${other}`);
 
   intelligence = () => this.call<Intelligence>("GET", "/api/intelligence");
-  graph = () => this.call<WorkGraph>("GET", "/api/graph?kind=work");
+  graph = (kind: GraphKind = "work") => this.call<WorkGraph>("GET", `/api/graph?kind=${kind}`);
+  /** Alpha looks over the map of the brain for links and keeps the grounded ones as suggestions. */
+  connectGraph = () => this.call<{ proposed: { fact: string; from: string; to: string; relation: string; why: string }[]; why: string | null }>("POST", "/api/graph/connect");
   writeNote = (scope: string, title: string, body: string, summary?: string) => this.call<Note>("POST", "/api/notes", { scope, title, body, summary });
   connectFolder = (path: string) => this.call<Connection>("POST", "/api/connections/folder", { path });
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });

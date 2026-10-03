@@ -56,8 +56,8 @@ export function anchorsFor(homes: string[], width: number, height: number): Anch
   return out;
 }
 
-const DISTANCE: Record<GraphEdge["kind"], number> = { in: 120, runs: 85, "reads into": 85, tells: 95, "read by": 60, "signed in at": 110, feeds: 120 };
-const STRENGTH: Record<GraphEdge["kind"], number> = { in: 0.08, runs: 0.55, "reads into": 0.45, tells: 0.25, "read by": 0.6, "signed in at": 0.12, feeds: 0.2 };
+const DISTANCE: Record<GraphEdge["kind"], number> = { in: 120, runs: 85, "reads into": 85, tells: 95, "read by": 60, "signed in at": 110, feeds: 120, about: 110, "row in": 80, "named in": 100, related: 120, of: 110 };
+const STRENGTH: Record<GraphEdge["kind"], number> = { in: 0.08, runs: 0.55, "reads into": 0.45, tells: 0.25, "read by": 0.6, "signed in at": 0.12, feeds: 0.2, about: 0.1, "row in": 0.4, "named in": 0.25, related: 0.3, of: 0.1 };
 
 /** Nodes for the simulation, starting from where they were (or near their home) and keeping their pins. */
 export function toMapNodes(nodes: ShapedNode[], anchors: Anchors, from: Positions = {}): MapNode[] {

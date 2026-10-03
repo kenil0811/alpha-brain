@@ -42,3 +42,4 @@ One file per dated entry, verbatim from where it was written; newest last. The c
 - [`2026-10-03-table-views-2.md`](2026-10-03-table-views-2.md) — The table views, stage three: a relation shows its title and opens the record in the drawer with a way back; the form view
 - [`2026-10-03-companion-moods.md`](2026-10-03-companion-moods.md) — The companion: three sizes, drag from anywhere, and Bridge's eleven moods as a pose table
 - [`2026-10-03-work-map.md`](2026-10-03-work-map.md) — The map of Alpha's work: Intelligence › Map, a force layout in a worker over modules, tables, skills, automations, sources and connections, every edge with its source
+- [`2026-10-03-brain-map.md`](2026-10-03-brain-map.md) — The map of the brain: the person's world as the default view, Alpha's links as suggested facts with reasons (Refresh runs the pass), refresh only on demand; the discussion and Q30

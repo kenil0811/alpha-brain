@@ -27,13 +27,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from alpha.api.graph import work_graph
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.context.graph import work_graph, world_graph
 from alpha.context.summary import module_summary
-from alpha.runtime import acting, build, check, claude_account, claude_cli, conversations, noticing
+from alpha.runtime import (
+    acting,
+    build,
+    check,
+    claude_account,
+    claude_cli,
+    connecting,
+    conversations,
+    noticing,
+)
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world import backup
@@ -1140,11 +1149,19 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.get("/api/graph", dependencies=[api])
     def graph(kind: str = "work") -> dict[str, Any]:
-        """The map of Alpha's own work: nodes and edges computed from the world (api/graph.py).
-        `kind=world` (people, documents, pages) waits for people-for-real."""
-        if kind != "work":
-            raise Problem("Only the map of work exists yet; ask for kind=work.")
-        return work_graph(world, automation_views(world, scheduler))
+        """Two maps computed from the world on each ask (context/graph.py): `work`, Alpha's own
+        plumbing; `world`, the person's brain: what it holds, how it connects, what does not."""
+        if kind == "work":
+            return work_graph(world, automation_views(world, scheduler))
+        if kind == "world":
+            return world_graph(world)
+        raise Problem("A map is of kind work or world.")
+
+    @app.post("/api/graph/connect", dependencies=[api])
+    def graph_connect() -> dict[str, Any]:
+        """On the person's ask, Alpha looks over the map of their brain for links between things
+        that are not connected and keeps the grounded ones as suggested facts, with reasons."""
+        return connecting.connect(world)
 
     @app.get("/api/preferences/{key}", dependencies=[api])
     def preference(key: str) -> dict[str, Any]:

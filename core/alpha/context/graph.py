@@ -138,3 +138,129 @@ def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any
                     edge(f"connection:{c['id']}", f"module:{module}", "feeds", count=n)
 
     return {"nodes": nodes, "edges": edges, "at": now()}
+
+
+# ---- the map of the brain: what the person's world holds, how it connects, what does not ----
+
+ACTIVITY_WINDOW_DAYS = 30
+
+
+def _activity(world: World) -> dict[str, int]:
+    """How much happened in each module, and around each entity, in the last 30 days: what the
+    journal says, counted. The map sizes things by it: what is concentrated, what is quiet."""
+    cutoff = (datetime.now(UTC) - timedelta(days=ACTIVITY_WINDOW_DAYS)).isoformat()
+    out: dict[str, int] = {}
+    for row in world.store.all(
+            "SELECT module, entity_ids FROM journal WHERE at > ? AND deleted_at IS NULL",
+            (cutoff,)):
+        if row["module"]:
+            out[f"module:{row['module']}"] = out.get(f"module:{row['module']}", 0) + 1
+        for eid in loads(row["entity_ids"], []):
+            out[f"entity:{eid}"] = out.get(f"entity:{eid}", 0) + 1
+    for row in world.store.all(
+            "SELECT collection, COUNT(*) AS n FROM records WHERE created_at > ? AND deleted_at"
+            " IS NULL GROUP BY collection", (cutoff,)):
+        out[f"table:{row['collection']}"] = row["n"]
+    return out
+
+
+def world_graph(world: World) -> dict[str, Any]:
+    """The map of what the person's world holds: the person at the centre with what Alpha knows
+    about them; modules as the areas of their life and work, weighted by what happened in them;
+    tables, documents, pages and goals in those areas; the people and organisations Alpha knows,
+    linked to the rows that are them, the documents about them and the days that named them;
+    and the links Alpha proposed or the person accepted (`related_to` facts), each with its
+    reason and source. A thing with no link beyond its area is what the window calls not
+    linked: Alpha knows it, nothing connects it."""
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+    known: set[str] = set()
+    activity = _activity(world)
+
+    def node(nid: str, kind: str, title: str, **more: Any) -> None:
+        known.add(nid)
+        nodes.append({"id": nid, "kind": kind, "title": title, "activity": activity.get(nid, 0),
+                      **{k: v for k, v in more.items() if v is not None}})
+
+    def edge(src: str, dst: str, kind: str, **more: Any) -> None:
+        if src in known and dst in known and src != dst:
+            edges.append({"from": src, "to": dst, "kind": kind,
+                          **{k: v for k, v in more.items() if v is not None}})
+
+    facts = world.knowledge.facts("person", states=("accepted",))
+    node("you", "you", "You", subtitle=f"{len(facts)} things Alpha knows about you",
+         facts=[{"predicate": f["predicate"], "value": f["value"]} for f in facts
+                if f["predicate"] != "related_to"])
+
+    for m in world.modules.all():
+        node(f"module:{m['id']}", "module", m["name"], subtitle=m.get("goal"), module=m["id"])
+    for t in world.collections.overview():
+        node(f"table:{t['name']}", "table", t["title"], subtitle=f"{t['records']:,} rows",
+             module=t["module"], rows=t["records"])
+        if t["module"]:
+            edge(f"table:{t['name']}", f"module:{t['module']}", "in")
+    for g in world.knowledge.goals("active"):
+        node(f"goal:{g['id']}", "goal", g["text"], module=g.get("module"))
+        if g.get("module"):
+            edge(f"goal:{g['id']}", f"module:{g['module']}", "in")
+        else:
+            edge(f"goal:{g['id']}", "you", "of")
+
+    modules_by_name = {m["name"]: m["id"] for m in world.modules.all()}
+    entities = world.entities.find(limit=2000)
+    for e in entities:
+        if e["kind"] == "document":
+            continue
+        node(f"entity:{e['id']}", e["kind"], e["name"],
+             subtitle=", ".join(v for vs in (e.get("keys") or {}).values() for v in vs)[:80]
+             or None, entity=e["id"])
+    for d in world.store.all(
+            "SELECT id, entity_id, title, module, connection, kind FROM documents"
+            " WHERE removed_at IS NULL"):
+        node(f"document:{d['id']}", "document", d["title"], subtitle=d["kind"],
+             module=d["module"], entity=d["entity_id"])
+        if d["module"]:
+            edge(f"document:{d['id']}", f"module:{d['module']}", "in")
+    for n in world.knowledge.notes():
+        scope, _, name = n["scope"].partition(":")
+        if scope == "skill":
+            continue
+        module = modules_by_name.get(name) if scope == "module" else None
+        node(f"page:{n['id']}", "page", n["title"], subtitle=n["scope"], module=module)
+        if module:
+            edge(f"page:{n['id']}", f"module:{module}", "about")
+        elif scope == "entity":
+            target = next((f"entity:{e['id']}" for e in entities if e["name"] == name), None)
+            if target:
+                edge(f"page:{n['id']}", target, "about")
+        elif scope == "person":
+            edge(f"page:{n['id']}", "you", "about")
+
+    # The rows that are a person or an organisation, and the days that named them.
+    for row in world.store.all(
+            "SELECT entity_id, collection, COUNT(*) AS n FROM records WHERE entity_id IS NOT NULL"
+            " AND deleted_at IS NULL GROUP BY entity_id, collection"):
+        edge(f"entity:{row['entity_id']}", f"table:{row['collection']}", "row in",
+             count=row["n"])
+    named: dict[tuple[str, str], int] = {}
+    for row in world.store.all(
+            "SELECT module, entity_ids FROM journal WHERE entity_ids != '[]' AND module IS NOT"
+            " NULL AND deleted_at IS NULL"):
+        for eid in loads(row["entity_ids"], []):
+            key = (f"entity:{eid}", f"module:{row['module']}")
+            named[key] = named.get(key, 0) + 1
+    for (src, dst), times in named.items():
+        edge(src, dst, "named in", count=times)
+
+    # Links Alpha proposed, and the ones the person accepted: facts with their reasons. A
+    # document's facts are about its entity; the map draws the document.
+    document_of = {f"entity:{n['entity']}": n["id"] for n in nodes
+                   if n["kind"] == "document" and n.get("entity")}
+    for row in world.store.all(
+            "SELECT * FROM facts WHERE predicate = 'related_to' AND state IN ('accepted',"
+            " 'suggested') AND valid_to IS NULL AND superseded_by IS NULL"):
+        subject = row["subject"]
+        src = "you" if subject == "person" else document_of.get(subject, subject)
+        edge(src, row["value"], "related", state=row["state"], fact=row["id"], why=row["why"],
+             source=row["source"])
+    return {"nodes": nodes, "edges": edges, "at": now()}
