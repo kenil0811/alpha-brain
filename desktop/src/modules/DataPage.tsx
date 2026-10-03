@@ -4,13 +4,21 @@
  * click away; a saved list is a filter plus the columns shown. Edits here are the person's own
  * and are journaled as theirs.
  */
-import { type DragEvent, type FormEvent, type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Client, FileInfo, RecordRow, TableDesc } from "../core/client";
 import { host } from "../core/host";
-import { DATE_KINDS, coerce, editText, firstOfKind, inputType, isNumeric, openChoices, showValue, titleFieldOf, type FieldInfo } from "./fields";
-import { formatNumber, humanize } from "./format";
-import { Badge, Button, IconButton, Tabs, Popover } from "../ui";
-import { ChevronsLeft, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, MoreHorizontal, FolderOpen } from "../ui/icons";
+import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
+import { humanize } from "./format";
+import { Button, IconButton, Tabs, Popover } from "../ui";
+import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
+import { applyQuery, pageOf, provenanceCounts, type Sort } from "./views/engine";
+import { AddRow } from "./views/AddRow";
+import { BoardView } from "./views/BoardView";
+import { CalendarView } from "./views/CalendarView";
+import { ChartView } from "./views/ChartView";
+import { ListView } from "./views/ListView";
+import { RecordPanel } from "./views/RecordPanel";
+import { TableView } from "./views/TableView";
 
 export type PageView = "table" | "board" | "list" | "calendar" | "chart";
 const VIEWS: { id: PageView; label: string }[] = [
@@ -52,14 +60,6 @@ function remember(key: string, value: unknown) {
   }
 }
 
-function compare(a: unknown, b: unknown): number {
-  if (a === b) return 0;
-  if (a === null || a === undefined || a === "") return 1;
-  if (b === null || b === undefined || b === "") return -1;
-  if (typeof a === "number" && typeof b === "number") return a - b;
-  return String(a).localeCompare(String(b), undefined, { numeric: true });
-}
-
 export function DataPage({ client, table, version, onChanged }: { client: Client; table: TableDesc; version: number; onChanged: () => void }) {
   const fields = table.fields as FieldInfo[];
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
@@ -96,7 +96,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [hideDone, setHideDone] = useState(false);
   const [showGone, setShowGone] = useState(false);
-  const [sort, setSort] = useState<{ field: string; direction: "asc" | "desc" } | null>(null);
+  const [sort, setSort] = useState<Sort | null>(null);
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
   const [widths, setWidths] = useState<Record<string, number>>(() => remembered<Record<string, number>>(`${key}.widths`, {}));
@@ -153,20 +153,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   }, [client, table.name]);
   useEffect(load, [load, version]);
 
-  const rows = useMemo(() => {
-    if (!all) return null;
-    const q = search.trim().toLowerCase();
-    const open = statusField ? new Set(openChoices(statusField)) : null;
-    let out = all.filter((r) => {
-      if (q && !searchable.some((f) => String(r.values[f] ?? "").toLowerCase().includes(q))) return false;
-      for (const [field, value] of Object.entries(filters)) if (value && String(r.values[field] ?? "") !== value) return false;
-      if (hideDone && statusField && open && !open.has(String(r.values[statusField.name] ?? ""))) return false;
-      if (!showGone && r.gone_at) return false;
-      return true;
-    });
-    if (sort) out = [...out].sort((a, b) => (sort.direction === "asc" ? 1 : -1) * compare(a.values[sort.field], b.values[sort.field]));
-    return out;
-  }, [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
+  const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters, hideDone, statusField, showGone, sort }) : null), [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
   useEffect(() => setPageAt(0), [search, filters, hideDone, showGone, sort]);
   // A table fed by readers: the platform knows when each row was first seen, last seen, gone.
   const tracked = useMemo(() => Boolean(all?.some((r) => r.seen_at || r.gone_at)), [all]);
@@ -199,9 +186,10 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
 
   const paged = view === "table" || view === "list";
   const size = pageSize === "fit" ? fit : pageSize;
-  const pages = rows ? Math.max(1, Math.ceil(rows.length / size)) : 1;
-  const at = Math.min(pageAt, pages - 1);
-  const shownRows = rows ? rows.slice(at * size, at * size + size) : null;
+  const page = rows ? pageOf(rows, pageAt, size) : null;
+  const pages = page?.pages ?? 1;
+  const at = page?.at ?? 0;
+  const shownRows = page?.rows ?? null;
   function choosePageSize(next: PageSize) {
     const nextSize = next === "fit" ? fit : next;
     setPageAt(Math.floor((at * size) / nextSize));
@@ -260,8 +248,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const filtered = Boolean(search || Object.values(filters).some(Boolean) || hideDone);
   const count = (n: number) => n.toLocaleString();
   const rowsWord = (n: number) => (n === 1 ? "row" : "rows");
-  const guesses = rows ? rows.filter((r) => r.provenance?.estimated).length : 0;
-  const assumed = rows ? rows.filter((r) => r.provenance?.assumed && !r.provenance?.estimated).length : 0;
+  const { estimated: guesses, assumed } = rows ? provenanceCounts(rows) : { estimated: 0, assumed: 0 };
   const resting = !rows || (!guesses && !assumed) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : ""].filter(Boolean).join(", ")}`;
   const counted = !rows
     ? "Loading…"
@@ -421,512 +408,14 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
               <span className="num">
                 Page {count(at + 1)} of {count(pages)}
               </span>
-              <Button size="sm" disabled={at>= pages - 1} onClick={() => setPageAt(at + 1)}>
+              <Button size="sm" disabled={at >= pages - 1} onClick={() => setPageAt(at + 1)}>
                 Next
               </Button>
-              <Button size="sm" variant="ghost" aria-label="Last page" disabled={at>= pages - 1} onClick={() => setPageAt(pages - 1)}>
-                »
-              </Button>
+              <IconButton size="sm" label="Last page" icon={<ChevronsRight />} disabled={at >= pages - 1} onClick={() => setPageAt(pages - 1)} />
             </span>
           ) : null}
         </div>
       </div>
     </div>
-  );
-}
-
-// ---------- table ----------
-
-/** When a reader-fed row came and went, in words: "New today", "Since 2 Oct", "Gone 5 Oct". */
-function SeenCell({ row }: { row: RecordRow }) {
-  const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-  const today = new Date().toDateString();
-  if (row.gone_at) return <td><Badge tone="gray">Gone {day(row.gone_at)}</Badge></td>;
-  if (new Date(row.created_at).toDateString() === today) return <td><Badge tone="good">New today</Badge></td>;
-  return <td className="faint">Since {day(row.created_at)}</td>;
-}
-
-function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: { field: string; direction: "asc" | "desc" } | null; onSort: (s: { field: string; direction: "asc" | "desc" } | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
-  const totals = columns.filter((c) => isNumeric(byName.get(c)?.kind ?? "")).map((c) => ({ field: c, value: totalOf.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
-  return (
-    <div className="tablewrap">
-      <table className="table" aria-label={undefined}>
-        <thead>
-          <tr>
-            {columns.map((c) => {
-              const kind = byName.get(c)?.kind ?? "text";
-              return (
-                <th key={c} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
-                  <button type="button" onClick={() => onSort(sort?.field === c ? (sort.direction === "asc" ? { field: c, direction: "desc" } : null) : { field: c, direction: "asc" })}>
-                    {byName.get(c)?.label ?? humanize(c)}
-                    {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : ""}
-                  </button>
-                  <span
-                    className="th__grip"
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={`Resize ${humanize(c)}`}
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const th = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
-                      const startX = e.clientX;
-                      const startW = th.getBoundingClientRect().width;
-                      const onMove = (ev: PointerEvent) => onWidth(c, Math.max(64, Math.round(startW + ev.clientX - startX)));
-                      const onUp = () => {
-                        window.removeEventListener("pointermove", onMove);
-                        window.removeEventListener("pointerup", onUp);
-                      };
-                      window.addEventListener("pointermove", onMove);
-                      window.addEventListener("pointerup", onUp);
-                    }}
-                  />
-                </th>
-              );
-            })}
-            {seen ? <th>Seen</th> : null}
-            <th aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody ref={(el) => { bodyRef.current = el; }}>
-          {rows.map((row) => (
-            <tr key={row.id} className={`row--open${openId === row.id ? " row--current" : ""}`} onClick={() => onOpen(row.id)} aria-label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`}>
-              {columns.map((c) => (
-                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
-              ))}
-              {seen ? <SeenCell row={row} /> : null}
-              <td className="r">
-                <span className="faint">›</span>
-              </td>
-            </tr>
-          ))}
-          {empty ? (
-            <tr>
-              <td colSpan={columns.length + (seen ? 2 : 1)} className="empty" style={{ whiteSpace: "normal" }}>
-                {empty}
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-        {totals.length && totalOf.length > 1 ? (
-          <tfoot>
-            <tr>
-              {columns.map((c, i) => {
-                const t = totals.find((x) => x.field === c);
-                return (
-                  <td key={c} className={t ? "r num" : undefined}>
-                    {t ? formatNumber(t.value) : i === 0 ? "Total" : ""}
-                  </td>
-                );
-              })}
-              {seen ? <td /> : null}
-              <td />
-            </tr>
-          </tfoot>
-        ) : null}
-      </table>
-    </div>
-  );
-}
-
-/** A link to a person, a company or another table's record: shown as a pill. */
-function RelationCell({ row, field }: { row: RecordRow; field: FieldInfo }) {
-  const value = row.values[field.name];
-  return <td>{value ? <Badge tone="info">{String(value)}</Badge> : <span className="faint">—</span>}</td>;
-}
-
-function Cell({ row, field, onCommit, files, onFile }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState("");
-  if (field.kind === "relation") return <RelationCell row={row} field={field} />;
-  if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} />;
-  const value = row.values[field.name];
-  const numeric = isNumeric(field.kind);
-  const estimate = Boolean(row.provenance?.estimated) && numeric;
-  const assumed = row.provenance?.assumed;
-  const source = row.provenance?.source;
-  const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
-  const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
-  function begin(e?: { stopPropagation: () => void }) {
-    e?.stopPropagation();
-    setText(editText(value, field.kind));
-    setEditing(true);
-  }
-  function finish(commit: boolean) {
-    setEditing(false);
-    if (commit) onCommit(text);
-  }
-  function key(e: KeyboardEvent) {
-    if (e.key === "Enter" && field.kind !== "long_text") finish(true);
-    if (e.key === "Escape") finish(false);
-  }
-  const label = humanize(field.name);
-  if (editing) {
-    return (
-      <td className={numeric ? "r" : undefined} onClick={(e) => e.stopPropagation()}>
-        {field.kind === "choice" || field.kind === "status" ? (
-          <select autoFocus value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label}>
-            <option value="">—</option>
-            {(field.choices ?? []).map((c) => (
-              <option key={c} value={c}>
-                {humanize(c)}
-              </option>
-            ))}
-          </select>
-        ) : field.kind === "bool" ? (
-          <select autoFocus value={text || "false"} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label}>
-            <option value="false">No</option>
-            <option value="true">Yes</option>
-          </select>
-        ) : field.kind === "long_text" ? (
-          <textarea autoFocus rows={3} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} />
-        ) : (
-          <input autoFocus type={inputType(field.kind)} step={field.kind === "number" ? "any" : undefined} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />
-        )}
-      </td>
-    );
-  }
-  const words = showValue(value, field.kind, field.unit);
-  return (
-    <td className={`${numeric ? "r num" : ""} editable`.trim()} onClick={(e) => begin(e)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && begin(e)} title={rests ? `${rests} Click to correct it.` : "Click to edit"}>
-      {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill ${field.done_choices?.includes(String(value)) ? "pill--good" : "pill--gray"}`}>{words}</span> : field.kind === "bool" ? (value ? "✓" : <span className="faint">—</span>) : words}
-      {estimate ? (
-        <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="estimated">
-          ≈
-        </span>
-      ) : assumed && numeric ? (
-        <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="on an assumption">
-          ?
-        </span>
-      ) : null}
-    </td>
-  );
-}
-
-/** A file field: the document's name, opened with the Mac's own app, or a way to add one. */
-function FileCell({ row, field, files, onFile }: { row: RecordRow; field: FieldInfo; files: Record<string, FileInfo>; onFile?: (file: File) => void }) {
-  const id = row.values[field.name] ? String(row.values[field.name]) : "";
-  const info = id ? files[id] : undefined;
-  if (info) {
-    return (
-      <td onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
-          {info.name}
-        </button>
-        <span className="faint"> · {formatBytes(info.size)}</span>
-        {host.available() ? (
-          <IconButton label="Show in Finder" icon={<FolderOpen />} onClick={() => void host.revealPath(info.path)} />
-        ) : null}
-      </td>
-    );
-  }
-  return (
-    <td onClick={(e) => e.stopPropagation()}>
-      {onFile ? (
-        <label className="linkbtn faint">
-          {id ? "File missing · " : ""}Add file
-          <input type="file" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
-        </label>
-      ) : (
-        <span className="faint">—</span>
-      )}
-    </td>
-  );
-}
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
-
-// ---------- add ----------
-
-function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; collection: string; onAdd: (values: Record<string, unknown>) => Promise<boolean>; onDone: () => void }) {
-  const [draft, setDraft] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const first = useRef<HTMLInputElement>(null);
-  useEffect(() => first.current?.focus(), []);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const values: Record<string, unknown> = {};
-    for (const f of fields) {
-      const text = draft[f.name] ?? "";
-      if (f.kind === "bool") values[f.name] = text === "true";
-      else if (text.trim() !== "") values[f.name] = coerce(text, f.kind);
-    }
-    setBusy(true);
-    const ok = await onAdd(values);
-    setBusy(false);
-    if (ok) {
-      setDraft({});
-      onDone();
-    }
-  }
-  const set = (name: string, value: string) => setDraft((d) => ({ ...d, [name]: value }));
-  return (
-    <form className="addrow" onSubmit={submit} aria-label={`Add to ${humanize(collection)}`}>
-      {fields.map((f, i) => {
-        const id = `add-${collection}-${f.name}`;
-        const label = `${humanize(f.name)}${f.required ? "" : " (optional)"}`;
-        return (
-          <div key={f.name} className="field field--compact">
-            <label htmlFor={id}>{label}</label>
-            {f.kind === "choice" || f.kind === "status" ? (
-              <select id={id} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)}>
-                <option value="">Choose…</option>
-                {(f.choices ?? []).map((c) => (
-                  <option key={c} value={c}>
-                    {humanize(c)}
-                  </option>
-                ))}
-              </select>
-            ) : f.kind === "bool" ? (
-              <select id={id} value={draft[f.name] ?? "false"} onChange={(e) => set(f.name, e.target.value)}>
-                <option value="false">No</option>
-                <option value="true">Yes</option>
-              </select>
-            ) : f.kind === "long_text" ? (
-              <textarea id={id} rows={3} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} />
-            ) : (
-              <input ref={i === 0 ? first : undefined} id={id} type={inputType(f.kind)} step={f.kind === "number" ? "any" : undefined} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} placeholder={f.kind === "multichoice" ? (f.choices ?? []).join(", ") : undefined} />
-            )}
-          </div>
-        );
-      })}
-      <div className="row">
-        <Button size="sm" variant="primary" type="submit" disabled={busy}>
-          Add
-        </Button>
-        <Button size="sm" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-// ---------- board ----------
-
-function BoardView({ rows, field, titleField, fields, onOpen, onMove }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; onOpen: (id: string) => void; onMove: (row: RecordRow, value: string) => void }) {
-  const [over, setOver] = useState<string | null>(null);
-  const columns = field.choices ?? [];
-  const extras = fields.filter((f) => f.name !== titleField && f.name !== field.name).slice(0, 2);
-  function drop(e: DragEvent, column: string) {
-    e.preventDefault();
-    setOver(null);
-    const id = e.dataTransfer.getData("text/plain");
-    const row = rows.find((r) => r.id === id);
-    if (row) onMove(row, column);
-  }
-  return (
-    <div className="board board--page">
-      {columns.map((column) => {
-        const cards = rows.filter((r) => String(r.values[field.name] ?? "") === column);
-        const done = field.done_choices?.includes(column);
-        return (
-          <div key={column} className={`board__col${over === column ? " board__col--over" : ""}${done ? " board__col--done" : ""}`} onDragOver={(e) => { e.preventDefault(); setOver(column); }} onDragLeave={() => setOver(null)} onDrop={(e) => drop(e, column)} aria-label={humanize(column)}>
-            <h4>
-              {humanize(column)} <span>{cards.length}</span>
-            </h4>
-            {cards.map((row) => (
-              <button key={row.id} type="button" className="board__card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", row.id)} onClick={() => onOpen(row.id)}>
-                <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
-                {extras.map((f) => (
-                  <span key={f.name} className="faint">
-                    {showValue(row.values[f.name], f.kind)}
-                  </span>
-                ))}
-              </button>
-            ))}
-            {!cards.length ? <p className="empty" style={{ padding: 12 }}>Nothing here</p> : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------- list ----------
-
-function ListView({ rows, bodyRef, titleField, columns, byName, onOpen }: { rows: RecordRow[]; bodyRef: { current: HTMLElement | null }; titleField: string | undefined; columns: string[]; byName: Map<string, FieldInfo>; onOpen: (id: string) => void }) {
-  const secondary = columns.filter((c) => c !== titleField).slice(0, 3);
-  if (!rows.length) return <p className="empty">Nothing here yet.</p>;
-  return (
-    <div className="list" ref={(el) => { bodyRef.current = el; }}>
-      {rows.map((row) => (
-        <button key={row.id} type="button" className="list__row" onClick={() => onOpen(row.id)}>
-          <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
-          <span className="faint">
-            {secondary
-              .map((c) => showValue(row.values[c], byName.get(c)?.kind ?? "text"))
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ---------- calendar ----------
-
-function CalendarView({ rows, field, titleField, month, onMonth, onOpen }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; month: { y: number; m: number }; onMonth: (m: { y: number; m: number }) => void; onOpen: (id: string) => void }) {
-  const first = new Date(month.y, month.m, 1);
-  const start = (first.getDay() + 6) % 7; // Monday first
-  const days = new Date(month.y, month.m + 1, 0).getDate();
-  const cells: (number | null)[] = [...Array(start).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
-  while (cells.length % 7) cells.push(null);
-  const byDay = new Map<string, RecordRow[]>();
-  for (const row of rows) {
-    const raw = row.values[field.name];
-    if (typeof raw !== "string") continue;
-    const day = raw.slice(0, 10);
-    byDay.set(day, [...(byDay.get(day) ?? []), row]);
-  }
-  const label = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-  return (
-    <div className="calendar">
-      <div className="calendar__head">
-        <Button size="sm" variant="ghost" onClick={() => onMonth(month.m === 0 ? { y: month.y - 1, m: 11 } : { y: month.y, m: month.m - 1 })} aria-label="Previous month">
-          ‹
-        </Button>
-        <b>{label}</b>
-        <Button size="sm" variant="ghost" onClick={() => onMonth(month.m === 11 ? { y: month.y + 1, m: 0 } : { y: month.y, m: month.m + 1 })} aria-label="Next month">
-          ›
-        </Button>
-      </div>
-      <div className="calendar__grid">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="calendar__dow">
-            {d}
-          </div>
-        ))}
-        {cells.map((day, i) => {
-          const iso = day ? `${month.y}-${String(month.m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
-          const items = day ? (byDay.get(iso) ?? []) : [];
-          return (
-            <div key={i} className={`calendar__day${day ? "" : " calendar__day--pad"}`}>
-              {day ? <span className="calendar__num">{day}</span> : null}
-              {items.slice(0, 3).map((row) => (
-                <button key={row.id} type="button" className="calendar__chip" onClick={() => onOpen(row.id)}>
-                  {titleField ? String(row.values[titleField] ?? "Untitled") : row.id}
-                </button>
-              ))}
-              {items.length > 3 ? <span className="faint">+{items.length - 3}</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ---------- chart ----------
-
-function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; dateField: FieldInfo; valueField: FieldInfo | null }) {
-  const [measure, setMeasure] = useState<string>(valueField?.name ?? "count");
-  const byDay = new Map<string, number>();
-  for (const row of rows) {
-    const raw = row.values[dateField.name];
-    if (typeof raw !== "string") continue;
-    const day = raw.slice(0, 10);
-    const add = measure === "count" ? 1 : typeof row.values[measure] === "number" ? (row.values[measure] as number) : 0;
-    byDay.set(day, (byDay.get(day) ?? 0) + add);
-  }
-  const days = [...byDay.keys()].sort().slice(-31);
-  const max = Math.max(1, ...days.map((d) => byDay.get(d) ?? 0));
-  return (
-    <div className="chart">
-      <div className="chart__head">
-        <span className="faint">Per day, over the entries shown</span>
-        <select className="btn btn--sm" value={measure} onChange={(e) => setMeasure(e.target.value)} aria-label="What to chart">
-          <option value="count">Count</option>
-          {valueField ? <option value={valueField.name}>{humanize(valueField.name)}</option> : null}
-        </select>
-      </div>
-      {days.length ? (
-        <div className="chart__bars" role="img" aria-label={`${humanize(measure)} per day`}>
-          {days.map((d) => {
-            const v = byDay.get(d) ?? 0;
-            return (
-              <div key={d} className="chart__bar" title={`${d}: ${formatNumber(v)}`}>
-                <div className="chart__fill" style={{ height: `${Math.round((v / max) * 100)}%` }} />
-                <span className="chart__label">{d.slice(8)}</span>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="empty">Nothing to chart yet.</p>
-      )}
-    </div>
-  );
-}
-
-// ---------- record page ----------
-
-function RecordPanel({ row, fields, titleField, onClose, onCommit, onRemove }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; onClose: () => void; onCommit: (field: FieldInfo, text: string) => void; onRemove: () => void }) {
-  const title = titleField ? String(row.values[titleField] ?? "") : "";
-  const long = fields.filter((f) => f.kind === "long_text");
-  const shown = fields.filter((f) => f.name !== titleField && f.kind !== "long_text");
-  const when = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
-  return (
-    <section className="drawer" aria-label={title || "Details"}>
-      <div className="drawer__head">
-        <h3>{title || "Details"}</h3>
-        <span className="spacer" />
-        <Button size="sm" variant="danger" onClick={onRemove}>
-          Remove
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close details">
-          ✕
-        </Button>
-      </div>
-      <table className="table table--kv">
-        <tbody>
-          {shown.map((f) => (
-            <tr key={f.name}>
-              <th scope="row">{humanize(f.name)}</th>
-              <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} />
-            </tr>
-          ))}
-          {row.created_at ? (
-            <tr>
-              <th scope="row">Added</th>
-              <td>{when(row.created_at)}</td>
-            </tr>
-          ) : null}
-          {row.updated_at && row.updated_at !== row.created_at ? (
-            <tr>
-              <th scope="row">Last changed</th>
-              <td>{when(row.updated_at)}</td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
-      {long.map((f) => (
-        <div key={f.name} className="drawer__long">
-          <h4>{humanize(f.name)}</h4>
-          <LongText value={row.values[f.name]} onCommit={(text) => onCommit(f, text)} />
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function LongText({ value, onCommit }: { value: unknown; onCommit: (text: string) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState("");
-  if (editing) {
-    return (
-      <textarea autoFocus rows={6} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => { setEditing(false); onCommit(text); }} aria-label="Edit text" />
-    );
-  }
-  return (
-    <p className="editable" onClick={() => { setText(value ? String(value) : ""); setEditing(true); }} title="Click to edit">
-      {value ? String(value) : <span className="faint">Nothing yet. Click to write.</span>}
-    </p>
   );
 }
