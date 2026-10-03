@@ -46,6 +46,26 @@ Read in this order: `docs/STATE.md` → the design's status boxes for the sectio
 → the newest two or three entries in `docs/log/` → `git log --since=<the date in STATE.md>`.
 If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 
+## How we write code (the long form is `CONTRIBUTING.md`)
+
+- Nothing per use case, no site or app knowledge in the platform; mechanisms, not prompts
+  (a wall lives in the code where the effect happens, and a prompt only repeats it); no knobs
+  and no caps on work (a threshold is a judgement of a failure, named as such); every value
+  with its provenance; the journal verbatim and never deleted; plain words wherever a person
+  or the model reads (`Problem` for "cannot", the log for internal detail).
+- Layout: `world/` (the store, one module per kind of thing) ← `context/` ← `runtime/` ←
+  `mcp/` and `api/`; the app talks to the core only through `desktop/src/core/client.ts`.
+  Imports go one way; an import inside a function is a smell.
+- The store: one logical change is one transaction (`with store.tx() as db`), including the
+  read it depends on; a state change is a conditional write; no transaction inside another;
+  migrations idempotent; hot queries indexed and proven with the query plan; every new table
+  in `purge.py`.
+- Tools: a `@tool` method whose docstring is the model's whole instruction, named
+  `<thing>_<verb>`, raising `Problem`, journaling what it did, checking the gates in code.
+- Tests: mechanisms by unit tests with fake runners (never the network, a browser or the real
+  model; waits with deadlines, never fixed sleeps); behaviour by journeys; acceptance by a
+  real run. Lint, types and both test suites clean at every commit.
+
 ## Rules that bind the code (decided with Kenil; details in the design)
 
 - Nothing per use case; the platform knows no domain. Never site- or app-specific logic in the

@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, evening.** Last entries: the hardening day
+**As of 3 October 2026, evening.** Last entries: the contributor's guide
+([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 ([`log/2026-10-03-hardening.md`](log/2026-10-03-hardening.md)), the checkpoint
 ([`log/2026-10-03-checkpoint.md`](log/2026-10-03-checkpoint.md)), skills as one table
 (§4.24), the wiki and noticing (§4.23), daily runs on a sleeping Mac (§4.22), conversations

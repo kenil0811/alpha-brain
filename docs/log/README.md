@@ -32,3 +32,4 @@ One file per dated entry, verbatim from where it was written; newest last. The c
 - [`2026-10-03-design-as-built.md`](2026-10-03-design-as-built.md) — The design's As built paragraphs as they stood on 3 Oct, before the design became intent only
 - [`2026-10-03-docs-restructure.md`](2026-10-03-docs-restructure.md) — The docs take their shape: STATE, the log, the design as intent
 - [`2026-10-03-hardening.md`](2026-10-03-hardening.md) — The hardening day: a silent run is ended, routing off the request, upsert one transaction, indexes, backoff
+- [`2026-10-03-contributing.md`](2026-10-03-contributing.md) — The contributor's guide: CONTRIBUTING.md and the short form in CLAUDE.md

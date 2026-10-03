@@ -12,6 +12,9 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
 
 ## Where things are
 
+- `CONTRIBUTING.md` — how the code is written, laid out, tested and documented; read it before
+  changing anything. `CLAUDE.md` is the short form every agent session reads first.
+
 - `docs/STATE.md` — the current state, one page, rewritten every session: what is built, what
   runs for real, what is wrong, what is pending in order, the measured numbers. Read it first.
 - `docs/log/` — the dated history, one file per entry, verbatim (what each session built, ran
