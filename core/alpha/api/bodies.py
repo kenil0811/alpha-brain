@@ -81,6 +81,10 @@ class PreferenceBody(BaseModel):
     value: Any
 
 
+class ThinkingBody(BaseModel):
+    route: str
+
+
 class NoteBody(BaseModel):
     scope: str
     title: str

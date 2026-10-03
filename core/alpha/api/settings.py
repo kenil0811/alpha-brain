@@ -6,12 +6,11 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from alpha.api.bodies import (
-    PreferenceBody,
-)
+from alpha.api.bodies import PreferenceBody, ThinkingBody
 from alpha.api.served import Served
-from alpha.runtime import claude_account
+from alpha.runtime import claude_account, codex_account, route
 from alpha.world import backup
+from alpha.world.store import Problem
 
 
 def routes(app: FastAPI, s: Served) -> None:
@@ -33,6 +32,33 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/claude/signout", dependencies=[api])
     def claude_sign_out() -> dict[str, Any]:
         return claude_account.sign_out()
+
+    # ---- which way Alpha thinks (Q32): Claude through Claude Code, or ChatGPT through Codex ----
+
+    @app.get("/api/thinking", dependencies=[api])
+    def thinking() -> dict[str, Any]:
+        return route.status(world.path)
+
+    @app.put("/api/thinking", dependencies=[api])
+    def set_thinking(body: ThinkingBody) -> dict[str, Any]:
+        if body.route not in route.ROUTES:
+            raise Problem("Alpha thinks with Claude or with ChatGPT.")
+        world.preferences.set(route.PREFERENCE, body.route)
+        world.journal.append("changed", f"You chose to think with {route.WORDS[body.route]}.",
+                             actor="person", data={"thinks_with": body.route})
+        return route.status(world.path)
+
+    @app.post("/api/codex/install", dependencies=[api])
+    def codex_install() -> dict[str, Any]:
+        return codex_account.install()
+
+    @app.post("/api/codex/signin", dependencies=[api])
+    def codex_sign_in() -> dict[str, Any]:
+        return codex_account.sign_in()
+
+    @app.post("/api/codex/signout", dependencies=[api])
+    def codex_sign_out() -> dict[str, Any]:
+        return codex_account.sign_out()
 
     @app.get("/api/data", dependencies=[api])
     def data_info() -> dict[str, Any]:

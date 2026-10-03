@@ -30,7 +30,7 @@ import threading
 import time
 from typing import Any
 
-from alpha.runtime import build, claude_cli, pipeline, turn
+from alpha.runtime import build, pipeline, route, turn
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -82,7 +82,7 @@ def worth_telling(reply: str) -> str | None:
 
 
 def run(world: World, automation_id: str, *,
-        runner: turn.Runner = claude_cli.run) -> dict[str, Any]:
+        runner: turn.Runner = route.run) -> dict[str, Any]:
     auto = world.automations.get(automation_id)
     thread = auto["thread"]
     if not thread:
@@ -133,7 +133,7 @@ class Scheduler:
     def __init__(self, world: World, runner: turn.Runner | None = None,
                  clock: Any = time.time) -> None:
         self.world = world
-        self.runner = runner or claude_cli.run
+        self.runner = runner or route.run
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()

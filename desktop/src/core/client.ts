@@ -363,7 +363,16 @@ export interface ClaudeStatus {
   signed_in: boolean;
   email?: string | null;
   plan?: string | null;
-  via?: "subscription" | "console";
+  via?: "subscription" | "console" | "chatgpt" | "api_key" | "unknown";
+}
+
+/** Which way Alpha thinks (Q32): Claude through Claude Code, or ChatGPT through the Codex
+ * CLI, each on the person's own subscription; the choice and both states. */
+export type ThinkRoute = "claude" | "codex";
+export interface Thinking {
+  route: ThinkRoute;
+  claude: ClaudeStatus;
+  codex: ClaudeStatus;
 }
 
 export interface DataInfo {
@@ -601,6 +610,11 @@ export class Client {
   /** What changed since `since`; without one, the stamp to start from. */
   changes = (since: string | null) => this.call<Changed>("GET", `/api/changes${since ? `?since=${encodeURIComponent(since)}` : ""}`);
   claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
+  thinking = () => this.call<Thinking>("GET", "/api/thinking");
+  setThinking = (route: ThinkRoute) => this.call<Thinking>("PUT", "/api/thinking", { route });
+  installCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/install");
+  signInCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/signin");
+  signOutCodex = () => this.call<ClaudeStatus>("POST", "/api/codex/signout");
   installClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/install");
   signInClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/signin");
   signOutClaude = () => this.call<ClaudeStatus>("POST", "/api/claude/signout");

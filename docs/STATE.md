@@ -4,7 +4,9 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late night.** Last entries: modules inside modules
+**As of 3 October 2026, late night.** Last entries: a second way to think, ChatGPT through the
+Codex CLI ([`log/2026-10-03-chatgpt-route.md`](log/2026-10-03-chatgpt-route.md), Q32; built, not
+yet run for real), modules inside modules
 ([`log/2026-10-03-nested-modules.md`](log/2026-10-03-nested-modules.md), Q31), a plain yes, a plan not asked about twice,
 Add files ([`log/2026-10-03-yes-and-add-files.md`](log/2026-10-03-yes-and-add-files.md)), the desktop's four
 ([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)), fast turns
@@ -53,6 +55,10 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
 
+**Two ways to think (Q32):** Claude through Claude Code (runs for real, everything below) or
+ChatGPT through the Codex CLI on his subscription, chosen in Settings › Thinks with; the ChatGPT
+way is proven by tests only until he signs in again (his Codex sign-in lapsed on 16 June).
+
 **Runs for real, daily, on Kenil's Mac:** four automations (LinkedIn connections; 15 deal
 sites; 4 job boards; Gmail from one sender), questions over the tables, drafts and sends with
 previews, files in and out, builds in the background. **Proven by tests only:** the calendar
@@ -78,6 +84,9 @@ killed by hand twice came back on the same port within two seconds and the windo
   remain where nothing is shown anyway (a screenshot that didn't load, a module-name lookup).
 - The window's minimum is 1100×560 since the desktop check: below 1100 wide the panel used to
   float over the page.
+- The ChatGPT route has not run a real turn: Kenil's Codex sign-in lapsed; `codex login status`
+  still says signed in while a run says the token cannot be refreshed, so Settings shows
+  "Connected" until a turn fails. After he signs in: `just journeys` on that route.
 - Alpha cannot rename a module (seen in the nested-modules journey: a part kept its old name
   under the new path); a small missing tool.
 - Noticing keeps session state as suggested facts about the person ("using_module =

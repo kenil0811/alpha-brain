@@ -44,7 +44,7 @@ from alpha.api.turns import Turns
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.runtime import claude_cli, conversations
+from alpha.runtime import conversations, route
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world.store import Problem
@@ -61,7 +61,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     world = world or World()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     scheduler = Scheduler(world, runner)
-    runner_fn = runner or claude_cli.run
+    runner_fn = runner or route.run
     running = Turns(world, runner, after=scheduler.builds if live else None, checks=live)
     stops: list[Callable[[], None]] = []
 

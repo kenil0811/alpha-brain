@@ -53,7 +53,7 @@ from typing import Any
 import yaml
 
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import build, check, claude_cli, noticing, pipeline, turn
+from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn
 from alpha.world.store import Problem, now
 from alpha.world.world import World
 
@@ -154,7 +154,7 @@ class Outcome:
 
 
 class Run:
-    def __init__(self, world: World, runner: turn.Runner = claude_cli.run) -> None:
+    def __init__(self, world: World, runner: turn.Runner = route.run) -> None:
         self.world = world
         self.runner = runner
         self.last_turn: str | None = None
@@ -478,7 +478,7 @@ class Run:
 
 
 def run_journey(world: World, journey: dict[str, Any],
-                runner: turn.Runner = claude_cli.run) -> Outcome:
+                runner: turn.Runner = route.run) -> Outcome:
     out = Outcome(name=journey["name"], title=journey.get("title", journey["name"]))
     began = time.monotonic()
     run = Run(world, runner)
@@ -513,7 +513,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
     passed = sum(1 for o in outcomes if o.passed)
     lines = [f"# Journeys, {began.strftime('%-d %b %Y %H:%M')}", "",
              f"{passed} of {len(outcomes)} passed. World: a copy of `{source}` in `{home}`."
-             f" Model: {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)}.", ""]
+             f" Thinks with: {route.WORDS[route.chosen(home / 'world.sqlite')]}, model"
+             f" {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)}.", ""]
     lines.append("| Journey | Verdict | Time |")
     lines.append("|---|---|---|")
     for o in outcomes:
@@ -541,7 +542,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
 
 def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
               scratch: Path | None = None, out_dir: Path | None = None,
-              runner: turn.Runner = claude_cli.run, keep: bool = False) -> tuple[int, Path]:
+              runner: turn.Runner = route.run, keep: bool = False) -> tuple[int, Path]:
     """Copy the world, run the journeys, write `docs/journeys/<stamp>.md` and `.json`.
     Returns (failures, report path)."""
     began = datetime.now().astimezone()

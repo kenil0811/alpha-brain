@@ -16,7 +16,7 @@ import json
 import re
 from typing import Any
 
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import route, turn
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
@@ -124,7 +124,7 @@ def _run(runner: turn.Runner, world: World, *, kind: str, system: str, sentence:
 
 
 def check(world: World, turn_id: str, *, sentence: str | None = None,
-          runner: turn.Runner = claude_cli.run, repair: bool = True,
+          runner: turn.Runner = route.run, repair: bool = True,
           model: str | None = None) -> dict[str, Any]:
     """Check one turn's reply. Returns {"checked": bool, "agree": …, "differences": …,
     "unstated": …, "independent": …, "entry": journal id, "repaired": reply or None}."""

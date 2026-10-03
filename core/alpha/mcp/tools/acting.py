@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from alpha.mcp.tools.base import Base, tool
-from alpha.runtime import claude_cli
+from alpha.runtime import route
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
 
@@ -122,7 +122,7 @@ class Acting(Base):
         from alpha.runtime import acting
 
         done = acting.approve(self.world, action, f"\"{quote}\"", always=always, repair=False,
-                              runner=claude_cli.run)
+                              runner=route.run)
         return {"action": action, "state": self.world.actions.get(action)["state"],
                 "outcome": done.get("outcome"), "error": done.get("error"),
                 "verified": done.get("verified")}

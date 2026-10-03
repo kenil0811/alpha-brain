@@ -24,7 +24,7 @@ import re
 from typing import Any
 
 from alpha.context.graph import world_graph
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import route, turn
 from alpha.runtime.claude_cli import TurnRequest
 from alpha.runtime.judge import DEFAULT_MODEL
 from alpha.world.store import Problem
@@ -160,7 +160,7 @@ def apply(world: World, items: list[dict[str, Any]], graph: dict[str, Any],
     return kept
 
 
-def connect(world: World, *, runner: turn.Runner = claude_cli.run,
+def connect(world: World, *, runner: turn.Runner = route.run,
             model: str | None = None) -> dict[str, Any]:
     """Look for links on the map of the brain and keep the grounded ones as suggestions."""
     graph = world_graph(world)

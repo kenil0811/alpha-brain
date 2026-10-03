@@ -19,7 +19,7 @@ from typing import Any
 
 from alpha.connectors.base import skills_text
 from alpha.context import prepack
-from alpha.runtime import claude_cli
+from alpha.runtime import route
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
@@ -195,7 +195,7 @@ def ask(
     *,
     module: str | None = None,
     thread: str | None = None,
-    runner: Runner = claude_cli.run,
+    runner: Runner = route.run,
     rules: str = RULES,
     actor: str = "person",
     model: str | None = None,

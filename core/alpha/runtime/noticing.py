@@ -29,7 +29,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import route, turn
 from alpha.runtime.claude_cli import TurnRequest
 from alpha.runtime.judge import DEFAULT_MODEL
 from alpha.world.world import World
@@ -256,7 +256,7 @@ def apply(world: World, turn_id: str, items: list[dict[str, Any]], *,
     return {"kept": True, "facts": facts, "pages": pages, "entry": jid}
 
 
-def notice(world: World, turn_id: str, *, runner: turn.Runner = claude_cli.run,
+def notice(world: World, turn_id: str, *, runner: turn.Runner = route.run,
            model: str | None = None) -> dict[str, Any]:
     """The pass over one turn: ask the small model, keep what it proposed, leave the trail."""
     if not worth_noticing(world, turn_id):

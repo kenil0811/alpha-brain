@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from alpha.runtime import check, claude_cli, turn
+from alpha.runtime import check, route, turn
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.builds")
@@ -89,7 +89,7 @@ def _report(world: World, plan: dict[str, Any], text: str,
     return out + (f"\n\n{coverage}" if coverage else "")
 
 
-def trial(world: World, plan: dict[str, Any], *, runner: turn.Runner = claude_cli.run
+def trial(world: World, plan: dict[str, Any], *, runner: turn.Runner = route.run
           ) -> dict[str, Any]:
     """Try the plan's trial sentence in the build's thread, as the person would say it, check
     the answer against an independent one, and remove the rows the trial made. Returns the
@@ -158,7 +158,7 @@ def _what_was_done(world: World, thread: str) -> str:
     return f"So far it made {listed}."
 
 
-def run_build(world: World, plan_id: str, *, runner: turn.Runner = claude_cli.run
+def run_build(world: World, plan_id: str, *, runner: turn.Runner = route.run
               ) -> dict[str, Any]:
     """One run of a build. It finishes the plan, stops it, or leaves it building for the next
     run to continue."""

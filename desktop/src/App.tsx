@@ -24,7 +24,7 @@ import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
 import { ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
-import type { ClaudeStatus, ModuleCard } from "./core/client";
+import type { ClaudeStatus, ModuleCard, Thinking } from "./core/client";
 import { Button } from "./ui";
 
 const SURFACE_KEY = "alpha.surface";
@@ -66,6 +66,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
+  const [thinking, setThinking] = useState<Thinking | null>(null);
 
   const setSurface = useCallback((next: Surface) => {
     setSurfaceState(next);
@@ -159,8 +160,16 @@ export function App({ client: injected }: { client?: Client } = {}) {
   // again while the person signs in).
   useEffect(() => {
     if (!client) return;
-    client.claude().then(setClaude).catch(() => undefined);
+    client
+      .thinking()
+      .then((t) => {
+        setThinking(t);
+        setClaude(t.claude);
+      })
+      .catch(() => client.claude().then(setClaude).catch(() => undefined));
   }, [client, versions.all]);
+  const chosen = thinking ? thinking[thinking.route] : claude;
+  const chosenName = thinking?.route === "codex" ? "ChatGPT" : "Claude";
 
   // The host says when it started the core again: look at everything afresh and say so.
   useEffect(() => {
@@ -242,15 +251,15 @@ export function App({ client: injected }: { client?: Client } = {}) {
             Ask Alpha
           </Button>
         ) : null}
-        {runtime.kind === "connected" && claude && !claude.signed_in && surface.kind !== "settings" ? (
+        {runtime.kind === "connected" && chosen && !chosen.signed_in && surface.kind !== "settings" ? (
           <div className="page firstrun">
             <div className="card firstrun__card">
               <div className="firstrun__head">
-                <h2>Connect Claude to start</h2>
-                <span className="muted">Alpha thinks with your Claude account. It takes a minute, once.</span>
+                <h2>Connect {chosenName} to start</h2>
+                <span className="muted">Alpha thinks with your {chosenName} account. It takes a minute, once. Settings has the other way too.</span>
               </div>
               <div className="list">
-                <ClaudeRow client={runtime.client} status={claude} onStatus={setClaude} />
+                <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
               </div>
             </div>
           </div>
@@ -277,7 +286,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} />
         ) : surface.kind === "people" ? (
           <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (
