@@ -43,18 +43,18 @@ export interface ZazooAppearance {
   tie: string;
   /** Shirt color — the collar/cuffs painted layer under the suit. */
   shirt: string;
-  accessory: "tie" | "bowtie" | "scarf" | "none";
-  /** Spectacles are an accessory, not anatomy. */
-  glasses: boolean;
+  /** What it wears, any mix. Spectacles are an accessory, not anatomy. */
+  accessories: Accessory[];
 }
+
+export type Accessory = "tie" | "bowtie" | "scarf" | "spectacles";
 
 export const DEFAULT_APPEARANCE: ZazooAppearance = {
   body: "#FAF1E7",
   suit: "#7E2732",
   tie: "#E8B93C",
   shirt: "#F4EEE2",
-  accessory: "tie",
-  glasses: false,
+  accessories: ["tie"],
 };
 
 /**
@@ -601,7 +601,8 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
     // `painted` is captured by `apply`, so a species swap must restart the loop
   }, [director, painted, animate]);
 
-  const { body, suit, tie, shirt, accessory } = appearance;
+  const { body, suit, tie, shirt, accessories } = appearance;
+  const wears = (a: Accessory) => accessories.includes(a);
   const bodyLight = shade(body, 0.5);
   const bodyDark = shade(body, -0.1);
   const bodyDeep = shade(body, -0.32);
@@ -981,8 +982,8 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
                     href={pandaShirt} x={P.shirt[0]} y={P.shirt[1]} width={P.shirt[2]} height={P.shirt[3]}
                     filter={back ? url("back-tint") : url("shirt-tint")}
                   />
-                  {accessory === "tie" && !back && (
-                    <image href={pandaTie} x={P.tie[0]} y={P.tie[1]} width={P.tie[2]} height={P.tie[3]} filter={url("tie-tint")} />
+                  {wears("tie") && !back && (
+                    <image data-layer="tie" href={pandaTie} x={P.tie[0]} y={P.tie[1]} width={P.tie[2]} height={P.tie[3]} filter={url("tie-tint")} />
                   )}
                   <image href={pandaSuit} x={P.suit[0]} y={P.suit[1]} width={P.suit[2]} height={P.suit[3]} filter={url("suit-tint")} />
                 </g>
@@ -1024,7 +1025,7 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
               ))}
             </g>
             )}
-            {!painted && accessory === "tie" && (
+            {!painted && wears("tie") && (
               <g data-layer="tie">
                 <path d="M 113,172 L 127,172 L 131.5,201 L 120,211 L 108.5,201 Z" fill={tie} stroke={shade(tie, -0.35)} strokeWidth="1" strokeLinejoin="round" />
                 <path d="M 116,177 L 117.5,196" stroke={shade(tie, 0.35)} strokeWidth="1.2" opacity="0.55" strokeLinecap="round" />
@@ -1032,18 +1033,20 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
               </g>
             )}
 
-            {/* bow tie and scarf take the tie colour, so the one swatch dresses all three */}
-            {accessory === "bowtie" && (
-              <g fill={tie} stroke={shade(tie, -0.4)} strokeWidth="0.8" strokeLinejoin="round">
+            {/* bow tie and scarf take the tie colour, so the one swatch dresses all three. Any
+                mix can be worn: the scarf wraps over the tie, and the bow tie sits at the
+                collar on top of both so it never hides under the scarf. */}
+            {wears("scarf") && (
+              <g data-layer="scarf" stroke={shade(tie, -0.4)} strokeWidth="0.8" strokeLinejoin="round">
+                <path d="M 101,161 C 110,171 130,171 139,161 L 137,175 C 127,182 113,182 103,175 Z" fill={tie} />
+                <path d="M 113,175 L 120,175 L 118,199 L 109,197 Z" fill={shade(tie, -0.12)} />
+              </g>
+            )}
+            {wears("bowtie") && (
+              <g data-layer="bowtie" fill={tie} stroke={shade(tie, -0.4)} strokeWidth="0.8" strokeLinejoin="round">
                 <path d="M 119,170 L 106,163 L 106,179 Z" />
                 <path d="M 121,170 L 134,163 L 134,179 Z" />
                 <ellipse cx="120" cy="171" rx="4.2" ry="3.8" fill={shade(tie, -0.15)} />
-              </g>
-            )}
-            {accessory === "scarf" && (
-              <g>
-                <path d="M 101,161 C 110,171 130,171 139,161 L 137,175 C 127,182 113,182 103,175 Z" fill={tie} />
-                <path d="M 113,175 L 120,175 L 118,199 L 109,197 Z" fill={shade(tie, -0.12)} />
               </g>
             )}
 
@@ -1199,8 +1202,8 @@ export function ZazooAvatar({ director, width = 340, appearance = DEFAULT_APPEAR
               ))}
 
               {/* round spectacles — an ACCESSORY (add/remove), never anatomy */}
-              {appearance.glasses && (
-                <g ref={refs.specs}>
+              {wears("spectacles") && (
+                <g ref={refs.specs} data-layer="spectacles">
                   <circle cx={RIG.eye.lx} cy={RIG.eye.y} r="16.5" fill="none" stroke="#6C7382" strokeWidth="2.6" />
                   <circle cx={RIG.eye.rx} cy={RIG.eye.y} r="16.5" fill="none" stroke="#6C7382" strokeWidth="2.6" />
                   <path d={`M ${RIG.eye.lx + 16.5},${RIG.eye.y - 2} Q 120,${RIG.eye.y - 6} ${RIG.eye.rx - 16.5},${RIG.eye.y - 2}`} fill="none" stroke="#6C7382" strokeWidth="2.4" />

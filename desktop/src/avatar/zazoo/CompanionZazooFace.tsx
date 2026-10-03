@@ -82,7 +82,7 @@ export function CompanionZazooFace({
         }}
       >
         <span aria-hidden="true">
-          <ZazooAvatar key={`${look.species} ${look.accessory} ${look.glasses}`} director={director} width={size * FULL_BODY_ASPECT} animate={!still} species={species} appearance={look} />
+          <ZazooAvatar key={`${look.species} ${look.accessories.join(" ")}`} director={director} width={size * FULL_BODY_ASPECT} animate={!still} species={species} appearance={look} />
         </span>
       </div>
     );
@@ -104,7 +104,7 @@ export function CompanionZazooFace({
        *  an empty aria-label is ignored by name computation and ZazooAvatar's own hardcoded
        *  "Zazoo, your companion" svg label leaks into an ancestor button's accessible name. */}
       <div aria-hidden="true" style={{ marginTop: size * HEAD_OFFSET_RATIO }}>
-        <ZazooAvatar key={`${look.species} ${look.accessory} ${look.glasses}`} director={director} width={size * BODY_WIDTH_RATIO} animate={!still} species={species} appearance={look} />
+        <ZazooAvatar key={`${look.species} ${look.accessories.join(" ")}`} director={director} width={size * BODY_WIDTH_RATIO} animate={!still} species={species} appearance={look} />
       </div>
     </div>
   );
