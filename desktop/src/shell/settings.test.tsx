@@ -41,6 +41,19 @@ describe("Settings", () => {
     expect(screen.getByText("Choosing the default model is coming soon.")).toBeInTheDocument();
   });
 
+  it("shows the voice settings under Desktop as coming soon and sends the talk key to Shortcuts", () => {
+    const onSection = vi.fn();
+    render(
+      <ToastProvider>
+        <Settings client={fake()} theme="light" onTheme={() => undefined} claude={null} onClaude={() => undefined} section="desktop" onSection={onSection} />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "On" }));
+    expect(screen.getByText("Speaking replies is coming soon.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change in Shortcuts" }));
+    expect(onSection).toHaveBeenCalledWith("shortcuts");
+  });
+
   it("records a new shortcut, refuses one in use, and resets it", () => {
     localStorage.clear();
     render(<Settings client={fake()} theme="light" onTheme={() => undefined} claude={null} onClaude={() => undefined} section="shortcuts" onSection={() => undefined} />);
