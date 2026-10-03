@@ -215,6 +215,12 @@ threads (a state move, an upsert) is written as in §3.2.
   or a stack trace. Labels are sentence case. (Adopted from pull request #3's UI rules.)
 - Pages have addresses (`shell/address.ts`); a new surface gets one. What is open inside a
   page is not in the address.
+- **The app is WebKit; the browser pane is Chromium.** Anything drawn with SVG and CSS
+  transforms is proven only in the app or in Safari: write the companion's rig to a page with
+  `RIG_PAGE_OUT=/tmp/rig.html pnpm vitest run src/avatar/rig-page.test.tsx` and open it in
+  Safari, or screenshot the running app's companion window. Pivot a moving part inside the SVG
+  (`Pivot` in `avatar/Rig.tsx`), never with `transform-origin`; keep a group that animates
+  separate from one that carries an inline transform (WebKit replaces, it does not compose).
 - Every button has a label; every list that updates has a role; keyboard paths exist for
   what a mouse can do (the review of 3 Oct lists the gaps; new code does not add to them).
 - A failed request shows an error state with a way to retry; a poll stops when its window is
