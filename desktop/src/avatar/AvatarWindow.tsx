@@ -5,7 +5,7 @@
  * needs the full window is handed to the workspace, which comes forward.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Client, Home, JournalEntry } from "../core/client";
+import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
 
@@ -40,18 +40,28 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const [mood, setMood] = useState<Mood>("idle");
   const [bubble, setBubble] = useState<string | null>(null);
   const [home, setHome] = useState<Home | null>(null);
+  const [comp, setComp] = useState<Companion | null>(null);
+  const [routing, setRouting] = useState<{ ask: string; options: string[]; text: string } | null>(null);
+  const [whereNote, setWhereNote] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(() => {
-    client.conversation().then((c) => setTurns(c.turns.slice(-12))).catch(() => undefined);
+    client
+      .companion()
+      .then((c) => {
+        setComp(c);
+        return client.conversation(null, c.focus?.id ?? null);
+      })
+      .then((c) => setTurns(c.turns.slice(-12)))
+      .catch(() => undefined);
     client.home().then(setHome).catch(() => undefined);
   }, [client]);
   useEffect(() => {
     refresh();
-    const timer = setInterval(refresh, 30_000);
+    const timer = setInterval(refresh, 10_000);
     return () => clearInterval(timer);
   }, [refresh]);
   useEffect(() => {
@@ -74,6 +84,22 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     }, 12_000);
   }, []);
 
+  /** Follow a routed turn to its answer; a routing question comes back as choices. */
+  const finish = useCallback(
+    async (started: Turn, before: string | null) => {
+      if (started.state === "asked" && started.ask) {
+        setRouting({ ask: started.ask, options: started.options ?? [], text: started.text });
+        setMood("idle");
+        return;
+      }
+      const turn = await client.waitTurn(started);
+      const went = turn.conversation;
+      const moved = went && went.id !== before ? `In ${went.scope}: ` : "";
+      setWhereNote(went ? `${went.scope}: ${went.title}` : null);
+      say(`${moved}${turn.reply ?? ""}`, turn.state === "done" ? "talking" : "sorry");
+    },
+    [client, say],
+  );
   const send = useCallback(
     async (sentence: string) => {
       const clean = sentence.trim();
@@ -81,9 +107,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       setBusy(true);
       setMood("thinking");
       setText("");
+      setRouting(null);
       try {
-        const turn = await client.askAndWait(clean);
-        say(turn.reply ?? "", turn.state === "done" ? "talking" : "sorry");
+        // No conversation named: the core routes it (structure first, the judge when there
+        // is a real choice, a question when unsure).
+        await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
         say(e instanceof Error ? e.message : String(e), "sorry");
       } finally {
@@ -91,7 +119,24 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         refresh();
       }
     },
-    [busy, client, say, refresh],
+    [busy, client, say, refresh, finish, comp?.focus?.id],
+  );
+  const choose = useCallback(
+    async (askId: string, option: string) => {
+      setBusy(true);
+      setMood("thinking");
+      try {
+        const out = await client.answerAsk(askId, option);
+        setRouting(null);
+        if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
+      } catch (e) {
+        say(e instanceof Error ? e.message : String(e), "sorry");
+      } finally {
+        setBusy(false);
+        refresh();
+      }
+    },
+    [client, finish, say, refresh, comp?.focus?.id],
   );
 
   const speech = useSpeech((final, interim) => {
@@ -103,7 +148,10 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
 
   const needs = home?.needs_you ?? [];
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
-  const label = { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: "Here" }[state];
+  const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
+  const label = { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const openAsk = needs.find((n) => n.kind === "ask");
+  const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
   const mode: AvatarMode = expanded ? "open" : shownBubble ? "bubble" : "idle";
   useEffect(() => {
@@ -141,7 +189,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <span className="faint" data-tauri-drag-region>
               {label}
             </span>
-            <button type="button" className="iconbtn iconbtn--sm" aria-label="Open the workspace" title="Open the workspace" onClick={() => handOff({ panel: true }, host)}>
+            <button type="button" className="iconbtn iconbtn--sm" aria-label="Open the workspace" title="Open this conversation in the workspace" onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)}>
               ⤢
             </button>
             <button type="button" className="iconbtn iconbtn--sm" aria-label="Close" onClick={() => toggle()}>
@@ -155,6 +203,42 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                 {t.text}
               </div>
             ))}
+            {routing ? (
+              <div className="avatar__pills" role="group" aria-label="Which conversation">
+                <p className="panel__hint">Which is this about?</p>
+                {routing.options.map((o) => (
+                  <button key={o} type="button" className="btn btn--sm askcard__opt" disabled={busy} onClick={() => void choose(routing.ask, o)}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {!busy && !routing && openAsk ? (
+              <div className="avatar__pills" role="group" aria-label="Alpha asks">
+                <p className="panel__hint">{openAsk.text}</p>
+                {(openAsk.options ?? []).map((o) => (
+                  <button key={o} type="button" className="btn btn--sm askcard__opt" onClick={() => void choose(openAsk.id, o)}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {!busy && openAction?.action ? (
+              <div className="avatar__pills" role="group" aria-label="Alpha proposes">
+                <p className="panel__hint">
+                  {openAction.action.effect === "send" ? "Send" : "Make"}: {openAction.action.title}
+                </p>
+                <button type="button" className="btn btn--sm btn--primary" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "talking"); refresh(); })}>
+                  {openAction.action.effect === "send" ? "Send it" : "Do it"}
+                </button>
+                <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.declineAction(openAction.action!.id).then(refresh)}>
+                  Not now
+                </button>
+                <button type="button" className="btn btn--sm" onClick={() => handOff({ panel: true, surface: { kind: "home" } }, host)}>
+                  See it
+                </button>
+              </div>
+            ) : null}
             {busy ? (
               <p className="panel__hint" role="status">
                 Working on it…

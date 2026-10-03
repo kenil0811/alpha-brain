@@ -49,6 +49,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
+  const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
 
@@ -124,9 +125,10 @@ export function App({ client: injected }: { client?: Client } = {}) {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== HANDOFF_KEY || !event.newValue) return;
       try {
-        const handoff = JSON.parse(event.newValue) as { surface?: Surface; panel?: boolean };
+        const handoff = JSON.parse(event.newValue) as { surface?: Surface; panel?: boolean; conversation?: string };
         if (handoff.surface) setSurface(knownSurface(handoff.surface));
         if (handoff.panel) setPanelOpen(true);
+        if (handoff.conversation) setFocusConversation({ id: handoff.conversation, at: Date.now() });
         changed();
       } catch {
         /* not a handoff */
@@ -206,7 +208,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         )}
       </main>
       {client ? (
-        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} />
+        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} />
       ) : null}
     </div>
   );

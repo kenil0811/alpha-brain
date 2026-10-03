@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -10,7 +12,7 @@ from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
 
-def settle(c: TestClient, turn: dict) -> dict:
+def settle(c: TestClient, turn: dict[str, Any]) -> dict[str, Any]:
     """A turn runs in a thread; wait for it the way the app does."""
     import time
 
@@ -25,7 +27,7 @@ def settle(c: TestClient, turn: dict) -> dict:
 def chat(world: World, title: str, module: str | None = None, *, said: str | None = None,
          asked: str | None = None) -> str:
     module_id = world.modules.get(module)["id"] if module else None
-    cid = world.modules.open_thread(title, "chat", module_id)["id"]
+    cid = str(world.modules.open_thread(title, "chat", module_id)["id"])
     if said:
         s = world.journal.append("said", said, actor="person", thread=cid, module=module_id)
         world.journal.append("replied", "Sure.", data={"turn": s}, thread=cid, module=module_id)

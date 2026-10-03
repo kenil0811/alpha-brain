@@ -184,10 +184,12 @@ def route(world: World, sentence: str, *, runner: Any = None,
     if verdict.answer == NEW and verdict.confidence >= CONFIDENT:
         new = open_conversation(world, sentence, None)
         set_focus(world, new["id"])
+        _note(world, sentence, new["id"], "a new conversation", verdict)
         return {"conversation": new["id"], "by": "judge: new", "confidence": verdict.confidence}
     if verdict.answer in labels and verdict.confidence >= CONFIDENT:
         cid = labels[verdict.answer]
         set_focus(world, cid)
+        _note(world, sentence, cid, verdict.answer, verdict)
         return {"conversation": cid, "by": f"judge: {verdict.why}",
                 "confidence": verdict.confidence}
     if not ask_when_unsure:
@@ -200,6 +202,15 @@ def route(world: World, sentence: str, *, runner: Any = None,
         "asked", f"Which is this about? \"{sentence[:120]}\"",
         data={"options": options, "routing": {"text": sentence, "choices": {**labels, NEW: ""}}})
     return {"ask": jid, "options": options, "confidence": verdict.confidence}
+
+
+def _note(world: World, sentence: str, cid: str, label: str, verdict: judge.Verdict) -> None:
+    """The judge's routing, journaled: where a sentence went and why, so a wrong one is
+    traceable and the companion can say where it went."""
+    world.journal.append(
+        "did", f"Took \"{sentence[:80]}\" to {label} ({verdict.confidence:.0%}: {verdict.why}).",
+        actor="alpha", data={"routed": cid, "confidence": verdict.confidence, "why": verdict.why},
+        thread=cid)
 
 
 def routed_answer(world: World, ask: dict[str, Any], answer: str) -> dict[str, Any] | None:

@@ -191,6 +191,15 @@ Risks accepted: routing errors (ask when ambiguous, one tap to move); a one-turn
 conversations (noticing after every turn); contention on one sign-in must be shown as waiting;
 Claude Code's session files live under the home folder, outside Alpha's data directory.
 
+*As built (3 Oct, morning):* points 5, 6 and 8 are built (build-plan §4.21): conversations as
+chat threads with resumed sessions and a world delta, the strip and Done in the panel, the
+companion's focus with rule-then-judge routing and choice pills, the System One seam with
+routing as its first use, idle closing on the scheduler. Routing never matches names: structure
+(an answer to the one open question; a single live conversation) or the judge from the real
+state. A resumed turn answered in 6 s where a fresh one took 18 s. Points 2, 3, 4 and 7 (the
+wiki, noticing, context by relevance, skills) and the memory journeys' time-scoped retrieval are
+next. Memory journeys baseline: 5 of 6.
+
 ### 3.4 Size and locality
 
 Tens of thousands of journal rows and records are small for SQLite and FTS5 (milliseconds at millions of rows). One database per person, on the device; encryption at rest later.
