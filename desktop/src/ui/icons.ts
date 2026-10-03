@@ -7,6 +7,7 @@ export {
   Clock as ActivityIcon,
   Users as PeopleIcon,
   Table2 as ModuleIcon,
+  Table2,
   Sparkles as IntelligenceIcon,
   Settings as SettingsIcon,
   Plus as PlusIcon,
@@ -31,5 +32,9 @@ export {
   FolderOpen,
   Calendar,
   Globe,
+  Layers,
+  Zap,
+  Play,
+  Link2,
   File,
 } from "lucide-react";

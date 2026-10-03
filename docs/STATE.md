@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, night.** Last entries: the companion's sizes, drag and moods
+**As of 3 October 2026, night.** Last entries: the map of Alpha's work
+([`log/2026-10-03-work-map.md`](log/2026-10-03-work-map.md)), the companion's sizes, drag and moods
 ([`log/2026-10-03-companion-moods.md`](log/2026-10-03-companion-moods.md)), relations followed and the form view
 ([`log/2026-10-03-table-views-2.md`](log/2026-10-03-table-views-2.md)), the companion's characters
 ([`log/2026-10-03-companion-characters.md`](log/2026-10-03-companion-characters.md)), quick entry on a table
@@ -40,7 +41,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
-| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view. **Left:** a graph (proposed; Kenil's choice). |
+| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map of Alpha's work (Intelligence › Map, Q29). **Left:** the graph of the world (option B), after people-for-real. |
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
 
@@ -64,12 +65,12 @@ copy of Kenil's world (see the numbers).
 
 ## Pending, in order
 
-**The port of pull request #3's ideas (Q27–Q28), all built but the graph:** ~~foundations~~ → ~~the table
+**The port of pull request #3's ideas (Q27–Q29), all built:** ~~foundations~~ → ~~the table
 views~~ (stage three, relations followed and the form view, 3 Oct evening) → ~~⌘K~~ → ~~item pages, fact origins,
 the module's page~~ → ~~the desktop check and the UI rules~~ → ~~quick entry on a table~~ → ~~the
-companion's characters~~ → a graph: proposed in
-[`design/knowledge-graph-proposal.md`](design/knowledge-graph-proposal.md) (a map of Alpha's work
-now, the graph of the world after people-for-real), waiting on Kenil's choice.
+companion's characters~~ → ~~a graph~~: Kenil chose option C of
+[`design/knowledge-graph-proposal.md`](design/knowledge-graph-proposal.md), built as the map of Alpha's
+work (Q29); the graph of the world (B) joins pending item 6, people for real.
 
 1. ~~The docs' shape~~ — done 3 Oct.
 2. ~~Harden the model boundary and the store~~ — done 3 Oct. Left from the review: a schema

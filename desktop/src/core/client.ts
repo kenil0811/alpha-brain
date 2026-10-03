@@ -29,6 +29,39 @@ export interface TableDesc {
   created_at?: string;
 }
 
+/** The map of Alpha's own work (`/api/graph`): what Intelligence lists, as nodes, and how
+ * each feeds the other, as edges with their source in the world. */
+export interface GraphNode {
+  id: string;
+  kind: "module" | "table" | "skill" | "automation" | "source" | "connection";
+  title: string;
+  subtitle?: string;
+  /** A skill's role: read, act or run. */
+  role?: "read" | "act" | "run";
+  /** ok, broken, untried (skills); on, off, problem (automations); a source's status; a connection's. */
+  state?: string;
+  detail?: string;
+  module?: string | null;
+  name?: string;
+  description?: string;
+  rows?: number;
+  runs?: number;
+  failed?: number;
+}
+export interface GraphEdge {
+  from: string;
+  to: string;
+  kind: "in" | "runs" | "reads into" | "tells" | "read by" | "signed in at" | "feeds";
+  order?: number;
+  count?: number;
+  source?: string;
+}
+export interface WorkGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  at: string;
+}
+
 /** For each relation field into another table, the titles of the records the rows point at, by id. */
 export type Relations = Record<string, Record<string, string>>;
 
@@ -559,6 +592,7 @@ export class Client {
   merge = (keep: string, other: string) => this.call<Entity>("POST", `/api/entities/${keep}/merge/${other}`);
 
   intelligence = () => this.call<Intelligence>("GET", "/api/intelligence");
+  graph = () => this.call<WorkGraph>("GET", "/api/graph?kind=work");
   writeNote = (scope: string, title: string, body: string, summary?: string) => this.call<Note>("POST", "/api/notes", { scope, title, body, summary });
   connectFolder = (path: string) => this.call<Connection>("POST", "/api/connections/folder", { path });
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });

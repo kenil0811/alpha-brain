@@ -27,6 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+from alpha.api.graph import work_graph
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
@@ -1136,6 +1137,14 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                                   for t in thread_views(world)],
                 "needs_you": needs_you(world),
                 "look": world.preferences.get("companion_look")}
+
+    @app.get("/api/graph", dependencies=[api])
+    def graph(kind: str = "work") -> dict[str, Any]:
+        """The map of Alpha's own work: nodes and edges computed from the world (api/graph.py).
+        `kind=world` (people, documents, pages) waits for people-for-real."""
+        if kind != "work":
+            raise Problem("Only the map of work exists yet; ask for kind=work.")
+        return work_graph(world, automation_views(world, scheduler))
 
     @app.get("/api/preferences/{key}", dependencies=[api])
     def preference(key: str) -> dict[str, Any]:

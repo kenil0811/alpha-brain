@@ -3,6 +3,7 @@
  * (connections) and knows (knowledge: facts, notes, goals). Each is a sentence the person can
  * read, switch or correct, never a configuration form.
  */
+import { WorkMap } from "./map/WorkMap";
 import { type FormEvent, useEffect, useState } from "react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
@@ -11,8 +12,9 @@ import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
 import { Button, Badge, Tabs } from "../ui";
 
-export type IntelTab = "skills" | "automations" | "connections" | "knowledge";
+export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
+  { id: "map", label: "Map" },
   { id: "skills", label: "Skills" },
   { id: "automations", label: "Automations" },
   { id: "connections", label: "Connections" },
@@ -339,6 +341,8 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
       <Tabs label="Intelligence" value={tab} onChange={onTab} items={TABS} style={{ marginTop: 16 }} />
       {!data ? (
         error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
+      ) : tab === "map" ? (
+        <WorkMap client={client} version={version} onGo={onGo} />
       ) : tab === "skills" ? (
         <div className="intel">
           {data.skills.length ? (

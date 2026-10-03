@@ -1,5 +1,8 @@
 # A graph of the person's world: proposal (3 October 2026, for Kenil to decide)
 
+**Decided, 3 Oct 2026 (night): option C**, the map of Alpha's work, built as Intelligence › Map
+(`log/2026-10-03-work-map.md`); option B waits for people-for-real. The proposal stays as written.
+
 Idea 19 of the pull request #3 port was a knowledge graph. Kenil: "I would want a graph,
 that's cool, but we do need to think on how to best do it, in a good and meaningful way." This
 is that thinking, short, with what the world holds today measured first.
