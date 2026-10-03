@@ -115,8 +115,13 @@ class Entities:
         if not name:
             raise Problem("An entity needs a name.")
         clean = self._clean_keys(keys)
-        hit = self._by_keys(clean) if clean else None
         stamp = now()
+        with self.store.tx() as db:  # the lookup and the write under one lock: no duplicates
+            return self._resolve(db, kind, name, clean, source, stamp)
+
+    def _resolve(self, db: sqlite3.Connection, kind: str, name: str,
+                 clean: dict[str, list[str]], source: str | None, stamp: str) -> dict[str, Any]:
+        hit = self._by_keys(clean) if clean else None
         if hit:
             current = self.get(hit)
             merged_keys: dict[str, list[str]] = current["keys"]
@@ -125,22 +130,20 @@ class Entities:
             aliases = current["aliases"]
             if name != current["name"] and name not in aliases:
                 aliases.append(name)
-            with self.store.tx() as db:
-                db.execute(
-                    "UPDATE entities SET keys = ?, aliases = ?, updated_at = ? WHERE id = ?",
-                    (dumps(merged_keys), dumps(aliases), stamp, hit),
-                )
-                self._index(db, hit, clean)
+            db.execute(
+                "UPDATE entities SET keys = ?, aliases = ?, updated_at = ? WHERE id = ?",
+                (dumps(merged_keys), dumps(aliases), stamp, hit),
+            )
+            self._index(db, hit, clean)
             return {"entity": self.get(hit), "created": False, "maybe": []}
         maybe = [e for e in self.find(name=name, kind=kind) if e["name"].lower() == name.lower()]
         eid = new_id("e")
-        with self.store.tx() as db:
-            db.execute(
-                "INSERT INTO entities (id, kind, canonical, keys, source, created_at,"
-                " updated_at) VALUES (?,?,?,?,?,?,?)",
-                (eid, kind, name, dumps(clean), source, stamp, stamp),
-            )
-            self._index(db, eid, clean)
+        db.execute(
+            "INSERT INTO entities (id, kind, canonical, keys, source, created_at,"
+            " updated_at) VALUES (?,?,?,?,?,?,?)",
+            (eid, kind, name, dumps(clean), source, stamp, stamp),
+        )
+        self._index(db, eid, clean)
         return {"entity": self.get(eid), "created": True, "maybe": maybe}
 
     @staticmethod

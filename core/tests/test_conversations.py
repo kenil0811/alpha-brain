@@ -17,7 +17,7 @@ def settle(c: TestClient, turn: dict[str, Any]) -> dict[str, Any]:
     import time
 
     for _ in range(200):
-        if turn.get("state") != "running":
+        if turn.get("state") not in ("running", "routing"):
             return turn
         time.sleep(0.02)
         turn = c.get(f"/api/turns/{turn['id']}").json()
@@ -103,7 +103,9 @@ def test_a_conversation_keeps_its_session_while_live_and_drops_it_when_closed(
         return RunResult(ok=True, reply="ok", session_id=f"s{len(requests)}")
 
     c = TestClient(create_app(world, live=False, runner=runner))
-    first = settle(c, c.post("/api/ask", json={"text": "list the top deals"}).json())
+    started = c.post("/api/ask", json={"text": "list the top deals"}).json()
+    assert started["state"] == "routing" and started["conversation"] is None  # at once
+    first = settle(c, started)
     cid = first["conversation"]["id"]
     assert first["conversation"]["scope"] == "General" and requests[0].persist
     assert requests[0].resume is None

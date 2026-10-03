@@ -414,39 +414,44 @@ class Collections:
         fields = {f["name"] for f in schema["fields"]}
         if key not in fields:
             raise Problem(f"'{name}' has no field '{key}' to match records on.")
-        existing: dict[str, sqlite3.Row] = {}
-        for row in self.store.all(
-            'SELECT * FROM records WHERE collection = ? AND deleted_at IS NULL', (name,)
-        ):
-            value = loads(row["values"], {}).get(key)
-            if value is not None:
-                existing[str(value)] = row
         counts = {"added": 0, "updated": 0, "unchanged": 0, "skipped": 0, "invalid": 0}
         touched: list[str] = []
         seen_ids: list[str] = []
         seen: set[str] = set()
         stamp = now()
         problems: list[str] = []
-        for raw in rows:
-            match = raw.get(key)
-            if match in (None, "") or str(match) in seen:
-                counts["skipped"] += 1
-                continue
-            seen.add(str(match))
-            prior = existing.get(str(match))
-            # One bad row never sinks the batch: it is set aside and reported.
-            try:
-                clean = self._validate(name, raw, partial=prior is not None)
-            except Problem as e:
-                counts["invalid"] += 1
-                if len(problems) < 5:
-                    problems.append(f"{match}: {e}")
-                if prior is not None:
-                    seen_ids.append(prior["id"])  # still there on the page, just not saved
-                continue
-            if prior is None:
-                rid = new_id("r")
-                with self.store.tx() as db:
+        to_link: list[tuple[str, dict[str, Any]]] = []
+        # One transaction for the whole batch, and the existing keys are read inside it: the
+        # write lock is held from that read to the last write, so two runs saving the same
+        # list at once (a build and an automation) cannot both add a row for one key, and a
+        # crash leaves the table as it was (found by the 3 Oct review).
+        with self.store.tx() as db:
+            existing: dict[str, sqlite3.Row] = {}
+            for row in db.execute(
+                'SELECT * FROM records WHERE collection = ? AND deleted_at IS NULL', (name,)
+            ).fetchall():
+                value = loads(row["values"], {}).get(key)
+                if value is not None:
+                    existing[str(value)] = row
+            for raw in rows:
+                match = raw.get(key)
+                if match in (None, "") or str(match) in seen:
+                    counts["skipped"] += 1
+                    continue
+                seen.add(str(match))
+                prior = existing.get(str(match))
+                # One bad row never sinks the batch: it is set aside and reported.
+                try:
+                    clean = self._validate(name, raw, partial=prior is not None)
+                except Problem as e:
+                    counts["invalid"] += 1
+                    if len(problems) < 5:
+                        problems.append(f"{match}: {e}")
+                    if prior is not None:
+                        seen_ids.append(prior["id"])  # still there on the page, just not saved
+                    continue
+                if prior is None:
+                    rid = new_id("r")
                     db.execute(
                         'INSERT INTO records (collection, id, revision, "values", provenance,'
                         " created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
@@ -456,24 +461,23 @@ class Collections:
                         "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                         (name, rid, _search_text(clean)),
                     )
-                counts["added"] += 1
-                touched.append(rid)
-                seen_ids.append(rid)
-                self._link(name, rid, clean, identity)
-                continue
-            current = loads(prior["values"], {})
-            merged = dict(current)
-            for k, v in clean.items():
-                if fill_only and k in fill_only and current.get(k) not in (None, "", []):
+                    counts["added"] += 1
+                    touched.append(rid)
+                    seen_ids.append(rid)
+                    to_link.append((rid, clean))
                     continue
-                merged[k] = v
-            seen_ids.append(prior["id"])
-            if merged == current:
-                counts["unchanged"] += 1
-                if identity and not prior["entity_id"]:
-                    self._link(name, prior["id"], current, identity)
-                continue
-            with self.store.tx() as db:
+                current = loads(prior["values"], {})
+                merged = dict(current)
+                for k, v in clean.items():
+                    if fill_only and k in fill_only and current.get(k) not in (None, "", []):
+                        continue
+                    merged[k] = v
+                seen_ids.append(prior["id"])
+                if merged == current:
+                    counts["unchanged"] += 1
+                    if identity and not prior["entity_id"]:
+                        to_link.append((prior["id"], current))
+                    continue
                 self._keep(db, name, prior["id"])
                 db.execute(
                     'UPDATE records SET "values" = ?, revision = revision + 1, provenance = ?,'
@@ -488,10 +492,12 @@ class Collections:
                     "INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
                     (name, prior["id"], _search_text(merged)),
                 )
-            counts["updated"] += 1
-            touched.append(prior["id"])
-            if identity:
-                self._link(name, prior["id"], merged, identity)
+                counts["updated"] += 1
+                touched.append(prior["id"])
+                to_link.append((prior["id"], merged))
+        if identity:
+            for rid, values in to_link:
+                self._link(name, rid, values, identity)
         if seen_by:
             counts["gone"] = self._seen(name, seen_by, seen_ids, stamp, mark_gone=mark_gone)
         return {**counts, "ids": touched, "problems": problems}

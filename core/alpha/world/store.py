@@ -422,6 +422,13 @@ class Store:
                     db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
             db.execute("CREATE INDEX IF NOT EXISTS records_entity ON records(entity_id)")
             db.execute("CREATE INDEX IF NOT EXISTS records_reader ON records(collection, reader)")
+            # The journal's hot paths (3 Oct review): entries by kind in time, the reply of a
+            # turn, the answer to a question. Expression indexes match the queries' own text.
+            db.execute("CREATE INDEX IF NOT EXISTS journal_kind ON journal(kind, at)")
+            db.execute("CREATE INDEX IF NOT EXISTS journal_turn ON journal("
+                       "json_extract(data, '$.turn'))")
+            db.execute("CREATE INDEX IF NOT EXISTS journal_ask ON journal("
+                       "json_extract(data, '$.ask'))")
             # Rows a reader wrote before rows knew their reader.
             db.execute("UPDATE records SET reader = json_extract(provenance, '$.reader')"
                        " WHERE reader IS NULL AND json_extract(provenance, '$.reader') IS NOT NULL")

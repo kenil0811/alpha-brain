@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import getpass
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -20,6 +21,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -33,7 +35,16 @@ DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task
 
 SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
 OUT_OF_STEPS = "It reached the most steps Claude Code takes in one run."
+log = logging.getLogger(__name__)
+
 STOPPED = "You stopped it."
+# A run that has said nothing for this long is not slow, it is dead: no stream event (a thought,
+# a tool call, a result) in ten minutes means the CLI or the model hung, and a hung run can hold
+# a thread, a browser profile or the scheduler for ever. This is a judgement of silence, not a
+# limit on how long work may take (Q18): a run that keeps working is never cut.
+SILENCE_S = 600
+STALLED = "No answer came back: the model's run went silent and was ended."
+NO_ANSWER = "No answer came back from the model."
 
 
 class Live:
@@ -156,6 +167,8 @@ def tools_allowed(req: TurnRequest) -> list[str]:
 
 
 def mcp_config(req: TurnRequest) -> dict[str, Any]:
+    if req.kind != "turn":
+        return {"mcpServers": {}}
     env = {
         "ALPHA_WORLD": str(req.world_path),
         "ALPHA_TURN": req.turn_id,
@@ -182,9 +195,9 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--append-system-prompt",
         req.system,
     ]
-    if req.kind == "turn":
-        # Alpha's world as an MCP server; an independent or judging run never sees it.
-        args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
+    # Alpha's world as an MCP server for a turn; an independent or judging run gets an empty
+    # config. Strict either way: nothing from the person's own MCP configuration loads.
+    args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
     if allowed:
         args += ["--allowedTools", *allowed]
     args += [
@@ -219,7 +232,10 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     # Alpha's tools are the whole point of a run: put every schema in context up front rather
     # than behind Claude Code's tool search, which cost a "find the tool" step on every turn.
     env.setdefault("ENABLE_TOOL_SEARCH", "false")
-    keys = [k for k in (req.turn_id, req.thread_id) if k]
+    if req.kind == "turn":
+        keys = [k for k in (req.turn_id, req.thread_id) if k]
+    else:
+        keys = [f"{req.kind}:{req.turn_id}:{uuid.uuid4().hex[:8]}"]
     with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
         config_path = Path(tmp) / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(req)))
@@ -243,9 +259,25 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
         reader.start()
         final: dict[str, Any] = {}
         tail: list[str] = []
+        last_seen = [time.monotonic()]
+        done = threading.Event()
+        stalled = threading.Event()
+
+        def watch_silence() -> None:
+            while not done.wait(min(15.0, SILENCE_S / 4)):
+                if time.monotonic() - last_seen[0] > SILENCE_S:
+                    stalled.set()
+                    try:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
+                    return
+
+        threading.Thread(target=watch_silence, daemon=True, name="run-silence").start()
         try:
             assert proc.stdout is not None
             for line in proc.stdout:
+                last_seen[0] = time.monotonic()
                 tail = (tail + [line])[-3:]
                 event = _event(line)
                 if event is None:
@@ -256,10 +288,14 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                     _watch(keys, event)
             proc.wait()
         finally:
+            done.set()
             stopped = LIVE.remove(keys, proc)
         reader.join(timeout=2)
     if stopped:
         return RunResult(reply="", ok=False, error=STOPPED, stopped=True)
+    if stalled.is_set() and not final:
+        log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
+        return RunResult(reply="", ok=False, error=STALLED)
     return parse_result(final, "".join(errors) or "".join(tail), proc.returncode)
 
 
@@ -340,7 +376,9 @@ def parse(stdout: str, stderr: str, code: int) -> RunResult:
 def parse_result(data: dict[str, Any], stderr: str, code: int) -> RunResult:
     if not data:
         tail = (stderr or "").strip()[-400:] or f"exit code {code}"
-        return RunResult(reply="", ok=False, error=f"No answer from the model: {tail}")
+        log.warning("no result from the model run (exit %s): %s", code, tail)
+        signed_out = "not logged in" in tail.lower()
+        return RunResult(reply="", ok=False, error=SIGNED_OUT if signed_out else NO_ANSWER)
     is_error = bool(data.get("is_error")) or data.get("subtype") not in (None, "success")
     reply = str(data.get("result") or "")
     if is_error and "not logged in" in reply.lower():

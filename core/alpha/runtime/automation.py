@@ -121,6 +121,11 @@ def run(world: World, automation_id: str, *,
                                       error=outcome.result.error or outcome.reply)
 
 
+def backoff_s(crashes: int) -> float:
+    """How long a build waits after its n-th crash in a row: 30 s, 60, 120, … up to 10 min."""
+    return float(min(30 * 2 ** (crashes - 1), 600))
+
+
 class Scheduler:
     """Runs due automations while the core is up, each in its own thread, once the Mac is
     properly awake; `run_now` runs one at once in the background."""
@@ -132,6 +137,7 @@ class Scheduler:
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()
+        self.crashes: dict[str, int] = {}  # a building plan's crashed runs in a row
         self.stop_event = threading.Event()
         self.clock = clock
         self._last_tick: float | None = None
@@ -147,12 +153,13 @@ class Scheduler:
         wall-clock time; a tick far later than the last means the Mac slept in between (a
         quarter-hour maintenance wake lasts seconds, so ticks there always follow a gap). After
         a gap, runs wait until a minute has passed without another."""
-        now = self.clock()
-        if self._last_tick is not None and now - self._last_tick > SLEPT_GAP_S:
-            self._awake_since = now
-            self._slept = True
-        self._last_tick = now
-        return not self._slept or now - self._awake_since >= SETTLED_S
+        with self.lock:
+            now = self.clock()
+            if self._last_tick is not None and now - self._last_tick > SLEPT_GAP_S:
+                self._awake_since = now
+                self._slept = True
+            self._last_tick = now
+            return not self._slept or now - self._awake_since >= SETTLED_S
 
     def _hold(self) -> None:
         """While anything runs, the Mac is kept from dozing off (macOS only)."""
@@ -222,17 +229,29 @@ class Scheduler:
 
     def _build(self, pid: str) -> None:
         self._hold()
+        crashed = False
         try:
             build.run_build(self.world, pid, runner=self.runner)
         except Exception:
+            crashed = True
             log.exception("build run failed")
         finally:
             self._release()
             with self.lock:
                 self.building.discard(pid)
+        if self.world.plans.get(pid)["state"] != "building" or self.stop_event.is_set():
+            self.crashes.pop(pid, None)
+            return
         # A run that ended before its work did leaves the plan building: carry on at once.
-        if self.world.plans.get(pid)["state"] == "building" and not self.stop_event.is_set():
-            self.builds()
+        # A run that crashed waits, longer each time, so a broken build never spins (3 Oct).
+        if crashed:
+            n = self.crashes.get(pid, 0) + 1
+            self.crashes[pid] = n
+            if self.stop_event.wait(backoff_s(n)):
+                return
+        else:
+            self.crashes.pop(pid, None)
+        self.builds()
 
     def acts(self) -> None:
         """Perform every action the person approved that hasn't run (the app was closed in

@@ -420,7 +420,8 @@ export interface Ask {
 
 export interface Turn {
   id: string | null;
-  state: "running" | "done" | "failed" | "asked";
+  /** "routing": the companion's sentence is being placed in a conversation (a judge may run). */
+  state: "routing" | "running" | "done" | "failed" | "asked";
   text: string;
   conversation?: Convo | null;
   /** When the sentence had to be routed and Alpha wasn't sure: the question to answer. */
@@ -571,7 +572,7 @@ export class Client {
   /** Follow a started turn to its end (a routing question comes back as is). */
   async waitTurn(turn: Turn, onTick?: (t: Turn) => void): Promise<Turn> {
     let current = turn;
-    while (current.state === "running" && current.id) {
+    while ((current.state === "running" || current.state === "routing") && current.id) {
       await new Promise((r) => setTimeout(r, 1000));
       current = await this.turn(current.id);
       onTick?.(current);

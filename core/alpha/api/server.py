@@ -125,6 +125,7 @@ class Turns:
         # with no conversation goes to the scope's live conversation (the panel on a page) or
         # is routed (the companion), which may come back as a question instead of a turn.
         conversation: str | None = None
+        routing = False
         if body.conversation:
             conversation = self.world.modules.thread(body.conversation)["id"]
         elif body.thread:
@@ -133,16 +134,14 @@ class Turns:
         elif actor == "person" and body.module:
             conversation = conversations.ensure(self.world, body.text, body.module)["id"]
         elif actor == "person":
-            routed = conversations.route(self.world, body.text,
-                                         runner=self.runner if self.runner else None)
-            if "ask" in routed:
-                return {"id": None, "state": "asked", "ask": routed["ask"],
-                        "options": routed["options"], "text": body.text}
-            conversation = routed["conversation"]
-        thread = conversation or body.thread
+            # The companion's sentence: routed in the worker (the judge is a model run, and a
+            # request never waits on one), so the turn comes back at once as "routing".
+            routing = True
         key = secrets.token_hex(6)
+        self._evict()
         with self.lock:
-            self.state[key] = {"id": key, "state": "running", "text": body.text,
+            self.state[key] = {"id": key, "state": "routing" if routing else "running",
+                               "text": body.text,
                                "started_at": datetime.now(UTC).isoformat(),
                                "conversation": conversation_view(self.world, conversation)
                                if conversation else None}
@@ -152,7 +151,22 @@ class Turns:
                 with self.lock:
                     self.state[key]["said"] = jid
 
+            nonlocal conversation
             try:
+                if routing:
+                    routed = conversations.route(self.world, body.text,
+                                                 runner=self.runner if self.runner else None)
+                    if "ask" in routed:
+                        with self.lock:
+                            self.state[key].update({"state": "asked", "ask": routed["ask"],
+                                                    "options": routed["options"]})
+                        return
+                    conversation = routed["conversation"]
+                    with self.lock:
+                        self.state[key].update({
+                            "state": "running",
+                            "conversation": conversation_view(self.world, conversation)})
+                thread = conversation or body.thread
                 kwargs: dict[str, Any] = {"module": body.module, "thread": thread,
                                           "on_said": said, "actor": actor,
                                           "journal_as": journal_as,
@@ -167,9 +181,10 @@ class Turns:
                           "duration_ms": out.result.duration_ms}
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
-            except Exception as e:
+            except Exception:
                 log.exception("turn failed")
-                result = {"state": "failed", "reply": f"Alpha hit an internal problem: {e}"}
+                result = {"state": "failed", "reply": "Alpha hit a problem it couldn't recover"
+                          " from; the details are in its log."}
             with self.lock:
                 self.state[key].update(result)
             if conversation:
@@ -182,7 +197,10 @@ class Turns:
                     log.exception("conversation state")
             if self.after is not None:
                 # A plan approved in this turn starts building now, not at the next tick.
-                self.after()
+                try:
+                    self.after()
+                except Exception:
+                    log.exception("after the turn")
             said_id = result.get("said")
             if self.checks and result["state"] == "done" and said_id:
                 self.check(str(said_id))
@@ -191,6 +209,15 @@ class Turns:
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def _evict(self, keep_s: int = 3600) -> None:
+        """Finished turns older than an hour leave the table; it never grows without end."""
+        cutoff = (datetime.now(UTC) - timedelta(seconds=keep_s)).isoformat()
+        with self.lock:
+            gone = [k for k, v in self.state.items()
+                    if v["state"] in ("done", "failed", "asked") and v["started_at"] < cutoff]
+            for k in gone:
+                del self.state[k]
 
     def notice(self, said: str) -> None:
         """After a person's turn: what was said worth keeping, beside the verbatim (§3.7)."""
@@ -239,7 +266,8 @@ class Turns:
 
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
-            return [dict(v) for v in self.state.values() if v["state"] == "running"]
+            return [dict(v) for v in self.state.values()
+                    if v["state"] in ("running", "routing")]
 
     def stop(self, key: str) -> dict[str, Any]:
         """Stop a turn that is still working; it ends with "You stopped it."."""

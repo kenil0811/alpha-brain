@@ -95,7 +95,10 @@ def test_parse_reads_the_cli_json() -> None:
     r = claude_cli.parse(line, "", 0)
     assert r.ok and r.reply == "Logged." and r.num_turns == 4
     bad = claude_cli.parse("", "Not logged in", 1)
-    assert not bad.ok and "Not logged in" in (bad.error or "")
+    assert not bad.ok and bad.error == claude_cli.SIGNED_OUT
+    # Any other failure reaches the person in plain words; the detail goes to the log.
+    crashed = claude_cli.parse("", "Traceback (most recent call last): boom", 1)
+    assert crashed.error == claude_cli.NO_ANSWER
 
 
 def test_prepack_states_the_clock_and_emptiness(world: World) -> None:

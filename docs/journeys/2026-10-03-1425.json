@@ -1,0 +1,84 @@
+[
+ {
+  "name": "memory_correction",
+  "title": "Memory · a correction overrides the earlier belief, at once and afterwards",
+  "steps": [
+   {
+    "say": "my protein target is now 130 g a day, not 115",
+    "ok": true,
+    "reply": "Updated — protein target is now 130 g/day (was 115), everything else in your targets stays the same.",
+    "steps": 4,
+    "seconds": 17.6
+   },
+   {
+    "say": "what's my daily protein target?",
+    "ok": true,
+    "reply": "Your daily protein target is **130 g** (updated earlier today, from 115 g).",
+    "steps": 1,
+    "seconds": 14.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "130"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 130 g as the current target and does not present 115 g as still current (mentioning 115 as the old value is fine). Fails otherwise.",
+    "ok": true,
+    "why": "The answer states 130 g as the current target and mentions 115 g only as the prior value, matching the rubric.",
+    "seconds": 4.5
+   }
+  ],
+  "seconds": 36.2,
+  "error": null
+ },
+ {
+  "name": "memory_old_fact",
+  "title": "Memory · a fact stated days ago is used without being asked again",
+  "steps": [
+   {
+    "say": "how tall am i, and what do i weigh?",
+    "ok": true,
+    "reply": "You're 178 cm tall and weigh 63 kg (logged 2026-10-01, self-reported).",
+    "steps": 1,
+    "seconds": 11.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "178"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "63"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 178 cm and 63 kg as the person's own figures. Fails if it asks the person for them or guesses.",
+    "ok": true,
+    "why": "Answer gives 178 cm and 63 kg as the user's own logged figures without asking or guessing.",
+    "seconds": 4.5
+   }
+  ],
+  "seconds": 16.4,
+  "error": null
+ }
+]

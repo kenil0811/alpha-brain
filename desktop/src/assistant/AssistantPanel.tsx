@@ -275,7 +275,7 @@ export function AssistantPanel({
       setPending(turn);
       setElapsed(0);
       let current = turn;
-      while (current.state === "running" && current.id) {
+      while ((current.state === "running" || current.state === "routing") && current.id) {
         await new Promise((r) => setTimeout(r, 1000));
         current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
         setPending(current);

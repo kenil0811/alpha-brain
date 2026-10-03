@@ -128,10 +128,12 @@ class Plans:
     def recent(self) -> list[dict[str, Any]]:
         """Plans the person may still act on: proposed, approved, building, or stopped in the
         last two days (one that stopped can be resumed)."""
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = (datetime.now(UTC) - timedelta(days=2)).isoformat()  # the rows' own form
         rows = self.store.all(
             "SELECT * FROM plans WHERE state IN ('proposed', 'approved', 'building')"
-            " OR (state = 'stopped' AND updated_at >= datetime('now', '-2 days'))"
-            " ORDER BY created_at")
+            " OR (state = 'stopped' AND updated_at >= ?) ORDER BY created_at", (cutoff,))
         return [_view(r) for r in rows]
 
     def waiting(self) -> list[dict[str, Any]]:

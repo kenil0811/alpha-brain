@@ -87,12 +87,14 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   /** Follow a routed turn to its answer; a routing question comes back as choices. */
   const finish = useCallback(
     async (started: Turn, before: string | null) => {
-      if (started.state === "asked" && started.ask) {
-        setRouting({ ask: started.ask, options: started.options ?? [], text: started.text });
+      // Routing happens in the core's worker now: the sentence may come back at once or after
+      // a judge has looked, as a question with choices either way.
+      const turn = await client.waitTurn(started);
+      if (turn.state === "asked" && turn.ask) {
+        setRouting({ ask: turn.ask, options: turn.options ?? [], text: turn.text });
         setMood("idle");
         return;
       }
-      const turn = await client.waitTurn(started);
       const went = turn.conversation;
       const moved = went && went.id !== before ? `In ${went.scope}: ` : "";
       setWhereNote(went ? `${went.scope}: ${went.title}` : null);

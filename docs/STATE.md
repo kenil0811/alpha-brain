@@ -4,21 +4,22 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, 15:30.** Last entries: the checkpoint
+**As of 3 October 2026, evening.** Last entries: the hardening day
+([`log/2026-10-03-hardening.md`](log/2026-10-03-hardening.md)), the checkpoint
 ([`log/2026-10-03-checkpoint.md`](log/2026-10-03-checkpoint.md)), skills as one table
 (§4.24), the wiki and noticing (§4.23), daily runs on a sleeping Mac (§4.22), conversations
 (§4.21).
 
-## Numbers (`just stats`, 3 Oct 15:30)
+## Numbers (`just stats`, 3 Oct evening)
 
 | | |
 |---|---|
-| Core tests | 166, in 7 s; ruff and mypy strict clean |
+| Core tests | 173, in about 12 s; ruff and mypy strict clean |
 | Desktop tests | 3, in one file; typecheck clean |
 | Tools the model sees | 70 |
-| Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1342.md`, 1 of 1 |
-| Commits | 77 total; 66 since 1 Oct 2026 |
-| Lines | core 10,996 Python; tests 3,736; desktop 4,973 TS/TSX |
+| Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
+| Commits | 79 total; 67 since 1 Oct 2026 |
+| Lines | core 11,098 Python; tests 3,886; desktop 4,976 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -45,8 +46,8 @@ connect, Install and Sign in on a fresh Mac, the first-run experience as a whole
 - A turn takes 26–34 s at the median, up to three minutes at p90, and can start five model
   runs. Resumed conversations answer in 6 s.
 - The pre-pack is 9–12k characters of a 12k cap: the next section added cuts something.
-- `claude_cli.run` has no timeout; `collections.upsert` is not one transaction; journal hot
-  paths scan; internal error text reaches the person.
+- ~~`claude_cli.run` has no timeout; `collections.upsert` is not one transaction; journal hot
+  paths scan; internal error text reaches the person.~~ Done 3 Oct evening (the hardening day).
 - Two files hold 2,300 of 11,000 core lines (`mcp/tools.py`, `api/server.py`).
 - The desktop polls about 26 requests a minute idle and 140 during a turn, never paused when
   hidden; nothing supervises the core; 26 swallowed errors; three tests.
@@ -54,9 +55,10 @@ connect, Install and Sign in on a fresh Mac, the first-run experience as a whole
 ## Pending, in order (from the checkpoint's §10)
 
 1. ~~The docs' shape~~ — done 3 Oct: this page, the log, the design as intent.
-2. Harden the model boundary and the store: a timeout on `claude_cli.run` and routing off
-   the request path; `upsert` as one transaction; journal indexes; backoff on the build
-   respawn; unique run ids in `LIVE`; plain messages for internal errors.
+2. ~~Harden the model boundary and the store~~ — done 3 Oct evening: a silent run is ended,
+   routing off the request path, `upsert` one transaction, journal indexes, build backoff,
+   unique run keys, plain error messages. Left from the review: a schema version, `records_fts`
+   by triggers, the pre-pack budget per section.
 3. Split `tools.py` and `server.py` into packages, no behaviour change; one `site_of`, one
    name rule, one proposal-answer helper.
 4. Make turns fast: measure, fewer tools per turn, warm sessions, the judge for table

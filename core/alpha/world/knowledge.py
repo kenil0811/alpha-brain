@@ -80,17 +80,16 @@ class Knowledge:
             raise Problem("A page needs a title.")
         line = " ".join((summary or _first_line(body)).split())[:160]
         stamp = now()
-        existing = self.store.one(
-            "SELECT id FROM notes WHERE scope = ? AND title = ?", (scope, title)
-        )
-        with self.store.tx() as db:
+        with self.store.tx() as db:  # the check and the write under one lock, no race
+            existing = db.execute("SELECT id FROM notes WHERE scope = ? AND title = ?",
+                                  (scope, title)).fetchone()
             if existing:
                 db.execute(
                     "UPDATE notes SET body = ?, source = ?, summary = ?, updated_at = ?"
                     " WHERE id = ?",
                     (body, source, line, stamp, existing["id"]),
                 )
-                nid = existing["id"]
+                nid = str(existing["id"])
             else:
                 nid = new_id("n")
                 db.execute(
