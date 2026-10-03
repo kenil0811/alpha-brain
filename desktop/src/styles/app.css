@@ -1020,3 +1020,11 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .settings__talk { display: flex; align-items: center; gap: 8px; }
 /* A row whose name and "Coming soon" don't fit beside its key field puts the field below. */
 .models__row .models__body { flex-basis: 220px; }
+
+/* ---- companion: compact bubble (only the box, the working line, or only the reply) ---- */
+.avatar__panel--compact { flex: 0 1 auto; }
+.avatar__last { flex: 0 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; padding: 10px 10px 0; }
+.avatar__last .msg { max-width: 100%; }
+.avatar__last .avatar__pills { border: 0; padding: 0; background: none; }
+.avatar__working { display: flex; align-items: center; gap: 8px; margin: 10px 12px 0; font-size: var(--text-sm); color: var(--text-2); }
+.avatar__needs { align-self: flex-start; gap: 8px; margin: 8px 8px 0; }

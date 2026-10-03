@@ -104,7 +104,7 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
   );
 }
 
-function Message({ e }: { e: JournalEntry }) {
+export function Message({ e }: { e: JournalEntry }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
   return (

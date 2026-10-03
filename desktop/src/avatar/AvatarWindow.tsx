@@ -2,13 +2,15 @@
  * The companion: Alpha's character in a small always-on-top window. It shows what Alpha is
  * really doing, most pressing first (pr1's avatar state): not connected, something failed,
  * waiting for the person, making a project, thinking, working, here. A bubble carries the one
- * thing that needs the person; a click opens a small panel with the same composer as Zazoo's
- * panel (growing box, mic) to say or type one thing, answered at once; a final spoken sentence
- * sends by itself. Anything that needs the full window is handed to the workspace.
+ * thing that needs the person; a click opens a compact bubble with only the same composer as
+ * Zazoo's panel (growing box, mic), then the working line, then only the reply. Expand shows the
+ * whole chat (turns, questions as choices, action cards); a final spoken sentence sends by itself.
+ * Anything that needs the full window is handed to the workspace.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
-import { ArrowUp, Maximize2, X } from "lucide-react";
+import { AppWindow, ArrowUp, Maximize2, Minimize2, X } from "lucide-react";
 import type { ClaudeStatus, Client, Companion, Home, JournalEntry, Thread, Turn } from "../core/client";
+import { Message } from "../assistant/AssistantPanel";
 import { MicButton, useSpeech } from "../shell/voice";
 import { IconButton } from "../ui";
 import { type AvatarState, Character, type Mood } from "./Character";
@@ -30,6 +32,7 @@ export interface AvatarHost {
 const HOT = ".avatar__panel, .avatar__bubble, .avatar__dock";
 const GREETING = "Tell me what to do: log a meal, check the boards, open a project, or ask for something new.";
 const BUBBLE_MS = 9_000;
+const THINKING = "Working out your request";
 /** A failed request is shown for this long, then the companion lets it go (Activity keeps it). */
 const FAILURE_SHOWN_MS = 15 * 60 * 1000;
 
@@ -38,13 +41,22 @@ export function avatarView(s: { busy: boolean; claude: ClaudeStatus | null; turn
   if (s.claude && !s.claude.signed_in) return { state: "disconnected", text: "Connect Claude in Settings to start" };
   const last = s.turns[s.turns.length - 1];
   if (last?.kind === "failed" && now - new Date(last.at).getTime() < FAILURE_SHOWN_MS) return { state: "error", text: "Your last request didn't work out" };
-  if (s.needs) return { state: "awaiting", text: s.needs === 1 ? "One thing needs you" : `${s.needs} things need you` };
+  if (s.needs) return { state: "awaiting", text: needsText(s.needs) };
   const making = s.threads.find((t) => t.kind === "build" && t.state === "working");
   if (making) return { state: "building", text: making.title };
-  if (s.busy) return { state: "thinking", text: "Working out your request" };
+  if (s.busy) return { state: "thinking", text: THINKING };
   const active = s.running + s.threads.filter((t) => t.state === "working").length;
   if (active) return { state: "working", text: "Working on it…" };
   return { state: "idle", text: "Here" };
+}
+
+function needsText(n: number) {
+  return n === 1 ? "One thing needs you" : `${n} things need you`;
+}
+
+/** A reply shown in the compact bubble, shaped like a journal entry so it renders as the panel's. */
+function replyEntry(text: string, ok: boolean): JournalEntry {
+  return { id: `reply-${Date.now()}`, at: new Date().toISOString(), kind: ok ? "replied" : "failed", actor: "alpha", text, data: {}, module: null, thread: null, entity_ids: [], source: null };
 }
 
 /** The composer grows with its text up to its CSS max-height. */
@@ -64,6 +76,9 @@ function handOff(value: Record<string, unknown>, host?: AvatarHost) {
 
 export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHost }) {
   const [expanded, setExpanded] = useState(false);
+  // Compact (only the box, then only the reply) or the whole chat; kept while this window lives.
+  const [full, setFull] = useState(false);
+  const [reply, setReply] = useState<JournalEntry | null>(null);
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -108,8 +123,12 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const toggle = useCallback(() => {
     const next = !expanded;
     setExpanded(next);
-    if (next) setTimeout(() => inputRef.current?.focus(), 50);
+    if (!next) setReply(null);
   }, [expanded]);
+  // The box is focused on open and again when the view switches (it is drawn anew).
+  useEffect(() => {
+    if (expanded) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [expanded, full]);
 
   // Drag the character itself: past a small threshold the window moves with the pointer (the
   // host's own window drag); a press without movement stays a click.
@@ -162,6 +181,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       const went = turn.conversation;
       const moved = went && went.id !== before ? `In ${went.scope}: ` : "";
       setWhereNote(went ? `${went.scope}: ${went.title}` : null);
+      setReply(replyEntry(`${moved}${turn.reply ?? ""}`, turn.state === "done"));
       say(`${moved}${turn.reply ?? ""}`, turn.state === "done" ? "talking" : "sorry");
       if (turn.state === "done") setDone((n) => n + 1);
     },
@@ -181,6 +201,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         // is a real choice, a question when unsure).
         await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
+        setReply(replyEntry(e instanceof Error ? e.message : String(e), false));
         say(e instanceof Error ? e.message : String(e), "sorry");
       } finally {
         setBusy(false);
@@ -198,6 +219,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setRouting(null);
         if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
       } catch (e) {
+        setReply(replyEntry(e instanceof Error ? e.message : String(e), false));
         say(e instanceof Error ? e.message : String(e), "sorry");
       } finally {
         setBusy(false);
@@ -253,11 +275,85 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       watcher.disconnect();
       window.removeEventListener("resize", report);
     };
-  }, [host, mode, shownBubble]);
+  }, [host, mode, shownBubble, full]);
+
+  const composer = (
+    <form
+      className="avatar__composer"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (speech.listening) speech.stop();
+        void send(text);
+      }}
+    >
+      <div className="avatar__ask">
+        <textarea
+          ref={inputRef}
+          rows={1}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            autoGrow(e.target);
+          }}
+          onKeyDown={(e) => {
+            if (!e.nativeEvent.isComposing && matches(e, bindingOf("send"))) {
+              e.preventDefault();
+              if (speech.listening) speech.stop();
+              void send(text);
+            }
+          }}
+          placeholder="Ask…"
+          aria-label="What should Zazoo do"
+          disabled={busy}
+        />
+        {full ? null : (
+          <IconButton size="sm" aria-label="Show the whole chat" title="Show the whole chat" onClick={() => setFull(true)}>
+            <Maximize2 size={14} aria-hidden="true" />
+          </IconButton>
+        )}
+        <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
+        <IconButton type="submit" size="sm" className="avatar__send" aria-label="Send" title="Enter to send, Shift+Enter for a new line" disabled={busy || !text.trim()}>
+          <ArrowUp size={14} aria-hidden="true" />
+        </IconButton>
+      </div>
+    </form>
+  );
+  const routingChoices = routing ? (
+    <div className="avatar__pills" role="group" aria-label="Which conversation">
+      <p className="panel__hint">Which is this about?</p>
+      {routing.options.map((o) => (
+        <Button key={o} variant="outline" size="sm" className="askcard__opt" disabled={busy} onClick={() => void choose(routing.ask, o)}>
+          {o}
+        </Button>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <div ref={rootRef} className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
-      {expanded ? (
+      {expanded && !full ? (
+        <section className="avatar__panel avatar__panel--compact" aria-label="Zazoo">
+          {needs.length ? (
+            <Button variant="ghost" size="sm" className="avatar__needs" onClick={() => setFull(true)}>
+              <span className="presence presence--needs" aria-hidden="true" />
+              {needsText(needs.length)}
+            </Button>
+          ) : null}
+          {busy ? (
+            <p className="avatar__working" role="status">
+              <span className="presence presence--working" aria-hidden="true" />
+              {THINKING}
+            </p>
+          ) : routingChoices ? (
+            <div className="avatar__last">{routingChoices}</div>
+          ) : reply ? (
+            <div className="avatar__last">
+              <Message e={reply} />
+            </div>
+          ) : null}
+          {composer}
+        </section>
+      ) : expanded ? (
         <section className="avatar__panel" aria-label="Zazoo">
           <header className="avatar__head" data-tauri-drag-region>
             <span className={`presence presence--${state}`} aria-hidden="true" />
@@ -265,8 +361,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <span className="faint avatar__state" data-tauri-drag-region>
               {label}
             </span>
+            <IconButton size="sm" aria-label="Collapse the chat" title="Show only the last reply" onClick={() => setFull(false)}>
+              <Minimize2 size={14} aria-hidden="true" />
+            </IconButton>
             <IconButton size="sm" aria-label="Open the workspace" title="Open this conversation in the workspace" onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)}>
-              <Maximize2 size={14} aria-hidden="true" />
+              <AppWindow size={14} aria-hidden="true" />
             </IconButton>
             <IconButton size="sm" aria-label="Close" title="Close" onClick={() => toggle()}>
               <X size={14} aria-hidden="true" />
@@ -279,16 +378,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                 {t.text}
               </div>
             ))}
-            {routing ? (
-              <div className="avatar__pills" role="group" aria-label="Which conversation">
-                <p className="panel__hint">Which is this about?</p>
-                {routing.options.map((o) => (
-                  <Button key={o} variant="outline" size="sm" className="askcard__opt" disabled={busy} onClick={() => void choose(routing.ask, o)}>
-                    {o}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
+            {routingChoices}
             {!busy && !routing && openAsk ? (
               <div className="avatar__pills" role="group" aria-label="Zazoo asks">
                 <p className="panel__hint">{openAsk.text}</p>
@@ -321,40 +411,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               </p>
             ) : null}
           </div>
-          <form
-            className="avatar__composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (speech.listening) speech.stop();
-              void send(text);
-            }}
-          >
-            <div className="avatar__ask">
-              <textarea
-                ref={inputRef}
-                rows={1}
-                value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  autoGrow(e.target);
-                }}
-                onKeyDown={(e) => {
-                  if (!e.nativeEvent.isComposing && matches(e, bindingOf("send"))) {
-                    e.preventDefault();
-                    if (speech.listening) speech.stop();
-                    void send(text);
-                  }
-                }}
-                placeholder="Ask…"
-                aria-label="What should Alpha do"
-                disabled={busy}
-              />
-              <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-              <IconButton type="submit" size="sm" className="avatar__send" aria-label="Send" title="Enter to send, Shift+Enter for a new line" disabled={busy || !text.trim()}>
-                <ArrowUp size={14} aria-hidden="true" />
-              </IconButton>
-            </div>
-          </form>
+          {composer}
         </section>
       ) : null}
       <div className="avatar__dock">
