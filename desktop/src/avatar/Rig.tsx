@@ -14,6 +14,7 @@
  * reduced motion, and after a while with nothing happening.
  */
 import { useEffect, useId, useState } from "react";
+import type { ReactNode } from "react";
 import arm from "./art/panda/arm.webp";
 import brow from "./art/panda/brow.webp";
 import ear from "./art/panda/ear.webp";
@@ -147,6 +148,22 @@ function Part({ href, box, filter, transform }: { href: string; box: readonly nu
   return <image href={href} x={box[0]} y={box[1]} width={box[2]} height={box[3]} filter={filter} transform={transform} />;
 }
 
+/**
+ * A part that moves about a point. The CSS transform (eased by the stylesheet) is applied in a
+ * coordinate system whose origin is the pivot, so it means the same in every engine: CSS
+ * transform origins on SVG groups do not (the Mac's WebKit and Chromium resolve them
+ * differently, found 3 Oct when the head came out squashed in the app).
+ */
+function Pivot({ x, y, className, transform, children }: { x: number; y: number; className: string; transform: string; children: ReactNode }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <g className={className} style={{ transform }}>
+        <g transform={`translate(${-x} ${-y})`}>{children}</g>
+      </g>
+    </g>
+  );
+}
+
 /** A duotone: the painted part's shading kept, its colour swapped for a dark and a light end of `color`. */
 function Tint({ id, color, lo = -0.42, hi = 0.1 }: { id: string; color: string; lo?: number; hi?: number }) {
   const dark = shade(color, lo);
@@ -264,9 +281,19 @@ const brows = (pose: Pose) => {
   const sorrow = 16 * pose.browSorrow;
   const inward = 28 * pose.browFurrow;
   return {
-    left: `translate(${inward} ${raise}) rotate(${furrow - sorrow} ${BROW_L.x} ${BROW_L.y})`,
-    right: `translate(${-inward} ${raise}) rotate(${-furrow + sorrow} ${BROW_R.x} ${BROW_R.y})`,
+    left: `translate(${inward}px, ${raise}px) rotate(${furrow - sorrow}deg)`,
+    right: `translate(${-inward}px, ${raise}px) rotate(${-furrow + sorrow}deg)`,
   };
+};
+/** Where the body, the head, the ears, the eyes, the mouth and the whiskers turn or scale. */
+const PIVOT = {
+  body: { x: AXIS, y: 2430 },
+  head: { x: AXIS, y: 1650 },
+  earCap: { x: 1136, y: 1032 },
+  earDrawn: { x: 1210, y: 900 },
+  eyes: { x: AXIS, y: EYE.y },
+  whiskerL: { x: AXIS - 420, y: NOSE.y + 60 },
+  whiskerR: { x: AXIS + 420, y: NOSE.y + 60 },
 };
 
 export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mood; size?: number; className?: string }) {
@@ -329,9 +356,8 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
   const rightEye = `translate(${2 * AXIS} 0) scale(-1 1)`;
   const brow2 = brows(pose);
   // The painted panda caps lift; a drawn ear turns on its base. Both grow with the mood.
-  const earStyle = animal.ears === "cap"
-    ? { transform: `translateY(${-pose.earPerk * 3}px) scale(${pose.earScale})`, transformOrigin: "1136px 1032px" }
-    : { transform: `rotate(${-pose.earPerk}deg) scale(${pose.earScale})`, transformOrigin: "1210px 900px" };
+  const earPivot = animal.ears === "cap" ? PIVOT.earCap : PIVOT.earDrawn;
+  const earMove = animal.ears === "cap" ? `translateY(${-pose.earPerk * 3}px) scale(${pose.earScale})` : `rotate(${-pose.earPerk}deg) scale(${pose.earScale})`;
   const mouthBox = MOUTH[mouth];
   const mouthScale = mood === "talking" ? 1 : pose.mouthScale;
 
@@ -353,17 +379,15 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
         <Tint id={`${id}-shirt`} color={look.shirt} lo={-0.3} hi={0.12} />
         <Tint id={`${id}-tie`} color={look.tie} />
       </defs>
-      <g className={`rig__body${hop ? " rig__body--hop" : ""}`} style={{ transform: `scale(${1 + 0.07 * pose.squash}, ${1 - 0.07 * pose.squash})` }}>
-        <g className="rig__head" style={{ transform: `rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)` }}>
-          <g className="rig__ears">
-            <g className="rig__ear" style={earStyle}>
+      <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className={`rig__body${hop ? " rig__body--hop" : ""}`} transform={`scale(${1 + 0.07 * pose.squash}, ${1 - 0.07 * pose.squash})`}>
+        <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
+          <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
+            {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
+          </Pivot>
+          <g transform={mirror}>
+            <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
               {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
-            </g>
-            <g transform={mirror}>
-              <g className="rig__ear" style={earStyle}>
-                {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
-              </g>
-            </g>
+            </Pivot>
           </g>
           <Part href={shell} box={BOX.shell} filter={tints.fur} />
           <g className="rig__face">
@@ -378,16 +402,14 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
               <ellipse cx={EYE.x - 60} cy={EYE.y + 250} rx="150" ry="90" />
               <ellipse cx={2 * AXIS - EYE.x + 60} cy={EYE.y + 250} rx="150" ry="90" />
             </g>
-            <g className="rig__brows">
-              <g className="rig__brow" transform={brow2.left}>
-                <Part href={brow} box={BOX.brow} />
-              </g>
-              <g className="rig__brow" transform={brow2.right}>
-                <image href={brow} x={BOX.browR[0]} y={BOX.browR[1]} width={BOX.browR[2]} height={BOX.browR[3]} transform={`translate(${2 * BOX.browR[0] + BOX.browR[2]} 0) scale(-1 1)`} />
-              </g>
-            </g>
-            <g className="rig__lids" style={{ transform: `scaleY(${pose.eyeOpen})` }}>
-              <g className="rig__eyes">
+            <Pivot x={BROW_L.x} y={BROW_L.y} className="rig__brow" transform={brow2.left}>
+              <Part href={brow} box={BOX.brow} />
+            </Pivot>
+            <Pivot x={BROW_R.x} y={BROW_R.y} className="rig__brow" transform={brow2.right}>
+              <image href={brow} x={BOX.browR[0]} y={BOX.browR[1]} width={BOX.browR[2]} height={BOX.browR[3]} transform={`translate(${2 * BOX.browR[0] + BOX.browR[2]} 0) scale(-1 1)`} />
+            </Pivot>
+            <Pivot x={PIVOT.eyes.x} y={PIVOT.eyes.y} className="rig__lids" transform={`scaleY(${pose.eyeOpen})`}>
+              <Pivot x={PIVOT.eyes.x} y={PIVOT.eyes.y} className="rig__eyes" transform="none">
                 {animal.eyes === "white" ? (
                   <>
                     <ellipse cx={EYE.x} cy={EYE.y} rx="170" ry="166" fill="#ffffff" />
@@ -399,46 +421,41 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
                     <Part href={eye} box={BOX.eye} transform={rightEye} />
                   </>
                 )}
-                <g className="rig__pupils" style={{ transform: `translate(${pose.gazeX + drift.x}px, ${pose.gazeY + drift.y}px) scale(${pose.pupilScale})` }}>
-                  {animal.eyes === "white" ? (
-                    <>
-                      <image href={pupil} x={EYE.x - 110} y={EYE.y - 104} width="220" height="209" />
-                      <image href={pupil} x={2 * AXIS - EYE.x - 110} y={EYE.y - 104} width="220" height="209" />
-                    </>
-                  ) : (
-                    <>
-                      <Part href={pupil} box={BOX.pupil} />
-                      <Part href={pupil} box={BOX.pupil} transform={rightEye} />
-                    </>
-                  )}
+                <g className="rig__pupils" style={{ transform: `translate(${pose.gazeX + drift.x}px, ${pose.gazeY + drift.y}px)` }}>
+                  <Pivot x={EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
+                    {animal.eyes === "white" ? <image href={pupil} x={EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} />}
+                  </Pivot>
+                  <Pivot x={2 * AXIS - EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
+                    {animal.eyes === "white" ? <image href={pupil} x={2 * AXIS - EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
+                  </Pivot>
                 </g>
-              </g>
-            </g>
+              </Pivot>
+            </Pivot>
             {look.glasses ? <Glasses /> : null}
             {animal.nose === "painted" ? <Part href={snout} box={BOX.snout} /> : <Nose kind={animal.nose} color={animal.noseColor} />}
-            <g className="rig__mouth" transform={`translate(${LIP.x} ${LIP.y}) scale(${mouthScale}) translate(${-LIP.x} ${-LIP.y})`}>
+            <Pivot x={LIP.x} y={LIP.y} className="rig__mouth" transform={`scale(${mouthScale})`}>
               <Part href={MOUTH_ART[mouth]} box={mouthBox} />
-            </g>
+            </Pivot>
             {animal.whiskers ? (
               <g className="rig__whiskers" stroke="#3a3238" strokeWidth="14" strokeLinecap="round" opacity="0.55">
-                <g style={{ transform: `rotate(${10 * pose.whiskerDroop}deg)`, transformOrigin: `${AXIS - 420}px ${NOSE.y + 60}px` }}>
+                <Pivot x={PIVOT.whiskerL.x} y={PIVOT.whiskerL.y} className="rig__whisker" transform={`rotate(${10 * pose.whiskerDroop}deg)`}>
                   <path d={`M ${AXIS - 420} ${NOSE.y + 20} L ${AXIS - 760} ${NOSE.y - 60}`} />
                   <path d={`M ${AXIS - 430} ${NOSE.y + 110} L ${AXIS - 780} ${NOSE.y + 120}`} />
-                </g>
-                <g style={{ transform: `rotate(${-10 * pose.whiskerDroop}deg)`, transformOrigin: `${AXIS + 420}px ${NOSE.y + 60}px` }}>
+                </Pivot>
+                <Pivot x={PIVOT.whiskerR.x} y={PIVOT.whiskerR.y} className="rig__whisker" transform={`rotate(${-10 * pose.whiskerDroop}deg)`}>
                   <path d={`M ${AXIS + 420} ${NOSE.y + 20} L ${AXIS + 760} ${NOSE.y - 60}`} />
                   <path d={`M ${AXIS + 430} ${NOSE.y + 110} L ${AXIS + 780} ${NOSE.y + 120}`} />
-                </g>
+                </Pivot>
               </g>
             ) : null}
           </g>
-        </g>
+        </Pivot>
         <Part href={shirt} box={BOX.shirt} filter={tints.shirt} />
         {look.neckwear === "tie" ? <Part href={tie} box={BOX.tie} filter={tints.tie} /> : look.neckwear === "bow" ? <Bow color={look.tie} /> : null}
         <Part href={suit} box={BOX.suit} filter={tints.suit} />
         <Part href={arm} box={BOX.arm} filter={tints.fur} />
         <Part href={arm} box={BOX.arm} filter={tints.fur} transform={mirror} />
-      </g>
+      </Pivot>
     </svg>
   );
 }

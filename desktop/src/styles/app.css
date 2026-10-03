@@ -480,24 +480,26 @@ body.avatar-window #root { height: 100vh; }
    animations timed by the pose (--breath, --blink-every, --blink-speed); a happy arrival hops
    once. Still when hidden, rested, or when the Mac asks for reduced motion. */
 .rig { display: block; overflow: visible; }
-.rig__body, .rig__head, .rig__ear, .rig__lids, .rig__eyes, .rig__pupils, .rig__brow, .rig__mouth, .rig__whiskers g { transform-box: fill-box; }
-.rig__body { transform-origin: 50% 100%; animation: rig-breath var(--breath, 3.6s) ease-in-out infinite; transition: transform 420ms ease; }
+/* Every moving group sits inside a translate to its pivot (Rig.tsx Pivot), so its CSS transform
+   turns about its local origin; no transform-box, no transform-origin, the same in WebKit and Chromium. */
+.rig__body, .rig__head, .rig__ear, .rig__lids, .rig__eyes, .rig__pupils, .rig__pupil, .rig__brow, .rig__mouth, .rig__whisker { transform-box: view-box; transform-origin: 0 0; }
+.rig__body { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite; transition: transform 420ms ease; }
 .rig__body--hop { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite, rig-hop 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) 1; }
-.rig__head { transform-origin: 50% 82%; transition: transform 380ms ease; }
+.rig__head { transition: transform 380ms ease; }
 .rig__ear { transition: transform 320ms ease; }
-.rig__lids { transform-origin: 50% 50%; transition: transform 260ms ease; }
-.rig__eyes { transform-origin: 50% 50%; animation: rig-blink var(--blink-every, 4.2s) infinite; animation-timing-function: ease-in-out; }
-.rig__pupils { transition: transform 240ms ease; }
+.rig__lids { transition: transform 260ms ease; }
+.rig__eyes { animation: rig-blink var(--blink-every, 4.2s) infinite; animation-timing-function: ease-in-out; }
+.rig__pupils, .rig__pupil { transition: transform 240ms ease; }
 .rig__brow { transition: transform 300ms ease; }
 .rig__mouth { transition: transform 200ms ease; }
 .rig__cheeks { transition: opacity 400ms ease; }
-.rig__whiskers g { transition: transform 400ms ease; }
+.rig__whisker { transition: transform 400ms ease; }
 .rig--nod .rig__head { animation: rig-nod 2.6s ease-in-out infinite; }
 .rig--still .rig__body, .rig--still .rig__eyes, .rig--still .rig__head { animation: none; }
-@keyframes rig-breath { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.8%); } }
+@keyframes rig-breath { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
 @keyframes rig-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.06); } }
 @keyframes rig-nod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(2.5deg); } }
-@keyframes rig-hop { 0% { transform: translateY(0); } 35% { transform: translateY(-4%) scale(0.98, 1.03); } 70% { transform: translateY(0.6%) scale(1.03, 0.97); } 100% { transform: translateY(0); } }
+@keyframes rig-hop { 0% { transform: translateY(0); } 35% { transform: translateY(-90px) scale(0.98, 1.03); } 70% { transform: translateY(14px) scale(1.03, 0.97); } 100% { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .character *, .character { animation: none !important; } }
 
 /* ---------- derived pages ---------- */
@@ -650,9 +652,6 @@ body.avatar-window #root { height: 100vh; }
 .presence--listening { background: var(--bad); }
 .presence--working { background: var(--primary); }
 .presence--needs { background: var(--warn); }
-.avatar__button.is-needs svg { outline: 3px solid var(--warn); outline-offset: 2px; border-radius: 50%; }
-.avatar__button.is-working svg { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 50%; }
-.avatar__button.is-listening svg { outline: 3px solid var(--bad); outline-offset: 2px; border-radius: 50%; }
 .avatar__bubble p { margin: 0; }
 button.creation { text-align: left; background: var(--surface); width: 100%; color: var(--text); font: inherit; cursor: pointer; }
 button.creation:hover { background: var(--hover); }

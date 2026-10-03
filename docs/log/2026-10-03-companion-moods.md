@@ -41,3 +41,16 @@ itself needs the host, so it is proven by the pure decision's tests and will be 
 app. Tests: 53 desktop (every mood names itself and sets its pose; happy blushes and squints,
 thinking looks up and aside, sleepy droops, listening nods; the size in the look; drag or
 click), typecheck clean; `just check-desktop settings` clean at every size.
+
+**Broken in the app, fixed (the same night).** Kenil's screenshot of the real companion showed
+the head squashed and the eyes misplaced while thinking, with a blue ring around it. The ring
+was the old state outline (`is-working`): gone, with the other two; the moods carry the state.
+The squash: the poses turned and scaled the head, the eyes and the ears with CSS transforms on
+SVG groups and `transform-origin`, which the Mac's WebKit resolves differently from the
+Chromium in the browser pane where it had looked right. Now every moving part sits inside a
+`<g translate(pivot)>` so its CSS transform turns about its local origin (`Pivot` in
+`Rig.tsx`); no transform origins anywhere, breath and hop in canvas units rather than
+percentages. Checked in the running app with a window screenshot: the character at the small
+size draws whole, bow and all, with no ring. A lesson for the desktop check: the browser pane
+is Chromium and the app is WebKit, so anything drawn with SVG and CSS transforms is only proven
+in the app.

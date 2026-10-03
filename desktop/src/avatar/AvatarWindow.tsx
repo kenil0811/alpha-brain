@@ -188,9 +188,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().startDragging()).catch(() => undefined);
     }
   };
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     const outcome = released(pressed.current);
     pressed.current = null;
+    // A pointer leaves no focus ring behind; the keyboard still gets one.
+    (e.currentTarget as HTMLElement).blur();
     if (outcome === "click") toggle();
   };
 
