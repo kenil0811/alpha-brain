@@ -1,14 +1,14 @@
 /**
- * Activity, where Zazoo's bell goes: first what the bell counts (what waits on you), then what
- * Alpha did, what it read, what you changed,
+ * Activity, where Zazoo's bell goes: first what the bell counts (what waits on you), then the
+ * automations whose last run didn't work, each with "Run it again", then what Alpha did, what it read, what you changed,
  * newest first and grouped by day; search finds anything that happened. Each row opens to what
  * it touched.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, JournalEntry, NeedItem } from "../core/client";
+import type { Automation, Client, JournalEntry, NeedItem } from "../core/client";
 import { Search } from "lucide-react";
 import { dayLabel, when } from "../modules/format";
-import { InfoTip, PageHeader, useToast } from "../ui";
+import { Button, InfoTip, PageHeader, useToast } from "../ui";
 import { Need } from "./Home";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
@@ -51,13 +51,29 @@ function Details({ e }: { e: JournalEntry }) {
   );
 }
 
+/** Automations whose last run failed and that aren't running again now (a good run clears the error). */
+export function failedAutomations(all: Automation[]): Automation[] {
+  return all.filter((a) => a.last_error && !a.running);
+}
+
 export function Activity({ client, version, onChanged }: { client: Client; version: number; onChanged: () => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
   const [needs, setNeeds] = useState<NeedItem[]>([]);
+  const [failed, setFailed] = useState<Automation[]>([]);
   const toast = useToast();
   useEffect(() => {
     client.home().then((h) => setNeeds(h.needs_you), () => setNeeds([]));
+    client.automations().then((all) => setFailed(failedAutomations(all)), () => setFailed([]));
   }, [client, version]);
+  async function again(a: Automation) {
+    try {
+      await client.runAutomation(a.id);
+      toast.show(`Running “${a.title}” again.`);
+      onChanged();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : String(e));
+    }
+  }
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "alpha" | "you" | "failed">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -90,6 +106,31 @@ export function Activity({ client, version, onChanged }: { client: Client; versi
           <div className="needs">
             {needs.map((item) => (
               <Need key={item.id} item={item} client={client} onDone={(words) => { toast.show(words); onChanged(); }} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {failed.length ? (
+        <div className={`section${needs.length ? "" : " section--first"}`}>
+          <div className="section__head">
+            <h2>Didn't work</h2>
+            <span className="faint">{failed.length}</span>
+          </div>
+          <div className="card list">
+            {failed.map((a) => (
+              <div key={a.id} className="item">
+                <span className="badge badge--failed">Failed</span>
+                <div className="item__body">
+                  <b>{a.title}</b>
+                  <div className="item__sub">
+                    {a.last_run_at ? `${when(a.last_run_at)} · ` : ""}
+                    {a.last_error}
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void again(a)}>
+                  Run it again
+                </Button>
+              </div>
             ))}
           </div>
         </div>
