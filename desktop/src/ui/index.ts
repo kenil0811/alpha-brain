@@ -28,6 +28,7 @@ export type { TabItem } from "./Tabs";
 export { ToastProvider, useOptionalToast, useToast } from "./toast";
 export { PageHeader } from "./PageHeader";
 export { Segmented } from "./Segmented";
+export { SoonBadge, useComingSoon } from "./Soon";
 export {
   usePanelControl,
   useEscapeStep,
