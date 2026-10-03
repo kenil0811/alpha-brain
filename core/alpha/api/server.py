@@ -1030,9 +1030,11 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 READY_PREFIX = "ALPHA_CORE_READY "
 
 
-def serve(port: int = 53900) -> None:
+def serve(port: int = 53900, *, background: bool = True) -> None:
     """Listen on 127.0.0.1 (port 0 picks a free one) and say so on one stdout line,
-    `ALPHA_CORE_READY {"port": …}`, which the app's host waits for."""
+    `ALPHA_CORE_READY {"port": …}`, which the app's host waits for. `background=False` keeps
+    the scheduler, the second opinion and noticing off: for a core started to check something
+    on a copy of a world, so nothing runs on its own there (build-plan §4.23)."""
     import json
     import socket
     import sys
@@ -1047,5 +1049,5 @@ def serve(port: int = 53900) -> None:
     world = World()
     ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid()}
     print(READY_PREFIX + json.dumps(ready), flush=True)
-    config = uvicorn.Config(create_app(world), log_level="warning")
+    config = uvicorn.Config(create_app(world, live=background), log_level="warning")
     uvicorn.Server(config).run(sockets=[sock])

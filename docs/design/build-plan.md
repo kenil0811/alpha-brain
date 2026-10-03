@@ -1347,6 +1347,19 @@ Vikas Badami, with a table of his emails, has no card. The fix belongs with the 
 the way: a page scope `entity:` with no id was accepted by `POST /api/notes`; a page's entity
 must now exist.
 
+**A mistake made while checking, recorded so it is not made again.** The route and
+browser-pane checks ran a second core on a copy of Kenil's world made with `cp` of
+`world.sqlite` alone. The world is in WAL mode and the day's commits (4.7 MB) were still in
+`world.sqlite-wal`, so the copy was hours stale: in it two automations were still due, and the
+copy's scheduler ran them for real through the browser hands (Gmail and LinkedIn read in Kenil's
+signed-in profiles, a reader repair turn on the subscription), twice, each leaving an orphaned
+model run when the temporary core was stopped; both were killed. Nothing was sent or written
+outward (automations cannot), and nothing touched his live world. Rules from it: a copy of the
+world is made with SQLite's backup (`backup.py`, the suite's `copy_home` already do), never
+`cp`; and a core started for a check runs with `alpha serve --no-background`, which keeps the
+scheduler, the second opinion and noticing off (added). The web check itself lives in
+`.claude/launch.json` as `alpha-brain-web-check` (Vite on 1430 against a core on 53820).
+
 **Journeys** (`docs/journeys/2026-10-03-1256.md`, then `2026-10-03-1306.md`). The seven
 memory journeys after the slice: **6 of 7**. Yesterday (the baseline's one failure) **passes**:
 "Yesterday (Friday 2 Oct), you said one thing specifically about Vikas: 1:02 PM, remind me that
