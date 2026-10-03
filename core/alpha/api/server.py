@@ -70,6 +70,12 @@ class ExportBody(BaseModel):
     format: str = "csv"
 
 
+class ListBody(BaseModel):
+    title: str | None = None
+    config: dict[str, Any] | None = None
+    default: bool | None = None
+
+
 class ActionEditBody(BaseModel):
     payload: dict[str, Any]
 
@@ -645,7 +651,41 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                 if row is not None:
                     files[did] = {"id": did, "name": row["title"], "path": row["path"],
                                   "size": row["size"], "kind": row["kind"]}
-        return {"table": desc, "records": records, "files": files}
+        return {"table": desc, "records": records, "files": files,
+                "lists": world.views.for_table(name)}
+
+    # ---- saved lists: a named way of looking at a table, kept in the world ----
+
+    @app.get("/api/tables/{name}/lists", dependencies=[api])
+    def lists(name: str) -> list[dict[str, Any]]:
+        world.collections.describe(name)
+        return world.views.for_table(name)
+
+    @app.post("/api/tables/{name}/lists", dependencies=[api])
+    def save_list(name: str, body: ListBody) -> dict[str, Any]:
+        saved = world.views.save(name, body.title or "", body.config or {},
+                                 default=bool(body.default))
+        world.journal.append("changed", f"You saved the list \"{saved['title']}\" on"
+                             f" {world.collections.describe(name)['title']}.", actor="person",
+                             data={"list": saved["id"], "table": name})
+        return saved
+
+    @app.patch("/api/lists/{vid}", dependencies=[api])
+    def change_list(vid: str, body: ListBody) -> dict[str, Any]:
+        changed = world.views.update(vid, title=body.title, config=body.config,
+                                     default=body.default)
+        what = ("made it the default" if body.default else "renamed it" if body.title
+                else "changed it")
+        world.journal.append("changed", f"You {what}: the list \"{changed['title']}\".",
+                             actor="person", data={"list": vid, "table": changed["collection"]})
+        return changed
+
+    @app.delete("/api/lists/{vid}", dependencies=[api])
+    def drop_list(vid: str) -> dict[str, Any]:
+        gone = world.views.delete(vid)
+        world.journal.append("changed", f"You removed the list \"{gone['title']}\".",
+                             actor="person", data={"list": vid, "table": gone["collection"]})
+        return gone
 
     @app.post("/api/tables/{name}/export", dependencies=[api])
     def export_table(name: str, body: ExportBody) -> dict[str, Any]:

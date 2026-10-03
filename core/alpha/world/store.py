@@ -345,6 +345,21 @@ CREATE TABLE IF NOT EXISTS skills (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
+
+-- Saved lists (3 Oct 2026): a named way of looking at a table (the search, the filters, the
+-- columns, the sort, the view) that follows the person and that Alpha can make when asked.
+-- One per table may be the default it opens on.
+CREATE TABLE IF NOT EXISTS views (
+    id TEXT PRIMARY KEY,
+    collection TEXT NOT NULL,
+    title TEXT NOT NULL,
+    config TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS views_collection ON views(collection, title);
 """
 
 

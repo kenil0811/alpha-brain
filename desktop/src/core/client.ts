@@ -46,6 +46,18 @@ export interface Provenance {
   assumed?: string;
 }
 
+/** A saved list: a named way of looking at a table, kept in the world (the person's or Alpha's). */
+export interface SavedList {
+  id: string;
+  collection: string;
+  title: string;
+  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; hidden?: string[]; sort?: { field: string; direction: "asc" | "desc" } | null; view?: string };
+  is_default: boolean;
+  source: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RecordRow {
   id: string;
   revision: number;
@@ -504,9 +516,9 @@ export class Client {
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
 
-  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo> }> {
-    const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo> }>("GET", `/api/tables/${encodeURIComponent(name)}`);
-    return { table: data.table, records: data.records.map(toRow), files: data.files ?? {} };
+  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo>; lists: SavedList[] }> {
+    const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo>; lists?: SavedList[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
+    return { table: data.table, records: data.records.map(toRow), files: data.files ?? {}, lists: data.lists ?? [] };
   }
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
@@ -580,6 +592,9 @@ export class Client {
     return current;
   }
 
+  saveList = (table: string, title: string, config: SavedList["config"], isDefault = false) => this.call<SavedList>("POST", `/api/tables/${encodeURIComponent(table)}/lists`, { title, config, default: isDefault });
+  updateList = (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => this.call<SavedList>("PATCH", `/api/lists/${id}`, change);
+  deleteList = (id: string) => this.call<SavedList>("DELETE", `/api/lists/${id}`);
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 

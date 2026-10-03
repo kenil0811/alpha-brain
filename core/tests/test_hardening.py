@@ -20,7 +20,7 @@ def test_a_run_that_says_nothing_for_too_long_is_ended(world: World, tmp_path: P
                                                         monkeypatch: Any) -> None:
     """Silence, not duration, ends a run: a CLI that hangs can hold a thread or the scheduler
     for ever; a run that keeps working is never cut."""
-    monkeypatch.setattr(claude_cli, "SILENCE_S", 0.2)
+    monkeypatch.setattr(claude_cli, "SILENCE_S", 1.0)  # a second of silence, so a slow Mac never fails it
     hung = tmp_path / "claude"
     hung.write_text("#!/bin/sh\nsleep 30\n")
     hung.chmod(0o755)

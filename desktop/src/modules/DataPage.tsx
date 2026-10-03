@@ -5,7 +5,7 @@
  * and are journaled as theirs.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Client, FileInfo, RecordRow, TableDesc } from "../core/client";
+import type { Client, FileInfo, RecordRow, SavedList, TableDesc } from "../core/client";
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
@@ -35,7 +35,8 @@ export const PAGE_SIZES = [25, 50, 100, 250];
 export const PAGE_SIZE_KEY = "alpha.rows-per-page";
 const FEWEST_ROWS = 5;
 
-interface SavedList {
+/** The shape saved lists had in the window before they lived in the world (before 3 Oct). */
+interface OldSavedList {
   id: string;
   title: string;
   filters: Record<string, string>;
@@ -90,8 +91,10 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
       setStatus({ ok: false, text: `Couldn't add ${file.name}: ${e instanceof Error ? e.message : String(e)}` });
     }
   }
-  const [lists, setLists] = useState<SavedList[]>(() => remembered<SavedList[]>(`${key}.lists`, []));
+  // Saved lists live in the world (the person's and Alpha's); the window only shows them.
+  const [lists, setLists] = useState<SavedList[]>([]);
   const [listId, setListId] = useState<string>("all");
+  const openedOnDefault = useRef(false);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [hideDone, setHideDone] = useState(false);
@@ -125,7 +128,6 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   useEffect(() => remember(`${key}.hidden`, hidden), [key, hidden]);
   useEffect(() => remember(`${key}.order`, order), [key, order]);
   useEffect(() => remember(`${key}.widths`, widths), [key, widths]);
-  useEffect(() => remember(`${key}.lists`, lists), [key, lists]);
   useEffect(() => remember(PAGE_SIZE_KEY, pageSize), [pageSize]);
   const moveColumn = (name: string, by: -1 | 1) =>
     setOrder(() => {
@@ -144,13 +146,31 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const load = useCallback(() => {
     client
       .table(table.name)
-      .then((result) => {
+      .then(async (result) => {
         setAll(result.records);
         setFiles(result.files ?? {});
         setError(null);
+        // Lists the window kept before 3 Oct move into the world once, then the key goes.
+        const old = remembered<OldSavedList[]>(`${key}.lists`, []);
+        let kept = result.lists;
+        if (old.length) {
+          for (const l of old) {
+            try {
+              kept = [...kept, await client.saveList(table.name, l.title, { search: l.search, filters: l.filters, hide_done: l.hideDone, hidden: l.hidden })];
+            } catch {
+              /* a list the table no longer fits is dropped */
+            }
+          }
+          try {
+            localStorage.removeItem(`${key}.lists`);
+          } catch {
+            /* nothing to clean */
+          }
+        }
+        setLists(kept);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [client, table.name]);
+  }, [client, table.name, key]);
   useEffect(load, [load, version]);
 
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters, hideDone, statusField, showGone, sort }) : null), [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
@@ -223,23 +243,56 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
     void run(() => client.editRecord(table.name, row.id, { [field.name]: value }, row.revision), "Couldn't move it");
   }
 
-  function applyList(id: string) {
-    setListId(id);
-    const list = lists.find((l) => l.id === id);
-    setFilters(list?.filters ?? {});
-    setSearch(list?.search ?? "");
-    setHideDone(list?.hideDone ?? false);
-    if (list) setHidden(list.hidden);
-  }
-  function saveList(title: string) {
+  const applyList = useCallback(
+    (id: string, from: SavedList[] = lists) => {
+      setListId(id);
+      const c = from.find((l) => l.id === id)?.config;
+      setFilters(c?.filters ?? {});
+      setSearch(c?.search ?? "");
+      setHideDone(c?.hide_done ?? false);
+      if (c) {
+        setHidden(c.hidden ?? []);
+        setSort(c.sort ?? null);
+        if (c.view) setView(c.view as PageView);
+      }
+    },
+    [lists],
+  );
+  // A table opens on its default list, once per visit.
+  useEffect(() => {
+    if (openedOnDefault.current || !lists.length) return;
+    openedOnDefault.current = true;
+    const starred = lists.find((l) => l.is_default);
+    if (starred) applyList(starred.id, lists);
+  }, [lists, applyList]);
+  const currentConfig = (): SavedList["config"] => ({ search, filters, hide_done: hideDone, hidden, sort, view });
+  async function saveList(title: string) {
     if (!title.trim()) return;
-    const list: SavedList = { id: `list_${Date.now().toString(36)}`, title: title.trim(), filters, search, hideDone, hidden };
-    setLists((existing) => [...existing, list]);
-    setListId(list.id);
-    setNaming(null);
+    const ok = await run(async () => {
+      const saved = await client.saveList(table.name, title.trim(), currentConfig());
+      setLists((existing) => [...existing, saved]);
+      setListId(saved.id);
+    }, "Couldn't save the list");
+    if (ok) setNaming(null);
+  }
+  function updateList() {
+    void run(async () => {
+      const changed = await client.updateList(listId, { config: currentConfig() });
+      setLists((existing) => existing.map((l) => (l.id === changed.id ? changed : l)));
+    }, "Couldn't change the list");
+  }
+  function starList(id: string) {
+    void run(async () => {
+      const changed = await client.updateList(id, { default: true });
+      setLists((existing) => existing.map((l) => ({ ...l, is_default: l.id === changed.id })));
+    }, "Couldn't make it the default");
   }
   function dropList() {
-    setLists((existing) => existing.filter((l) => l.id !== listId));
+    const id = listId;
+    void run(async () => {
+      await client.deleteList(id);
+      setLists((existing) => existing.filter((l) => l.id !== id));
+    }, "Couldn't remove the list");
     applyList("all");
   }
 
@@ -274,7 +327,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
               <option value="all">All</option>
               {lists.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.title}
+                  {l.is_default ? "★ " : ""}{l.title}
                 </option>
               ))}
             </select>
@@ -345,9 +398,19 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
                   </button>
                 )}
                 {listId !== "all" ? (
-                  <button type="button" className="menu__item" onClick={dropList}>
-                    Remove this list
-                  </button>
+                  <>
+                    <button type="button" className="menu__item" onClick={updateList}>
+                      Save the current filters to this list
+                    </button>
+                    {!lists.find((l) => l.id === listId)?.is_default ? (
+                      <button type="button" className="menu__item" onClick={() => starList(listId)}>
+                        Open this table on this list
+                      </button>
+                    ) : null}
+                    <button type="button" className="menu__item menu__item--danger" onClick={dropList}>
+                      Remove this list
+                    </button>
+                  </>
                 ) : null}
             </div>
           </Popover>

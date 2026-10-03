@@ -704,6 +704,8 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .btn__ico svg, .iconbtn__ico svg { width: 15px; height: 15px; }
 .navbtn__ico svg { width: 17px; height: 17px; }
 .menu__item--danger { color: var(--bad); }
+/* a menu or popover never runs off the screen: it scrolls inside the room Radix measures */
+.menu__list { max-height: var(--radix-popover-content-available-height, var(--radix-dropdown-menu-content-available-height, 80vh)); overflow-y: auto; }
 .menu__item[data-highlighted] { background: var(--hover); outline: none; }
 .action--settled { border-left-color: var(--border); }
 .badge--good { color: var(--good); background: var(--good-soft); }
