@@ -104,6 +104,10 @@ class SwitchBody(BaseModel):
     enabled: bool
 
 
+class PreferenceBody(BaseModel):
+    value: Any
+
+
 class NoteBody(BaseModel):
     scope: str
     title: str
@@ -1093,7 +1097,18 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         return {"focus": conversation_view(world, current) if current else None,
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
-                "needs_you": needs_you(world)}
+                "needs_you": needs_you(world),
+                "look": world.preferences.get("companion_look")}
+
+    @app.get("/api/preferences/{key}", dependencies=[api])
+    def preference(key: str) -> dict[str, Any]:
+        """A choice of look the person made (the companion's look), or null: the window
+        fills in its own defaults."""
+        return {"key": key, "value": world.preferences.get(key)}
+
+    @app.put("/api/preferences/{key}", dependencies=[api])
+    def set_preference(key: str, body: PreferenceBody) -> dict[str, Any]:
+        return world.preferences.set(key, body.value)
 
     @app.post("/api/turns/{key}/move", dependencies=[api])
     def move_turn(key: str, body: MoveBody) -> dict[str, Any]:

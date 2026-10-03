@@ -360,6 +360,15 @@ CREATE TABLE IF NOT EXISTS views (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS views_collection ON views(collection, title);
+
+-- Preferences (3 Oct 2026): what the person chose about how Alpha appears to them (the
+-- companion's look), kept in the world so it follows them. One JSON value per key; the window
+-- owns the shape. Choices of look, never settings of behaviour.
+CREATE TABLE IF NOT EXISTS preferences (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 

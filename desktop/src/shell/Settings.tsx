@@ -5,6 +5,7 @@
  * to do about it.
  */
 import { useCallback, useEffect, useState } from "react";
+import { LookPicker } from "../avatar/LookPicker";
 import type { ClaudeStatus, Client, DataInfo } from "../core/client";
 import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
@@ -170,6 +171,13 @@ export function Settings({ client, theme, onTheme, claude, onClaude }: { client:
               <div className="item__sub">Light, dark, or the same as your Mac</div>
             </div>
             <ThemeControl theme={theme} onChange={onTheme} />
+          </div>
+          <div className="item item--stack">
+            <div className="item__body">
+              <b>The companion's look</b>
+              <div className="item__sub">The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.</div>
+            </div>
+            <LookPicker client={client} />
           </div>
         </div>
       </div>

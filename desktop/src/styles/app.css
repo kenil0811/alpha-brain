@@ -476,18 +476,20 @@ body.avatar-window #root { height: 100vh; }
 .avatar__ask { display: flex; align-items: center; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
 .avatar__ask input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--bg); }
 .character { display: block; }
-.character--idle .character__body { animation: avatar-bob 3.2s ease-in-out infinite; transform-origin: 48px 84px; }
-.character__eyes { animation: avatar-blink 5s infinite; transform-origin: 48px 44px; }
-.character--thinking .character__dots circle:nth-child(1) { animation: avatar-dot 1s infinite 0s; }
-.character--thinking .character__dots circle:nth-child(2) { animation: avatar-dot 1s infinite 0.2s; }
-.character--thinking .character__dots circle:nth-child(3) { animation: avatar-dot 1s infinite 0.4s; }
-.character--talking .character__mouth { animation: avatar-talk 0.5s ease-in-out infinite alternate; transform-origin: 48px 62px; }
-.character--listening .character__body { animation: avatar-pulse 1.2s ease-in-out infinite; transform-origin: 48px 48px; }
-@keyframes avatar-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes avatar-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-@keyframes avatar-dot { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-@keyframes avatar-talk { from { transform: scaleY(0.5); } to { transform: scaleY(1.1); } }
-@keyframes avatar-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+/* The rig (avatar/Rig.tsx): breath and blinks by CSS, still when hidden, rested or when the
+   Mac asks for reduced motion; the head tilts while thinking and lifts while listening. */
+.rig { display: block; overflow: visible; }
+.rig__head, .rig__body, .rig__eyes, .rig__pupils { transform-box: fill-box; transform-origin: 50% 85%; }
+.rig__body { animation: rig-breath 3.6s ease-in-out infinite; }
+.rig__eyes { transform-origin: 50% 50%; animation: rig-blink 4.8s infinite; }
+.rig__head { transition: transform 0.4s ease; }
+.rig--thinking .rig__head { transform: rotate(-4deg); }
+.rig--listening .rig__head { transform: translateY(-1.5%); }
+.rig--sorry .rig__head { transform: rotate(3deg) translateY(1%); }
+.rig--listening .rig__body { animation-duration: 1.6s; }
+.rig--still .rig__body, .rig--still .rig__eyes { animation: none; }
+@keyframes rig-breath { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.8%); } }
+@keyframes rig-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.06); } }
 @media (prefers-reduced-motion: reduce) { .character *, .character { animation: none !important; } }
 
 /* ---------- derived pages ---------- */
@@ -804,3 +806,19 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .steps { margin: 0; padding-left: 20px; font-size: var(--text-md); line-height: 1.7; }
 h3 .linkbtn { font: inherit; color: inherit; }
 .linkbtn:hover { text-decoration: underline; }
+
+/* ---------- the companion's look (Settings) ---------- */
+.look { display: flex; gap: 18px; align-items: flex-start; width: 100%; }
+.look__preview { flex: none; width: 180px; height: 150px; display: grid; place-items: center; background: var(--surface-2); border-radius: 12px; overflow: hidden; }
+.look__controls { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.look__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.look__label { width: 72px; flex: none; font-size: var(--text-sm); color: var(--text-3); }
+.look__swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.look__swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); padding: 0; }
+.look__swatch--on { box-shadow: 0 0 0 2px var(--primary); }
+.look__swatch--none { background: var(--surface-2); color: var(--text-3); font-size: var(--text-md); line-height: 1; }
+.look__animals { display: flex; gap: 6px; flex-wrap: wrap; }
+.look__animal { width: 52px; height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); padding: 2px; display: grid; place-items: center; overflow: hidden; }
+.look__animal:hover { background: var(--hover); }
+.look__animal--on { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); background: var(--primary-soft); }
+.look__animal .rig, .look__preview .rig { animation: none; }

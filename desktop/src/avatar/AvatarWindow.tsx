@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
+import { normaliseLook } from "./looks";
 import { Button, IconButton } from "../ui";
 import { X, Maximize2 } from "../ui/icons";
 
@@ -271,7 +272,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           ⋯
         </div>
         <button type="button" className={`avatar__button is-${state}`} onClick={() => toggle()} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
-          <Character mood={busy ? "thinking" : mood} size={expanded ? 56 : 80} />
+          <Character mood={busy ? "thinking" : mood} size={expanded ? 56 : 80} look={normaliseLook(comp?.look)} />
         </button>
       </div>
     </div>

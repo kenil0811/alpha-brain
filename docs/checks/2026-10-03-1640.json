@@ -1,0 +1,66 @@
+{
+ "began": "2026-10-03T15:41:01.205Z",
+ "ended": "2026-10-03T15:41:07.135Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 869,
+   "shot": "home@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 944,
+   "shot": "settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "home@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 961,
+   "shot": "settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "home@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 966,
+   "shot": "settings@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

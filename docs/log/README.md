@@ -38,3 +38,4 @@ One file per dated entry, verbatim from where it was written; newest last. The c
 - [`2026-10-03-table-views-1.md`](2026-10-03-table-views-1.md) — The table views, stages one and two: the views package with a tested engine; saved lists in the world
 - [`2026-10-03-desktop-check.md`](2026-10-03-desktop-check.md) — The desktop check (`just check-desktop`) and the type scale: four runs, the overlay bug, the rail and the long-string overflows fixed, 1100 minimum width
 - [`2026-10-03-quick-entry.md`](2026-10-03-quick-entry.md) — Quick entry on a table: a sentence becomes a row through the module's conversation; a real trial on a copy of the world
+- [`2026-10-03-companion-characters.md`](2026-10-03-companion-characters.md) — The companion's characters: Bridge's art as assets, our own rig, ten animals and a wardrobe chosen in Settings, kept in the world as a preference

@@ -480,6 +480,8 @@ export interface Companion {
   focus: Convo | null;
   conversations: Convo[];
   needs_you: NeedItem[];
+  /** The look the person chose for the companion (`avatar/looks.ts` reads it), or null. */
+  look?: unknown;
 }
 
 export interface SearchResult {
@@ -590,6 +592,9 @@ export class Client {
   closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
   focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
   companion = () => this.call<Companion>("GET", "/api/companion");
+  /** A choice of look the person made, kept in the world; the window owns its shape. */
+  preference = (key: string) => this.call<{ key: string; value: unknown }>("GET", `/api/preferences/${encodeURIComponent(key)}`);
+  setPreference = (key: string, value: unknown) => this.call<{ key: string; value: unknown }>("PUT", `/api/preferences/${encodeURIComponent(key)}`, { value });
   moveTurn = (key: string, conversation: string) => this.call<Turn>("POST", `/api/turns/${key}/move`, { conversation });
   ask = (text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null, conversation: opts.conversation ?? null });
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
