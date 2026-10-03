@@ -1,0 +1,36 @@
+{
+ "began": "2026-10-03T21:31:05.691Z",
+ "ended": "2026-10-03T21:31:08.892Z",
+ "pages": [
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 924,
+   "shot": "settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 908,
+   "shot": "settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 880,
+   "shot": "settings@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}
