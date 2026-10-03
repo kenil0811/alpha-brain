@@ -177,6 +177,12 @@ class Scheduler:
     def tick(self) -> None:
         self.builds()
         self.acts()
+        try:
+            from alpha.runtime import conversations
+
+            conversations.close_idle(self.world)
+        except Exception:
+            log.exception("closing quiet conversations")
         for auto in self.world.automations.due():
             if self.stop_event.is_set():
                 return
