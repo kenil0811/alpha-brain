@@ -103,3 +103,41 @@ describe("quick entry", () => {
     expect(screen.queryByRole("textbox", { name: "Add to Deals in a sentence" })).not.toBeInTheDocument();
   });
 });
+
+describe("relations and the form view", () => {
+  const clients: TableDesc = { name: "clients", title: "Clients", module: null, title_field: "name", fields: [{ name: "name", kind: "text" }], records: 1 };
+  const withClient: TableDesc = { ...desc, fields: [...desc.fields, { name: "client", kind: "relation", relation: "clients" }] };
+  const deal = row("r1", "Bakery", 300, { values: { title: "Bakery", price: 300, status: "Active", client: "c1" } });
+
+  it("a relation shows the related record's title, opens it in the drawer, and Back returns", async () => {
+    const user = userEvent.setup();
+    const client = fakeClient([deal]);
+    client.table = vi.fn(async () => ({ table: withClient, records: [deal], files: {}, lists: [], relations: { client: { c1: "RestoPros" } } }));
+    const record = vi.fn(async () => ({ table: clients, record: { ...row("c1", "", null), values: { name: "RestoPros" } }, relations: {} }));
+    (client as unknown as { record: typeof record }).record = record;
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={withClient} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "RestoPros" }));
+    expect(record).toHaveBeenCalledWith("clients", "c1");
+    expect(await screen.findByRole("region", { name: "RestoPros" })).toBeInTheDocument();
+    expect(screen.getByText("Clients")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to Deals" }));
+    expect(screen.queryByRole("region", { name: "RestoPros" })).not.toBeInTheDocument();
+  });
+
+  it("the form view shows one row at a time with next and previous", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("tab", { name: "Form" }));
+    expect(screen.getByRole("region", { name: "Row 1 of 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous row" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Next row" }));
+    expect(screen.getByRole("region", { name: "Row 2 of 2" })).toHaveTextContent("Cafe");
+    expect(screen.getByRole("button", { name: "Next row" })).toBeDisabled();
+  });
+});

@@ -3,7 +3,7 @@
  * ? on an assumption), or being edited in place. A file cell opens or reveals the document.
  */
 import { type KeyboardEvent, useState } from "react";
-import type { FileInfo, RecordRow } from "../../core/client";
+import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
@@ -19,16 +19,32 @@ export function SeenCell({ row }: { row: RecordRow }) {
   return <td className="faint">Since {day(row.created_at)}</td>;
 }
 
-/** A link to a person, a company or another table's record: shown as a pill. */
-export function RelationCell({ row, field }: { row: RecordRow; field: FieldInfo }) {
+/** A link to another table's record (its title, from the table's `relations`), or to a person
+ *  or a company: a pill that opens it, with a way back (the drawer's stack). */
+export function RelationCell({ row, field, relations, onOpenRelated }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void }) {
   const value = row.values[field.name];
-  return <td>{value ? <Badge tone="info">{String(value)}</Badge> : <span className="faint">—</span>}</td>;
+  if (!value) return <td><span className="faint">—</span></td>;
+  const id = String(value);
+  const title = relations?.[field.name]?.[id] ?? id;
+  const target = field.relation;
+  const opens = Boolean(onOpenRelated && target && target !== "person" && target !== "organisation");
+  return (
+    <td>
+      {opens ? (
+        <button type="button" className="linkbtn" onClick={(e) => { e.stopPropagation(); onOpenRelated!(target!, id); }} title={`Open ${title}`}>
+          <Badge tone="info">{title}</Badge>
+        </button>
+      ) : (
+        <Badge tone="info">{title}</Badge>
+      )}
+    </td>
+  );
 }
 
-export function Cell({ row, field, onCommit, files, onFile }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void }) {
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
-  if (field.kind === "relation") return <RelationCell row={row} field={field} />;
+  if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} />;
   if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} />;
   const value = row.values[field.name];
   const numeric = isNumeric(field.kind);

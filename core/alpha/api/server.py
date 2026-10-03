@@ -407,6 +407,34 @@ def thread_views(world: World) -> list[dict[str, Any]]:
     return out
 
 
+def relation_titles(world: World, desc: dict[str, Any],
+                    records: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    """For each relation field into another table, the titles of the records the rows point
+    at, by id: the page shows the client's name, not its id, and opens it."""
+    out: dict[str, dict[str, str]] = {}
+    for field in desc["fields"]:
+        target = field.get("relation") if field.get("kind") == "relation" else None
+        if not target or target in ("person", "organisation"):
+            continue
+        ids = {str(r[field["name"]]) for r in records if r.get(field["name"])}
+        if not ids:
+            continue
+        try:
+            title_field = world.collections.describe(target).get("title_field")
+        except Problem:
+            continue
+        titles: dict[str, str] = {}
+        for rid in ids:
+            row = world.store.one(
+                'SELECT "values" FROM records WHERE collection = ? AND id = ? AND deleted_at'
+                " IS NULL", (target, rid))
+            if row is not None:
+                values = loads(row["values"], {})
+                titles[rid] = str(values.get(title_field) or rid) if title_field else rid
+        out[field["name"]] = titles
+    return out
+
+
 def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
     tables = world.collections.overview(m["id"])
     last = world.store.one(
@@ -664,7 +692,16 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                     files[did] = {"id": did, "name": row["title"], "path": row["path"],
                                   "size": row["size"], "kind": row["kind"]}
         return {"table": desc, "records": records, "files": files,
-                "lists": world.views.for_table(name)}
+                "lists": world.views.for_table(name),
+                "relations": relation_titles(world, desc, records)}
+
+    @app.get("/api/tables/{name}/records/{rid}", dependencies=[api])
+    def record(name: str, rid: str) -> dict[str, Any]:
+        """One record with its table: what the page shows when a relation is followed into
+        another table (a client from a financials row), with a way back."""
+        desc = world.collections.describe(name)
+        row = world.collections.get(name, rid)
+        return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row])}
 
     # ---- saved lists: a named way of looking at a table, kept in the world ----
 

@@ -29,6 +29,9 @@ export interface TableDesc {
   created_at?: string;
 }
 
+/** For each relation field into another table, the titles of the records the rows point at, by id. */
+export type Relations = Record<string, Record<string, string>>;
+
 export interface TableSummary {
   name: string;
   title: string;
@@ -537,9 +540,14 @@ export class Client {
   /** The module's page of Alpha's wiki, or none yet. */
   modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 
-  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo>; lists: SavedList[] }> {
-    const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo>; lists?: SavedList[] }>("GET", `/api/tables/${encodeURIComponent(name)}`);
-    return { table: data.table, records: data.records.map(toRow), files: data.files ?? {}, lists: data.lists ?? [] };
+  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo>; lists: SavedList[]; relations: Relations }> {
+    const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo>; lists?: SavedList[]; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(name)}`);
+    return { table: data.table, records: data.records.map(toRow), files: data.files ?? {}, lists: data.lists ?? [], relations: data.relations ?? {} };
+  }
+  /** One record of a table, for a relation followed into another table. */
+  async record(table: string, id: string): Promise<{ table: TableDesc; record: RecordRow; relations: Relations }> {
+    const data = await this.call<{ table: TableDesc; record: Raw; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}`);
+    return { table: data.table, record: toRow(data.record), relations: data.relations ?? {} };
   }
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>

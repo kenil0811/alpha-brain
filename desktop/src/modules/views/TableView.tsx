@@ -1,13 +1,13 @@
 /** The table: columns the person chose, sized by hand, sorted by a header, totals under the
  *  numeric ones, a row that opens its record. */
-import type { FileInfo, RecordRow } from "../../core/client";
+import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, type FieldInfo } from "../fields";
 import { formatNumber, humanize } from "../format";
 import { ArrowDown, ArrowUp, ChevronRight } from "../../ui/icons";
 import { nextSort, totalsFor, type Sort } from "./engine";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; onSelectAll?: (on: boolean) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = totalsFor(totalOf, columns, byName);
   return (
     <div className="tablewrap">
@@ -76,7 +76,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                 </td>
               ) : null}
               {columns.map((c) => (
-                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
+                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
               ))}
               {seen ? <SeenCell row={row} /> : null}
               <td className="r">

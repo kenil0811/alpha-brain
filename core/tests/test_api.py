@@ -251,3 +251,25 @@ def test_a_skill_and_an_automation_have_pages(world: World) -> None:
     j = c.get(f"/api/automations/{judged['id']}").json()
     assert j["pipeline"] is None and len(j["runs"]) == 1
     assert j["runs"][0]["outcome"] == "Nothing new."
+
+
+def test_a_relation_shows_the_related_records_title_and_opens_it(world: World) -> None:
+    t = building(world)
+    t.collection_create("clients", "Clients", [{"name": "name", "kind": "text"}],
+                        title_field="name")
+    t.collection_create("invoices", "Invoices", [
+        {"name": "number", "kind": "text"},
+        {"name": "client", "kind": "relation", "relation": "clients"},
+    ])
+    stated = {"source": "stated"}
+    client = world.collections.add("clients", {"name": "RestoPros"}, stated)
+    world.collections.add("invoices", {"number": "INV-1", "client": client["id"]}, stated)
+    world.collections.add("invoices", {"number": "INV-2", "client": "r_gone"}, stated)
+    c = TestClient(create_app(world, live=False))
+    data = c.get("/api/tables/invoices").json()
+    assert data["relations"] == {"client": {client["id"]: "RestoPros"}}
+    one = c.get(f"/api/tables/clients/records/{client['id']}").json()
+    assert one["table"]["name"] == "clients"
+    assert one["record"]["name"] == "RestoPros"
+    assert one["relations"] == {}
+    assert c.get("/api/tables/clients/records/r_missing").status_code == 400
