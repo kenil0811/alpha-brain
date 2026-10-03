@@ -62,3 +62,15 @@ Alpha as a question, which opens the panel with it as the draft. Arrow keys move
 Escape closes; a late search answer never overwrites a newer one. Two tests (`CommandMenu.test.tsx`).
 The design's "search everything with ⌘K" (§8) is built; the pull request's version searched
 six fixed pages and called no route.
+
+## Where a fact came from, and the module's page on the module (the same night)
+
+`shell/facts.ts`: every fact on Knowledge › About you and on a person's page says where it
+came from in words a person can check: "You said so, 2 Oct", "Alpha noticed it — “…”" (the
+words it rests on), "From your own words — “…”", "From ocado.com". A suggestion shows the same
+line beside Yes / No. `GET /api/modules/{ref}/page` returns the module's wiki page, and the
+module's Summary tab shows it first as "Alpha's page" with Write / Edit, saved through
+`POST /api/notes` with the summary kept (the design's module page, §3.1, on the module itself;
+ideas 8 and 9 of the port). Tests: the origin wording; the route. Also: `just app-restart`
+kills the window and its core together, after three stale cores were found running their
+schedulers on the live world when only the window had been killed.

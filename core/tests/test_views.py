@@ -41,7 +41,8 @@ def test_a_list_is_kept_checked_and_one_is_the_default(world: World) -> None:
         v.save("deals", "Bad", {"colour": "red"})
     with pytest.raises(Problem, match="no field 'nope' \\(group_by\\)"):
         v.save("deals", "Bad", {"view": "board", "group_by": "nope"})
-    assert v.save("deals", "Board", {"view": "board", "group_by": "status"})["config"]["group_by"] == "status"
+    board = v.save("deals", "Board", {"view": "board", "group_by": "status"})
+    assert board["config"]["group_by"] == "status"
     v.delete(one["id"])
     assert [x["title"] for x in v.for_table("deals")] == ["All deals", "Board"]
 
