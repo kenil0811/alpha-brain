@@ -14,11 +14,14 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
 from alpha.connectors.base import skills_text
 from alpha.context import prepack
 from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
 RULES = """You are Alpha, the person's second brain. You keep their world (tables, a journal of \
@@ -44,10 +47,11 @@ it could not find.
 that fits. If a plain log has nowhere to go, table_start makes the simplest table for it with \
 this first row; nothing more.
 4. Answer questions from the data: query and aggregate the tables (created_at filters and \
-today's date from NOW), search the journal for the past. Never invent numbers, records or \
-history. If it is not in the world, say so. The journal is history: what exists now is what \
-the pre-pack and the tools show, and an entry marked removed is about something the person \
-removed, so never act on it or speak of it as current.
+today's date from NOW); WHAT ALPHA HOLDS lists every table with its fields, so query it \
+straight away rather than describing it first. Search the journal for the past. Never invent \
+numbers, records or history. If it is not in the world, say so. The journal is history: what \
+exists now is what the pre-pack and the tools show, and an entry marked removed is about \
+something the person removed, so never act on it or speak of it as current.
 5. When the person states something about themselves, remember it with \
 fact_record(stated=true). Things you infer are suggestions (stated=false). When they say how \
 they always want something done ("always…", "never…", "from now on…"), keep it with \
@@ -132,6 +136,35 @@ class TurnOutcome:
 
 
 Runner = Callable[[TurnRequest], RunResult]
+
+
+def timings(world: World, limit: int = 40, *, actor: str = "person") -> list[dict[str, Any]]:
+    """How long the last turns took, from the journal: the wall time from the sentence to the
+    reply, the model's own time and steps (the CLI's result), and whether the run resumed a
+    conversation's session. The numbers STATE quotes are measured here (`alpha turns`)."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in world.store.all(
+            "SELECT id, at, kind, data FROM journal WHERE kind IN ('replied', 'failed')"
+            " AND json_extract(data, '$.turn') IS NOT NULL AND deleted_at IS NULL ORDER BY at"):
+        data = loads(row["data"], {})
+        try:
+            said = world.journal.read(str(data["turn"]))
+        except Problem:
+            continue
+        session = data.get("session_id")
+        resumed = bool(session) and session in seen
+        if session:
+            seen.add(str(session))
+        if said["actor"] != actor or not data.get("duration_ms"):
+            continue
+        wall = (datetime.fromisoformat(row["at"]) - datetime.fromisoformat(said["at"]))
+        out.append({"at": said["at"], "turn": said["id"], "text": said["text"],
+                    "wall_s": round(wall.total_seconds(), 1),
+                    "model_s": round(data["duration_ms"] / 1000, 1),
+                    "steps": data.get("num_turns") or 0, "resumed": resumed,
+                    "ok": row["kind"] == "replied"})
+    return out[-limit:]
 
 
 def close_answered_asks(world: World, sentence: str, thread: str | None) -> None:

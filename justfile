@@ -16,6 +16,10 @@ ask *ARGS:
 journal *ARGS:
     uv run alpha journal {{ARGS}}
 
+# How long the last turns took, measured from the journal (wall, the model's time, steps).
+turns *ARGS:
+    uv run alpha turns {{ARGS}}
+
 serve:
     uv run alpha serve
 
