@@ -694,6 +694,12 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .dialog__overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.55); animation: fadein 0.15s ease-out; }
 .dialog { position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 18px; max-width: min(560px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: auto; }
 .dialog__title { font-size: 16px; margin-bottom: 10px; }
+.dialog__body { font-size: 13px; color: var(--text-2); margin-bottom: 14px; }
+.dialog__actions { justify-content: flex-end; }
+.btn--danger.btn:not(.btn--ghost) { border-color: var(--bad); }
+.selectbar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--primary-soft); border-bottom: 1px solid var(--border); font-size: 13px; }
+.table td.sel, .table th.sel { width: 28px; text-align: center; }
+.table tr:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .dialog--bare { background: transparent; border: 0; box-shadow: none; padding: 0; max-width: calc(100vw - 48px); display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
 .dialog--bare img { max-width: 100%; max-height: calc(100vh - 48px); border-radius: 10px; box-shadow: var(--shadow); background: var(--surface); }
 .tooltip { z-index: 70; max-width: 320px; padding: 6px 9px; border-radius: 8px; background: var(--navy); color: var(--bg); font-size: 12px; line-height: 1.4; box-shadow: var(--shadow); }

@@ -7,13 +7,18 @@ import { ArrowDown, ArrowUp, ChevronRight } from "../../ui/icons";
 import { nextSort, totalsFor, type Sort } from "./engine";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; onSelectAll?: (on: boolean) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = totalsFor(totalOf, columns, byName);
   return (
     <div className="tablewrap">
       <table className="table" aria-label={undefined}>
         <thead>
           <tr>
+            {onSelect ? (
+              <th className="sel">
+                <input type="checkbox" aria-label="Select every row on this page" checked={rows.length > 0 && rows.every((r) => selected?.has(r.id))} onChange={(e) => onSelectAll?.(e.target.checked)} />
+              </th>
+            ) : null}
             {columns.map((c) => {
               const kind = byName.get(c)?.kind ?? "text";
               return (
@@ -52,7 +57,24 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
         </thead>
         <tbody ref={(el) => { bodyRef.current = el; }}>
           {rows.map((row) => (
-            <tr key={row.id} className={`row--open${openId === row.id ? " row--current" : ""}`} onClick={() => onOpen(row.id)} aria-label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`}>
+            <tr
+              key={row.id}
+              className={`row--open${openId === row.id ? " row--current" : ""}${selected?.has(row.id) ? " row--selected" : ""}`}
+              onClick={() => onOpen(row.id)}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onOpen(row.id);
+                }
+              }}
+              aria-label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`}
+            >
+              {onSelect ? (
+                <td className="sel" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" aria-label={`Select ${String(row.values[fields[0]?.name] ?? row.id)}`} checked={selected?.has(row.id) ?? false} onChange={(e) => onSelect(row.id, e.target.checked)} />
+                </td>
+              ) : null}
               {columns.map((c) => (
                 <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
               ))}
@@ -64,7 +86,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
           ))}
           {empty ? (
             <tr>
-              <td colSpan={columns.length + (seen ? 2 : 1)} className="empty" style={{ whiteSpace: "normal" }}>
+              <td colSpan={columns.length + (seen ? 2 : 1) + (onSelect ? 1 : 0)} className="empty" style={{ whiteSpace: "normal" }}>
                 {empty}
               </td>
             </tr>
@@ -73,6 +95,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
         {totals.length && totalOf.length > 1 ? (
           <tfoot>
             <tr>
+              {onSelect ? <td /> : null}
               {columns.map((c, i) => {
                 const t = totals.find((x) => x.field === c);
                 return (

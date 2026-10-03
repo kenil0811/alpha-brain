@@ -3,7 +3,8 @@
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { Button, IconButton } from "../../ui";
+import { useState } from "react";
+import { Button, Confirm, IconButton } from "../../ui";
 import { X } from "../../ui/icons";
 import { Cell, LongText } from "./cells";
 
@@ -12,12 +13,16 @@ export function RecordPanel({ row, fields, titleField, onClose, onCommit, onRemo
   const long = fields.filter((f) => f.kind === "long_text");
   const shown = fields.filter((f) => f.name !== titleField && f.kind !== "long_text");
   const when = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
+  const [asking, setAsking] = useState(false);
   return (
     <section className="drawer" aria-label={title || "Details"}>
+      <Confirm open={asking} title={`Remove ${title || "this row"}?`} action="Remove it" onConfirm={() => { setAsking(false); onRemove(); }} onCancel={() => setAsking(false)}>
+        It leaves the table; Activity keeps that it was here.
+      </Confirm>
       <div className="drawer__head">
         <h3>{title || "Details"}</h3>
         <span className="spacer" />
-        <Button size="sm" variant="danger" onClick={onRemove}>
+        <Button size="sm" variant="danger" onClick={() => setAsking(true)}>
           Remove
         </Button>
         <IconButton size="sm" label="Close details" icon={<X />} onClick={onClose} />

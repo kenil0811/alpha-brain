@@ -9,7 +9,7 @@ import type { Client, FileInfo, RecordRow, SavedList, TableDesc } from "../core/
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
-import { Button, IconButton, Tabs, Popover } from "../ui";
+import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { applyQuery, pageOf, provenanceCounts, type Sort } from "./views/engine";
 import { AddRow } from "./views/AddRow";
@@ -117,6 +117,8 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [removing, setRemoving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [naming, setNaming] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
@@ -237,6 +239,27 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   function remove(row: RecordRow) {
     setOpenId(null);
     void run(() => client.deleteRecord(table.name, row.id, row.revision), "Couldn't remove it");
+  }
+  /** Remove every selected row, one at a time, and say how many went when any refused. */
+  async function removeSelected() {
+    setRemoving(false);
+    const chosen = (all ?? []).filter((r) => selected.has(r.id));
+    let done = 0;
+    let problem = "";
+    for (const row of chosen) {
+      try {
+        await client.deleteRecord(table.name, row.id, row.revision);
+        done += 1;
+      } catch (e) {
+        problem = e instanceof Error ? e.message : String(e);
+        break;
+      }
+    }
+    setSelected(new Set());
+    setOpenId(null);
+    load();
+    onChanged();
+    setStatus(problem ? { ok: false, text: `Removed ${done} of ${chosen.length}; then: ${problem}` } : { ok: true, text: `Removed ${done} ${done === 1 ? "row" : "rows"}.` });
   }
   function move(row: RecordRow, field: FieldInfo, value: string) {
     if ((row.values[field.name] ?? null) === value) return;
@@ -416,6 +439,20 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
           </Popover>
         </div>
         {adding ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
+        {selected.size ? (
+          <div className="selectbar" role="status">
+            <b>{count(selected.size)} selected</b>
+            <Button size="sm" variant="danger" onClick={() => setRemoving(true)}>
+              Remove
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+              Clear
+            </Button>
+          </div>
+        ) : null}
+        <Confirm open={removing} title={`Remove ${count(selected.size)} ${selected.size === 1 ? "row" : "rows"}?`} action={`Remove ${count(selected.size)}`} onConfirm={() => void removeSelected()} onCancel={() => setRemoving(false)}>
+          They leave the table; Activity keeps that they were here.
+        </Confirm>
         {error ? (
           <p className="notice" style={{ padding: 12 }} role="alert">
             {error}{" "}
@@ -426,7 +463,28 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
         ) : null}
         <div className="pagebody" ref={scrollRef}>
           {view === "table" ? (
-            <TableView seen={tracked} rows={shownRows ?? []} totalOf={rows ?? []} bodyRef={bodyRef} fields={fields} columns={shownColumns} byName={byName} widths={widths} onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))} sort={sort} onSort={setSort} openId={openId} onOpen={(id) => setOpenId((current) => (current === id ? null : id))} onCommit={commit} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} files={files} onFile={(row, field, file) => void addFile(row, field, file)} />
+            <TableView
+              seen={tracked}
+              rows={shownRows ?? []}
+              totalOf={rows ?? []}
+              bodyRef={bodyRef}
+              fields={fields}
+              columns={shownColumns}
+              byName={byName}
+              widths={widths}
+              onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))}
+              sort={sort}
+              onSort={setSort}
+              openId={openId}
+              onOpen={(id) => setOpenId((current) => (current === id ? null : id))}
+              onCommit={commit}
+              empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null}
+              files={files}
+              onFile={(row, field, file) => void addFile(row, field, file)}
+              selected={selected}
+              onSelect={(id, on) => setSelected((s) => { const next = new Set(s); if (on) next.add(id); else next.delete(id); return next; })}
+              onSelectAll={(on) => setSelected((s) => { const next = new Set(s); for (const r of shownRows ?? []) if (on) next.add(r.id); else next.delete(r.id); return next; })}
+            />
           ) : null}
           {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
           {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
@@ -438,7 +496,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
           <span className="num">
             {counted}
             {resting ? (
-              <span className="faint" title="Numbers Alpha estimated or assumed something for. Click a cell to correct it.">
+              <span className="faint" title="Numbers Alpha estimated or assumed something for. Double-click a cell to correct it.">
                 {resting}
               </span>
             ) : null}

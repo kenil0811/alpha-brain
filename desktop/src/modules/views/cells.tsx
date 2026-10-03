@@ -77,15 +77,28 @@ export function Cell({ row, field, onCommit, files, onFile }: { row: RecordRow; 
     );
   }
   const words = showValue(value, field.kind, field.unit);
+  // A click opens the row (it bubbles to the row); a double-click, Enter or F2 edits the cell
+  // (the convention from pull request #3: scanning by click, editing on purpose).
   return (
-    <td className={`${numeric ? "r num" : ""} editable`.trim()} onClick={(e) => begin(e)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && begin(e)} title={rests ? `${rests} Click to correct it.` : "Click to edit"}>
+    <td
+      className={`${numeric ? "r num" : ""} editable`.trim()}
+      onDoubleClick={(e) => begin(e)}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === "F2") {
+          e.preventDefault();
+          begin(e);
+        }
+      }}
+      title={rests ? `${rests} Double-click to correct it.` : "Double-click to edit"}
+    >
       {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill ${field.done_choices?.includes(String(value)) ? "pill--good" : "pill--gray"}`}>{words}</span> : field.kind === "bool" ? (value ? "✓" : <span className="faint">—</span>) : words}
       {estimate ? (
-        <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="estimated">
+        <span className="est" title={`${rests} Double-click the cell to correct it.`} aria-label="estimated">
           ≈
         </span>
       ) : assumed && numeric ? (
-        <span className="est" title={`${rests} Click the cell to correct it.`} aria-label="on an assumption">
+        <span className="est" title={`${rests} Double-click the cell to correct it.`} aria-label="on an assumption">
           ?
         </span>
       ) : null}
