@@ -28,7 +28,8 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.base import Connections
-from alpha.connectors.browser import profile_of, signin_sites, site_of
+from alpha.connectors.browser import profile_of, signin_sites
+from alpha.world.sites import site_of
 from alpha.world.store import Problem, now
 from alpha.world.views import Views
 from alpha.world.world import World, alpha_home

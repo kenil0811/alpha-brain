@@ -70,7 +70,7 @@ core/alpha/
   context/prepack.py   the deterministic pre-pack
   runtime/claude_cli.py launch `claude -p` with the MCP server; parse the JSON result
   runtime/turn.py      a turn: journal → pre-pack → run → journal
-  mcp/tools.py         plain functions bound to a World (testable)
+  mcp/tools/           plain methods bound to a World (testable), one module per thing touched
   mcp/server.py        FastMCP stdio server registering those functions
   cli.py               `alpha ask | journal | search | tables | show | notes | prepack | mcp`
 core/tests/
@@ -216,7 +216,7 @@ opens a thread; "do now, deepen later" is gone (§4.7–§4.8). The build, autom
 independent and judge runs each have their own rules in `build.py`, `automation.py`,
 `pipeline.py` and `check.py`.*
 
-### 3.6 MCP tools (`mcp/tools.py`, registered in `mcp/server.py`)
+### 3.6 MCP tools (`mcp/tools/`, registered in `mcp/server.py`)
 
 All take and return JSON-serialisable values; errors are returned as `{"error": ...}` in plain
 words, never raised through the server.
@@ -244,7 +244,7 @@ Server: `FastMCP("alpha")`; tools registered with `mcp.tool(fn)` so the function
 testable; the World path from `ALPHA_WORLD`; stdio transport.
 
 *Thirty-one tools then; 63 on 2 Oct, registered from the `@tool` methods of `Tools` in
-`mcp/tools.py`. Finding: `search` (records, documents, journal; no `kinds`), `journal_recent`,
+`mcp/tools/` (a package since 3 Oct night, one module per thing the tools touch). Finding: `search` (records, documents, journal; no `kinds`), `journal_recent`,
 `journal_read`, `journal_note`. Tables: `collections_list`, `collection_describe`,
 `collection_create` (gated; `rows_are`, `identity_field`), `collection_identify`,
 `collection_add_fields`, `record_history`, `records_add` (`source`, `assumed`),

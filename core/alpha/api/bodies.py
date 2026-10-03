@@ -1,0 +1,79 @@
+"""The request bodies the window sends."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel
+
+
+class AskBody(BaseModel):
+    text: str
+    module: str | None = None
+    thread: str | None = None
+    # The conversation this belongs to; without one the sentence is routed (the companion).
+    conversation: str | None = None
+
+
+class ConversationBody(BaseModel):
+    module: str | None = None
+    title: str | None = None
+
+
+class MoveBody(BaseModel):
+    conversation: str
+
+
+class RecordBody(BaseModel):
+    values: dict[str, Any]
+    revision: int | None = None
+
+
+class ExportBody(BaseModel):
+    format: str = "csv"
+
+
+class ListBody(BaseModel):
+    title: str | None = None
+    config: dict[str, Any] | None = None
+    default: bool | None = None
+
+
+class ActionEditBody(BaseModel):
+    payload: dict[str, Any]
+
+
+class ActionApproveBody(BaseModel):
+    always: bool = False
+
+
+class DecideBody(BaseModel):
+    accept: bool
+
+
+class AnswerBody(BaseModel):
+    text: str
+
+
+class FolderBody(BaseModel):
+    path: str
+
+
+class SiteBody(BaseModel):
+    site: str
+
+
+class SwitchBody(BaseModel):
+    enabled: bool
+
+
+class PreferenceBody(BaseModel):
+    value: Any
+
+
+class NoteBody(BaseModel):
+    scope: str
+    title: str
+    body: str
+    summary: str | None = None
+

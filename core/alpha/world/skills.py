@@ -20,14 +20,13 @@ The platform never writes a skill's script or steps; it runs them and keeps thei
 
 from __future__ import annotations
 
-import re
 import sqlite3
 from typing import Any
 
+from alpha.world.names import check_name
 from alpha.world.store import FUNCTION_WORDS, Problem, Store, dumps, loads, now
 
 KINDS = ("read", "act", "run")
-NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -135,9 +134,7 @@ class Skills:
         """Create or replace a skill (its version goes up when it exists)."""
         if kind not in KINDS:
             raise Problem(f"A skill's kind is one of {KINDS}.")
-        if not NAME.match(name):
-            raise Problem("A skill's name is lower-case words joined by _, e.g. "
-                          "linkedin_connections.")
+        check_name(name, "skill", "linkedin_connections")
         if not description.strip():
             raise Problem("A skill needs a description: what it does, in a sentence.")
         prior = self.store.one("SELECT kind FROM skills WHERE name = ?", (name,))

@@ -113,7 +113,7 @@ def test_ask_runs_a_turn_in_the_background(world: World) -> None:
     started = c.post("/api/ask", json={"text": "log two eggs"}).json()
     for _ in range(50):
         state = c.get(f"/api/turns/{started['id']}").json()
-        if state["state"] != "running":
+        if state["state"] not in ("running", "routing"):
             break
         time.sleep(0.05)
     assert state["state"] == "done" and state["reply"] == "Logged two eggs."

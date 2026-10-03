@@ -218,9 +218,7 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
                       " afresh once repaired.")
     action = world.actions.approve(action_id, approval)
     if action.get("proposal"):
-        world.journal.append("answered", "Yes", actor="person",
-                             data={"proposal": action["proposal"], "accept": True,
-                                   "action": action_id})
+        world.journal.answer_proposal(action["proposal"], True, action=action_id)
     if always and action["effect"] == "prepare":
         procedure = world.procedures.get(action["procedure"])
         granted = world.permissions.grant(
@@ -237,9 +235,7 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
 def decline(world: World, action_id: str) -> dict[str, Any]:
     action = world.actions.decline(action_id)
     if action.get("proposal"):
-        world.journal.append("answered", "No", actor="person",
-                             data={"proposal": action["proposal"], "accept": False,
-                                   "action": action_id})
+        world.journal.answer_proposal(action["proposal"], False, action=action_id)
     return action
 
 

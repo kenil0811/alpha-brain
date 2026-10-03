@@ -13,6 +13,7 @@ import sqlite3
 from datetime import date, datetime
 from typing import Any
 
+from alpha.world.names import check_name
 from alpha.world.store import Problem, Store, dumps, fts_query, loads, new_id, now
 
 FIELD_KINDS = {
@@ -29,18 +30,13 @@ FIELD_KINDS = {
     "relation",
     "file",
 }
-NAME = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 SYSTEM_FIELDS = {"id", "created_at", "updated_at"}
 OPS = {"eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "is_null"}
 AGGREGATES = {"count", "sum", "avg", "min", "max"}
 
 
 def _check_name(name: str, what: str) -> None:
-    if not NAME.match(name):
-        raise Problem(
-            f"'{name}' can't be a {what} name: use lower-case letters, digits and underscores,"
-            " starting with a letter (e.g. food_log)."
-        )
+    check_name(name, what, "food_log")
 
 
 def normalise_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -235,6 +235,19 @@ class Journal:
         return self.append("answered", words, actor=actor, data={"ask": ask_id, "closed": closed},
                            module=asked["module"], thread=asked["thread"])
 
+    def answer_proposal(self, proposal: str, accept: bool | None, *, words: str | None = None,
+                        actor: str = "person", module: str | None = None,
+                        thread: str | None = None, **about: Any) -> str:
+        """The one way a proposal is answered: Yes or No (or other words: a standing permission,
+        a revised plan replacing it), with what the answer was about (the plan, the action), so
+        Home stops showing it and Activity shows who decided."""
+        data: dict[str, Any] = {"proposal": proposal}
+        if accept is not None:
+            data["accept"] = accept
+        data.update(about)
+        return self.append("answered", words or ("Yes" if accept else "No"), actor=actor,
+                           data=data, module=module, thread=thread)
+
     def close_asks_about(self, connection: str, words: str, closed: str) -> int:
         """Close the open questions a connection asked (a sign-in that is done or asked again)."""
         open_ones = [a for a in self.open_asks() if a["data"].get("connection") == connection]

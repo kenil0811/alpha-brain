@@ -14,13 +14,12 @@ table is left alone, and Alpha is told to repair it.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
+from alpha.world.names import check_name
 from alpha.world.skills import Skills
-from alpha.world.store import Problem, Store, now
+from alpha.world.store import Store, now
 
-NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 DROP = 0.5
 HELD = 0.75
 MISSING = 0.2
@@ -57,9 +56,7 @@ class Readers:
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
              to_end: bool, count: int, whole: bool = True, when_to_use: str | None = None,
              source: str | None = None) -> dict[str, Any]:
-        if not NAME.match(name):
-            raise Problem("A reader's name is lower-case words joined by _, e.g. "
-                          "linkedin_connections.")
+        check_name(name, "reader", "linkedin_connections")
         stamp = now()
         return self.skills.save(name, "read", description=description, site=site, url=url,
                                 when_to_use=when_to_use, source=source, health="ok",

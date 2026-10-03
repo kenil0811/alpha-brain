@@ -54,7 +54,7 @@ test-desktop:
 stats:
     @echo "core tests:    $(cd core && uv run pytest -q 2>&1 | tail -1)"
     @echo "desktop tests: $(grep -rhoE '^\s*it\(' desktop/src desktop/scripts --include='*.test.ts' --include='*.test.tsx' | wc -l | tr -d ' ') in $(find desktop/src desktop/scripts -name '*.test.ts' -o -name '*.test.tsx' | wc -l | tr -d ' ') file(s)"
-    @echo "tools:         $(grep -c '@tool' core/alpha/mcp/tools.py)"
+    @echo "tools:         $(cat core/alpha/mcp/tools/*.py | grep -c '@tool')"
     @echo "journeys:      $(ls journeys/*.yaml | wc -l | tr -d ' ') defined; latest report $(ls -t docs/journeys/*.md | head -1 | xargs basename): $(ls -t docs/journeys/*.md | head -1 | xargs sed -n 3p | cut -c1-20)"
     @echo "desktop check: latest report $(ls -t docs/checks/*.md 2>/dev/null | head -1 | xargs -n1 basename 2>/dev/null): $(ls -t docs/checks/*.md 2>/dev/null | head -1 | xargs -n1 sed -n 3p 2>/dev/null | cut -c1-60)"
     @echo "commits:       $(git log --oneline | wc -l | tr -d ' ') total, $(git log --since=2026-10-01 --oneline | wc -l | tr -d ' ') since 1 Oct 2026"

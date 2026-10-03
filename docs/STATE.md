@@ -22,13 +22,13 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 193, in about 13 s; ruff and mypy strict clean |
+| Core tests | 195, in about 13 s; ruff and mypy strict clean |
 | Desktop tests | 65, in sixteen files; typecheck clean |
 | Tools the model sees | 71 |
 | Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
 | Desktop check | latest full run `docs/checks/2026-10-03-1622.md`, 61 of 61 pages clean at every size; later partial runs clean (Settings, Home, the module pages) |
 | Commits | 116 total; 100 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 12,171 Python; tests 4,325; desktop 9,126 TS/TSX |
+| Lines | core 12,559 Python; tests 4,355; desktop 9,126 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -58,7 +58,7 @@ copy of Kenil's world (see the numbers).
 - A turn takes 26–34 s at the median, up to three minutes at p90, and can start five model
   runs. Resumed conversations answer in 6 s.
 - The pre-pack is 9–12k characters of a 12k cap: the next section added cuts something.
-- Two files hold 2,300 of 11,000 core lines (`mcp/tools.py`, `api/server.py`).
+- ~~Two files hold 2,300 of 11,000 core lines~~ — packages since 3 Oct night (the split).
 - The desktop polls about 26 requests a minute idle and 140 during a turn, never paused when
   hidden; nothing supervises the core; swallowed errors remain (the count is from the checkpoint).
 - The window's minimum is 1100×560 since the desktop check: below 1100 wide the panel used to
@@ -76,8 +76,9 @@ pending item 6, people for real, and noticing over what Alpha reads.
 1. ~~The docs' shape~~ — done 3 Oct.
 2. ~~Harden the model boundary and the store~~ — done 3 Oct. Left from the review: a schema
    version, `records_fts` by triggers, the pre-pack budget per section.
-3. Split `tools.py` and `server.py` into packages, no behaviour change; one `site_of`, one
-   name rule, one proposal-answer helper.
+3. ~~Split `tools.py` and `server.py` into packages, no behaviour change; one `site_of`, one
+   name rule, one proposal-answer helper~~ — done 3 Oct night
+   ([`log/2026-10-03-the-split.md`](log/2026-10-03-the-split.md)).
 4. Make turns fast: measure, fewer tools per turn, warm sessions, the judge for table
    questions.
 5. The desktop's four: supervise the core and reset "working" chats at startup; pause polling

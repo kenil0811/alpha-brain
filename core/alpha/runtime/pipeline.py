@@ -21,9 +21,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser, site_of
+from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
 from alpha.runtime import claude_cli, turn
 from alpha.world.readers import health_problem
+from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World
 

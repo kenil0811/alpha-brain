@@ -26,25 +26,15 @@ from typing import Any
 from urllib.parse import urlparse
 
 from alpha.connectors.base import Connections, connectors_dir
+from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
 
-TWO_PART = {"co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "co.in", "com.br", "co.jp",
-            "co.nz", "com.sg"}
 NODE_CANDIDATES = ["/opt/homebrew/opt/node@24/bin/node", "/usr/local/opt/node@24/bin/node"]
 READ_TIMEOUT_S = 180
 ACT_TIMEOUT_S = 300
 SIGNIN_TIMEOUT_S = 1800
 PRIVATE = re.compile(r"^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)")
-
-
-def site_of(url_or_site: str) -> str:
-    host = urlparse(url_or_site if "://" in url_or_site else f"https://{url_or_site}").hostname
-    if not host:
-        raise Problem(f"'{url_or_site}' isn't a web address.")
-    parts = host.lower().removeprefix("www.").split(".")
-    n = 3 if ".".join(parts[-2:]) in TWO_PART else 2
-    return ".".join(parts[-n:])
 
 
 def node_binary() -> str:
