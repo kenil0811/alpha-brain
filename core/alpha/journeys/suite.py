@@ -53,7 +53,7 @@ from typing import Any
 import yaml
 
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import build, check, claude_cli, pipeline, turn
+from alpha.runtime import build, check, claude_cli, noticing, pipeline, turn
 from alpha.world.store import Problem, now
 from alpha.world.world import World
 
@@ -173,6 +173,11 @@ class Run:
             self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
                 self._settle_builds()
+                # What the app does after a person's turn: the noticing pass, here in line.
+                try:
+                    noticing.notice(self.world, outcome.said, runner=self.runner)
+                except Exception as e:  # a journey is not failed by its noticing pass
+                    log.warning("noticing in journey: %s", e)
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
                       "steps": outcome.result.num_turns}
         elif "reader" in spec:

@@ -29,7 +29,7 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
 - `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright
   driver, read-only), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
 - `desktop/` — the Tauri 2 + React app: the workspace (rail, Home, modules with derived table
-  pages, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
+  pages, People & Companies, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
   window. The app starts the core from this repository's `.venv`.
 - `journeys/` — the real journeys the suite runs after a change (`just journeys`); reports land in
   `docs/journeys/`.

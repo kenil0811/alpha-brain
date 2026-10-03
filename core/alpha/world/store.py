@@ -370,6 +370,8 @@ ADDED_COLUMNS = [
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
     ("documents", "origin", "TEXT"),
+    # a page of the wiki carries a one-line summary for the always-loaded index
+    ("notes", "summary", "TEXT"),
 ]
 
 
@@ -481,13 +483,31 @@ class Store:
             self.db.close()
 
 
+# Words that carry no subject: a sentence's "who is … and when did i last deal with her" must
+# search for the name and "deal", not for "with", "last" and "her" (3 Oct 2026, build-plan
+# §4.23: those matched hundreds of unrelated rows and buried the one that mattered).
+FUNCTION_WORDS = frozenset("""
+a an the and or but if so as of in on at by to for from with without about into over under
+than then there here up down out again also just only very not no yes is are was were be been
+being am do does did done have has had having i me my mine you your yours he him his she her
+hers it its we us our ours they them their theirs this that these those what when where who
+whom which why how can could should would will shall may might must any some all more most
+much many few each every both other another such own same last first next now today tonight
+yesterday tomorrow please tell say said says know knew think thought want wanted need get got
+give gave show let like ok okay thanks thank hi hello yet still ever never always often
+""".split())
+
+
 def fts_query(text: str) -> str | None:
-    """Turn free text into a safe FTS5 query: each word quoted, joined with OR, prefix-matched.
+    """Turn free text into a safe FTS5 query: each word that carries meaning quoted, joined
+    with OR, prefix-matched; function words are left out unless nothing else remains.
     Returns None when nothing searchable is left."""
     words = []
     for raw in text.replace('"', " ").split():
         word = "".join(ch for ch in raw if ch.isalnum() or ch in "-_'")
         word = word.strip("-_'")
         if len(word) >= 2:
-            words.append(f'"{word}"*')
-    return " OR ".join(words[:16]) or None
+            words.append(word)
+    meaningful = [w for w in words if w.lower() not in FUNCTION_WORDS]
+    chosen = meaningful or words
+    return " OR ".join(f'"{w}"*' for w in chosen[:16]) or None

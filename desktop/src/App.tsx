@@ -10,6 +10,7 @@ import { AssistantPanel } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
+import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { ModulePage } from "./modules/ModulePage";
 import { ClaudeRow, Settings } from "./shell/Settings";
@@ -154,7 +155,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
 
   const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : "Intelligence";
+    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   return (
     <div className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}`}>
@@ -201,6 +202,10 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={version} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} />
+        ) : surface.kind === "people" ? (
+          <People client={runtime.client} version={version} onOpen={(id) => setSurface({ kind: "entity", id })} />
+        ) : surface.kind === "entity" ? (
+          <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={version} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} />
         ) : (

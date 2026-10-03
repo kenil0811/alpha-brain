@@ -5,10 +5,13 @@ export type Surface =
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings" }
+  | { kind: "people" }
+  | { kind: "entity"; id: string }
   | { kind: "module"; id: string };
 
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
+  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
@@ -17,7 +20,7 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || (s.kind === "module" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity") && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -42,7 +45,7 @@ export function Rail({
 }) {
   const item = (target: Surface, icon: string, label: string, count?: number) => {
     const current = sameSurface(surface, target);
-    const key = target.kind === "module" ? `m:${target.id}` : target.kind;
+    const key = target.kind === "module" || target.kind === "entity" ? `${target.kind}:${target.id}` : target.kind;
     return (
       <button key={key} type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
         <span className="navbtn__ico" aria-hidden="true">
@@ -67,6 +70,7 @@ export function Rail({
       </div>
       {item({ kind: "home" }, "⌂", "Home", needs)}
       {item({ kind: "activity" }, "◷", "Activity")}
+      {item({ kind: "people" }, "☺", "People & Companies")}
       <div className="rail__group">Your modules</div>
       {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}
       {modules.map((m) => item({ kind: "module", id: m.id }, "▦", m.name))}

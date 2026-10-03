@@ -1,0 +1,226 @@
+[
+ {
+  "name": "memory_correction",
+  "title": "Memory · a correction overrides the earlier belief, at once and afterwards",
+  "steps": [
+   {
+    "say": "my protein target is now 130 g a day, not 115",
+    "ok": true,
+    "reply": "Updated — your daily protein target is now 130g (was 115g), everything else unchanged (2200 kcal, 290g carbs, 65g fat, 30g fiber).",
+    "steps": 4,
+    "seconds": 19.3
+   },
+   {
+    "say": "what's my daily protein target?",
+    "ok": true,
+    "reply": "Your daily protein target is **130g**, updated just now from 115g.",
+    "steps": 1,
+    "seconds": 13.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "130"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 130 g as the current target and does not present 115 g as still current (mentioning 115 as the old value is fine). Fails otherwise.",
+    "ok": true,
+    "why": "The answer states 130g as the current target and only mentions 115g as the prior value, consistent with the rubric.",
+    "seconds": 9.7
+   }
+  ],
+  "seconds": 42.1,
+  "error": null
+ },
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "The three highest asking-price deals in the tracker, all from Website Closers:\n\n1. **High Growth Indoor & Outdoor Furniture Brand** (China/US offices, 50 employees) — $90,000,000 asking, $14.4M cash flow, status Pending\n2. **CPG eCommerce Brand | Niche Furniture Fix-It Products** — $29,000,000 asking, $6.0M cash flow, status Active\n3. **Mission-Critical SaaS for Financial Trading Firms** — $28,500,000 asking, $3.35M cash flow, status Active",
+    "steps": 2,
+    "seconds": 18.5
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**CPG eCommerce Brand | Niche Furniture Fix-It Products** (listed via Website Closers)\n\n- **Asking price:** $29,000,000 | **Cash flow:** $6,048,663 | **Gross income:** $23,190,513\n- **Founded:** 2020. Sells practical fix-it products for sagging sofas, sofa beds, bunk beds, etc. — grew from 1 product to 70 active SKUs (up from 50 in 2024, 34 in 2023).\n- **Metrics:** ~$106 average order value, 13.2% repeat customer rate, ~5.3% ad cost of sale, ~20x ROAS on marketplace ads.\n- **Team:** 7 full-time remote contractors; owner mainly handles purchasing, supply chain, hiring, and strategy — a dedicate",
+    "steps": 3,
+    "seconds": 53.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer gives detailed information on the CPG eCommerce Brand (Niche Furniture Fix-It Products), which was the second deal listed in the prior response, without re-listing or asking for clarification.",
+    "seconds": 6.0
+   }
+  ],
+  "seconds": 78.0,
+  "error": null
+ },
+ {
+  "name": "memory_noticing",
+  "title": "Memory · what is said in passing about a person is kept on their page, and comes back",
+  "steps": [
+   {
+    "say": "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech",
+    "ok": true,
+    "reply": "Noted — I've logged the update and linked it to Vikas Badami's profile (he's your RestoPros advisory contact, who sends the QuickBooks exports). Worth flagging: once he's in Bangalore, that may change how the RestoPros advisory work runs. Let me know if you want to think through the fintech co-founding idea or track it as something active.",
+    "steps": 8,
+    "seconds": 44.2
+   },
+   {
+    "say": "what's going on with vikas these days?",
+    "ok": true,
+    "reply": "Here's the current picture on Vikas:\n\n- **Relationship update (today):** You had coffee with him this morning — he's moving to Bangalore next month and wants to co-found a fintech startup with you.\n- **Advisory context:** He's your RestoPros (St. Louis, MO) advisory client contact, sending QuickBooks exports for that franchise. His move to Bangalore raises an open question about how that advisory relationship runs going forward.\n- **Recent emails (last few weeks):** Shared a `badami-vikas/relationship-os` GitHub repo invite with you (Sep 10), asked you to \"book time to meet\" re: \"Data\" (Sep 12",
+    "steps": 5,
+    "seconds": 46.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details.",
+    "ok": true,
+    "why": "The answer states Vikas is moving to Bangalore next month and wants to co-found a fintech startup with the user, matching the rubric's pass criteria.",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 95.1,
+  "error": null
+ },
+ {
+  "name": "memory_old_fact",
+  "title": "Memory · a fact stated days ago is used without being asked again",
+  "steps": [
+   {
+    "say": "how tall am i, and what do i weigh?",
+    "ok": true,
+    "reply": "You're 178cm tall and weigh 63kg — both from what you've told me previously.",
+    "steps": 1,
+    "seconds": 11.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "178"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "63"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 178 cm and 63 kg as the person's own figures. Fails if it asks the person for them or guesses.",
+    "ok": true,
+    "why": "The answer states 178 cm and 63 kg as the person's previously provided figures, matching the rubric.",
+    "seconds": 4.5
+   }
+  ],
+  "seconds": 16.0,
+  "error": null
+ },
+ {
+  "name": "memory_two_sources",
+  "title": "Memory · one person known from two sources is one person",
+  "steps": [
+   {
+    "say": "what do i know about alexander miller, and what did he last write to me?",
+    "ok": true,
+    "reply": "Here's what I have on Alexander Miller:\n\n**Who he is:** A LinkedIn connection since Aug 5, 2025. Headline: \"Building Teams That Impact The World.\" Profile: linkedin.com/in/alexanderterrymiller. There's an ongoing thread with him about **Fuse Energy** — looks related to a role/team there (\"World-Class Team | Real-World Impact at Scale\") and scheduling a call.\n\n**What he last wrote:** A short LinkedIn message replying to the Fuse Energy thread: **\"Could next week or following work for you?\"** — just proposing a time for the call, no new content otherwise. That was sent Oct 1, around 10:53am (per",
+    "steps": 9,
+    "seconds": 70.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer draws on both the LinkedIn connection (his headline or company, e.g. Fuse Energy) and his email (what he last wrote, e.g. asking whether next week or the following works). Fails if it uses only one source, invents, or says it doesn't know him.",
+    "ok": true,
+    "why": "The answer draws on both the LinkedIn profile/connection info (headline, Fuse Energy context) and the email/message content (last message asking if next week or following week works).",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 75.5,
+  "error": null
+ },
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "I don't have Sara Ramos recorded as a known contact — she's not in your LinkedIn connections or anywhere else in Alpha. The only trace I have is from Oct 1, when I scanned your inbox for emails from LinkedIn connections: Sara Ramos was one of 9 senders in the prior 24 hours that didn't match anyone in your 1,551 saved connections (that check only matches by name, not email).\n\nI don't know who she is or what she emailed about — want me to open Gmail and check that message?",
+    "steps": 4,
+    "seconds": 22.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents.",
+    "ok": false,
+    "why": "The answer claims no record of Sara Ramos and asks who she is, whereas the rubric requires identifying her via the Penelope Health email and the 2 October intro meeting.",
+    "seconds": 5.8
+   }
+  ],
+  "seconds": 28.2,
+  "error": null
+ },
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (Friday 2 Oct), you said one thing specifically about Vikas:\n\n- **1:02 PM** — \"remind me that I promised Vikas the financial model by Friday.\" I noted it at the time.\n\nThat's the only mention of him yesterday — nothing else came up until this morning's coffee update.",
+    "steps": 1,
+    "seconds": 16.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": true,
+    "why": "The answer places the mention yesterday and states the person promised Vikas the financial model by Friday, matching the rubric.",
+    "seconds": 4.8
+   }
+  ],
+  "seconds": 21.0,
+  "error": null
+ }
+]

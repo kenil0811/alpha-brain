@@ -30,12 +30,28 @@ def _note(row: sqlite3.Row) -> dict[str, Any]:
         "title": row["title"],
         "body": row["body"],
         "source": row["source"],
+        "summary": row["summary"] if "summary" in row.keys() else None,
         "updated_at": row["updated_at"],
     }
 
 
 def _fact(row: sqlite3.Row) -> dict[str, Any]:
     return {k: row[k] for k in row.keys()}
+
+
+def _first_line(body: str) -> str:
+    """A page's one line when none was given: its first line of text, a heading only when
+    there is nothing else."""
+    heading = ""
+    for line in body.splitlines():
+        words = line.strip().lstrip("#- ").strip()
+        if not words:
+            continue
+        if line.lstrip().startswith("#"):
+            heading = heading or words[:160]
+            continue
+        return words[:160]
+    return heading
 
 
 class Knowledge:
@@ -45,12 +61,20 @@ class Knowledge:
     # ---- notes ----
 
     def write_note(self, scope: str, title: str, body: str,
-                   source: str | None = None) -> dict[str, Any]:
-        """Create or replace a note; `source` is the journal entry (the turn) it came from."""
-        if not (scope == "person" or scope.startswith(("module:", "topic:"))):
-            raise Problem("A note's scope is 'person', 'module:<name>' or 'topic:<slug>'.")
+                   source: str | None = None, summary: str | None = None) -> dict[str, Any]:
+        """Create or replace a page of the wiki; `source` is the journal entry (the turn) it
+        came from; `summary` is its one line in the always-loaded index (the first line of
+        the body when not given)."""
+        kind, _, ref = scope.partition(":")
+        if not (scope == "person" or (kind in ("module", "topic", "entity") and ref.strip())):
+            raise Problem("A page's scope is 'person', 'module:<name>', 'topic:<slug>' or"
+                          " 'entity:<id>'.")
+        if kind == "entity" and self.store.one(
+                "SELECT 1 AS x FROM entities WHERE id = ? AND merged_into IS NULL", (ref,)) is None:
+            raise Problem(f"There is no person or company {ref} to write a page about.")
         if not title.strip():
-            raise Problem("A note needs a title.")
+            raise Problem("A page needs a title.")
+        line = " ".join((summary or _first_line(body)).split())[:160]
         stamp = now()
         existing = self.store.one(
             "SELECT id FROM notes WHERE scope = ? AND title = ?", (scope, title)
@@ -58,16 +82,17 @@ class Knowledge:
         with self.store.tx() as db:
             if existing:
                 db.execute(
-                    "UPDATE notes SET body = ?, source = ?, updated_at = ? WHERE id = ?",
-                    (body, source, stamp, existing["id"]),
+                    "UPDATE notes SET body = ?, source = ?, summary = ?, updated_at = ?"
+                    " WHERE id = ?",
+                    (body, source, line, stamp, existing["id"]),
                 )
                 nid = existing["id"]
             else:
                 nid = new_id("n")
                 db.execute(
-                    "INSERT INTO notes (id, scope, title, body, source, updated_at)"
-                    " VALUES (?,?,?,?,?,?)",
-                    (nid, scope, title, body, source, stamp),
+                    "INSERT INTO notes (id, scope, title, body, source, summary, updated_at)"
+                    " VALUES (?,?,?,?,?,?,?)",
+                    (nid, scope, title, body, source, line, stamp),
                 )
         return self.read_note(nid)
 
@@ -96,6 +121,36 @@ class Knowledge:
         return self.write_note("person", INSTRUCTIONS,
                                "\n".join(f"- {s}" for s in current if s != sentence),
                                source=source)
+
+    def append_to_page(self, scope: str, title: str, heading: str, line: str,
+                       source: str | None = None) -> dict[str, Any]:
+        """Add one dated line under a heading of a page (made if missing). Alpha's noticing
+        writes here; the person's own text elsewhere on the page is never touched."""
+        page = self.find_note(scope, title)
+        body = page["body"] if page else ""
+        mark = f"## {heading}"
+        if mark not in body:
+            body = (body.rstrip() + "\n\n" if body.strip() else "") + mark + "\n"
+        head, _, tail = body.partition(mark)
+        tail_lines = tail.split("\n")
+        # The heading's own section ends at the next heading.
+        end = next((i for i, text in enumerate(tail_lines) if text.startswith("## ")),
+                   len(tail_lines))
+        section = [text for text in tail_lines[:end] if text.strip()]
+        if line.strip() in {text.strip().lstrip("- ").strip() for text in section}:
+            return page or self.write_note(scope, title, body, source=source)
+        section.append(f"- {line.strip()}")
+        rest = "\n".join(tail_lines[end:]).strip()
+        new_body = head + mark + "\n" + "\n".join(section) + "\n" + (f"\n{rest}\n" if rest else "")
+        return self.write_note(scope, title, new_body, source=source,
+                               summary=page.get("summary") if page else None)
+
+    def index(self) -> list[dict[str, Any]]:
+        """Every page's one line: scope, title, summary. The part of the wiki always in
+        context."""
+        rows = self.store.all("SELECT scope, title, summary, body FROM notes ORDER BY scope, title")
+        return [{"scope": r["scope"], "title": r["title"],
+                 "summary": r["summary"] or _first_line(r["body"])} for r in rows]
 
     def read_note(self, nid: str) -> dict[str, Any]:
         row = self.store.one("SELECT * FROM notes WHERE id = ?", (nid,))

@@ -464,15 +464,20 @@ class Tools:
         return self.world.knowledge.read_note(id)
 
     @tool
-    def note_write(self, scope: str, title: str, body: str) -> dict[str, Any]:
-        """Create or replace a note (Markdown). Scope person with title 'Profile' holds a short
-        portrait; module:<name> with the module's name as title holds what the module is for,
-        what is in it, what was tried and what is open. Write only what the person said or
-        what you verified. Standing instructions are not written here: see instruction_add."""
+    def note_write(self, scope: str, title: str, body: str,
+                   summary: str | None = None) -> dict[str, Any]:
+        """Create or replace a page of Alpha's wiki (Markdown). Scopes: person (title 'Profile':
+        a short portrait); module:<name> (the module's name as title: what it is for, what it
+        holds, what was tried, what is open); entity:<id> (a person or company: who they are to
+        the person, how they know them, what is going on); topic:<slug> (anything else).
+        summary: the page's one line in the always-loaded index. Write only what the person
+        said or what you verified. Standing instructions are not written here: see
+        instruction_add."""
         if scope == "person" and title in GATED_NOTES:
             return {"error": f"'{title}' changes only on the person's own words: use"
                     " instruction_add with their words from this turn, or instruction_propose."}
-        note = self.world.knowledge.write_note(scope, title, body, source=self.turn)
+        note = self.world.knowledge.write_note(scope, title, body, source=self.turn,
+                                               summary=summary)
         self._did("changed", f"Updated the note {title} ({scope}).", {"note": note["id"]})
         return note
 
@@ -823,9 +828,10 @@ class Tools:
         row it returns is marked seen; its rows that stopped appearing are marked gone. The
         result is checked first against what this reader found before: no rows, far fewer
         than last time, or rows missing what the table requires mean it is broken; then nothing
-        is written and you should repair it (look at the page, fix the script, reader_save,
-        run again). needs_signin: offer browser_signin. blocked: the site stops automated
-        reading; say so plainly, never try to get past it."""
+        is written and you repair it in this run (look at the page as it is now, fix the script,
+        reader_save, run once more); never rerun a broken reader unchanged. needs_signin: offer
+        browser_signin. blocked: the site stops automated reading; say so plainly, never try to
+        get past it."""
         return pipeline.run_reader(self.world, name, collection, key_field,
                                    keep=keep_person_fields, mapping=value_map,
                                    turn_id=self.turn, module=self.module)

@@ -32,7 +32,7 @@ from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
-from alpha.runtime import acting, build, check, claude_account, claude_cli, conversations
+from alpha.runtime import acting, build, check, claude_account, claude_cli, conversations, noticing
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world import backup
@@ -102,6 +102,7 @@ class NoteBody(BaseModel):
     scope: str
     title: str
     body: str
+    summary: str | None = None
 
 
 class Turns:
@@ -185,9 +186,27 @@ class Turns:
             said_id = result.get("said")
             if self.checks and result["state"] == "done" and said_id:
                 self.check(str(said_id))
+                if actor == "person":
+                    self.notice(str(said_id))
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def notice(self, said: str) -> None:
+        """After a person's turn: what was said worth keeping, beside the verbatim (§3.7)."""
+        if not noticing.worth_noticing(self.world, said):
+            return
+
+        def work() -> None:
+            try:
+                kwargs: dict[str, Any] = {}
+                if self.runner is not None:
+                    kwargs["runner"] = self.runner
+                noticing.notice(self.world, said, **kwargs)
+            except Exception:
+                log.exception("noticing failed")
+
+        threading.Thread(target=work, daemon=True, name=f"notice-{said}").start()
 
     def check(self, said: str) -> None:
         if not check.worth_checking(self.world, said):
@@ -723,8 +742,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                     "SELECT j.at, j.text FROM journal j, json_each(j.entity_ids) x WHERE x.value ="
                     " ? AND j.deleted_at IS NULL ORDER BY j.at DESC LIMIT 1", (e["id"],),
                 )
+                page = world.knowledge.find_note(f"entity:{e['id']}", e["name"])
                 out.append({**e, "last_at": last["at"] if last else None,
-                            "last_text": last["text"] if last else None})
+                            "last_text": last["text"] if last else None,
+                            "summary": page.get("summary") if page else None})
         return sorted(out, key=lambda e: e["last_at"] or "", reverse=True)
 
     @app.get("/api/entities/{eid}", dependencies=[api])
@@ -733,7 +754,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         same_name = [x for x in world.entities.find(name=e["name"], kind=e["kind"])
                      if x["id"] != e["id"] and x["name"].lower() == e["name"].lower()]
         return {**e, "facts": world.knowledge.facts(f"entity:{e['id']}"),
-                "timeline": timeline(world, e["id"]), "maybe_same": same_name}
+                "timeline": timeline(world, e["id"]), "maybe_same": same_name,
+                "page": world.knowledge.find_note(f"entity:{e['id']}", e["name"])}
 
     @app.post("/api/entities/{keep}/merge/{other}", dependencies=[api])
     def merge(keep: str, other: str) -> dict[str, Any]:
@@ -822,8 +844,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.post("/api/notes", dependencies=[api])
     def write_note(body: NoteBody) -> dict[str, Any]:
-        note = world.knowledge.write_note(body.scope, body.title, body.body)
-        world.journal.append("changed", f"You edited the note {body.title}.", actor="person")
+        note = world.knowledge.write_note(body.scope, body.title, body.body, summary=body.summary)
+        world.journal.append("changed", f"You edited the page {body.title}.", actor="person")
         return note
 
     @app.post("/api/connections/folder", dependencies=[api])

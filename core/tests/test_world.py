@@ -227,3 +227,14 @@ def test_modules_and_threads(world: World) -> None:
     assert world.modules.threads() == []
     assert world.modules.set_brief(t["id"], "Keep it to whole foods.")["brief"] == \
         "Keep it to whole foods."
+
+
+def test_a_search_asks_for_the_words_that_carry_meaning() -> None:
+    from alpha.world.store import fts_query
+
+    assert fts_query("who is sara ramos and when did i last deal with her?") == \
+        '"sara"* OR "ramos"* OR "deal"*'
+    assert fts_query("what did i say about vikas yesterday?") == '"vikas"*'
+    # Nothing but function words: they are searched rather than nothing.
+    assert fts_query("what is this") == '"what"* OR "is"* OR "this"*'
+    assert fts_query("?!") is None

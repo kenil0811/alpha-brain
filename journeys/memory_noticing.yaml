@@ -1,0 +1,8 @@
+name: memory_noticing
+title: Memory · what is said in passing about a person is kept on their page, and comes back
+why: "A second brain remembers what you mention about people without being told to; Sania was nowhere after a day of mail and connections."
+steps:
+  - say: "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech"
+  - say: "what's going on with vikas these days?"
+checks:
+  - judge: "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details."

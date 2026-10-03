@@ -113,6 +113,7 @@ export interface Note {
   scope: string;
   title: string;
   body: string;
+  summary?: string | null;
   updated_at: string;
 }
 
@@ -272,12 +273,16 @@ export interface Entity {
   keys: Record<string, string[]>;
   last_at?: string | null;
   last_text?: string | null;
+  /** The one line of the entity's wiki page, when Alpha has written one. */
+  summary?: string | null;
 }
 
 export interface EntityDetail extends Entity {
   facts: Fact[];
   timeline: JournalEntry[];
   maybe_same: Entity[];
+  /** The entity's page of Alpha's wiki: who they are to the person, what is going on. */
+  page: Note | null;
 }
 
 /** Whether Alpha can think: Claude Code on this Mac, signed in to the person's Claude. */
@@ -488,7 +493,7 @@ export class Client {
   merge = (keep: string, other: string) => this.call<Entity>("POST", `/api/entities/${keep}/merge/${other}`);
 
   intelligence = () => this.call<Intelligence>("GET", "/api/intelligence");
-  writeNote = (scope: string, title: string, body: string) => this.call<Note>("POST", "/api/notes", { scope, title, body });
+  writeNote = (scope: string, title: string, body: string, summary?: string) => this.call<Note>("POST", "/api/notes", { scope, title, body, summary });
   connectFolder = (path: string) => this.call<Connection>("POST", "/api/connections/folder", { path });
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });
   connectCalendar = () => this.call<Connection>("POST", "/api/connections/calendar");
