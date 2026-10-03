@@ -14,11 +14,11 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
 
 - `docs/design/alpha-second-brain-design.md` — the agreed design: principles, the world model,
   capabilities, the agent loop, standing things, trust, workspace, model route, decisions
-  (Q1–Q21). Every section ends with an *As built* paragraph; where it disagrees with the text
+  (Q1–Q26). Most sections end with an *As built* paragraph; where it disagrees with the text
   above it, *As built* is current.
 - `docs/design/build-plan.md` — the engineering side: verified toolchain facts, what each slice
   built, what ran for real, where things stand and what is pending (§4.3, §4.5, §4.9).
-- `docs/design/research/` — the four research reports behind the design.
+- `docs/design/research/` — the five research reports behind the design.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
   records, entities, facts, notes, goals, modules, threads, plans, sources, skills (readers, procedures, pipelines),
   automations), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
@@ -26,8 +26,7 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
-- `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright
-  driver, read-only), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
+- `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright driver: reads are read-only by mechanism; acting, downloads and uploads run only inside an approved action), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
 - `desktop/` — the Tauri 2 + React app: the workspace (rail, Home, modules with derived table
   pages, People & Companies, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
   window. The app starts the core from this repository's `.venv`.

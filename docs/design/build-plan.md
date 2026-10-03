@@ -44,8 +44,15 @@ what the first slice is exactly, and what follows.
   core + 3 desktop tests; 70 tools; ruff and mypy strict clean (2 Oct late evening). **Later the
   same evening:** the journey suite (§4.11), the trust holes closed (§4.12), the write route
   (§4.13, Q24), builds watched live on Home (§4.14).
-  **Where we stand and what is open: §4.3, §4.5 and §4.9; what the code read of 2 Oct evening
-  found: §4.10.** Slice 3 (proactivity) and the sleep-time pass have not started.
+  **3 Oct** (§4.20–§4.24, 15 commits): the memory round (design §3.7, Q26): the memory journeys
+  as the benchmark, conversations first-class and parallel with resumed sessions, the companion
+  routed by rules then the System One judge, the wiki with its index and noticing after every
+  turn, entity cards and day-scoped retrieval, People & Companies back in the app, skills as one
+  table with composition; the daily runs on a sleeping Mac fixed (§4.22); and the checkpoint
+  (`checkpoint-2026-10-03.md`): three independent reviews, four defects fixed. 78 commits since
+  1 Oct; 166 core + 3 desktop tests; 70 tools; 18 journeys; ruff and mypy strict clean (3 Oct,
+  15:00). **Where we stand and what is open: the checkpoint, then §4.3 and §4.9.** Proactivity
+  (slice 3) and the sleep-time pass have not started.
 
 ## 2. Verified facts about the toolchain (1 Oct 2026)
 
@@ -435,7 +442,7 @@ Most of it came from using the app on the two judging journeys and from Kenil's 
   automation threads resumed their own session. *(All three superseded on 2 Oct: no step cap, no
   time limit, §4.7; nothing resumed, §4.6.)*
 
-### 4.3 Where we stand (recon, 2 Oct 2026)
+### 4.3 Where we stand (recon, 2 Oct 2026; row 4 and the trust row brought to 3 Oct)
 
 Against the design's order of work:
 
@@ -447,7 +454,7 @@ Against the design's order of work:
 | 4. Entities and bi-temporal facts across sources | Partial: rows that are people link by hard key by mechanism (§4.6), but no table in Kenil's world declares it, so his 1,551 connections are rows, not people, and People & Companies lists the 13 entities Alpha resolved itself (found 3 Oct, §4.23); a page per person and company, noticing after every turn, entity cards in context (§4.23, 3 Oct); same-name maybes shown on the person's page with "Same person" (merge from the app); no cross-source linking by itself yet, no sleep-time pass; unmerge unreachable (§4.10) |
 | 5. Standing-things ladder, promotion from verified runs | Partial: automations and pipelines exist; every standing thing goes through a plan and a yes (§4.7); no ladder, no promotion from repetition |
 | 6. Pending actions and Access | Built as actions (§4.13, Q24): a dry-run card, the person's yes, prepare-level standing sentences; the first real draft was made in Kenil's Gmail. No Access page; sends have no sentences yet |
-| — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8). Holes: the opinion never fires for upserted or reader-written rows; an omitted `source` defaults to estimated (§4.10) |
+| — Trust (design §7, added 2 Oct) | Built: plan-first by mechanism; sources with a status; known, assumed or asked; the second opinion; build trials (§4.8). The two holes of §4.10 were closed in §4.12 (`records_add` requires a source; synced rows are skipped). Since the 3 Oct checkpoint: an automation cannot act outward by code, and an action moves state atomically |
 | — Hands free of site vocabulary (Q17) | Done 2 Oct evening (Q23): generic wall and paging detection, one `url` key with a migration, no Sites section (§4.10) |
 | — No limits (Q18) | Holds for turns and builds; one floor by decision, 30 minutes between an automation's runs (Q22); the hands' own timeouts (§4.10) |
 
@@ -497,13 +504,13 @@ try-the-sign-ins-you-hold path, a build's trial being sent back.
   proposed) and the scenario suite.
 - **B. Slice 3, proactivity**: not started. Triage of new data, the digest, the Inbox on Home.
 - **C. The Gmail decision**: done, Gmail stays in the browser.
-- **D. A working rule**: half there. The second opinion and the build trial (§4.8) are the
-  mechanism; the three or four standing journeys every change is judged against are not yet
-  written down as a suite that runs.
+- **D. A working rule**: done the same evening as the journey suite (§4.11); 18 journeys on
+  3 Oct, run with `just journeys` after any change to how Alpha behaves.
 - **E. (new, 2 Oct) Plan first and trust**: done (§4.7, §4.8). What it leaves open is in §4.9.
 
-Recommended order now: finish D as a runnable suite of real journeys (it is what stops the
-next "Again!"), then A's sleep-time pass, then B.
+*3 Oct:* A's memory half is built (§4.20–§4.24: conversations, wiki, noticing, context by
+relevance, skills); the sleep-time pass and B (proactivity) are still not started. The order
+from here is in the checkpoint's last section.
 
 ### 4.6 Memory and data foundations (built 2 Oct 2026)
 
@@ -645,7 +652,7 @@ Alpha doesn't know, ask, or at least say what it assumed; never just do anything
   sent back with the finding while it differs (`TRIAL_REPAIRS = 2`); the report ends with what
   was tried and what the check said.
 
-### 4.9 Status at the end of 2 October 2026: done, pending, what changed
+### 4.9 Status at the end of 2 October 2026: done, pending, what changed (items 10–11 added 3 Oct; the ordered list from here is the checkpoint's §10)
 
 **What changed today, in one breath.** Alpha went from "builds on a guess, runs, and calls it
 done" to: it asks and proposes first, builds only after a yes and in the background, keeps every
@@ -669,17 +676,14 @@ design), and the shake logged as a guess when the label was one search away (§4
 - The app rebuilt and restarted on this (14:58).
 
 **Pending, in order of how much they matter:**
-1. **The suite of real journeys**: built the same evening (§4.11), first run 4 of 5 with the
-   one failure in a check's wording; it runs with `just journeys` after any change to how Alpha
-   behaves.
+1. **The suite of real journeys**: done (§4.11); 18 journeys on 3 Oct.
 2. **The sleep-time pass and scenario suite** (A). Beliefs still go stale only by being
    overwritten; nothing links people across Gmail and LinkedIn; nothing consolidates.
 3. **Proactivity** (B): triage, digest, Inbox. Alpha still never brings anything to the person
    except an automation's "Worth telling".
-3a. **The write route, next steps** (§4.13, §4.15): the draft and the send both ran for real in
-   the app on 2 Oct; a send journey in the suite (a fresh yes, verified in Sent); a LinkedIn
-   message as the second procedure with no new platform code; sentences for sends after real approvals;
-   upload steps; say on the card when a dry run already leaves something behind (autosave).
+3a. **The write route, next steps** (§4.13, §4.15): mostly done on 2–3 Oct (send and LinkedIn
+   message journeys, upload steps, §4.17–§4.19). Still open: sentences for sends after real
+   approvals; saying on the card when a dry run already leaves something behind (autosave).
 4. **The old estimates**: the four food rows logged before today stay estimates until the person
    logs or asks about them again; the check only runs on new turns. A sleep-time pass could
    re-check old estimates; not decided.
@@ -1452,6 +1456,16 @@ rule on open, with `{"run": …}` references following; Kenil's three pipelines 
 `run_gmail_emails_vikas_badami`. Intelligence › Skills checked in the browser pane against a
 background-free core on a backup copy: 28 skills (3 Does, 22 Reads, 3 Runs) and the three
 hands.
+
+### 4.25 The checkpoint (3 Oct 2026, afternoon)
+
+Kenil asked for a full reassessment. It is `checkpoint-2026-10-03.md` in this folder: the
+verdict, the measured numbers, the vision principle by principle, usability, scale,
+maintainability, the docs, the three independent reviews (core, docs drift, desktop), what was
+found and fixed (the pre-pack cut at the cap, an automation able to act outward under a
+standing permission, a duplicate send possible from a state race, a run-skill rename that left
+its callers broken), and the recommended order from here, whose first item is the shape of
+these documents. 166 core tests, 3 desktop; lint and types clean.
 
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
