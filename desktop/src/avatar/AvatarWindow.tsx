@@ -12,7 +12,7 @@ import { Character, type Mood } from "./Character";
 import { moved, press, released, type Press } from "./drag";
 import { SIZE_PX, normaliseLook } from "./looks";
 import { hasTauri } from "../core/session";
-import { Button, IconButton } from "../ui";
+import { Button, IconButton, Rich } from "../ui";
 import { X, Maximize2 } from "../ui/icons";
 
 export const HANDOFF_KEY = "alpha.handoff";
@@ -278,7 +278,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             {!turns.length ? <p className="panel__hint">Tell me what to do: log a meal, check a board, ask what's coming up.</p> : null}
             {turns.map((t) => (
               <div key={t.id} className={t.kind === "said" ? "avatar__said" : "avatar__reply"}>
-                {t.text}
+                {t.kind === "said" ? t.text : <Rich text={t.text} />}
               </div>
             ))}
             {routing ? (

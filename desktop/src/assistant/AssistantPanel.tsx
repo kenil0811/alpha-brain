@@ -9,7 +9,7 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Button, IconButton, Trouble } from "../ui";
+import { Button, IconButton, Trouble, Rich } from "../ui";
 import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
@@ -101,33 +101,6 @@ function Message({ e }: { e: JournalEntry }) {
       <Rich text={e.text} />
       {typeof e.data.duration_ms === "number" ? <span className="msg__cite">{(e.data.duration_ms / 1000).toFixed(0)} s</span> : null}
     </div>
-  );
-}
-
-/** Replies come as light Markdown: paragraphs, "- " lists and **bold**. */
-function Rich({ text }: { text: string }) {
-  const blocks = text.split(/\n{2,}/);
-  const inline = (line: string, key: number) => (
-    <span key={key}>
-      {line.split(/(\*\*[^*]+\*\*)/).map((part, i) => (part.startsWith("**") && part.endsWith("**") ? <b key={i}>{part.slice(2, -2)}</b> : part))}
-    </span>
-  );
-  return (
-    <>
-      {blocks.map((block, i) => {
-        const lines = block.split("\n");
-        if (lines.every((l) => /^\s*[-•]\s/.test(l))) {
-          return (
-            <ul key={i} className="msg__list">
-              {lines.map((l, j) => (
-                <li key={j}>{inline(l.replace(/^\s*[-•]\s/, ""), j)}</li>
-              ))}
-            </ul>
-          );
-        }
-        return <p key={i}>{lines.map((l, j) => (j ? [<br key={`b${j}`} />, inline(l, j)] : inline(l, j)))}</p>;
-      })}
-    </>
   );
 }
 
