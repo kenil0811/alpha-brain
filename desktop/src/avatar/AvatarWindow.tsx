@@ -13,6 +13,7 @@ import { MicButton, useSpeech } from "../shell/voice";
 import { IconButton } from "../ui";
 import { type AvatarState, Character, type Mood } from "./Character";
 import { Button } from "../ui/Button";
+import { bindingOf, matches } from "../shell/shortcuts";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
@@ -338,7 +339,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                   autoGrow(e.target);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  if (!e.nativeEvent.isComposing && matches(e, bindingOf("send"))) {
                     e.preventDefault();
                     if (speech.listening) speech.stop();
                     void send(text);
