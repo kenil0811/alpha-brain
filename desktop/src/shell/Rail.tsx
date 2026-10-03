@@ -4,9 +4,10 @@
  * the bell in Zazoo's header. It collapses to icons and resizes (ui/panel).
  */
 import { useRef, useState } from "react";
-import { EyeOff, FolderOpen, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { FileUp, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import type { ModuleCard } from "../core/client";
-import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, type PanelControl } from "../ui";
+import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, useComingSoon, type PanelControl } from "../ui";
+import { ProjectMenuItems } from "./ProjectMenu";
 import { projectIcon } from "./projectIcons";
 import { IconButton } from "../ui/IconButton";
 
@@ -130,6 +131,7 @@ export function Rail({
     }
   });
   const [renaming, setRenaming] = useState(false);
+  const soon = useComingSoon();
 
   const saveWorkspace = (value: string) => {
     const name = value.trim();
@@ -200,12 +202,7 @@ export function Rail({
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => onGo(target)}>
-                <FolderOpen size={14} strokeWidth={1.75} aria-hidden="true" /> Open
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => hide(m.id)}>
-                <EyeOff size={14} strokeWidth={1.75} aria-hidden="true" /> Hide from sidebar
-              </DropdownMenuItem>
+              <ProjectMenuItems onOpen={() => onGo(target)} onHide={() => hide(m.id)} />
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
@@ -267,12 +264,32 @@ export function Rail({
             aria-label="New project"
             title={collapsed ? "New project" : undefined}
             onClick={onNew}
+            // A project file dropped here would be added (backend-requests.md §4).
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.files.length) soon("Adding a project from a file");
+            }}
           >
             <span className="navbtn__ico" aria-hidden="true">
               <FolderPlus size={16} strokeWidth={1.75} />
             </span>
             <span className="navbtn__text">{collapsed ? "New" : "New project"}</span>
           </button>
+          {!collapsed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton size="sm" className="navrow__menu" aria-label="More ways to add a project">
+                  <MoreVertical size={14} />
+                </IconButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => soon("Adding a project from a file")}>
+                  <FileUp size={14} strokeWidth={1.75} aria-hidden="true" /> Add from a file…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
         {!collapsed && hiddenCount > 0 ? (
           <button type="button" className="navbtn" onClick={showAll}>

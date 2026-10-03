@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Client, TableData } from "../core/client";
+import { ToastProvider } from "../ui";
 import { DataViews } from "./DataViews";
 import { listsKey } from "./useSavedViews";
 
@@ -34,6 +35,19 @@ function setup() {
 beforeEach(() => localStorage.clear());
 
 describe("DataViews", () => {
+  it("says Undo is coming soon on ⌘Z", async () => {
+    const user = userEvent.setup();
+    const client = { table: async () => DATA } as unknown as Client;
+    render(
+      <ToastProvider>
+        <DataViews client={client} table={DATA.table} version={0} onChanged={() => undefined} />
+      </ToastProvider>,
+    );
+    await screen.findByText("Designer");
+    await user.keyboard("{Meta>}z{/Meta}");
+    expect(await screen.findByText("Undo is coming soon.")).toBeInTheDocument();
+  });
+
   it("opens a row on a single click", async () => {
     const user = userEvent.setup();
     setup();

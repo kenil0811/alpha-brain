@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
 import { ToastProvider, TooltipProvider, type PanelControl } from "../ui";
@@ -50,6 +51,27 @@ describe("the rail", () => {
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
     expect(screen.queryByRole("button", { name: "People & Companies" })).toBeNull();
+  });
+});
+
+describe("a project's menu", () => {
+  it("opens for real, and says an edit the core can't make yet is coming soon", async () => {
+    const user = userEvent.setup();
+    const onGo = vi.fn();
+    const card = { id: "m_1", name: "School", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" };
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[card]} runtime="connected" onGo={onGo} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "School options" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    expect(await screen.findByText("Renaming a project is coming soon.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "School options" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Open" }));
+    expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_1" });
   });
 });
 

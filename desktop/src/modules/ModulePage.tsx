@@ -5,10 +5,11 @@
  * in the address (`#/m/<id>/<section>`).
  */
 import { type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Folder, Plus } from "lucide-react";
+import { Folder, MoreHorizontal, Plus } from "lucide-react";
 import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
-import { Button, InfoTip } from "../ui";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, IconButton, InfoTip } from "../ui";
 import { Badge, type BadgeVariant } from "../ui/Badge";
+import { ProjectMenuItems } from "../shell/ProjectMenu";
 import { projectIcon } from "../shell/projectIcons";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
@@ -105,6 +106,16 @@ export function ModulePage({
           <span className="faint num">
             {detail.tables.length} {detail.tables.length === 1 ? "table" : "tables"}
           </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton aria-label="Project options" title="Project options" size="sm">
+                <MoreHorizontal size={16} />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <ProjectMenuItems />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="toggle" role="tablist" aria-label="Section">
           {(["app", "activity", "settings"] as Section[]).map((s) => (
