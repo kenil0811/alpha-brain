@@ -119,11 +119,30 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if notes:
         sections.append(("NOTES", notes))
 
+    chat = world.modules.thread(thread) if thread else None
+    chat = chat if chat and chat.get("kind") == "chat" else None
     recent = []
-    for e in world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"]):
+    if chat:
+        turns_ = world.journal.recent(RECENT_TURNS, thread=thread, kinds=["said", "replied"])
+    else:
+        turns_ = world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"])
+    for e in turns_:
         who_said = "person" if e["kind"] == "said" else "alpha"
         recent.append(f"- {when(e['at'])} {who_said}: {_clip(e['text'], 400)}")
-    sections.append(("RECENT CONVERSATION (oldest first)", recent or ["- This is the first."]))
+    sections.append((f"THIS CONVERSATION{' (' + chat['title'] + ')' if chat else ''}"
+                     " (oldest first)", recent or ["- This is the first."]))
+    if chat and chat.get("session_ref"):
+        # The model's session carries this conversation; the world may have moved meanwhile.
+        since = world.store.one("SELECT MAX(at) AS at FROM journal WHERE thread = ?"
+                                " AND kind = 'replied'", (thread,))
+        delta = []
+        if since and since["at"]:
+            for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
+                                                     "noticed"]):
+                if e["at"] > since["at"] and e["thread"] != thread:
+                    delta.append(f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 200)}")
+        sections.append(("SINCE YOUR LAST TURN HERE (elsewhere in the world; these override"
+                         " anything you remember)", delta[-10:] or ["- Nothing changed."]))
 
     matches = []
     for hit in world.collections.search(sentence, MATCHES):
@@ -143,7 +162,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if matches:
         sections.append(("MATCHES FOR THIS SENTENCE", matches))
 
-    if thread:
+    if thread and not chat:
         t = world.modules.thread(thread)
         lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
                  f"- Brief: {t['brief']}" if t.get("brief") else

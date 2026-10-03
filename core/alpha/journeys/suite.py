@@ -491,10 +491,10 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next(k for k in ("say", "reader", "automation", "build", "approve_action",
-                                    "decline_plan") if k in s)
+            kind = next((k for k in ("say", "reader", "automation", "build", "approve_action",
+                                     "decline_plan", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
-            head = f"- **{kind}** {s[kind]!s:.80} · {s['seconds']} s · {state}"
+            head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"
             detail = (s.get("reply") or s.get("result") or s.get("report") or s.get("detail")
                       or "")
             if s.get("problem"):
@@ -527,10 +527,11 @@ def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
         world.close()
     folder = out_dir or (Path(__file__).resolve().parents[3] / "docs" / "journeys")
     folder.mkdir(parents=True, exist_ok=True)
-    text = report(outcomes, source=source, home=home, began=began)
-    (folder / f"{stamp}.md").write_text(text)
+    # The raw outcomes first: a slip in the report's wording must never lose a run's results.
     (folder / f"{stamp}.json").write_text(json.dumps(
         [o.__dict__ for o in outcomes], indent=1, ensure_ascii=False, default=str))
+    text = report(outcomes, source=source, home=home, began=began)
+    (folder / f"{stamp}.md").write_text(text)
     if not keep:
         shutil.rmtree(home, ignore_errors=True)
     return sum(1 for o in outcomes if not o.passed), folder / f"{stamp}.md"

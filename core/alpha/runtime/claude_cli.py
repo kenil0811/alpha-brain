@@ -141,6 +141,10 @@ class TurnRequest:
     # model with web search only and no Alpha, for a second opinion) or "judge" (no tools at
     # all: compares two answers). Fake runners in tests tell them apart by it.
     kind: str = "turn"
+    # A live conversation resumes its own session (`resume`) and keeps it (`persist`); every
+    # other run is stateless, as Q21 decided.
+    resume: str | None = None
+    persist: bool = False
 
 
 def tools_allowed(req: TurnRequest) -> list[str]:
@@ -196,9 +200,13 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--model",
         req.model or os.environ.get("ALPHA_MODEL") or DEFAULT_MODEL,
     ]
-    # Every run is stateless: the pre-pack carries the context, the journal the history. A
-    # remembered model session would bring back whatever it once believed.
-    args += ["--no-session-persistence"]
+    if req.resume:
+        args += ["--resume", req.resume]
+    if not req.persist:
+        # Stateless: the pre-pack carries the context, the journal the history. A remembered
+        # model session would bring back whatever it once believed. Live conversations are the
+        # one exception (design §3.7): their session is kept while they are live.
+        args += ["--no-session-persistence"]
     return args
 
 

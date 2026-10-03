@@ -435,7 +435,9 @@ class Store:
                     keys["url"] = urls
                 db.execute("UPDATE entities SET keys = ? WHERE id = ?", (dumps(keys), row["id"]))
             # Threads are records, not remembered model sessions: nothing resumes one.
-            db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL")
+            # Only a live conversation (a chat) keeps a session; builds and automations never do.
+            db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL"
+                       " AND (kind != 'chat' OR state = 'done')")
             # Each world is one person's; its id travels with the file.
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('world_id', ?)",
                        (new_id("w"),))

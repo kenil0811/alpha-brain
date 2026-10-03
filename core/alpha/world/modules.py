@@ -15,7 +15,7 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
-THREAD_KINDS = {"build", "research", "job", "topic"}
+THREAD_KINDS = {"build", "research", "job", "topic", "chat"}
 THREAD_STATES = {"open", "working", "waiting", "done"}
 
 
@@ -95,6 +95,34 @@ class Modules:
             db.execute("UPDATE threads SET brief = ?, updated_at = ? WHERE id = ?",
                        (brief.strip(), now(), tid))
         return self.thread(tid)
+
+    def set_session(self, tid: str, session_ref: str | None) -> None:
+        """A live conversation keeps its model session between turns; nothing else does."""
+        with self.store.tx() as db:
+            db.execute("UPDATE threads SET session_ref = ?, updated_at = ? WHERE id = ?",
+                       (session_ref, now(), tid))
+
+    def live_chat(self, module: str | None) -> dict[str, Any] | None:
+        """The live conversation in a scope (a module, or General when None): the most recent
+        chat thread there that is not done."""
+        row = self.store.one(
+            "SELECT * FROM threads WHERE kind = 'chat' AND state != 'done' AND module IS ?"
+            " ORDER BY updated_at DESC LIMIT 1", (module,))
+        return _row(row) if row else None
+
+    def chats(self, module: str | None = None, *, live: bool = True, limit: int = 20
+              ) -> list[dict[str, Any]]:
+        where = ["kind = 'chat'"]
+        args: list[Any] = []
+        if live:
+            where.append("state != 'done'")
+        if module is not None:
+            where.append("module = ?")
+            args.append(module)
+        rows = self.store.all(
+            f"SELECT * FROM threads WHERE {' AND '.join(where)} ORDER BY updated_at DESC LIMIT ?",
+            (*args, limit))
+        return [_row(r) for r in rows]
 
     def threads(self, state: str | None = None) -> list[dict[str, Any]]:
         if state is None:

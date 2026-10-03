@@ -163,6 +163,7 @@ def ask(
     model: str | None = None,
     on_said: Callable[[str], None] | None = None,
     journal_as: str | None = None,
+    conversation: bool = False,
 ) -> TurnOutcome:
     """One turn. `actor="alpha"` is a turn Alpha starts itself (an automation run): its prompt is
     journaled as something Alpha did, not as words the person said; `journal_as` is the short
@@ -184,6 +185,7 @@ def ask(
     context = prepack.build(world, sentence, module=module_id, thread=thread)
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
+    resume = thread_row.get("session_ref") if (conversation and thread_row) else None
     request = TurnRequest(
         sentence=sentence,
         system=f"{fixed}\n\n{context}",
@@ -192,8 +194,12 @@ def ask(
         thread_id=thread,
         module_id=module_id,
         model=model,
+        resume=resume,
+        persist=conversation,
     )
     result = runner(request)
+    if conversation and thread and result.ok and result.session_id:
+        world.modules.set_session(thread, result.session_id)
     data = {
         "turn": said,
         "session_id": result.session_id,
