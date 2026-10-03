@@ -848,7 +848,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map { position: relative; margin-top: 14px; height: calc(100vh - 240px); min-height: 420px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; }
 .map__svg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
 .map__svg:active { cursor: grabbing; }
-.map__edge { stroke: var(--text-3); stroke-width: 1.4; opacity: 0.7; transition: opacity 200ms ease; }
+.map__edge { fill: none; stroke: var(--text-3); stroke-width: 1.4; opacity: 0.6; transition: opacity 200ms ease; }
 .map__edge--in { stroke: var(--border); stroke-width: 1.2; opacity: 1; }
 .map__edge--runs { stroke-width: 2; }
 .map__edge--signed-in-at, .map__edge--feeds { stroke-dasharray: 5 4; }
@@ -865,7 +865,14 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__label { font-size: var(--text-sm); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .map__node--module .map__label { font-weight: 600; fill: var(--text); font-size: var(--text-md); }
 .map__svg--settling .map__node { transition: none; }
-.map__tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.map__tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; align-items: center; }
+.map__search { width: 150px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: var(--text-sm); }
+.map__focus { position: absolute; top: 48px; right: 10px; display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: var(--text-sm); }
+.map__pin { fill: var(--surface); stroke: var(--text-2); stroke-width: 1.5; }
+.map__count { color: var(--text-3); }
+.map__sub { font-size: var(--text-xs); fill: var(--text-3); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.map__h { margin: 6px 0 2px; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; }
+.map__addr { overflow-wrap: anywhere; font-size: var(--text-sm); }
 .map__legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 .map__chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: var(--text-xs); color: var(--text-2); }
 .map__chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }

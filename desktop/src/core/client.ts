@@ -47,6 +47,8 @@ export interface GraphNode {
   rows?: number;
   runs?: number;
   failed?: number;
+  /** A source's site (its subtitle is its address). */
+  site?: string;
 }
 export interface GraphEdge {
   from: string;

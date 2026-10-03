@@ -111,8 +111,8 @@ def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any
             edge(f"automation:{a['id']}", f"skill:{a['skill']}", "runs")
 
     for s in world.sources.all():
-        node(f"source:{s['id']}", "source", s["title"], subtitle=s["site"], state=s["status"],
-             detail=s.get("detail"), module=s.get("module"))
+        node(f"source:{s['id']}", "source", s["title"], subtitle=s["url"], state=s["status"],
+             detail=s.get("detail"), module=s.get("module"), site=s["site"])
         if s.get("module"):
             edge(f"source:{s['id']}", f"module:{s['module']}", "in")
         if s.get("reader"):

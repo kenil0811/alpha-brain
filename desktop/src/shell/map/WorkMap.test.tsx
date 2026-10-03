@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Client, WorkGraph } from "../../core/client";
 import { TooltipProvider } from "../../ui";
-import { makeSimulation, positionsOf, settle, toMapEdges, toMapNodes } from "./layout";
+import { anchorsFor, makeSimulation, positionsOf, settle, toMapEdges, toMapNodes } from "./layout";
+import { shape } from "./shape";
 import { addressOf, edgeWords, WorkMap } from "./WorkMap";
 
 const graph: WorkGraph = {
@@ -30,8 +31,10 @@ const graph: WorkGraph = {
 
 describe("the layout", () => {
   it("settles every node to a finite place, members near their module", () => {
-    const nodes = toMapNodes(graph.nodes);
-    settle(makeSimulation(nodes, toMapEdges(graph.edges, nodes), 800, 600));
+    const shaped = shape(graph);
+    const anchors = anchorsFor(shaped.homes, 800, 600);
+    const nodes = toMapNodes(shaped.nodes, anchors);
+    settle(makeSimulation(nodes, toMapEdges(shaped.edges, nodes), anchors));
     const at = positionsOf(nodes);
     for (const n of graph.nodes) expect(Number.isFinite(at[n.id].x) && Number.isFinite(at[n.id].y)).toBe(true);
     const d = (a: string, b: string) => Math.hypot(at[a].x - at[b].x, at[a].y - at[b].y);
@@ -54,7 +57,7 @@ describe("the map", () => {
         <WorkMap client={client()} version={0} onGo={onGo} />
       </TooltipProvider>,
     );
-    expect(await screen.findByRole("img", { name: "8 things and 6 links" })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "8 things and 4 links" })).toBeInTheDocument();
     const broker = await screen.findByRole("button", { name: "brokers, skill, brokers.com" });
     expect(broker).toHaveClass("map__node--bad");
     await user.click(broker);
@@ -74,9 +77,38 @@ describe("the map", () => {
         <WorkMap client={client()} version={0} />
       </TooltipProvider>,
     );
-    await screen.findByRole("img", { name: "8 things and 6 links" });
-    await user.click(screen.getByRole("button", { name: "Connections", pressed: true }));
-    expect(await screen.findByRole("img", { name: "7 things and 5 links" })).toBeInTheDocument();
+    await screen.findByRole("img", { name: "8 things and 4 links" });
+    await user.click(screen.getByRole("button", { name: /^Connections/, pressed: true }));
+    expect(await screen.findByRole("img", { name: "7 things and 3 links" })).toBeInTheDocument();
+  });
+
+  it("finds a thing by name and lights it", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <WorkMap client={client()} version={0} />
+      </TooltipProvider>,
+    );
+    await screen.findByRole("img", { name: "8 things and 4 links" });
+    await user.type(screen.getByRole("textbox", { name: "Find on the map" }), "food");
+    const food = await screen.findByRole("button", { name: "Food log, table, 5 rows" });
+    expect(food).not.toHaveClass("map__node--dim");
+    expect(screen.getByRole("button", { name: "Deals, module" })).toHaveClass("map__node--dim");
+  });
+
+  it("a module's card can show just that module, and everything again", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <WorkMap client={client()} version={0} />
+      </TooltipProvider>,
+    );
+    await screen.findByRole("img", { name: "8 things and 4 links" });
+    await user.click(await screen.findByRole("button", { name: "Deals, module" }));
+    await user.click(screen.getByRole("button", { name: "Just this module" }));
+    expect(await screen.findByRole("img", { name: "5 things and 3 links" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show everything" }));
+    expect(await screen.findByRole("img", { name: "8 things and 4 links" })).toBeInTheDocument();
   });
 
   it("knows each thing's address and says an edge in words", () => {
