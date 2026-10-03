@@ -114,7 +114,7 @@ export function ClaudeRow({ client, status, onStatus, star, children }: { client
   );
 }
 
-const CLAUDE_MODELS = [
+export const CLAUDE_MODELS = [
   { value: "opus", label: "Claude Opus" },
   { value: "sonnet", label: "Claude Sonnet" },
   { value: "haiku", label: "Claude Haiku" },

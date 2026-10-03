@@ -1,13 +1,15 @@
 /**
  * Zazoo, beside the workspace: the place's live conversation (global, or a project's; a strip
  * switches between several), with Alpha's threads as cards that open here. The companion is the
- * same conversation.
+ * same conversation. The composer's + menu is there; attaching and per-chat model and access are
+ * coming soon (AttachMenu).
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
+import { AttachMenu, useComposerFiles } from "./AttachMenu";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Button, CollapseToggleButton, IconButton, Input } from "../ui";
 import { ZazooIcon } from "../ui/ZazooIcon";
@@ -202,6 +204,7 @@ export function AssistantPanel({
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const moduleId = module?.id ?? null;
+  const files = useComposerFiles();
 
   const load = useCallback(() => {
     const work: Promise<unknown>[] = [
@@ -405,6 +408,9 @@ export function AssistantPanel({
   const inThread = Boolean(threadView && threadView.kind !== "topic");
   const label = threadView ? threadView.title : scopeName;
   const fresh = chat === undefined && !turns.length;
+  // The strip shows once there is more than the one live conversation; until then + sits in the header.
+  const strip = !threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active));
+  const newChat = () => void client.newConversation(moduleId, "New conversation").then((c) => { choose(undefined); setActive(c.id); load(); });
   const requests = (module?.threads ?? []).filter((t) => t.kind !== "topic" && t.kind !== "chat");
   return (
     <aside className="assist__panel" aria-label="Zazoo">
@@ -426,6 +432,11 @@ export function AssistantPanel({
           </div>
         </div>
         <div className="assist__headend">
+          {activeConvo && !strip ? (
+            <IconButton aria-label="New chat" title="A new conversation here" size="sm" onClick={newChat}>
+              <Plus size={16} />
+            </IconButton>
+          ) : null}
           {activeConvo && activeConvo.state !== "working" ? (
             <Button size="sm" variant="ghost" title="Close this conversation; what it learned stays" onClick={() => void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); })}>
               Done
@@ -434,7 +445,7 @@ export function AssistantPanel({
           {headerEnd}
         </div>
       </div>
-      {!threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
+      {strip ? (
         <div className="convstrip" role="tablist" aria-label="Live conversations">
           {chats.map((c) => (
             <button key={c.id} type="button" role="tab" aria-selected={c.id === active} className={`convchip${c.id === active ? " convchip--active" : ""}${c.state === "waiting" ? " convchip--needs" : ""}`} title={`${c.scope}: ${c.title}${c.question ? ` · asked: ${c.question}` : ""}`} onClick={() => { choose(undefined); setActive(c.id); }}>
@@ -443,7 +454,7 @@ export function AssistantPanel({
               <span className="convchip__title">{c.title}</span>
             </button>
           ))}
-          <button type="button" className="convchip convchip--new" aria-label="A new conversation here" title="A new conversation here" onClick={() => void client.newConversation(moduleId, "New conversation").then((c) => { choose(undefined); setActive(c.id); load(); })}>
+          <button type="button" className="convchip convchip--new" aria-label="A new conversation here" title="A new conversation here" onClick={newChat}>
             <Plus size={14} aria-hidden="true" />
           </button>
         </div>
@@ -569,6 +580,7 @@ export function AssistantPanel({
       </div>
       <form
         className="composer"
+        {...files}
         onSubmit={(e) => {
           e.preventDefault();
           if (speech.listening) speech.stop();
@@ -576,6 +588,7 @@ export function AssistantPanel({
         }}
       >
         <div className="composer__box">
+          <AttachMenu />
           <textarea
             ref={input}
             rows={1}

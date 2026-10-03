@@ -2,7 +2,7 @@
  * Settings, as in Alpha: a header, then a second nav column (icon, label, a dot on the current
  * section) beside the section. Models (how Alpha thinks), Appearance, Avatar (the companion's
  * animal, outfit and colours), Project look and Builds (the core's own settings), Desktop (the
- * companion window), Permissions, Shortcuts, Data, and About (what leaves this Mac).
+ * companion window and voice), Permissions, Shortcuts, Data, and About (what leaves this Mac).
  * Explanations sit behind (i). What isn't wired yet is there and says "coming soon".
  * `section` / `onSection` come from the address (#/settings/<section>); without them the last
  * section is remembered per window.
@@ -333,6 +333,55 @@ function AvatarSetting() {
   );
 }
 
+/** Speak replies, push to talk and how speech is transcribed, after bridge-parity's: they need
+ *  the host's speech and key watching (backend-requests.md §9) and Whisper (§2), so for now each
+ *  sits at its default and says it's coming soon. The talk key itself lives in Shortcuts. */
+const TRANSCRIPTION_OPTIONS = [
+  { value: "automatic", label: "Automatic" },
+  { value: "native", label: "On this Mac" },
+  { value: "groq", label: "Groq Whisper" },
+  { value: "openai", label: "OpenAI Whisper" },
+];
+
+function VoiceSettings({ onShortcuts }: { onShortcuts: () => void }) {
+  const soon = useComingSoon();
+  return (
+    <div className="card list" aria-label="Voice">
+      <div className="item">
+        <div className="item__body">
+          <b>Speak replies</b>
+          <InfoTip content="Zazoo says its replies aloud in the desktop assistant. Start talking to cut it short." label="About speak replies" />
+          <SoonBadge />
+        </div>
+        <Toggle label="Speak replies" on={false} onChange={() => soon("Speaking replies")} labels={["On", "Off"]} />
+      </div>
+      <div className="item">
+        <div className="item__body">
+          <b>Push to talk</b>
+          <InfoTip content="Hold Fn anywhere, or a key you record in Shortcuts, to speak to Zazoo instead of typing. Release to stop. It needs Input Monitoring permission." label="About push to talk" />
+          <SoonBadge />
+        </div>
+        <div className="row settings__ptt">
+          <Button variant="outline" size="sm" onClick={() => soon("Push to talk")}>
+            Fn (default)
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onShortcuts}>
+            Change in Shortcuts
+          </Button>
+        </div>
+      </div>
+      <div className="item">
+        <div className="item__body">
+          <b>Transcription</b>
+          <InfoTip content="Automatic uses Whisper through Groq or OpenAI when a key is saved in Settings → Models, otherwise this Mac's own speech recognition." label="About transcription" />
+          <SoonBadge />
+        </div>
+        <StandardDropdown options={TRANSCRIPTION_OPTIONS} value="automatic" onChange={() => soon("Choosing how speech is transcribed")} ariaLabel="Transcription" />
+      </div>
+    </div>
+  );
+}
+
 // The core's own settings, as bridge-parity's core/alpha/models/settings.py defines them, shown
 // at their defaults. Changing one needs GET/PATCH /api/settings (backend-requests.md §1 and §8).
 const LOOK_RULES = `Every table a project keeps is drawn by Alpha the same way everywhere: a table first, with board, list, calendar and chart a click away, a record page for each row, and edits in place. Declare the tables well: a title field, a status field with its finished values, and the columns the person scans first.
@@ -555,6 +604,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, section: re
           {section === "desktop" ? (
             <>
               <AvatarSetting />
+              <VoiceSettings onShortcuts={() => setSection("shortcuts")} />
               <div className="card list" aria-label="Running in the background">
                 <div className="item">
                   <div className="item__body">
