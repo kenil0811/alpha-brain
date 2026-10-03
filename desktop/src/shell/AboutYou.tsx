@@ -1,12 +1,14 @@
 /**
  * About you (Alpha's AboutYou): the facts Alpha knows about the person, where each came from,
  * and the person's say over every one of them. A suggestion from a project or a conversation
- * waits for a yes.
+ * waits for a yes. A fact is corrected on its own page (drafted in Zazoo); adding and forgetting
+ * one here wait on the core (`POST /api/facts`, `POST /api/facts/{id}/forget`).
  */
 import { useState } from "react";
 import type { Client, Fact, ModuleCard } from "../core/client";
 import { humanize } from "../modules/format";
-import { InfoTip } from "../ui";
+import { X } from "lucide-react";
+import { IconButton, InfoTip, Input, useComingSoon } from "../ui";
 import { OpenRow, OpenTitle, sourceWords } from "./IntelItem";
 import "../dataviews/dataviews.css";
 import { Button } from "../ui/Button";
@@ -15,6 +17,10 @@ export { sourceWords };
 
 export function AboutYou({ client, facts, modules, onChanged, onOpen }: { client: Client; facts: Fact[]; modules: ModuleCard[]; onChanged: () => void; onOpen: (id: string) => void }) {
   const [error, setError] = useState<string | null>(null);
+  const [field, setField] = useState("");
+  const [value, setValue] = useState("");
+  const soon = useComingSoon();
+  const add = () => field.trim() && value.trim() && soon("Adding a fact");
   const known = facts.filter((f) => f.state === "accepted");
   const suggestions = facts.filter((f) => f.state === "suggested");
   const project = (source: string) => (source.startsWith("module:") ? modules.find((m) => `module:${m.id}` === source)?.name : undefined);
@@ -75,7 +81,7 @@ export function AboutYou({ client, facts, modules, onChanged, onOpen }: { client
       <div className={`section${suggestions.length ? "" : " section--first"}`}>
         <div className="section__head">
           <h2>
-            About you <InfoTip content="What Alpha knows and uses across your projects. Every line says where it came from." label="About this" />
+            About you <InfoTip content="What Alpha knows and uses across your projects. Every line says where it came from; open one to correct it." label="About this" />
           </h2>
           <span className="faint">{known.length ? `${known.length} known` : null}</span>
         </div>
@@ -95,6 +101,9 @@ export function AboutYou({ client, facts, modules, onChanged, onOpen }: { client
                 {known.map((f) => (
                   <tr key={f.id} className="row--link" onClick={(e) => !(e.target as Element).closest("button") && onOpen(f.id)}>
                     <td className="about__gutter">
+                      <IconButton aria-label={`Forget ${humanize(f.predicate)}`} size="sm" className="rowbtn" onClick={() => soon("Forgetting a fact")}>
+                        <X size={13} strokeWidth={1.75} />
+                      </IconButton>
                     </td>
                     <td>
                       <OpenTitle open={() => onOpen(f.id)}>{humanize(f.predicate)}</OpenTitle>
@@ -104,6 +113,21 @@ export function AboutYou({ client, facts, modules, onChanged, onOpen }: { client
                     <td className="faint">{new Date(f.recorded_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</td>
                   </tr>
                 ))}
+                {/* A new fact, right where the rest live: no separate form card. */}
+                <tr>
+                  <td className="about__gutter" />
+                  <td>
+                    <Input className="about__input" aria-label="What" value={field} onChange={(e) => setField(e.target.value)} placeholder="A new fact" onKeyDown={(e) => e.key === "Enter" && add()} />
+                  </td>
+                  <td>
+                    <Input className="about__input" aria-label="Value" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Its value" onKeyDown={(e) => e.key === "Enter" && add()} />
+                  </td>
+                  <td colSpan={2}>
+                    <Button size="sm" onClick={add} disabled={!field.trim() || !value.trim()}>
+                      Add
+                    </Button>
+                  </td>
+                </tr>
                 {!known.length ? (
                   <tr>
                     <td colSpan={5} className="empty">

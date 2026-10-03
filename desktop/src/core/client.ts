@@ -587,6 +587,7 @@ export class Client {
     return current;
   }
 
+  automations = () => this.call<Automation[]>("GET", "/api/automations");
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 

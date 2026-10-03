@@ -8,7 +8,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { CalendarDays, Folder, Globe, Link, Puzzle } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { InfoTip, PageHeader, Tabs } from "../ui";
+import { InfoTip, PageHeader, Tabs, useComingSoon } from "../ui";
 import { Badge, type BadgeVariant } from "../ui/Badge";
 import { AboutYou } from "./AboutYou";
 import { AutomationTable } from "./Automations";
@@ -254,6 +254,8 @@ function Knowledge({ client, data, modules, onChanged, onOpen }: { client: Clien
 export function Intelligence({ client, modules, tab, item, version, onTab, onGo, onChanged, onAsk }: { client: Client; modules: ModuleCard[]; tab: IntelTab; item?: string; version: number; onTab: (t: IntelTab) => void; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Making a skill and running one by hand wait on the core (`POST /api/skills`, `POST /api/skills/{id}/run`).
+  const soon = useComingSoon();
   useEffect(() => {
     client
       .intelligence()
@@ -280,6 +282,11 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
             <h2>
               Learned <InfoTip content="When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes." label="About learned skills" />
             </h2>
+            <div className="section__right">
+              <Button size="sm" onClick={() => soon("Making a skill")}>
+                New skill
+              </Button>
+            </div>
           </div>
           <div className="card list">
             {!data.skills.length ? <p className="empty">None yet. Alpha keeps one here the first time a task works.</p> : null}
@@ -301,6 +308,9 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
                     </div>
                   </div>
                   <Badge variant={SKILL_HEALTH[s.health].badge}>{SKILL_HEALTH[s.health].words}</Badge>
+                  <Button variant="outline" size="sm" onClick={() => soon("Running a skill")}>
+                    Run
+                  </Button>
                 </OpenRow>
               );
             })}
