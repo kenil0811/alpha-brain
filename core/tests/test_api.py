@@ -223,3 +223,31 @@ def test_a_modules_page_is_read_and_written_from_its_own_route(world: World) -> 
                                "summary": "A firm to buy"})
     page = c.get("/api/modules/Deals/page").json()["page"]
     assert page["summary"] == "A firm to buy" and page["body"].startswith("# Deals")
+
+
+def test_a_skill_and_an_automation_have_pages(world: World) -> None:
+    from alpha.runtime import automation as automation_runtime
+
+    building(world).collection_create("deals", "Deals", [{"name": "title", "kind": "text"}])
+    world.readers.save("brokers", site="b.com", url="https://b.com", script="return []",
+                       description="Reads brokers", to_end=False, count=3,
+                       when_to_use="Every broker listing")
+    Tools(world).note_write("skill:brokers", "brokers", "The list paginates by 50.")
+    t = building(world)
+    pipe = t.automation_create("Daily brokers", "daily 07:00",
+                               steps=[{"read": "brokers", "into": "deals", "key": "title"}])
+    judged = t.automation_create("Weekly look", "weekly mon 09:00", procedure="look and say")
+    c = TestClient(create_app(world, live=False))
+    page = c.get("/api/skills/brokers").json()
+    assert page["kind"] == "read" and page["script"] == "return []"
+    assert page["notes"]["body"] == "The list paginates by 50." and page["when_to_use"]
+    assert c.get("/api/skills/nothing").status_code == 400
+    a = c.get(f"/api/automations/{pipe['id']}").json()
+    assert a["title"] == "Daily brokers" and a["pipeline"][0]["read"] == "brokers"
+    assert a["runs"] == []
+    # A run of the judged one, then its page shows the run with its outcome.
+    automation_runtime.run(world, judged["id"],
+                           runner=lambda req: RunResult(ok=True, reply="Nothing new."))
+    j = c.get(f"/api/automations/{judged['id']}").json()
+    assert j["pipeline"] is None and len(j["runs"]) == 1
+    assert j["runs"][0]["outcome"] == "Nothing new."

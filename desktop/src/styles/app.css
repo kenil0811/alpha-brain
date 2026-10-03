@@ -807,3 +807,9 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .command__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command__hint { white-space: nowrap; }
 .dialog--command { width: min(640px, calc(100vw - 48px)); top: 18%; transform: translate(-50%, 0); }
+
+/* item pages */
+.code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow: auto; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; margin: 0; }
+.steps { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.7; }
+h3 .linkbtn { font: inherit; color: inherit; }
+.linkbtn:hover { text-decoration: underline; }

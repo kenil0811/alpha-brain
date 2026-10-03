@@ -10,7 +10,9 @@ import { AssistantPanel } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
+import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
+import { SkillPage } from "./shell/SkillPage";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
@@ -250,8 +252,12 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <People client={runtime.client} version={version} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (
           <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={version} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
+        ) : surface.kind === "skill" ? (
+          <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={version} onGo={setSurface} onAsk={(text) => { setDraft(text); togglePanel(true); }} onChanged={changed} />
+        ) : surface.kind === "automation" ? (
+          <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={version} onGo={setSurface} onAsk={(text) => { setDraft(text); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
-          <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} />
+          <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} />
         ) : (
           <Activity client={runtime.client} version={version} onChanged={changed} />
         )}

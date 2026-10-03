@@ -74,3 +74,22 @@ module's Summary tab shows it first as "Alpha's page" with Write / Edit, saved t
 ideas 8 and 9 of the port). Tests: the origin wording; the route. Also: `just app-restart`
 kills the window and its core together, after three stale cores were found running their
 schedulers on the live world when only the window had been killed.
+
+## A page per skill and per automation (the same night; idea 7 of the port)
+
+`#/intelligence/skills/<name>` and `#/intelligence/automations/<id>` are surfaces of their own
+(`skill`, `automation`), reached from the Skills tab's cards and the Automations list.
+`GET /api/skills/{name}` is the skill in full with Alpha's notes page and the journal entries
+that name it; `GET /api/automations/{id}` is the automation with its runs grouped from its
+thread (each "Run the automation…" starts one; the outcome is the run's last reply, failure or
+notice) and, for a pipeline, its run skill's steps as `pipeline`. **The skill page** says what
+the skill is in words (Reads a list from a page / Does a task on a site / Runs on its own), its
+health, site, version and last run, when to use it, shows the body read-only (a reader's
+script in a code block; a procedure's or pipeline's steps as sentences, `shell/steps.ts`), lets
+the person write to Alpha's notes page, lists its runs, and has one way to change it: "Ask
+Alpha to change this", which opens the panel with the skill named and nothing prefilled (a
+skill is Alpha's know-how; the pull request's pages prefilled replacement text, which the
+review refused). **The automation page** has the switch, Run now, what it does (steps as
+sentences or the instructions), the same ask, and the runs with what each found. A pipeline's
+reads are journaled in the run's thread now, so they show on its page. Tests: the two routes;
+the skill page's words, read-only script and the ask; the addresses.

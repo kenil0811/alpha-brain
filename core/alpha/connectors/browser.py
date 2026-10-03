@@ -302,7 +302,8 @@ class Browser:
         }
 
     def script(self, url: str, script: str, *, to_end: bool = False, turn: str | None = None,
-               module: str | None = None, label: str | None = None) -> dict[str, Any]:
+               module: str | None = None, label: str | None = None,
+               thread: str | None = None) -> dict[str, Any]:
         """Run Alpha's own JavaScript (a function body that returns JSON) in a page, read
         through the person's sign-in where they connected the site. Read-only by mechanism:
         the driver blocks every request that could change data on the site."""
@@ -339,7 +340,7 @@ class Browser:
             + (" — it asked for a sign-in" if page.get("blocked") else "") + ".",
             data={"url": url, "signed_in": use_profile, "rows": count,
                   "writes_blocked": page.get("writes_blocked"), "turn": turn},
-            module=module, source="connector:browser",
+            module=module, thread=thread, source="connector:browser",
         )
         self._walls(site, page)
         return {"url": url, "final_url": page.get("final_url"), "title": page.get("title"),

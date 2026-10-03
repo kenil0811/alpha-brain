@@ -72,14 +72,15 @@ def _source(world: World, reader: dict[str, Any], module: str | None) -> dict[st
 def run_reader(world: World, name: str, collection: str, key: str, *,
                keep: list[str] | None = None, mapping: dict[str, dict[str, Any]] | None = None,
                turn_id: str | None = None, module: str | None = None,
-               browser: Browser | None = None) -> dict[str, Any]:
+               browser: Browser | None = None, thread: str | None = None) -> dict[str, Any]:
+    """`thread`: a pipeline's run, so what the reader did shows on the automation's page."""
     reader = world.readers.get(name)
     desc = world.collections.describe(collection)
     home = desc["module"] or module
     _source(world, reader, home)
     out = (browser or Browser(world)).script(
         reader["url"], reader["script"], to_end=reader["to_end"], turn=turn_id, module=home,
-        label=f"the reader {name}")
+        label=f"the reader {name}", thread=thread)
     if out.get("bot_check"):
         world.readers.ran(name, count=0, problem="a bot check stopped it")
         world.sources.ran(name, status="blocked", detail=BOT_CHECK)
@@ -101,7 +102,7 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
         world.sources.ran(name, status="broken", detail=f"Its reader looks broken: {problem}.")
         world.journal.append(
             "failed", f"The reader {name} looks broken: {problem}. Nothing was written.",
-            data={"reader": name, "turn": turn_id}, module=home)
+            data={"reader": name, "turn": turn_id}, module=home, thread=thread)
         return {"health": "broken", "problem": problem, "rows": count,
                 "sample": rows[:5] if isinstance(rows, list) else rows,
                 "note": ("Don't run this reader again unchanged: the same page gives the same"
@@ -127,7 +128,7 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
         data={"collection": collection, "reader": name, "turn": turn_id,
               **{k: v for k, v in result.items() if k != "ids"},
               "records": list(result.get("ids") or [])[:500]},
-        module=home,
+        module=home, thread=thread,
     )
     return {"health": "ok", "rows": count, **{k: v for k, v in result.items() if k != "ids"}}
 
@@ -213,7 +214,7 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
         if "read" in step:
             name = step["read"]
             args = {"keep": step.get("keep"), "mapping": step.get("map"),
-                    "module": auto["module"], "browser": browser}
+                    "module": auto["module"], "browser": browser, "thread": thread}
             out = run_reader(world, name, step["into"], step["key"], **args)
             if out["health"] == "broken":
                 (repair or _repair)(world, auto, name, out["problem"], runner)

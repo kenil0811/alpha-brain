@@ -362,6 +362,23 @@ export interface Skill {
   notes: string | null;
 }
 
+export interface SkillDetail extends Omit<Skill, "notes"> {
+  script?: string | null;
+  steps?: Record<string, unknown>[];
+  verify?: Record<string, unknown>[];
+  to_end?: boolean;
+  whole?: boolean;
+  notes: Note | null;
+  runs: { at: string; kind: string; text: string }[];
+}
+
+export interface AutomationDetail extends Automation {
+  skill?: string | null;
+  /** A pipeline's saved steps (its run skill's), or none for a procedure. */
+  pipeline?: Record<string, unknown>[] | null;
+  runs: { at: string; outcome: string | null; lines: { at: string; kind: string; text: string }[] }[];
+}
+
 export interface Intelligence {
   hands: Hand[];
   skills: Skill[];
@@ -597,6 +614,8 @@ export class Client {
   saveList = (table: string, title: string, config: SavedList["config"], isDefault = false) => this.call<SavedList>("POST", `/api/tables/${encodeURIComponent(table)}/lists`, { title, config, default: isDefault });
   updateList = (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => this.call<SavedList>("PATCH", `/api/lists/${id}`, change);
   deleteList = (id: string) => this.call<SavedList>("DELETE", `/api/lists/${id}`);
+  skillPage = (name: string) => this.call<SkillDetail>("GET", `/api/skills/${encodeURIComponent(name)}`);
+  automationPage = (id: string) => this.call<AutomationDetail>("GET", `/api/automations/${encodeURIComponent(id)}`);
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 

@@ -21,6 +21,10 @@ export function pathFor(surface: Surface): string {
       return `/m/${encodeURIComponent(surface.id)}`;
     case "intelligence":
       return surface.tab ? `/intelligence/${encodeURIComponent(surface.tab)}` : "/intelligence";
+    case "skill":
+      return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
+    case "automation":
+      return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
     case "settings":
       return "/settings";
   }
@@ -29,14 +33,18 @@ export function pathFor(surface: Surface): string {
 /** The surface an address names, or null when it names none (then the remembered place wins). */
 export function surfaceFromPath(path: string): Surface | null {
   const parts = path.replace(/^#?\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const [head, rest] = [parts[0], parts[1]];
+  const [head, rest, third] = [parts[0], parts[1], parts[2]];
   if (!head) return null;
   if (head === "home" || head === "activity" || head === "people" || head === "settings") {
     if (head === "people" && rest) return { kind: "entity", id: rest };
     return knownSurface({ kind: head });
   }
   if (head === "m" && rest) return { kind: "module", id: rest };
-  if (head === "intelligence") return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
+  if (head === "intelligence") {
+    if (rest === "skills" && third) return { kind: "skill", name: third };
+    if (rest === "automations" && third) return { kind: "automation", id: third };
+    return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
+  }
   return null;
 }
 

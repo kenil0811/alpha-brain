@@ -8,7 +8,7 @@ import { when } from "../modules/format";
 import { Button } from "../ui";
 import { Check, X } from "../ui/icons";
 
-export function AutomationList({ client, items, onChanged, empty }: { client: Client; items: Automation[]; onChanged: () => void; empty: string }) {
+export function AutomationList({ client, items, onChanged, empty, onOpen }: { client: Client; items: Automation[]; onChanged: () => void; empty: string; onOpen?: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // While one runs, look again every few seconds so its steps and result show up here.
@@ -45,7 +45,13 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
           <div key={a.id} className="item item--top">
             <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
             <div className="item__body">
-              {a.title}
+              {onOpen ? (
+                <button type="button" className="linkbtn" onClick={() => onOpen(a.id)}>
+                  {a.title}
+                </button>
+              ) : (
+                a.title
+              )}
               <div className="item__sub">
                 {a.enabled ? `${a.when}${a.next_run_at ? ` · next ${when(a.next_run_at)}` : ""}` : `Off · ${a.when} when on`}
                 {a.last_run_at ? ` · last ran ${when(a.last_run_at)}` : " · hasn't run on its own yet"}

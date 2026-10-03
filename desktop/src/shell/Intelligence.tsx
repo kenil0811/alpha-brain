@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
+import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
 import { Button, Badge, Tabs } from "../ui";
 
@@ -166,14 +167,22 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
 
 const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", run: "Runs" };
 
-function SkillCard({ skill, modules }: { skill: Skill; modules: Record<string, string> }) {
+function SkillCard({ skill, modules, onOpen }: { skill: Skill; modules: Record<string, string>; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a module" : "");
   const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
   return (
     <div className="card card--pad intel__card">
       <div className="intel__head">
-        <h3>{skill.description}</h3>
+        <h3>
+          {onOpen ? (
+            <button type="button" className="linkbtn" onClick={onOpen}>
+              {skill.description}
+            </button>
+          ) : (
+            skill.description
+          )}
+        </h3>
         <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
       </div>
       <p className="muted">
@@ -307,7 +316,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
   );
 }
 
-export function Intelligence({ client, tab, version, onTab, onChanged }: { client: Client; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onChanged: () => void }) {
+export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: { client: Client; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onChanged: () => void; onGo?: (s: Surface) => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modules, setModules] = useState<Record<string, string>>({});
@@ -333,7 +342,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
       ) : tab === "skills" ? (
         <div className="intel">
           {data.skills.length ? (
-            data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={modules} />)
+            data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={modules} onOpen={onGo ? () => onGo({ kind: "skill", name: s.name }) : undefined} />)
           ) : (
             <div className="card card--pad intel__card modcard--new">
               <b>Skills Alpha learns</b>
@@ -360,7 +369,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
           ))}
         </div>
       ) : tab === "automations" ? (
-        <AutomationList client={client} items={data.automations} onChanged={onChanged} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
+        <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "automation", id }) : undefined} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />
       ) : (

@@ -869,6 +869,42 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             "procedures": world.procedures.all(),
         }
 
+    @app.get("/api/skills/{name}", dependencies=[api])
+    def skill_page(name: str) -> dict[str, Any]:
+        """One skill in full for its page: what it is, its body (read-only in the window: the
+        model repairs skills, the person asks it to), Alpha's notes page, and its runs."""
+        skill = world.skills.get(name)
+        page = world.knowledge.find_note(f"skill:{name}", name)
+        runs = [e for e in world.journal.recent(300)
+                if name in {e["data"].get("reader"), e["data"].get("procedure"),
+                            e["data"].get("skill")}]
+        return {**skill, "notes": page, "runs": [
+            {"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in runs[-20:]]}
+
+    @app.get("/api/automations/{aid}", dependencies=[api])
+    def automation_page(aid: str) -> dict[str, Any]:
+        """One automation for its page, with its runs: the entries of its thread, grouped by
+        each run's start, newest run first."""
+        auto = next((a for a in automation_views(world, scheduler) if a["id"] == aid), None)
+        if auto is None:
+            raise Problem(f"There is no automation {aid}.")
+        runs: list[dict[str, Any]] = []
+        if auto["thread"]:
+            for e in world.journal.recent(400, thread=auto["thread"]):
+                if e["kind"] == "did" and e["text"].startswith("Run the automation"):
+                    runs.append({"at": e["at"], "lines": [], "outcome": None})
+                    continue
+                if not runs:
+                    continue
+                if e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed", "asked"}:
+                    runs[-1]["lines"].append({"at": e["at"], "kind": e["kind"],
+                                              "text": e["text"][:300]})
+                if e["kind"] in {"replied", "failed", "noticed"}:
+                    runs[-1]["outcome"] = e["text"][:400]
+        skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
+        return {**auto, "runs": list(reversed(runs))[:12],
+                "pipeline": skill["steps"] if skill else None}
+
     @app.post("/api/permissions/{pid}/revoke", dependencies=[api])
     def revoke_permission(pid: str) -> dict[str, Any]:
         revoked = world.permissions.revoke(pid)
