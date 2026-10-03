@@ -102,7 +102,14 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
             "failed", f"The reader {name} looks broken: {problem}. Nothing was written.",
             data={"reader": name, "turn": turn_id}, module=home)
         return {"health": "broken", "problem": problem, "rows": count,
-                "sample": rows[:5] if isinstance(rows, list) else rows}
+                "sample": rows[:5] if isinstance(rows, list) else rows,
+                "note": ("Don't run this reader again unchanged: the same page gives the same"
+                         " rows. Look at the page as it is now (page_script returning the HTML"
+                         " of one item, or page_read), compare it with what the script expects,"
+                         " fix the script, reader_save it under the same name, then reader_run"
+                         " once. Fewer rows than before can also mean the page had not finished"
+                         " loading (the Mac dozing, a slow network): a script that still finds"
+                         " its items on the current HTML needs no rewrite, only that one rerun.")}
     result = world.collections.upsert(
         collection, key, rows, {"by": "alpha", "turn": turn_id, "reader": name},
         fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"],

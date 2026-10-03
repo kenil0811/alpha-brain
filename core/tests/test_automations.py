@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -138,6 +139,62 @@ def test_due_and_switching_off(world: World) -> None:
     assert [a["id"] for a in world.automations.due(later)] == [auto["id"]]
     t.automation_update(auto["id"], enabled=False)
     assert world.automations.due(later) == []
+
+
+def test_the_scheduler_waits_for_a_properly_awake_mac(world: World) -> None:
+    """Ticks come every half minute; one far later than the last means the Mac slept, and a
+    maintenance wake lasts seconds, so after a gap runs wait a minute without another gap."""
+    now = [1000.0]
+    sched = automation.Scheduler(world, runner=lambda req: RunResult(ok=True, reply="ok"),
+                                 clock=lambda: now[0])
+    assert sched.settled()  # the person just started Alpha: awake
+    now[0] += 30
+    assert sched.settled()
+    now[0] += 15 * 60  # asleep for a quarter hour, then a maintenance wake
+    assert not sched.settled()
+    now[0] += 2
+    assert not sched.settled()  # still inside the two-second wake
+    now[0] += 15 * 60  # back to sleep; the next wake is another gap
+    assert not sched.settled()
+    now[0] += 30  # a real wake: ticks come every half minute again
+    assert not sched.settled()
+    now[0] += 30
+    assert sched.settled()  # a minute awake without a break
+    now[0] += 30
+    assert sched.settled()
+
+
+def test_the_scheduler_runs_due_automations_side_by_side(world: World) -> None:
+    t = building(world)
+    one = t.automation_create("Sync one", "every 1h", "do one")
+    two = t.automation_create("Sync two", "every 1h", "do two")
+    later = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
+    with world.store.tx() as db:
+        db.execute("UPDATE automations SET next_run_at = ?", (later,))
+    started: set[str] = set()
+    both = threading.Event()
+    lock = threading.Lock()
+
+    def runner(req: TurnRequest) -> RunResult:
+        with lock:
+            started.add(req.sentence.split('"')[1])
+            if len(started) == 2:
+                both.set()
+        # neither run finishes until both have started: they must be running together
+        assert both.wait(5), "the second automation waited for the first to finish"
+        return RunResult(ok=True, reply="done")
+
+    sched = automation.Scheduler(world, runner=runner, clock=lambda: 1000.0)
+    real_due = world.automations.due
+    world.automations.due = lambda at=None: real_due(datetime.now(UTC) + timedelta(hours=2))  # type: ignore[method-assign]
+    sched.tick()
+    assert both.wait(5)
+    deadline = time.time() + 5
+    while sched.running and time.time() < deadline:
+        time.sleep(0.05)
+    assert sched.running == set() and started == {"Sync one", "Sync two"}
+    assert world.automations.get(one["id"])["last_result"] == "done"
+    assert world.automations.get(two["id"])["last_result"] == "done"
 
 
 def test_the_api_lists_switches_and_runs_now(world: World) -> None:
