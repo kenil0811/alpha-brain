@@ -9,6 +9,8 @@ import type { Client, FileInfo, RecordRow, TableDesc } from "../core/client";
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, editText, firstOfKind, inputType, isNumeric, openChoices, showValue, titleFieldOf, type FieldInfo } from "./fields";
 import { formatNumber, humanize } from "./format";
+import { Badge, Button, IconButton, Tabs, Popover } from "../ui";
+import { ChevronsLeft, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, MoreHorizontal, FolderOpen } from "../ui/icons";
 
 export type PageView = "table" | "board" | "list" | "calendar" | "chart";
 const VIEWS: { id: PageView; label: string }[] = [
@@ -71,7 +73,6 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const [view, setView] = useState<PageView>(() => remembered<PageView>(`${key}.view`, "table"));
   const [files, setFiles] = useState<Record<string, FileInfo>>({});
   async function exportAs(format: "csv" | "xlsx") {
-    setMenu(false);
     try {
       const out = await client.exportTable(table.name, format);
       if (host.available()) await host.revealPath(out.path);
@@ -114,7 +115,6 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [naming, setNaming] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -249,12 +249,10 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
     setLists((existing) => [...existing, list]);
     setListId(list.id);
     setNaming(null);
-    setMenu(false);
   }
   function dropList() {
     setLists((existing) => existing.filter((l) => l.id !== listId));
     applyList("all");
-    setMenu(false);
   }
 
   const shownColumns = columns.filter((c) => byName.has(c));
@@ -283,13 +281,7 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${table.title.toLowerCase()}`} aria-label="Search" />
             </div>
           ) : null}
-          <div className="toggle toggle--views" role="tablist" aria-label="View">
-            {VIEWS.filter((v) => v.id === "table" || v.id === "list" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart") && dateField)).map((v) => (
-              <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => setView(v.id)}>
-                {v.label}
-              </button>
-            ))}
-          </div>
+          <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart") && dateField))} />
           {lists.length ? (
             <select className="btn btn--sm" value={listId} onChange={(e) => applyList(e.target.value)} aria-label="Saved list">
               <option value="all">All</option>
@@ -321,20 +313,16 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
             </label>
           ) : null}
           <span className="spacer" />
-          <button type="button" className="btn btn--sm btn--primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
+          <Button size="sm" variant="primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
             {adding ? "Cancel" : "Add"}
-          </button>
-          <div className="menu">
-            <button type="button" className="btn btn--sm btn--ghost" aria-label="More" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-              ⋯
-            </button>
-            {menu ? (
-              <div className="menu__list" role="menu">
+          </Button>
+          <Popover label="Table options" trigger={<IconButton label="More" icon={<MoreHorizontal />} />}>
+            <div>
                 <div className="menu__head">Download</div>
-                <button type="button" className="menu__item" role="menuitem" onClick={() => void exportAs("csv")}>
+                <button type="button" className="menu__item" onClick={() => void exportAs("csv")}>
                   As CSV
                 </button>
-                <button type="button" className="menu__item" role="menuitem" onClick={() => void exportAs("xlsx")}>
+                <button type="button" className="menu__item" onClick={() => void exportAs("xlsx")}>
                   As Excel
                 </button>
                 <div className="menu__head">Columns</div>
@@ -347,19 +335,15 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
                       </label>
                       {at >= 0 ? (
                         <span className="menu__arrows">
-                          <button type="button" className="iconbtn" aria-label={`Move ${humanize(name)} left`} disabled={at === 0} onClick={() => moveColumn(name, -1)}>
-                            ↑
-                          </button>
-                          <button type="button" className="iconbtn" aria-label={`Move ${humanize(name)} right`} disabled={at === shownColumns.length - 1} onClick={() => moveColumn(name, 1)}>
-                            ↓
-                          </button>
+                          <IconButton size="sm" label={`Move ${humanize(name)} left`} icon={<ArrowLeft />} disabled={at === 0} onClick={() => moveColumn(name, -1)} />
+                          <IconButton size="sm" label={`Move ${humanize(name)} right`} icon={<ArrowRight />} disabled={at === shownColumns.length - 1} onClick={() => moveColumn(name, 1)} />
                         </span>
                       ) : null}
                     </div>
                   );
                 })}
                 {Object.keys(widths).length ? (
-                  <button type="button" className="menu__item" role="menuitem" onClick={() => setWidths({})}>
+                  <button type="button" className="menu__item" onClick={() => setWidths({})}>
                     Reset column widths
                   </button>
                 ) : null}
@@ -369,26 +353,25 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
                     <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} placeholder="Name this list" aria-label="List name" />
                   </form>
                 ) : (
-                  <button type="button" className="menu__item" role="menuitem" onClick={() => setNaming("")} disabled={!filtered}>
+                  <button type="button" className="menu__item" onClick={() => setNaming("")} disabled={!filtered}>
                     Save the current filters as a list
                   </button>
                 )}
                 {listId !== "all" ? (
-                  <button type="button" className="menu__item" role="menuitem" onClick={dropList}>
+                  <button type="button" className="menu__item" onClick={dropList}>
                     Remove this list
                   </button>
                 ) : null}
-              </div>
-            ) : null}
-          </div>
+            </div>
+          </Popover>
         </div>
         {adding ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
         {error ? (
           <p className="notice" style={{ padding: 12 }} role="alert">
             {error}{" "}
-            <button type="button" className="btn btn--sm" onClick={load}>
+            <Button size="sm" onClick={load}>
               Try again
-            </button>
+            </Button>
           </p>
         ) : null}
         <div className="pagebody" ref={scrollRef}>
@@ -431,21 +414,19 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
           ) : null}
           {paged && pages > 1 ? (
             <span className="pager__pages">
-              <button type="button" className="btn btn--sm btn--ghost" aria-label="First page" disabled={at === 0} onClick={() => setPageAt(0)}>
-                «
-              </button>
-              <button type="button" className="btn btn--sm" disabled={at === 0} onClick={() => setPageAt(at - 1)}>
+              <IconButton size="sm" label="First page" icon={<ChevronsLeft />} disabled={at === 0} onClick={() => setPageAt(0)} />
+              <Button size="sm" disabled={at === 0} onClick={() => setPageAt(at - 1)}>
                 Previous
-              </button>
+              </Button>
               <span className="num">
                 Page {count(at + 1)} of {count(pages)}
               </span>
-              <button type="button" className="btn btn--sm" disabled={at >= pages - 1} onClick={() => setPageAt(at + 1)}>
+              <Button size="sm" disabled={at>= pages - 1} onClick={() => setPageAt(at + 1)}>
                 Next
-              </button>
-              <button type="button" className="btn btn--sm btn--ghost" aria-label="Last page" disabled={at >= pages - 1} onClick={() => setPageAt(pages - 1)}>
+              </Button>
+              <Button size="sm" variant="ghost" aria-label="Last page" disabled={at>= pages - 1} onClick={() => setPageAt(pages - 1)}>
                 »
-              </button>
+              </Button>
             </span>
           ) : null}
         </div>
@@ -460,8 +441,8 @@ export function DataPage({ client, table, version, onChanged }: { client: Client
 function SeenCell({ row }: { row: RecordRow }) {
   const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
   const today = new Date().toDateString();
-  if (row.gone_at) return <td><span className="pill pill--gray">Gone {day(row.gone_at)}</span></td>;
-  if (new Date(row.created_at).toDateString() === today) return <td><span className="pill pill--good">New today</span></td>;
+  if (row.gone_at) return <td><Badge tone="gray">Gone {day(row.gone_at)}</Badge></td>;
+  if (new Date(row.created_at).toDateString() === today) return <td><Badge tone="good">New today</Badge></td>;
   return <td className="faint">Since {day(row.created_at)}</td>;
 }
 
@@ -478,7 +459,7 @@ function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widt
                 <th key={c} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
                   <button type="button" onClick={() => onSort(sort?.field === c ? (sort.direction === "asc" ? { field: c, direction: "desc" } : null) : { field: c, direction: "asc" })}>
                     {byName.get(c)?.label ?? humanize(c)}
-                    {sort?.field === c ? (sort.direction === "asc" ? " ↑" : " ↓") : ""}
+                    {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : ""}
                   </button>
                   <span
                     className="th__grip"
@@ -552,7 +533,7 @@ function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widt
 /** A link to a person, a company or another table's record: shown as a pill. */
 function RelationCell({ row, field }: { row: RecordRow; field: FieldInfo }) {
   const value = row.values[field.name];
-  return <td>{value ? <span className="pill pill--info">{String(value)}</span> : <span className="faint">—</span>}</td>;
+  return <td>{value ? <Badge tone="info">{String(value)}</Badge> : <span className="faint">—</span>}</td>;
 }
 
 function Cell({ row, field, onCommit, files, onFile }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void }) {
@@ -635,9 +616,7 @@ function FileCell({ row, field, files, onFile }: { row: RecordRow; field: FieldI
         </button>
         <span className="faint"> · {formatBytes(info.size)}</span>
         {host.available() ? (
-          <button type="button" className="iconbtn" aria-label="Show in Finder" title="Show in Finder" onClick={() => void host.revealPath(info.path)}>
-            ↗
-          </button>
+          <IconButton label="Show in Finder" icon={<FolderOpen />} onClick={() => void host.revealPath(info.path)} />
         ) : null}
       </td>
     );
@@ -717,12 +696,12 @@ function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; co
         );
       })}
       <div className="row">
-        <button type="submit" className="btn btn--primary btn--sm" disabled={busy}>
+        <Button size="sm" variant="primary" type="submit" disabled={busy}>
           Add
-        </button>
-        <button type="button" className="btn btn--sm" onClick={onDone}>
+        </Button>
+        <Button size="sm" onClick={onDone}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -810,13 +789,13 @@ function CalendarView({ rows, field, titleField, month, onMonth, onOpen }: { row
   return (
     <div className="calendar">
       <div className="calendar__head">
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => onMonth(month.m === 0 ? { y: month.y - 1, m: 11 } : { y: month.y, m: month.m - 1 })} aria-label="Previous month">
+        <Button size="sm" variant="ghost" onClick={() => onMonth(month.m === 0 ? { y: month.y - 1, m: 11 } : { y: month.y, m: month.m - 1 })} aria-label="Previous month">
           ‹
-        </button>
+        </Button>
         <b>{label}</b>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => onMonth(month.m === 11 ? { y: month.y + 1, m: 0 } : { y: month.y, m: month.m + 1 })} aria-label="Next month">
+        <Button size="sm" variant="ghost" onClick={() => onMonth(month.m === 11 ? { y: month.y + 1, m: 0 } : { y: month.y, m: month.m + 1 })} aria-label="Next month">
           ›
-        </button>
+        </Button>
       </div>
       <div className="calendar__grid">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
@@ -898,12 +877,12 @@ function RecordPanel({ row, fields, titleField, onClose, onCommit, onRemove }: {
       <div className="drawer__head">
         <h3>{title || "Details"}</h3>
         <span className="spacer" />
-        <button type="button" className="btn btn--sm btn--danger" onClick={onRemove}>
+        <Button size="sm" variant="danger" onClick={onRemove}>
           Remove
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={onClose} aria-label="Close details">
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close details">
           ✕
-        </button>
+        </Button>
       </div>
       <table className="table table--kv">
         <tbody>

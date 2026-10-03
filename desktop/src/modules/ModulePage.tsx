@@ -8,6 +8,8 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
+import { Button, Tabs } from "../ui";
+import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
 
@@ -67,34 +69,34 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">
-            ▦
+            <ModuleIcon size={20} />
           </div>
           <div style={{ minWidth: 0 }}>
             <h1>{detail.name}</h1>
             <div className="faint">{subtitle}</div>
           </div>
         </div>
-        <div className="toggle" role="tablist" aria-label="Section">
-          {(["app", "activity", "settings"] as Section[]).map((s) => (
-            <button key={s} type="button" role="tab" aria-selected={section === s} onClick={() => setSection(s)}>
-              {s === "app" ? "App" : s === "activity" ? "Activity" : "Settings"}
-            </button>
-          ))}
-        </div>
+        <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />
       </div>
 
       {section === "app" ? (
         <>
-          <div className="subtabs" role="tablist">
-            <button type="button" role="tab" aria-selected={!table} onClick={() => setTab("summary")}>
-              Summary
-            </button>
-            {detail.tables.map((t) => (
-              <button key={t.name} type="button" role="tab" aria-selected={tab === t.name} onClick={() => setTab(t.name)}>
-                {t.title} <span className="faint num">{t.records}</span>
-              </button>
-            ))}
-          </div>
+          <Tabs
+            label="Tables"
+            value={table ? tab : "summary"}
+            onChange={setTab}
+            items={[
+              { id: "summary", label: "Summary" },
+              ...detail.tables.map((t) => ({
+                id: t.name,
+                label: (
+                  <>
+                    {t.title} <span className="faint num">{t.records}</span>
+                  </>
+                ),
+              })),
+            ]}
+          />
           {table ? (
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
           ) : (
@@ -212,9 +214,9 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
         })}
       </div>
       {rows.length > shown ? (
-        <button type="button" className="btn btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
+        <Button size="sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
           Show more ({rows.length - shown} earlier)
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -249,9 +251,9 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
               {t.added_this_week ? ` · ${t.added_this_week} added this week` : ""}
             </span>
             <span className="section__right">
-              <button type="button" className="btn btn--sm" onClick={() => onOpen(t.name)}>
+              <Button size="sm" onClick={() => onOpen(t.name)}>
                 Open
-              </button>
+              </Button>
             </span>
           </div>
           {t.amounts?.length ? (

@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
+import { Button, Badge, Tabs } from "../ui";
 
 export type IntelTab = "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
@@ -93,21 +94,21 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
               <span className={`pill ${STATUS[c.status].pill}`}>{STATUS[c.status].words}</span>
               {removing?.id === c.id ? (
                 <>
-                  <button type="button" className="btn btn--sm" onClick={() => setRemoving(null)}>
+                  <Button size="sm" onClick={() => setRemoving(null)}>
                     Keep it
-                  </button>
-                  <button type="button" className="btn btn--sm btn--danger" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
+                  </Button>
+                  <Button size="sm" variant="danger" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
                     Remove
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="btn btn--sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
+                  <Button size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
                     {c.connector === "browser" ? "Check" : "Read now"}
-                  </button>
-                  <button type="button" className="btn btn--sm btn--ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
                     Remove
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -122,9 +123,9 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
           <p className="muted" style={{ fontSize: 13 }}>Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change.</p>
           <div className="row" style={{ marginTop: 10 }}>
             <input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
-            <button type="submit" className="btn btn--primary" disabled={!folder.trim() || busy !== null}>
+            <Button variant="primary" type="submit" disabled={!folder.trim() || busy !== null}>
               Read it
-            </button>
+            </Button>
           </div>
         </form>
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("site", () => client.connectSite(site.trim()), "A window is open: sign in there, then close it."); }}>
@@ -134,9 +135,9 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
           <p className="muted" style={{ fontSize: 13 }}>LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it.</p>
           <div className="row" style={{ marginTop: 10 }}>
             <input className="need__input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
-            <button type="submit" className="btn btn--primary" disabled={!site.trim() || busy !== null}>
+            <Button variant="primary" type="submit" disabled={!site.trim() || busy !== null}>
               Sign in
-            </button>
+            </Button>
           </div>
         </form>
         {!hasCalendar ? (
@@ -146,9 +147,9 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
             </div>
             <p className="muted" style={{ fontSize: 13 }}>Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once.</p>
             <div className="row" style={{ marginTop: 10 }}>
-              <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
+              <Button variant="primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
                 Connect calendars
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -172,12 +173,12 @@ function SkillCard({ skill, modules }: { skill: Skill; modules: Record<string, s
     <div className="card card--pad intel__card">
       <div className="intel__head">
         <h3>{skill.description}</h3>
-        <span className={`pill ${skill.health === "ok" ? "pill--good" : skill.health === "broken" ? "pill--bad" : "pill--gray"}`}>{health}</span>
+        <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
       </div>
       <p className="muted">
-        <span className="pill pill--info" style={{ marginRight: 8 }}>
+        <Badge tone="info" style={{ marginRight: 8 }}>
           {KIND_LABEL[skill.kind]}
-        </span>
+        </Badge>
         {where ? `${where} · ` : ""}version {skill.version}
         {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
         {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
@@ -186,9 +187,9 @@ function SkillCard({ skill, modules }: { skill: Skill; modules: Record<string, s
       {skill.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{skill.last_problem}</p> : null}
       {skill.notes ? (
         <>
-          <button type="button" className="btn btn--sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
+          <Button size="sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
             {open ? "Hide notes" : "Alpha's notes"}
-          </button>
+          </Button>
           {open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
         </>
       ) : null}
@@ -209,12 +210,12 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
         <>
           <textarea className="note__edit" rows={6} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit ${note.title}`} />
           <div className="row" style={{ marginTop: 8 }}>
-            <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.writeNote(note.scope, note.title, body).then(() => { setEditing(false); onChanged(); })}>
+            <Button size="sm" variant="primary" onClick={() => void client.writeNote(note.scope, note.title, body).then(() => { setEditing(false); onChanged(); })}>
               Save
-            </button>
-            <button type="button" className="btn btn--sm btn--ghost" onClick={() => setEditing(false)}>
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -246,12 +247,12 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
                 {f.value}
                 {f.state === "suggested" ? (
                   <span className="row" style={{ marginTop: 4 }}>
-                    <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.decideFact(f.id, true).then(onChanged)}>
+                    <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(onChanged)}>
                       Yes
-                    </button>
-                    <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.decideFact(f.id, false).then(onChanged)}>
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => void client.decideFact(f.id, false).then(onChanged)}>
                       No
-                    </button>
+                    </Button>
                   </span>
                 ) : (
                   <span className="faint"> · {f.source.startsWith("turn:") ? "you said" : f.source}</span>
@@ -289,9 +290,9 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
               <span>
                 {p.sentence} <span className="faint">· since {when(p.granted_at)}</span>
               </span>
-              <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
+              <Button size="sm" variant="ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
                 Revoke
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -326,13 +327,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
         <h1>Intelligence</h1>
         <span className="muted">Everything Alpha can do, runs on its own, reaches, and knows</span>
       </div>
-      <div className="subtabs" role="tablist" style={{ marginTop: 16 }}>
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs label="Intelligence" value={tab} onChange={onTab} items={TABS} style={{ marginTop: 16 }} />
       {!data ? (
         error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "skills" ? (
@@ -350,7 +345,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
             <div key={s.name} className="card card--pad intel__card">
               <div className="intel__head">
                 <h3>{s.title}</h3>
-                <span className="pill pill--gray">Built in</span>
+                <Badge tone="gray">Built in</Badge>
               </div>
               <p className="muted">{s.description}</p>
               <div className="skill__meta">

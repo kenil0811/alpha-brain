@@ -1,4 +1,7 @@
+import type { ReactNode } from "react";
 import type { ModuleCard } from "../core/client";
+import { IconButton } from "../ui";
+import { HomeIcon, ActivityIcon, PeopleIcon, ModuleIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight } from "../ui/icons";
 
 export type Surface =
   | { kind: "home" }
@@ -43,7 +46,7 @@ export function Rail({
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }) {
-  const item = (target: Surface, icon: string, label: string, count?: number) => {
+  const item = (target: Surface, icon: ReactNode, label: string, count?: number) => {
     const current = sameSurface(surface, target);
     const key = target.kind === "module" || target.kind === "entity" ? `${target.kind}:${target.id}` : target.kind;
     return (
@@ -64,25 +67,23 @@ export function Rail({
           A
         </div>
         <b>Alpha</b>
-        <button type="button" className="iconbtn rail__fold" onClick={onToggleCollapsed} aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"} aria-expanded={!collapsed}>
-          <span aria-hidden="true">{collapsed ? "»" : "«"}</span>
-        </button>
+        <IconButton className="rail__fold" label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"} aria-expanded={!collapsed} icon={collapsed ? <ChevronsRight /> : <ChevronsLeft />} onClick={onToggleCollapsed} />
       </div>
-      {item({ kind: "home" }, "⌂", "Home", needs)}
-      {item({ kind: "activity" }, "◷", "Activity")}
-      {item({ kind: "people" }, "☺", "People & Companies")}
+      {item({ kind: "home" }, <HomeIcon />, "Home", needs)}
+      {item({ kind: "activity" }, <ActivityIcon />, "Activity")}
+      {item({ kind: "people" }, <PeopleIcon />, "People & Companies")}
       <div className="rail__group">Your modules</div>
       {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}
-      {modules.map((m) => item({ kind: "module", id: m.id }, "▦", m.name))}
+      {modules.map((m) => item({ kind: "module", id: m.id }, <ModuleIcon />, m.name))}
       <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined}>
         <span className="navbtn__ico" aria-hidden="true" style={{ color: "var(--primary)" }}>
-          +
+          <PlusIcon />
         </span>
         <span className="navbtn__text">New</span>
       </button>
       <div className="rail__spacer" />
-      {item({ kind: "intelligence" }, "◈", "Intelligence")}
-      {item({ kind: "settings" }, "⚙", "Settings")}
+      {item({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence")}
+      {item({ kind: "settings" }, <SettingsIcon />, "Settings")}
       <div className={`rail__status rail__status--${runtime}`} role="status" title={collapsed ? status : undefined}>
         <i aria-hidden="true" />
         <span className="rail__status-text">{status}</span>

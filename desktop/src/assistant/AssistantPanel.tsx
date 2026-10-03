@@ -8,6 +8,8 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
+import { Button, IconButton } from "../ui";
+import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
@@ -35,12 +37,12 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
       </h3>
       <span className="faint">{stopped ? "The build stopped before it finished. It can carry on from where it stopped." : "Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed."}</span>
       <div className="row" style={{ marginTop: 8 }}>
-        <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => decide(true)}>
+        <Button size="sm" variant="primary" disabled={busy} onClick={() => decide(true)}>
           {stopped ? "Continue building" : "Build it"}
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => decide(false)}>
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
           {stopped ? "Leave it" : "Not now"}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -69,20 +71,20 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
       {ask.options.length ? (
         <div className="askcard__options">
           {ask.options.map((o) => (
-            <button key={o} type="button" className="btn askcard__opt" disabled={busy} onClick={() => void answer(o)}>
+            <Button className="askcard__opt" key={o} disabled={busy} onClick={() => void answer(o)}>
               {o}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
       <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
-        <button type="submit" className="btn btn--sm btn--primary" disabled={busy || !text.trim()}>
+        <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
           Answer
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
           Skip
-        </button>
+        </Button>
       </form>
       {error ? <p className="notice">{error}</p> : null}
     </div>
@@ -316,14 +318,14 @@ export function AssistantPanel({
           <i />
         </span>
         <span className="faint working__time">{elapsed} s</span>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => { if (pending.id) void client.stopTurn(pending.id).catch(() => undefined); }}>
+        <Button size="sm" variant="ghost" onClick={() => { if (pending.id) void client.stopTurn(pending.id).catch(() => undefined); }}>
           Stop
-        </button>
+        </Button>
       </div>
       {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
         <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-          {showSteps ? "▾" : "▸"} {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {showSteps ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
           {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
         </button>
       ) : null}
@@ -331,7 +333,7 @@ export function AssistantPanel({
         <ul className="stages">
           {steps.slice(-12).map((s, i) => (
             <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
-              {s.kind === "failed" ? "✗" : "✓"} {s.text}
+              {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
             </li>
           ))}
         </ul>
@@ -365,13 +367,11 @@ export function AssistantPanel({
           </div>
           <span style={{ marginLeft: "auto" }} />
           {activeConvo && activeConvo.state !== "working" ? (
-            <button type="button" className="btn btn--sm btn--ghost" title="Close this conversation; what it learned stays" onClick={() => void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); })}>
+            <Button size="sm" variant="ghost" title="Close this conversation; what it learned stays" onClick={() => void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); })}>
               Done
-            </button>
+            </Button>
           ) : null}
-          <button type="button" className="iconbtn" onClick={() => onOpen(false)} aria-label="Close the assistant">
-            ›
-          </button>
+          <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onOpen(false)} />
         </div>
       )}
       {!threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
@@ -423,9 +423,9 @@ export function AssistantPanel({
                     {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
                   {build ? (
-                    <button type="button" className="btn btn--sm btn--ghost creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
+                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
                       Stop
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               );
@@ -469,9 +469,9 @@ export function AssistantPanel({
         <div className="composer__box">
           <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-          <button type="button" className="btn btn--primary btn--sm" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
+          <Button size="sm" variant="primary" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
             Send
-          </button>
+          </Button>
         </div>
         <div className="composer__row">
           <span>Uses your Claude subscription</span>

@@ -1,0 +1,35 @@
+/**
+ * The icons the app uses, from lucide, named by what they mean here so a change of set is one
+ * file. Glyph characters are not icons (CONTRIBUTING §3.8).
+ */
+export {
+  Home as HomeIcon,
+  Clock as ActivityIcon,
+  Users as PeopleIcon,
+  Table2 as ModuleIcon,
+  Sparkles as IntelligenceIcon,
+  Settings as SettingsIcon,
+  Plus as PlusIcon,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronRight,
+  ChevronDown,
+  ChevronLeft,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpRight,
+  Check,
+  X,
+  Eye,
+  Mic,
+  Circle,
+  Maximize2,
+  MoreHorizontal,
+  Info,
+  FolderOpen,
+  Calendar,
+  Globe,
+  File,
+} from "lucide-react";

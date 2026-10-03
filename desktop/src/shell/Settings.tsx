@@ -10,6 +10,7 @@ import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
+import { Button } from "../ui";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -86,26 +87,26 @@ export function ClaudeRow({ client, status, onStatus }: { client: Client; status
       {!status ? null : connected ? (
         confirming ? (
           <>
-            <button type="button" className="btn btn--sm" onClick={() => setConfirming(false)}>
+            <Button size="sm" onClick={() => setConfirming(false)}>
               Keep it
-            </button>
-            <button type="button" className="btn btn--sm btn--danger" onClick={() => void act(() => client.signOutClaude().then(onStatus), null).then(() => setConfirming(false))}>
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => void act(() => client.signOutClaude().then(onStatus), null).then(() => setConfirming(false))}>
               Sign out
-            </button>
+            </Button>
           </>
         ) : (
-          <button type="button" className="btn btn--sm btn--ghost" onClick={() => setConfirming(true)}>
+          <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
             Sign out
-          </button>
+          </Button>
         )
       ) : status.installed ? (
-        <button type="button" className="btn btn--sm btn--primary" disabled={waiting !== null} onClick={() => void act(() => client.signInClaude(), "signin")}>
+        <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => client.signInClaude(), "signin")}>
           {waiting === "signin" ? "Waiting…" : "Sign in"}
-        </button>
+        </Button>
       ) : (
-        <button type="button" className="btn btn--sm btn--primary" disabled={waiting !== null} onClick={() => void act(() => client.installClaude(), "install")}>
+        <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => client.installClaude(), "install")}>
           {waiting === "install" ? "Installing…" : "Install"}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -184,9 +185,9 @@ export function Settings({ client, theme, onTheme, claude, onClaude }: { client:
               <div className="item__sub">{data ? `${data.folder} · ${bytes(data.size)}` : "…"}</div>
             </div>
             {host.available() ? (
-              <button type="button" className="btn btn--sm" onClick={() => void host.revealData()}>
+              <Button size="sm" onClick={() => void host.revealData()}>
                 Show in Finder
-              </button>
+              </Button>
             ) : null}
           </div>
           <div className="item">
@@ -194,9 +195,9 @@ export function Settings({ client, theme, onTheme, claude, onClaude }: { client:
               <b>Backups</b>
               <div className="item__sub">{!data ? "…" : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}</div>
             </div>
-            <button type="button" className="btn btn--sm" disabled={busy} onClick={() => { setBusy(true); client.backUp().then(setData).catch(() => undefined).finally(() => setBusy(false)); }}>
+            <Button size="sm" disabled={busy} onClick={() => { setBusy(true); client.backUp().then(setData).catch(() => undefined).finally(() => setBusy(false)); }}>
               {busy ? "Backing up…" : "Back up now"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

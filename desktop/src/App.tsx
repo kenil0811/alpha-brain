@@ -18,6 +18,7 @@ import { ModulePage } from "./modules/ModulePage";
 import { ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard } from "./core/client";
+import { Button } from "./ui";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
@@ -192,9 +193,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
       {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the conversation panel" /> : null}
       <main className="main">
         {!panelOpen && runtime.kind === "connected" ? (
-          <button type="button" className="btn btn--primary assist__reopen" onClick={() => togglePanel(true)}>
+          <Button variant="primary" className="assist__reopen" onClick={() => togglePanel(true)}>
             Ask Alpha
-          </button>
+          </Button>
         ) : null}
         {runtime.kind === "connected" && claude && !claude.signed_in && surface.kind !== "settings" ? (
           <div className="page firstrun">
@@ -220,9 +221,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
             {runtime.kind === "unavailable" ? (
               <p className="muted" style={{ marginTop: 8 }}>
                 {runtime.reason}{" "}
-                <button type="button" className="btn btn--sm" onClick={() => setAttempt((n) => n + 1)}>
+                <Button size="sm" onClick={() => setAttempt((n) => n + 1)}>
                   Try again
-                </button>
+                </Button>
               </p>
             ) : null}
           </div>

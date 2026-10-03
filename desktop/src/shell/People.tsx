@@ -7,6 +7,8 @@
 import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
+import { Button, Badge } from "../ui";
+import { ArrowLeft } from "../ui/icons";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
@@ -104,9 +106,9 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
   const suggested = entity.facts.filter((f) => f.state === "suggested");
   return (
     <div className="page">
-      <button type="button" className="btn btn--sm" onClick={onBack}>
-        ← People &amp; Companies
-      </button>
+      <Button size="sm" onClick={onBack}>
+        <ArrowLeft size={14} aria-hidden="true" /> People &amp; Companies
+      </Button>
       <div className="modhead" style={{ marginTop: 12 }}>
         <span className="people__avatar people__avatar--big" aria-hidden="true">
           {initials(entity.name)}
@@ -119,9 +121,9 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           </span>
           <div className="row" style={{ marginTop: 6 }}>
             {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
-              <span key={`${k}:${v}`} className="pill pill--gray" title={k}>
+              <Badge key={`${k}:${v}`} tone="gray" title={k}>
                 {v}
-              </span>
+              </Badge>
             )))}
           </div>
         </div>
@@ -134,17 +136,17 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           <div className="section__right">
             {editing ? (
               <>
-                <button type="button" className="btn btn--sm btn--primary" onClick={save}>
+                <Button size="sm" variant="primary" onClick={save}>
                   Save
-                </button>
-                <button type="button" className="btn btn--sm" onClick={() => { setEditing(false); setBody(entity.page?.body ?? ""); }}>
+                </Button>
+                <Button size="sm" onClick={() => { setEditing(false); setBody(entity.page?.body ?? ""); }}>
                   Cancel
-                </button>
+                </Button>
               </>
             ) : (
-              <button type="button" className="btn btn--sm" onClick={() => setEditing(true)}>
+              <Button size="sm" onClick={() => setEditing(true)}>
                 {entity.page ? "Edit" : "Write"}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -183,12 +185,12 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
                   {f.why ? <span className="faint"> — from “{f.why}”</span> : null}
                 </span>
                 <span className="section__right">
-                  <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.decideFact(f.id, true).then(refresh)}>
+                  <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(refresh)}>
                     Yes
-                  </button>
-                  <button type="button" className="btn btn--sm" onClick={() => void client.decideFact(f.id, false).then(refresh)}>
+                  </Button>
+                  <Button size="sm" onClick={() => void client.decideFact(f.id, false).then(refresh)}>
                     No
-                  </button>
+                  </Button>
                 </span>
               </div>
             ))}
@@ -210,9 +212,9 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
                 </button>
                 <span className="muted">{keysLine(m) || m.last_text || ""}</span>
                 <span className="section__right">
-                  <button type="button" className="btn btn--sm" onClick={() => void client.merge(entity.id, m.id).then(refresh)}>
+                  <Button size="sm" onClick={() => void client.merge(entity.id, m.id).then(refresh)}>
                     Same person
-                  </button>
+                  </Button>
                 </span>
               </div>
             ))}
@@ -230,7 +232,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           {entity.timeline.map((e) => (
             <div key={e.id} className="list__row">
               <span className="faint people__when">{when(e.at)}</span>
-              <span className={`pill pill--${e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray"}`}>{e.kind}</span>
+              <Badge tone={e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray"}>{e.kind}</Badge>
               <span className="people__line">{e.text}</span>
             </div>
           ))}

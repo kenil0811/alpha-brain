@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 import type { Automation, Client } from "../core/client";
 import { when } from "../modules/format";
+import { Button } from "../ui";
+import { Check, X } from "../ui/icons";
 
 export function AutomationList({ client, items, onChanged, empty }: { client: Client; items: Automation[]; onChanged: () => void; empty: string }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                     <ul className="stages">
                       {a.steps.map((s, i) => (
                         <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
-                          {s.kind === "failed" ? "✗" : "✓"} {s.text}
+                          {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
                         </li>
                       ))}
                     </ul>
@@ -67,9 +69,9 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                 <div className="notice" style={{ fontSize: 12 }}>Last run didn't work: {a.last_error}</div>
               ) : null}
             </div>
-            <button type="button" className="btn btn--sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
+            <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
               {a.running ? "Running…" : "Run now"}
-            </button>
+            </Button>
           </div>
         ))}
       </div>

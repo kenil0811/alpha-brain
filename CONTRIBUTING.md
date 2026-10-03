@@ -187,8 +187,20 @@ threads (a state move, an upsert) is written as in §3.2.
 - TypeScript strict, React function components, no state library; `core/client.ts` is the
   only module that talks to the core, with typed calls and the API's own shapes. A component
   reads the world through props or its own `client` call, never through a global.
+- **The kit first** (`src/ui/`): `Button`, `IconButton` (a label is required), `Badge`,
+  `Tabs`, `Menu`, `Popover`, `Dialog`, `Tooltip`, `InfoTip`, and the icons in `ui/icons.ts`
+  (lucide, named by what they mean here). No raw `<button className="btn">`, no hand-rolled
+  menus or dialogs, no glyph or emoji characters as icons. A new primitive goes in the kit
+  with a test, not in a page.
 - CSS lives in `src/styles/app.css` with `block__element` class names and `--tokens` for
-  colours and type; inline styles are for one-off geometry only. Light and dark both work.
+  colours and type; inline styles are for one-off geometry only. Light and dark both work;
+  contrast stays at 4.5:1 or better; the Mac's reduced-motion and contrast settings are
+  honoured by CSS, never by a setting of ours.
+- Copy is short and specific: a title is a few words, an explanation goes in an `InfoTip`
+  beside it, an empty state is one line, nothing says "coming soon", nothing shows a command
+  or a stack trace. Labels are sentence case. (Adopted from pull request #3's UI rules.)
+- Pages have addresses (`shell/address.ts`); a new surface gets one. What is open inside a
+  page is not in the address.
 - Every button has a label; every list that updates has a role; keyboard paths exist for
   what a mouse can do (the review of 3 Oct lists the gaps; new code does not add to them).
 - A failed request shows an error state with a way to retry; a poll stops when its window is

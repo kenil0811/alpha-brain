@@ -5,6 +5,7 @@
  * dictation, which works in any text field.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Mic, Circle } from "../ui/icons";
 
 interface RecognitionResultEvent {
   resultIndex: number;
@@ -94,7 +95,7 @@ export function MicButton({ listening, supported, onToggle, small = false }: { l
   const title = supported ? (listening ? "Stop listening" : "Speak instead of typing") : "Speaking isn't available in this window; press your Mac's dictation key instead";
   return (
     <button type="button" className={`iconbtn${small ? " iconbtn--sm" : ""}${listening ? " iconbtn--live" : ""}`} title={title} aria-label={listening ? "Stop listening" : "Speak"} aria-pressed={listening} onClick={onToggle} disabled={!supported}>
-      <span aria-hidden="true">{listening ? "●" : "🎙"}</span>
+      <span aria-hidden="true" className="iconbtn__ico">{listening ? <Circle size={12} fill="currentColor" /> : <Mic size={16} />}</span>
       {listening ? <span className="live__word">Listening</span> : null}
     </button>
   );

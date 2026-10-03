@@ -16,7 +16,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 | | |
 |---|---|
 | Core tests | 173, in about 12 s; ruff and mypy strict clean |
-| Desktop tests | 3, in one file; typecheck clean |
+| Desktop tests | 11, in three files; typecheck clean |
 | Tools the model sees | 70 |
 | Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
 | Commits | 79 total; 67 since 1 Oct 2026 |
@@ -51,13 +51,14 @@ connect, Install and Sign in on a fresh Mac, the first-run experience as a whole
   paths scan; internal error text reaches the person.~~ Done 3 Oct evening (the hardening day).
 - Two files hold 2,300 of 11,000 core lines (`mcp/tools.py`, `api/server.py`).
 - The desktop polls about 26 requests a minute idle and 140 during a turn, never paused when
-  hidden; nothing supervises the core; 26 swallowed errors; three tests.
+  hidden; nothing supervises the core; 26 swallowed errors; eleven tests.
 
 ## Pending, in order (from the checkpoint's §10, then the PR #3 port of 3 Oct evening)
 
 **In flight (3 Oct evening, Q27–Q28):** the ideas from pull request #3 rebuilt on main, in this
-order: foundations (self-hosted fonts, a UI kit on Radix and lucide, reduced motion and
-contrast from the Mac, pages with addresses, resizable rail and panel) → the table views in
+order: ~~foundations (self-hosted fonts, a UI kit on Radix and lucide, reduced motion and
+contrast from the Mac, pages with addresses, resizable rail and panel)~~ done
+(`log/2026-10-03-desktop-foundations.md`) → the table views in
 stages with saved lists in the core → ⌘K on search → Intelligence item pages, fact provenance,
 the module's page → the desktop acceptance check and the UI rules → quick entry → the
 companion's characters (Bridge's art with permission, our rig) → a graph, designed first.

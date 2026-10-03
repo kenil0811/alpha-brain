@@ -8,6 +8,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
+import { Button, IconButton } from "../ui";
+import { X, Maximize2 } from "../ui/icons";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
@@ -191,12 +193,8 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <span className="faint" data-tauri-drag-region>
               {label}
             </span>
-            <button type="button" className="iconbtn iconbtn--sm" aria-label="Open the workspace" title="Open this conversation in the workspace" onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)}>
-              ⤢
-            </button>
-            <button type="button" className="iconbtn iconbtn--sm" aria-label="Close" onClick={() => toggle()}>
-              ×
-            </button>
+            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
+            <IconButton size="sm" label="Close" icon={<X />} onClick={() => toggle()} />
           </header>
           <div className="avatar__turns" ref={listRef}>
             {!turns.length ? <p className="panel__hint">Tell me what to do: log a meal, check a board, ask what's coming up.</p> : null}
@@ -209,9 +207,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               <div className="avatar__pills" role="group" aria-label="Which conversation">
                 <p className="panel__hint">Which is this about?</p>
                 {routing.options.map((o) => (
-                  <button key={o} type="button" className="btn btn--sm askcard__opt" disabled={busy} onClick={() => void choose(routing.ask, o)}>
+                  <Button size="sm" className="askcard__opt" key={o} disabled={busy} onClick={() => void choose(routing.ask, o)}>
                     {o}
-                  </button>
+                  </Button>
                 ))}
               </div>
             ) : null}
@@ -219,9 +217,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               <div className="avatar__pills" role="group" aria-label="Alpha asks">
                 <p className="panel__hint">{openAsk.text}</p>
                 {(openAsk.options ?? []).map((o) => (
-                  <button key={o} type="button" className="btn btn--sm askcard__opt" onClick={() => void choose(openAsk.id, o)}>
+                  <Button size="sm" className="askcard__opt" key={o} onClick={() => void choose(openAsk.id, o)}>
                     {o}
-                  </button>
+                  </Button>
                 ))}
               </div>
             ) : null}
@@ -230,15 +228,15 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                 <p className="panel__hint">
                   {openAction.action.effect === "send" ? "Send" : "Make"}: {openAction.action.title}
                 </p>
-                <button type="button" className="btn btn--sm btn--primary" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "talking"); refresh(); })}>
+                <Button size="sm" variant="primary" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "talking"); refresh(); })}>
                   {openAction.action.effect === "send" ? "Send it" : "Do it"}
-                </button>
-                <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.declineAction(openAction.action!.id).then(refresh)}>
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void client.declineAction(openAction.action!.id).then(refresh)}>
                   Not now
-                </button>
-                <button type="button" className="btn btn--sm" onClick={() => handOff({ panel: true, surface: { kind: "home" } }, host)}>
+                </Button>
+                <Button size="sm" onClick={() => handOff({ panel: true, surface: { kind: "home" } }, host)}>
                   See it
-                </button>
+                </Button>
               </div>
             ) : null}
             {busy ? (
@@ -250,9 +248,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
             <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
             <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Log two eggs… what's on today…" aria-label="What should Alpha do" disabled={busy} />
-            <button type="submit" className="btn btn--sm btn--primary" disabled={busy || !text.trim()}>
+            <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
               Do it
-            </button>
+            </Button>
           </form>
         </section>
       ) : null}
@@ -262,9 +260,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <p>{shownBubble}</p>
             {!bubble && needs.length ? (
               <div className="row" style={{ marginTop: 6 }}>
-                <button type="button" className="btn btn--sm btn--primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
+                <Button size="sm" variant="primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
                   Open
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>
