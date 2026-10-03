@@ -136,6 +136,61 @@ build a bounded context for each run, and make every change traceable. Five rule
 - **Not yet, by the research's own advice:** embeddings, a graph store, a profile service,
   reflection. Each waits for a logged failure that needs it.
 
+### 3.7 The memory round (decided 3 October 2026, early; Q26)
+
+Kenil, after the write route: "still not convinced about our design around memory / knowledge /
+context / threads… the most important part of alpha". A long discussion, grounded in what the
+day had shown (no fact that Sania is his partner among 1,551 connections and hundreds of
+emails; a Gmail × LinkedIn answer from the model's cleverness; 34–40 s for a question about a
+table; three Gmail procedures because nothing composed the first two; nothing measured). The
+shape agreed, each piece built in order and judged by the memory journeys before the next:
+
+1. **Evidence stays verbatim** (journal, rows, documents).
+2. **Knowledge is a wiki with an index.** Markdown pages Alpha writes and the person can edit,
+   each with provenance to the journal: a page per person and company, per module, per topic.
+   Facts stay structured under the pages (validity, update-on-write). An index of names and
+   one-liners is always in context; bodies load on demand. People & Companies return to the
+   rail.
+3. **Noticing.** After every turn and at a conversation's close, a cheap structured pass over
+   what was said and read proposes facts and page edits, as suggestions with the journal line
+   they rest on; low-stakes ones silently with a trail (Q5). Beside verbatim, never instead.
+4. **Context by relevance.** Entity cards for anyone named, the scope's page, the turns of the
+   same conversation, matches, the skills for the sites and modules involved; and fewer,
+   composable tools (one per kind of thing with an operation; no fixed number).
+5. **Conversations, first-class and parallel.** A conversation has a scope (a module or
+   General), a title Alpha gives it, a state (working / needs you / idle / done), its own stream
+   and its own model session resumed while live (a *world delta* in every resumed turn, so
+   current facts outrank what the session remembers); fresh on close. Several run at once; a
+   strip on the panel and on Home switches between live ones; closed ones stay in the module's
+   history. Builds and automation runs are conversations too and never resume across runs (the
+   brief is their memory). Ends on Done, when a build finishes, or after a long gap; no automatic
+   topic splitting; no picker before speaking; no projects above modules. **Memory is shared
+   only through the world.** This revises Q21 (threads as records) for live conversations and
+   the "one stream" of 30 September: many conversations, one world. Kenil's driver: working on
+   several modules at once with to-and-fro in each.
+6. **The companion is a mouth onto the same conversations.** It holds one focus; a sentence is
+   routed by rules (a reply to an open question → the conversation that asked; a sentence naming
+   a module, table or person → where they live; a new request naming a module → a new one
+   there; else the focus; else General), the bubble says where it went, a wrong one is one tap
+   to move; when two live conversations could take it, a System One question decides or asks
+   with choices. Questions come back as choice pills and primary decisions (Build it, Send it,
+   Yes/No) are in the bubble; Open hands off to the workspace with that conversation open.
+7. **Skills are the one unit of know-how.** Readers, procedures and pipelines become skills of
+   kinds read / act / run in one table and one folder format: name, kind, site or module,
+   description, when to use, inputs, outputs, steps or script, examples, health, provenance, a
+   test, site notes. Discovery: the always-loaded index, search over descriptions, site and
+   module matching. Composition: a step may call a skill. Promotion from verified runs.
+8. **The System One seam is built now**: (state, typed question) → answer with confidence;
+   rules first, a no-tools cheap run (Haiku on the subscription) otherwise, Jev or Laya later.
+   First uses: routing, noticing, same-person, rerank, skill choice, permission gating, triage.
+9. **Benchmark first.** Memory journeys on a copy of the world: yesterday; an old fact; a
+   correction overriding a belief; two sources for one person; who emailed; a follow-up that
+   needs what the model saw.
+
+Risks accepted: routing errors (ask when ambiguous, one tap to move); a one-turn lag between
+conversations (noticing after every turn); contention on one sign-in must be shown as waiting;
+Claude Code's session files live under the home folder, outside Alpha's data directory.
+
 ### 3.4 Size and locality
 
 Tens of thousands of journal rows and records are small for SQLite and FTS5 (milliseconds at millions of rows). One database per person, on the device; encryption at rest later.
@@ -497,6 +552,7 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q21** | Threads are records, never remembered model sessions; what the model saw is kept per turn; instructions change only on the person's own words. | 2 Oct, after a stale belief carried across runs. §3.6 |
 | **Q22** | One floor stays: an automation runs at most every 30 minutes (was 15, undocumented). Everything else unlimited (Q18). | 2 Oct evening, after the code read listed the hidden floor. |
 | **Q23** | Site vocabulary out of the hands: generic sign-in and paging detection only, one `url` key, no Sites section in the browser skill; Alpha learns a site's addresses and walls itself. | 2 Oct evening, after the code read found LinkedIn's paths in the driver. §4.0 |
+| **Q26** | The memory round (§3.7): a wiki with an index; noticing; context by relevance; conversations first-class, parallel, with resumed sessions while live and a world delta; the companion as a mouth with one focus and rule-based routing; skills unified with an index and composition; the System One seam now; memory journeys first. | 3 Oct, early, after a long discussion. |
 | **Q25** | Files in and out: a download is a read into Alpha's own folder per module (the plan decides and proposes keeping files; never silent growth); the person drops files onto a module or a row and Alpha reads them; a file sent by a procedure is an upload step on a document Alpha keeps and asks every time; tables export as CSV or Excel. | 2 Oct, late evening. §6.2 |
 | **Q24** | The write route, generic: one acting hand; procedures as Alpha's know-how with an effect (prepare / send); every outward effect an action the person approves after a dry-run preview; prepare asks once per procedure then a standing sentence, send asks every time; the first journey is Kenil's real draft in his real Gmail. | 2 Oct evening, after Alpha refused to draft an email. §6.1 |
 

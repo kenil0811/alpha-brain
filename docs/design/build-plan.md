@@ -1150,6 +1150,16 @@ thinking, it should give me options for questions and not just have me type in".
   never saw the error screenshot. `action_propose`'s failure answer now carries the step log;
   giving Alpha the screenshot itself (a `page_read` of the final page, or the image) is open.
 
+### 4.20 The memory round: the benchmark first (3 Oct 2026, early)
+
+The decisions are design §3.7 (Q26). First slice: the memory journeys, run before anything
+changes so each later slice is measured against them (`journeys/memory_*.yaml`): yesterday
+(a seeded exchange dated a day ago), an old fact (178 cm, 63 kg from 1 Oct), a correction
+(130 g protein overriding 115), two sources for one person (Alexander Miller: LinkedIn and
+his email), who emailed (Sara Ramos: email and the intro on the calendar), a follow-up ("tell
+me more about the second one"). The suite gained `seed` steps (a past exchange with a date, a
+fact) and a judge that can see the previous exchange (`history`). Baseline below.
+
 ## 5. What to port from `../alpha-platform`, and only when the slice calls for it
 
 | Piece | Path in the old repo | Used in |
