@@ -18,13 +18,13 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 184, in about 13 s; ruff and mypy strict clean |
-| Desktop tests | 37, in ten files; typecheck clean |
+| Core tests | 187, in about 12 s; ruff and mypy strict clean |
+| Desktop tests | 45, in twelve files; typecheck clean |
 | Tools the model sees | 71 |
 | Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
 | Desktop check | latest report `docs/checks/2026-10-03-1622.md`, 61 of 61 pages clean at every size (the fourth run of the day; the first three found the defects the log names) |
-| Commits | 96 total; 80 since 1 Oct 2026 |
-| Lines | core 11,587 Python; tests 4,088; desktop 6,748 TS/TSX |
+| Commits | 98 total; 82 since 1 Oct 2026 |
+| Lines | core 11,659 Python; tests 4,131; desktop 7,408 TS/TSX |
 
 ## What is built, against the design's order of work
 
