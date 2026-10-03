@@ -211,3 +211,15 @@ def test_a_refused_decline_leaves_no_answer_and_starts_nothing(world: World) -> 
     assert not [e for e in world.journal.recent(10, kinds=["answered"])
                 if e["data"].get("proposal") == plan["proposal"]]
     assert world.plans.get(pid)["state"] == "building"
+
+
+def test_a_modules_page_is_read_and_written_from_its_own_route(world: World) -> None:
+    world.modules.create("Deals", goal="find a firm")
+    c = TestClient(create_app(world, live=False))
+    assert c.get("/api/modules/Deals/page").json() == {"name": "Deals", "scope": "module:Deals",
+                                                       "page": None}
+    c.post("/api/notes", json={"scope": "module:Deals", "title": "Deals",
+                               "body": "# Deals\n\nWhat this is for: a firm to buy.",
+                               "summary": "A firm to buy"})
+    page = c.get("/api/modules/Deals/page").json()["page"]
+    assert page["summary"] == "A firm to buy" and page["body"].startswith("# Deals")

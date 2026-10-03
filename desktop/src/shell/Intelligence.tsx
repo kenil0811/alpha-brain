@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
+import { factOrigin } from "./facts";
 import { Button, Badge, Tabs } from "../ui";
 
 export type IntelTab = "skills" | "automations" | "connections" | "knowledge";
@@ -245,6 +246,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
               <dt>{humanize(f.predicate)}</dt>
               <dd>
                 {f.value}
+                <div className="faint">{factOrigin(f)}</div>
                 {f.state === "suggested" ? (
                   <span className="row" style={{ marginTop: 4 }}>
                     <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(onChanged)}>
@@ -254,9 +256,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
                       No
                     </Button>
                   </span>
-                ) : (
-                  <span className="faint"> · {f.source.startsWith("turn:") ? "you said" : f.source}</span>
-                )}
+                ) : null}
               </dd>
             </div>
           ))}

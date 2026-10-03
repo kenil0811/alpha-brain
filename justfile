@@ -36,6 +36,11 @@ app-dev:
 app:
     export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH && cd desktop && pnpm install && pnpm tauri build --debug --bundles app && open src-tauri/target/debug/bundle/macos/Alpha.app
 
+# Restart the running app on the current build: the window and its core together (killing the
+# window alone leaves the core running with its scheduler on the live world, found 3 Oct).
+app-restart:
+    pkill -f "Alpha.app/Contents/MacOS/alpha-desktop" || true; pkill -f "alpha.cli serve" || true; sleep 2; open desktop/src-tauri/target/debug/bundle/macos/Alpha.app
+
 test-desktop:
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && pnpm typecheck && pnpm test
 

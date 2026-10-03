@@ -628,6 +628,14 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["sources"] = world.sources.all(m["id"])
         return card
 
+    @app.get("/api/modules/{ref}/page", dependencies=[api])
+    def module_page(ref: str) -> dict[str, Any]:
+        """The module's page of the wiki (what it is for, what it holds, what is open), or
+        none yet; the person edits it through POST /api/notes with scope module:<name>."""
+        name = world.modules.get(ref)["name"]
+        return {"name": name, "scope": f"module:{name}",
+                "page": world.knowledge.find_note(f"module:{name}", name)}
+
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
     def summary(ref: str) -> dict[str, Any]:
         return module_summary(world, world.modules.get(ref)["id"])

@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
+import { factOrigin } from "./facts";
 import { Button, Badge } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 
@@ -171,7 +172,10 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
             {accepted.map((f) => (
               <div key={f.id}>
                 <dt>{f.predicate.replace(/_/g, " ")}</dt>
-                <dd>{f.value}</dd>
+                <dd>
+                  {f.value}
+                  <div className="faint">{factOrigin(f)}</div>
+                </dd>
               </div>
             ))}
           </dl>
@@ -182,7 +186,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
               <div key={f.id} className="card card--pad row">
                 <span>
                   Alpha thinks <b>{f.predicate.replace(/_/g, " ")}</b> is <b>{f.value}</b>
-                  {f.why ? <span className="faint"> — from “{f.why}”</span> : null}
+                  <span className="faint"> · {factOrigin(f)}</span>
                 </span>
                 <span className="section__right">
                   <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(refresh)}>

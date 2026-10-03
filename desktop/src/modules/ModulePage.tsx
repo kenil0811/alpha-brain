@@ -3,7 +3,7 @@
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
 import { type DragEvent, useEffect, useMemo, useState } from "react";
-import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
+import type { Client, ModuleDetail, ModuleSummary, Note, Source } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -100,7 +100,10 @@ export function ModulePage({ client, moduleId, version, onChanged }: { client: C
           {table ? (
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
           ) : (
-            <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
+            <>
+              <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />
+              <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
+            </>
           )}
         </>
       ) : null}
@@ -218,6 +221,65 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
           Show more ({rows.length - shown} earlier)
         </Button>
       ) : null}
+    </div>
+  );
+}
+
+/** The module's page of Alpha's wiki, on the module itself: what it is for, what it holds,
+ *  what was tried, what is open; Alpha writes it and the person may edit it. */
+function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Client; moduleRef: string; version: number; onChanged: () => void }) {
+  const [page, setPage] = useState<{ name: string; scope: string; page: Note | null } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState("");
+  useEffect(() => {
+    let live = true;
+    client
+      .modulePage(moduleRef)
+      .then((p) => {
+        if (!live) return;
+        setPage(p);
+        if (!editing) setBody(p.page?.body ?? "");
+      })
+      .catch(() => live && setPage(null));
+    return () => {
+      live = false;
+    };
+  }, [client, moduleRef, version, editing]);
+  if (!page) return null;
+  const save = () =>
+    void client.writeNote(page.scope, page.name, body, page.page?.summary ?? undefined).then(() => {
+      setEditing(false);
+      onChanged();
+    });
+  return (
+    <div className="card card--pad" style={{ marginBottom: 14 }}>
+      <div className="section__head" style={{ marginBottom: 8 }}>
+        <h2 style={{ fontSize: 16 }}>Alpha's page</h2>
+        <span className="faint">what this is for, what it holds, what is open</span>
+        <span className="section__right">
+          {editing ? (
+            <>
+              <Button size="sm" variant="primary" onClick={save}>
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBody(page.page?.body ?? ""); }}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => setEditing(true)}>
+              {page.page ? "Edit" : "Write"}
+            </Button>
+          )}
+        </span>
+      </div>
+      {editing ? (
+        <textarea className="note__edit" rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${page.name}`} />
+      ) : page.page ? (
+        <div className="people__page">{page.page.body}</div>
+      ) : (
+        <p className="muted" style={{ fontSize: 13 }}>No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
+      )}
     </div>
   );
 }
