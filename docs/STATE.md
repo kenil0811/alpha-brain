@@ -25,8 +25,8 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | Tools the model sees | 71 |
 | Journeys | 18 defined; latest report `docs/journeys/2026-10-03-1425.md`, 2 of 2 |
 | Desktop check | latest full run `docs/checks/2026-10-03-1622.md`, 61 of 61 pages clean at every size; later partial runs clean (Settings, Home, the module pages) |
-| Commits | 105 total; 89 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 11,696 Python; tests 4,153; desktop 7,862 TS/TSX |
+| Commits | 107 total; 91 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 11,696 Python; tests 4,153; desktop 7,881 TS/TSX |
 
 ## What is built, against the design's order of work
 
