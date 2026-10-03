@@ -395,7 +395,7 @@ guardrails and governance and approvals". The split of §4.0 decides the shape.
 
 *As built (2 Oct evening):* `world/actions.py` (procedures, actions, permissions; step
 validation), the driver's `act` op, `Browser.act`, `runtime/acting.py` (dry run, perform,
-approve, repair), tools `procedure_save`, `procedures_list`, `action_propose`,
+approve, repair), tools `procedure_save`, `skills_find` (since 3 Oct; `procedures_list` before), `action_propose`,
 `action_approve`, `action_decline`, `actions_list`; routes for the card, edit, approve,
 decline, screenshots and permissions; the action card in Home and the conversation; standing
 permissions in Knowledge; removal of a connection takes its procedures, declines pending
