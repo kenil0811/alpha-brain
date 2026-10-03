@@ -38,7 +38,8 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
   pages, People & Companies, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
   window. The app starts the core from this repository's `.venv`.
 - `journeys/` — the real journeys the suite runs after a change (`just journeys`); reports land in
-  `docs/journeys/`.
+  `docs/journeys/`. The desktop acceptance check (`just check-desktop`) opens every page of the
+  window on a copy of the world; reports land in `docs/checks/`, screenshots in `desktop/.check/`.
 - `core/tests/` — the core's tests; `desktop/src/**/*.test.tsx` — the app's.
 
 ## Running
@@ -53,6 +54,7 @@ just app            # build the signed debug app and open it (needs the node@24 
 just app-dev        # the app with Vite hot reload
 just test-desktop   # typecheck + vitest
 just journeys       # the journey suite on a copy of the app's world (uses the subscription)
+just check-desktop  # every page of the window at its sizes, on a copy of the world (no model)
 just stats          # the measured numbers STATE.md quotes
 ```
 

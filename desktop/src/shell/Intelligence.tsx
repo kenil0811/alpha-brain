@@ -122,7 +122,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
           <div className="intel__head">
             <h3>A folder</h3>
           </div>
-          <p className="muted" style={{ fontSize: 13 }}>Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change.</p>
+          <p className="muted" style={{ fontSize: "var(--text-md)" }}>Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change.</p>
           <div className="row" style={{ marginTop: 10 }}>
             <input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
             <Button variant="primary" type="submit" disabled={!folder.trim() || busy !== null}>
@@ -134,7 +134,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
           <div className="intel__head">
             <h3>A site you sign into</h3>
           </div>
-          <p className="muted" style={{ fontSize: 13 }}>LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it.</p>
+          <p className="muted" style={{ fontSize: "var(--text-md)" }}>LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it.</p>
           <div className="row" style={{ marginTop: 10 }}>
             <input className="need__input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
             <Button variant="primary" type="submit" disabled={!site.trim() || busy !== null}>
@@ -147,7 +147,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
             <div className="intel__head">
               <h3>Your calendar</h3>
             </div>
-            <p className="muted" style={{ fontSize: 13 }}>Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once.</p>
+            <p className="muted" style={{ fontSize: "var(--text-md)" }}>Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once.</p>
             <div className="row" style={{ marginTop: 10 }}>
               <Button variant="primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
                 Connect calendars
@@ -194,7 +194,7 @@ function SkillCard({ skill, modules, onOpen }: { skill: Skill; modules: Record<s
         {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
       </p>
       {skill.when_to_use ? <p className="faint">When: {skill.when_to_use}</p> : null}
-      {skill.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{skill.last_problem}</p> : null}
+      {skill.last_problem ? <p className="notice" style={{ fontSize: "var(--text-sm)" }}>{skill.last_problem}</p> : null}
       {skill.notes ? (
         <>
           <Button size="sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
@@ -229,7 +229,7 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
           </div>
         </>
       ) : (
-        <p className="muted editable" style={{ whiteSpace: "pre-wrap", fontSize: 13 }} onClick={() => setEditing(true)} title="Click to edit">
+        <p className="muted editable" style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-md)" }} onClick={() => setEditing(true)} title="Click to edit">
           {note.body}
         </p>
       )}

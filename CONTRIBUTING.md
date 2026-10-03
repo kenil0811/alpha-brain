@@ -196,6 +196,20 @@ threads (a state move, an upsert) is written as in §3.2.
   colours and type; inline styles are for one-off geometry only. Light and dark both work;
   contrast stays at 4.5:1 or better; the Mac's reduced-motion and contrast settings are
   honoured by CSS, never by a setting of ours.
+- **Type comes from the scale**: seven steps, `--text-xs` (11px, meta and badges), `-sm`
+  (12, secondary), `-md` (13, the working size), `-base` (14, reading text and inputs), `-lg`
+  (16, small headings), `-xl` (20, section and page-level headings), `-2xl` (26, the page
+  title and big numbers). A raw pixel size in the stylesheet or in an inline style fails
+  `styles/typescale.test.ts`.
+- **Nothing overflows, nothing is cut off, nothing is covered**, at the window's smallest size
+  (1100×560, `tauri.conf.json`) as at its default, light and dark. `just check-desktop` opens
+  every page at those sizes on a copy of the world and fails on a page that scrolls sideways,
+  an element past the right edge, text clipped without an ellipsis or spilling past its box,
+  an element cut off by a clipping ancestor, text covered by another element, a request that
+  fails, a console error, a problem notice or an empty page; the report lands in
+  `docs/checks/`, a screenshot of every page and size in `desktop/.check/`. A change to a
+  page or the stylesheet runs it; a problem it finds is fixed, not excused in the rules, unless
+  the rule is wrong (then the rule is fixed and the log says why).
 - Copy is short and specific: a title is a few words, an explanation goes in an `InfoTip`
   beside it, an empty state is one line, nothing says "coming soon", nothing shows a command
   or a stack trace. Labels are sentence case. (Adopted from pull request #3's UI rules.)
@@ -230,8 +244,14 @@ is inside the data folder. The CSP allows only the loopback core and Google Font
   `docs/journeys/`. A change to how Alpha behaves adds or reruns one; a journey that fails
   after a change is a regression until shown otherwise. Journeys cost subscription time: run
   the ones the change touches, and the memory set when context or memory changed.
+- **The desktop check** (`just check-desktop [address prefixes]`) proves the window's pages:
+  every address at the window's sizes, in headless Chromium, against a check core on a copy of
+  the world (no model). It takes about two minutes; `just check-desktop intelligence settings`
+  takes the pages under those addresses only. The report in `docs/checks/` is cited in the log
+  like a journey report.
 - **Acceptance** is a real run in the person's own app or world. Tests and API calls do not
-  count as "it works" in any document.
+  count as "it works" in any document; the desktop check comes closest for a page's look, and
+  still is not a person using the app.
 
 ## 5. Documentation
 

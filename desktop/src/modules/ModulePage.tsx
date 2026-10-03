@@ -254,7 +254,7 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   return (
     <div className="card card--pad" style={{ marginBottom: 14 }}>
       <div className="section__head" style={{ marginBottom: 8 }}>
-        <h2 style={{ fontSize: 16 }}>Alpha's page</h2>
+        <h2 style={{ fontSize: "var(--text-lg)" }}>Alpha's page</h2>
         <span className="faint">what this is for, what it holds, what is open</span>
         <span className="section__right">
           {editing ? (
@@ -278,7 +278,7 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
       ) : page.page ? (
         <div className="people__page">{page.page.body}</div>
       ) : (
-        <p className="muted" style={{ fontSize: 13 }}>No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
+        <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
       )}
     </div>
   );

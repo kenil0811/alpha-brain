@@ -81,7 +81,7 @@ export function ClaudeRow({ client, status, onStatus }: { client: Client; status
       <div className="item__body">
         <b>Claude</b>
         <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
-        {error ? <div className="notice" style={{ fontSize: 12 }}>{error}</div> : null}
+        {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
       </div>
       {status ? <span className={`pill ${connected ? "pill--good" : "pill--warn"}`}>{connected ? "Connected" : "Not connected"}</span> : null}
       {!status ? null : connected ? (

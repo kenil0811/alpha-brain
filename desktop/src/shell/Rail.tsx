@@ -75,16 +75,17 @@ export function Rail({
       {item({ kind: "home" }, <HomeIcon />, "Home", needs)}
       {item({ kind: "activity" }, <ActivityIcon />, "Activity")}
       {item({ kind: "people" }, <PeopleIcon />, "People & Companies")}
-      <div className="rail__group">Your modules</div>
-      {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}
-      {modules.map((m) => item({ kind: "module", id: m.id }, <ModuleIcon />, m.name))}
-      <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined}>
-        <span className="navbtn__ico" aria-hidden="true" style={{ color: "var(--primary)" }}>
-          <PlusIcon />
-        </span>
-        <span className="navbtn__text">New</span>
-      </button>
-      <div className="rail__spacer" />
+      <div className="rail__scroll">
+        <div className="rail__group">Your modules</div>
+        {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}
+        {modules.map((m) => item({ kind: "module", id: m.id }, <ModuleIcon />, m.name))}
+        <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined}>
+          <span className="navbtn__ico" aria-hidden="true" style={{ color: "var(--primary)" }}>
+            <PlusIcon />
+          </span>
+          <span className="navbtn__text">New</span>
+        </button>
+      </div>
       {item({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence")}
       {item({ kind: "settings" }, <SettingsIcon />, "Settings")}
       <div className={`rail__status rail__status--${runtime}`} role="status" title={collapsed ? status : undefined}>

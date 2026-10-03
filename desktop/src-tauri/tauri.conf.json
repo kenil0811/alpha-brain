@@ -17,7 +17,7 @@
         "title": "Alpha",
         "width": 1240,
         "height": 820,
-        "minWidth": 860,
+        "minWidth": 1100,
         "minHeight": 560,
         "dragDropEnabled": false
       }

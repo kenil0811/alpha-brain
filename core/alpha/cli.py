@@ -85,6 +85,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--world", help="the world file to copy (default: the app's)")
     p.add_argument("--keep", action="store_true", help="keep the scratch copy afterwards")
     p.add_argument("--list", action="store_true", help="list the journeys and stop")
+    p = sub.add_parser("check-desktop",
+                       help="open every page of the window on a copy of the world and report")
+    p.add_argument("pages", nargs="*", help="address prefixes to check (default: every page)")
+    p.add_argument("--world", help="the world file to copy (default: the app's)")
+    p.add_argument("--keep", action="store_true", help="keep the scratch copy afterwards")
     p = sub.add_parser("connect", help="connect a folder, a site or the calendar")
     p.add_argument("what", choices=["folder", "site", "calendar"])
     p.add_argument("target", nargs="?")
@@ -111,6 +116,19 @@ def main(argv: list[str] | None = None) -> int:
             failures, path = suite.run_suite(args.names or None,
                                              world_path=Path(args.world) if args.world else None,
                                              keep=args.keep)
+        except Problem as e:
+            print(str(e), file=sys.stderr)
+            return 2
+        print(path.read_text())
+        print(f"Report: {path}", file=sys.stderr)
+        return 1 if failures else 0
+    if args.command == "check-desktop":
+        from alpha.journeys import desktop
+
+        try:
+            failures, path = desktop.run_check(args.pages or None,
+                                               world_path=Path(args.world) if args.world else None,
+                                               keep=args.keep)
         except Problem as e:
             print(str(e), file=sys.stderr)
             return 2

@@ -36,3 +36,4 @@ One file per dated entry, verbatim from where it was written; newest last. The c
 - [`2026-10-03-review-pr3.md`](2026-10-03-review-pr3.md) — Review of pull request #3 (the desktop UI from Vikas's fork): tables in with fixes, companion and Zazoo declined, shell redone on main
 - [`2026-10-03-desktop-foundations.md`](2026-10-03-desktop-foundations.md) — Desktop foundations: fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable panes, the UI kit on Radix and lucide
 - [`2026-10-03-table-views-1.md`](2026-10-03-table-views-1.md) — The table views, stages one and two: the views package with a tested engine; saved lists in the world
+- [`2026-10-03-desktop-check.md`](2026-10-03-desktop-check.md) — The desktop check (`just check-desktop`) and the type scale: four runs, the overlay bug, the rail and the long-string overflows fixed, 1100 minimum width

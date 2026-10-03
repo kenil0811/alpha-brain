@@ -115,17 +115,19 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           {initials(entity.name)}
         </span>
         <div className="modhead__title">
-          <h1>{entity.name}</h1>
-          <span className="faint">
-            {entity.kind === "person" ? "Person" : "Organisation"}
-            {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
-          </span>
-          <div className="row" style={{ marginTop: 6 }}>
-            {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
-              <Badge key={`${k}:${v}`} tone="gray" title={k}>
-                {v}
-              </Badge>
-            )))}
+          <div style={{ minWidth: 0 }}>
+            <h1>{entity.name}</h1>
+            <div className="faint">
+              {entity.kind === "person" ? "Person" : "Organisation"}
+              {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
+            </div>
+            <div className="row" style={{ marginTop: 6 }}>
+              {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
+                <Badge key={`${k}:${v}`} tone="gray" title={k}>
+                  {v}
+                </Badge>
+              )))}
+            </div>
           </div>
         </div>
       </div>
@@ -157,7 +159,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           ) : entity.page ? (
             <div className="people__page">{entity.page.body}</div>
           ) : (
-            <p className="muted" style={{ fontSize: 13 }}>No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
+            <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
           )}
         </div>
       </div>

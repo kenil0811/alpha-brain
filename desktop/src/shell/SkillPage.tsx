@@ -48,7 +48,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
       </Button>
       <div className="modhead" style={{ marginTop: 12 }}>
         <div className="modhead__title" style={{ display: "block" }}>
-          <h1 style={skill.description.length > 60 ? { fontSize: 22, lineHeight: 1.3 } : undefined}>{skill.description}</h1>
+          <h1 style={skill.description.length > 60 ? { fontSize: "var(--text-xl)", lineHeight: 1.3 } : undefined}>{skill.description}</h1>
           <div className="row" style={{ marginTop: 6 }}>
             <Badge tone="info">{KIND[skill.kind] ?? skill.kind}</Badge>
             <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
@@ -120,7 +120,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
           ) : skill.notes ? (
             <div className="people__page">{skill.notes.body}</div>
           ) : (
-            <p className="muted" style={{ fontSize: 13 }}>No notes yet.</p>
+            <p className="muted" style={{ fontSize: "var(--text-md)" }}>No notes yet.</p>
           )}
         </div>
       </div>
