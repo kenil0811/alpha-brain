@@ -89,15 +89,18 @@ class Plans:
 
     def _move(self, pid: str, to: str, *, when: tuple[str, ...], **fields: Any) -> dict[str, Any]:
         plan = self.get(pid)
-        if plan["state"] not in when:
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        marks = ", ".join("?" * len(when))
+        with self.store.tx() as db:
+            moved = db.execute(
+                f"UPDATE plans SET state = ?{', ' + sets if sets else ''}, updated_at = ?"
+                f" WHERE id = ? AND state IN ({marks})",
+                (to, *fields.values(), now(), pid, *when),
+            ).rowcount
+        if not moved:  # atomic: the row moves only if it was still in a `when` state
+            plan = self.get(pid)
             raise Problem(f"The plan '{plan['title']}' is {plan['state']}, not "
                           f"{' or '.join(when)}.")
-        sets = ", ".join(f"{k} = ?" for k in fields)
-        with self.store.tx() as db:
-            db.execute(
-                f"UPDATE plans SET state = ?{', ' + sets if sets else ''}, updated_at = ?"
-                " WHERE id = ?", (to, *fields.values(), now(), pid),
-            )
         return self.get(pid)
 
     def approve(self, pid: str, approval: str) -> dict[str, Any]:

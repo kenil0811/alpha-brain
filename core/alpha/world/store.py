@@ -510,9 +510,16 @@ class Store:
             db.execute("UPDATE skills SET name = ? WHERE name = ? AND kind = 'run'",
                        (wanted, current))
             db.execute("UPDATE automations SET skill = ? WHERE id = ?", (wanted, row["id"]))
-            db.execute("UPDATE skills SET steps = REPLACE(steps, ?, ?) WHERE kind = 'run'"
-                       " AND steps LIKE ?", (f'"run": "{current}"', f'"run": "{wanted}"',
-                                             f'%"run": "{current}"%'))
+            # The pipelines that call it by the old name follow (steps are JSON, parsed,
+            # never matched as text: found 3 Oct, the text match missed the compact form).
+            for other in db.execute("SELECT name, steps FROM skills WHERE kind = 'run'"
+                                    " AND steps LIKE ?", (f"%{current}%",)).fetchall():
+                steps = loads(other["steps"], [])
+                changed = [{"run": wanted} if st.get("run") == current else st
+                           for st in steps]
+                if changed != steps:
+                    db.execute("UPDATE skills SET steps = ? WHERE name = ?",
+                               (dumps(changed), other["name"]))
             taken.discard(current)
             taken.add(wanted)
 

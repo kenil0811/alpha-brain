@@ -72,11 +72,11 @@ def test_an_older_world_moves_its_readers_procedures_and_pipelines_into_skills(
         db.execute("UPDATE automations SET skill = 'run_every_day_at_07_00' WHERE id = 'a_1'")
         db.execute("INSERT INTO skills (name, kind, description, steps, created_at, updated_at)"
                    " VALUES ('run_other', 'run', 'Other', ?, 'x', 'x')",
-                   ('[{"run": "run_every_day_at_07_00"}]',))
+                   ('[{"run":"run_every_day_at_07_00"},{"tell":"t"}]',))  # compact, as kept
     again.close()
     third = World(path)
     assert third.automations.get("a_1")["skill"] == pipe
-    assert third.skills.get("run_other")["steps"] == [{"run": pipe}]
+    assert third.skills.get("run_other")["steps"] == [{"run": pipe}, {"tell": "t"}]
     third.close()
 
 

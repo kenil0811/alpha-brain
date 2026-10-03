@@ -995,6 +995,13 @@ class Tools:
         sent email cannot be unsent"). evidence: what it rests on, in one plain sentence the
         person would say (who it goes to and why, what was read), never ids, urns or
         addresses: the card shows it."""
+        if self._in_automation():
+            # Automations read and update Alpha's tables; they never act outward, whatever a
+            # procedure or a page says, and a standing permission is the person's yes to Alpha
+            # in conversation, not to a run nobody is watching (design §4, by mechanism).
+            raise Problem("An automation never acts outward: nothing is drafted, sent, posted"
+                          " or submitted from a run nobody is watching. Note what the person"
+                          " might want sent (journal_note) and they can ask for it.")
         proc = self.world.procedures.get(procedure)
         module_id = self.world.modules.get(module)["id"] if module else self.module
         from alpha.runtime import acting
@@ -1040,6 +1047,9 @@ class Tools:
         message. It runs now, in their session, and this returns what happened. always: they
         said it may always be done without asking (only for a prepare-level action: a draft, an
         unsent message); a standing permission sentence is kept, which they can revoke."""
+        if self._in_automation():
+            raise Problem("An automation never acts outward; only the person approves an"
+                          " action, in the app or in their own words.")
         problem = self._persons_words(quote)
         if problem:
             return {"error": problem}

@@ -224,11 +224,23 @@ class Actions:
         return self.get(aid)
 
     def _move(self, aid: str, to: str, when: tuple[str, ...], **values: Any) -> dict[str, Any]:
+        """One state change, atomic: the row moves only if it is still in a `when` state at
+        the moment of the write, so two threads cannot both start (and perform) one action
+        (found by the 3 Oct review: the approval route and the scheduler's catch-up could
+        race to a duplicate send)."""
         current = self.get(aid)
-        if current["state"] not in when:
+        values["updated_at"] = now()
+        cols = ", ".join(f"{k} = ?" for k in values)
+        marks = ", ".join("?" * len(when))
+        with self.store.tx() as db:
+            moved = db.execute(
+                f"UPDATE actions SET state = ?, {cols} WHERE id = ? AND state IN ({marks})",
+                (to, *values.values(), aid, *when)).rowcount
+        if not moved:
+            current = self.get(aid)
             raise Problem(f"The action \"{current['title']}\" is {current['state']}; it can't"
                           f" become {to}.")
-        return self._set(aid, state=to, **values)
+        return self.get(aid)
 
     def set_proposal(self, aid: str, proposal: str) -> None:
         self._set(aid, proposal=proposal)
