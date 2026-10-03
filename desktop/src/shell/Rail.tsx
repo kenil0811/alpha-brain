@@ -43,7 +43,7 @@ export function Rail({
   surface: Surface;
   modules: ModuleCard[];
   needs: number;
-  runtime: "connecting" | "connected" | "unavailable";
+  runtime: "connecting" | "connected" | "unavailable" | "lost";
   onGo: (surface: Surface) => void;
   onNew: () => void;
   collapsed: boolean;
@@ -62,7 +62,7 @@ export function Rail({
       </button>
     );
   };
-  const status = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : "Core not running";
+  const status = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : runtime === "lost" ? "Core not answering" : "Core not running";
   return (
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha">
       <div className="brand">

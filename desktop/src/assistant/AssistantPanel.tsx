@@ -8,7 +8,7 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Button, IconButton } from "../ui";
+import { Button, IconButton, Trouble } from "../ui";
 import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
@@ -171,6 +171,7 @@ export function AssistantPanel({
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(() => {
     client
       .conversation(module?.id ?? null, active)
@@ -181,9 +182,10 @@ export function AssistantPanel({
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
         setConvos(c.conversations ?? []);
+        setLoadError(null);
         if (!active && c.conversation) setActive(c.conversation.id);
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [client, module?.id, active]);
   useEffect(load, [load, version]);
   // A page change shows that page's live conversation, not the one from the last page.
@@ -208,16 +210,8 @@ export function AssistantPanel({
     const id = window.setInterval(() => void client.thread(threadView.id).then(setThreadView).catch(() => undefined), 4000);
     return () => window.clearInterval(id);
   }, [client, threadView?.id, threadView?.state]);
-  // Alpha works on its own too (a deepen pass, a folder that changed): look again every 5 s
-  // while a thread is working, every 15 s otherwise.
-  const working = threads.some((t) => t.state === "working");
-  useEffect(() => {
-    const timer = setInterval(() => {
-      load();
-      if (working) onChanged();
-    }, working ? 5000 : 15000);
-    return () => clearInterval(timer);
-  }, [working, load, onChanged]);
+  // Alpha works on its own too (a build, a folder that changed): `version` moves when the
+  // window's one poll sees a change (core/changes.ts); the panel keeps no clock of its own.
   useEffect(() => {
     body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
@@ -230,10 +224,14 @@ export function AssistantPanel({
     return () => clearInterval(timer);
   }, [pendingId]);
 
+  // Set the moment a send starts, before the core has answered: a second ⏎ in that moment
+  // used to send the sentence twice.
+  const sending = useRef(false);
   const send = useCallback(
     async (sentence: string) => {
       const clean = sentence.trim();
-      if (!clean || pending) return;
+      if (!clean || pending || sending.current) return;
+      sending.current = true;
       setText("");
       setError(null);
       setElapsed(0);
@@ -250,11 +248,14 @@ export function AssistantPanel({
         if (final.conversation && !threadId) setActive(final.conversation.id);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        // The core stopped answering (or lost the turn): the words come back to the box.
+        setError(`${e instanceof Error ? e.message : String(e)} Your message is back in the box.`);
+        setText((current) => current || clean);
       } finally {
+        sending.current = false;
         setPending(null);
         load();
-        if (threadId) void client.thread(threadId).then(setThreadView);
+        if (threadId) void client.thread(threadId).then(setThreadView).catch(() => undefined);
         onChanged();
       }
     },
@@ -284,11 +285,11 @@ export function AssistantPanel({
       if (!turn) return;
       setPending(turn);
       setElapsed(0);
-      let current = turn;
-      while ((current.state === "running" || current.state === "routing") && current.id) {
-        await new Promise((r) => setTimeout(r, 1000));
-        current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
-        setPending(current);
+      try {
+        const final = await client.waitTurn(turn, setPending);
+        if (final.state === "failed") setError(final.reply ?? "That didn't work.");
+      } catch (e) {
+        setError(`${e instanceof Error ? e.message : String(e)} The turn may still have run; its answer shows here when the core is back.`);
       }
       setPending(null);
       load();
@@ -467,6 +468,7 @@ export function AssistantPanel({
           </>
         )}
         {workingNote}
+        {loadError ? <Trouble onRetry={load}>Couldn't load the conversation: {loadError}</Trouble> : null}
         {error ? (
           <p className="notice" role="alert">
             {error}

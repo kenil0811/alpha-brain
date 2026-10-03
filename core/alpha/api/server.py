@@ -29,6 +29,7 @@ from fastapi.responses import JSONResponse
 
 from alpha.api import (
     actions,
+    changes,
     connections,
     conversation,
     home,
@@ -43,7 +44,7 @@ from alpha.api.turns import Turns
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
-from alpha.runtime import claude_cli
+from alpha.runtime import claude_cli, conversations
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
 from alpha.world.store import Problem
@@ -67,6 +68,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         if live:
+            # No turn can be running yet: a conversation a dead core left mid-turn is open.
+            conversations.reset_working(world)
             stops.append(Files(world).observe())
             stop_calendar = threading.Event()
 
@@ -114,6 +117,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     served = Served(world=world, scheduler=scheduler, running=running, runner=runner_fn,
                     live=live, api=api)
+    changes.routes(app, served)
     home.routes(app, served)
     tables.routes(app, served)
     people.routes(app, served)

@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
+import { useVisible } from "../core/changes";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
 import { moved, press, released, type Press } from "./drag";
@@ -55,6 +56,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const inputRef = useRef<HTMLInputElement>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [trouble, setTrouble] = useState<string | null>(null);
   const refresh = useCallback(() => {
     client
       .companion()
@@ -62,15 +64,42 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setComp(c);
         return client.conversation(null, c.focus?.id ?? null);
       })
-      .then((c) => setTurns(c.turns.slice(-12)))
-      .catch(() => undefined);
+      .then((c) => {
+        setTurns(c.turns.slice(-12));
+        setTrouble(null);
+      })
+      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
     client.home().then(setHome).catch(() => undefined);
   }, [client]);
+  // One cheap poll asks what changed (every 3 s while Alpha works, 10 s when quiet, nothing
+  // while the window is hidden) and the companion refreshes only when something did.
+  const visible = useVisible();
+  const since = useRef<string | null>(null);
   useEffect(() => {
-    refresh();
-    const timer = setInterval(refresh, 10_000);
-    return () => clearInterval(timer);
-  }, [refresh]);
+    if (!visible) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      let every = 10_000;
+      try {
+        const c = await client.changes(since.current);
+        const first = since.current === null;
+        since.current = c.at;
+        if (first || c.journal > 0 || c.threads || c.plans || c.actions) refresh();
+        if (c.working) every = 3_000;
+        setTrouble(null);
+      } catch (e) {
+        setTrouble(e instanceof Error ? e.message : String(e));
+        every = 5_000;
+      }
+      if (!cancelled) timer = setTimeout(() => void tick(), every);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [client, refresh, visible]);
   useEffect(() => {
     listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight });
   }, [turns, expanded, busy]);
@@ -199,7 +228,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const needs = home?.needs_you ?? [];
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const label = trouble ? "Core not answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);

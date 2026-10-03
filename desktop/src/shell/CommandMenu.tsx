@@ -43,17 +43,27 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
   }, [open]);
 
   // The core's search, a moment after typing stops; a late answer never overwrites a newer one.
+  const [trouble, setTrouble] = useState<string | null>(null);
   useEffect(() => {
     if (q.length < 2) {
       setHits(null);
+      setTrouble(null);
       return;
     }
     let live = true;
     const timer = setTimeout(() => {
       client
         .search(q)
-        .then((r) => live && setHits(r))
-        .catch(() => live && setHits(null));
+        .then((r) => {
+          if (!live) return;
+          setHits(r);
+          setTrouble(null);
+        })
+        .catch((e: unknown) => {
+          if (!live) return;
+          setHits(null);
+          setTrouble(e instanceof Error ? e.message : String(e));
+        });
     }, 180);
     return () => {
       live = false;
@@ -108,6 +118,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
           }
         }}
       />
+      {trouble ? <p className="notice" role="alert" style={{ padding: "6px 12px" }}>Search isn't answering: {trouble}</p> : null}
       <ul id="command-list" className="command__list" role="listbox" aria-label="Results">
         {items.map((item, i) => (
           <li key={item.key} id={`command-${item.key}`} role="option" aria-selected={i === active} className={`command__item${i === active ? " command__item--active" : ""}`} onMouseEnter={() => setActive(i)} onClick={item.go}>

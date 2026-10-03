@@ -7,3 +7,4 @@ export { Popover } from "./Popover";
 export { Dialog } from "./Dialog";
 export { Tooltip, TooltipProvider, InfoTip } from "./Tooltip";
 export { Confirm } from "./Confirm";
+export { Trouble } from "./Trouble";

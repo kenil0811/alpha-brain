@@ -8,22 +8,28 @@ import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
 import { factOrigin } from "./facts";
-import { Button, Badge } from "../ui";
+import { Button, Badge, Trouble } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
   useEffect(() => {
     let live = true;
     client
       .people(q.trim() || undefined)
-      .then((rows) => live && setPeople(rows))
-      .catch(() => live && setPeople([]));
+      .then((rows) => {
+        if (!live) return;
+        setPeople(rows);
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       live = false;
     };
-  }, [client, q, version]);
+  }, [client, q, version, tick]);
   const persons = (people ?? []).filter((e) => e.kind === "person");
   const orgs = (people ?? []).filter((e) => e.kind !== "person");
   const group = (title: string, rows: Entity[]) =>
@@ -49,6 +55,7 @@ export function People({ client, version, onOpen }: { client: Client; version: n
     ) : null;
   return (
     <div className="page">
+        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load People & Companies: {error}</Trouble> : null}
       <div className="modhead">
         <div className="modhead__title">
           <h1>People &amp; Companies</h1>
@@ -75,6 +82,7 @@ function keysLine(e: Entity): string {
 
 export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: { client: Client; id: string; version: number; onBack: () => void; onOpen: (id: string) => void; onChanged: () => void }) {
   const [entity, setEntity] = useState<EntityDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState("");
   const [tick, setTick] = useState(0);
@@ -85,14 +93,21 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
       .then((e) => {
         if (!live) return;
         setEntity(e);
+        setError(null);
         if (!editing) setBody(e.page?.body ?? "");
       })
-      .catch(() => live && setEntity(null));
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       live = false;
     };
   }, [client, id, version, tick, editing]);
-  if (!entity) return <div className="page"><p className="empty">Loading…</p></div>;
+  if (!entity) {
+    return (
+      <div className="page">
+        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this page: {error}</Trouble> : <p className="empty">Loading…</p>}
+      </div>
+    );
+  }
   const refresh = () => {
     setTick((n) => n + 1);
     onChanged();

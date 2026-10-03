@@ -141,6 +141,11 @@ a { color: var(--primary); }
 .notice { font-size: var(--text-md); color: var(--bad); margin: 0; }
 .notice--quiet { color: var(--text-2); }
 .notice--ok { color: var(--good); }
+.trouble { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* The core's state, across the top of the page: not answering, or just back. */
+.corenote { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--bad-soft); color: var(--bad); font-size: var(--text-md); }
+.corenote--ok { background: var(--good-soft); color: var(--good); }
+.rail__status--lost i { background: var(--warn); }
 .empty { color: var(--text-3); font-size: var(--text-md); padding: 24px; text-align: center; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 10px; }

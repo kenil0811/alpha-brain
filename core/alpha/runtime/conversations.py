@@ -73,6 +73,23 @@ def close(world: World, cid: str, why: str = "done") -> dict[str, Any]:
     return world.modules.thread(cid)
 
 
+def reset_working(world: World) -> list[str]:
+    """At the core's start no turn is running, so a conversation left "working" by a core that
+    died is open again: the panel was stuck polling it with Done hidden, and `close_idle` never
+    touched it (found at the 3 Oct checkpoint)."""
+    reset = [chat["id"] for chat in world.modules.chats(live=True, limit=200)
+             if chat["state"] == "working"]
+    for cid in reset:
+        world.modules.update_thread(cid, state="open")
+    if reset:
+        n = len(reset)
+        world.journal.append(
+            "changed", f"Alpha's core started; {n} conversation{'s' if n != 1 else ''} left"
+            " mid-turn " + ("are" if n != 1 else "is") + " open again.",
+            actor="alpha", data={"conversations": reset})
+    return [str(c) for c in reset]
+
+
 def close_idle(world: World, *, idle_s: int = IDLE_CLOSE_S) -> list[str]:
     """Conversations nobody has spoken in for a while are over (the scheduler's tick)."""
     from datetime import UTC, datetime, timedelta

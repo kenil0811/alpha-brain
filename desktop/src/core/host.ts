@@ -10,6 +10,12 @@ async function invoke<T>(command: string, args?: Record<string, unknown>): Promi
 
 export const host = {
   available: hasTauri,
+  /** Listen for a host event (`core-restarted`, `core-down`); the function given back stops listening. */
+  onEvent: async (name: "core-restarted" | "core-down", handler: (payload: unknown) => void): Promise<() => void> => {
+    if (!hasTauri()) return () => undefined;
+    const { listen } = await import("@tauri-apps/api/event");
+    return listen(name, (event) => handler(event.payload));
+  },
   companionVisible: () => invoke<boolean>("avatar_is_visible"),
   setCompanionVisible: (visible: boolean) => invoke<boolean>("avatar_visible", { visible }),
   revealData: () => invoke<void>("reveal_data"),

@@ -28,12 +28,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
       live = false;
     };
   }, [client, id, version]);
-  // While it runs, look again every few seconds.
-  useEffect(() => {
-    if (!auto?.running) return;
-    const timer = setInterval(onChanged, 4000);
-    return () => clearInterval(timer);
-  }, [auto?.running, onChanged]);
+  // While it runs, its steps arrive through the window's one poll (`version` moves).
   if (error) return <div className="page"><p className="notice" role="alert">{error}</p></div>;
   if (!auto) return <div className="page"><p className="empty">Loading…</p></div>;
   const act = async (work: () => Promise<unknown>, words: string) => {

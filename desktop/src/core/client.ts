@@ -523,6 +523,20 @@ export interface Conversation {
   conversations?: Convo[];
 }
 
+/** What changed since a stamp (`/api/changes`): the window's one poll. */
+export interface Changed {
+  at: string;
+  journal: number;
+  kinds: string[];
+  tables: string[];
+  modules: string[];
+  entities: string[];
+  threads: boolean;
+  plans: boolean;
+  actions: boolean;
+  working: boolean;
+}
+
 export interface Companion {
   focus: Convo | null;
   conversations: Convo[];
@@ -571,6 +585,8 @@ export class Client {
   }
 
   health = () => this.call<{ ok: boolean; world: string }>("GET", "/api/health");
+  /** What changed since `since`; without one, the stamp to start from. */
+  changes = (since: string | null) => this.call<Changed>("GET", `/api/changes${since ? `?since=${encodeURIComponent(since)}` : ""}`);
   claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
   installClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/install");
   signInClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/signin");
@@ -660,12 +676,23 @@ export class Client {
     const turn = await this.ask(text, opts);
     return this.waitTurn(turn, onTick);
   }
-  /** Follow a started turn to its end (a routing question comes back as is). */
-  async waitTurn(turn: Turn, onTick?: (t: Turn) => void): Promise<Turn> {
+  /** Follow a started turn to its end (a routing question comes back as is). A poll the core
+   * does not answer is tried again for a while before the turn counts as lost: one missed poll
+   * used to end the turn in the window while the core kept working (3 Oct). A core that says
+   * it knows no such turn (it restarted) ends the wait at once. */
+  async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8): Promise<Turn> {
     let current = turn;
+    let misses = 0;
     while ((current.state === "running" || current.state === "routing") && current.id) {
       await new Promise((r) => setTimeout(r, 1000));
-      current = await this.turn(current.id);
+      try {
+        current = await this.turn(current.id);
+        misses = 0;
+      } catch (e) {
+        const transient = e instanceof CoreError && (e.status === 0 || e.status >= 500);
+        if (!transient || ++misses >= patience) throw e;
+        continue;
+      }
       onTick?.(current);
     }
     return current;

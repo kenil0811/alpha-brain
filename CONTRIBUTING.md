@@ -226,8 +226,11 @@ threads (a state move, an upsert) is written as in §3.2.
   separate from one that carries an inline transform (WebKit replaces, it does not compose).
 - Every button has a label; every list that updates has a role; keyboard paths exist for
   what a mouse can do (the review of 3 Oct lists the gaps; new code does not add to them).
-- A failed request shows an error state with a way to retry; a poll stops when its window is
-  hidden (both aspirational as of 3 Oct; see the state page's pending list).
+- A failed request shows what failed and offers to try again (`ui/Trouble`), never an empty
+  list or "Loading…" for ever. A page keeps no clock of its own: it refetches when the
+  window's one poll (`core/changes.ts`, `/api/changes`) says something it shows moved, and that
+  poll stops while the window is hidden. A turn's poll survives a missed answer
+  (`Client.waitTurn`); the words come back to the composer when the core is lost.
 - `pnpm typecheck` and `pnpm test` (vitest, jsdom) clean at every commit; a component with
   state gets a test.
 

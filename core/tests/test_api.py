@@ -273,3 +273,27 @@ def test_a_relation_shows_the_related_records_title_and_opens_it(world: World) -
     assert one["record"]["name"] == "RestoPros"
     assert one["relations"] == {}
     assert c.get("/api/tables/clients/records/r_missing").status_code == 400
+
+
+def test_changes_say_what_moved_since_a_stamp(world: World) -> None:
+    """The window asks one cheap question instead of refetching every page on a clock."""
+    seeded(world)
+    c = client(world)
+    first = c.get("/api/changes").json()
+    assert first["journal"] == 0 and first["tables"] == [] and first["working"] is False
+    since = first["at"]
+    time.sleep(1.05)  # the clock is whole seconds: what follows is after the stamp
+    t = Tools(world, turn="j_t2")
+    t.records_add("openings", {"title": "Data Engineer", "company": "Orbit", "fit": 70,
+                               "status": "new"}, source="stated")
+    priya = world.entities.find(name="Priya")[0]
+    world.journal.append("noticed", "Priya moved teams", entity_ids=[priya["id"]])
+    world.modules.open_thread("A build", "build")
+    after = c.get("/api/changes", params={"since": since}).json()
+    assert after["journal"] == 2 and after["tables"] == ["openings"]
+    assert after["modules"] == [world.modules.get("Job Search")["id"]]
+    assert after["entities"] == [priya["id"]] and set(after["kinds"]) == {"did", "noticed"}
+    assert after["threads"] is True and after["plans"] is False
+    assert after["at"] >= since
+    again = c.get("/api/changes", params={"since": after["at"]}).json()
+    assert again["journal"] == 0 and again["threads"] is False

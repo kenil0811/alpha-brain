@@ -11,7 +11,7 @@ import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
-import { Button } from "../ui";
+import { Button, Trouble } from "../ui";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -119,11 +119,19 @@ export function Settings({ client, theme, onTheme, claude, onClaude }: { client:
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
   const [busy, setBusy] = useState(false);
 
+  const [trouble, setTrouble] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     void host.companionVisible().then(setCompanion).catch(() => setCompanion(null));
-    client.dataInfo().then(setData).catch(() => undefined);
-    client.claude().then(onClaude).catch(() => undefined);
-  }, [client, onClaude]);
+    client
+      .dataInfo()
+      .then((d) => {
+        setData(d);
+        setTrouble(null);
+      })
+      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+    client.claude().then(onClaude).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+  }, [client, onClaude, tick]);
 
   const choosePageSize = useCallback((next: PageSize) => {
     setPageSize(next);
@@ -137,6 +145,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude }: { client:
   const last = data?.backups[0];
   return (
     <div className="page">
+      {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
       <div className="home__head">
         <h1>Settings</h1>
         <span className="muted">How Alpha thinks, looks and keeps your data</span>
