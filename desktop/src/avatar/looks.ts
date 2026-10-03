@@ -86,6 +86,9 @@ export const TIES: Swatch[] = [
 ];
 
 export type Neckwear = "tie" | "bow" | "none";
+export type Size = "small" | "medium" | "large";
+/** The character's height on screen, in CSS pixels, when the companion rests. */
+export const SIZE_PX: Record<Size, number> = { small: 60, medium: 80, large: 108 };
 
 export interface Look {
   animal: AnimalId;
@@ -96,9 +99,10 @@ export interface Look {
   tie: string;
   neckwear: Neckwear;
   glasses: boolean;
+  size: Size;
 }
 
-export const DEFAULT_LOOK: Look = { animal: "panda", fur: null, suit: SUITS[0].color, shirt: SHIRTS[0].color, tie: TIES[0].color, neckwear: "tie", glasses: false };
+export const DEFAULT_LOOK: Look = { animal: "panda", fur: null, suit: SUITS[0].color, shirt: SHIRTS[0].color, tie: TIES[0].color, neckwear: "tie", glasses: false, size: "medium" };
 
 export function animalOf(id: AnimalId): Animal {
   return ANIMALS.find((a) => a.id === id) ?? ANIMALS[0];
@@ -120,6 +124,7 @@ export function normaliseLook(value: unknown): Look {
     tie: color(v.tie, DEFAULT_LOOK.tie),
     neckwear: v.neckwear === "bow" || v.neckwear === "none" ? v.neckwear : "tie",
     glasses: v.glasses === true,
+    size: v.size === "small" || v.size === "large" ? v.size : "medium",
   };
 }
 

@@ -5,7 +5,7 @@ import type { Client } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { LookPicker } from "./LookPicker";
 import { DEFAULT_LOOK } from "./looks";
-import { Rig } from "./Rig";
+import { POSES, Rig, type Mood } from "./Rig";
 
 describe("the rig", () => {
   it("says who it is and what it is doing", () => {
@@ -24,6 +24,34 @@ describe("the rig", () => {
     const { container: panda } = render(<Rig look={DEFAULT_LOOK} mood="idle" />);
     expect(panda.querySelectorAll("image[href$='patch.webp']").length).toBe(2);
     expect(panda.querySelectorAll("image[href$='tie.webp']").length).toBe(1);
+  });
+});
+
+describe("the moods", () => {
+  it("every mood names itself and sets the face from its pose", () => {
+    const moods: Mood[] = ["idle", "curious", "listening", "thinking", "talking", "happy", "proud", "unsure", "concerned", "comforting", "celebrating", "sleepy"];
+    for (const mood of moods) {
+      const { unmount } = render(<Rig look={DEFAULT_LOOK} mood={mood} />);
+      const svg = screen.getByRole("img");
+      expect(svg).toHaveAttribute("data-mood", mood);
+      expect(svg.getAttribute("aria-label")).toMatch(/^Alpha, a panda, is /);
+      unmount();
+    }
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    render(<Rig look={DEFAULT_LOOK} mood="curious" />);
+    expect(screen.getByRole("img", { name: "Alpha, a panda, is curious" })).toHaveClass("rig--curious");
+  });
+
+  it("happy blushes and squints, thinking looks up and aside, sleepy droops", () => {
+    expect(POSES.happy.cheeks).toBeGreaterThan(POSES.idle.cheeks);
+    expect(POSES.happy.eyeOpen).toBeLessThan(POSES.idle.eyeOpen);
+    expect(POSES.thinking.gazeY).toBeLessThan(0);
+    expect(POSES.thinking.browFurrow).toBeGreaterThan(0);
+    expect(POSES.sleepy.eyeOpen).toBeLessThan(0.5);
+    expect(POSES.listening.earScale).toBeGreaterThan(1);
+    expect(POSES.listening.nod).toBe(true);
+    const { container } = render(<Rig look={DEFAULT_LOOK} mood="listening" />);
+    expect(container.querySelector(".rig--nod")).not.toBeNull();
   });
 });
 

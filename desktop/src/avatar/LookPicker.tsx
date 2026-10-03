@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Client } from "../core/client";
 import { Tabs } from "../ui";
-import { ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Swatch } from "./looks";
+import { ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Size, type Swatch } from "./looks";
 import { Rig } from "./Rig";
 
 const KEY = "companion_look";
@@ -78,6 +78,10 @@ export function LookPicker({ client }: { client: Client }) {
           <Tabs<Neckwear> className="toggle toggle--views" label="Neckwear" value={look.neckwear} onChange={(neckwear) => change({ neckwear })} items={[{ id: "tie", label: "Tie" }, { id: "bow", label: "Bow" }, { id: "none", label: "None" }]} />
         </div>
         {look.neckwear !== "none" ? <Swatches label={look.neckwear === "bow" ? "Bow" : "Tie"} choices={TIES} value={look.tie} onPick={(tie) => tie && change({ tie })} /> : null}
+        <div className="look__row" role="group" aria-label="Size">
+          <span className="look__label">Size</span>
+          <Tabs<Size> className="toggle toggle--views" label="Size" value={look.size} onChange={(size) => change({ size })} items={[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }]} />
+        </div>
         <div className="look__row">
           <span className="look__label">Glasses</span>
           <button type="button" className={`switch${look.glasses ? "" : " switch--off"}`} role="switch" aria-checked={look.glasses} aria-label="Glasses" onClick={() => change({ glasses: !look.glasses })} />

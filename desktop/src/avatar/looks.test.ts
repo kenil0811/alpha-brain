@@ -18,6 +18,12 @@ describe("the look", () => {
     expect(look).toEqual({ ...DEFAULT_LOOK, tie: "#abcdef", fur: null });
   });
 
+  it("has three sizes, medium unless the person chose another", () => {
+    expect(normaliseLook({ size: "large" }).size).toBe("large");
+    expect(normaliseLook({ size: "huge" }).size).toBe("medium");
+    expect(normaliseLook({}).size).toBe("medium");
+  });
+
   it("draws the chosen fur, else the animal's own, and the panda as painted", () => {
     expect(furOf(DEFAULT_LOOK)).toBeNull();
     expect(furOf({ ...DEFAULT_LOOK, animal: "fox" })).toBe(ANIMALS.find((a) => a.id === "fox")!.fur);

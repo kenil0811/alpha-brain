@@ -8,7 +8,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
-import { normaliseLook } from "./looks";
+import { moved, press, released, type Press } from "./drag";
+import { SIZE_PX, normaliseLook } from "./looks";
+import { hasTauri } from "../core/session";
 import { Button, IconButton } from "../ui";
 import { X, Maximize2 } from "../ui/icons";
 
@@ -17,7 +19,9 @@ export const HANDOFF_KEY = "alpha.handoff";
 export type AvatarMode = "idle" | "bubble" | "open";
 
 export interface AvatarHost {
-  layout(mode: AvatarMode): Promise<void>;
+  /** Size the window to what it shows (the page says what it needs, which follows the
+   * character's size), keeping its bottom-right corner in place. */
+  layout(mode: AvatarMode, width: number, height: number): Promise<void>;
   showMain(): Promise<void>;
   /** What is drawn, as [left, top, width, height] in the window; clicks anywhere else pass
    * through to whatever is behind the companion. */
@@ -77,8 +81,13 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     if (next) setTimeout(() => inputRef.current?.focus(), 50);
   }, [expanded]);
 
+  const talkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** A reply: the mouth moves for a moment, then the mood it came with holds while the
+   * bubble shows (happy for an answer, concerned for a failure, celebrating for a thing done). */
   const say = useCallback((reply: string, tone: Mood) => {
-    setMood(tone);
+    setMood("talking");
+    if (talkTimer.current) clearTimeout(talkTimer.current);
+    talkTimer.current = setTimeout(() => setMood(tone), 2_200);
     setBubble(reply.length > 220 ? `${reply.slice(0, 217)}…` : reply);
     if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
     bubbleTimer.current = setTimeout(() => {
@@ -95,13 +104,12 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       const turn = await client.waitTurn(started);
       if (turn.state === "asked" && turn.ask) {
         setRouting({ ask: turn.ask, options: turn.options ?? [], text: turn.text });
-        setMood("idle");
+        setMood("unsure");
         return;
       }
       const went = turn.conversation;
-      const moved = went && went.id !== before ? `In ${went.scope}: ` : "";
       setWhereNote(went ? `${went.scope}: ${went.title}` : null);
-      say(`${moved}${turn.reply ?? ""}`, turn.state === "done" ? "talking" : "sorry");
+      say(`${went && went.id !== before ? `In ${went.scope}: ` : ""}${turn.reply ?? ""}`, turn.state === "done" ? "happy" : "concerned");
     },
     [client, say],
   );
@@ -118,7 +126,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         // is a real choice, a question when unsure).
         await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "sorry");
+        say(e instanceof Error ? e.message : String(e), "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -135,7 +143,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setRouting(null);
         if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "sorry");
+        say(e instanceof Error ? e.message : String(e), "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -151,6 +159,41 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     setMood((m) => (speech.listening ? "listening" : m === "listening" ? "idle" : m));
   }, [speech.listening]);
 
+  // Ten minutes with nothing happening and the companion dozes; anything wakes it.
+  const [drowsy, setDrowsy] = useState(false);
+  useEffect(() => {
+    setDrowsy(false);
+    if (busy || expanded || mood !== "idle") return;
+    const timer = setTimeout(() => setDrowsy(true), 10 * 60_000);
+    return () => clearTimeout(timer);
+  }, [busy, expanded, mood, text, bubble]);
+  const typing = expanded && text.trim().length > 0 && !busy && !speech.listening;
+  const shownMood: Mood = busy ? "thinking" : speech.listening ? "listening" : mood !== "idle" ? mood : typing ? "curious" : drowsy ? "sleepy" : "idle";
+  const look = normaliseLook(comp?.look);
+  const px = SIZE_PX[look.size];
+
+  // Drag from the character itself: a press that moves becomes a drag of the window; one
+  // that does not is the click that opens the panel. Only the host can move a window.
+  const pressed = useRef<Press | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    pressed.current = press(e.clientX, e.clientY);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const p = pressed.current;
+    if (!p || p.dragging) return;
+    const next = moved(p, e.clientX, e.clientY);
+    pressed.current = next;
+    if (next.dragging && hasTauri()) {
+      void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().startDragging()).catch(() => undefined);
+    }
+  };
+  const onPointerUp = () => {
+    const outcome = released(pressed.current);
+    pressed.current = null;
+    if (outcome === "click") toggle();
+  };
+
   const needs = home?.needs_you ?? [];
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
@@ -160,8 +203,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
   const mode: AvatarMode = expanded ? "open" : shownBubble ? "bubble" : "idle";
   useEffect(() => {
-    host?.layout(mode).catch(() => undefined);
-  }, [host, mode]);
+    // The window covers what it shows: the character with room for its shadow, the character
+    // under a bubble, or the open panel.
+    const [width, height] = mode === "open" ? [380, 560] : mode === "bubble" ? [320, 150 + px] : [px + 32, px + 44];
+    host?.layout(mode, width, height).catch(() => undefined);
+  }, [host, mode, px]);
 
   // Tell the host where the companion is drawn, whenever that moves or changes size.
   useLayoutEffect(() => {
@@ -229,7 +275,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                 <p className="panel__hint">
                   {openAction.action.effect === "send" ? "Send" : "Make"}: {openAction.action.title}
                 </p>
-                <Button size="sm" variant="primary" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "talking"); refresh(); })}>
+                <Button size="sm" variant="primary" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "celebrating"); refresh(); })}>
                   {openAction.action.effect === "send" ? "Send it" : "Do it"}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => void client.declineAction(openAction.action!.id).then(refresh)}>
@@ -268,11 +314,19 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             ) : null}
           </div>
         ) : null}
-        <div className="avatar__grip" data-tauri-drag-region title="Drag to move Alpha" aria-hidden="true">
-          ⋯
-        </div>
-        <button type="button" className={`avatar__button is-${state}`} onClick={() => toggle()} aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"} aria-expanded={expanded} title={label}>
-          <Character mood={busy ? "thinking" : mood} size={expanded ? 56 : 80} look={normaliseLook(comp?.look)} />
+        <button
+          type="button"
+          className={`avatar__button is-${state}`}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => { pressed.current = null; }}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
+          aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"}
+          aria-expanded={expanded}
+          title={`${label} · drag to move`}
+        >
+          <Character mood={shownMood} size={expanded ? Math.round(px * 0.7) : px} look={look} />
         </button>
       </div>
     </div>
