@@ -158,18 +158,25 @@ def build(world: World, sentence: str, *, module: str | None = None,
         "- Nothing connected yet. Public web pages can always be read (page_read); folders,"
         " sites to sign into and the calendar are connected when the person asks."]))
 
-    # Know-how: every skill in one line, always, so an existing one is used before a new
-    # one is written (design §3.7 point 7). Bodies by skill_read; notes on its wiki page.
+    # Know-how: every skill, always, but compact (design §3.7 point 7): act and run skills one
+    # line each, read skills as a list by site; bodies by skill_read, search by skills_find.
+    # Found 3 Oct: a line per skill with its description ate a third of the pack and cut the
+    # matches off; the cap is 12,000 characters for everything.
     can_do = []
-    for sk in world.skills.index()[:80]:
+    reads = []
+    for sk in world.skills.index()[:120]:
         where = sk["site"] or (world.modules.get(sk["module"])["name"] if sk["module"] else "")
         mark = "" if sk["health"] == "ok" else f", {sk['health']}"
-        line = (f"- [{sk['kind']}] {sk['name']} ({where}, v{sk['version']}{mark}"
-                + (f", {sk['effect']}" if sk["effect"] else "")
-                + f"): {_clip(sk['description'], 110)}")
-        if sk["when_to_use"]:
-            line += f" When: {_clip(sk['when_to_use'], 90)}"
-        can_do.append(line)
+        use = f" When: {_clip(sk['when_to_use'], 80)}" if sk["when_to_use"] else ""
+        if sk["kind"] == "read":
+            rows = f", {sk['last_count']} rows" if sk["last_count"] else ""
+            reads.append(f"{sk['name']} ({where}{rows}{mark}{use})")
+        else:
+            can_do.append(f"- [{sk['kind']}] {sk['name']} ({where}{mark}"
+                          + (f", {sk['effect']}" if sk["effect"] else "")
+                          + f"): {_clip(sk['description'], 90)}{use}")
+    if reads:
+        can_do.append("- [read] " + "; ".join(reads))
     if can_do:
         sections.append(("WHAT ALPHA CAN DO (skills it wrote; skill_read for one, skills_find"
                          " to search; use one before writing another)", can_do))
@@ -197,8 +204,11 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if module:
         page = next((n for n in k.notes(f"module:{world.modules.get(module)['name']}")), None)
         if page:
+            body = page["body"]
+            if len(body) > 1500:
+                body = body[:1500].rsplit("\n", 1)[0] + "\n  … (note_read for the rest)"
             sections.append((f"THIS MODULE'S PAGE ({page['title']})",
-                             [f"  {line}" for line in page["body"].splitlines()[:40]]))
+                             [f"  {line}" for line in body.splitlines()[:40]]))
 
     # Entity cards: anyone or anything the sentence names, with what Alpha knows of them.
     cards = []

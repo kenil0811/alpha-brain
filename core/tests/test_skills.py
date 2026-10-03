@@ -153,9 +153,9 @@ def test_the_index_finds_and_shows_skills_and_their_notes(world: World) -> None:
     # The pre-pack carries every skill in one line, with when to use it.
     text = prepack.build(world, "anything")
     assert "WHAT ALPHA CAN DO" in text
-    assert "[read] linkedin_connections (linkedin.com, v1): Reads the connections list" in text
-    assert "When: The person's own connections." in text
-    assert "[act] gmail_draft (google.com, v1, untried, prepare)" in text
+    assert "[read] linkedin_connections (linkedin.com, 10 rows When: The person's own" in text
+    assert "[act] gmail_draft (google.com, untried, prepare): Make a draft email in Gmail" in text
+    assert "When: Any draft in Gmail" in text
 
 
 def test_removing_a_module_takes_its_run_skills(world: World) -> None:
