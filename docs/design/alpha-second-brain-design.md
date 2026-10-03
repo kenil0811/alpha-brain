@@ -449,7 +449,8 @@ procedure broken, for Alpha to repair (build-plan §4.13).
   keeps its id; the page shows the file's name, Open and Show in Finder. A read: free once the
   connection is granted, journaled. Whether a module keeps such files is a sentence in the plan
   the person approves, or an ask; never silent growth. Removing the module removes its files.
-- **In, from the person.** Files dropped onto a module page or added to a row's file field go
+- **In, from the person.** Files dropped onto a module page, chosen with its Add files button,
+  or added to a row's file field go
   into the module's folder, become documents, and (for a module drop) Alpha reads them into the
   module's tables in a turn of its own, journaled as the person's addition and Alpha's reading.
 - **Out, by a procedure.** An `upload` step names a payload field whose value is a document
@@ -460,7 +461,7 @@ procedure broken, for Alpha to repair (build-plan §4.13).
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn, `file` fields, CSV and Excel export, upload steps. |
+| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn (and, since 3 Oct night, an Add files button on the module's page opening the Mac's picker, the same route), `file` fields, CSV and Excel export, upload steps. |
 | Differs | An upload by Alpha asks every time; the plan decides what is kept. |
 | Not built | — |
 

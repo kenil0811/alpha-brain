@@ -156,7 +156,9 @@ Scope (a module, a person) moves that module's or entity's material to the top.
 
 *As built it differs: twelve sections (NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE
 GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · TODAY'S CALENDAR · NOTES · RECENT CONVERSATION
-· MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN), cut at 12,000 characters; WHO includes
+· MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN), at most 12,000 characters (14,000 since
+3 Oct night, each section within a budget of its own and the whole shrunk by section, never
+cut blind; WHAT ALPHA HOLDS lists every table with its fields); WHO includes
 suggested facts marked by state; notes are the first 100 characters, at most 20; matches are
 relevance-first (5 records, 3 documents, journal hits to 10 lines in all); only a module scope
 exists and it moves that module first within WHAT ALPHA HOLDS; no entity cards.*
