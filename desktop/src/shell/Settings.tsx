@@ -310,11 +310,8 @@ function AvatarSettings() {
       <Row title="Shirt">
         <Swatches label="Shirt" value={look.shirt} options={swatches(SHIRT_COLORS)} onChange={(shirt) => change({ shirt })} />
       </Row>
-      <Row title="Neckwear">
-        <Segmented label="Neckwear" value={look.accessory} options={ACCESSORIES} onChange={(accessory) => change({ accessory: accessory as AvatarLook["accessory"] })} />
-      </Row>
-      <Row title="Glasses">
-        <Toggle label="Glasses" on={look.glasses} onChange={(glasses) => change({ glasses })} labels={["On", "Off"]} />
+      <Row title="Accessories" tip="Wear any mix, or none.">
+        <Segmented multiple label="Accessories" value={look.accessories} options={ACCESSORIES} onChange={(accessories) => change({ accessories })} />
       </Row>
     </div>
   );

@@ -3,7 +3,7 @@
  *  companion window hears a change through the `storage` event, this window through LOOK_EVENT.
  *  ponytail: per-Mac localStorage; move to the core if the look should follow the person. */
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_APPEARANCE, type ZazooAppearance } from "./zazoo/ZazooAvatar";
+import { type Accessory, DEFAULT_APPEARANCE, type ZazooAppearance } from "./zazoo/ZazooAvatar";
 import { DEFAULT_SPECIES, SPECIES, type ZazooSpecies } from "./zazoo/species";
 
 export const LOOK_KEY = "alpha.avatar";
@@ -21,11 +21,11 @@ export const BODY_COLORS: [string, string][] = [["#FAF1E7", "Cream"], ["#F0DFC2"
 export const SUIT_COLORS: [string, string][] = [["#7E2732", "Burgundy"], ["#15151A", "Black"], ["#3E5A7E", "Navy"], ["#4A4E5A", "Charcoal"], ["#7E937E", "Sage"], ["#2F4A44", "Pine"]];
 export const TIE_COLORS: [string, string][] = [["#E8B93C", "Mustard"], ["#B8323C", "Red"], ["#2E5E8C", "Blue"], ["#D9D5CC", "Stone"], ["#4F7F5A", "Green"]];
 export const SHIRT_COLORS: [string, string][] = [["#F4EEE2", "Ivory"], ["#FFFFFF", "White"], ["#CFE0EA", "Sky"], ["#E6D9C3", "Sand"], ["#D9C9D9", "Mauve"]];
-export const ACCESSORIES: { value: ZazooAppearance["accessory"]; label: string }[] = [
+export const ACCESSORIES: { value: Accessory; label: string }[] = [
   { value: "tie", label: "Tie" },
   { value: "bowtie", label: "Bow tie" },
   { value: "scarf", label: "Scarf" },
-  { value: "none", label: "None" },
+  { value: "spectacles", label: "Spectacles" },
 ];
 
 export function speciesOf(look: AvatarLook): ZazooSpecies {
@@ -37,9 +37,21 @@ export function kindLabel(s: ZazooSpecies): string {
   return s.kind.charAt(0).toUpperCase() + s.kind.slice(1);
 }
 
+/** Looks saved before accessories were a list kept one `accessory` ("none" for nothing)
+ *  and a separate `glasses` switch. */
+interface OldLook {
+  accessory?: string;
+  glasses?: boolean;
+}
+
 export function readLook(): AvatarLook {
   try {
-    return { ...DEFAULT_LOOK, ...(JSON.parse(window.localStorage.getItem(LOOK_KEY) ?? "{}") as Partial<AvatarLook>) };
+    const { accessory, glasses, ...saved } = JSON.parse(window.localStorage.getItem(LOOK_KEY) ?? "{}") as Partial<AvatarLook> & OldLook;
+    const look = { ...DEFAULT_LOOK, ...saved };
+    if (!saved.accessories && (accessory !== undefined || glasses !== undefined)) {
+      look.accessories = ACCESSORIES.map((a) => a.value).filter((a) => a === accessory || (a === "spectacles" && glasses));
+    }
+    return look;
   } catch {
     return DEFAULT_LOOK;
   }
