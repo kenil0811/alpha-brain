@@ -14,7 +14,7 @@ tools:
   - {name: page_to_table, effect: read, description: A first look at a list on a page, into a table; a site's reader replaces it.}
   - {name: reader_save, effect: read, description: Keep a page script as a reader for one list on one site, after it worked on the real page.}
   - {name: reader_run, effect: read, description: Run a saved reader into a table; health-checked before it writes.}
-  - {name: readers_list, effect: read, description: The readers Alpha keeps and how each is doing.}
+  - {name: skills_find, effect: read, description: The skills Alpha keeps (readers, procedures, pipelines) and how each is doing.}
   - {name: browser_signin, effect: read, description: Open a window on a site so the person can sign in.}
 triggers: []
 health: {repair: re-observe-page}

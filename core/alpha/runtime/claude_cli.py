@@ -15,6 +15,7 @@ in) and USER.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shlex
 import signal
@@ -23,6 +24,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,7 +39,24 @@ DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task
 
 SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
 OUT_OF_STEPS = "It reached the most steps Claude Code takes in one run."
+log = logging.getLogger(__name__)
+
 STOPPED = "You stopped it."
+log = logging.getLogger(__name__)
+# A run that has said nothing for this long is not slow, it is dead: no stream event (a thought,
+# a tool call, a result) in ten minutes means the CLI or the model hung, and a hung run can hold
+# a thread, a browser profile or the scheduler for ever. This is a judgement of silence, not a
+# limit on how long work may take (Q18): a run that keeps working is never cut.
+SILENCE_S = 600
+STALLED = "No answer came back: the model's run went silent and was ended."
+NO_ANSWER = "No answer came back from the model."
+# A run that has said nothing for this long is not slow, it is dead: no stream event (a thought,
+# a tool call, a result) in ten minutes means the CLI or the model hung, and a hung run can hold
+# a thread, a browser profile or the scheduler for ever. This is a judgement of silence, not a
+# limit on how long work may take (Q18): a run that keeps working is never cut.
+SILENCE_S = 600
+STALLED = "No answer came back: the model's run went silent and was ended."
+NO_ANSWER = "No answer came back from the model."
 
 
 @dataclass
@@ -177,6 +196,10 @@ class TurnRequest:
     kind: str = "turn"
     # Only a check (Settings -> Models) sets a limit; a run has none, the person stops it.
     timeout: int | None = None
+    # A live conversation resumes its own session (`resume`) and keeps it (`persist`); every
+    # other run is stateless, as Q21 decided.
+    resume: str | None = None
+    persist: bool = False
 
 
 # What the MCP server needs from Alpha's own environment (the claude process has none of it).
@@ -192,6 +215,8 @@ def tools_allowed(req: TurnRequest) -> list[str]:
 
 
 def mcp_config(req: TurnRequest) -> dict[str, Any]:
+    if req.kind != "turn":
+        return {"mcpServers": {}}
     env = {
         **{k: os.environ[k] for k in PASSED_TO_TOOLS if k in os.environ},
         "ALPHA_WORLD": str(req.world_path),
@@ -228,9 +253,9 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--append-system-prompt",
         req.system,
     ]
-    if req.kind == "turn":
-        # Alpha's world as an MCP server; an independent or judging run never sees it.
-        args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
+    # Alpha's world as an MCP server for a turn; an independent or judging run gets an empty
+    # config. Strict either way: nothing from the person's own MCP configuration loads.
+    args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
     if allowed:
         args += ["--allowedTools", *allowed]
     args += [
@@ -250,9 +275,13 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
     ]
     if req.effort and req.effort != "default":
         args += ["--effort", req.effort]
-    # Every run is stateless: the pre-pack carries the context, the journal the history. A
-    # remembered model session would bring back whatever it once believed.
-    args += ["--no-session-persistence"]
+    if req.resume:
+        args += ["--resume", req.resume]
+    if not req.persist:
+        # Stateless: the pre-pack carries the context, the journal the history. A remembered
+        # model session would bring back whatever it once believed. Live conversations are the
+        # one exception (design §3.7): their session is kept while they are live.
+        args += ["--no-session-persistence"]
     return args
 
 
@@ -260,12 +289,18 @@ class Stopped(Exception):
     """The person stopped this run (`LIVE.stop`)."""
 
 
+class Stalled(Exception):
+    """The run said nothing for `silence` seconds and was ended."""
+
+
 def call(args: list[str], *, keys: list[str], env: dict[str, str], cwd: str,
          timeout: int | None = None,
-         on_line: Callable[[str], None] | None = None) -> tuple[str, str, int]:
+         on_line: Callable[[str], None] | None = None,
+         silence: float | None = None) -> tuple[str, str, int]:
     """`subprocess.run`, except that `LIVE.stop` with any of `keys` can stop it from another
     thread. The process gets its own session so stopping it also stops the MCP server it
-    started. Only a check (Settings) passes `timeout`; a run has no time limit."""
+    started. Only a check (Settings) passes `timeout`; a run has no time limit, but one that
+    prints nothing for `silence` seconds is ended (Stalled)."""
     run = LIVE.begin(keys)
     try:
         if run.stopped:
@@ -291,15 +326,34 @@ def call(args: list[str], *, keys: list[str], env: dict[str, str], cwd: str,
         timer = threading.Timer(timeout, expire) if timeout else None
         if timer:
             timer.start()
+        last_seen = [time.monotonic()]
+        done = threading.Event()
+        stalled = threading.Event()
+
+        def watch_silence(limit: float) -> None:
+            while not done.wait(min(15.0, limit / 4)):
+                if time.monotonic() - last_seen[0] > limit:
+                    stalled.set()
+                    try:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
+                    return
+
+        if silence:
+            threading.Thread(target=watch_silence, args=(silence,), daemon=True,
+                             name="run-silence").start()
         lines: list[str] = []
         try:
             assert proc.stdout is not None
             for line in proc.stdout:  # streamed, so `on_line` sees each event as it happens
+                last_seen[0] = time.monotonic()
                 lines.append(line)
                 if on_line:
                     on_line(line)
             proc.wait()
         finally:
+            done.set()
             if timer:
                 timer.cancel()
         reader.join(timeout=2)
@@ -310,12 +364,17 @@ def call(args: list[str], *, keys: list[str], env: dict[str, str], cwd: str,
         raise Stopped
     if timed_out.is_set():
         raise subprocess.TimeoutExpired(args, timeout or 0)
+    if stalled.is_set():
+        raise Stalled(out, err, proc.returncode)
     return out, err, proc.returncode
 
 
 def keys(req: TurnRequest) -> list[str]:
-    """What a run is known by: its turn and its thread."""
-    return [k for k in (req.turn_id, req.thread_id) if k]
+    """What a run is known by: a turn by its turn and its thread; an independent or judging run
+    by a key of its own, so it never takes over (or stops with) the turn it checks."""
+    if req.kind == "turn":
+        return [k for k in (req.turn_id, req.thread_id) if k]
+    return [f"{req.kind}:{req.turn_id}:{uuid.uuid4().hex[:8]}"]
 
 
 def stopped_result() -> RunResult:
@@ -341,9 +400,14 @@ def run(req: TurnRequest, *, binary: str | None = None,
             stdout, stderr, code = call(
                 argv(req, config_path, binary or claude_account.binary() or "claude"),
                 keys=k, env=env, cwd=tmp, timeout=req.timeout,
-                on_line=lambda line: _watch(k, _event(line)))
+                on_line=lambda line: _watch(k, _event(line)), silence=SILENCE_S)
         except Stopped:
             return stopped_result()
+        except Stalled as e:
+            stdout, stderr, code = e.args
+            if not parse(stdout, stderr, code).raw:
+                log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
+                return RunResult(reply="", ok=False, error=STALLED)
         except subprocess.TimeoutExpired:
             return RunResult(reply="", ok=False,
                              error=f"The model took longer than {req.timeout} s.",
@@ -431,7 +495,9 @@ def parse(stdout: str, stderr: str, code: int) -> RunResult:
 def parse_result(data: dict[str, Any], stderr: str, code: int) -> RunResult:
     if not data:
         tail = (stderr or "").strip()[-400:] or f"exit code {code}"
-        return RunResult(reply="", ok=False, error=f"No answer from the model: {tail}")
+        log.warning("no result from the model run (exit %s): %s", code, tail)
+        signed_out = "not logged in" in tail.lower()
+        return RunResult(reply="", ok=False, error=SIGNED_OUT if signed_out else NO_ANSWER)
     is_error = bool(data.get("is_error")) or data.get("subtype") not in (None, "success")
     reply = str(data.get("result") or "")
     if is_error and "not logged in" in reply.lower():

@@ -12,6 +12,8 @@ A journey file:
       - build: latest                                      # approve the newest plan, build it
       - approve_action: latest   # (in steps_after) the person's yes to the newest action
       - decline_plan: latest     # the person's no, through the app's route
+      - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
+      - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
       - row: {collection: food_log, source_not: [estimated]}   # a row this journey added
@@ -21,6 +23,7 @@ A journey file:
       - plan: proposed
       - reply: {matches: "\\n\\s*1[.)]"}     # regex on the last reply (or `contains`)
       - judge: "Did the answer name people from the connections table, or say plainly none?"
+      - judge: {rubric: "…", history: 1}   # the judge also sees the previous exchange
       - count: {collection: linkedin_connections, at_least_fraction_of_last_ok: 0.95,
                 reader: linkedin_connections}
       - reader_health: linkedin_connections
@@ -43,15 +46,15 @@ import shutil
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import build, check, claude_cli, pipeline, turn
-from alpha.world.store import Problem, now
+from alpha.runtime import build, check, claude_cli, noticing, pipeline, turn
+from alpha.world.store import SCHEMA, Problem, now
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
@@ -123,6 +126,7 @@ class Mark:
     tables: set[str]
     modules: set[str]
     plans: set[str]
+    skills: dict[str, int]
 
 
 def mark(world: World) -> Mark:
@@ -131,6 +135,7 @@ def mark(world: World) -> Mark:
         tables={t["name"] for t in world.collections.overview()},
         modules={m["id"] for m in world.modules.all()},
         plans={p["id"] for p in world.plans.all()},
+        skills={s["name"]: s["version"] for s in world.skills.all()},
     )
 
 
@@ -154,6 +159,7 @@ class Run:
         self.runner = runner
         self.last_turn: str | None = None
         self.last_reply: str = ""
+        self.exchanges: list[tuple[str, str]] = []  # (said, reply) in order, this journey
         self.last_automation: dict[str, Any] | None = None
         self.last_action: dict[str, Any] | None = None
         self.mark = mark(world)
@@ -166,8 +172,14 @@ class Run:
             outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
                                runner=self.runner)
             self.last_turn, self.last_reply = outcome.said, outcome.reply
+            self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
                 self._settle_builds()
+                # What the app does after a person's turn: the noticing pass, here in line.
+                try:
+                    noticing.notice(self.world, outcome.said, runner=self.runner)
+                except Exception as e:  # a journey is not failed by its noticing pass
+                    log.warning("noticing in journey: %s", e)
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
                       "steps": outcome.result.num_turns}
         elif "reader" in spec:
@@ -183,6 +195,33 @@ class Run:
             record = {"automation": auto["title"], "ok": not self.last_automation.get("last_error"),
                       "result": self.last_automation.get("last_result"),
                       "problem": self.last_automation.get("last_error")}
+        elif "seed" in spec:
+            # Something that was true before the journey began: a past exchange, a fact.
+            seed = spec["seed"]
+            if seed.get("kind") == "turn":
+                from datetime import datetime as dt
+                from datetime import timedelta
+
+                days = int(str(seed.get("ago", "1d")).rstrip("d"))
+                at = (dt.now(UTC) - timedelta(days=days)).replace(microsecond=0).isoformat()
+                said = self.world.journal.append("said", seed["said"], actor="person")
+                replied = self.world.journal.append("replied", seed["replied"],
+                                                    data={"turn": said})
+                # The journal refuses any change but forgetting (store.py): a seed is the one
+                # writer allowed to date an entry, so the guard is lifted for it and put back.
+                with self.world.store.tx() as db:
+                    db.execute("DROP TRIGGER journal_only_forget")
+                    db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (at, said, replied))
+                self.world.store.db.executescript(SCHEMA)
+                record = {"seed": f"{days} day(s) ago: {seed['said'][:60]}", "ok": True}
+            elif seed.get("kind") == "fact":
+                self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
+                                                 source="stated", state="accepted")
+                record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            else:
+                raise Problem(f"Unknown seed: {seed}")
+            # Seeds are not the journey's own work: move the mark past them.
+            self.mark = mark(self.world)
         elif "approve_action" in spec:
             from alpha.runtime import acting
 
@@ -300,6 +339,18 @@ class Run:
         new = {t["name"] for t in self.world.collections.overview()} - self.mark.tables
         return not new, ("No table was made." if not new else f"Made tables: {sorted(new)}.")
 
+    def check_no_new_skills(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Alpha used the know-how it had: no reader, procedure or pipeline was written or
+        rewritten in this journey (a reuse with the same version is what passes)."""
+        current = {s["name"]: s["version"] for s in self.world.skills.all()}
+        new = sorted(n for n in current if n not in self.mark.skills)
+        changed = sorted(n for n, v in current.items()
+                         if n in self.mark.skills and v != self.mark.skills[n])
+        if new or changed:
+            return False, (f"Wrote new skills: {new}. " if new else "") + \
+                (f"Rewrote: {changed}." if changed else "")
+        return True, "No skill was written or rewritten."
+
     def check_no_new_modules(self, arg: dict[str, Any]) -> tuple[bool, str]:
         new = {m["id"] for m in self.world.modules.all()} - self.mark.modules
         return not new, ("No module was made." if not new else f"Made {len(new)} module(s).")
@@ -327,8 +378,13 @@ class Run:
         said = self.world.journal.read(self.last_turn)
         system = ("You judge one answer against a rubric. Reply with JSON only:"
                   ' {"pass": true|false, "why": "one sentence"}.')
-        prompt = (f'The person said: "{said["text"]}"\n\nThe answer:\n{self.last_reply}\n\n'
-                  f"The rubric: {rubric}")
+        earlier = ""
+        if isinstance(arg, dict) and arg.get("history") and len(self.exchanges) > 1:
+            shown = self.exchanges[-1 - int(arg["history"]):-1]
+            earlier = "Earlier in this conversation:\n" + "\n".join(
+                f'Person: "{s}"\nAlpha: {r}' for s, r in shown) + "\n\n"
+        prompt = (f'{earlier}The person said: "{said["text"]}"\n\nThe answer:\n{self.last_reply}'
+                  f"\n\nThe rubric: {rubric}")
         result = self.runner(claude_cli.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,
             turn_id=self.last_turn, kind="judge"))
@@ -386,6 +442,8 @@ class Run:
             return False, words
         if arg.get("preview") and not (action.get("preview") and Path(action["preview"]).exists()):
             return False, words + "; no preview screenshot"
+        if "procedure" in arg and action["procedure"] != arg["procedure"]:
+            return False, words + f"; through {action['procedure']}, not {arg['procedure']}"
         return True, words
 
     def check_document(self, arg: dict[str, Any]) -> tuple[bool, str]:
@@ -458,10 +516,10 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next(k for k in ("say", "reader", "automation", "build", "approve_action",
-                                    "decline_plan") if k in s)
+            kind = next((k for k in ("say", "reader", "automation", "build", "approve_action",
+                                     "decline_plan", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
-            head = f"- **{kind}** {s[kind]!s:.80} · {s['seconds']} s · {state}"
+            head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"
             detail = (s.get("reply") or s.get("result") or s.get("report") or s.get("detail")
                       or "")
             if s.get("problem"):
@@ -494,10 +552,11 @@ def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
         world.close()
     folder = out_dir or (Path(__file__).resolve().parents[3] / "docs" / "journeys")
     folder.mkdir(parents=True, exist_ok=True)
-    text = report(outcomes, source=source, home=home, began=began)
-    (folder / f"{stamp}.md").write_text(text)
+    # The raw outcomes first: a slip in the report's wording must never lose a run's results.
     (folder / f"{stamp}.json").write_text(json.dumps(
         [o.__dict__ for o in outcomes], indent=1, ensure_ascii=False, default=str))
+    text = report(outcomes, source=source, home=home, began=began)
+    (folder / f"{stamp}.md").write_text(text)
     if not keep:
         shutil.rmtree(home, ignore_errors=True)
     return sum(1 for o in outcomes if not o.passed), folder / f"{stamp}.md"

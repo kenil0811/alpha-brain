@@ -5,7 +5,7 @@
  */
 import { type FormEvent, useEffect, useState } from "react";
 import { CalendarDays, Folder, Globe, Link } from "lucide-react";
-import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
+import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { InfoTip, PageHeader, Tabs } from "../ui";
 import { AboutYou } from "./AboutYou";
@@ -176,6 +176,40 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   );
 }
 
+const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", run: "Runs" };
+
+function SkillCard({ skill, modules }: { skill: Skill; modules: Record<string, string> }) {
+  const [open, setOpen] = useState(false);
+  const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a project" : "");
+  const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
+  return (
+    <div className="card card--pad intel__card">
+      <div className="intel__head">
+        <h3>{skill.description}</h3>
+        <span className={`pill ${skill.health === "ok" ? "pill--good" : skill.health === "broken" ? "pill--bad" : "pill--gray"}`}>{health}</span>
+      </div>
+      <p className="muted">
+        <span className="pill pill--info" style={{ marginRight: 8 }}>
+          {KIND_LABEL[skill.kind]}
+        </span>
+        {where ? `${where} · ` : ""}version {skill.version}
+        {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
+        {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
+      </p>
+      {skill.when_to_use ? <p className="faint">When: {skill.when_to_use}</p> : null}
+      {skill.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{skill.last_problem}</p> : null}
+      {skill.notes ? (
+        <>
+          <button type="button" className="btn btn--sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
+            {open ? "Hide notes" : "Alpha's notes"}
+          </button>
+          {open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onChanged: () => void }) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(note.body);
@@ -264,11 +298,16 @@ function Knowledge({ client, data, modules, onChanged }: { client: Client; data:
 export function Intelligence({ client, modules, tab, version, onTab, onGo, onChanged }: { client: Client; modules: ModuleCard[]; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onGo: (s: Surface) => void; onChanged: () => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [moduleNames, setModuleNames] = useState<Record<string, string>>({});
   useEffect(() => {
     client
       .intelligence()
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    client
+      .modules()
+      .then((list) => setModuleNames(Object.fromEntries(list.map((m) => [m.id, m.name]))))
+      .catch(() => setModuleNames({}));
   }, [client, version]);
   return (
     <div className="page">
@@ -283,16 +322,24 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
           <Skills client={client} />
           <div className="section__head section__head--tight">
             <h2>
-              Built in <InfoTip content="What Alpha can reach without being taught, and the site readers it made." label="About built-in abilities" />
+              Skills Alpha learns <InfoTip content="When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes." label="About skills Alpha learns" />
             </h2>
           </div>
           <div className="intel">
-            {data.skills.map((s) => (
+            {data.skills.length ? data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={moduleNames} />) : <p className="muted">None yet.</p>}
+          </div>
+          <div className="section__head section__head--tight">
+            <h2>
+              Built in <InfoTip content="What Alpha can reach without being taught." label="About built-in abilities" />
+            </h2>
+          </div>
+          <div className="intel">
+            {data.hands.map((s) => (
               <div key={s.name} className="card card--pad intel__card">
                 <div className="intel__head">
                   <h3>{s.title}</h3>
                   <InfoTip content={s.description ?? ""} label={`About ${s.title}`} />
-                  <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+                  <span className="pill pill--gray">Built in</span>
                 </div>
                 <div className="skill__meta">
                   {s.tools.map((t) => (
@@ -302,19 +349,6 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
                     </span>
                   ))}
                 </div>
-              </div>
-            ))}
-            {data.readers.map((r) => (
-              <div key={r.name} className="card card--pad intel__card">
-                <div className="intel__head">
-                  <h3>{r.description}</h3>
-                  <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
-                </div>
-                <p className="muted">
-                  Reads {r.site} · version {r.version}
-                  {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
-                </p>
-                {r.last_problem ? <p className="notice notice--sm">{r.last_problem}</p> : null}
               </div>
             ))}
           </div>

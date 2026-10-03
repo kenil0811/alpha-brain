@@ -235,13 +235,22 @@ def test_an_older_store_is_upgraded_and_a_newer_one_refused(tmp_path: Path) -> N
     path = tmp_path / "world.sqlite"
     Store(path).close()
     old = sqlite3.connect(path)  # a store from before versions were kept
-    old.execute("ALTER TABLE readers DROP COLUMN allow_posts")
+    old.execute("ALTER TABLE skills DROP COLUMN allow_posts")
     old.execute("PRAGMA user_version = 0")
     old.close()
     store = Store(path)
-    assert "allow_posts" in {r[1] for r in store.db.execute("PRAGMA table_info(readers)")}
+    assert "allow_posts" in {r[1] for r in store.db.execute("PRAGMA table_info(skills)")}
     assert version_of(store.db) == VERSION
     store.db.execute(f"PRAGMA user_version = {VERSION + 1}")
     store.close()
     with pytest.raises(Problem, match="newer Alpha"):
         Store(path)
+def test_a_search_asks_for_the_words_that_carry_meaning() -> None:
+    from alpha.world.store import fts_query
+
+    assert fts_query("who is sara ramos and when did i last deal with her?") == \
+        '"sara"* OR "ramos"* OR "deal"*'
+    assert fts_query("what did i say about vikas yesterday?") == '"vikas"*'
+    # Nothing but function words: they are searched rather than nothing.
+    assert fts_query("what is this") == '"what"* OR "is"* OR "this"*'
+    assert fts_query("?!") is None

@@ -1,0 +1,8 @@
+name: memory_yesterday
+title: Memory · what was said yesterday is recalled, with the day right
+why: "A second brain must know what happened yesterday without being told which table to look in."
+steps:
+  - seed: {kind: turn, ago: 1d, said: "remind me that i promised vikas the financial model by friday", replied: "Noted: you promised Vikas the financial model by Friday."}
+  - say: "what did i say about vikas yesterday?"
+checks:
+  - judge: "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means."

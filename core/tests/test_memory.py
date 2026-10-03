@@ -5,7 +5,11 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
+from conftest import backdating
+
 from alpha.mcp.tools import Tools
+from alpha.world.store import Problem
 from alpha.world.world import World
 
 PROV = {"by": "alpha"}
@@ -144,3 +148,97 @@ def test_old_linkedin_keys_become_url_keys(tmp_path: Path) -> None:
     assert again.entities.get(priya["id"])["keys"] == {"url": ["linkedin.com/in/priya"]}
     assert again.store.one("SELECT 1 AS x FROM entity_keys WHERE key = 'linkedin'") is None
     again.close()
+
+
+# ---- the wiki, entity cards and days (design §3.7, points 2 and 4) ----
+
+
+def test_a_page_has_an_index_line_and_grows_under_a_heading(world: World) -> None:
+    k = world.knowledge
+    page = k.write_note("topic:cooking", "Cooking", "# Cooking\n\nBatch on Sundays.\n")
+    assert page["summary"] == "Batch on Sundays."  # the first line of text, when none is given
+    page = k.write_note("topic:cooking", "Cooking", "Batch on Sundays.", summary="How Kenil cooks")
+    assert page["summary"] == "How Kenil cooks"
+    k.append_to_page("topic:cooking", "Cooking", "Noticed", "3 Oct 2026: Tried a new dal.")
+    k.append_to_page("topic:cooking", "Cooking", "Noticed", "3 Oct 2026: Tried a new dal.")
+    k.append_to_page("topic:cooking", "Cooking", "Noticed", "4 Oct 2026: Froze half.")
+    found = k.find_note("topic:cooking", "Cooking")
+    assert found is not None
+    body = found["body"]
+    assert body.startswith("Batch on Sundays.")
+    assert body.count("Tried a new dal") == 1 and body.index("Tried") < body.index("Froze")
+    assert found["summary"] == "How Kenil cooks"  # kept
+    # A page made by an append alone, and an entity page scope (a real entity, never a bare one).
+    with pytest.raises(Problem, match="scope"):
+        k.write_note("entity:", "Nobody", "x")
+    with pytest.raises(Problem, match="no person or company"):
+        k.write_note("entity:e_missing", "Nobody", "x")
+    vikas = world.entities.resolve("person", "Vikas Badami")["entity"]
+    k.append_to_page(f"entity:{vikas['id']}", "Vikas Badami", "Noticed", "Had coffee.")
+    assert [p["title"] for p in k.index()] == ["Vikas Badami", "Cooking"]  # by scope
+    assert k.index()[0]["summary"] == "Had coffee."  # the first line of text, not the heading
+
+
+def test_the_prepack_carries_the_index_and_a_card_for_whoever_is_named(world: World) -> None:
+    from alpha.context import prepack
+
+    k = world.knowledge
+    k.write_note("topic:cooking", "Cooking", "Batch on Sundays.", summary="How Kenil cooks")
+    vikas = world.entities.resolve("person", "Vikas Badami",
+                                   {"email": "vikas@example.com"})["entity"]
+    k.record_fact(f"entity:{vikas['id']}", "works_at", "Avilo", source="stated",
+                  state="accepted")
+    k.append_to_page(f"entity:{vikas['id']}", "Vikas Badami", "Noticed",
+                     "3 Oct 2026: Is moving to Bangalore.")
+    world.journal.append("said", "promised Vikas the model", actor="person",
+                         entity_ids=[vikas["id"]])
+    text = prepack.build(world, "what's going on with vikas these days?")
+    assert "WHAT ALPHA KNOWS" in text and "[topic:cooking] Cooking: How Kenil cooks" in text
+    assert "WHO THE SENTENCE NAMES" in text
+    card = text[text.index("WHO THE SENTENCE NAMES"):]
+    assert "Vikas Badami (person" in card and "email=vikas@example.com" in card
+    assert "works_at: Avilo (accepted" in card and "last seen:" in card
+    assert "WHO THE SENTENCE NAMES" not in prepack.build(world, "what did I eat today?")
+    # A first name alone finds a person; a three-letter word does not match by accident.
+    assert prepack.entities_named(world, "coffee with vikas")[0]["id"] == vikas["id"]
+    assert prepack.entities_named(world, "vik and the rest") == []
+
+
+def test_a_sentence_that_names_a_day_looks_there(world: World) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from alpha.context import prepack
+
+    now = datetime(2026, 10, 3, 14, 0, tzinfo=UTC)
+
+    def named(sentence: str) -> tuple[str, str, str]:
+        window = prepack.day_named(sentence, now)
+        assert window is not None
+        return window
+
+    since, until, label = named("what did i say about vikas yesterday?")
+    assert label == "yesterday"
+    local_midnight = datetime.fromisoformat(since).astimezone()
+    assert local_midnight.hour == 0 and local_midnight.date() == (now.astimezone().date()
+                                                                  - timedelta(days=1))
+    assert datetime.fromisoformat(until) - datetime.fromisoformat(since) == timedelta(days=1)
+    assert named("3 days ago we talked")[2] == "3 days ago"
+    assert named("what happened last week")[2] == "last week"
+    s, u, _ = named("what happened last week")
+    assert datetime.fromisoformat(u) - datetime.fromisoformat(s) == timedelta(days=7)
+    assert named("on Tuesday I said")[2] == "tuesday"
+    assert named("how much protein today")[2] == "today"
+    assert prepack.day_named("what is my protein target", now) is None
+    # The window reaches the journal: yesterday's exchange is in the pack, dated.
+    said = world.journal.append("said", "remind me that i promised vikas the financial model"
+                                        " by friday", actor="person")
+    replied = world.journal.append("replied", "Noted: the financial model by Friday.",
+                                   data={"turn": said})
+    yesterday = (datetime.now(UTC) - timedelta(days=1)).replace(microsecond=0).isoformat()
+    with backdating(world), world.store.tx() as db:
+        db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (yesterday, said, replied))
+    text = prepack.build(world, "what did i say about vikas yesterday?")
+    assert "WHAT WAS SAID YESTERDAY" in text
+    assert "person: remind me that i promised vikas the financial model" in text
+    assert world.journal.between(yesterday[:10], "2999")[0]["id"] == said
+    assert world.journal.search("vikas", since="2999") == []

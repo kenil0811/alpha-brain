@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from alpha.world.skills import meta_get, meta_put
+from alpha.world.person_skills import meta_get, meta_put
 from alpha.world.store import Problem
 
 if TYPE_CHECKING:

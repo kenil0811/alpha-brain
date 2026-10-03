@@ -6,7 +6,7 @@
  * icons and resizes (ui/panel).
  */
 import { useCallback, useRef, useState } from "react";
-import { FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { Contact, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import type { Client, ModuleCard } from "../core/client";
 import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, useToast, type PanelControl } from "../ui";
 import { exportProject, importProject, isProjectFile, ProjectEditDialog, ProjectMenuItems, type ProjectEdit } from "./ProjectMenu";
@@ -17,10 +17,13 @@ export type Surface =
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings"; section?: string }
+  | { kind: "people" }
+  | { kind: "entity"; id: string }
   | { kind: "module"; id: string; section?: string };
 
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
+  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
@@ -29,7 +32,7 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || (s.kind === "module" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity") && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -39,6 +42,7 @@ export function surfacePath(s: Surface): string {
   if (s.kind === "module") return `/m/${encodeURIComponent(s.id)}${s.section && s.section !== "app" ? `/${s.section}` : ""}`;
   if (s.kind === "intelligence") return s.tab ? `/intelligence/${s.tab}` : "/intelligence";
   if (s.kind === "settings") return s.section ? `/settings/${s.section}` : "/settings";
+  if (s.kind === "entity") return `/people/${encodeURIComponent(s.id)}`;
   return s.kind === "home" ? "/" : `/${s.kind}`;
 }
 
@@ -52,6 +56,7 @@ export function surfaceFromPath(path: string): Surface | null {
   // Alpha's aliases: Connections and About you live in Intelligence.
   if (first === "connections" || (first === "settings" && second === "connections")) return { kind: "intelligence", tab: "connections" };
   if (first === "about") return { kind: "intelligence", tab: "knowledge" };
+  if (first === "people" && second) return { kind: "entity", id: decodeURIComponent(second) };
   if (first === "settings") return second ? { kind: "settings", section: second } : { kind: "settings" };
   return knownSurface({ kind: first });
 }
@@ -174,8 +179,9 @@ export function Rail({
 
   const item = (target: Surface, Icon: LucideIcon, label: string) => {
     const current = sameSurface(surface, target);
+    const key = target.kind === "module" || target.kind === "entity" ? `${target.kind}:${target.id}` : target.kind;
     return (
-      <button key={target.kind} type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
+      <button key={key} type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
         <span className="navbtn__ico" aria-hidden="true">
           <Icon size={16} strokeWidth={1.75} />
         </span>
@@ -290,6 +296,7 @@ export function Rail({
       </div>
       <div id="rail-body" className="rail__body">
         {item({ kind: "home" }, HomeIcon, "Home")}
+        {item({ kind: "people" }, Contact, "People & Companies")}
         {top.map((m) => {
           const nested = visible.filter((c) => c.project === m.id);
           return nested.length ? (

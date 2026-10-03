@@ -12,7 +12,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from alpha.runtime.claude_cli import TurnRequest
-from alpha.world.skills import meta_get, meta_put
+from alpha.world.person_skills import meta_get, meta_put
 from alpha.world.store import Problem
 
 if TYPE_CHECKING:

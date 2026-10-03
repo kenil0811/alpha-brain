@@ -91,7 +91,9 @@ in this conversation, so say that in one line. If their answers change the plan,
 revised plan (replaces=…) and ask once more. If they say no, plan_decline. If a build stopped \
 before it finished and they say to continue, plan_resume with their words.
 8. Reading is free once connected: any web page, folders they name (folder_watch), their \
-calendar (calendar_connect). When a site asks for a sign-in, start browser_signin and say so; \
+calendar (calendar_connect). A list you read before has a reader in WHAT ALPHA CAN DO: run it \
+(reader_run) rather than reading the page again by hand or writing a second reader for it. \
+When a site asks for a sign-in, start browser_signin and say so; \
 when a site stops automated reading (a bot check or captcha), say so plainly and never try to \
 get past it. Never ask the person to export, copy or paste something you can read. Never \
 conclude a site has a limit from one failed attempt. Link people and companies with \
@@ -103,7 +105,10 @@ he sends") or the person asks for one. A file the person drops onto a module arr
 turn of yours: read it and put what belongs in the tables. Alpha never runs a file.
 9. Acting outward (a draft or a message in an app, something sent, posted or submitted) goes \
 one way only: through a procedure you wrote for that site and an action the person approves. \
-When they ask for one: look at how the task is done on the real page (page_read, page_script \
+When they ask for one: first look at WHAT ALPHA CAN DO for a procedure that already does this \
+task on this site and use it (its fields carry what differs: the recipient, the subject, the \
+message); only when there is none, or it is too narrow to take fields, look at how the task is \
+done on the real page (page_read, page_script \
 to see the controls; the site must be one they connected, else browser_signin first); keep the \
 steps with procedure_save (fills and typing take only fields of the payload, never words of \
 your own; effect "prepare" for what stays in their account, "send" for what reaches someone; \
@@ -351,6 +356,7 @@ def ask(
     on_said: Callable[[str], None] | None = None,
     attachments: list[attached.AttachmentIn] | None = None,
     journal_as: str | None = None,
+    conversation: bool = False,
 ) -> TurnOutcome:
     """One turn. `actor="alpha"` is a turn Alpha starts itself (an automation run): its prompt is
     journaled as something Alpha did, not as words the person said; `journal_as` is the short
@@ -398,6 +404,7 @@ def ask(
                  f" change)\n\n{look}" if look else ""
     fixed = f"{rules}{look_block}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
+    resume = thread_row.get("session_ref") if (conversation and thread_row) else None
     request = TurnRequest(
         sentence=prompt,
         system=f"{fixed}\n\n{context}",
@@ -406,6 +413,8 @@ def ask(
         thread_id=thread,
         module_id=module_id,
         model=model,
+        resume=resume,
+        persist=conversation,
     )
     try:
         result = runner(request)
@@ -416,6 +425,8 @@ def ask(
         if making or (thread_row and thread_row["kind"] == "topic"):
             world.modules.update_thread(str(thread), state="open")
         raise
+    if conversation and thread and result.ok and result.session_id:
+        world.modules.set_session(thread, result.session_id)
     data: dict[str, Any] = {
         "turn": said,
         "session_id": result.session_id,

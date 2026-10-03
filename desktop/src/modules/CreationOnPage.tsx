@@ -55,7 +55,7 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
     }
   }
   async function stop() {
-    if (!running) return;
+    if (!running?.id) return;
     try {
       if (!(await client.cancelTurn(running.id))) setError("This version of Alpha can't stop a turn yet; it finishes on its own.");
       onChanged();

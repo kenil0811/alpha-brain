@@ -20,6 +20,7 @@ import { Activity } from "./shell/Activity";
 import { CommandMenu } from "./shell/CommandMenu";
 import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
+import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, surfaceFromPath, surfacePath, type Surface } from "./shell/Rail";
 import { ModulePage } from "./modules/ModulePage";
 import { Settings } from "./shell/Settings";
@@ -233,9 +234,11 @@ function Workspace({ injected }: { injected?: Client }) {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== HANDOFF_KEY || !event.newValue) return;
       try {
-        const handoff = JSON.parse(event.newValue) as { surface?: Surface; panel?: boolean };
+        const handoff = JSON.parse(event.newValue) as { surface?: Surface; panel?: boolean; conversation?: string };
         if (handoff.surface) setSurface(knownSurface(handoff.surface));
         if (handoff.panel) openAssistant();
+        // The companion's conversation opens in the panel of the place it belongs to.
+        if (handoff.conversation) rememberSession(handoff.surface?.kind === "module" ? `module:${handoff.surface.id}` : "global", handoff.conversation);
         changed();
       } catch {
         /* not a handoff */
@@ -243,7 +246,7 @@ function Workspace({ injected }: { injected?: Client }) {
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [setSurface, changed, openAssistant]);
+  }, [setSurface, changed, openAssistant, rememberSession]);
 
   const ask = useCallback(
     (text: string) => {
@@ -307,7 +310,7 @@ function Workspace({ injected }: { injected?: Client }) {
     </button>
   );
   const scopeName =
-    surface.kind === "module" ? (scopeModule?.name ?? "Project") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : "Intelligence";
+    surface.kind === "module" ? (scopeModule?.name ?? "Project") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   const railWidth = railPanel.collapsed ? 76 : railPanel.displayWidth;
   const assistantWidth = assistantPanel.displayWidth;
@@ -399,6 +402,10 @@ function Workspace({ injected }: { injected?: Client }) {
             ) : surface.kind === "settings" ? (
               // P2's Settings takes the section from the address (`#/settings/<section>`).
               <Settings {...({ client: runtime.client, theme, onTheme: setTheme, section: surface.section, onSection: (section: string) => setSurface({ kind: "settings", section }) } as ComponentProps<typeof Settings>)} />
+            ) : surface.kind === "people" ? (
+              <People client={runtime.client} version={version} onOpen={(id) => setSurface({ kind: "entity", id })} />
+            ) : surface.kind === "entity" ? (
+              <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={version} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
             ) : surface.kind === "intelligence" ? (
               <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} />
             ) : (

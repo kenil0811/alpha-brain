@@ -12,7 +12,8 @@ from pydantic import BaseModel, Field
 
 from alpha.context import onboarding
 from alpha.runtime.turn import Runner
-from alpha.world import links, skills
+from alpha.world import links
+from alpha.world import person_skills as skills
 from alpha.world.store import Problem
 from alpha.world.world import World
 

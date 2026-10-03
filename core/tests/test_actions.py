@@ -52,7 +52,8 @@ class Driver:
                 shots["error"] = str(shots_dir / "error.png")
                 log.append({"step": "click", "ok": False, "error": "no such button"})
                 return {"done": i, "failed_step": i + 1, "error": "no such button", "log": log,
-                        "shots": shots, "final_url": job["url"], "title": "Gmail"}
+                        "shots": shots, "final_url": job["url"], "title": "Page not found",
+                        "page_text": "This page doesn't exist. Please check your URL."}
             log.append({"step": next(iter(steps[i])), "ok": True, "ms": 5})
         name = "preview" if job["stop_before_last"] else "after"
         (shots_dir / f"{name}.png").write_bytes(b"png")
@@ -196,6 +197,16 @@ def test_approval_runs_it_and_a_standing_permission_skips_the_card_next_time(
                                                       "deletable")
         assert out["ran_now"] is True and out["under"].startswith("Alpha may")
         assert world.actions.get(out["action"])["state"] == "done"
+        # Never from an automation's run, standing permission or not: a run nobody watches
+        # cannot draft, send or approve (by mechanism, not by the run's prompt).
+        auto = world.automations.create("Daily drafts", "daily 08:00", "draft something",
+                                        thread=world.modules.open_thread("Daily drafts", "job",
+                                                                         None)["id"])
+        inside = Tools(world, turn=said(world, "run"), thread=auto["thread"])
+        refused = inside.action_propose("gmail_draft", "Third draft", PAYLOAD, "deletable")
+        assert "never acts outward" in refused["error"]
+        assert "never acts outward" in inside.action_approve(aid, "yes")["error"]
+        assert len([a for a in world.actions.all() if a["title"] == "Third draft"]) == 0
         # Revoked, the card is back.
         world.permissions.revoke(granted[0]["id"])
         out = Tools(world, turn=said(world, "once more")).action_propose(
@@ -241,6 +252,8 @@ def test_a_failed_run_marks_the_procedure_broken_and_alpha_repairs(world: World)
         assert action["state"] == "failed" and "no such button" in action["error"]
         assert world.procedures.get("gmail_draft")["health"] == "broken"
         assert repairs and "Repair the procedure" in repairs[0]
+        # Alpha is shown what the hand saw, so a wrong address is not read as a wall.
+        assert "Page not found" in repairs[0] and "This page doesn't exist" in repairs[0]
         failed = [e for e in world.journal.recent(10) if e["kind"] == "failed"]
         assert failed and "did not happen" in failed[-1]["text"]
     finally:
@@ -387,3 +400,36 @@ def test_a_failed_check_after_the_commit_is_unconfirmed_never_redone(world: Worl
         assert done and done[-1]["text"].startswith("Sent, not confirmed")
     finally:
         restore()
+
+
+def test_an_action_starts_once_however_many_threads_try(world: World) -> None:
+    """The approval route and the scheduler's catch-up may both reach an approved action; the
+    state change is one atomic write, so only one of them performs it (no duplicate send)."""
+    import threading
+
+    gmail_connected(world)
+    t = keep_procedure(world, turn=said(world, "draft"))
+    proc = world.procedures.get("gmail_draft")
+    action = world.actions.propose(proc, title="Once", payload=PAYLOAD, undo="deletable",
+                                   evidence=None, module=None, thread=None, turn=None)
+    world.actions.previewed(action["id"], preview="p.png", note=None, shots=[])
+    world.actions.approve(action["id"], "yes")
+    started: list[bool] = []
+    errors: list[str] = []
+    go = threading.Barrier(4)
+
+    def attempt() -> None:
+        go.wait()
+        try:
+            world.actions.start(action["id"])
+            started.append(True)
+        except Problem as e:
+            errors.append(str(e))
+
+    threads = [threading.Thread(target=attempt) for _ in range(4)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+    assert started == [True] and len(errors) == 3 and "is running" in errors[0]
+    assert t is not None

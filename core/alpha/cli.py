@@ -12,7 +12,7 @@
     alpha remove-module Food        (the module and everything made for it; history stays)
     alpha clear-conversation        (the stream's turns; the only physical journal delete)
     alpha connect folder|site|calendar [target]
-    alpha serve [--port N]          (the HTTP API the app uses; the scheduler runs here)
+    alpha serve [--port N] [--no-background]   (the HTTP API the app uses; the scheduler runs here)
     alpha journeys [names…] [--world path] [--keep] [--list]   (the journey suite, on a copy)
     alpha mcp                       (the MCP server the model talks to)
 
@@ -78,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mcp", help="run the MCP server (stdio)")
     p = sub.add_parser("serve", help="run the core's HTTP API for the app")
     p.add_argument("--port", type=int, default=int(os.environ.get("ALPHA_PORT", "53900")))
+    p.add_argument("--no-background", action="store_true",
+                   help="no scheduler, second opinion or noticing: a core for checks only")
     p = sub.add_parser("journeys", help="run the journey suite on a copy of the world")
     p.add_argument("names", nargs="*", help="journeys to run (default: all)")
     p.add_argument("--world", help="the world file to copy (default: the app's)")
@@ -96,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "serve":
         from alpha.api.server import serve
 
-        serve(args.port)
+        serve(args.port, background=not args.no_background)
         return 0
     if args.command == "journeys":
         from alpha.journeys import suite

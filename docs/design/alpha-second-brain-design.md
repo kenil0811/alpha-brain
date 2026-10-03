@@ -1,8 +1,8 @@
 # Alpha as a second brain — design proposal
 
-30 September 2026, revised the same evening after discussion (sessions → one stream with threads; modules stay first-class; Intelligence stays; interrupts at boundaries, not idleness; explicit asks skip the ladder). **Brought in line with what is built on 2 October 2026, evening, and corrected the same evening after the code was read in full against this text (build-plan §4.10):** every section ends with an *As built* paragraph that says what exists, what differs from the text above it and why, and what is not built. Where the two disagree, *As built* is current; the original text is kept as the intent. Decisions taken since 30 September are in §11 (Q17–Q21).
+30 September 2026, revised the same evening after discussion (sessions → one stream with threads; modules stay first-class; Intelligence stays; interrupts at boundaries, not idleness; explicit asks skip the ladder). **Intent only since 3 October 2026:** each section ends with a status box (built / differs / not built); the current state is `../STATE.md`, the dated history `../log/`. Until 3 October every section ends with an *As built* paragraph that says what exists, what differs from the text above it and why, and what is not built. Where the two disagree, *As built* is current; the original text is kept as the intent. Decisions taken since 30 September are in §11 (Q17–Q26).
 
-**How to read.** Numbered principles are the test for every later decision. Evidence is cited inline (arXiv ids, product docs); the three research reports behind it and the Jev notes are in `design/research/`. **Q1–Q21** at the end are the decisions, each with the recommendation and what was decided. The engineering side (what ran, commits, tests, what is pending) is `build-plan.md`.
+**How to read.** Numbered principles are the test for every later decision. Evidence is cited inline (arXiv ids, product docs); the research reports behind it and the Jev notes are in `design/research/`. **Q1–Q26** at the end are the decisions, each with the recommendation and what was decided. The engineering side (what ran, commits, tests, what is pending) is `build-plan.md`.
 
 ---
 
@@ -23,7 +23,11 @@ Principles:
 9. **Evidence over cleverness.** Verbatim over extraction; fixed rhythms over adaptive timing; verify before keeping.
 10. **Known, assumed or asked** (2 October). Every value Alpha writes or says is stated by the person, looked up from a source it names, or estimated and said so; an unknown the result depends on is asked about or assumed out loud. "It ran" is not "it works": answers and builds are checked against an independent one (§7).
 
-*As built (2 Oct):* 1, 2, 3, 7, 8 and 10 hold in the code: nothing in the platform knows a domain (`context/summary.py` works a module's summary out from its own tables); one SQLite file per person; one `turn.ask` for every sentence; no limits or quotas anywhere (Q18) except one floor Kenil chose on 2 Oct evening, 30 minutes between runs of an automation (Q22, `world/automations.py`), and the hands' own timeouts and sizes (a page read 180 s, a sign-in window 30 min, the pre-pack 12,000 characters; listed in build-plan §4.10); the model route is the only thing that leaves the Mac. 4 holds in its revised form. 5 holds by mechanism since 2 Oct evening (Q24): an outward effect is an action the person approves, a prepare-level one may become a standing sentence, a send asks every time (§6.1). 6 is not built: Alpha is quiet because it has no proactive loop (§5). 9: verbatim journal and FTS5, fixed schedules; "verify before keeping" is the real-run rule for readers and the trial on every build.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | 1, 2, 3, 4, 5, 7, 8, 9 and 10 hold in the code; 5 by mechanism (actions with the person's yes; automations cannot act outward, a code guard since the checkpoint). |
+| Differs | 7 has one floor, 30 minutes between an automation's runs (Q22), and mechanism thresholds that are not settings (the pack's 12,000 characters, a conversation idle 30 minutes, a Mac awake 60 s). 2's cross-linking is a mechanism no live table uses yet. |
+| Not built | 6: nothing proactive exists (§5, entries 3 and 4). |
 
 ---
 
@@ -45,7 +49,11 @@ Principles:
 | Sources | "Where this reads from" on the module page, with a status |
 | Readers | Skills (in Intelligence) |
 
-*As built:* the rail is Home · Activity · the modules · Intelligence · Settings, plus New. "Today" is **Home**: Needs you (questions, proposals, plans, suggested facts), Alpha is working on (threads and builds), Coming up (calendar), Your modules. There is no digest. People & Companies has no page yet (entities exist in the store and the API, `/api/people`, `/api/entities/{id}` with same-name candidates, and a merge route; none is called by the app, so same-name people are shown nowhere). Settings exists (Claude, Companion and appearance, Your data, Defaults).
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Home stands for Today (Needs you, Alpha is working on, Coming up, Your modules); People & Companies with a page per person or company; Intelligence (Skills, Automations, Connections, Knowledge); Activity; Settings. |
+| Differs | Skills are one table of kinds read, act and run (readers, procedures, pipelines). Entities are shown only where Alpha resolved them. |
+| Not built | Today's digest; ⌘K. |
 
 ---
 
@@ -62,7 +70,11 @@ This is the layer you called make-or-break. The research ranked three options; t
 5. **Notes** — Markdown Alpha writes and maintains: a profile summary, your standing instructions, one page per module ("what this is for, what is in it, what I have tried, what is open"). A bounded index (the Claude Code pattern: about 200 lines) is loaded on every turn; pages are read on demand. You can read, edit and delete every note.
 6. **Goals** — durable intentions with state ("a backend job in London by December", "under 2,000 kcal on weekdays"). Proactivity is organised around active goals; an ask that attaches to a goal is standing by default.
 
-*As built:* all six layers are tables in `world/store.py`: `journal` (+ FTS5, `deleted_at`, `turn_contexts` for what the model saw), `entities` + `entity_keys` (hard keys: email, linkedin, phone, url, path, uid, domain; `find` returns name-only matches as maybes, `resolve` merges on keys only, `merge`/`unmerge`), `facts` (bi-temporal as described: `valid_from/valid_to`, `recorded_at/superseded_by`, source, confidence, state; an accepted fact supersedes the previous one for the same subject and predicate), `collections` + `records` + `record_versions` (typed fields, `rows_are`/`identity_field`, per-row provenance, compare-and-swap revisions), `notes` (scoped: person, module:, topic:; "Standing instructions" and "Permissions" are gated notes), `goals`. Around them: `modules`, `threads`, `plans`, `sources`, `readers`, `automations`, `documents`, `events`, `connections`. Deletion is a tombstone (`deleted_at`, `Journal.mark_removed`) and a purge that keeps the journal, not a re-projection, with one exception: `alpha clear-conversation` deletes the stream's turns physically. The notes index is not a 200-line file: the pre-pack lists each note in one line (at most 20, the first 100 characters) and carries the profile and instructions in full, capped. **Found on the code read (2 Oct):** the soft-candidate judgement (same / needs you / different) is not built; `resolve` returns same-name entities as maybes and nothing shows them. `merge` is journaled by the API route only and `unmerge` has no caller, so a wrong merge cannot yet be undone from anywhere. Notes can be read and edited but not deleted (the store's `delete_note` has no caller). A person read from a table (keyed by profile URL) and the same person from the calendar (keyed by email) stay two entities: nothing links across sources yet.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | All six as tables (`world/store.py`): the journal verbatim with FTS, tombstones and what the model saw per turn; entities with hard keys, merge and unmerge; bi-temporal facts; collections with per-row provenance and versions; notes as wiki pages (person, module, topic, entity, skill scopes; a summary each; an index); goals. Around them modules, threads, plans, sources, skills, actions, permissions, automations, documents, events, connections. |
+| Differs | Removal is a purge that keeps the journal, not a re-projection. The index is every page in one line inside each pre-pack, not a 200-line file. |
+| Not built | The same-person judgement for soft candidates (same-name people are shown with "Same person"); unmerge from the app; linking across sources by itself (no live table declares its rows as people); deleting a page. |
 
 **Why this shape.** Verbatim text beats extracted facts by 16–22 points, and extraction should be added beside text, never substituted for it (arXiv 2601.00821). Mutable facts need update-on-write: on changed facts, embedding retrieval scored 0.30–0.95 across seeds, a structured fact store 0.75–1.00, and hybrids were *worse* than the fact store alone (MERIT, 2609.05441); Mem0's own tracker shows an accumulate-only store keeping "works at A" and "works at B" both live (mem0 #4956). Notes-only memory decays with tenure — 96% at three weeks, 72% at nine — while provenance-typed structure rises (2607.21962). A compact behavioural spec kept apart from facts beat four memory products on interpretation at 25× less context (2605.28969). The products that survived (Claude Code, OpenClaw, ChatGPT's profile) all pair a small always-loaded index with on-demand reads and idle-time consolidation. And the signature move — a recruiter's email → the application it concerns → the contact at that company — is a two-hop join on an entity registry with hard keys: relational, no graph database (graphs only pay off for multi-hop synthesis; GraphRAG-Bench 2506.05690).
 
@@ -73,7 +85,11 @@ Two mechanisms, in this order:
 1. **Pre-pack** — deterministic, zero model calls, two to four thousand tokens: who you are and your standing instructions (capped); active goals; the notes index; entity cards for anything the sentence or the event names (matched by key or name); the last N journal lines; full-text hits for the sentence's terms; today's calendar; pending asks and notices; connection state. Every line names its source.
 2. **Agentic retrieval** — the model has tools: search the journal (FTS5 with time and kind filters), query collections, look up an entity and its facts, read a note or a document, read a source item verbatim. It decides what else it needs, in as many steps as it needs. Results come back inline, not as files: grep beat vector search on every harness when results were inline and lost when they were delivered as files (2605.15184).
 
-*As built:* `context/prepack.py`, deterministic, capped at 12,000 characters, sections NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · TODAY'S CALENDAR · NOTES · RECENT CONVERSATION (12 turns, dated) · MATCHES FOR THIS SENTENCE (records, documents, journal) · THIS THREAD (brief and last 15 entries) · OPEN (threads, asks, plans). WHO lists suggested facts beside accepted ones, each marked with its state. Conversation, journal matches and thread history carry their local date and time; record and document match lines do not. Entity cards for names in the sentence are not built. Agentic retrieval is the 63 tools in `mcp/tools.py` (search, journal, records, notes, facts, entities, documents, pages, readers, plans, automations, sources); results come back inline.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | The deterministic pre-pack (`context/prepack.py`), capped at 12,000 characters: NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · WHAT ALPHA CAN DO · TODAY'S CALENDAR · WHAT ALPHA KNOWS · THIS MODULE'S PAGE · WHO THE SENTENCE NAMES · THIS CONVERSATION · SINCE YOUR LAST TURN HERE · WHAT WAS SAID <DAY> · MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN. Agentic retrieval through 70 tools. |
+| Differs | The cap is a blind tail cut (the conversation, matches and a build's brief come last); record and document match lines carry no date. |
+| Not built | A budget per section; "so far today" totals in the pack (the module page works them out). |
 
 **Embeddings: not at launch.** The journal's chunk ids and a fusion hook are designed now so an embedding column (sqlite-vec plus a small local MLX/ONNX model) can be added as one more signal later — but only after a personal evaluation (tasks that succeed with history and fail without) shows full-text plus structured recall is the bottleneck. Published rankings flip on the embedding model alone (±6 points, 2606.29914); vendor numbers should not drive this.
 
@@ -85,7 +101,17 @@ Two mechanisms, in this order:
 - **Before compaction** of a long session: flush facts and notes first, then summarise.
 - **Recall is not use.** Agents acted on a correctly retrieved value only 55% of the time (MERIT), and sixteen systems passed recall tests while failing the matching behaviour tests (2607.29433). So the pre-pack states the facts that matter as instructions in context ("calorie target 2,000; 1,450 so far today"), and every action's result is checked against them.
 
-*As built:* at write, hard-key facts supersede and rows link to entities by key with no model call; per turn nothing is rewritten, stated facts are kept and inferred ones suggested (`fact_record(stated=…)`). **Not built:** the sleep-time pass, consolidation, the digest; "so far today" totals are worked out on the module page, not stated in the pre-pack. Compaction does not arise: no model session is ever resumed (§3.6).
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | At write: hard-key facts supersede, rows link to entities by key, no model call. Per turn: stated facts kept, inferred ones suggested; noticing after every turn (§3.7). |
+| Differs | A live conversation's model session is resumed, with a world delta so current facts outrank what it remembers (§3.7). |
+| Not built | The sleep-time pass, consolidation, the digest. |
+
+### 3.4 Size and locality
+
+Tens of thousands of journal rows and records are small for SQLite and FTS5 (milliseconds at millions of rows). One database per person, on the device; encryption at rest later.
+
+---
 
 ### 3.5 How the data is organised (decided and built 2 October 2026)
 
@@ -136,11 +162,66 @@ build a bounded context for each run, and make every change traceable. Five rule
 - **Not yet, by the research's own advice:** embeddings, a graph store, a profile service,
   reflection. Each waits for a logged failure that needs it.
 
-### 3.4 Size and locality
+### 3.7 The memory round (decided 3 October 2026, early; Q26)
 
-Tens of thousands of journal rows and records are small for SQLite and FTS5 (milliseconds at millions of rows). One database per person, on the device; encryption at rest later.
+Kenil, after the write route: "still not convinced about our design around memory / knowledge /
+context / threads… the most important part of alpha". A long discussion, grounded in what the
+day had shown (no fact that Sania is his partner among 1,551 connections and hundreds of
+emails; a Gmail × LinkedIn answer from the model's cleverness; 34–40 s for a question about a
+table; three Gmail procedures because nothing composed the first two; nothing measured). The
+shape agreed, each piece built in order and judged by the memory journeys before the next:
 
----
+1. **Evidence stays verbatim** (journal, rows, documents).
+2. **Knowledge is a wiki with an index.** Markdown pages Alpha writes and the person can edit,
+   each with provenance to the journal: a page per person and company, per module, per topic.
+   Facts stay structured under the pages (validity, update-on-write). An index of names and
+   one-liners is always in context; bodies load on demand. People & Companies return to the
+   rail.
+3. **Noticing.** After every turn and at a conversation's close, a cheap structured pass over
+   what was said and read proposes facts and page edits, as suggestions with the journal line
+   they rest on; low-stakes ones silently with a trail (Q5). Beside verbatim, never instead.
+4. **Context by relevance.** Entity cards for anyone named, the scope's page, the turns of the
+   same conversation, matches, the skills for the sites and modules involved; and fewer,
+   composable tools (one per kind of thing with an operation; no fixed number).
+5. **Conversations, first-class and parallel.** A conversation has a scope (a module or
+   General), a title Alpha gives it, a state (working / needs you / idle / done), its own stream
+   and its own model session resumed while live (a *world delta* in every resumed turn, so
+   current facts outrank what the session remembers); fresh on close. Several run at once; a
+   strip on the panel and on Home switches between live ones; closed ones stay in the module's
+   history. Builds and automation runs are conversations too and never resume across runs (the
+   brief is their memory). Ends on Done, when a build finishes, or after a long gap; no automatic
+   topic splitting; no picker before speaking; no projects above modules. **Memory is shared
+   only through the world.** This revises Q21 (threads as records) for live conversations and
+   the "one stream" of 30 September: many conversations, one world. Kenil's driver: working on
+   several modules at once with to-and-fro in each.
+6. **The companion is a mouth onto the same conversations.** It holds one focus; a sentence is
+   routed by rules (a reply to an open question → the conversation that asked; a sentence naming
+   a module, table or person → where they live; a new request naming a module → a new one
+   there; else the focus; else General), the bubble says where it went, a wrong one is one tap
+   to move; when two live conversations could take it, a System One question decides or asks
+   with choices. Questions come back as choice pills and primary decisions (Build it, Send it,
+   Yes/No) are in the bubble; Open hands off to the workspace with that conversation open.
+7. **Skills are the one unit of know-how.** Readers, procedures and pipelines become skills of
+   kinds read / act / run in one table and one folder format: name, kind, site or module,
+   description, when to use, inputs, outputs, steps or script, examples, health, provenance, a
+   test, site notes. Discovery: the always-loaded index, search over descriptions, site and
+   module matching. Composition: a step may call a skill. Promotion from verified runs.
+8. **The System One seam is built now**: (state, typed question) → answer with confidence;
+   rules first, a no-tools cheap run (Haiku on the subscription) otherwise, Jev or Laya later.
+   First uses: routing, noticing, same-person, rerank, skill choice, permission gating, triage.
+9. **Benchmark first.** Memory journeys on a copy of the world: yesterday; an old fact; a
+   correction overriding a belief; two sources for one person; who emailed; a follow-up that
+   needs what the model saw.
+
+Risks accepted: routing errors (ask when ambiguous, one tap to move); a one-turn lag between
+conversations (noticing after every turn); contention on one sign-in must be shown as waiting;
+Claude Code's session files live under the home folder, outside Alpha's data directory.
+
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Points 2, 3, 5, 6, 7 and 8 (the wiki with its index; noticing; conversations first-class and parallel with resumed sessions; the companion's focus with rule-then-judge routing; skills as one table with composition; the System One seam), and the retrieval half of 4 (entity cards, the module's page, day-scoped matches). Memory journeys 6 of 7 after, 5 of 6 before (`../log/2026-10-03-4-23-*`). |
+| Differs | Routing never matches names: structure where certain, the judge otherwise. Noticing runs per turn, not at a conversation's close. Run skills are named from an automation's title. |
+| Not built | Fewer, composable tools; the Agent Skills folder export; promotion from repetition; noticing over what Alpha reads; a routing journey; "move to…" in the panel. |
 
 ## 4. Capabilities — the code Alpha owns
 
@@ -170,7 +251,11 @@ An MCP server maps one-to-one; a native macOS framework is tools and resources w
 
 **Module** — a named bundle of collections, skills, automations, connections and a note, around a goal. Made in seconds; no code, no build, no versions. The tool the person works in; first-class in the workspace.
 
-*As built:* **Connectors** are `connectors/<name>/connector.yaml` (name, title, description, provider, version, origin, transport, auth, tools with their effect, triggers, health) plus `SKILL.md` (read into every turn, build, automation and repair run; not into the independent and judge runs of the second opinion) and `scripts/`; three exist: browser, files, calendar; none is `alpha-built`. **Skills** as a separate object are not built: the know-how Alpha writes is a **reader** (a page script for one list on one site, tried on the real page, kept with `reader_save`, run with `reader_run`, health-checked against its last good run, repaired by Alpha when broken) and the module's note; Intelligence's Skills tab lists readers. **Automations** are a schedule plus either a pipeline (`steps`: read steps and tell steps, run by the scheduler with no model) or a procedure (Alpha follows it in the automation's thread); triggers are schedules only (`every Nm|Nh|Nd`, `daily HH:MM`, `weekly <day> HH:MM`, with a 30-minute floor, Q22), no source-event or data-condition triggers, no approval gates because no automation can write outward; the scheduler runs only inside `alpha serve`, automations one at a time, builds each in their own thread; an automation run has no Stop. **Modules** are as described, plus their sources (with a status) and the plans that built them.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Connectors as Agent Skills directories (browser, files, calendar: `connector.yaml`, `SKILL.md`, `scripts/`). Skills as one table (read, act, run) with health, provenance, when-to-use, site notes and an index in every turn. Automations as a schedule plus a pipeline (a run skill, no model) or a procedure, run by the scheduler in their own threads once the Mac is properly awake, held awake while they run. Modules with their sources and plans. |
+| Differs | Triggers are schedules only (30-minute floor, Q22). Approval gates are not needed: an automation cannot act outward, by code. |
+| Not built | Alpha-built connectors; source-event and data-condition triggers; Stop on an automation run. |
 
 ### 4.0 The capability model: hands, know-how, access (agreed 1 October 2026)
 
@@ -210,7 +295,11 @@ Enforcement is in the process boundary: Alpha's code runs sandboxed; a browser r
 
 For now the system owner (developer) handles hands, listed in Intelligence. Open: as people ask Alpha to reach their own applications (Adobe and the like), the platform cannot build per-app integrations, and doesn't need to; the open question is how hand gaps are collected and prioritised across many people, and whether vetted, shared know-how (readers for common sites) ships with Alpha.
 
-*As built (1–2 Oct):* the hands are the browser (read a page; run Alpha's script in it, read-only by mechanism: while Alpha's script runs, requests that would change data are blocked, the page's own loading is not; a plain `page_read` installs no blocking at all, which is safe only because the driver never clicks, types, submits, uploads, downloads or screenshots: it presses "Show more" paging and scrolls to the end, nothing else), files (folders the person names, read only) and the calendar (EventKit, read only), plus the world's tools and web search and fetch. Readers are the know-how, with a home (`readers`), a real-run rule, health against the reader's own last good run, and repair by Alpha (in a pipeline: one repair turn, then one rerun). `page_to_table` is refused inside automations and described as a first look. Gaps are not recorded as objects; a module's sources carry the access and know-how gaps for reading (needs sign-in, blocked, broken, not built, unavailable, skipped). The files hand also brings a file in from any connected site (`page_download`, §6.2) and a procedure can send one (`upload`). **Not built:** desktop control, app scripting, sandboxed code of Alpha's own, plug-in install. **Site vocabulary moved out of the hands (2 Oct evening, Q23):** the code read found LinkedIn's sign-in paths (`authwall`, `checkpoint`, `uas/login`) and "Show more connections/jobs" in the driver, a `linkedin` entity key beside `url`, and a Sites section with LinkedIn and We Work Remotely addresses in the browser `SKILL.md`. Kenil chose to move it: the driver now knows only generic sign-in paths (`login`, `signin`, `signup`, `auth`) plus a visible password field, and any "Show more …" button; addresses are one key, `url` (old `linkedin` keys fold into it when a world opens); the SKILL.md says the hand knows no site and that where a site keeps its lists and its sign-in is Alpha's to find out and keep in its readers, sources and notes. What Alpha loses: a LinkedIn checkpoint page without a password field is no longer recognised as a wall by path alone; a reader that then returns nothing fails its health check and gets a repair turn, where Alpha sees the page.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | The browser (reads read-only by mechanism; acting, downloads and uploads only inside an approved action), files (folders the person names, read-only) and the calendar (read-only); readers with the real-run rule, health against their own last good run and repair by Alpha; site vocabulary out of the hands (Q23). |
+| Differs | Gaps are a module's source statuses (needs sign-in, blocked, broken, not built, unavailable, skipped), not objects. `page_to_table` exists as a first look and is refused inside automations. |
+| Not built | Desktop control, app scripting, sandboxed code of Alpha's own, plug-in install. |
 
 ### 4.1 First sources, as the research ranked them
 
@@ -220,7 +309,11 @@ For now the system owner (developer) handles hands, listed in Intelligence. Open
 - **Email.** Since 2 Oct, Gmail is read through Alpha's signed-in browser (read-only, Kenil's decision revising Q4). Later options: Mail.app locally (its SQLite index and `.emlx` files, Full Disk Access) for Apple Mail users; Anthropic's Gmail connector while on the subscription (available in Claude Code sessions with a claude.ai login; the token lives with Anthropic); our own Google app plus a CASA assessment (about $1k a year, weeks of process) when we move to the API. Gmail read is a Google "restricted" scope; Calendar and Contacts are only "sensitive". Unverified apps hit a permanent 100-user cap, so shipping unverified is not a bridge.
 - **Contacts, Notes, Messages.** Native, cheap, later.
 
-*As built:* **Browser:** not Claude in Chrome. Alpha runs its own Chrome through Playwright (`connectors/browser/scripts/browser_session.mjs`, Node 24): a public page is read headless; a site the person signs into gets its own Chrome profile under the data directory, the person signs in themselves in a window Alpha opens, and a sign-in covers every site the window passed through. The driver never clicks, types or submits; it presses "Show more" style paging when reading a list to its end; sign-in walls and bot checks are told apart and update the site's sources; when a page needs a sign-in no connection covers, Alpha first tries the sign-ins it holds and records the one that works. A sign-in counts as done when the site has set any cookie in the profile: a heuristic, not a check of being signed in. **Files:** watchdog (FSEvents) plus pypdf, python-docx, openpyxl and python-pptx, and plain-text kinds (md, txt, csv, tsv, json, yaml, html, rtf, log) into `documents` with FTS5 (files over 50 MB skipped, text cut at 400k characters); each file a `document` entity by path; the watcher runs only while `alpha serve` is up. **Calendar:** EventKit through pyobjc, as described (30 days back, 60 ahead; attendees become people by email); the real first read on Kenil's Mac has not been run, and the first sync will journal one `saw` line per event, which for a busy calendar is hundreds of Activity rows. **Email:** Gmail through the browser, read-only (Q4 revised). Contacts, Notes, Messages, screen capture: not built.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Browser: Alpha's own Chrome through Playwright, a profile per signed-in site, the person signs in themselves in a window Alpha opens, a sign-in covers the sites it passed through. Files: watchdog plus pypdf, python-docx, openpyxl, python-pptx and plain-text kinds into documents with FTS (50 MB and 400k-character limits). Calendar: EventKit, 30 days back and 60 ahead, every five minutes. |
+| Differs | Not Claude in Chrome. A sign-in counts as done when any cookie is set (a heuristic). The file watcher runs only while the core runs. Gmail is read in the browser (Q4 revised). |
+| Not built | Reading only what is new on a list read daily. |
 - **Screen capture.** Not in v1. Every consumer product that shipped continuous capture was killed or forced opt-in (Rewind's capture ended December 2025, Limitless was sold, Recall was redesigned); the one research system that made it work (GUM) did so for five people behind a strict utility gate. Revisit once the connector-only brain is trusted.
 
 ### 4.2 Leverage, build, avoid
@@ -230,7 +323,11 @@ For now the system owner (developer) handles hands, listed in Intelligence. Open
 - **Avoid as the auth layer:** Composio, Nango, Pipedream, Arcade (tokens held in their clouds, no production escape from Google's verification, per-call metering); Zapier MCP (task-metered); Merge, Unified, Paragon (B2B pricing); Unipile (unofficial LinkedIn access).
 - **LinkedIn.** The official API exposes no connections, jobs or messaging. §8.2 of the user agreement forbids bots that download contacts or send messages, and vendors report about 40% of accounts on non-compliant tools restricted in Q1 2026. The lowest-risk posture is: Alpha reads pages in your own Chrome at human pace, proposes outreach, and you send. (Q3)
 
-*As built:* leveraged: the Claude Code CLI, the Agent Skills shape for connectors, Playwright, pyobjc, pypdf/python-docx/openpyxl, watchdog. Not used: Claude in Chrome, Anthropic's connectors, the MCP Filesystem server, MarkItDown, `chrome-devtools-mcp`. LinkedIn is read in Alpha's own signed-in profile, the whole list once a day at 07:00 (1,548 connections); reading only what is new would be gentler and is open.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Leveraged: the Claude Code CLI, the Agent Skills shape, Playwright, pyobjc, the document parsers, watchdog. |
+| Differs | Not used: Claude in Chrome, Anthropic's connectors, the MCP filesystem server, MarkItDown, `chrome-devtools-mcp`. |
+| Not built | — |
 
 ---
 
@@ -261,7 +358,11 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 
 **Cost without knobs.** No model call without an event or a scheduled slot (a heartbeat is a deterministic health check, never a model turn); tiered answerers by layer; isolated, packet-sized runs; per-run caps; an internal daily budget that degrades behaviour (batch more, speculate less) instead of alerting anyone; a scheduled run is skipped when nothing changed.
 
-*As built:* **Entry 1** is `runtime/turn.py`: journal the sentence, pre-pack, one `claude -p` run with the world as an MCP server, journal the reply and what the model saw. Threads are records, not model contexts (§3.6): a thread's run starts from its brief and history, and the conversation panel shows threads and plans as cards; a message is sent to a thread when the person is in it (the API takes `thread`), not routed there by a judgement. Builds, automations and the trial of a build run in their own threads; the person's stream holds asks, cards and outcomes. **Entry 2**, partly: file changes (FSEvents), the calendar (every five minutes), the scheduler's tick (every half minute) and the plan queue; each read is journaled as `saw`. No collection-change or person-context signals. **Entry 3 and 4 are not built**: no triage, no deliberation, no sleep time, no digest. The only proactive path is an automation's "Worth telling", journaled as `noticed`. The System One seam is not built; the small judgements it describes are either rules in code (hard keys, schedules, source statuses) or the full model. The speaking-up ladder is not built. **Cost:** no limits or budget at all (Q18); the person stops a run; two extra runs follow a turn in which Alpha worked values out (§7). A turn from `alpha ask` on the command line runs neither the second opinion nor the build kick; both live in `alpha serve`, which the app starts.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Entry 1 (`runtime/turn.py`: the sentence, the pre-pack, one run with the world as tools, the reply and what the model saw, journaled); conversations with routing by structure then the judge (§3.7). Entry 2 in part: file changes, the calendar, the scheduler's tick, the plan queue, each journaled as `saw`. The System One seam (`runtime/judge.py`), used for routing and noticing on Haiku. |
+| Differs | Cost has no limits or budget (Q18); the person stops a run. Builds, automations and trials run in their own threads with no resumed session. |
+| Not built | Entries 3 and 4: triage, deliberation, sleep time, the digest; the speaking-up ladder; same-person, triage and rerank through the seam; collection-change and person-context signals. |
 
 ---
 
@@ -277,7 +378,11 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 
 **Know-how as code; AI only for repair and judgement.** A reader is code Alpha writes, tries on a real run, keeps and repairs. An automation that only reads and stores is a **pipeline** of saved steps the scheduler runs with no model: run these readers into this table (with saved value mappings), then tell the person what changed. The platform keeps, for any table fed by readers, when each row was first seen, last seen, and gone (not returned by the reader that found it), so "what's new, what changed, what's gone" is a query, not a model's guess. The model is called only when a step breaks (repair the reader, rerun once) or a step needs judgement. AI-run procedures remain for work that is judgement throughout.
 
-*As built (2 Oct):* the revision is the code. `plan_propose` (with the plan's trial), `plan_approve` on the person's own words after the plan or the card's button, `plan_resume`, `plan_decline`; the gate in `Tools._gate` refuses the *creation* of modules, tables, readers (new names), automations and sources outside a building plan. Not gated (found 2 Oct): `table_start` itself (Level 0, which also makes a module when the model names one that doesn't exist, more than "one table, one row"), adding fields to a table, replacing an existing reader's script, changing an automation's schedule, steps or procedure, `records_upsert`, `page_to_table` outside an automation, and a `reader_run` outside a build creates a source row for its reader. A build has no cap on runs; the only counter is two trial send-backs; `runtime/build.py` runs builds in the background from the brief, with no limit, a stop, a resume, a trial and the coverage line; `sources` with statuses; `runtime/pipeline.py` for steps; rows a reader keeps carry seen and gone. Below, the three origins, the signals, Levels 1 and 2, promotion from repetition, deepen-in-background and the junk rules are **not built**, and the "explicit ask is built at once" origin is superseded by the plan.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | `plan_propose` with a trial, `plan_approve` on the person's words or the card, `plan_resume`, `plan_decline`; the gate (`Tools._gate`) refuses making modules, tables, readers and automations outside a building plan; builds in the background from the brief with no limit, a stop, a resume, a trial and a coverage line; sources with statuses; pipelines. |
+| Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap; the only counter is two trial send-backs. |
+| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, deepen-in-background, the junk rules. |
 
 ### 6.1 Acting outward (decided and built 2 October 2026, evening; Q24)
 
@@ -318,9 +423,11 @@ guardrails and governance and approvals". The split of §4.0 decides the shape.
   and Alpha looks at the page again, repairs the procedure and proposes the action afresh
   with a new preview.
 
-*As built (2 Oct evening):* `world/actions.py` (procedures, actions, permissions; step
-validation), the driver's `act` op, `Browser.act`, `runtime/acting.py` (dry run, perform,
-approve, repair), tools `procedure_save`, `procedures_list`, `action_propose`,
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Procedures (act skills) with steps, fields, verify checks and placeholders filled from the payload; actions with a dry-run preview card, the person's yes in the app or in their words, decline; prepare-level standing permissions as sentences with Revoke; repair after a failure; "Sent, not confirmed" when only the check after the commit failed; upload steps restricted to Alpha's own folder; automations refused. |
+| Differs | A send is never standing. A repair never re-proposes an action that committed. |
+| Not built | Undo; sentences for sends; saying on the card when a dry run already leaves something behind (autosave). |
 `action_approve`, `action_decline`, `actions_list`; routes for the card, edit, approve,
 decline, screenshots and permissions; the action card in Home and the conversation; standing
 permissions in Knowledge; removal of a connection takes its procedures, declines pending
@@ -330,7 +437,7 @@ procedure is Alpha's own, written against Kenil's Gmail in about two minutes; th
 filled a real compose window, the yes made the draft (Drafts 1 → 2), and Alpha's own verify
 check then failed because its text had gone, so the platform called it failed and the
 procedure broken, for Alpha to repair (build-plan §4.13).
-**Real (2 Oct, 18:43–18:54, in the app):** the draft was made and then, on "send it as well now", Alpha wrote a send procedure and the email went to Sania with the verify passing. The trace found a false "Sent" on a thrown error, cards approvable before their preview, and two Chromes colliding on one profile; all three fixed the same evening (build-plan §4.15): any error is a failure, a card waits for its preview, one job per profile at a time. Not built: upload steps, acting in Mac apps, sentences for sends, undo of a draft.
+**Real (2 Oct, 18:43–18:54, in the app):** the draft was made and then, on "send it as well now", Alpha wrote a send procedure and the email went to Sania with the verify passing. The trace found a false "Sent" on a thrown error, cards approvable before their preview, and two Chromes colliding on one profile; all three fixed the same evening (build-plan §4.15): any error is a failure, a card waits for its preview, one job per profile at a time. Built since §6.2: upload steps, acting in Mac apps, sentences for sends, undo of a draft.
 
 ### 6.2 Files in and out (decided and built 2 October 2026, late evening; Q25)
 
@@ -351,12 +458,11 @@ procedure broken, for Alpha to repair (build-plan §4.13).
 - **Out, by the person.** A table downloads as CSV or Excel into Alpha's exports folder,
   revealed in Finder.
 
-*As built (2 Oct, late evening):* `documents.module/origin`, `Files.take`, `files_dir`; the
-driver's `download` op and `upload` step; `Browser.download`; `page_download`; `/api/files`
-(multipart), `/api/documents/{id}`, `/api/tables/{name}/export`; the `file` field kind; the file
-cell, the drop zone, the Download menu; the host's open and reveal of files in Alpha's folder
-(the window takes HTML5 drops). Journey `attachment_in`. Tests for each path. Not built:
-attachments on the conversation box, files from Mac apps, a size policy beyond the reading cap.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn, `file` fields, CSV and Excel export, upload steps. |
+| Differs | An upload by Alpha asks every time; the plan decides what is kept. |
+| Not built | — |
 
 *The text below is the original design of 30 September; where it says an explicit ask is built at once, the revision above applies.*
 
@@ -387,7 +493,11 @@ Your point 3: the decision of when a one-off is worth turning into a tracker, a 
 - Source content is data, never instruction: an email cannot tell Alpha what to do.
 - Where each of these is enforced in code (browser walls, the taint rule, pending actions, the never list, the append-only journal): [governance.md](governance.md).
 
-*As built:* the journal is Activity (every read, write, change, plan, question, check, act), grouped by day, filtered all / you / failed. Outbound writes are **actions** since 2 Oct evening (§6.1): pending ones are cards with the payload, a dry-run screenshot and the undo statement; standing permissions are sentences in Knowledge with Revoke (prepare-level only). No Access page; Connections in Intelligence says what each connection reaches. Undo of an action is not built (the card says what cannot be undone before the yes); record history exists, `record_history`. Both bullets below are built (`runtime/check.py`, provenance in `mcp/tools.py`, trials in `runtime/build.py`); the activity checklist of §8 is not. **Gaps found on the code read (2 Oct):** the second opinion triggers only for rows a turn added or updated one at a time (`records_add`, `records_update`, `table_start`); rows written through `records_upsert`, `page_to_table` or a reader never trigger it, and a trial that upserted rows leaves them behind. *Closed the same evening (build-plan §4.12):* `source` is required on `records_add`; synced rows (upserts, page reads, readers) are marked `synced` and journal their ids, the second opinion skips them and a trial can remove them. Rows from the person's own edits carry `by` and `turn` only. The store enforces none of this; the tool signatures, the rules and the journal wording do. **The journey suite (2 Oct evening, build-plan §4.11):** five real journeys (`journeys/*.yaml`) run on a copy of the person's world with their signed-in browser profiles, each judged by the second opinion, a fact about the world or a rubric, timed, and written to `docs/journeys/`; `just journeys`. It is how a change proves it didn't break what mattered.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | The journal as Activity (day groups, All / Alpha / You / Failed, a row opens to what was done and why); actions with cards and standing sentences with Revoke; known, assumed or asked with provenance on every value; the second opinion; a trial on every build; automations cannot act outward; an action's state moves atomically. |
+| Differs | Connections in Intelligence says what each connection reaches; there is no Access page. |
+| Not built | Undo; the Access page; the checklist view (asked / done / assumed) in Activity. |
 - **Known, assumed or asked (decided and built 2 October 2026).** Every value Alpha writes or says is one of
   three things, and Alpha knows which: *stated* by the person; *looked up* from a source it can
   name (a label, a listing, a document, a page), which is what happens to anything that can be
@@ -424,7 +534,11 @@ The workspace is where the person *works* — their tables, their flows, their c
 - **Companion** — a non-activating floating panel on all Spaces showing a presence state (idle / listening / working / needs you — a visible state cut disruption 4.6→3.8 in CHI 2025), at most one line and one action, deep-linking to the exact card in the window; the same stream and threads; a keyboard path for every voice action.
 - **Visual** — light, native and spatially stable (Things 3 / Craft rather than developer-tool density): system font, two panes, optimistic updates with undo, motion only for state change, light and dark from day one. Nothing technical shows anywhere.
 
-*As built:* **Rail:** Home · Activity · modules · Intelligence · Settings, New, a status line (the theme control moved to Settings); modules are listed directly, not grouped by project; no Today, no People & Companies, ⌘K not built. **Home** stands in for Today: Needs you (asks with options, proposals and plans with Yes / Not now and a "because" line, suggested facts to accept or reject, action cards with the payload, the dry-run screenshot, Do it / Always allow / Change / Not now; no decide-once, no same-name people), Alpha is working on (each thread with its last steps, live, and Open into the thread view), Coming up, Your modules; no digest. **Module:** Summary worked out from its tables; a page per table with table, board, list, calendar and chart views, inline edit with provenance marks, a record drawer, saved lists, pages; the App · Activity · Settings toggle; where it reads from (sources with status) and what runs here (automations as sentences with a switch and next run); the conversation scoped to it. **Person / Company:** not built. **Intelligence:** Skills (readers), Automations, Connections (folder, site, calendar; what each reaches; remove), Knowledge (About you with facts to accept or reject, goals, notes, standing instructions). **Activity:** search and day groups, filters All / Alpha / You / Failed (no module or person filter), badges Done / Waiting / Failed / Read / You / Checked (no Stopped), a row opens to page, values, before→after, because, what went wrong, source; no undo, no checklist, no per-source forget. **Conversation:** the 380px panel, threads, plans and actions as cards, questions as cards with their options to tap, a Claude-like working state while a turn runs (the current step in words, the model's interim thought, the steps collapsed, motion), Stop on a running turn or build, "uses your Claude subscription"; the model's run is streamed into the core and the panel polls it every second while a turn works (5 s while a thread works, else 15 s); the stream is loaded and sent scoped to the page's module (fixed 2 Oct evening); answers do not cite records. **Companion:** the always-on window on all Spaces with the character, a bubble and voice (`avatar/`, `voice.tsx`; speech in only, no speech out), a tray icon, click-through outside its drawn areas; a presence state (idle / listening / working / needs you) is computed and shown as a dot and label in its open panel, on the collapsed blob only as a CSS class; "Open" goes to Home, never to a card; the window takes focus when opened, so it is not non-activating. Launch at login (Q2) is not built; once opened the app lives in the tray. **Tables:** the field kinds `bool` and `multichoice` are edited as Yes / No and a choice list (fixed 2 Oct evening). **Look:** Geist and Source Serif 4 from Google Fonts, not the system font, so the app needs the network for its type. **Settings** exists: Claude (install, sign in), Companion and appearance, Your data (backup), Defaults.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | Rail Home · Activity · People & Companies · modules · Intelligence · Settings · New; Home's lanes (Needs you with asks, proposals, plans, suggested facts and action cards; Alpha is working on, live; Coming up; Your modules); module pages with table, board, list, calendar and chart views, inline edit with provenance, a record drawer, saved lists, sources and automations; person pages; Intelligence's four tabs; the Claude-like panel with the conversation strip and Done; the companion with presence, choice pills, decisions in the bubble and Open to the conversation's page. |
+| Differs | Home stands for Today. The look stays as Kenil chose on 1 Oct; the type loads from Google. Hidden windows keep polling (checkpoint). |
+| Not built | The digest; decide-once; ⌘K; Undo; the checklist; per-source forget; launch at login; speech out. |
 
 **Layout and look stay as they are today** (Kenil, 1 October, after seeing a lighter redesign: "keep it similar to current alpha"): the 224px rail with the brand mark, Home, Activity, projects, modules, New and the theme control; serif headings and metric numbers; the module page with its App · Activity · Settings toggle and subtabs; the table toolbar with view toggles and the record drawer; the 380px assistant panel with its header and "uses your Claude subscription" footer; the blob companion with its bubble. The new content (Needs you, the brief, People, threads, provenance, undo, Knowledge) is placed inside that structure. Prototype: https://claude.ai/artifact/5xNamEYxSyYRoGtnX7bQyQ.
 
@@ -436,7 +550,11 @@ The workspace is where the person *works* — their tables, their flows, their c
 - **Later:** the Anthropic API behind the same tool surface with our own loop; Jev or Laya at the System One seam.
 - **Planned to break on the switch:** Claude in Chrome (→ the Chrome 144 bridge) and Anthropic's connectors (→ our own Google app, CASA for Gmail).
 
-*As built:* `runtime/claude_cli.py`: `claude -p` with the rules and pre-pack as an appended system prompt, the world as a strict MCP server, allowed tools `mcp__alpha`, WebSearch and WebFetch; Bash, Edit, Write, NotebookEdit, Read, Glob, Grep and Task denied; no settings or hooks of the person's, no session persistence, Sonnet by default, no step or time limit, stoppable by process group. The appended prompt is the rules, the connectors' `SKILL.md` bodies and the pre-pack; the turn keeps the pre-pack and a hash of the rules, not the rules' text. Two more kinds of run share the route: *independent* (web search only, nothing of Alpha's) and *judge* (no tools), for the second opinion. Claude in Chrome and Anthropic's connectors are not used, so nothing of theirs breaks on a switch; the Python Agent SDK's support for these flags is unverified, so the CLI stays. Claude is connected from Settings; a third-party claude.ai login for other people needs Anthropic's approval.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | `claude -p` with the rules and the pre-pack appended, the world as a strict MCP server, Alpha's tools plus web search and fetch, the file and shell tools denied; Sonnet by default; independent and judge runs on the same route, Haiku for the System One seam; a live conversation's session resumed, nothing else. |
+| Differs | Claude in Chrome and Anthropic's connectors are not used, so nothing of theirs breaks on a switch; the CLI, not the SDK (its flag support unverified). |
+| Not built | The API route; Jev or Laya at the seam; a third-party login for other people (needs Anthropic's approval); a timeout on a run. |
 
 ---
 
@@ -456,11 +574,15 @@ tests/  docs/
 
 Carried over with their tests, and only where the design calls for that exact thing: `browser_session.mjs`; `voice.tsx`; `avatar/*`; `DataPage.tsx` re-fitted to one store; the record store's compare-and-swap writes and provenance; `sessions.py` (verbatim turns with FTS5); `profile.py` generalised into facts; `scheduler.py`; `harness_claude_cli.py`; `models/gateway` and `structured`. Never the app contract, the build pipeline, the planner, the verifier, the workers, or per-module stores.
 
-*As built:* the repository is `core/alpha/{world, context, runtime, mcp, api, connectors}`, `connectors/{browser, files, calendar}`, `desktop/` (Tauri 2 + React; `shell/`, `modules/`, `assistant/`, `avatar/`, `core/client.ts`), `docs/design/`, `core/tests/`; no `skills/`, no `sensors/`. Carried over: `browser_session.mjs`, `voice.tsx`, `avatar/*`, `DataPage.tsx`, the compare-and-swap record writes with provenance. Nothing else.
+| Status (3 Oct 2026; detail in `../log/`) | |
+|---|---|
+| Built | `core/alpha/{world, context, runtime, mcp, api, connectors, journeys}`, `connectors/{browser, files, calendar}`, `desktop/`, `journeys/`, `docs/{STATE.md, design, log, journeys}`, `core/tests/`. Carried over: the browser driver, the voice and avatar, the data page, compare-and-swap record writes with provenance. |
+| Differs | No `skills/` or `sensors/` directories: skills are a table, sensors are the scheduler and the watchers. |
+| Not built | — |
 
 **Order of work** (no dates): (1) the world store — journal, notes, collections, goals — the MCP server, the stream with threads, and a companion turn that does Level 0; this is the notes-first milestone inside the full design and gives a working companion first. (2) Browser, files and calendar connectors, and the derived pages in the workspace. (3) Sensors, triage, the sleep-time pass, the digest, the Inbox. (4) The entity registry and bi-temporal facts across sources. (5) The standing-things ladder with promotion from verified runs. (6) Pending actions and Access. Then email, contacts, the Chrome 144 bridge and the API route. The two judging journeys — diet; LinkedIn and jobs — are run through the system at every step and never wired into it.
 
-*Where it stands (2 Oct):* (1) done; (2) done; (3) not started; (4) partial (rows that are people, hard-key links at write; nothing across sources, no sleep time); (5) partial (automations and pipelines; every standing thing goes through a plan; no ladder, no promotion from repetition); (6) not started. Added outside the order: plan first, sources, background builds, known-assumed-asked and the second opinion. The judging journeys are now a suite (`journeys/`, `just journeys`, build-plan §4.11) run on a copy of the world after a change; the first run's results are in `docs/journeys/`.
+*Where each step stands is `../STATE.md`, rewritten every session.*
 
 ---
 
@@ -471,12 +593,12 @@ Carried over with their tests, and only where the design calls for that exact th
 | | Decision | My recommendation |
 |---|---|---|
 | **Q1** | Get an Apple Developer ID now ($99/yr)? Without a stable signature, every Calendar, Contacts and Full-Disk grant is lost on each rebuild. | Yes, now. |
-| **Q2** | Process topology: the Python core as a child of the Tauri app (inherits permissions; the app is the always-on process, launched at login with a menu-bar item) or a separate daemon. | Child of the app. (As built: child of the app with a tray item; launch at login not built.) |
+| **Q2** | Process topology: the Python core as a child of the Tauri app (inherits permissions; the app is the always-on process, launched at login with a menu-bar item) or a separate daemon. | Child of the app. (3 Oct: child of the app with a tray item; launch at login not built.) |
 | **Q3** | LinkedIn: read in your own Chrome at human pace, propose outreach, you send — or bulk export and automated outreach, the pattern LinkedIn enforces against. | The first. |
 | **Q4** | Google: keep Gmail out of scope until a Google app and CASA are justified; use Anthropic's Gmail connector on the subscription meanwhile. | Agree. **Revised 2 Oct 2026:** Kenil: Gmail read through Alpha's signed-in browser is fine (it is how it runs now, read-only). |
 | **Q5** | Low-stakes facts (units, quiet hours): may Alpha accept them silently with a visible trail, asking only for facts that change behaviour? | Silent for low-stakes. |
 | **Q6** | Digest rhythm: two fixed times a day, set once by you. | Fixed, not learned. |
-| **Q7** | First weeks: digest and cards only, no notifications until trust is built. | Yes. (As built: cards only; no digest and no notifications exist.) |
+| **Q7** | First weeks: digest and cards only, no notifications until trust is built. | Yes. (3 Oct: cards only; no digest and no notifications exist.) |
 | **Q8** | May Alpha make read-only standing things (a watcher, a table) unasked at Level 2 and just show them, or must it always propose first? | Make-and-show for read-only; propose for everything else. |
 | **Q9** | Screen capture: confirm not in v1. | Not in v1. |
 | **Q10** | The internal daily compute budget: a hidden policy (Alpha batches more and says nothing) or may Alpha mention it? | Hidden. **Revised 2 Oct 2026 (Q18):** no budget and no limits at all; the person stops what isn't going anywhere. |
@@ -498,8 +620,9 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q21** | Threads are records, never remembered model sessions; what the model saw is kept per turn; instructions change only on the person's own words. | 2 Oct, after a stale belief carried across runs. §3.6 |
 | **Q22** | One floor stays: an automation runs at most every 30 minutes (was 15, undocumented). Everything else unlimited (Q18). | 2 Oct evening, after the code read listed the hidden floor. |
 | **Q23** | Site vocabulary out of the hands: generic sign-in and paging detection only, one `url` key, no Sites section in the browser skill; Alpha learns a site's addresses and walls itself. | 2 Oct evening, after the code read found LinkedIn's paths in the driver. §4.0 |
-| **Q25** | Files in and out: a download is a read into Alpha's own folder per module (the plan decides and proposes keeping files; never silent growth); the person drops files onto a module or a row and Alpha reads them; a file sent by a procedure is an upload step on a document Alpha keeps and asks every time; tables export as CSV or Excel. | 2 Oct, late evening. §6.2 |
 | **Q24** | The write route, generic: one acting hand; procedures as Alpha's know-how with an effect (prepare / send); every outward effect an action the person approves after a dry-run preview; prepare asks once per procedure then a standing sentence, send asks every time; the first journey is Kenil's real draft in his real Gmail. | 2 Oct evening, after Alpha refused to draft an email. §6.1 |
+| **Q25** | Files in and out: a download is a read into Alpha's own folder per module (the plan decides and proposes keeping files; never silent growth); the person drops files onto a module or a row and Alpha reads them; a file sent by a procedure is an upload step on a document Alpha keeps and asks every time; tables export as CSV or Excel. | 2 Oct, late evening. §6.2 |
+| **Q26** | The memory round (§3.7): a wiki with an index; noticing; context by relevance; conversations first-class, parallel, with resumed sessions while live and a world delta; the companion as a mouth with one focus and rule-based routing; skills unified with an index and composition; the System One seam now; memory journeys first. | 3 Oct, early, after a long discussion. |
 
 ---
 

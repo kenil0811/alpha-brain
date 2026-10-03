@@ -209,6 +209,8 @@ export function AssistantPanel({
   const [earlier, setEarlier] = useState<Session[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
+  // The scope's live conversation (main stream), which a message with no chat of its own goes to.
+  const [liveChat, setLiveChat] = useState<string | null>(null);
   const [showSteps, setShowSteps] = useState(false);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
@@ -237,6 +239,7 @@ export function AssistantPanel({
         setPlans(c.plans ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
+        setLiveChat(c.conversation?.id ?? null);
       }),
       client.sessions(moduleId).then((all) => setEarlier(all.slice(0, 8))),
     ];
@@ -319,7 +322,14 @@ export function AssistantPanel({
         }
         if (threadId) setThreadView((v) => (v && v.id === threadId ? { ...v, journal: [...v.journal, local(clean, threadId, attachments)] } : v));
         else setTurns((all) => [...all, local(clean, null, attachments)]);
-        const final = await client.askAndWait(clean, { module: threadId ? null : moduleId, thread: threadId, attachments }, setPending);
+        // The main stream speaks in the scope's live conversation, or opens one; only the
+        // companion's sentences are routed.
+        let conversation: string | null = null;
+        if (!threadId) {
+          conversation = liveChat ?? (await client.newConversation(moduleId, clean.slice(0, 60))).id;
+          setLiveChat(conversation);
+        }
+        const final = await client.askAndWait(clean, { module: threadId ? null : moduleId, thread: threadId, conversation, attachments }, setPending);
         if (final.state === "needs_connect" && final.provider) setConnect({ provider: final.provider, text: clean, kind: final.connect_kind ?? undefined, reason: final.reply });
         else if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
@@ -330,7 +340,7 @@ export function AssistantPanel({
         onChanged();
       }
     },
-    [client, chat, choose, moduleId, pending, load, onChanged, attach],
+    [client, chat, choose, moduleId, pending, liveChat, load, onChanged, attach],
   );
   const sentNow = useRef<number | null>(null);
   useEffect(() => {
@@ -361,7 +371,7 @@ export function AssistantPanel({
       setPending(turn);
       setElapsed(0);
       let current = turn;
-      while (current.state === "running") {
+      while ((current.state === "running" || current.state === "routing") && current.id) {
         await new Promise((r) => setTimeout(r, 1000));
         current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
         setPending(current);
@@ -397,7 +407,7 @@ export function AssistantPanel({
           <i />
         </span>
         <span className="faint working__time">{clock(elapsed)}</span>
-        <Button size="sm" variant="ghost" onClick={() => void client.cancelTurn(pending.id).catch(() => undefined)}>
+        <Button size="sm" variant="ghost" onClick={() => { if (pending.id) void client.cancelTurn(pending.id).catch(() => undefined); }}>
           Stop
         </Button>
       </div>
@@ -419,7 +429,7 @@ export function AssistantPanel({
       ) : null}
     </div>
   ) : null;
-  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : a.thread === null));
+  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : liveChat ? a.thread === liveChat : a.thread === null));
 
   const isCreation = Boolean(threadView && making && threadView.id === making.thread);
   const onPage = cardsOnPage && isCreation;
@@ -550,7 +560,7 @@ export function AssistantPanel({
           </>
         ) : (
           <>
-            {threads.map((t) => {
+            {threads.filter((t) => t.kind !== "chat").map((t) => {
               // A build has no time limit: the person stops it when it isn't going anywhere.
               const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
               return (

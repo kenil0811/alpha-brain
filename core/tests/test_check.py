@@ -83,13 +83,17 @@ def test_independent_and_judging_runs_never_see_alpha(world: World) -> None:
     def req(kind: str = "turn") -> TurnRequest:
         return TurnRequest(sentence="s", system="x", world_path=world.path, turn_id="j1", kind=kind)
     independent = claude_cli.argv(req("independent"), Path("/tmp/mcp.json"))
-    assert "--mcp-config" not in independent
+    # Strict with an empty config: neither Alpha's tools nor the person's own MCP servers.
+    assert "--strict-mcp-config" in independent and "mcp__alpha" not in independent
+    assert claude_cli.mcp_config(req("independent")) == {"mcpServers": {}}
     assert independent[independent.index("--allowedTools") + 1:][:2] == ["WebSearch", "WebFetch"]
     judge = claude_cli.argv(req("judge"), Path("/tmp/m.json"))
-    assert "--allowedTools" not in judge and "--mcp-config" not in judge
+    assert "--allowedTools" not in judge and "mcp__alpha" not in judge
+    assert claude_cli.mcp_config(req("judge")) == {"mcpServers": {}}
     assert "WebSearch" in judge[judge.index("--disallowedTools") + 1:]
     ordinary = claude_cli.argv(req(), Path("/tmp/m.json"))
     assert "--mcp-config" in ordinary and "mcp__alpha" in ordinary
+    assert "alpha" in claude_cli.mcp_config(req())["mcpServers"]
 
 
 def test_only_turns_where_alpha_worked_values_out_are_checked(world: World) -> None:

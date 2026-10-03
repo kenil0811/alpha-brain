@@ -89,15 +89,18 @@ class Plans:
 
     def _move(self, pid: str, to: str, *, when: tuple[str, ...], **fields: Any) -> dict[str, Any]:
         plan = self.get(pid)
-        if plan["state"] not in when:
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        marks = ", ".join("?" * len(when))
+        with self.store.tx() as db:
+            moved = db.execute(
+                f"UPDATE plans SET state = ?{', ' + sets if sets else ''}, updated_at = ?"
+                f" WHERE id = ? AND state IN ({marks})",
+                (to, *fields.values(), now(), pid, *when),
+            ).rowcount
+        if not moved:  # atomic: the row moves only if it was still in a `when` state
+            plan = self.get(pid)
             raise Problem(f"The plan '{plan['title']}' is {plan['state']}, not "
                           f"{' or '.join(when)}.")
-        sets = ", ".join(f"{k} = ?" for k in fields)
-        with self.store.tx() as db:
-            db.execute(
-                f"UPDATE plans SET state = ?{', ' + sets if sets else ''}, updated_at = ?"
-                " WHERE id = ?", (to, *fields.values(), now(), pid),
-            )
         return self.get(pid)
 
     def approve(self, pid: str, approval: str) -> dict[str, Any]:
@@ -125,10 +128,12 @@ class Plans:
     def recent(self) -> list[dict[str, Any]]:
         """Plans the person may still act on: proposed, approved, building, or stopped in the
         last two days (one that stopped can be resumed)."""
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = (datetime.now(UTC) - timedelta(days=2)).isoformat()  # the rows' own form
         rows = self.store.all(
             "SELECT * FROM plans WHERE state IN ('proposed', 'approved', 'building')"
-            " OR (state = 'stopped' AND updated_at >= datetime('now', '-2 days'))"
-            " ORDER BY created_at")
+            " OR (state = 'stopped' AND updated_at >= ?) ORDER BY created_at", (cutoff,))
         return [_view(r) for r in rows]
 
     def waiting(self) -> list[dict[str, Any]]:

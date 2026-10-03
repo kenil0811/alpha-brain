@@ -118,17 +118,27 @@ class Journal:
         )
         return [entry(r) for r in reversed(rows)]
 
-    def search(self, text: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Full-text search over what happened, most relevant first, recent as tie-break."""
+    def search(self, text: str, limit: int = 10, *, since: str | None = None,
+               until: str | None = None) -> list[dict[str, Any]]:
+        """Full-text search over what happened, most relevant first, recent as tie-break;
+        `since`/`until` narrow it to a window (a sentence that names a day)."""
         query = fts_query(text)
         if query is None:
             return []
+        window = ""
+        args: list[Any] = [query]
+        if since:
+            window += " AND j.at >= ?"
+            args.append(since)
+        if until:
+            window += " AND j.at < ?"
+            args.append(until)
         rows = self.store.all(
             "SELECT j.*, snippet(journal_fts, 0, '[', ']', '…', 12) AS snip"
             " FROM journal_fts JOIN journal j ON j.rowid = journal_fts.rowid"
-            " WHERE journal_fts MATCH ? AND j.deleted_at IS NULL"
+            f" WHERE journal_fts MATCH ? AND j.deleted_at IS NULL{window}"
             " ORDER BY bm25(journal_fts), j.at DESC LIMIT ?",
-            (query, max(1, min(limit, 100))),
+            (*args, max(1, min(limit, 100))),
         )
         out = []
         for r in rows:
@@ -136,6 +146,19 @@ class Journal:
             e["snippet"] = r["snip"]
             out.append(e)
         return out
+
+    def between(self, since: str, until: str, *, kinds: list[str] | None = None,
+                limit: int = 40) -> list[dict[str, Any]]:
+        """What happened in a window, oldest first."""
+        where = ["deleted_at IS NULL", "at >= ?", "at < ?"]
+        args: list[Any] = [since, until]
+        if kinds:
+            where.append(f"kind IN ({','.join('?' * len(kinds))})")
+            args.extend(kinds)
+        rows = self.store.all(
+            f"SELECT * FROM journal WHERE {' AND '.join(where)} ORDER BY at LIMIT ?",
+            (*args, limit))
+        return [entry(r) for r in rows]
 
     def forget(self, jid: str) -> None:
         """Tombstone: the row stays (so nothing that points to it breaks) but says nothing."""

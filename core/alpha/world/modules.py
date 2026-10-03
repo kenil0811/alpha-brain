@@ -19,7 +19,7 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-THREAD_KINDS = {"build", "research", "job", "topic"}
+THREAD_KINDS = {"build", "research", "job", "topic", "chat"}
 # The icons a project may wear: lucide names the workspace draws (desktop shell/projectIcons.ts).
 ICONS = {
     "folder", "boxes", "briefcase", "notebook-pen", "calendar", "users", "chart-line", "mail",
@@ -189,11 +189,14 @@ class Modules:
 
     def sessions(self, module: str | None, *, include_done: bool = False) -> list[dict[str, Any]]:
         """The chats the person opened in one place (a project's, or the global ones when
-        `module` is None), newest first, each with how many times they spoke in it."""
+        `module` is None), newest first, each with how many times they spoke in it. A
+        conversation (kind chat) is listed once it has closed: while live it is the place's own
+        stream, and closing is not archiving."""
         rows = self.store.all(
             "SELECT t.*, (SELECT COUNT(*) FROM journal j WHERE j.thread = t.id AND j.kind ="
-            " 'said' AND j.deleted_at IS NULL) AS turns FROM threads t WHERE t.kind = 'topic'"
-            " AND t.module IS ? AND (? OR t.state != 'done') ORDER BY t.updated_at DESC",
+            " 'said' AND j.deleted_at IS NULL) AS turns FROM threads t WHERE t.module IS ? AND"
+            " ((t.kind = 'topic' AND (? OR t.state != 'done')) OR (t.kind = 'chat' AND"
+            " t.state = 'done')) ORDER BY t.updated_at DESC",
             (module, include_done),
         )
         return [_row(r) for r in rows]
@@ -207,6 +210,34 @@ class Modules:
             db.execute("UPDATE threads SET brief = ?, updated_at = ? WHERE id = ?",
                        (brief.strip(), now(), tid))
         return self.thread(tid)
+
+    def set_session(self, tid: str, session_ref: str | None) -> None:
+        """A live conversation keeps its model session between turns; nothing else does."""
+        with self.store.tx() as db:
+            db.execute("UPDATE threads SET session_ref = ?, updated_at = ? WHERE id = ?",
+                       (session_ref, now(), tid))
+
+    def live_chat(self, module: str | None) -> dict[str, Any] | None:
+        """The live conversation in a scope (a module, or General when None): the most recent
+        chat thread there that is not done."""
+        row = self.store.one(
+            "SELECT * FROM threads WHERE kind = 'chat' AND state != 'done' AND module IS ?"
+            " ORDER BY updated_at DESC LIMIT 1", (module,))
+        return _row(row) if row else None
+
+    def chats(self, module: str | None = None, *, live: bool = True, limit: int = 20
+              ) -> list[dict[str, Any]]:
+        where = ["kind = 'chat'"]
+        args: list[Any] = []
+        if live:
+            where.append("state != 'done'")
+        if module is not None:
+            where.append("module = ?")
+            args.append(module)
+        rows = self.store.all(
+            f"SELECT * FROM threads WHERE {' AND '.join(where)} ORDER BY updated_at DESC LIMIT ?",
+            (*args, limit))
+        return [_row(r) for r in rows]
 
     def threads(self, state: str | None = None) -> list[dict[str, Any]]:
         if state is None:

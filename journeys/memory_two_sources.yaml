@@ -1,0 +1,7 @@
+name: memory_two_sources
+title: Memory · one person known from two sources is one person
+why: "Alexander Miller is a LinkedIn connection and emailed about Fuse Energy; the answer must join both, not pick one."
+steps:
+  - say: "what do i know about alexander miller, and what did he last write to me?"
+checks:
+  - judge: "Passes if the answer draws on both the LinkedIn connection (his headline or company, e.g. Fuse Energy) and his email (what he last wrote, e.g. asking whether next week or the following works). Fails if it uses only one source, invents, or says it doesn't know him."

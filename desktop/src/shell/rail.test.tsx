@@ -9,7 +9,10 @@ const panel: PanelControl = { collapsed: false, mode: "expanded", width: 224, di
 describe("the rail", () => {
   it("marks the right item current", () => {
     expect(sameSurface({ kind: "intelligence", tab: "connections" }, { kind: "intelligence" })).toBe(true);
-    expect(knownSurface({ kind: "people" })).toEqual({ kind: "home" });
+    expect(knownSurface({ kind: "people" })).toEqual({ kind: "people" });
+    expect(knownSurface({ kind: "entity", id: "e_1" })).toEqual({ kind: "entity", id: "e_1" });
+    expect(sameSurface({ kind: "entity", id: "e_1" }, { kind: "people" })).toBe(true);
+    expect(knownSurface({ kind: "nowhere" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
     expect(surfaceFromPath(`#${surfacePath({ kind: "module", id: "m_1" })}`)).toEqual({ kind: "module", id: "m_1" });
   });
@@ -41,7 +44,9 @@ describe("the rail", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
-    expect(screen.queryByRole("button", { name: "People & Companies" })).toBeNull();
+    expect(screen.getByRole("button", { name: "People & Companies" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
   });
 });
 

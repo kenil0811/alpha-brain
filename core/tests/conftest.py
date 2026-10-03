@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
 from alpha.mcp.tools import Tools
 from alpha.models import settings
+from alpha.world.store import SCHEMA
 from alpha.world.world import World
 
 
@@ -19,6 +21,17 @@ def building(world: World, *, turn: str | None = None, module: str | None = None
     world.plans.start(plan["id"], thread["id"])
     world.modules.update_thread(thread["id"], state="done")
     return Tools(world, turn=turn, thread=thread["id"], module=module)
+
+
+@contextmanager
+def backdating(world: World) -> Iterator[None]:
+    """Lift the journal's append-only trigger for a test that moves entries back in time (the
+    database refuses any other change to a row); it is put back after."""
+    world.store.db.execute("DROP TRIGGER journal_only_forget")
+    try:
+        yield
+    finally:
+        world.store.db.executescript(SCHEMA)
 
 
 @pytest.fixture

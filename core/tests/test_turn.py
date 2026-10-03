@@ -28,7 +28,7 @@ def test_a_turn_journals_both_sides_and_carries_the_world(world: World) -> None:
     out = ask(world, "how many eggs have I eaten", runner=runner)
     assert out.ok and out.reply.startswith("You've had")
     system = seen[0].system
-    assert "RECENT CONVERSATION" in system and "log two boiled eggs" in system
+    assert "THIS CONVERSATION" in system and "log two boiled eggs" in system
     assert "Module Food" in system and "food_log (1)" in system
     assert "MATCHES FOR THIS SENTENCE" in system and "Two boiled [eggs]" in system
     assert seen[0].turn_id == out.said and seen[0].world_path == world.path
@@ -70,7 +70,7 @@ def test_what_the_model_saw_is_kept_with_dates(world: World) -> None:
     ask(world, "log two boiled eggs", runner=runner)
     out = ask(world, "what did I eat yesterday", runner=runner)
     kept = world.journal.context(out.said)
-    assert kept is not None and "RECENT CONVERSATION" in kept["context"]
+    assert kept is not None and "THIS CONVERSATION" in kept["context"]
     line = next(x for x in kept["context"].splitlines() if "log two boiled eggs" in x)
     assert re.match(r"- (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2} \d\d:\d\d ", line)
 
@@ -95,7 +95,10 @@ def test_parse_reads_the_cli_json() -> None:
     r = claude_cli.parse(line, "", 0)
     assert r.ok and r.reply == "Logged." and r.num_turns == 4
     bad = claude_cli.parse("", "Not logged in", 1)
-    assert not bad.ok and "Not logged in" in (bad.error or "")
+    assert not bad.ok and bad.error == claude_cli.SIGNED_OUT
+    # Any other failure reaches the person in plain words; the detail goes to the log.
+    crashed = claude_cli.parse("", "Traceback (most recent call last): boom", 1)
+    assert crashed.error == claude_cli.NO_ANSWER
 
 
 def test_prepack_states_the_clock_and_emptiness(world: World) -> None:

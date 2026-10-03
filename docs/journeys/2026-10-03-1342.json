@@ -1,0 +1,38 @@
+[
+ {
+  "name": "skill_reuse",
+  "title": "Know-how is reused, not rewritten — a second Gmail draft uses the procedure Alpha has",
+  "steps": [
+   {
+    "say": "draft an email in gmail to kenilrameshshah.krs@gmail.com with the subject 'Skill reuse check' saying: hello from Alpha, this is a check that the draft procedure is reused.",
+    "ok": true,
+    "reply": "Drafted (reused the existing `gmail_draft` procedure) — a preview card is ready for your approval; nothing sends since it's just a draft.",
+    "steps": 2,
+    "seconds": 29.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "prepare",
+     "preview": true,
+     "procedure": "gmail_draft"
+    },
+    "ok": true,
+    "why": "\"Draft to yourself: Skill reuse check\" (prepare on google.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_skills",
+    "arg": {},
+    "ok": true,
+    "why": "No skill was written or rewritten.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 29.2,
+  "error": null
+ }
+]

@@ -1,0 +1,66 @@
+[
+ {
+  "name": "eta_daily",
+  "title": "The deal tracker's daily pipeline runs without a model and reports coverage",
+  "steps": [
+   {
+    "automation": "Daily deal tracker — read all broker sources, flag new listings",
+    "ok": true,
+    "result": "Read 15 of 15 sources. Deal Listings: 3 new, 3 gone. New: Family Medical Practice, Auto Repair Shop for Sale – Turnkey Operation with Real Estate Included, SBA Pre-Qualified Digital Marketing Agency | Home Services Industry | 117 Active Clients | 100% Recurring Revenue | 60% SDE Margin; Gone: Family Medical Practice, Auto Repair Shop for Sale – Turnkey Operation with Real Estate Included, SBA Pre-Qualified, AI-Powered Medical Device Company | Patented Systems | 8-Year Med-Tech Firm | FDA Class I Device | $110K+ Average Deal Size | 22+ Granted Patent Claims.",
+    "problem": null,
+    "seconds": 98.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "automation",
+    "arg": {
+     "title": "Daily deal tracker",
+     "result_matches": "Read \\d+ of \\d+ sources",
+     "problem_allowed": "sign-in|automated reading"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources. Deal Listings: 3 new, 3 gone. New: Family Medical Practice, Auto Repair Shop for Sale – Turnkey Operation with Real Estate Included, SBA ",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 98.2,
+  "error": null
+ },
+ {
+  "name": "skill_reuse",
+  "title": "Know-how is reused, not rewritten — a second Gmail draft uses the procedure Alpha has",
+  "steps": [
+   {
+    "say": "draft an email in gmail to kenilrameshshah.krs@gmail.com with the subject 'Skill reuse check' saying: hello from Alpha, this is a check that the draft procedure is reused.",
+    "ok": true,
+    "reply": "Dry-run succeeded using the existing `gmail_draft` procedure — you'll see a preview card for the \"Skill reuse check\" draft to yourself; nothing saves until you approve it.",
+    "steps": 3,
+    "seconds": 37.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "prepare",
+     "preview": true,
+     "procedure": "gmail_draft"
+    },
+    "ok": true,
+    "why": "\"Draft to yourself: Skill reuse check\" (prepare on google.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_skills",
+    "arg": {},
+    "ok": false,
+    "why": "Wrote new skills: ['run_deal_tracker_broker_sources_listings', 'run_founding_engineer_listings_yc_wellfo', 'run_gmail_emails_vikas_badami_s']. ",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 37.0,
+  "error": null
+ }
+]

@@ -44,7 +44,15 @@ from alpha.context.summary import module_summary
 from alpha.models import settings
 from alpha.models.accounts import Accounts
 from alpha.models.keychain import KeychainError
-from alpha.runtime import acting, build, check, claude_cli, transcription
+from alpha.runtime import (
+    acting,
+    build,
+    check,
+    claude_cli,
+    conversations,
+    noticing,
+    transcription,
+)
 from alpha.runtime import turn as turns
 from alpha.runtime.attachments import MAX_ATTACHMENTS, AttachmentIn
 from alpha.runtime.automation import Scheduler
@@ -65,6 +73,8 @@ class AskBody(BaseModel):
     module: str | None = None
     thread: str | None = None
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
+    # The conversation this belongs to; without one the sentence is routed (the companion).
+    conversation: str | None = None
 
 
 class SettingsBody(BaseModel):
@@ -92,6 +102,15 @@ class RouteBody(BaseModel):
     thread: str | None = None
     provider: str | None = None
     model: str | None = Field(default=None, max_length=200)
+
+
+class ConversationBody(BaseModel):
+    module: str | None = None
+    title: str | None = None
+
+
+class MoveBody(BaseModel):
+    conversation: str
 
 
 class RecordBody(BaseModel):
@@ -197,6 +216,7 @@ class NoteBody(BaseModel):
     scope: str
     title: str
     body: str
+    summary: str | None = None
 
 
 class Turns:
@@ -217,18 +237,37 @@ class Turns:
 
     def start(self, body: AskBody, *, actor: str = "person",
               journal_as: str | None = None) -> dict[str, Any]:
+        # Where this turn lives. A build or automation thread stays as given; a person's turn
+        # with no conversation goes to the scope's live conversation (the panel on a page) or
+        # is routed (the companion), which may come back as a question instead of a turn.
+        conversation: str | None = None
+        routing = False
+        if body.conversation:
+            conversation = self.world.modules.thread(body.conversation)["id"]
+        elif body.thread:
+            kind = self.world.modules.thread(body.thread)["kind"]
+            conversation = body.thread if kind == "chat" else None
+        elif actor == "person" and body.module:
+            conversation = conversations.ensure(self.world, body.text, body.module)["id"]
+        elif actor == "person":
+            # The companion's sentence: routed in the worker (the judge is a model run, and a
+            # request never waits on one), so the turn comes back at once as "routing".
+            routing = True
         key = secrets.token_hex(6)
         if self.accounts is not None:
             # Nothing is said into the conversation until the model it goes to is connected:
             # the window connects it and sends the same words again.
-            provider = str(self.accounts.route(body.thread)["provider"])
+            provider = str(self.accounts.route(conversation or body.thread)["provider"])
             if not self.accounts.connected(provider):
                 return {"id": key, "state": "needs_connect", "text": body.text,
                         "provider": provider, "started_at": datetime.now(UTC).isoformat()}
+        self._evict()
         with self.lock:
-            self.state[key] = {"id": key, "state": "running", "text": body.text,
-                               "thread": body.thread,
-                               "started_at": datetime.now(UTC).isoformat()}
+            self.state[key] = {"id": key, "state": "routing" if routing else "running",
+                               "text": body.text, "thread": body.thread,
+                               "started_at": datetime.now(UTC).isoformat(),
+                               "conversation": conversation_view(self.world, conversation)
+                               if conversation else None}
 
         def work() -> None:
             def said(jid: str) -> None:
@@ -238,10 +277,28 @@ class Turns:
                 if stopping:  # stopped before the model started: it never does
                     claude_cli.LIVE.stop(jid, before_start=True)
 
+            nonlocal conversation
             try:
-                kwargs: dict[str, Any] = {"module": body.module, "thread": body.thread,
+                if routing:
+                    routed = conversations.route(self.world, body.text,
+                                                 runner=self.runner if self.runner else None)
+                    if "ask" in routed:
+                        with self.lock:
+                            self.state[key].update({"state": "asked", "ask": routed["ask"],
+                                                    "options": routed["options"]})
+                        return
+                    conversation = routed["conversation"]
+                    with self.lock:
+                        self.state[key].update({
+                            "state": "running",
+                            "conversation": conversation_view(self.world, conversation)})
+                thread = conversation or body.thread
+                kwargs: dict[str, Any] = {"module": body.module, "thread": thread,
                                           "on_said": said, "actor": actor,
-                                          "journal_as": journal_as}
+                                          "journal_as": journal_as,
+                                          "conversation": bool(conversation)}
+                if conversation:
+                    self.world.modules.update_thread(conversation, state="working")
                 if body.attachments:
                     kwargs["attachments"] = body.attachments
                 if self.runner is not None:
@@ -264,18 +321,57 @@ class Turns:
             except Exception as e:
                 log.exception("turn failed")
                 bug_log(self.world).record("core", type(e).__name__, str(e))
-                result = {"state": "failed", "reply": f"Alpha hit an internal problem: {e}"}
+                result = {"state": "failed", "reply": "Alpha hit a problem it couldn't recover"
+                          " from; the details are in its log."}
             with self.lock:
                 self.state[key].update(result)
+            if conversation:
+                try:
+                    waiting = any(a["thread"] == conversation
+                                  for a in self.world.journal.open_asks())
+                    self.world.modules.update_thread(conversation,
+                                                     state="waiting" if waiting else "open")
+                except Exception:
+                    log.exception("conversation state")
             if self.after is not None:
                 # A plan approved in this turn starts building now, not at the next tick.
-                self.after()
+                try:
+                    self.after()
+                except Exception:
+                    log.exception("after the turn")
             said_id = result.get("said")
             if self.checks and result["state"] == "done" and said_id:
                 self.check(str(said_id))
+                if actor == "person":
+                    self.notice(str(said_id))
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def _evict(self, keep_s: int = 3600) -> None:
+        """Finished turns older than an hour leave the table; it never grows without end."""
+        cutoff = (datetime.now(UTC) - timedelta(seconds=keep_s)).isoformat()
+        with self.lock:
+            gone = [k for k, v in self.state.items()
+                    if v["state"] in ("done", "failed", "asked") and v["started_at"] < cutoff]
+            for k in gone:
+                del self.state[k]
+
+    def notice(self, said: str) -> None:
+        """After a person's turn: what was said worth keeping, beside the verbatim (§3.7)."""
+        if not noticing.worth_noticing(self.world, said):
+            return
+
+        def work() -> None:
+            try:
+                kwargs: dict[str, Any] = {}
+                if self.runner is not None:
+                    kwargs["runner"] = self.runner
+                noticing.notice(self.world, said, **kwargs)
+            except Exception:
+                log.exception("noticing failed")
+
+        threading.Thread(target=work, daemon=True, name=f"notice-{said}").start()
 
     def check(self, said: str) -> None:
         if not check.worth_checking(self.world, said):
@@ -321,7 +417,8 @@ class Turns:
 
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
-            return [dict(v) for v in self.state.values() if v["state"] == "running"]
+            return [dict(v) for v in self.state.values()
+                    if v["state"] in ("running", "routing")]
 
 
 
@@ -411,6 +508,20 @@ def automation_views(world: World, scheduler: Scheduler,
 
 
 STEP_KINDS = {"did", "saw", "made", "changed", "failed", "noticed", "asked", "checked"}
+
+
+def conversation_view(world: World, cid: str,
+                      thread: dict[str, Any] | None = None) -> dict[str, Any]:
+    """A conversation (or work item) for the app: scope name, state, open question, last line."""
+    t = thread or world.modules.thread(cid)
+    scope = world.modules.get(t["module"])["name"] if t.get("module") else "General"
+    question = next((a["text"] for a in world.journal.open_asks() if a["thread"] == cid), None)
+    last = world.journal.recent(1, thread=cid, kinds=["said", "replied", "failed"])
+    return {"id": cid, "title": t["title"], "kind": t["kind"], "state": t["state"],
+            "module": t.get("module"), "scope": scope, "question": question,
+            "last": last[0]["text"][:160] if last else None,
+            "last_at": last[0]["at"] if last else t["updated_at"],
+            "updated_at": t["updated_at"], "live": claude_cli.LIVE.progress_for(cid)}
 
 
 def thread_views(world: World) -> list[dict[str, Any]]:
@@ -605,7 +716,14 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
-        # The answer is also the person's next message: Alpha carries on with it.
+        routed = conversations.routed_answer(world, asked, body.text)
+        if routed:
+            # "Which is this about?": the pick sends the original sentence there.
+            started = running.start(AskBody(text=routed["text"],
+                                            conversation=routed["conversation"]))
+            return {"answered": jid, "turn": started}
+        # The answer is also the person's next message: Alpha carries on with it, in the
+        # conversation that asked.
         started = running.start(AskBody(text=body.text, module=asked["module"],
                                         thread=asked["thread"]))
         return {"answered": jid, "turn": started}
@@ -951,8 +1069,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                     "SELECT j.at, j.text FROM journal j, json_each(j.entity_ids) x WHERE x.value ="
                     " ? AND j.deleted_at IS NULL ORDER BY j.at DESC LIMIT 1", (e["id"],),
                 )
+                page = world.knowledge.find_note(f"entity:{e['id']}", e["name"])
                 out.append({**e, "last_at": last["at"] if last else None,
-                            "last_text": last["text"] if last else None})
+                            "last_text": last["text"] if last else None,
+                            "summary": page.get("summary") if page else None})
         return sorted(out, key=lambda e: e["last_at"] or "", reverse=True)
 
     @app.get("/api/entities/{eid}", dependencies=[api])
@@ -961,7 +1081,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         same_name = [x for x in world.entities.find(name=e["name"], kind=e["kind"])
                      if x["id"] != e["id"] and x["name"].lower() == e["name"].lower()]
         return {**e, "facts": world.knowledge.facts(f"entity:{e['id']}"),
-                "timeline": timeline(world, e["id"]), "maybe_same": same_name}
+                "timeline": timeline(world, e["id"]), "maybe_same": same_name,
+                "page": world.knowledge.find_note(f"entity:{e['id']}", e["name"])}
 
     @app.post("/api/entities/{keep}/merge/{other}", dependencies=[api])
     def merge(keep: str, other: str) -> dict[str, Any]:
@@ -974,10 +1095,19 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.get("/api/intelligence", dependencies=[api])
     def intelligence() -> dict[str, Any]:
+        pages = {n["scope"].removeprefix("skill:"): n for n in world.knowledge.notes()
+                 if n["scope"].startswith("skill:")}
         return {
-            "skills": [{"name": m["name"], "title": m.get("title", m["name"]),
-                        "description": m.get("description"), "tools": m.get("tools", []),
-                        "origin": m.get("origin")} for m in manifests()],
+            "hands": [{"name": m["name"], "title": m.get("title", m["name"]),
+                       "description": m.get("description"), "tools": m.get("tools", []),
+                       "origin": m.get("origin")} for m in manifests()],
+            "skills": [{**{k: sk[k] for k in ("name", "kind", "site", "module", "url",
+                                             "description", "when_to_use", "effect",
+                                             "fields", "version", "health", "last_problem",
+                                             "last_run_at", "last_count", "last_ok_count",
+                                             "source", "updated_at")},
+                        "notes": pages[sk["name"]]["body"] if sk["name"] in pages else None}
+                       for sk in world.skills.all()],
             "automations": automation_views(world, scheduler),
             "readers": world.readers.all(),
             "connections": Connections(world.store).all(),
@@ -1050,8 +1180,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.post("/api/notes", dependencies=[api])
     def write_note(body: NoteBody) -> dict[str, Any]:
-        note = world.knowledge.write_note(body.scope, body.title, body.body)
-        world.journal.append("changed", f"You edited the note {body.title}.", actor="person")
+        note = world.knowledge.write_note(body.scope, body.title, body.body, summary=body.summary)
+        world.journal.append("changed", f"You edited the page {body.title}.", actor="person")
         return note
 
     @app.post("/api/connections/folder", dependencies=[api])
@@ -1235,12 +1365,68 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         return {"records": world.collections.search(q, 20), "documents": Files(world).search(q),
                 "people": world.entities.find(name=q), "journal": world.journal.search(q, 20)}
 
-    @app.get("/api/conversation", dependencies=[api])
-    def conversation(limit: int = 40, module: str | None = None) -> dict[str, Any]:
+    @app.get("/api/conversations", dependencies=[api])
+    def list_conversations(module: str | None = None) -> list[dict[str, Any]]:
+        """Live conversations and work items, newest first, for the strip and for Home."""
         module_id = world.modules.get(module)["id"] if module else None
-        turns_ = world.journal.recent(limit, stream=True, kinds=["said", "replied", "failed"],
-                                      module=module_id)
-        return {"turns": turns_, "threads": thread_views(world), "running": running.running(),
+        return [conversation_view(world, t["id"], t) for t in thread_views(world)
+                if module_id is None or t["module"] == module_id]
+
+    @app.post("/api/conversations", dependencies=[api])
+    def new_conversation(body: ConversationBody) -> dict[str, Any]:
+        chat = conversations.open_conversation(world, body.title or "New conversation",
+                                               body.module)
+        return conversation_view(world, chat["id"])
+
+    @app.post("/api/conversations/{cid}/close", dependencies=[api])
+    def close_conversation(cid: str) -> dict[str, Any]:
+        return conversation_view(world, conversations.close(world, cid)["id"])
+
+    @app.post("/api/conversations/{cid}/focus", dependencies=[api])
+    def focus_conversation(cid: str) -> dict[str, Any]:
+        world.modules.thread(cid)
+        conversations.set_focus(world, cid)
+        return {"focus": cid}
+
+    @app.get("/api/companion", dependencies=[api])
+    def companion() -> dict[str, Any]:
+        """What the companion shows: its focus, the live conversations, what needs the person."""
+        current = conversations.focus(world)
+        return {"focus": conversation_view(world, current) if current else None,
+                "conversations": [conversation_view(world, t["id"], t)
+                                  for t in thread_views(world)],
+                "needs_you": needs_you(world)}
+
+    @app.post("/api/turns/{key}/move", dependencies=[api])
+    def move_turn(key: str, body: MoveBody) -> dict[str, Any]:
+        """A sentence that went to the wrong conversation: say so, and ask it again in the
+        right one."""
+        state = running.get(key)
+        world.modules.thread(body.conversation)
+        world.journal.append("changed", f"Moved \"{state['text'][:80]}\" to another"
+                             " conversation.", actor="person",
+                             data={"turn": state.get("said"), "to": body.conversation})
+        return running.start(AskBody(text=state["text"], conversation=body.conversation))
+
+    @app.get("/api/conversation", dependencies=[api])
+    def conversation(limit: int = 40, module: str | None = None,
+                     conversation: str | None = None) -> dict[str, Any]:
+        """A conversation's turns: the one named, else the scope's live one, else (for
+        General) the old stream."""
+        module_id = world.modules.get(module)["id"] if module else None
+        chat = (world.modules.thread(conversation) if conversation
+                else world.modules.live_chat(module_id))
+        if chat:
+            turns_ = world.journal.recent(limit, thread=chat["id"],
+                                          kinds=["said", "replied", "failed"])
+        else:
+            turns_ = world.journal.recent(limit, stream=True,
+                                          kinds=["said", "replied", "failed"], module=module_id)
+        return {"turns": turns_, "conversation": conversation_view(world, chat["id"], chat)
+                if chat else None,
+                "conversations": [conversation_view(world, t["id"], t)
+                                  for t in thread_views(world)],
+                "threads": thread_views(world), "running": running.running(),
                 "plans": world.plans.recent(),
                 "actions": [action_view(a) for a in world.actions.all(limit=20)],
                 "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
@@ -1407,9 +1593,11 @@ def source_commit() -> str | None:
     return (done.stdout.strip() or None) if done.returncode == 0 else None
 
 
-def serve(port: int = 53900) -> None:
+def serve(port: int = 53900, *, background: bool = True) -> None:
     """Listen on 127.0.0.1 (port 0 picks a free one) and say so on one stdout line,
-    `ALPHA_CORE_READY {"port": …}`, which the app's host waits for."""
+    `ALPHA_CORE_READY {"port": …}`, which the app's host waits for. `background=False` keeps
+    the scheduler, the second opinion and noticing off: for a core started to check something
+    on a copy of a world, so nothing runs on its own there (build-plan §4.23)."""
     import json
     import socket
     import sys
@@ -1425,5 +1613,5 @@ def serve(port: int = 53900) -> None:
     ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid(),
              "commit": source_commit()}
     print(READY_PREFIX + json.dumps(ready), flush=True)
-    config = uvicorn.Config(create_app(world), log_level="warning")
+    config = uvicorn.Config(create_app(world, live=background), log_level="warning")
     uvicorn.Server(config).run(sockets=[sock])
