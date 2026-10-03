@@ -7,8 +7,9 @@ went, and history about a removed thing is marked as such wherever Alpha reads i
 as a record but lose the session the model would resume, and open questions are closed.
 
 `remove_module` deletes a module's tables and their rows, the readers its automations use, its
-automations, its note and its goals. Entities and facts stay (they belong to the person, not to
-a module), and so do connections (a sign-in belongs to Alpha's browser).
+automations, its note and its goals; its sub projects move back to the top level. Entities and
+facts stay (they belong to the person, not to a module), and so do connections (a sign-in
+belongs to Alpha's browser).
 
 `remove_connection` disconnects Alpha from something: for a site, Alpha's sign-in (its browser
 profile on disk), the readers Alpha wrote for the sites that sign-in covers and the automations
@@ -16,9 +17,10 @@ that use them; for a folder, the documents read from it; for the calendar, its e
 Alpha wrote into the person's tables stays: those rows are the person's, and removing the
 module is how they go.
 
-`clear_conversation` deletes the person's conversation with Alpha: everything said and replied
-outside any thread, with the questions Alpha asked there and their answers. What Alpha did and
-read (Activity) and every module's data stay.
+`clear_conversation` forgets the person's conversation with Alpha: everything said and replied
+outside any thread, with the questions Alpha asked there and their answers, is blanked (the
+journal's tombstone: the rows stay, their words go, and the clearing itself is journaled). What
+Alpha did and read (Activity) and every module's data stay.
 """
 
 from __future__ import annotations
@@ -95,6 +97,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         for table in tables:
             records += db.execute("DELETE FROM records WHERE collection = ?", (table,)).rowcount
             db.execute("DELETE FROM records_fts WHERE collection = ?", (table,))
+            db.execute("DELETE FROM views WHERE collection = ?", (table,))
             db.execute("DELETE FROM record_versions WHERE collection = ?", (table,))
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
         counts["tables"], counts["rows"] = len(tables), records
@@ -111,6 +114,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["notes"] = db.execute(
             "DELETE FROM notes WHERE scope = ?", (f"module:{name}",)).rowcount
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
+        counts["sub_projects"] = db.execute(
+            "UPDATE modules SET project = NULL WHERE project = ?", (mid,)).rowcount
         counts["sources"] = world.sources.remove_module(db, mid)
         counts["actions"] = world.actions.remove_module(db, mid)
         files = [r["path"] for r in db.execute("SELECT path FROM documents WHERE module = ?",
@@ -143,8 +148,12 @@ def clear_conversation(world: World) -> dict[str, int]:
         db.execute("DELETE FROM turn_contexts WHERE turn IN (SELECT id FROM journal"
                    " WHERE thread IS NULL AND kind = 'said')")
         removed = db.execute(
-            f"DELETE FROM journal WHERE thread IS NULL AND kind IN ({marks})", CONVERSATION_KINDS
+            "UPDATE journal SET text = '', data = '{}', deleted_at = ?"
+            f" WHERE thread IS NULL AND deleted_at IS NULL AND kind IN ({marks})",
+            (now(), *CONVERSATION_KINDS),
         ).rowcount
+    world.journal.append("changed", f"You cleared the conversation ({plural(removed, 'message')}).",
+                         actor="person")
     return {"turns": removed}
 
 

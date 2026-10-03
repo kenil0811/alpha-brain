@@ -17,7 +17,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from alpha.world.store import Problem
 from alpha.world.world import alpha_home
 
 STATUS_TIMEOUT_S = 20
@@ -36,10 +35,21 @@ def binary() -> str | None:
     return str(local) if local.exists() else None
 
 
-def _env() -> dict[str, str]:
-    env = dict(os.environ)
+# What a claude process gets from Alpha's environment, and nothing else: where to find programs
+# and its login (HOME, USER and the Keychain; CLAUDE_CODE_OAUTH_TOKEN when the login is a token),
+# the locale, a temp folder, and how this network reaches the internet. CLAUDE_CONFIG_DIR is
+# left out on purpose: a private config home is not logged in.
+CHILD_ENV = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR",
+             "__CF_USER_TEXT_ENCODING", "CLAUDE_CODE_OAUTH_TOKEN", "HTTPS_PROXY", "HTTP_PROXY",
+             "NO_PROXY", "https_proxy", "http_proxy", "no_proxy", "NODE_EXTRA_CA_CERTS",
+             "SSL_CERT_FILE")
+
+
+def child_env() -> dict[str, str]:
+    env = {k: os.environ[k] for k in CHILD_ENV if k in os.environ}
     env.setdefault("USER", getpass.getuser())
-    env.pop("CLAUDE_CONFIG_DIR", None)
+    env.setdefault("HOME", str(Path.home()))
+    env.setdefault("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
     return env
 
 
@@ -56,7 +66,7 @@ def status() -> dict[str, Any]:
         return {"installed": False, "signed_in": False}
     try:
         done = subprocess.run([claude, "auth", "status"], capture_output=True, text=True,
-                              timeout=STATUS_TIMEOUT_S, env=_env(), stdin=subprocess.DEVNULL)
+                              timeout=STATUS_TIMEOUT_S, env=child_env(), stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired):
         return {"installed": True, "signed_in": False}
     try:
@@ -75,26 +85,9 @@ def status() -> dict[str, Any]:
 
 def _start(argv: list[str], log: str) -> None:
     subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=_log(log), stderr=subprocess.STDOUT,
-                     env=_env(), start_new_session=True)
+                     env=child_env(), start_new_session=True)
 
 
-def sign_in() -> dict[str, Any]:
-    """Start Claude Code's sign-in: it opens the browser and finishes there. Returns at once;
-    the app checks `status` until it is signed in."""
-    claude = binary()
-    if claude is None:
-        raise Problem("Claude Code isn't on this Mac yet; install it first.")
-    _start([claude, "auth", "login", "--claudeai"], "claude-login.log")
-    return {"started": True}
-
-
-def sign_out() -> dict[str, Any]:
-    claude = binary()
-    if claude is None:
-        raise Problem("Claude Code isn't on this Mac.")
-    subprocess.run([claude, "auth", "logout"], capture_output=True, text=True,
-                   timeout=STATUS_TIMEOUT_S, env=_env(), stdin=subprocess.DEVNULL)
-    return status()
 
 
 def install() -> dict[str, Any]:
@@ -103,4 +96,13 @@ def install() -> dict[str, Any]:
     if binary() is not None:
         return {"started": False}
     _start(["/bin/bash", "-c", INSTALLER], "claude-install.log")
+    return {"started": True}
+
+
+def update() -> dict[str, Any]:
+    """Bring an installed Claude Code up to date (`claude update`), in the background."""
+    claude = binary()
+    if claude is None:
+        return install()
+    _start([claude, "update"], "claude-install.log")
     return {"started": True}

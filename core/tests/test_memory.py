@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from conftest import backdating
 
 from alpha.mcp.tools import Tools
 from alpha.world.store import Problem
@@ -234,7 +235,7 @@ def test_a_sentence_that_names_a_day_looks_there(world: World) -> None:
     replied = world.journal.append("replied", "Noted: the financial model by Friday.",
                                    data={"turn": said})
     yesterday = (datetime.now(UTC) - timedelta(days=1)).replace(microsecond=0).isoformat()
-    with world.store.tx() as db:
+    with backdating(world), world.store.tx() as db:
         db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (yesterday, said, replied))
     text = prepack.build(world, "what did i say about vikas yesterday?")
     assert "WHAT WAS SAID YESTERDAY" in text

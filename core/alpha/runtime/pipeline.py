@@ -23,6 +23,7 @@ from typing import Any
 
 from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser, site_of
 from alpha.runtime import claude_cli, turn
+from alpha.world import taint
 from alpha.world.readers import health_problem
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -72,14 +73,17 @@ def _source(world: World, reader: dict[str, Any], module: str | None) -> dict[st
 def run_reader(world: World, name: str, collection: str, key: str, *,
                keep: list[str] | None = None, mapping: dict[str, dict[str, Any]] | None = None,
                turn_id: str | None = None, module: str | None = None,
-               browser: Browser | None = None) -> dict[str, Any]:
+               browser: Browser | None = None, thread: str | None = None) -> dict[str, Any]:
     reader = world.readers.get(name)
     desc = world.collections.describe(collection)
     home = desc["module"] or module
     _source(world, reader, home)
     out = (browser or Browser(world)).script(
         reader["url"], reader["script"], to_end=reader["to_end"], turn=turn_id, module=home,
-        label=f"the reader {name}")
+        label=f"the reader {name}", allow_posts=reader["allow_posts"])
+    if out.get("signed_in"):
+        # What a page showed through the person's sign-in is private: the run's web goes off.
+        taint.mark(world.store, turn_id, thread, taint.SIGNED_IN_PAGE)
     if out.get("bot_check"):
         world.readers.ran(name, count=0, problem="a bot check stopped it")
         world.sources.ran(name, status="blocked", detail=BOT_CHECK)

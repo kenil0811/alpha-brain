@@ -128,6 +128,53 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
     return value
 
 
+TEXTLIKE = {"text", "long_text", "url", "relation"}
+KIND_WORDS = {"text": "text", "long_text": "long text", "number": "a number", "date": "a date",
+              "datetime": "a date and time", "bool": "yes or no", "choice": "a choice",
+              "multichoice": "choices", "status": "a status", "url": "a link",
+              "relation": "a link to a record"}
+
+
+def _label(field: dict[str, Any]) -> str:
+    return str(field.get("label") or field["name"].replace("_", " ").capitalize())
+
+
+def _as_input(value: Any, kind: str) -> Any:
+    """A stored value in a shape the new kind can read: yes/no as words, one choice out of a
+    list of choices."""
+    if isinstance(value, bool) and kind != "bool":
+        return "Yes" if value else "No"
+    if isinstance(value, list) and kind != "multichoice":
+        if len(value) > 1:
+            raise ValueError("holds several choices")
+        return value[0] if value else None
+    return value
+
+
+def _convert(old: dict[str, Any], new: dict[str, Any], value: Any) -> Any:
+    """One saved value as the new kind, or a Problem saying why it can't be without losing what
+    it says. Text that parses (a number, a date) is read as what it means; anything else must
+    come back unchanged when converted back."""
+    try:
+        try:
+            out = _coerce(new, _as_input(value, new["kind"]))
+        except Problem as e:
+            choice = new["kind"] in {"choice", "multichoice", "status"}
+            raise ValueError(f"isn't {'one of its choices' if choice else KIND_WORDS[new['kind']]}"
+                             ) from e
+        if old["kind"] == "long_text" and new["kind"] != "long_text" and "\n" in str(value):
+            raise ValueError("has several lines")
+        if old["kind"] not in TEXTLIKE or new["kind"] in TEXTLIKE:
+            try:
+                back = _coerce(old, _as_input(out, old["kind"]))
+            except (Problem, ValueError):
+                back = None
+            if back != value:
+                raise ValueError(f"would read {out!r}")
+    except ValueError as e:
+        raise Problem(f"{_label(old)} can't become {KIND_WORDS[new['kind']]}: a row holds"
+                      f" {value!r}, which {e.args[0]}.") from e
+    return out
 def _choice(choices: list[str], value: Any) -> str | None:
     """The declared choice a value means, regardless of case and spacing ("PENDING" is
     "Pending"); None when it is none of them."""
@@ -245,6 +292,73 @@ class Collections:
             )
         return self.describe(name)
 
+    def change_field(
+        self, name: str, field: str, *, kind: str | None = None, label: str | None = None,
+        choices: list[str] | None = None, relation: str | None = None,
+    ) -> dict[str, Any]:
+        """Change one field in place: its label, its choices, or its kind. Every saved value is
+        converted to the new kind first; if any one would lose what it says (a word that isn't
+        a number, a time of day a date can't hold, a choice being taken away that rows use) the
+        change is refused with the reason and nothing is touched. Returns the field before and
+        after, and how many rows were rewritten."""
+        schema = self._schema(name)
+        at = next((i for i, f in enumerate(schema["fields"]) if f["name"] == field), None)
+        if at is None:
+            raise Problem(f"'{name}' has no field '{field}'.")
+        old = schema["fields"][at]
+        new_kind = kind or old["kind"]
+        raw: dict[str, Any] = {"name": field, "kind": new_kind, "label": old.get("label"),
+                               "unit": old.get("unit"), "required": old.get("required")}
+        if label is not None:
+            raw["label"] = label.strip() or None
+        if new_kind == "relation":
+            raw["relation"] = relation or old.get("relation")
+        rows = self.store.all(
+            'SELECT id, "values" FROM records WHERE collection = ? AND deleted_at IS NULL',
+            (name,))
+        held = [(r["id"], loads(r["values"], {})) for r in rows]
+        used = [v[field] for _, v in held if v.get(field) not in (None, "", [])]
+        if new_kind in {"choice", "multichoice", "status"}:
+            if choices is not None:
+                raw["choices"] = choices
+            elif old["kind"] in {"choice", "multichoice", "status"}:
+                raw["choices"] = old["choices"]
+            else:  # the values already in the table become its choices
+                seen = sorted({str(x) for v in used for x in (v if isinstance(v, list) else [v])})
+                if len(seen) > 50:
+                    raise Problem(f"{_label(old)} holds {len(seen)} different values; too many"
+                                  " to become choices.")
+                raw["choices"] = seen or None
+            if new_kind == "status":
+                raw["done_choices"] = [c for c in old.get("done_choices") or []
+                                       if c in (raw.get("choices") or [])]
+        new = normalise_fields([{k: v for k, v in raw.items() if v is not None}])[0]
+        if new == old:
+            return {"before": old, "after": old, "rewritten": 0, "table": self.describe(name)}
+        changed: list[tuple[str, dict[str, Any]]] = []
+        for rid, values in held:
+            value = values.get(field)
+            if value in (None, "", []):
+                continue
+            converted = _convert(old, new, value)
+            if converted != value:
+                changed.append((rid, {**values, field: converted}))
+        schema["fields"][at] = new
+        stamp = now()
+        with self.store.tx() as db:
+            for rid, values in changed:
+                self._keep(db, name, rid)
+                db.execute(
+                    'UPDATE records SET "values" = ?, revision = revision + 1'
+                    " WHERE collection = ? AND id = ?", (dumps(values), name, rid))
+                db.execute("DELETE FROM records_fts WHERE collection = ? AND record_id = ?",
+                           (name, rid))
+                db.execute("INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
+                           (name, rid, _search_text(values)))
+            db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
+                       (dumps(schema), stamp, name))
+        return {"before": old, "after": new, "rewritten": len(changed),
+                "table": self.describe(name)}
     def identify(self, name: str, rows_are: str, field: str) -> dict[str, Any]:
         """Say that each row of a table is a person or an organisation, identified by `field`;
         rows already there are linked now."""
@@ -614,6 +728,31 @@ class Collections:
             db.execute(
                 "DELETE FROM records_fts WHERE collection = ? AND record_id = ?", (name, rid)
             )
+
+    def restore(self, name: str, rid: str, provenance: dict[str, Any]) -> dict[str, Any]:
+        """Bring back a removed record (undo). Values that no longer fit the table (a field
+        changed kind since) are dropped from it, never forced in."""
+        row = self.store.one(
+            "SELECT * FROM records WHERE collection = ? AND id = ? AND deleted_at IS NOT NULL",
+            (name, rid))
+        if row is None:
+            raise Problem(f"Record {rid} in '{name}' isn't removed; nothing to bring back.")
+        fields = {f["name"]: f for f in self._schema(name)["fields"]}
+        values: dict[str, Any] = {}
+        for k, v in loads(row["values"], {}).items():
+            try:
+                values[k] = _coerce(fields[k], v) if k in fields else None
+            except Problem:
+                continue
+        values = {k: v for k, v in values.items() if k in fields}
+        with self.store.tx() as db:
+            db.execute(
+                'UPDATE records SET deleted_at = NULL, "values" = ?, revision = revision + 1,'
+                " provenance = ?, updated_at = ? WHERE collection = ? AND id = ?",
+                (dumps(values), dumps(provenance), now(), name, rid))
+            db.execute("INSERT INTO records_fts (collection, record_id, text) VALUES (?,?,?)",
+                       (name, rid, _search_text(values)))
+        return self.get(name, rid)
 
     # ---- reading ----
 

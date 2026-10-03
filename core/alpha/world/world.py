@@ -17,6 +17,7 @@ from alpha.world.readers import Readers
 from alpha.world.skills import Skills
 from alpha.world.sources import Sources
 from alpha.world.store import Store
+from alpha.world.views import Views
 
 
 def alpha_home() -> Path:
@@ -44,6 +45,7 @@ class World:
         self.automations = Automations(self.store)
         self.skills = Skills(self.store)
         self.readers = Readers(self.store)
+        self.views = Views(self.store, self.collections)
         self.sources = Sources(self.store)
         self.plans = Plans(self.store)
         self.procedures = Procedures(self.store)

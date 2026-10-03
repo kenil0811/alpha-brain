@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
+import { InfoTip, PageHeader } from "../ui";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
@@ -46,15 +47,14 @@ export function People({ client, version, onOpen }: { client: Client; version: n
     ) : null;
   return (
     <div className="page">
-      <div className="modhead">
-        <div className="modhead__title">
-          <h1>People &amp; Companies</h1>
-          <span className="faint">Everyone Alpha has come across: from your connections, your mail, and what you tell it.</span>
-        </div>
-        <div className="search people__search">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
-        </div>
-      </div>
+      <PageHeader
+        title={<>People &amp; Companies <InfoTip content="Everyone Alpha has come across: from your connections, your mail, and what you tell it." label="About People & Companies" /></>}
+        right={
+          <div className="search people__search">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
+          </div>
+        }
+      />
       {people === null ? <p className="empty">Loading…</p> : null}
       {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Alpha."}</p> : null}
       {group("People", persons)}

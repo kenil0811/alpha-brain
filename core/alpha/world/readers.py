@@ -15,7 +15,9 @@ table is left alone, and Alpha is told to repair it.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
 from alpha.world.skills import Skills
 from alpha.world.store import Problem, Store, now
@@ -24,6 +26,25 @@ NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 DROP = 0.5
 HELD = 0.75
 MISSING = 0.2
+
+
+def allowed_posts(rules: list[dict[str, Any]] | None, site: str,
+                  site_of: Callable[[str], str]) -> list[dict[str, str]]:
+    """A reader's read-only POSTs, checked: each is an origin on the reader's own site and a path
+    (`*` matches anything). Everything else a read session sends that isn't GET is blocked."""
+    out = []
+    for rule in rules or []:
+        origin, path = str(rule.get("origin", "")), str(rule.get("path", ""))
+        parsed = urlparse(origin)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.path not in ("", "/"):
+            raise Problem(f"allow_posts origin '{origin}' must be like https://www.{site}.")
+        if site_of(origin) != site:
+            raise Problem(f"allow_posts may only name {site}, not {parsed.hostname}.")
+        if not path.startswith("/"):
+            raise Problem(f"allow_posts path '{path}' must start with /.")
+        out.append({"origin": f"https://{parsed.hostname}"
+                    + (f":{parsed.port}" if parsed.port else ""), "path": path})
+    return out
 
 
 def health_problem(rows: Any, *, last_ok: int | None,
@@ -56,7 +77,8 @@ class Readers:
 
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
              to_end: bool, count: int, whole: bool = True, when_to_use: str | None = None,
-             source: str | None = None) -> dict[str, Any]:
+             source: str | None = None,
+             allow_posts: list[dict[str, str]] | None = None) -> dict[str, Any]:
         if not NAME.match(name):
             raise Problem("A reader's name is lower-case words joined by _, e.g. "
                           "linkedin_connections.")
@@ -64,7 +86,8 @@ class Readers:
         return self.skills.save(name, "read", description=description, site=site, url=url,
                                 when_to_use=when_to_use, source=source, health="ok",
                                 script=script, to_end=to_end, whole=whole, last_run_at=stamp,
-                                last_count=count, last_ok_count=count, last_problem=None)
+                                last_count=count, last_ok_count=count, last_problem=None,
+                                allow_posts=allow_posts or [])
 
     def get(self, name: str) -> dict[str, Any]:
         return self.skills.get(name, "read")

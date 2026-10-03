@@ -301,3 +301,16 @@ class Knowledge:
                     (stamp, fid, f["subject"], f["predicate"], fid),
                 )
         return self.fact(fid)
+
+    def forget_fact(self, fid: str) -> dict[str, Any]:
+        """The person no longer wants this known: it stops holding now and is never shown or
+        used again (the row stays, closed, so what pointed at it still resolves). The words
+        that recorded it in the journal are blanked by the caller through `Journal.forget`."""
+        f = self.fact(fid)
+        if f["valid_to"] is not None or f["superseded_by"] is not None or f["state"] == "rejected":
+            raise Problem(f"Fact {fid} is not something Alpha holds now.")
+        with self.store.tx() as db:
+            db.execute("UPDATE facts SET valid_to = ?, state = 'rejected', value = '', why = NULL"
+                       " WHERE id = ?",
+                       (now(), fid))
+        return self.fact(fid)

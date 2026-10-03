@@ -20,7 +20,7 @@ def test_a_run_that_says_nothing_for_too_long_is_ended(world: World, tmp_path: P
                                                         monkeypatch: Any) -> None:
     """Silence, not duration, ends a run: a CLI that hangs can hold a thread or the scheduler
     for ever; a run that keeps working is never cut."""
-    monkeypatch.setattr(claude_cli, "SILENCE_S", 0.2)
+    monkeypatch.setattr(claude_cli, "SILENCE_S", 0.5)  # beats come every 0.1 s
     hung = tmp_path / "claude"
     hung.write_text("#!/bin/sh\nsleep 30\n")
     hung.chmod(0o755)
@@ -59,13 +59,13 @@ def test_a_check_or_a_noticing_run_never_touches_the_turns_own_run(world: World,
     time.sleep(0.5)
     assert claude_cli.LIVE.running("j_t") and claude_cli.LIVE.running("t_t")
     with claude_cli.LIVE.lock:
-        keys = sorted(claude_cli.LIVE.procs)
+        keys = sorted(claude_cli.LIVE.runs)
     # (other tests' runs may still be registered; only these keys are ours)
     assert any(k.startswith("judge:j_t:") for k in keys) and {"j_t", "t_t"} <= set(keys)
     assert claude_cli.LIVE.stop("j_t")  # stops the turn, not the judge run
     time.sleep(0.5)
     assert not claude_cli.LIVE.running("j_t")
-    assert any(k.startswith("judge:j_t:") for k in claude_cli.LIVE.procs)
+    assert any(k.startswith("judge:j_t:") for k in claude_cli.LIVE.runs)
     for th in threads:
         th.join(timeout=10)
 

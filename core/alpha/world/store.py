@@ -1,7 +1,8 @@
 """The store: one SQLite file per person, holding every layer of the world.
 
 Conventions: ids are `<prefix>_<12 hex>`; times are UTC ISO-8601 with seconds; JSON columns hold
-JSON text. The journal is append-only (a deletion is a tombstone that blanks the text); every
+JSON text. The journal is append-only, enforced by triggers (a deletion is a tombstone that
+blanks the text and data); every
 other table can be rebuilt from journal rows plus the records. Several processes open the same
 file (the turn runner and the MCP server it starts), so the file runs in WAL mode with a busy
 timeout.
@@ -14,7 +15,7 @@ import re
 import sqlite3
 import threading
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,6 +48,20 @@ CREATE TRIGGER IF NOT EXISTS journal_ai AFTER INSERT ON journal BEGIN
 END;
 CREATE TRIGGER IF NOT EXISTS journal_ad AFTER DELETE ON journal BEGIN
     INSERT INTO journal_fts(journal_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
+END;
+-- Append-only, by the database itself: no row is ever deleted, and the one change allowed is
+-- forgetting (text and data blanked, deleted_at set once, everything else as it was).
+CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON journal BEGIN
+    SELECT RAISE(ABORT, 'The journal is append-only: its rows are never deleted.');
+END;
+CREATE TRIGGER IF NOT EXISTS journal_only_forget BEFORE UPDATE ON journal
+WHEN NOT (old.deleted_at IS NULL AND new.deleted_at IS NOT NULL AND new.text = ''
+          AND new.data = '{}' AND new.rowid IS old.rowid AND new.id IS old.id
+          AND new.at IS old.at AND new.kind IS old.kind AND new.actor IS old.actor
+          AND new.module IS old.module AND new.thread IS old.thread
+          AND new.entity_ids IS old.entity_ids AND new.source IS old.source)
+BEGIN
+    SELECT RAISE(ABORT, 'The journal is append-only: a row can only be forgotten.');
 END;
 CREATE TRIGGER IF NOT EXISTS journal_au AFTER UPDATE OF text ON journal BEGIN
     INSERT INTO journal_fts(journal_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
@@ -86,6 +101,18 @@ CREATE TABLE IF NOT EXISTS record_versions (
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     collection UNINDEXED, record_id UNINDEXED, text, tokenize='porter unicode61'
+);
+
+CREATE TABLE IF NOT EXISTS views (
+    id TEXT PRIMARY KEY,
+    collection TEXT NOT NULL REFERENCES collections(name),
+    title TEXT NOT NULL,
+    config TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (collection, title)
 );
 
 CREATE TABLE IF NOT EXISTS notes (
@@ -224,6 +251,38 @@ CREATE TABLE IF NOT EXISTS automations (
 );
 
 
+-- Outward writes waiting for the person (alpha.world.pending): the exact payload, run once.
+CREATE TABLE IF NOT EXISTS pending_actions (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    effect TEXT NOT NULL,
+    connector TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_by TEXT,
+    thread TEXT,
+    module TEXT,
+    asked TEXT,
+    state TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    decided_at TEXT,
+    result TEXT
+);
+CREATE TRIGGER IF NOT EXISTS pending_actions_payload_fixed BEFORE UPDATE OF kind, payload,
+    connector, effect ON pending_actions
+BEGIN
+    SELECT RAISE(ABORT, 'A pending action runs exactly what was proposed.');
+END;
+
+-- Runs that have read private or third-party material (alpha.world.taint).
+CREATE TABLE IF NOT EXISTS taints (
+    turn TEXT PRIMARY KEY,
+    thread TEXT,
+    reason TEXT NOT NULL,
+    at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS taints_thread ON taints(thread);
 -- what Alpha proposed to set up, and its way from the person's yes to a finished build
 CREATE TABLE IF NOT EXISTS plans (
     id TEXT PRIMARY KEY,
@@ -342,7 +401,9 @@ CREATE TABLE IF NOT EXISTS skills (
     last_ok_count INTEGER,
     source TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    -- a read skill's read-only POSTs (readers.allowed_posts); every other non-GET is blocked
+    allow_posts TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
 """
@@ -366,12 +427,42 @@ ADDED_COLUMNS = [
     # many times the build's trial of it disagreed with an independent answer
     ("plans", "trial", "TEXT"),
     ("plans", "checks", "INTEGER NOT NULL DEFAULT 0"),
+    ("skills", "allow_posts", "TEXT NOT NULL DEFAULT '[]'"),
+    ("modules", "icon", "TEXT"),
+    # Where making the project stands (JSON, world/modules.py `set_creation`); NULL for a
+    # project that was never made through the creation process.
+    ("modules", "creation", "TEXT"),
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
     ("documents", "origin", "TEXT"),
     # a page of the wiki carries a one-line summary for the always-loaded index
     ("notes", "summary", "TEXT"),
 ]
+
+
+def _add_columns(db: sqlite3.Connection) -> None:
+    for table, column, declaration in ADDED_COLUMNS:
+        have = {r[1] for r in db.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+
+
+# Upgrades in order; a store at version n has had the first n. New tables and triggers come from
+# SCHEMA's IF NOT EXISTS; anything else (a column, a rename, a backfill) is a new step at the
+# end, never an edit to an old one. Version 1 is every store made before versions were kept.
+STEPS: list[Callable[[sqlite3.Connection], None]] = [_add_columns]
+VERSION = len(STEPS)
+
+
+def version_of(db: sqlite3.Connection) -> int:
+    return int(db.execute("PRAGMA user_version").fetchone()[0])
+
+
+def migrate(db: sqlite3.Connection) -> None:
+    """Bring a store made by an earlier version up to this one, one step at a time."""
+    for n in range(version_of(db), VERSION):
+        STEPS[n](db)
+        db.execute(f"PRAGMA user_version = {n + 1}")
 
 
 class Problem(Exception):
@@ -409,9 +500,16 @@ class Store:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA busy_timeout=10000")
         self.db.execute("PRAGMA foreign_keys=ON")
+        found = version_of(self.db)
+        if found > VERSION:
+            self.db.close()
+            raise Problem(f"This world was made by a newer Alpha (version {found}; this one knows "
+                          f"{VERSION}). Update Alpha before opening it.")
         # executescript commits on its own, so the schema is applied outside `tx()`.
         self.db.executescript(SCHEMA)
+        # Upkeep every open (columns, indexes, backfills), then the numbered steps and version.
         self._migrate()
+        migrate(self.db)
 
     def _migrate(self) -> None:
         with self.tx() as db:
@@ -465,12 +563,16 @@ class Store:
         if "readers" in tables:
             have = {r["name"] for r in db.execute("PRAGMA table_info(readers)")}
             whole = "whole" if "whole" in have else "1"
+            if "allow_posts" not in {r["name"] for r in db.execute("PRAGMA table_info(skills)")}:
+                db.execute("ALTER TABLE skills ADD COLUMN allow_posts TEXT NOT NULL DEFAULT '[]'")
+            posts = "allow_posts" if "allow_posts" in have else "'[]'"
             db.execute(
                 "INSERT OR IGNORE INTO skills (name, kind, site, url, description, script, to_end,"
                 f" whole, version, health, last_problem, last_run_at, last_count, last_ok_count,"
-                " created_at, updated_at) SELECT name, 'read', site, url, description, script,"
-                f" to_end, {whole}, version, health, last_problem, last_run_at, last_count,"
-                " last_ok_count, created_at, updated_at FROM readers")
+                " created_at, updated_at, allow_posts) SELECT name, 'read', site, url,"
+                f" description, script, to_end, {whole}, version, health, last_problem,"
+                f" last_run_at, last_count, last_ok_count, created_at, updated_at, {posts}"
+                " FROM readers")
             db.execute("DROP TABLE readers")
         if "procedures" in tables:
             db.execute(
@@ -557,6 +659,25 @@ class Store:
         try:
             with self._lock:
                 self.db.backup(copy)
+        finally:
+            copy.close()
+
+    def replace_with(self, path: Path) -> None:
+        """Make this world the copy at `path` (a backup), in place and while Alpha runs, then bring
+        it up to this version. The caller keeps a copy of what it replaces."""
+        copy = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            if copy.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise Problem(f"The backup {path.name} is damaged; it was left alone.")
+            found = version_of(copy)
+            if found > VERSION:
+                raise Problem(f"The backup {path.name} was made by a newer Alpha (version "
+                              f"{found}); update Alpha before going back to it.")
+            with self._lock:
+                copy.backup(self.db)
+                self.db.executescript(SCHEMA)
+                self._migrate()
+                migrate(self.db)
         finally:
             copy.close()
 

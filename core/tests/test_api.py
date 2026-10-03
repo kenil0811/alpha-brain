@@ -130,6 +130,24 @@ def test_token_and_errors(world: World) -> None:
     assert missing.status_code == 400 and "no table" in missing.json()["error"]
 
 
+def test_the_companion_token_only_talks(world: World) -> None:
+    c = client(world, token="main", companion_token="pal", runner=lambda r: RunResult(
+        reply="Hi.", ok=True))
+    pal = {"Authorization": "Bearer pal"}
+    assert c.get("/api/home", headers=pal).status_code == 200
+    assert c.get("/api/conversation", headers=pal).status_code == 200
+    assert c.get("/api/intelligence", headers=pal).status_code == 403
+    assert c.post("/api/pending/pa_x/approve", headers=pal).status_code == 403
+    assert c.get("/api/intelligence", headers={"Authorization": "Bearer main"}).status_code == 200
+
+
+def test_a_web_page_cannot_post_to_the_core(world: World) -> None:
+    c = client(world)  # `alpha serve` with no token
+    evil = c.post("/api/pending/pa_x/approve", headers={"Origin": "https://evil.example"})
+    assert evil.status_code == 403
+    assert c.get("/api/home", headers={"Origin": "http://localhost:5173"}).status_code == 200
+
+
 def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -> None:
     seeded(world)
     data = client(world).get("/api/intelligence").json()
@@ -164,6 +182,61 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     assert "latest" not in table
 
 
+def test_a_project_is_renamed_given_an_icon_exported_imported_and_deleted(world: World) -> None:
+    seeded(world)
+    world.knowledge.write_note("module:Job Search", "Job Search", "Roles I want.")
+    world.automations.create("Check the board every morning", "daily 08:00", "reader_run",
+                             module=world.modules.get("Job Search")["id"])
+    api = client(world)
+    card = api.patch("/api/modules/Job Search", json={"name": "Jobs", "icon": "briefcase"}).json()
+    assert (card["name"], card["icon"]) == ("Jobs", "briefcase")
+    note = world.knowledge.find_note("module:Jobs", "Jobs")
+    assert note and note["body"] == "Roles I want."
+    assert api.patch("/api/modules/Jobs", json={"icon": "nope"}).status_code == 400
+
+    world.views.create("openings", "Applied", {"filters": []}, by="person")
+    # Structure only by default: never the records (Alpha's export), with views and the version.
+    shape = api.get("/api/modules/Jobs/export").json()
+    assert shape["format"] == "alpha.project" and shape["alpha_version"]
+    assert "rows" not in shape["tables"][0]
+    assert [v["title"] for v in shape["tables"][0]["views"]] == ["Applied"]
+    bundle = api.get("/api/modules/Jobs/export?rows=true").json()
+    assert bundle["tables"][0]["rows"] == [{"title": "Backend Engineer", "company": "Lumen",
+                                            "fit": 88, "status": "new"}]
+    made = api.post("/api/modules/import", json=bundle).json()
+    assert made["name"] == "Jobs 2" and made["icon"] == "briefcase" and made["records"] == 1
+    assert [v["title"] for v in api.get("/api/tables/openings_2").json()["views"]] == ["Applied"]
+    copy = api.get(f"/api/modules/{made['id']}").json()
+    assert copy["note"]["body"] == "Roles I want."
+    assert [a["enabled"] for a in copy["automations"]] == [False]
+    assert api.post("/api/modules/import", json={"format": "x"}).status_code == 400
+
+    gone = api.delete("/api/modules/Jobs").json()
+    assert gone["rows"] == 1
+    assert [m["name"] for m in api.get("/api/modules").json()] == ["Jobs 2"]
+
+
+def test_speech_goes_to_whisper_only_with_a_saved_key(world: World, monkeypatch: Any) -> None:
+    from alpha.runtime import transcription
+
+    api = client(world)
+    monkeypatch.setattr(transcription, "saved_key", lambda provider: None)
+    assert api.get("/api/transcribe").json() == {"available": False}
+    said = api.post("/api/transcribe", json={"audio_b64": "aGk="})
+    assert said.status_code == 400 and "No transcription key" in said.json()["error"]
+
+    calls: list[tuple[str, str]] = []
+
+    def whisper(url: str, model: str, key: str, audio: bytes, mime: str) -> str:
+        calls.append((model, mime))
+        return "hi"
+
+    monkeypatch.setattr(transcription, "saved_key", lambda p: "k" if p == "chatgpt_api" else None)
+    monkeypatch.setattr(transcription, "_call", whisper)
+    assert api.get("/api/transcribe").json() == {"available": True}
+    assert api.post("/api/transcribe", json={"audio_b64": "aGk=", "mime": "audio/mp4"}).json() \
+        == {"text": "hi"}
+    assert calls == [("whisper-1", "audio/mp4")]
 def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World) -> None:
     from alpha.api.server import AskBody, Turns
     from alpha.mcp.tools import Tools

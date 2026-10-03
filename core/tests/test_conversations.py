@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from conftest import backdating
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -138,7 +139,7 @@ def test_the_panel_on_a_module_page_uses_that_modules_live_conversation(world: W
     listed = c.get("/api/conversations").json()
     assert [x["title"] for x in listed] == ["Log two eggs"]
     # Quiet for long enough, it closes on the scheduler's tick.
-    with world.store.tx() as db:
+    with backdating(world), world.store.tx() as db:
         db.execute("UPDATE journal SET at = '2026-01-01T00:00:00+00:00'")
         db.execute("UPDATE threads SET updated_at = '2026-01-01T00:00:00+00:00',"
                    " state = 'open'")

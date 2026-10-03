@@ -30,7 +30,8 @@ import threading
 import time
 from typing import Any
 
-from alpha.runtime import build, claude_cli, pipeline, turn
+from alpha.bugs import bug_log
+from alpha.runtime import build, pipeline, turn
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -82,7 +83,7 @@ def worth_telling(reply: str) -> str | None:
 
 
 def run(world: World, automation_id: str, *,
-        runner: turn.Runner = claude_cli.run) -> dict[str, Any]:
+        runner: turn.Runner) -> dict[str, Any]:
     auto = world.automations.get(automation_id)
     thread = auto["thread"]
     if not thread:
@@ -106,10 +107,12 @@ def run(world: World, automation_id: str, *,
                            actor="alpha")
     except Exception as e:
         log.exception("automation %s failed", automation_id)
+        bug_log(world).record("automation", f"{auto['title']} didn't run", str(e))
         world.modules.update_thread(thread, state="done")
         return world.automations.finished(automation_id, result=None, error=str(e))
     world.modules.update_thread(thread, state="done")
     if outcome.ok:
+        bug_log(world).resolve("automation", f"{auto['title']} didn't run")
         worth = worth_telling(outcome.reply)
         if worth:
             world.journal.append("noticed", worth, data={"automation": automation_id},
@@ -117,6 +120,8 @@ def run(world: World, automation_id: str, *,
         return world.automations.finished(automation_id, result=outcome.reply[:2000], error=None)
     world.journal.append("failed", f"{auto['title']}: {outcome.result.error or outcome.reply}",
                          data={"automation": automation_id}, module=auto["module"])
+    bug_log(world).record("automation", f"{auto['title']} didn't run",
+                          outcome.result.error or outcome.reply)
     return world.automations.finished(automation_id, result=None,
                                       error=outcome.result.error or outcome.reply)
 
@@ -130,10 +135,10 @@ class Scheduler:
     """Runs due automations while the core is up, each in its own thread, once the Mac is
     properly awake; `run_now` runs one at once in the background."""
 
-    def __init__(self, world: World, runner: turn.Runner | None = None,
+    def __init__(self, world: World, runner: turn.Runner,
                  clock: Any = time.time) -> None:
         self.world = world
-        self.runner = runner or claude_cli.run
+        self.runner = runner
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()

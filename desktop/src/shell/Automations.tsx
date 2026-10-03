@@ -3,8 +3,11 @@
  * how its last run went, an on/off switch and Run now.
  */
 import { useEffect, useState } from "react";
-import type { Automation, Client } from "../core/client";
+import type { Automation, Client, ModuleCard } from "../core/client";
 import { when } from "../modules/format";
+import { ModuleIcon } from "../ui/ModuleIcon";
+import { projectIcon } from "./projectIcons";
+import "../dataviews/dataviews.css";
 
 export function AutomationList({ client, items, onChanged, empty }: { client: Client; items: Automation[]; onChanged: () => void; empty: string }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -64,7 +67,7 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                   )}
                 </div>
               ) : a.last_error ? (
-                <div className="notice" style={{ fontSize: 12 }}>Last run didn't work: {a.last_error}</div>
+                <div className="notice notice--sm">Last run didn't work: {a.last_error}</div>
               ) : null}
             </div>
             <button type="button" className="btn btn--sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
@@ -79,5 +82,69 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
         </p>
       ) : null}
     </>
+  );
+}
+
+/** Intelligence › Automations (Alpha's): every schedule across the projects as one table. */
+export function AutomationTable({ client, items, modules, onOpenModule, onChanged }: { client: Client; items: Automation[]; modules: ModuleCard[]; onOpenModule: (id: string) => void; onChanged: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!items.length) return <p className="empty">Nothing runs on its own yet.</p>;
+  return (
+    <div className="card tablewrap">
+      <table className="table table--wrap" aria-label="Automations">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>What</th>
+            <th>When</th>
+            <th>Last ran</th>
+            <th>On</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((a) => {
+            const m = modules.find((x) => x.id === a.module);
+            return (
+              <tr key={a.id}>
+                <td>
+                  {m ? (
+                    <button type="button" className="linklike" onClick={() => onOpenModule(m.id)}>
+                      <ModuleIcon icon={projectIcon(m)} /> {m.name}
+                    </button>
+                  ) : (
+                    <span className="faint">No project</span>
+                  )}
+                </td>
+                <td title={a.title}>{a.title}</td>
+                <td>{a.when}</td>
+                <td className={a.last_error ? "notice" : undefined} title={a.last_error ?? undefined}>
+                  {a.running ? "Running now" : a.last_error ? "Failed last time" : a.last_run_at ? new Date(a.last_run_at).toLocaleString() : "Not yet"}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className={`switch${a.enabled ? "" : " switch--off"}`}
+                    role="switch"
+                    aria-checked={a.enabled}
+                    aria-label={`${a.title} on`}
+                    disabled={busy === a.id}
+                    onClick={() => {
+                      setBusy(a.id);
+                      void client
+                        .switchAutomation(a.id, !a.enabled)
+                        .catch(() => undefined)
+                        .finally(() => {
+                          setBusy(null);
+                          onChanged();
+                        });
+                    }}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

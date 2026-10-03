@@ -12,8 +12,13 @@ automations, connections, knowledge), Activity, the conversation, and turns.
 
 from __future__ import annotations
 
+import base64
+import functools
+import json
 import logging
 import os
+import platform
+import re
 import secrets
 import threading
 from collections.abc import AsyncIterator, Callable
@@ -25,19 +30,38 @@ from typing import Any
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+import alpha
+from alpha.api import brain
+from alpha.bugs import bug_log
+from alpha.connectors import files
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.context.summary import module_summary
-from alpha.runtime import acting, build, check, claude_account, claude_cli, conversations, noticing
+from alpha.models import settings
+from alpha.models.accounts import Accounts
+from alpha.models.keychain import KeychainError
+from alpha.runtime import (
+    acting,
+    build,
+    check,
+    claude_cli,
+    conversations,
+    noticing,
+    transcription,
+)
 from alpha.runtime import turn as turns
+from alpha.runtime.attachments import MAX_ATTACHMENTS, AttachmentIn
 from alpha.runtime.automation import Scheduler
-from alpha.world import backup
-from alpha.world.purge import remove_connection
-from alpha.world.store import Problem, loads
+from alpha.runtime.route import Router
+from alpha.world import access, backup, edits
+from alpha.world.bundle import export_module, import_module
+from alpha.world.pending import PendingActions
+from alpha.world.purge import remove_connection, remove_module
+from alpha.world.store import Problem, loads, now
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.api")
@@ -48,8 +72,36 @@ class AskBody(BaseModel):
     text: str
     module: str | None = None
     thread: str | None = None
+    attachments: list[AttachmentIn] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
     # The conversation this belongs to; without one the sentence is routed (the companion).
     conversation: str | None = None
+
+
+class SettingsBody(BaseModel):
+    values: dict[str, Any]
+
+
+class AccessBody(BaseModel):
+    thread: str | None = None
+    mode: str | None = None
+
+
+class KeyBody(BaseModel):
+    key: str = Field(min_length=1, max_length=400)
+
+
+class CodeBody(BaseModel):
+    code: str = Field(min_length=1, max_length=2000)
+
+
+class ModelBody(BaseModel):
+    model: str = Field(min_length=1, max_length=200)
+
+
+class RouteBody(BaseModel):
+    thread: str | None = None
+    provider: str | None = None
+    model: str | None = Field(default=None, max_length=200)
 
 
 class ConversationBody(BaseModel):
@@ -66,6 +118,27 @@ class RecordBody(BaseModel):
     revision: int | None = None
 
 
+class ViewBody(BaseModel):
+    title: str | None = None
+    config: dict[str, Any] | None = None
+    is_default: bool | None = None
+
+
+class FieldChangeBody(BaseModel):
+    kind: str | None = None
+    label: str | None = None
+    choices: list[str] | None = None
+    relation: str | None = None
+
+
+class FieldsBody(BaseModel):
+    fields: list[dict[str, Any]]
+
+
+class BulkBody(BaseModel):
+    action: str
+    items: list[dict[str, Any]]
+    values: dict[str, Any] | None = None
 class ExportBody(BaseModel):
     format: str = "csv"
 
@@ -98,6 +171,47 @@ class SwitchBody(BaseModel):
     enabled: bool
 
 
+class SpeechBody(BaseModel):
+    audio_b64: str
+    mime: str = "audio/webm"
+    provider: str | None = None
+
+
+class ModuleBody(BaseModel):
+    name: str | None = None
+    icon: str | None = None
+    goal: str | None = None
+    # The project it is filed under (sub project); null takes it out. Absent: left as it is.
+    project: str | None = None
+
+
+class NewModuleBody(BaseModel):
+    name: str | None = Field(default=None, max_length=80)
+
+
+class CreationAnswerBody(BaseModel):
+    """What the person did on the project's page while it is being made: answered the
+    questions, took the defaults, chose an option, asked to build, or tried again."""
+    text: str | None = None
+    answers: dict[str, str] | None = None
+    choice: str | None = None
+    use_defaults: bool = False
+    build: bool = False
+    carry_on: bool = False
+    retry: bool = False
+    start_over: bool = False
+
+
+class ThreadBody(BaseModel):
+    title: str | None = Field(default=None, max_length=400)
+    module: str | None = None
+
+
+class ThreadPatch(BaseModel):
+    state: str | None = None
+    title: str | None = Field(default=None, max_length=400)
+
+
 class NoteBody(BaseModel):
     scope: str
     title: str
@@ -109,9 +223,11 @@ class Turns:
     """Turns run in the background; the window polls for the answer."""
 
     def __init__(self, world: World, runner: turns.Runner | None = None,
-                 after: Callable[[], None] | None = None, checks: bool = True) -> None:
+                 accounts: Accounts | None = None, after: Callable[[], None] | None = None,
+                 checks: bool = True) -> None:
         self.world = world
         self.runner = runner
+        self.accounts = accounts
         self.after = after
         # After a turn in which Alpha wrote values it worked out itself, an independent answer
         # checks them in the background and Alpha corrects itself in the conversation.
@@ -138,10 +254,17 @@ class Turns:
             # request never waits on one), so the turn comes back at once as "routing".
             routing = True
         key = secrets.token_hex(6)
+        if self.accounts is not None:
+            # Nothing is said into the conversation until the model it goes to is connected:
+            # the window connects it and sends the same words again.
+            provider = str(self.accounts.route(conversation or body.thread)["provider"])
+            if not self.accounts.connected(provider):
+                return {"id": key, "state": "needs_connect", "text": body.text,
+                        "provider": provider, "started_at": datetime.now(UTC).isoformat()}
         self._evict()
         with self.lock:
             self.state[key] = {"id": key, "state": "routing" if routing else "running",
-                               "text": body.text,
+                               "text": body.text, "thread": body.thread,
                                "started_at": datetime.now(UTC).isoformat(),
                                "conversation": conversation_view(self.world, conversation)
                                if conversation else None}
@@ -150,6 +273,9 @@ class Turns:
             def said(jid: str) -> None:
                 with self.lock:
                     self.state[key]["said"] = jid
+                    stopping = self.state[key].get("stopping")
+                if stopping:  # stopped before the model started: it never does
+                    claude_cli.LIVE.stop(jid, before_start=True)
 
             nonlocal conversation
             try:
@@ -173,16 +299,28 @@ class Turns:
                                           "conversation": bool(conversation)}
                 if conversation:
                     self.world.modules.update_thread(conversation, state="working")
+                if body.attachments:
+                    kwargs["attachments"] = body.attachments
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
                 out = turns.ask(self.world, body.text, **kwargs)
+                raw = out.result.raw
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
-                          "duration_ms": out.result.duration_ms}
+                          "duration_ms": out.result.duration_ms,
+                          "provider": raw.get("provider")}
+                if not out.ok and raw.get("cancelled"):
+                    result["state"] = "cancelled"
+                elif not out.ok and raw.get("needs_connect"):
+                    # The call itself showed a connection problem: the window shows the
+                    # connect card for that row, and sends the words again once it's green.
+                    result.update(state="needs_connect", provider=raw["needs_connect"],
+                                  connect_kind=raw.get("connect_kind"))
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
-            except Exception:
+            except Exception as e:
                 log.exception("turn failed")
+                bug_log(self.world).record("core", type(e).__name__, str(e))
                 result = {"state": "failed", "reply": "Alpha hit a problem it couldn't recover"
                           " from; the details are in its log."}
             with self.lock:
@@ -264,20 +402,24 @@ class Turns:
         out["live"] = claude_cli.LIVE.progress_for(said)
         return out
 
+    def cancel(self, key: str) -> dict[str, Any]:
+        with self.lock:
+            if key not in self.state:
+                raise Problem(f"There is no turn {key}.")
+            entry = self.state[key]
+            if entry["state"] != "running":
+                return dict(entry)
+            entry["stopping"] = True
+            said = entry.get("said")
+        if said:
+            claude_cli.LIVE.stop(said, before_start=True)
+        return self.get(key)
+
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
             return [dict(v) for v in self.state.values()
                     if v["state"] in ("running", "routing")]
 
-    def stop(self, key: str) -> dict[str, Any]:
-        """Stop a turn that is still working; it ends with "You stopped it."."""
-        with self.lock:
-            if key not in self.state:
-                raise Problem(f"There is no turn {key}.")
-            said = self.state[key].get("said")
-        if said:
-            claude_cli.LIVE.stop(said)
-        return self.get(key)
 
 
 def _local_midnight_utc() -> str:
@@ -418,15 +560,37 @@ def timeline(world: World, entity_id: str, limit: int = 100) -> list[dict[str, A
     return [entry(r) for r in rows]
 
 
+# The app's own pages, and Vite on any local port in development.
+ORIGINS = ["tauri://localhost", "http://tauri.localhost"]
+DEV_ORIGIN = r"^http://(localhost|127\.0\.0\.1):\d+$"
+
+# What the companion window may do with its token: talk and listen. Approving, settings, keys
+# and edits need the main window's token, so a script planted in the companion reaches none.
+COMPANION = [("GET", r"/api/home"), ("GET", r"/api/conversation"), ("POST", r"/api/ask"),
+             ("GET", r"/api/turns/[^/]+"), ("GET", r"/api/transcribe"),
+             ("POST", r"/api/transcribe")]
+
+
+def companion_may(method: str, path: str) -> bool:
+    return any(method == m and re.fullmatch(p, path) for m, p in COMPANION)
+
+
 def create_app(world: World | None = None, *, runner: turns.Runner | None = None,
-               token: str | None = None, live: bool = True) -> FastAPI:
+               token: str | None = None, companion_token: str | None = None,
+               live: bool = True) -> FastAPI:
     world = world or World()
     global _WORLD_FOR_VIEW
     _WORLD_FOR_VIEW = world
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
-    scheduler = Scheduler(world, runner)
-    runner_fn = runner or claude_cli.run
-    running = Turns(world, runner, after=scheduler.builds if live else None, checks=live)
+    if companion_token is None:
+        companion_token = os.environ.get("ALPHA_COMPANION_TOKEN")
+    accounts = Accounts(world.store)
+    # An injected runner (tests) bypasses the model routes and their connection check.
+    route = runner or Router(accounts)
+    scheduler = Scheduler(world, route)
+    runner_fn = route
+    running = Turns(world, route, None if runner else accounts,
+                    after=scheduler.builds if live else None, checks=live)
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager
@@ -455,8 +619,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     app = FastAPI(title="Alpha", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:1430", "http://127.0.0.1:1430", "tauri://localhost",
-                       "http://tauri.localhost"],
+        allow_origins=ORIGINS,
+        # The window in development: Vite on any local port (each worktree runs its own); the
+        # token still guards when the app hosts the core.
+        allow_origin_regex=DEV_ORIGIN,
         allow_methods=["*"], allow_headers=["*"],
     )
 
@@ -464,18 +630,38 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         host = request.client.host if request.client else ""
         if host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
             raise HTTPException(403, "Alpha only answers this Mac.")
-        if token and request.headers.get("authorization") != f"Bearer {token}":
-            raise HTTPException(401, "This window isn't signed in to Alpha's core.")
+        # CORS only hides the answer; a web page's simple POST still runs. Refuse any page
+        # that isn't Alpha's own, which matters most for `alpha serve` without a token.
+        origin = request.headers.get("origin")
+        if origin and origin not in ORIGINS and not re.fullmatch(DEV_ORIGIN, origin):
+            raise HTTPException(403, "Alpha only answers its own windows.")
+        if not token:
+            return
+        sent = request.headers.get("authorization")
+        if sent == f"Bearer {token}":
+            return
+        if companion_token and sent == f"Bearer {companion_token}":
+            if companion_may(request.method, request.url.path):
+                return
+            raise HTTPException(403, "The companion can't do that; open the main window.")
+        raise HTTPException(401, "This window isn't signed in to Alpha's core.")
 
     @app.exception_handler(Problem)
     async def problem(_: Request, exc: Problem) -> JSONResponse:
         return JSONResponse({"error": str(exc)}, status_code=400)
 
+    @app.exception_handler(KeychainError)
+    async def keychain_problem(_: Request, exc: KeychainError) -> JSONResponse:
+        return JSONResponse({"error": f"The Keychain said no: {exc}"}, status_code=502)
+
     api = Depends(guard)
 
     @app.get("/api/health", dependencies=[api])
     def health() -> dict[str, Any]:
-        return {"ok": True, "world": str(world.path), "running_turns": len(running.running())}
+        return {"ok": True, "world": str(world.path), "running_turns": len(running.running()),
+                "core_version": alpha.__version__,
+                "core_commit": source_commit(),
+                "python_version": platform.python_version()}
 
     # ---- Home ----
 
@@ -503,8 +689,30 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             "brief": None,
         }
 
+    pending_actions = PendingActions(world)
+
+    @app.get("/api/pending", dependencies=[api])
+    def pending() -> list[dict[str, Any]]:
+        return pending_actions.pending()
+
+    # The one approve path: these two, and an answer to a pending action's question, all end in
+    # Actions.approve / reject, which runs the stored payload once.
+    @app.post("/api/pending/{aid}/approve", dependencies=[api])
+    def approve(aid: str) -> dict[str, Any]:
+        return pending_actions.approve(aid, by="person")
+
+    @app.post("/api/pending/{aid}/reject", dependencies=[api])
+    def reject(aid: str) -> dict[str, Any]:
+        return pending_actions.reject(aid, by="person")
+
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
+        action = pending_actions.by_ask(ask_id)
+        if action is not None:
+            yes = body.text.strip().lower() in {"approve", "yes", "approved"}
+            decide = pending_actions.approve if yes else pending_actions.reject
+            decided = decide(action["id"], by="person")
+            return {"pending_action": decided}
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
@@ -522,7 +730,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
     def dismiss(ask_id: str) -> dict[str, Any]:
-        # Closed without an answer: nothing runs.
+        # Closed without an answer: nothing runs (a pending action is rejected).
+        action = pending_actions.by_ask(ask_id)
+        if action is not None:
+            return {"pending_action": pending_actions.reject(action["id"], by="person")}
         return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
 
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
@@ -583,7 +794,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.post("/api/turns/{key}/stop", dependencies=[api])
     def stop_turn(key: str) -> dict[str, Any]:
-        return running.stop(key)
+        return running.cancel(key)
 
     @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
     def resume_plan(plan_id: str) -> dict[str, Any]:
@@ -619,8 +830,37 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
         card["automations"] = automation_views(world, scheduler, m["id"])
+        card["plan"] = world.knowledge.find_note(f"module:{m['name']}", "Plan")
+        card["sessions"] = world.modules.sessions(m["id"])
+        card["sub_projects"] = [module_card(world, c) for c in world.modules.children(m["id"])]
+        # Facts that hold only inside this project (world/knowledge.py).
+        card["facts"] = world.knowledge.facts(f"module:{m['id']}")
+        # The turn making it, while one runs (the page shows its clock and Stop).
+        making = (m["creation"] or {}).get("thread")
+        card["running"] = [t for t in running.running() if making and t.get("thread") == making]
         card["sources"] = world.sources.all(m["id"])
         return card
+
+    @app.patch("/api/modules/{ref}", dependencies=[api])
+    def edit_module(ref: str, body: ModuleBody) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"name": body.name, "icon": body.icon, "goal": body.goal}
+        if "project" in body.model_fields_set:
+            kwargs["project"] = body.project
+        return module_card(world, world.modules.update(ref, **kwargs))
+
+    @app.delete("/api/modules/{ref}", dependencies=[api])
+    def delete_module(ref: str) -> dict[str, Any]:
+        return remove_module(world, ref)
+
+    @app.get("/api/modules/{ref}/export", dependencies=[api])
+    def export(ref: str, rows: bool = False) -> dict[str, Any]:
+        return export_module(world, ref, rows=rows)
+
+    @app.post("/api/modules/import", dependencies=[api])
+    def import_(bundle: dict[str, Any]) -> dict[str, Any]:
+        if set(bundle) == {"path"}:
+            bundle = read_project_file(str(bundle["path"]))
+        return module_card(world, import_module(world, bundle))
 
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
     def summary(ref: str) -> dict[str, Any]:
@@ -645,7 +885,11 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                 if row is not None:
                     files[did] = {"id": did, "name": row["title"], "path": row["path"],
                                   "size": row["size"], "kind": row["kind"]}
-        return {"table": desc, "records": records, "files": files}
+        last = edits.last_edit(world, name)
+        return {"table": desc, "records": records, "files": files,
+                "views": world.views.all(name),
+                "last_edit": {"text": last["text"], "at": last["at"], "actor": last["actor"]}
+                if last else None}
 
     @app.post("/api/tables/{name}/export", dependencies=[api])
     def export_table(name: str, body: ExportBody) -> dict[str, Any]:
@@ -757,6 +1001,61 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         person_did("changed", f"You removed a row from {title}.", name,
                    {"record": rid, "removed": before})
         return {"removed": rid}
+
+    @app.post("/api/tables/{name}/records/bulk", dependencies=[api])
+    def bulk_records(name: str, body: BulkBody) -> dict[str, Any]:
+        return edits.bulk(world, name, body.action, body.items, body.values, actor="person",
+                          provenance={"by": "person"})
+
+    @app.get("/api/tables/{name}/records/{rid}/history", dependencies=[api])
+    def record_history(name: str, rid: str) -> list[dict[str, Any]]:
+        return edits.history(world, name, rid)
+
+    @app.post("/api/tables/{name}/undo", dependencies=[api])
+    def undo_edit(name: str) -> dict[str, Any]:
+        return edits.undo(world, name, actor="person", provenance={"by": "person"})
+
+    @app.post("/api/tables/{name}/fields", dependencies=[api])
+    def add_fields(name: str, body: FieldsBody) -> dict[str, Any]:
+        desc = world.collections.add_fields(name, body.fields)
+        person_did("changed", f"You added {', '.join(str(f.get('name')) for f in body.fields)}"
+                   f" to {desc['title']}.", name, {})
+        return desc
+
+    @app.patch("/api/tables/{name}/fields/{field}", dependencies=[api])
+    def change_field(name: str, field: str, body: FieldChangeBody) -> dict[str, Any]:
+        return edits.change_field(world, name, field, actor="person",
+                                  **body.model_dump(exclude_none=True))
+
+    # ---- saved views ----
+
+    @app.get("/api/tables/{name}/views", dependencies=[api])
+    def views(name: str) -> list[dict[str, Any]]:
+        world.collections.describe(name)
+        return world.views.all(name)
+
+    @app.post("/api/tables/{name}/views", dependencies=[api])
+    def save_view(name: str, body: ViewBody) -> dict[str, Any]:
+        view = world.views.create(name, body.title or "", body.config or {}, by="person",
+                                  is_default=bool(body.is_default))
+        person_did("made", f"You saved the view {view['title']} on "
+                   f"{world.collections.describe(name)['title']}.", name, {"view": view["id"]})
+        return view
+
+    @app.patch("/api/views/{vid}", dependencies=[api])
+    def update_view(vid: str, body: ViewBody) -> dict[str, Any]:
+        view = world.views.update(vid, title=body.title, config=body.config,
+                                  is_default=body.is_default)
+        person_did("changed", f"You updated the view {view['title']}.", view["collection"],
+                   {"view": vid})
+        return view
+
+    @app.delete("/api/views/{vid}", dependencies=[api])
+    def delete_view(vid: str) -> dict[str, Any]:
+        view = world.views.delete(vid)
+        person_did("changed", f"You deleted the view {view['title']}.", view["collection"],
+                   {"view": vid, "view_config": view["config"]})
+        return {"deleted": vid}
 
     # ---- people and companies ----
 
@@ -912,21 +1211,104 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     # ---- settings: the person's Claude and their data ----
 
-    @app.get("/api/claude", dependencies=[api])
-    def claude_status() -> dict[str, Any]:
-        return claude_account.status()
+    # ---- settings: models (Settings -> Models, and the composer's + -> Advanced -> Model) ----
 
-    @app.post("/api/claude/install", dependencies=[api])
-    def claude_install() -> dict[str, Any]:
-        return claude_account.install()
+    @app.get("/api/models", dependencies=[api])
+    def model_rows() -> dict[str, Any]:
+        return {"providers": accounts.rows()}
 
-    @app.post("/api/claude/signin", dependencies=[api])
-    def claude_sign_in() -> dict[str, Any]:
-        return claude_account.sign_in()
+    @app.get("/api/models/{provider}/models", dependencies=[api])
+    def provider_models(provider: str) -> dict[str, Any]:
+        """{"models": [{"id", "label"}], "selected": id | null}."""
+        return accounts.models(provider)
 
-    @app.post("/api/claude/signout", dependencies=[api])
-    def claude_sign_out() -> dict[str, Any]:
-        return claude_account.sign_out()
+    @app.put("/api/models/{provider}/model", dependencies=[api])
+    def select_model(provider: str, body: ModelBody) -> dict[str, Any]:
+        return accounts.select_model(provider, body.model)
+
+    @app.post("/api/models/{provider}/star", dependencies=[api])
+    def star(provider: str) -> dict[str, Any]:
+        return {"providers": accounts.star(provider)}
+
+    @app.put("/api/models/{provider}/key", dependencies=[api])
+    def save_key(provider: str, body: KeyBody) -> dict[str, Any]:
+        return {"provider": accounts.save_key(provider, body.key)}
+
+    @app.delete("/api/models/{provider}/key", dependencies=[api])
+    def remove_key(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.remove_key(provider)}
+
+    @app.post("/api/models/{provider}/test", dependencies=[api])
+    def test_provider(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.test(provider)}
+
+    @app.post("/api/models/{provider}/reconnect", dependencies=[api])
+    def reconnect(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.reconnect(provider)}
+
+    @app.post("/api/models/{provider}/sign-in", dependencies=[api])
+    def sign_in(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.sign_in(provider)}
+
+    @app.post("/api/models/{provider}/sign-in/finish", dependencies=[api])
+    def finish_sign_in(provider: str, body: CodeBody) -> dict[str, Any]:
+        return {"provider": accounts.finish_sign_in(provider, body.code)}
+
+    @app.post("/api/models/{provider}/install", dependencies=[api])
+    def install(provider: str) -> dict[str, Any]:
+        return {"provider": accounts.install(provider)}
+
+    @app.get("/api/route", dependencies=[api])
+    def get_route(thread: str | None = None) -> dict[str, Any]:
+        """The model this conversation's next message goes to."""
+        return accounts.route(thread)
+
+    @app.put("/api/route", dependencies=[api])
+    def set_route(body: RouteBody) -> dict[str, Any]:
+        """This conversation's own model; no provider goes back to the default."""
+        return accounts.choose(body.thread, body.provider, body.model)
+    # ---- P2: settings fields, access modes, stopping a turn ----
+
+    access.enable(world)
+    files.enable(world)
+
+    @app.get("/api/settings", dependencies=[api])
+    def get_settings() -> list[dict[str, Any]]:
+        return settings.all_fields(world.store)
+
+    @app.patch("/api/settings", dependencies=[api])
+    def update_settings(body: SettingsBody) -> list[dict[str, Any]]:
+        return settings.update(world.store, body.values)
+
+    @app.get("/api/access", dependencies=[api])
+    def get_access(thread: str | None = None) -> dict[str, Any]:
+        """How much Alpha may do in this conversation before it asks."""
+        return {"thread": thread, "mode": settings.access_mode(world.store, thread),
+                "default": settings.get(world.store, "access.mode")}
+
+    @app.put("/api/access", dependencies=[api])
+    def set_access(body: AccessBody) -> dict[str, Any]:
+        """This conversation's own mode; no mode goes back to the default."""
+        mode = settings.set_access_mode(world.store, body.thread, body.mode)
+        return {"thread": body.thread, "mode": mode,
+                "default": settings.get(world.store, "access.mode")}
+
+    @app.post("/api/turns/{key}/cancel", dependencies=[api])
+    def cancel_turn(key: str) -> dict[str, Any]:
+        """Stop a running turn: its model process ends, and the journal says "You stopped it"."""
+        return running.cancel(key)
+
+    @app.get("/api/transcribe", dependencies=[api])
+    def can_transcribe() -> dict[str, bool]:
+        return {"available": transcription.available()}
+
+    @app.post("/api/transcribe", dependencies=[api])
+    def transcribe(body: SpeechBody) -> dict[str, str]:
+        try:
+            audio = base64.b64decode(body.audio_b64, validate=True)
+        except ValueError as e:
+            raise Problem("That recording didn't arrive whole.") from e
+        return {"text": transcription.transcribe(audio, body.mime, body.provider)}
 
     @app.get("/api/data", dependencies=[api])
     def data_info() -> dict[str, Any]:
@@ -935,6 +1317,10 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     @app.post("/api/data/backup", dependencies=[api])
     def data_backup() -> dict[str, Any]:
         return backup.back_up(world)
+
+    @app.post("/api/data/backups/{name}/restore", dependencies=[api])
+    def data_restore(name: str) -> dict[str, Any]:
+        return backup.restore(world, name)
 
     @app.get("/api/connections/{cid}/removal", dependencies=[api])
     def connection_removal(cid: str) -> dict[str, Any]:
@@ -1061,10 +1447,150 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     def thread(tid: str) -> dict[str, Any]:
         return {**world.modules.thread(tid), "journal": world.journal.recent(200, thread=tid)}
 
+    # ---- facts, skills, first steps, project links, row actions (alpha/api/brain.py) ----
+    brain.mount(app, world, api, running.runner or Router(accounts))
+    # ---- P1: new projects and making them, chats (sessions), what needs the person, bugs ----
+
+    # A turn can't carry on across a restart: a creation that was thinking says so on its page.
+    for m in world.modules.all():
+        tid = (m["creation"] or {}).get("thread")
+        if tid and world.modules.thread(tid)["state"] == "working":
+            world.modules.set_creation(m["id"], {"error": turns.RESTARTED})
+            world.modules.update_thread(tid, state="open")
+
+    @app.post("/api/modules", dependencies=[api])
+    def new_module(body: NewModuleBody) -> dict[str, Any]:
+        """New project: a blank one at once ("Untitled project"), with the thread it is made
+        in; its page asks the person to describe it."""
+        m = world.modules.create((body.name or "").strip() or world.modules.untitled())
+        tid = world.modules.open_thread(f"Making {m['name']}", "build", m["id"])["id"]
+        return module_card(world, world.modules.set_creation(m["id"], {"stage": "new",
+                                                                         "thread": tid}))
+
+    def said_last(tid: str) -> str:
+        last = world.journal.recent(1, thread=tid, kinds=["said"])
+        if not last:
+            raise Problem("There is nothing to try again yet.")
+        return str(last[-1]["text"])
+
+    @app.post("/api/modules/{ref}/creation/answer", dependencies=[api])
+    def answer_creation(ref: str, body: CreationAnswerBody) -> dict[str, Any]:
+        m = world.modules.get(ref)
+        creation = m["creation"] or {}
+        if not creation.get("thread") or creation.get("stage") == "done":
+            raise Problem(f"{m['name']} isn't being made.")
+        tid = str(creation["thread"])
+        if body.start_over:
+            world.modules.update_thread(tid, state="done")
+            fresh = world.modules.open_thread(f"Making {m['name']}", "build", m["id"])["id"]
+            world.modules.set_creation(m["id"], None)
+            return {"module": module_card(world, world.modules.set_creation(
+                m["id"], {"stage": "new", "thread": fresh}))}
+        asked = {q["id"]: q["question"] for q in creation.get("questions", [])
+                 + (creation.get("proposal") or {}).get("questions", [])}
+        lines = [f"{asked.get(k, k)} {v}" for k, v in (body.answers or {}).items() if v.strip()]
+        if body.retry:
+            text = said_last(tid)
+        elif body.carry_on:
+            text = "Carry on building from where you stopped; check what exists first."
+        elif body.build:
+            text = "Build it now from the plan."
+        elif body.choice:
+            options = (creation.get("proposal") or {}).get("options", [])
+            option = next((o for o in options if o.get("id") == body.choice), None)
+            if option is None:
+                raise Problem("That option isn't on the page any more.")
+            text = "\n".join([f'Go with "{option["title"]}": {option.get("summary", "")}',
+                              *lines])
+        elif body.use_defaults:
+            text = ("Use your defaults for anything still open; I will revise later. Resolve"
+                    " every open question with a stated assumption and ask nothing more.")
+        else:
+            text = "\n".join([*([body.text.strip()] if body.text and body.text.strip() else []),
+                              *lines])
+        if not text.strip():
+            raise Problem("Pick an answer first.")
+        if body.build or body.carry_on:
+            # The person's yes to the plan on the page: making lasting things is open from now.
+            world.modules.set_creation(m["id"], {"approved_at": now()})
+        return {"turn": running.start(AskBody(text=text, module=m["id"], thread=tid))}
+
+    @app.post("/api/threads", dependencies=[api])
+    def new_thread(body: ThreadBody) -> dict[str, Any]:
+        """A chat the person opens ("+ New chat", then their first message): a topic thread in
+        the place it was opened (a project, or global)."""
+        module_id = world.modules.get(body.module)["id"] if body.module else None
+        title = " ".join((body.title or "").split())[:60] or "Untitled session"
+        return world.modules.open_thread(title, "topic", module_id)
+
+    @app.get("/api/threads", dependencies=[api])
+    def list_threads(module: str | None = None,
+                     include_done: bool = False) -> list[dict[str, Any]]:
+        module_id = world.modules.get(module)["id"] if module else None
+        return world.modules.sessions(module_id, include_done=include_done)
+
+    @app.patch("/api/threads/{tid}", dependencies=[api])
+    def edit_thread(tid: str, body: ThreadPatch) -> dict[str, Any]:
+        """Archive a chat (state done) or rename it."""
+        return world.modules.update_thread(tid, state=body.state, title=body.title)
+
+    @app.get("/api/attention", dependencies=[api])
+    def attention() -> dict[str, Any]:
+        """What the Activity bell counts: everything waiting on the person, and automations
+        whose last run in the past day failed."""
+        since = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+        failed = [{"id": a["id"], "title": a["title"], "module": a["module"],
+                   "at": a["last_run_at"], "error": a["last_error"]}
+                  for a in world.automations.all()
+                  if a["last_error"] and (a["last_run_at"] or "") >= since]
+        needs = needs_you(world)
+        return {"count": len(needs) + len(failed), "needs_you": needs, "failed": failed}
+
+    @app.get("/api/bugs", dependencies=[api])
+    def bugs() -> dict[str, Any]:
+        """Alpha's own bug log (`<data dir>/bugs.md`)."""
+        return {"path": str(bug_log(world).path), "text": bug_log(world).read()}
+
     return app
 
 
+PROJECT_SUFFIXES = (".alphaproject", ".json")
+PROJECT_MAX_BYTES = 10 * 1024 * 1024
+
+
+def read_project_file(path: str) -> dict[str, Any]:
+    """A project file on this Mac, by its path (what the window's attachments carry)."""
+    file = Path(path).expanduser()
+    if file.suffix.lower() not in PROJECT_SUFFIXES or not file.is_file():
+        raise Problem("That isn't a project file exported from Alpha.")
+    if file.stat().st_size > PROJECT_MAX_BYTES:
+        raise Problem("That project file is larger than 10 MB.")
+    try:
+        bundle = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise Problem("That project file couldn't be read.") from e
+    if not isinstance(bundle, dict):
+        raise Problem("That isn't a project file exported from Alpha.")
+    return bundle
+
+
 READY_PREFIX = "ALPHA_CORE_READY "
+
+
+@functools.cache
+def source_commit() -> str | None:
+    """The commit the core's code was loaded from (once: later commits don't change running
+    code), so the app can tell when its own build is older or newer (the app runs the core from
+    the checkout, which moves on without it)."""
+    import subprocess
+
+    repo = Path(__file__).resolve().parents[3]
+    try:
+        done = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True,
+                              text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return (done.stdout.strip() or None) if done.returncode == 0 else None
 
 
 def serve(port: int = 53900, *, background: bool = True) -> None:
@@ -1084,7 +1610,8 @@ def serve(port: int = 53900, *, background: bool = True) -> None:
     sock.bind(("127.0.0.1", port))
     sock.listen(128)
     world = World()
-    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid()}
+    ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid(),
+             "commit": source_commit()}
     print(READY_PREFIX + json.dumps(ready), flush=True)
     config = uvicorn.Config(create_app(world, live=background), log_level="warning")
     uvicorn.Server(config).run(sockets=[sock])

@@ -16,8 +16,8 @@
     alpha journeys [names…] [--world path] [--keep] [--list]   (the journey suite, on a copy)
     alpha mcp                       (the MCP server the model talks to)
 
-`alpha ask` runs one turn only: the second opinion and the build kick live in `alpha serve`.
-ALPHA_HOME picks the data directory; ALPHA_MODEL the model alias (default sonnet).
+`alpha ask` runs one turn only, on the model chosen in Settings -> Models: the second opinion
+and the build kick live in `alpha serve`. ALPHA_HOME picks the data directory.
 """
 
 from __future__ import annotations
@@ -121,7 +121,13 @@ def main(argv: list[str] | None = None) -> int:
     world = World()
     try:
         if args.command == "ask":
-            outcome = turn.ask(world, " ".join(args.text), module=args.module, thread=args.thread)
+            # The same route the app uses: the chosen model and Alpha's own sign-in, never the
+            # `claude` CLI's login (Alpha bugs #45).
+            from alpha.models.accounts import Accounts
+            from alpha.runtime.route import Router
+
+            outcome = turn.ask(world, " ".join(args.text), module=args.module, thread=args.thread,
+                               runner=Router(Accounts(world.store)))
             print(outcome.reply)
             r = outcome.result
             if r.duration_ms is not None:

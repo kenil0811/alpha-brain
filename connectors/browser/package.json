@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Alpha's browser session driver: reads pages in a Chrome profile Alpha keeps, signed in by the person; never clicks, types or submits (paging buttons only).",
+  "description": "Alpha's browser session driver: reads pages in a Chrome profile Alpha keeps, signed in by the person; read sessions block writes and, while Alpha's script runs, other origins.",
   "dependencies": {
     "playwright-core": "1.62.0"
+  },
+  "scripts": {
+    "test": "node --test scripts/*.test.mjs"
   }
 }

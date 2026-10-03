@@ -198,10 +198,11 @@ class Journal:
             "SELECT at, data FROM journal WHERE kind = 'changed'"
             " AND json_extract(data, '$.removed') IS NOT NULL"
         ):
-            removed = loads(r["data"], {}).get("removed")
+            data = loads(r["data"], {})
+            removed = data.get("removed")
             # Only a removal of a module or connection (kind, id, name) says things are gone; a
             # deleted row's values once rode under the same key and must not be read as one.
-            if not isinstance(removed, dict) or not removed.get("kind") \
+            if data.get("collection") or not isinstance(removed, dict) or not removed.get("kind") \
                     or not removed.get("id") or not removed.get("name"):
                 continue
             words = f"{removed['name']} was removed on {r['at'][:10]}"
