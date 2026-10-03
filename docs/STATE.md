@@ -65,7 +65,9 @@ copy of Kenil's world (see the numbers).
 **In flight (the port of pull request #3's ideas, Q27–Q28):** ~~foundations~~ → the table views
 (left: a record page with a back stack, the form view) → ~~⌘K~~ → ~~item pages, fact origins,
 the module's page~~ → ~~the desktop check and the UI rules~~ → ~~quick entry on a table~~ → ~~the
-companion's characters~~ → a graph, designed first (a short proposal before any code).
+companion's characters~~ → a graph: proposed in
+[`design/knowledge-graph-proposal.md`](design/knowledge-graph-proposal.md) (a map of Alpha's work
+now, the graph of the world after people-for-real), waiting on Kenil's choice.
 
 1. ~~The docs' shape~~ — done 3 Oct.
 2. ~~Harden the model boundary and the store~~ — done 3 Oct. Left from the review: a schema
