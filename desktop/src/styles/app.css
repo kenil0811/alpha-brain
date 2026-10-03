@@ -797,3 +797,13 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .timeline__row:hover { background: var(--hover); border-left-color: var(--primary); }
 .timeline__day { width: 24px; color: var(--text-3); flex: none; }
 .row--selected td { background: var(--primary-soft); }
+
+/* ⌘K */
+.command__input { width: 100%; font-size: 15px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-bottom: 8px; }
+.command__list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
+.command__item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; font-size: 13px; cursor: default; }
+.command__item--active { background: var(--primary-soft); }
+.command__ico { color: var(--text-3); display: inline-grid; place-items: center; width: 18px; }
+.command__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command__hint { white-space: nowrap; }
+.dialog--command { width: min(640px, calc(100vw - 48px)); top: 18%; transform: translate(-50%, 0); }

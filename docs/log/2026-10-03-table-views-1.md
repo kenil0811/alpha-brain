@@ -51,3 +51,14 @@ picker, the food log's timeline. 177 core tests, 23 desktop.
 
 **Still to come in the table views:** a record page with a back stack for links to other
 tables' records, and the form view; the graph waits for the knowledge graph's design.
+
+## ⌘K (the same night)
+
+`shell/CommandMenu.tsx`: ⌘K or Ctrl+K anywhere in the window opens a search over everything.
+Pages and modules match as you type; from two characters the core's `/api/search` adds people
+(to their page), rows (to the module that holds the table), documents (opened with the Mac's
+own app) and journal entries (to Activity); a sentence of three characters or more can go to
+Alpha as a question, which opens the panel with it as the draft. Arrow keys move, Enter goes,
+Escape closes; a late search answer never overwrites a newer one. Two tests (`CommandMenu.test.tsx`).
+The design's "search everything with ⌘K" (§8) is built; the pull request's version searched
+six fixed pages and called no route.

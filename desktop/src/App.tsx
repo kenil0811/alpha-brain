@@ -10,6 +10,7 @@ import { AssistantPanel } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
+import { CommandMenu } from "./shell/CommandMenu";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
@@ -81,6 +82,18 @@ export function App({ client: injected }: { client?: Client } = {}) {
     };
     // once: the listeners read the address, not this render's surface
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ⌘K (or Ctrl+K) anywhere in the window: search everything.
+  const [commandOpen, setCommandOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
   const rail = useDragWidth("alpha.rail.width", 224, 160, 360, "right");
   const panel = useDragWidth("alpha.panel.width", 380, 280, 560, "left");
@@ -243,6 +256,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Activity client={runtime.client} version={version} onChanged={changed} />
         )}
       </main>
+      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft(text); togglePanel(true); }} /> : null}
       {client ? (
         <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={version} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} />
       ) : null}
