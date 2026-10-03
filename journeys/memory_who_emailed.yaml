@@ -1,0 +1,7 @@
+name: memory_who_emailed
+title: Memory · a person is recognised across email and calendar
+why: "Sara Ramos emailed about Penelope Health and had an intro call on the calendar; Alpha should tell the story from both."
+steps:
+  - say: "who is sara ramos and when did i last deal with her?"
+checks:
+  - judge: "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents."

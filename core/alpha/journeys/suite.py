@@ -12,6 +12,8 @@ A journey file:
       - build: latest                                      # approve the newest plan, build it
       - approve_action: latest   # (in steps_after) the person's yes to the newest action
       - decline_plan: latest     # the person's no, through the app's route
+      - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
+      - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
       - row: {collection: food_log, source_not: [estimated]}   # a row this journey added
@@ -21,6 +23,7 @@ A journey file:
       - plan: proposed
       - reply: {matches: "\\n\\s*1[.)]"}     # regex on the last reply (or `contains`)
       - judge: "Did the answer name people from the connections table, or say plainly none?"
+      - judge: {rubric: "…", history: 1}   # the judge also sees the previous exchange
       - count: {collection: linkedin_connections, at_least_fraction_of_last_ok: 0.95,
                 reader: linkedin_connections}
       - reader_health: linkedin_connections
@@ -43,7 +46,7 @@ import shutil
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -154,6 +157,7 @@ class Run:
         self.runner = runner
         self.last_turn: str | None = None
         self.last_reply: str = ""
+        self.exchanges: list[tuple[str, str]] = []  # (said, reply) in order, this journey
         self.last_automation: dict[str, Any] | None = None
         self.last_action: dict[str, Any] | None = None
         self.mark = mark(world)
@@ -166,6 +170,7 @@ class Run:
             outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
                                runner=self.runner)
             self.last_turn, self.last_reply = outcome.said, outcome.reply
+            self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
                 self._settle_builds()
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
@@ -183,6 +188,29 @@ class Run:
             record = {"automation": auto["title"], "ok": not self.last_automation.get("last_error"),
                       "result": self.last_automation.get("last_result"),
                       "problem": self.last_automation.get("last_error")}
+        elif "seed" in spec:
+            # Something that was true before the journey began: a past exchange, a fact.
+            seed = spec["seed"]
+            if seed.get("kind") == "turn":
+                from datetime import datetime as dt
+                from datetime import timedelta
+
+                days = int(str(seed.get("ago", "1d")).rstrip("d"))
+                at = (dt.now(UTC) - timedelta(days=days)).replace(microsecond=0).isoformat()
+                said = self.world.journal.append("said", seed["said"], actor="person")
+                replied = self.world.journal.append("replied", seed["replied"],
+                                                    data={"turn": said})
+                with self.world.store.tx() as db:
+                    db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (at, said, replied))
+                record = {"seed": f"{days} day(s) ago: {seed['said'][:60]}", "ok": True}
+            elif seed.get("kind") == "fact":
+                self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
+                                                 source="stated", state="accepted")
+                record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            else:
+                raise Problem(f"Unknown seed: {seed}")
+            # Seeds are not the journey's own work: move the mark past them.
+            self.mark = mark(self.world)
         elif "approve_action" in spec:
             from alpha.runtime import acting
 
@@ -327,8 +355,13 @@ class Run:
         said = self.world.journal.read(self.last_turn)
         system = ("You judge one answer against a rubric. Reply with JSON only:"
                   ' {"pass": true|false, "why": "one sentence"}.')
-        prompt = (f'The person said: "{said["text"]}"\n\nThe answer:\n{self.last_reply}\n\n'
-                  f"The rubric: {rubric}")
+        earlier = ""
+        if isinstance(arg, dict) and arg.get("history") and len(self.exchanges) > 1:
+            shown = self.exchanges[-1 - int(arg["history"]):-1]
+            earlier = "Earlier in this conversation:\n" + "\n".join(
+                f'Person: "{s}"\nAlpha: {r}' for s, r in shown) + "\n\n"
+        prompt = (f'{earlier}The person said: "{said["text"]}"\n\nThe answer:\n{self.last_reply}'
+                  f"\n\nThe rubric: {rubric}")
         result = self.runner(claude_cli.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,
             turn_id=self.last_turn, kind="judge"))

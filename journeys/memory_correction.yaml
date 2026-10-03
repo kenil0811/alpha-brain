@@ -1,0 +1,9 @@
+name: memory_correction
+title: Memory · a correction overrides the earlier belief, at once and afterwards
+why: "'Works at A' then 'works at B' must never leave both live; the same for a target the person changes."
+steps:
+  - say: "my protein target is now 130 g a day, not 115"
+  - say: "what's my daily protein target?"
+checks:
+  - reply: {matches: "130"}
+  - judge: "Passes if the answer gives 130 g as the current target and does not present 115 g as still current (mentioning 115 as the old value is fine). Fails otherwise."

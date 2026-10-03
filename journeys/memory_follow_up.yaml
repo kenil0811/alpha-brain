@@ -1,0 +1,10 @@
+name: memory_follow_up
+title: Memory · a follow-up that points at the previous answer works
+why: "'The second one' refers to what Alpha just listed; a fresh turn that forgot its own list fails this."
+steps:
+  - say: "list the three deals with the highest asking price in the deal tracker, numbered"
+    module: Deal Tracker
+  - say: "tell me more about the second one"
+    module: Deal Tracker
+checks:
+  - judge: {rubric: "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.", history: 1}
