@@ -8,7 +8,7 @@ behind it. It is blunt where the evidence is; where I could not measure, it says
 
 ## 1. The verdict in one paragraph
 
-Three days of building (78 commits since 1 Oct) have produced a system that holds together:
+Three days of building (66 commits since 1 Oct) have produced a system that holds together:
 one world store, one way in, a real write route with approvals, know-how Alpha writes and
 repairs itself, automations that run without a model, a memory layer that passes 6 of 7 of its
 own benchmarks, and an app Kenil uses daily. It is aligned with the vision on the things the
@@ -32,7 +32,7 @@ that decides, over the next month, whether this stays buildable by one person wi
 | Desktop | 4,973 lines TS/TSX, 748 CSS, 565 Rust; driver 559 JS |
 | Tools the model sees | 70 |
 | Journeys | 18 defined; latest runs 6/7, 2/2, 1/1, 1/2 then 1/1 |
-| Commits | 78 total; 14 / 38 / 15 on 1 / 2 / 3 Oct |
+| Commits | 77 total at 15:00; 66 since 1 Oct (14 / 38 / 14 on 1 / 2 / 3 Oct) |
 | Smells | 35 `except Exception`, 5 `type: ignore`, 0 TODO |
 | Docs | design 588 lines; build-plan 1,485 lines, 17,622 words; 10 journey reports |
 | Live world | 4.7 MB + 4.7 MB write-ahead log; 53 MB browser profiles; 6.7 MB action screenshots |
