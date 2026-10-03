@@ -10,7 +10,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../../ui/DropdownMenu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../../ui/DropdownMenu";
+import { useComingSoon } from "../../ui/Soon";
 import { CHOICE_KINDS, isNumeric, type FieldInfo } from "../../modules/fields";
 import { formatNumber, humanize } from "../../modules/format";
 import { AGGREGATE_LABELS, availableAggregates, computeAggregate, filterOpsForKind, groupBy, NO_VALUE, type AggregateKind, type DataRow, type ViewConfig } from "../engine";
@@ -417,6 +418,8 @@ export function TableView(p: ViewProps) {
 /** Bridge's StandardColumnMenu: what can be done from a column header. */
 function ColumnMenu({ field, p }: { field: FieldInfo; p: ViewProps }) {
   const { view, onViewChange } = p;
+  // Renaming, retyping and adding columns need the core's field routes (backend-requests.md §5).
+  const soon = useComingSoon();
   const set = (next: Partial<ViewConfig>) => onViewChange({ ...view, ...next });
   const sortBy = (dir: "asc" | "desc") => set({ sorts: [{ id: field.name, dir }, ...view.sorts.filter((s) => s.id !== field.name)] });
   const grouped = view.groupBy === field.name;
@@ -451,6 +454,23 @@ function ColumnMenu({ field, p }: { field: FieldInfo; p: ViewProps }) {
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => set({ frozenColumnId: frozen ? null : field.name })}>{frozen ? "Unfreeze columns" : "Freeze up to here"}</DropdownMenuItem>
       <DropdownMenuItem onSelect={() => set({ wrapCells: !view.wrapCells })}>{view.wrapCells ? "Stop wrapping cells" : "Wrap cells"}</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => soon("Renaming a column")}>Rename column</DropdownMenuItem>
+      {field.kind !== "relation" ? (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Change type</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {Object.entries(KIND_LABELS)
+              .filter(([k]) => k !== "relation")
+              .map(([k, label]) => (
+                <DropdownMenuItem key={k} disabled={k === field.kind} onSelect={() => soon("Changing a column's type")}>
+                  {label}
+                </DropdownMenuItem>
+              ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      ) : null}
+      <DropdownMenuItem onSelect={() => soon("Adding a column")}>Add column</DropdownMenuItem>
     </DropdownMenuContent>
   );
 }

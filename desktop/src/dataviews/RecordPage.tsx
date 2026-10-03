@@ -8,6 +8,7 @@ import { ArrowLeft, Maximize2, Minimize2, X } from "lucide-react";
 import type { Client, EntityDetail, RecordRow } from "../core/client";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
+import { useComingSoon } from "../ui/Soon";
 import type { FieldInfo } from "../modules/fields";
 import { when } from "../modules/format";
 import { EditInPlace, fieldLabel, type Link, type Relations } from "./cells";
@@ -67,6 +68,7 @@ export function RecordPage({ fields, titleField, record, relations, mode, onClos
   onOpenLink: (link: Link) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const soon = useComingSoon();
   const title = titleField ? String(record.values[titleField] ?? "") : "";
   const short = fields.filter((f) => f.kind !== "long_text");
   const long = fields.filter((f) => f.kind === "long_text");
@@ -119,6 +121,10 @@ export function RecordPage({ fields, titleField, record, relations, mode, onClos
           Added {when(record.created_at)}
           {by ? ` by ${who(by)}` : ""}
         </p>
+        {/* Every change and what was said then needs the core's record history (backend-requests.md §5). */}
+        <Button size="sm" variant="link" className="dv-rec__more" onClick={() => soon("A row's full history")}>
+          Every change
+        </Button>
       </div>
     </Frame>
   );

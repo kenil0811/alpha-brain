@@ -17,6 +17,7 @@ import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../ui/DropdownMenu";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/Popover";
+import { useComingSoon } from "../ui/Soon";
 import { StandardDropdown } from "../ui/StandardDropdown";
 import { titleFieldOf, type FieldInfo } from "../modules/fields";
 import { applyFilters, applySorts, filterRowsByQuery, isActiveFilter, VIEW_KINDS, type DataRow, type ViewConfig, type ViewKind } from "./engine";
@@ -106,6 +107,20 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
   const [adding, setAdding] = useState(false);
   const [relVersion, setRelVersion] = useState(0);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const soon = useComingSoon();
+
+  // Undo needs the core's edit journal (backend-requests.md §5); ⌘Z says so, outside a field.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!(e.metaKey || e.ctrlKey) || e.key !== "z" || e.shiftKey) return;
+      if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
+      e.preventDefault();
+      soon("Undo");
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [soon]);
 
   const setConfig = useCallback((next: ViewConfig) => {
     setConfigState(next);
@@ -483,6 +498,7 @@ export function DataViews({ client, table: initialTable, version, onChanged }: {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => soon("Undo")}>Undo</DropdownMenuItem>
               <DropdownMenuItem onSelect={load}>Reload</DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>Download</DropdownMenuSubTrigger>
