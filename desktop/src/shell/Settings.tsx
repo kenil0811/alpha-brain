@@ -174,7 +174,8 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
 
       <div className="section">
         <div className="section__head">
-          <h2>Claude</h2>
+          <h2>Thinks with</h2>
+          <span className="faint">Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription</span>
         </div>
         <div className="card list">
           <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => void client.setThinking("claude").then((t) => onThinking?.(t))} />
