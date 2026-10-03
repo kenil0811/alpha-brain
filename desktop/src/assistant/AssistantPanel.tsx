@@ -10,6 +10,7 @@ import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Button, CollapseToggleButton, IconButton, Input } from "../ui";
 import { ZazooIcon } from "../ui/ZazooIcon";
+import { bindingOf, matches } from "../shell/shortcuts";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const EXAMPLES = [
@@ -322,7 +323,7 @@ export function AssistantPanel({
     speech.toggle();
   };
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (!e.nativeEvent.isComposing && matches(e, bindingOf("send"))) {
       e.preventDefault();
       if (speech.listening) speech.stop();
       void send(text);

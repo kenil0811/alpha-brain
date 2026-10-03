@@ -7,6 +7,7 @@ import type { ModuleCard } from "../core/client";
 import { Dialog, DialogContent, Input } from "../ui";
 import { projectIcon } from "./projectIcons";
 import type { Surface } from "./Rail";
+import { bindingOf, matches } from "./shortcuts";
 
 interface Command {
   id: string;
@@ -23,7 +24,7 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (matches(e, bindingOf("command-menu"))) {
         e.preventDefault();
         setOpen((v) => !v);
       }

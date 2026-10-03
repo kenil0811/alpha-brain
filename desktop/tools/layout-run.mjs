@@ -54,7 +54,7 @@ try {
   const port = await start("uv", ["run", "alpha", "serve", "--port", "0"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
   const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
   // "<path>:<table>" is the project page again, on that table's tab (kept in localStorage).
-  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", "/settings/appearance", "/settings/avatar", `/m/${project}`, `/m/${project}:openings`,
+  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", "/settings/models", "/settings/claude", "/settings/appearance", "/settings/avatar", "/settings/look", "/settings/builds", "/settings/desktop", "/settings/permissions", "/settings/shortcuts", "/settings/data", "/settings/about", `/m/${project}`, `/m/${project}:openings`,
     // Each kind of Intelligence item's own page.
     "/intelligence/skills/files", `/intelligence/skills/reader%3A${seed.reader}`, `/intelligence/automations/${seed.automation}`, `/intelligence/connections/${seed.connection}`,
     `/intelligence/knowledge/${seed.fact}`, `/intelligence/knowledge/${seed.goal}`, `/intelligence/knowledge/${seed.permission}`, `/intelligence/knowledge/${seed.note}`, `/intelligence/brain/${seed.entity}`];

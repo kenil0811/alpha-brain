@@ -983,3 +983,10 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .askcard__options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .askcard__other { display: flex; gap: 6px; align-items: center; }
 .askcard__other .ui-input { flex: 1; min-width: 120px; }
+
+/* ---- settings: shortcuts ---- */
+.settings__keys { flex: none; min-width: 72px; justify-content: center; font-size: var(--text-xs); }
+.settings__clash { display: block; }
+.settings__talk { display: flex; align-items: center; gap: 8px; }
+/* A row whose name and "Coming soon" don't fit beside its key field puts the field below. */
+.models__row .models__body { flex-basis: 220px; }

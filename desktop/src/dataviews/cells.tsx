@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { editText, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "../modules/fields";
 import { humanize } from "../modules/format";
 import { IconButton } from "../ui/IconButton";
+import { bindingOf, matches } from "../shell/shortcuts";
 
 export const fieldLabel = (f: FieldInfo) => f.label ?? humanize(f.name);
 
@@ -242,11 +243,11 @@ export function CellEditor({ field, value, relations, onDone, autoFocus = true }
   };
   const key = (e: KeyboardEvent) => {
     e.stopPropagation();
-    if (e.key === "Enter" && !(field.kind === "long_text" && e.shiftKey)) {
+    if (matches(e, bindingOf("cell-save"))) {
       e.preventDefault();
       finish(true);
     }
-    if (e.key === "Escape") finish(false);
+    if (matches(e, bindingOf("cell-cancel"))) finish(false);
   };
   const label = fieldLabel(field);
   if (field.kind === "choice" || field.kind === "status") {
