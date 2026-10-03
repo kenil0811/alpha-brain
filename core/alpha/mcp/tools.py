@@ -469,7 +469,9 @@ class Tools:
         """Create or replace a page of Alpha's wiki (Markdown). Scopes: person (title 'Profile':
         a short portrait); module:<name> (the module's name as title: what it is for, what it
         holds, what was tried, what is open); entity:<id> (a person or company: who they are to
-        the person, how they know them, what is going on); topic:<slug> (anything else).
+        the person, how they know them, what is going on); topic:<slug> (anything else);
+        skill:<name> (site notes for one of your skills: what the page is like, what broke and
+        why, what to watch; skill_read shows them).
         summary: the page's one line in the always-loaded index. Write only what the person
         said or what you verified. Standing instructions are not written here: see
         instruction_add."""
@@ -784,7 +786,8 @@ class Tools:
 
     @tool
     def reader_save(self, name: str, url: str, script: str, description: str,
-                    to_end: bool = False, whole: bool | None = None) -> dict[str, Any]:
+                    to_end: bool = False, whole: bool | None = None,
+                    when_to_use: str | None = None) -> dict[str, Any]:
         """Keep a reader you wrote: a page_script that turns a page into rows (a list of
         objects with the same keys). It is run once now and only kept if it returns rows; then
         automations use it with reader_run, with no model call, and you repair it when it
@@ -793,7 +796,8 @@ class Tools:
         returns the whole list (every page: to_end for lists that scroll or show more, or your
         script fetching the next pages), false when it deliberately reads only the newest page
         (then rows that drop off it are not counted as gone). When the page shows more pages
-        you must say which."""
+        you must say which. when_to_use: one line on when this skill is the right one (it is
+        in every turn's context, so you reuse it instead of writing another)."""
         if name not in self.world.readers.names():
             refused = self._gate("Writing a new reader")
             if refused:
@@ -812,7 +816,9 @@ class Tools:
                     " what you want, save with whole=false. Say which in the description too."}
         reader = self.world.readers.save(name, site=site_of(url), url=url, script=script,
                                          description=description, to_end=to_end,
-                                         count=len(rows), whole=whole is not False)
+                                         count=len(rows), whole=whole is not False,
+                                         when_to_use=when_to_use,
+                                         source=f"turn:{self.turn}" if self.turn else None)
         self._did("made", f"{'Updated' if reader['version'] > 1 else 'Wrote'} the reader {name}"
                   f" ({description}); it read {len(rows)} rows.", {"reader": name})
         return {"name": name, "version": reader["version"], "rows": len(rows),
@@ -836,12 +842,30 @@ class Tools:
                                    keep=keep_person_fields, mapping=value_map,
                                    turn_id=self.turn, module=self.module)
 
+    # ---- skills: the one unit of know-how (readers, procedures, pipelines) ----
+
     @tool
-    def readers_list(self) -> list[dict[str, Any]]:
-        """The readers you wrote, with their health and how their last run went."""
-        return [{k: r[k] for k in ("name", "site", "url", "description", "version", "health",
+    def skills_find(self, text: str | None = None, site: str | None = None,
+                    kind: str | None = None) -> list[dict[str, Any]]:
+        """The skills you wrote, with their health: read (a reader: a page script that
+        returns rows; run it with reader_run), act (a procedure: steps that do one task on a
+        site; use it through action_propose) and run (an automation's pipeline). Search by
+        words, by site (gmail.com, linkedin.com) or by kind. Use an existing skill for a site
+        and task before writing another; a procedure with {fields} serves every recipient."""
+        return [{k: r[k] for k in ("name", "kind", "site", "module", "url", "description",
+                                   "when_to_use", "effect", "fields", "version", "health",
                                    "last_problem", "last_run_at", "last_count", "last_ok_count")}
-                for r in self.world.readers.all()]
+                for r in self.world.skills.find(text, site=site, kind=kind)]
+
+    @tool
+    def skill_read(self, name: str) -> dict[str, Any]:
+        """One skill in full: its script or steps, fields, verify checks, health, and its notes
+        page (what you learned about the site: note_write with scope skill:<name> keeps
+        them)."""
+        skill = self.world.skills.get(name)
+        page = self.world.knowledge.find_note(f"skill:{name}", name)
+        skill["notes"] = page["body"] if page else None
+        return skill
 
     @tool
     def browser_signin(self, site: str) -> dict[str, Any]:
@@ -881,8 +905,10 @@ class Tools:
         "every 6h", "every 30m", "daily 08:00" or "weekly mon 08:00" (local time).
         steps (the default, run with no model): [{"read": reader, "into": table, "key": field,
         "keep": [fields the person edits], "map": {field: {site's word: table's word}}}, …,
-        {"tell": table, "where": {filter for what matters}}]; a tell step reports what is new,
-        changed and gone since the last run. You are called only if a step breaks.
+        {"tell": table, "where": {filter for what matters}}, {"run": another automation's run
+        skill, to reuse its steps}]; a tell step reports what is new, changed and gone since
+        the last run. The steps are kept as a run skill named after the title. You are called
+        only if a step breaks.
         procedure: only for work that needs judgement on every run: exact instructions you
         will follow. Do the first run yourself now, before creating it. Only things that read
         and update Alpha's own tables; never anything that sends, posts or submits."""
@@ -925,7 +951,8 @@ class Tools:
     @tool
     def procedure_save(self, name: str, url: str, description: str, effect: str,
                        steps: list[dict[str, Any]], fields: list[str],
-                       verify: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                       verify: list[dict[str, Any]] | None = None,
+                       when_to_use: str | None = None) -> dict[str, Any]:
         """Keep the steps that do one task on one site, in the person's own session: your
         know-how for acting, like a reader is for reading. Write it from the real page (page_read,
         page_script to see the controls), then use it through action_propose; it is proven by the
@@ -941,21 +968,19 @@ class Tools:
         too (a profile slug, a subject to find), so one procedure serves every recipient; the
         last step is the commit (save, close, send): a dry run does everything before it.
         fields: the payload fields the steps use (e.g. ["to", "subject", "body"]). verify:
-        read-only checks after the commit ({"expect_text": …})."""
+        read-only checks after the commit ({"expect_text": …}). when_to_use: one line on when
+        this is the right skill. Write a procedure for the task, never for one recipient or
+        one message: the payload carries what differs. Before writing one, look at WHAT ALPHA
+        CAN DO (or skills_find by site): an existing procedure for the site and task is used,
+        and generalised with fields when it was too narrow, rather than a second one written."""
         site = site_of(url)
         saved = self.world.procedures.save(name, site=site, url=url, description=description,
                                            effect=effect, steps=steps, fields=fields,
-                                           verify=verify)
+                                           verify=verify, when_to_use=when_to_use,
+                                           source=f"turn:{self.turn}" if self.turn else None)
         self._did("made", f"Kept the procedure {name} ({saved['effect']} on {site}, version"
                   f" {saved['version']}): {saved['description']}", {"procedure": name})
         return {k: saved[k] for k in ("name", "site", "effect", "fields", "version", "health")}
-
-    @tool
-    def procedures_list(self) -> list[dict[str, Any]]:
-        """The procedures Alpha keeps, with their effect, fields and health."""
-        return [{k: p[k] for k in ("name", "site", "url", "description", "effect", "fields",
-                                    "version", "health", "last_problem")}
-                for p in self.world.procedures.all()]
 
     @tool
     def action_propose(self, procedure: str, title: str, payload: dict[str, Any], undo: str,

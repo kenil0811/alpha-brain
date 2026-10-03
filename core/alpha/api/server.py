@@ -768,10 +768,19 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
 
     @app.get("/api/intelligence", dependencies=[api])
     def intelligence() -> dict[str, Any]:
+        pages = {n["scope"].removeprefix("skill:"): n for n in world.knowledge.notes()
+                 if n["scope"].startswith("skill:")}
         return {
-            "skills": [{"name": m["name"], "title": m.get("title", m["name"]),
-                        "description": m.get("description"), "tools": m.get("tools", []),
-                        "origin": m.get("origin")} for m in manifests()],
+            "hands": [{"name": m["name"], "title": m.get("title", m["name"]),
+                       "description": m.get("description"), "tools": m.get("tools", []),
+                       "origin": m.get("origin")} for m in manifests()],
+            "skills": [{**{k: sk[k] for k in ("name", "kind", "site", "module", "url",
+                                             "description", "when_to_use", "effect",
+                                             "fields", "version", "health", "last_problem",
+                                             "last_run_at", "last_count", "last_ok_count",
+                                             "source", "updated_at")},
+                        "notes": pages[sk["name"]]["body"] if sk["name"] in pages else None}
+                       for sk in world.skills.all()],
             "automations": automation_views(world, scheduler),
             "readers": world.readers.all(),
             "connections": Connections(world.store).all(),

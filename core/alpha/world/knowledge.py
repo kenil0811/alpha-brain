@@ -66,12 +66,16 @@ class Knowledge:
         came from; `summary` is its one line in the always-loaded index (the first line of
         the body when not given)."""
         kind, _, ref = scope.partition(":")
-        if not (scope == "person" or (kind in ("module", "topic", "entity") and ref.strip())):
-            raise Problem("A page's scope is 'person', 'module:<name>', 'topic:<slug>' or"
-                          " 'entity:<id>'.")
+        if not (scope == "person" or (kind in ("module", "topic", "entity", "skill")
+                                      and ref.strip())):
+            raise Problem("A page's scope is 'person', 'module:<name>', 'topic:<slug>',"
+                          " 'entity:<id>' or 'skill:<name>'.")
         if kind == "entity" and self.store.one(
                 "SELECT 1 AS x FROM entities WHERE id = ? AND merged_into IS NULL", (ref,)) is None:
             raise Problem(f"There is no person or company {ref} to write a page about.")
+        if kind == "skill" and self.store.one("SELECT 1 AS x FROM skills WHERE name = ?",
+                                              (ref,)) is None:
+            raise Problem(f"There is no skill {ref} to write notes about.")
         if not title.strip():
             raise Problem("A page needs a title.")
         line = " ".join((summary or _first_line(body)).split())[:160]

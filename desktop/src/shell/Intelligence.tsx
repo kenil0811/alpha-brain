@@ -4,7 +4,7 @@
  * read, switch or correct, never a configuration form.
  */
 import { type FormEvent, useEffect, useState } from "react";
-import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
+import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
 
@@ -162,6 +162,40 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   );
 }
 
+const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", run: "Runs" };
+
+function SkillCard({ skill, modules }: { skill: Skill; modules: Record<string, string> }) {
+  const [open, setOpen] = useState(false);
+  const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a module" : "");
+  const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
+  return (
+    <div className="card card--pad intel__card">
+      <div className="intel__head">
+        <h3>{skill.description}</h3>
+        <span className={`pill ${skill.health === "ok" ? "pill--good" : skill.health === "broken" ? "pill--bad" : "pill--gray"}`}>{health}</span>
+      </div>
+      <p className="muted">
+        <span className="pill pill--info" style={{ marginRight: 8 }}>
+          {KIND_LABEL[skill.kind]}
+        </span>
+        {where ? `${where} · ` : ""}version {skill.version}
+        {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
+        {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
+      </p>
+      {skill.when_to_use ? <p className="faint">When: {skill.when_to_use}</p> : null}
+      {skill.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{skill.last_problem}</p> : null}
+      {skill.notes ? (
+        <>
+          <button type="button" className="btn btn--sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
+            {open ? "Hide notes" : "Alpha's notes"}
+          </button>
+          {open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onChanged: () => void }) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(note.body);
@@ -275,11 +309,16 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
 export function Intelligence({ client, tab, version, onTab, onChanged }: { client: Client; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onChanged: () => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modules, setModules] = useState<Record<string, string>>({});
   useEffect(() => {
     client
       .intelligence()
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    client
+      .modules()
+      .then((list) => setModules(Object.fromEntries(list.map((m) => [m.id, m.name]))))
+      .catch(() => setModules({}));
   }, [client, version]);
   return (
     <div className="page">
@@ -298,11 +337,20 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
         error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "skills" ? (
         <div className="intel">
-          {data.skills.map((s) => (
+          {data.skills.length ? (
+            data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={modules} />)
+          ) : (
+            <div className="card card--pad intel__card modcard--new">
+              <b>Skills Alpha learns</b>
+              <p className="muted">When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes.</p>
+            </div>
+          )}
+          <div className="intel__group">Hands</div>
+          {data.hands.map((s) => (
             <div key={s.name} className="card card--pad intel__card">
               <div className="intel__head">
                 <h3>{s.title}</h3>
-                <span className="pill pill--gray">{s.origin === "builtin" ? "Built in" : "Alpha made"}</span>
+                <span className="pill pill--gray">Built in</span>
               </div>
               <p className="muted">{s.description}</p>
               <div className="skill__meta">
@@ -315,23 +363,6 @@ export function Intelligence({ client, tab, version, onTab, onChanged }: { clien
               </div>
             </div>
           ))}
-          {data.readers.map((r) => (
-            <div key={r.name} className="card card--pad intel__card">
-              <div className="intel__head">
-                <h3>{r.description}</h3>
-                <span className={`pill ${r.health === "ok" ? "pill--good" : "pill--bad"}`}>{r.health === "ok" ? "Working" : "Being repaired"}</span>
-              </div>
-              <p className="muted">
-                Alpha made this to read {r.site}. Version {r.version}
-                {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
-              </p>
-              {r.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{r.last_problem}</p> : null}
-            </div>
-          ))}
-          <div className="card card--pad intel__card modcard--new">
-            <b>Skills Alpha learns</b>
-            <p className="muted">When something works and you'll want it again, Alpha keeps how it did it here. Say "remember how I do this" to teach one.</p>
-          </div>
         </div>
       ) : tab === "automations" ? (
         <AutomationList client={client} items={data.automations} onChanged={onChanged} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />

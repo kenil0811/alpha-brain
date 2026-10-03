@@ -133,7 +133,8 @@ def test_token_and_errors(world: World) -> None:
 def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -> None:
     seeded(world)
     data = client(world).get("/api/intelligence").json()
-    assert {s["name"] for s in data["skills"]} >= {"files", "browser", "calendar"}
+    assert {s["name"] for s in data["hands"]} >= {"files", "browser", "calendar"}
+    assert data["skills"] == []  # know-how Alpha wrote: none in a fresh world
     assert data["knowledge"]["facts"][0]["predicate"] == "prefers"
     assert data["knowledge"]["goals"] == []
 

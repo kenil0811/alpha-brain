@@ -158,6 +158,22 @@ def build(world: World, sentence: str, *, module: str | None = None,
         "- Nothing connected yet. Public web pages can always be read (page_read); folders,"
         " sites to sign into and the calendar are connected when the person asks."]))
 
+    # Know-how: every skill in one line, always, so an existing one is used before a new
+    # one is written (design §3.7 point 7). Bodies by skill_read; notes on its wiki page.
+    can_do = []
+    for sk in world.skills.index()[:80]:
+        where = sk["site"] or (world.modules.get(sk["module"])["name"] if sk["module"] else "")
+        mark = "" if sk["health"] == "ok" else f", {sk['health']}"
+        line = (f"- [{sk['kind']}] {sk['name']} ({where}, v{sk['version']}{mark}"
+                + (f", {sk['effect']}" if sk["effect"] else "")
+                + f"): {_clip(sk['description'], 110)}")
+        if sk["when_to_use"]:
+            line += f" When: {_clip(sk['when_to_use'], 90)}"
+        can_do.append(line)
+    if can_do:
+        sections.append(("WHAT ALPHA CAN DO (skills it wrote; skill_read for one, skills_find"
+                         " to search; use one before writing another)", can_do))
+
     local = datetime.now().astimezone()
     day_start = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo).astimezone(UTC)
     day_end = (day_start + timedelta(days=1)).isoformat()

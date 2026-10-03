@@ -745,3 +745,4 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .people__line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .people__when { white-space: nowrap; min-width: 72px; }
 .people__page { white-space: pre-wrap; font-size: 14px; line-height: 1.55; }
+.intel__group { grid-column: 1 / -1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; margin-top: 8px; }

@@ -19,6 +19,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from alpha.world.skills import Skills, slug
 from alpha.world.store import Problem, Store, new_id, now
 
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -86,17 +87,39 @@ def describe(schedule: str) -> str:
     return f"every {names[day]} at {clock}"
 
 
-def _view(row: sqlite3.Row) -> dict[str, Any]:
+def _view(row: sqlite3.Row, steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
     out["enabled"] = bool(row["enabled"])
     out["when"] = describe(row["schedule"])
-    out["steps"] = json.loads(row["steps"]) if row["steps"] else None
+    out["steps"] = steps or (json.loads(row["steps"]) if row["steps"] else None)
     return out
 
 
 class Automations:
     def __init__(self, store: Store) -> None:
         self.store = store
+        self.skills = Skills(store)
+
+    def _steps_of(self, row: sqlite3.Row) -> list[dict[str, Any]] | None:
+        """A pipeline's steps live in its run skill (3 Oct); older rows carried them."""
+        if row["skill"]:
+            try:
+                return list(self.skills.get(row["skill"], "run")["steps"])
+            except Problem:
+                return None
+        return None
+
+    def _keep_steps(self, aid: str, title: str, module: str | None,
+                    steps: list[dict[str, Any]], current: str | None) -> str:
+        """The run skill that holds an automation's steps: its own, made or replaced."""
+        name = current
+        if not name:
+            base = slug(title, "run_")
+            name, n = base, 2
+            while name in self.skills.names():
+                name, n = f"{base}_{n}", n + 1
+        self.skills.save(name, "run", description=title, module=module, steps=steps)
+        return name
 
     def create(self, title: str, schedule: str, procedure: str, *, module: str | None = None,
                thread: str | None = None,
@@ -108,12 +131,13 @@ class Automations:
         aid = new_id("a")
         stamp = now()
         first = next_run(clean, datetime.now(UTC)).isoformat()
+        skill = self._keep_steps(aid, title.strip(), module, steps, None) if steps else None
         with self.store.tx() as db:
             db.execute(
-                "INSERT INTO automations (id, title, module, thread, schedule, procedure, steps,"
+                "INSERT INTO automations (id, title, module, thread, schedule, procedure, skill,"
                 " enabled, next_run_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,1,?,?,?)",
-                (aid, title.strip(), module, thread, clean, procedure.strip(),
-                 json.dumps(steps) if steps else None, first, stamp, stamp),
+                (aid, title.strip(), module, thread, clean, procedure.strip(), skill, first,
+                 stamp, stamp),
             )
         return self.get(aid)
 
@@ -121,7 +145,7 @@ class Automations:
         row = self.store.one("SELECT * FROM automations WHERE id = ?", (aid,))
         if row is None:
             raise Problem(f"There is no automation {aid}.")
-        return _view(row)
+        return _view(row, self._steps_of(row))
 
     def all(self, module: str | None = None) -> list[dict[str, Any]]:
         if module:
@@ -129,7 +153,7 @@ class Automations:
                                   (module,))
         else:
             rows = self.store.all("SELECT * FROM automations ORDER BY created_at")
-        return [_view(r) for r in rows]
+        return [_view(r, self._steps_of(r)) for r in rows]
 
     def update(self, aid: str, *, enabled: bool | None = None, schedule: str | None = None,
                procedure: str | None = None, title: str | None = None,
@@ -138,14 +162,16 @@ class Automations:
         clean = check_schedule(schedule) if schedule else current["schedule"]
         on = current["enabled"] if enabled is None else enabled
         upcoming = next_run(clean, datetime.now(UTC)).isoformat() if on else None
+        skill = current.get("skill")
+        if steps:
+            skill = self._keep_steps(aid, title or current["title"], current["module"], steps,
+                                     skill)
         with self.store.tx() as db:
             db.execute(
                 "UPDATE automations SET enabled = ?, schedule = ?, procedure = ?, title = ?,"
-                " steps = ?, next_run_at = ?, updated_at = ? WHERE id = ?",
+                " skill = ?, next_run_at = ?, updated_at = ? WHERE id = ?",
                 (int(on), clean, procedure or current["procedure"], title or current["title"],
-                 json.dumps(steps) if steps else (json.dumps(current["steps"])
-                                                  if current["steps"] else None),
-                 upcoming, now(), aid),
+                 skill, upcoming, now(), aid),
             )
         return self.get(aid)
 
@@ -159,11 +185,13 @@ class Automations:
             "SELECT * FROM automations WHERE enabled = 1 AND next_run_at IS NOT NULL"
             " AND next_run_at <= ? ORDER BY next_run_at", (moment,),
         )
-        return [_view(r) for r in rows]
+        return [_view(r, self._steps_of(r)) for r in rows]
 
     def finished(self, aid: str, *, result: str | None, error: str | None) -> dict[str, Any]:
         current = self.get(aid)
         stamp = datetime.now(UTC)
+        if current.get("skill"):
+            self.skills.ran(current["skill"], problem=error)
         upcoming = next_run(current["schedule"], stamp).isoformat() if current["enabled"] else None
         with self.store.tx() as db:
             db.execute(

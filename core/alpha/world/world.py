@@ -14,6 +14,7 @@ from alpha.world.knowledge import Knowledge
 from alpha.world.modules import Modules
 from alpha.world.plans import Plans
 from alpha.world.readers import Readers
+from alpha.world.skills import Skills
 from alpha.world.sources import Sources
 from alpha.world.store import Store
 
@@ -41,6 +42,7 @@ class World:
         self.knowledge = Knowledge(self.store)
         self.modules = Modules(self.store)
         self.automations = Automations(self.store)
+        self.skills = Skills(self.store)
         self.readers = Readers(self.store)
         self.sources = Sources(self.store)
         self.plans = Plans(self.store)

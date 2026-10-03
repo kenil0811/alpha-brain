@@ -126,6 +126,7 @@ class Mark:
     tables: set[str]
     modules: set[str]
     plans: set[str]
+    skills: dict[str, int]
 
 
 def mark(world: World) -> Mark:
@@ -134,6 +135,7 @@ def mark(world: World) -> Mark:
         tables={t["name"] for t in world.collections.overview()},
         modules={m["id"] for m in world.modules.all()},
         plans={p["id"] for p in world.plans.all()},
+        skills={s["name"]: s["version"] for s in world.skills.all()},
     )
 
 
@@ -333,6 +335,18 @@ class Run:
         new = {t["name"] for t in self.world.collections.overview()} - self.mark.tables
         return not new, ("No table was made." if not new else f"Made tables: {sorted(new)}.")
 
+    def check_no_new_skills(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Alpha used the know-how it had: no reader, procedure or pipeline was written or
+        rewritten in this journey (a reuse with the same version is what passes)."""
+        current = {s["name"]: s["version"] for s in self.world.skills.all()}
+        new = sorted(n for n in current if n not in self.mark.skills)
+        changed = sorted(n for n, v in current.items()
+                         if n in self.mark.skills and v != self.mark.skills[n])
+        if new or changed:
+            return False, (f"Wrote new skills: {new}. " if new else "") + \
+                (f"Rewrote: {changed}." if changed else "")
+        return True, "No skill was written or rewritten."
+
     def check_no_new_modules(self, arg: dict[str, Any]) -> tuple[bool, str]:
         new = {m["id"] for m in self.world.modules.all()} - self.mark.modules
         return not new, ("No module was made." if not new else f"Made {len(new)} module(s).")
@@ -424,6 +438,8 @@ class Run:
             return False, words
         if arg.get("preview") and not (action.get("preview") and Path(action["preview"]).exists()):
             return False, words + "; no preview screenshot"
+        if "procedure" in arg and action["procedure"] != arg["procedure"]:
+            return False, words + f"; through {action['procedure']}, not {arg['procedure']}"
         return True, words
 
     def check_document(self, arg: dict[str, Any]) -> tuple[bool, str]:

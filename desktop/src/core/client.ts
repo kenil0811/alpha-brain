@@ -319,7 +319,8 @@ export interface Connection {
   last_error: string | null;
 }
 
-export interface Skill {
+/** A hand: a built-in connector (browser, files, calendar) and the tools it gives Alpha. */
+export interface Hand {
   name: string;
   title: string;
   description: string | null;
@@ -327,7 +328,30 @@ export interface Skill {
   origin: string | null;
 }
 
+/** Know-how Alpha wrote: a reader (read), a procedure (act) or a pipeline (run). */
+export interface Skill {
+  name: string;
+  kind: "read" | "act" | "run";
+  site: string | null;
+  module: string | null;
+  url: string | null;
+  description: string;
+  when_to_use: string | null;
+  effect: string | null;
+  fields: string[];
+  version: number;
+  health: "ok" | "broken" | "untried";
+  last_problem: string | null;
+  last_run_at: string | null;
+  last_count: number | null;
+  last_ok_count: number | null;
+  source: string | null;
+  updated_at: string;
+  notes: string | null;
+}
+
 export interface Intelligence {
+  hands: Hand[];
   skills: Skill[];
   automations: Automation[];
   readers: Reader[];

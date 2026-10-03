@@ -74,15 +74,15 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     mid, name = module["id"], module["name"]
     store = world.store
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
-    autos = store.all("SELECT id, thread, procedure, steps FROM automations WHERE module = ?",
-                      (mid,))
+    autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
+        "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
     # The readers that feed this module: named after its tables, used by its automations
     # (procedure or steps), recorded on its sources, or the readers its rows came from.
     fed = {r["reader"] for t in tables for r in store.all(
         "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
     fed |= {r["reader"] for r in store.all(
         "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
-    readers = [r["name"] for r in store.all("SELECT name FROM readers")
+    readers = [r["name"] for r in store.all("SELECT name FROM skills WHERE kind = 'read'")
                if r["name"] in tables or r["name"] in fed
                or any(r["name"] in (a["procedure"] or "") or r["name"] in (a["steps"] or "")
                       for a in autos)]
@@ -99,8 +99,11 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
-            db.execute("DELETE FROM readers WHERE name = ?", (reader,))
+            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (reader,))
         counts["readers"] = len(readers)
+        for a in autos:
+            if a["skill"]:
+                db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
         counts["automations"] = db.execute(
             "DELETE FROM automations WHERE module = ?", (mid,)).rowcount
         _retire_threads(db, sorted(threads))
@@ -145,6 +148,14 @@ def clear_conversation(world: World) -> dict[str, int]:
     return {"turns": removed}
 
 
+def _steps_text(store: Any, skill: str | None) -> str | None:
+    """A pipeline's steps as text, for matching reader names (they live in its run skill)."""
+    if not skill:
+        return None
+    row = store.one("SELECT steps FROM skills WHERE name = ?", (skill,))
+    return str(row["steps"]) if row and row["steps"] else None
+
+
 def _site(url: str) -> str | None:
     try:
         return site_of(url)
@@ -171,13 +182,16 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     entity_ids: list[str] = []
     if kind == "browser":
         sites = set(signin_sites(conn))
-        readers = [r["name"] for r in store.all("SELECT name, site, url FROM readers")
+        readers = [r["name"] for r in store.all(
+                       "SELECT name, site, url FROM skills WHERE kind = 'read'")
                    if r["site"] in sites or _site(r["url"]) in sites]
-        autos = [dict(a) for a in store.all(
-                     "SELECT id, title, thread, procedure, steps FROM automations")
+        autos = [a for a in (dict(a) | {"steps": _steps_text(store, a["skill"])} for a in
+                             store.all("SELECT id, title, thread, procedure, skill FROM"
+                                       " automations"))
                  if any(n in (a["procedure"] or "") or n in (a["steps"] or "") for n in readers)
                  or any(site in (a["procedure"] or "").lower() for site in sites)]
-        procedures = [p["name"] for p in store.all("SELECT name, site, url FROM procedures")
+        procedures = [p["name"] for p in store.all(
+                          "SELECT name, site, url FROM skills WHERE kind = 'act'")
                       if p["site"] in sites or _site(p["url"]) in sites]
         candidate = profile_of(conn).resolve()
         if candidate.is_relative_to((alpha_home() / "browser").resolve()) and candidate.exists():
@@ -210,9 +224,9 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     threads = [a["thread"] for a in autos if a["thread"]]
     with store.tx() as db:
         for name in readers:
-            db.execute("DELETE FROM readers WHERE name = ?", (name,))
+            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (name,))
         for name in procedures:
-            db.execute("DELETE FROM procedures WHERE name = ?", (name,))
+            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'act'", (name,))
             db.execute("UPDATE permissions SET revoked_at = ? WHERE procedure = ?"
                        " AND revoked_at IS NULL", (now(), name))
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE procedure = ?"
@@ -222,6 +236,8 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
                        " updated_at = ? WHERE reader = ?",
                        (f"Its reader went with the {target} connection.", now(), name))
         for a in autos:
+            if a.get("skill"):
+                db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
             db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
 
         if documents:

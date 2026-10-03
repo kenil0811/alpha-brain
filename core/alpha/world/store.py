@@ -10,6 +10,7 @@ timeout.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import threading
 import uuid
@@ -222,22 +223,6 @@ CREATE TABLE IF NOT EXISTS automations (
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS readers (
-    name TEXT PRIMARY KEY,
-    site TEXT NOT NULL,
-    url TEXT NOT NULL,
-    script TEXT NOT NULL,
-    to_end INTEGER NOT NULL DEFAULT 0,
-    description TEXT NOT NULL,
-    version INTEGER NOT NULL DEFAULT 1,
-    health TEXT NOT NULL DEFAULT 'ok',
-    last_problem TEXT,
-    last_run_at TEXT,
-    last_count INTEGER,
-    last_ok_count INTEGER,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
 
 -- what Alpha proposed to set up, and its way from the person's yes to a finished build
 CREATE TABLE IF NOT EXISTS plans (
@@ -274,22 +259,6 @@ CREATE TABLE IF NOT EXISTS sources (
 );
 
 -- know-how Alpha writes to act in a web app: declarative steps for one task on one site
-CREATE TABLE IF NOT EXISTS procedures (
-    name TEXT PRIMARY KEY,
-    site TEXT NOT NULL,
-    url TEXT NOT NULL,
-    description TEXT NOT NULL,
-    effect TEXT NOT NULL,
-    steps TEXT NOT NULL,
-    verify TEXT NOT NULL DEFAULT '[]',
-    fields TEXT NOT NULL,
-    version INTEGER NOT NULL DEFAULT 1,
-    health TEXT NOT NULL DEFAULT 'untried',
-    last_problem TEXT,
-    last_run_at TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
 
 -- an outward effect Alpha proposed; nothing leaves Alpha's space until the person's yes
 CREATE TABLE IF NOT EXISTS actions (
@@ -346,6 +315,36 @@ CREATE TABLE IF NOT EXISTS threads (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+-- Know-how, one table (design §3.7 point 7, 3 Oct 2026): a skill of kind read (a page
+-- script that returns rows), act (steps that do one task on one site) or run (a pipeline of
+-- steps the scheduler runs with no model). Readers and procedures were tables of their own
+-- until 3 Oct; a world made before then moves them here on open.
+CREATE TABLE IF NOT EXISTS skills (
+    name TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    site TEXT,
+    module TEXT,
+    url TEXT,
+    description TEXT NOT NULL,
+    when_to_use TEXT,
+    script TEXT,
+    to_end INTEGER NOT NULL DEFAULT 0,
+    whole INTEGER NOT NULL DEFAULT 1,
+    effect TEXT,
+    steps TEXT,
+    verify TEXT,
+    fields TEXT,
+    version INTEGER NOT NULL DEFAULT 1,
+    health TEXT NOT NULL DEFAULT 'untried',
+    last_problem TEXT,
+    last_run_at TEXT,
+    last_count INTEGER,
+    last_ok_count INTEGER,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
 """
 
 
@@ -361,8 +360,8 @@ ADDED_COLUMNS = [
     ("records", "gone_at", "TEXT"),
     # an automation that is a pipeline of saved steps, run with no model
     ("automations", "steps", "TEXT"),
-    # whether a reader returns its whole list (only then do rows it no longer returns count as gone)
-    ("readers", "whole", "INTEGER NOT NULL DEFAULT 1"),
+    # an automation's pipeline is a skill of kind run; the old steps column moves there
+    ("automations", "skill", "TEXT"),
     # the first thing the person will do with what a plan builds, as they would say it, and how
     # many times the build's trial of it disagreed with an independent answer
     ("plans", "trial", "TEXT"),
@@ -416,6 +415,7 @@ class Store:
 
     def _migrate(self) -> None:
         with self.tx() as db:
+            self._move_know_how(db)
             for table, column, decl in ADDED_COLUMNS:
                 have = {r["name"] for r in db.execute(f"PRAGMA table_info({table})")}
                 if column not in have:
@@ -447,6 +447,74 @@ class Store:
             first = db.execute("SELECT MIN(at) AS at FROM journal").fetchone()
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
                        ((first["at"] if first and first["at"] else None) or now(),))
+            self._move_pipelines(db)
+
+    @staticmethod
+    def _move_know_how(db: sqlite3.Connection) -> None:
+        """Readers and procedures, tables of their own before 3 Oct 2026, become skills of
+        kind read and act; the old tables are dropped once moved."""
+        tables = {r["name"] for r in db.execute("SELECT name FROM sqlite_master"
+                                                 " WHERE type = 'table'")}
+        if "readers" in tables:
+            have = {r["name"] for r in db.execute("PRAGMA table_info(readers)")}
+            whole = "whole" if "whole" in have else "1"
+            db.execute(
+                "INSERT OR IGNORE INTO skills (name, kind, site, url, description, script, to_end,"
+                f" whole, version, health, last_problem, last_run_at, last_count, last_ok_count,"
+                " created_at, updated_at) SELECT name, 'read', site, url, description, script,"
+                f" to_end, {whole}, version, health, last_problem, last_run_at, last_count,"
+                " last_ok_count, created_at, updated_at FROM readers")
+            db.execute("DROP TABLE readers")
+        if "procedures" in tables:
+            db.execute(
+                "INSERT OR IGNORE INTO skills (name, kind, site, url, description, effect, steps,"
+                " verify, fields, version, health, last_problem, last_run_at, created_at,"
+                " updated_at) SELECT name, 'act', site, url, description, effect, steps, verify,"
+                " fields, version, health, last_problem, last_run_at, created_at, updated_at"
+                " FROM procedures")
+            db.execute("DROP TABLE procedures")
+
+    @staticmethod
+    def _move_pipelines(db: sqlite3.Connection) -> None:
+        """An automation's saved steps become a skill of kind run named after it (3 Oct); a
+        run skill named by an earlier rule is renamed to the current one when that is free."""
+        from alpha.world.skills import slug
+
+        rows = db.execute("SELECT id, title, module, steps, last_run_at, last_error FROM"
+                          " automations WHERE steps IS NOT NULL AND skill IS NULL").fetchall()
+        taken = {r["name"] for r in db.execute("SELECT name FROM skills")}
+        stamp = now()
+        for row in rows:
+            base = slug(row["title"], "run_")
+            name, n = base, 2
+            while name in taken:
+                name, n = f"{base}_{n}", n + 1
+            taken.add(name)
+            db.execute(
+                "INSERT INTO skills (name, kind, module, description, steps, health,"
+                " last_problem, last_run_at, created_at, updated_at)"
+                " VALUES (?, 'run', ?, ?, ?, ?, ?, ?, ?, ?)",
+                (name, row["module"], row["title"], row["steps"],
+                 "broken" if row["last_error"] else ("ok" if row["last_run_at"] else "untried"),
+                 row["last_error"], row["last_run_at"], stamp, stamp))
+            db.execute("UPDATE automations SET skill = ?, steps = NULL WHERE id = ?",
+                       (name, row["id"]))
+        # Names by the current rule: a run skill is named from its automation's title.
+        for row in db.execute("SELECT id, title, skill FROM automations WHERE skill IS NOT NULL"
+                              ).fetchall():
+            wanted = slug(row["title"], "run_")
+            current = str(row["skill"])
+            if current == wanted or wanted in taken or re.fullmatch(
+                    re.escape(wanted) + r"_\d+", current):
+                continue
+            db.execute("UPDATE skills SET name = ? WHERE name = ? AND kind = 'run'",
+                       (wanted, current))
+            db.execute("UPDATE automations SET skill = ? WHERE id = ?", (wanted, row["id"]))
+            db.execute("UPDATE skills SET steps = REPLACE(steps, ?, ?) WHERE kind = 'run'"
+                       " AND steps LIKE ?", (f'"run": "{current}"', f'"run": "{wanted}"',
+                                             f'%"run": "{current}"%'))
+            taken.discard(current)
+            taken.add(wanted)
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:

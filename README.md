@@ -20,7 +20,7 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
   built, what ran for real, where things stand and what is pending (§4.3, §4.5, §4.9).
 - `docs/design/research/` — the four research reports behind the design.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
-  records, entities, facts, notes, goals, modules, threads, plans, sources, readers,
+  records, entities, facts, notes, goals, modules, threads, plans, sources, skills (readers, procedures, pipelines),
   automations), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
   `claude -p` runs, the turn, builds, pipelines, the scheduler, the second opinion), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
