@@ -379,17 +379,24 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
         <Tint id={`${id}-shirt`} color={look.shirt} lo={-0.3} hi={0.12} />
         <Tint id={`${id}-tie`} color={look.tie} />
       </defs>
-      <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className={`rig__body${hop ? " rig__body--hop" : ""}`} transform={`scale(${1 + 0.07 * pose.squash}, ${1 - 0.07 * pose.squash})`}>
-        <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
+      {/* The body breathes (an animation on rig__body) and squashes with the mood (a transform on
+          rig__squash): two groups, because an animation would replace an inline transform. The
+          painted egg stays put; the ears and the face turn and settle with the head's pose, the
+          ears behind the egg and the face over it. */}
+      <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className={`rig__body${hop ? " rig__body--hop" : ""}`} transform="none">
+        <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className="rig__squash" transform={`scale(${1 + 0.07 * pose.squash}, ${1 - 0.07 * pose.squash})`}>
+          <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
           <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
-            {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
-          </Pivot>
-          <g transform={mirror}>
-            <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
               {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
             </Pivot>
-          </g>
+            <g transform={mirror}>
+              <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
+                {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
+              </Pivot>
+            </g>
+          </Pivot>
           <Part href={shell} box={BOX.shell} filter={tints.fur} />
+          <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
           <g className="rig__face">
             {animal.id === "panda" ? (
               <>
@@ -449,12 +456,13 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
               </g>
             ) : null}
           </g>
+          </Pivot>
+          <Part href={shirt} box={BOX.shirt} filter={tints.shirt} />
+          {look.neckwear === "tie" ? <Part href={tie} box={BOX.tie} filter={tints.tie} /> : look.neckwear === "bow" ? <Bow color={look.tie} /> : null}
+          <Part href={suit} box={BOX.suit} filter={tints.suit} />
+          <Part href={arm} box={BOX.arm} filter={tints.fur} />
+          <Part href={arm} box={BOX.arm} filter={tints.fur} transform={mirror} />
         </Pivot>
-        <Part href={shirt} box={BOX.shirt} filter={tints.shirt} />
-        {look.neckwear === "tie" ? <Part href={tie} box={BOX.tie} filter={tints.tie} /> : look.neckwear === "bow" ? <Bow color={look.tie} /> : null}
-        <Part href={suit} box={BOX.suit} filter={tints.suit} />
-        <Part href={arm} box={BOX.arm} filter={tints.fur} />
-        <Part href={arm} box={BOX.arm} filter={tints.fur} transform={mirror} />
       </Pivot>
     </svg>
   );

@@ -54,3 +54,18 @@ percentages. Checked in the running app with a window screenshot: the character 
 size draws whole, bow and all, with no ring. A lesson for the desktop check: the browser pane
 is Chromium and the app is WebKit, so anything drawn with SVG and CSS transforms is only proven
 in the app.
+
+**Still not right, found properly (later the same night).** Kenil's next screenshot, curious:
+brows above the head, eyes wide apart, the body cut oddly. Guessing had failed once, so this
+time the question went to the engine itself: a small page with one square pivoted four ways,
+opened in Safari (WebKit, the app's engine) and screenshotted through the window tools. The
+wrapper pivot was right there; so was a CSS transform carrying its own pivot; `fill-box` was
+not. Then the rig itself at every mood, written to a page by `src/avatar/rig-page.test.tsx`
+(skipped unless `RIG_PAGE_OUT` names a file) and opened in Safari. That showed the two real
+faults, neither of them the pivots: the painted egg was inside the head group, so a head tilt
+turned the whole body and it peeked out beside the suit; and the rig let what lies below the
+bust's view box show, so the lower body spilled past the window. Now the egg stays put and
+only the ears (behind it) and the face (over it) take the head's tilt and drop; the rig clips to
+its box; and the squash moved to a group of its own, because WebKit replaces an inline
+transform with a running animation (the breath) rather than composing them. The Safari page
+after: all twelve moods as intended. The app rebuilt and its companion window screenshotted.

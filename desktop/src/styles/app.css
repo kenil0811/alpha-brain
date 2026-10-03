@@ -479,11 +479,12 @@ body.avatar-window #root { height: 100vh; }
    its transforms inline and ease between moods here; breath, blinks and the nod are
    animations timed by the pose (--breath, --blink-every, --blink-speed); a happy arrival hops
    once. Still when hidden, rested, or when the Mac asks for reduced motion. */
-.rig { display: block; overflow: visible; }
+.rig { display: block; overflow: hidden; }  /* the bust: what is below the view box stays out */
 /* Every moving group sits inside a translate to its pivot (Rig.tsx Pivot), so its CSS transform
    turns about its local origin; no transform-box, no transform-origin, the same in WebKit and Chromium. */
-.rig__body, .rig__head, .rig__ear, .rig__lids, .rig__eyes, .rig__pupils, .rig__pupil, .rig__brow, .rig__mouth, .rig__whisker { transform-box: view-box; transform-origin: 0 0; }
-.rig__body { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite; transition: transform 420ms ease; }
+.rig__body, .rig__squash, .rig__head, .rig__ear, .rig__lids, .rig__eyes, .rig__pupils, .rig__pupil, .rig__brow, .rig__mouth, .rig__whisker { transform-box: view-box; transform-origin: 0 0; }
+.rig__body { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite; }
+.rig__squash { transition: transform 420ms ease; }
 .rig__body--hop { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite, rig-hop 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) 1; }
 .rig__head { transition: transform 380ms ease; }
 .rig__ear { transition: transform 320ms ease; }
