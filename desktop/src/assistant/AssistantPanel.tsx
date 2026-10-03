@@ -1,10 +1,11 @@
 /**
- * Zazoo, beside the workspace: the place's conversation (global, or a project's), with Alpha's
- * threads as cards that open here. The companion is the same conversation.
+ * Zazoo, beside the workspace: the place's live conversation (global, or a project's; a strip
+ * switches between several), with Alpha's threads as cards that open here. The companion is the
+ * same conversation.
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Action, Ask, Client, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
+import { ArrowUp, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
@@ -12,6 +13,7 @@ import { Button, CollapseToggleButton, IconButton, Input } from "../ui";
 import { ZazooIcon } from "../ui/ZazooIcon";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
+const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
 const EXAMPLES = [
   "Track what I eat and how much, with calories, history and trends",
   "Keep a reading list with what I thought of each book",
@@ -156,6 +158,7 @@ export function AssistantPanel({
   onThread,
   headerEnd,
   sendNow,
+  focusConversation,
 }: {
   client: Client;
   onCollapse: () => void;
@@ -173,6 +176,8 @@ export function AssistantPanel({
   /** A message typed somewhere else (a table's quick entry), sent here as if typed; `id`
    *  changes once per message. */
   sendNow?: { text: string; id: number } | null;
+  /** A conversation opened from elsewhere (the companion's Open); `at` changes per opening. */
+  focusConversation?: { id: string; at: number } | null;
 }) {
   const [own, setOwn] = useState<ChatChoice>(undefined);
   const chat = onThread ? thread : own;
@@ -187,6 +192,9 @@ export function AssistantPanel({
   const [text, setText] = useState("");
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
   const [opening, setOpening] = useState(false);
+  // The live conversation the place's chat speaks in (a chat thread); null until the core names one.
+  const [active, setActive] = useState<string | null>(null);
+  const [convos, setConvos] = useState<Convo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [failures, setFailures] = useState(0);
@@ -196,12 +204,14 @@ export function AssistantPanel({
 
   const load = useCallback(() => {
     const work: Promise<unknown>[] = [
-      client.conversation(moduleId).then((c) => {
+      client.conversation(moduleId, active).then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
         setPlans(c.plans ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
+        setConvos(c.conversations ?? []);
+        if (!active && c.conversation) setActive(c.conversation.id);
       }),
     ];
     if (typeof chat === "string") work.push(client.thread(chat).then(setThreadView));
@@ -212,7 +222,15 @@ export function AssistantPanel({
         if (typeof chat === "string" && e instanceof Error && /no thread/i.test(e.message)) choose(undefined);
         else setFailures((n) => n + 1);
       });
-  }, [client, chat, moduleId, choose]);
+  }, [client, chat, moduleId, active, choose]);
+  // A page change shows that page's live conversation, not the one from the last page.
+  useEffect(() => setActive(null), [moduleId]);
+  useEffect(() => {
+    if (!focusConversation) return;
+    choose(undefined);
+    setActive(focusConversation.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusConversation]);
   useEffect(() => {
     if (typeof chat !== "string") setThreadView(null);
     else if (threadView?.id !== chat) {
@@ -276,7 +294,14 @@ export function AssistantPanel({
         const threadId = typeof chat === "string" ? chat : null;
         if (threadId) setThreadView((v) => (v && v.id === threadId ? { ...v, journal: [...v.journal, local(clean, threadId)] } : v));
         else setTurns((all) => [...all, local(clean, null)]);
-        const final = await client.askAndWait(clean, { module: threadId ? null : moduleId, thread: threadId }, setPending);
+        // The place's chat always speaks in a conversation of its own: the live one, or a new one.
+        let conversation = threadId ? null : active;
+        if (!threadId && !conversation) {
+          conversation = (await client.newConversation(moduleId, clean.slice(0, 60))).id;
+          setActive(conversation);
+        }
+        const final = await client.askAndWait(clean, { module: threadId ? null : moduleId, thread: threadId, conversation }, setPending);
+        if (final.conversation && !threadId) setActive(final.conversation.id);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -286,7 +311,7 @@ export function AssistantPanel({
         onChanged();
       }
     },
-    [client, chat, moduleId, pending, load, onChanged],
+    [client, chat, moduleId, active, pending, load, onChanged],
   );
   const sentNow = useRef<number | null>(null);
   useEffect(() => {
@@ -302,9 +327,10 @@ export function AssistantPanel({
       setPending(turn);
       setElapsed(0);
       let current = turn;
-      while (current.state === "running") {
+      while ((current.state === "running" || current.state === "routing") && current.id) {
+        const id = current.id;
         await new Promise((r) => setTimeout(r, 1000));
-        current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
+        current = await client.turn(id).catch(() => ({ ...current, state: "failed" as const }));
         setPending(current);
       }
       setPending(null);
@@ -344,7 +370,7 @@ export function AssistantPanel({
           <i />
         </span>
         <span className="faint working__time">{clock(elapsed)}</span>
-        <Button size="sm" variant="ghost" onClick={() => void client.stopTurn(pending.id).catch(() => undefined)}>
+        <Button size="sm" variant="ghost" onClick={() => { if (pending.id) void client.stopTurn(pending.id).catch(() => undefined); }}>
           Stop
         </Button>
       </div>
@@ -366,7 +392,9 @@ export function AssistantPanel({
       ) : null}
     </div>
   ) : null;
-  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : a.thread === null));
+  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : active ? a.thread === active : a.thread === null));
+  const chats = convos.filter((c) => c.kind === "chat");
+  const activeConvo = threadView ? null : (chats.find((c) => c.id === active) ?? null);
   const askCards = !pending
     ? openAsks.map((a) => (
         <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
@@ -376,7 +404,7 @@ export function AssistantPanel({
   const inThread = Boolean(threadView && threadView.kind !== "topic");
   const label = threadView ? threadView.title : scopeName;
   const fresh = chat === undefined && !turns.length;
-  const requests = (module?.threads ?? []).filter((t) => t.kind !== "topic");
+  const requests = (module?.threads ?? []).filter((t) => t.kind !== "topic" && t.kind !== "chat");
   return (
     <aside className="assist__panel" aria-label="Zazoo">
       <div className="assist__head">
@@ -392,12 +420,33 @@ export function AssistantPanel({
           <div className="assist__titletext">
             <b className="assist__name">Zazoo</b>
             <span className="assist__ctx" title={label}>
-              {inThread && threadView ? `Thread · ${THREAD_STATE[threadView.state] ?? threadView.state}` : label}
+              {inThread && threadView ? `Thread · ${THREAD_STATE[threadView.state] ?? threadView.state}` : activeConvo ? `${activeConvo.title} · ${CONVO_STATE[activeConvo.state] ?? activeConvo.state}` : label}
             </span>
           </div>
         </div>
-        <div className="assist__headend">{headerEnd}</div>
+        <div className="assist__headend">
+          {activeConvo && activeConvo.state !== "working" ? (
+            <Button size="sm" variant="ghost" title="Close this conversation; what it learned stays" onClick={() => void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); })}>
+              Done
+            </Button>
+          ) : null}
+          {headerEnd}
+        </div>
       </div>
+      {!threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
+        <div className="convstrip" role="tablist" aria-label="Live conversations">
+          {chats.map((c) => (
+            <button key={c.id} type="button" role="tab" aria-selected={c.id === active} className={`convchip${c.id === active ? " convchip--active" : ""}${c.state === "waiting" ? " convchip--needs" : ""}`} title={`${c.scope}: ${c.title}${c.question ? ` · asked: ${c.question}` : ""}`} onClick={() => { choose(undefined); setActive(c.id); }}>
+              <span className={`convchip__dot convchip__dot--${c.state}`} aria-hidden="true" />
+              <span className="convchip__scope">{c.scope}</span>
+              <span className="convchip__title">{c.title}</span>
+            </button>
+          ))}
+          <button type="button" className="convchip convchip--new" aria-label="A new conversation here" title="A new conversation here" onClick={() => void client.newConversation(moduleId, "New conversation").then((c) => { choose(undefined); setActive(c.id); load(); })}>
+            <Plus size={14} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
       <div className="assist__body" ref={body}>
         {typeof chat === "string" && !threadView ? (
           opening ? (
@@ -467,7 +516,7 @@ export function AssistantPanel({
           </>
         ) : (
           <>
-            {threads.map((t) => {
+            {threads.filter((t) => t.kind !== "chat").map((t) => {
               // A build has no time limit: the person stops it when it isn't going anywhere.
               const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
               return (

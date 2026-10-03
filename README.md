@@ -12,24 +12,30 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
 
 ## Where things are
 
-- `docs/design/alpha-second-brain-design.md` — the agreed design: principles, the world model,
-  capabilities, the agent loop, standing things, trust, workspace, model route, decisions
-  (Q1–Q21). Every section ends with an *As built* paragraph; where it disagrees with the text
-  above it, *As built* is current.
-- `docs/design/build-plan.md` — the engineering side: verified toolchain facts, what each slice
-  built, what ran for real, where things stand and what is pending (§4.3, §4.5, §4.9).
-- `docs/design/research/` — the four research reports behind the design.
+- `CONTRIBUTING.md` — how the code is written, laid out, tested and documented; read it before
+  changing anything. `CLAUDE.md` is the short form every agent session reads first.
+
+- `docs/STATE.md` — the current state, one page, rewritten every session: what is built, what
+  runs for real, what is wrong, what is pending in order, the measured numbers. Read it first.
+- `docs/log/` — the dated history, one file per entry, verbatim (what each session built, ran
+  and found; the 3 Oct checkpoint); `docs/log/README.md` lists them.
+- `docs/design/alpha-second-brain-design.md` — the agreed design, intent only: principles, the
+  world model, capabilities, the agent loop, standing things, trust, workspace, model route,
+  decisions (Q1–Q26); a status box (built / differs / not built) under each section.
+- `docs/design/build-plan.md` — what does not change by the day: verified toolchain facts, the
+  first slice's shape, what to port, open engineering questions; a map from the old §4.N
+  section numbers to the log files.
+- `docs/design/research/` — the five research reports behind the design.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
-  records, entities, facts, notes, goals, modules, threads, plans, sources, readers,
+  records, entities, facts, notes, goals, modules, threads, plans, sources, skills (readers, procedures, pipelines),
   automations), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
   `claude -p` runs, the turn, builds, pipelines, the scheduler, the second opinion), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
-- `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright
-  driver, read-only), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
+- `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright driver: reads are read-only by mechanism; acting, downloads and uploads run only inside an approved action), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
 - `desktop/` — the Tauri 2 + React app: the workspace (rail, Home, modules with derived table
-  pages, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
+  pages, People & Companies, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
   window. The app starts the core from this repository's `.venv`.
 - `journeys/` — the real journeys the suite runs after a change (`just journeys`); reports land in
   `docs/journeys/`.
@@ -47,6 +53,7 @@ just app            # build the signed debug app and open it (needs the node@24 
 just app-dev        # the app with Vite hot reload
 just test-desktop   # typecheck + vitest
 just journeys       # the journey suite on a copy of the app's world (uses the subscription)
+just stats          # the measured numbers STATE.md quotes
 ```
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
@@ -56,4 +63,4 @@ from the default config home and `USER` must be in the environment. The app keep
 `~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and
 acceptance runs use a scratch one so the owner's world stays untouched). Builds are
 signed with the local "Alpha Local Signing" certificate so macOS keeps the app's permissions
-across rebuilds; see `build-plan.md` §4.1.
+across rebuilds; see `docs/log/2026-10-01-4-1-slice-2-as-built-1.md`.

@@ -1,10 +1,11 @@
 /**
- * The rail: the workspace name (with the core's status dot), Home, the person's projects (drag
- * to reorder, open, hide), New project, and Intelligence and Settings at the foot. Activity is
+ * The rail: the workspace name (with the core's status dot), Home, People & Companies, the
+ * person's projects (drag to reorder, open, hide), New project, and Intelligence and Settings at
+ * the foot. Activity is
  * the bell in Zazoo's header. It collapses to icons and resizes (ui/panel).
  */
 import { useRef, useState } from "react";
-import { EyeOff, FolderOpen, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { EyeOff, FolderOpen, FolderPlus, Home as HomeIcon, MoreVertical, Settings as SettingsIcon, Sparkles, UserRound, Users, type LucideIcon } from "lucide-react";
 import type { ModuleCard } from "../core/client";
 import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, type PanelControl } from "../ui";
 import { projectIcon } from "./projectIcons";
@@ -15,10 +16,13 @@ export type Surface =
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string; item?: string }
   | { kind: "settings"; section?: string }
+  | { kind: "people" }
+  | { kind: "entity"; id: string }
   | { kind: "module"; id: string; section?: string };
 
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
+  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
@@ -27,16 +31,17 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || (s.kind === "module" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity") && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 
 /** Where a place lives in the window's address (`#/m/<id>/<section>`, `#/settings/<section>`,
- *  `#/intelligence/<tab>/<item>`), so back and forward work. */
+ *  `#/intelligence/<tab>/<item>`, `#/people/<id>`), so back and forward work. */
 export function surfacePath(s: Surface): string {
   if (s.kind === "module") return `/m/${encodeURIComponent(s.id)}${s.section && s.section !== "app" ? `/${s.section}` : ""}`;
   if (s.kind === "intelligence") return s.tab ? `/intelligence/${s.tab}${s.item ? `/${encodeURIComponent(s.item)}` : ""}` : "/intelligence";
   if (s.kind === "settings") return s.section ? `/settings/${s.section}` : "/settings";
+  if (s.kind === "entity") return `/people/${encodeURIComponent(s.id)}`;
   return s.kind === "home" ? "/" : `/${s.kind}`;
 }
 
@@ -46,6 +51,9 @@ export function surfaceFromPath(path: string): Surface | null {
   const [, first, second, third] = path.replace(/^#/, "").split("/");
   if (!first) return path.replace(/^#/, "") === "/" ? { kind: "home" } : null;
   if (first === "m" && second) return third && MODULE_SECTIONS.has(third) ? { kind: "module", id: decodeURIComponent(second), section: third } : { kind: "module", id: decodeURIComponent(second) };
+  // A person's page is in People & Companies; the second brain's old address for it leads there.
+  const person = first === "people" ? second : first === "intelligence" && second === "brain" ? third : undefined;
+  if (person) return { kind: "entity", id: decodeURIComponent(person) };
   if (first === "intelligence") return second ? (third ? { kind: "intelligence", tab: second, item: decodeURIComponent(third) } : { kind: "intelligence", tab: second }) : { kind: "intelligence" };
   // Alpha's aliases: Connections and About you live in Intelligence.
   if (first === "connections" || (first === "settings" && second === "connections")) return { kind: "intelligence", tab: "connections" };
@@ -259,6 +267,7 @@ export function Rail({
       </div>
       <div id="rail-body" className="rail__body">
         {item({ kind: "home" }, HomeIcon, "Home")}
+        {item({ kind: "people" }, Users, "People & Companies")}
         {visible.map(projectRow)}
         <div className="navrow">
           <button

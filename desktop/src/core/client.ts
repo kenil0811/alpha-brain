@@ -113,6 +113,7 @@ export interface Note {
   scope: string;
   title: string;
   body: string;
+  summary?: string | null;
   updated_at: string;
 }
 
@@ -279,12 +280,16 @@ export interface Entity {
   keys: Record<string, string[]>;
   last_at?: string | null;
   last_text?: string | null;
+  /** The one line of the entity's wiki page, when Alpha has written one. */
+  summary?: string | null;
 }
 
 export interface EntityDetail extends Entity {
   facts: Fact[];
   timeline: JournalEntry[];
   maybe_same: Entity[];
+  /** The entity's page of Alpha's wiki: who they are to the person, what is going on. */
+  page: Note | null;
 }
 
 /** Whether Alpha can think: Claude Code on this Mac, signed in to the person's Claude. */
@@ -321,7 +326,8 @@ export interface Connection {
   last_error: string | null;
 }
 
-export interface Skill {
+/** A hand: a built-in connector (browser, files, calendar) and the tools it gives Alpha. */
+export interface Hand {
   name: string;
   title: string;
   description: string | null;
@@ -329,7 +335,30 @@ export interface Skill {
   origin: string | null;
 }
 
+/** Know-how Alpha wrote: a reader (read), a procedure (act) or a pipeline (run). */
+export interface Skill {
+  name: string;
+  kind: "read" | "act" | "run";
+  site: string | null;
+  module: string | null;
+  url: string | null;
+  description: string;
+  when_to_use: string | null;
+  effect: string | null;
+  fields: string[];
+  version: number;
+  health: "ok" | "broken" | "untried";
+  last_problem: string | null;
+  last_run_at: string | null;
+  last_count: number | null;
+  last_ok_count: number | null;
+  source: string | null;
+  updated_at: string;
+  notes: string | null;
+}
+
 export interface Intelligence {
+  hands: Hand[];
   skills: Skill[];
   automations: Automation[];
   readers: Reader[];
@@ -366,6 +395,20 @@ export interface Reader {
   last_count: number | null;
 }
 
+export interface Convo {
+  id: string;
+  title: string;
+  kind: string;
+  state: string;
+  module: string | null;
+  scope: string;
+  question: string | null;
+  last: string | null;
+  last_at: string;
+  updated_at: string;
+  live?: Live | null;
+}
+
 export interface Live {
   thought: string | null;
   doing: string | null;
@@ -383,9 +426,14 @@ export interface Ask {
 }
 
 export interface Turn {
-  id: string;
-  state: "running" | "done" | "failed";
+  id: string | null;
+  /** "routing": the companion's sentence is being placed in a conversation (a judge may run). */
+  state: "routing" | "running" | "done" | "failed" | "asked";
   text: string;
+  conversation?: Convo | null;
+  /** When the sentence had to be routed and Alpha wasn't sure: the question to answer. */
+  ask?: string;
+  options?: string[];
   steps?: { at: string; kind: string; text: string }[];
   live?: Live | null;
   reply?: string;
@@ -402,6 +450,14 @@ export interface Conversation {
   plans: Plan[];
   actions?: Action[];
   asks?: Ask[];
+  conversation?: Convo | null;
+  conversations?: Convo[];
+}
+
+export interface Companion {
+  focus: Convo | null;
+  conversations: Convo[];
+  needs_you: NeedItem[];
 }
 
 export interface SearchResult {
@@ -469,7 +525,7 @@ export class Client {
   merge = (keep: string, other: string) => this.call<Entity>("POST", `/api/entities/${keep}/merge/${other}`);
 
   intelligence = () => this.call<Intelligence>("GET", "/api/intelligence");
-  writeNote = (scope: string, title: string, body: string) => this.call<Note>("POST", "/api/notes", { scope, title, body });
+  writeNote = (scope: string, title: string, body: string, summary?: string) => this.call<Note>("POST", "/api/notes", { scope, title, body, summary });
   connectFolder = (path: string) => this.call<Connection>("POST", "/api/connections/folder", { path });
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });
   connectCalendar = () => this.call<Connection>("POST", "/api/connections/calendar");
@@ -498,20 +554,37 @@ export class Client {
   };
   exportTable = (name: string, format: "csv" | "xlsx") => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format });
   document = (id: string) => this.call<DocumentInfo>("GET", `/api/documents/${id}`);
-  conversation = (module?: string | null) => this.call<Conversation>("GET", `/api/conversation${module ? `?module=${encodeURIComponent(module)}` : ""}`);
-  ask = (text: string, opts: { module?: string | null; thread?: string | null } = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null });
+  conversation = (module?: string | null, conversation?: string | null) => {
+    const qs = new URLSearchParams();
+    if (module) qs.set("module", module);
+    if (conversation) qs.set("conversation", conversation);
+    const q = qs.toString();
+    return this.call<Conversation>("GET", `/api/conversation${q ? `?${q}` : ""}`);
+  };
+  conversations = (module?: string | null) => this.call<Convo[]>("GET", `/api/conversations${module ? `?module=${encodeURIComponent(module)}` : ""}`);
+  newConversation = (module?: string | null, title?: string) => this.call<Convo>("POST", "/api/conversations", { module: module ?? null, title: title ?? null });
+  closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
+  focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
+  companion = () => this.call<Companion>("GET", "/api/companion");
+  moveTurn = (key: string, conversation: string) => this.call<Turn>("POST", `/api/turns/${key}/move`, { conversation });
+  ask = (text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null, conversation: opts.conversation ?? null });
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
   thread = (id: string) => this.call<Thread & { journal: JournalEntry[] }>("GET", `/api/threads/${id}`);
 
   /** Ask and wait for the answer, polling once a second. */
-  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null } = {}, onTick?: (t: Turn) => void): Promise<Turn> {
-    let turn = await this.ask(text, opts);
-    while (turn.state === "running") {
+  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void): Promise<Turn> {
+    const turn = await this.ask(text, opts);
+    return this.waitTurn(turn, onTick);
+  }
+  /** Follow a started turn to its end (a routing question comes back as is). */
+  async waitTurn(turn: Turn, onTick?: (t: Turn) => void): Promise<Turn> {
+    let current = turn;
+    while ((current.state === "running" || current.state === "routing") && current.id) {
       await new Promise((r) => setTimeout(r, 1000));
-      turn = await this.turn(turn.id);
-      onTick?.(turn);
+      current = await this.turn(current.id);
+      onTick?.(current);
     }
-    return turn;
+    return current;
   }
 
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });

@@ -983,3 +983,34 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .askcard__options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .askcard__other { display: flex; gap: 6px; align-items: center; }
 .askcard__other .ui-input { flex: 1; min-width: 120px; }
+
+/* ---- live conversations: a strip to switch between them ---- */
+.convstrip { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: none; }
+.convstrip::-webkit-scrollbar { display: none; }
+.convchip { flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--text-xs); cursor: pointer; }
+.convchip:hover { color: var(--text); background: var(--hover); }
+.convchip--active { color: var(--text); border-color: var(--text-3); background: var(--surface-2); }
+.convchip--needs { border-color: var(--warn); }
+.convchip--new { width: 28px; justify-content: center; padding: 4px 0; }
+.convchip__scope { color: var(--text-3); }
+.convchip__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convchip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
+.convchip__dot--working { background: var(--primary); animation: pulse 1.4s ease-in-out infinite; }
+.convchip__dot--waiting { background: var(--warn); }
+
+/* ---- the companion's choices: a question's options, a decision ---- */
+.avatar__pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.avatar__pills .panel__hint { width: 100%; margin: 0 0 2px; }
+
+/* ---- People & Companies ---- */
+.people__search { max-width: 260px; }
+.people__row { align-items: center; }
+.people__avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: 600; flex-shrink: 0; }
+.people__avatar--big { width: 44px; height: 44px; font-size: var(--text-md); }
+.people__head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.people__who { gap: 6px; min-width: 0; }
+.people__name { font-weight: 500; white-space: nowrap; }
+.people__line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people__when { white-space: nowrap; min-width: 72px; }
+.people__page { white-space: pre-wrap; font-size: var(--text-sm); line-height: 1.55; }
+.people__suggested { margin-top: 12px; }

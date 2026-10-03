@@ -440,7 +440,8 @@ class Browser:
                 "failed_step": page.get("failed_step"), "error": page.get("error"),
                 "verified": page.get("verified"), "shots": page.get("shots") or {},
                 "log": page.get("log") or [], "final_url": page.get("final_url"),
-                "title": page.get("title"), "outcome": outcome}
+                "title": page.get("title"), "page_text": page.get("page_text"),
+                "outcome": outcome}
 
     def items(self, url: str, *, link_contains: str, to_end: bool = True,
               turn: str | None = None, module: str | None = None) -> dict[str, Any]:

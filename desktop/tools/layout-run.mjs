@@ -51,13 +51,13 @@ let failed = false;
 try {
   const seed = JSON.parse(await start("uv", ["run", "python", join(desktop, "tools/layout-seed.py")], { cwd: join(repo, "core") }, (s) => s.match(/^SEED (.*)\n/m)?.[1]));
   const project = seed.project;
-  const port = await start("uv", ["run", "alpha", "serve", "--port", "0"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
+  const port = await start("uv", ["run", "alpha", "serve", "--port", "0", "--no-background"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
   const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
   // "<path>:<table>" is the project page again, on that table's tab (kept in localStorage).
   const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", "/settings/appearance", "/settings/avatar", `/m/${project}`, `/m/${project}:openings`,
     // Each kind of Intelligence item's own page.
-    "/intelligence/skills/files", `/intelligence/skills/reader%3A${seed.reader}`, `/intelligence/automations/${seed.automation}`, `/intelligence/connections/${seed.connection}`,
-    `/intelligence/knowledge/${seed.fact}`, `/intelligence/knowledge/${seed.goal}`, `/intelligence/knowledge/${seed.permission}`, `/intelligence/knowledge/${seed.note}`, `/intelligence/brain/${seed.entity}`];
+    "/intelligence/skills/hand%3Afiles", `/intelligence/skills/${seed.reader}`, `/intelligence/automations/${seed.automation}`, `/intelligence/connections/${seed.connection}`,
+    `/intelligence/knowledge/${seed.fact}`, `/intelligence/knowledge/${seed.goal}`, `/intelligence/knowledge/${seed.permission}`, `/intelligence/knowledge/${seed.note}`, "/people", `/people/${seed.entity}`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
     for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {

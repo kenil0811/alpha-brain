@@ -1,0 +1,195 @@
+[
+ {
+  "name": "memory_correction",
+  "title": "Memory · a correction overrides the earlier belief, at once and afterwards",
+  "steps": [
+   {
+    "say": "my protein target is now 130 g a day, not 115",
+    "ok": true,
+    "reply": "Updated — protein target is now 130g/day (calories, carbs, fat, and fiber unchanged).",
+    "steps": 3,
+    "seconds": 11.5
+   },
+   {
+    "say": "what's my daily protein target?",
+    "ok": true,
+    "reply": "Your daily protein target is **130g**, updated earlier today from 115g.",
+    "steps": 1,
+    "seconds": 5.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "130"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 130 g as the current target and does not present 115 g as still current (mentioning 115 as the old value is fine). Fails otherwise.",
+    "ok": true,
+    "why": "Answer states current target is 130g and mentions 115g only as the prior/old value, matching the rubric.",
+    "seconds": 4.5
+   }
+  ],
+  "seconds": 21.8,
+  "error": null
+ },
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "The three highest asking prices in the Deal Tracker:\n\n1. **High Growth Indoor & Outdoor Furniture Brand** (Website Closers) — $90,000,000 asking, $14.4M cash flow, Pending\n2. **CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers) — $29,000,000 asking, $6.0M cash flow, Active\n3. **Mission-Critical SaaS for Financial Trading Firms** (Website Closers) — $28,500,000 asking, $3.4M cash flow, Active",
+    "steps": 3,
+    "seconds": 11.7
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers)\n\n- Full title: \"CPG eCommerce Brand | Niche Furniture Fix-It Products | Internally Designed Products | Full Remote Team | Strong Top & Bottom Line YOY Growth | 20X ROAS\"\n- Asking price: $29,000,000\n- Cash flow: $6,048,663\n- Status: Active\n- Category: General Business\n- Listing: [websiteclosers.com](https://www.websiteclosers.com/businesses/cpg-ecommerce-brand-niche-furniture-fix-it-products-internally-designed-products-full-remote-team-strong-top-bottom-line-yoy-growth-20x-roas/119224/)\n\nThat's the full set of fields t",
+    "steps": 2,
+    "seconds": 11.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer correctly provides more detail on the CPG eCommerce Brand (the second deal listed previously), matching name and asking price, without re-listing or asking for clarification.",
+    "seconds": 5.7
+   }
+  ],
+  "seconds": 28.9,
+  "error": null
+ },
+ {
+  "name": "memory_old_fact",
+  "title": "Memory · a fact stated days ago is used without being asked again",
+  "steps": [
+   {
+    "say": "how tall am i, and what do i weigh?",
+    "ok": true,
+    "reply": "Height: 178 cm. Weight: 63 kg (both from your stated facts).",
+    "steps": 1,
+    "seconds": 6.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "178"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "63"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 178 cm and 63 kg as the person's own figures. Fails if it asks the person for them or guesses.",
+    "ok": true,
+    "why": "The answer provides 178 cm and 63 kg as the person's own stated figures, matching the rubric exactly.",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 11.0,
+  "error": null
+ },
+ {
+  "name": "memory_two_sources",
+  "title": "Memory · one person known from two sources is one person",
+  "steps": [
+   {
+    "say": "what do i know about alexander miller, and what did he last write to me?",
+    "ok": true,
+    "reply": "**Alexander Miller** — LinkedIn connection since Aug 5, 2025, headline \"Building Teams That Impact The World,\" based in London. He's been reaching out about a role at **Fuse Energy** (email alexander.miller@fuseenergy.com), and there's a thread going back to July about scheduling a call.\n\nHis last message to you (1 Oct, LinkedIn InMail): **\"Could next week or following work for you?\"** — just a scheduling follow-up on that Fuse Energy call thread, no new content.",
+    "steps": 10,
+    "seconds": 33.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer draws on both the LinkedIn connection (his headline or company, e.g. Fuse Energy) and his email (what he last wrote, e.g. asking whether next week or the following works). Fails if it uses only one source, invents, or says it doesn't know him.",
+    "ok": true,
+    "why": "The answer combines the LinkedIn connection details (headline, London, Aug 5 2025 connection) with the email/Fuse Energy thread and accurately reports his last message asking if next week or the following works.",
+    "seconds": 6.6
+   }
+  ],
+  "seconds": 39.6,
+  "error": null
+ },
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos Téllez is a Tech Recruiter at **P&D Talent** in Barcelona, Spain (sara@pndtalent.com). You last dealt with her on **2 Oct 2026**, when she emailed you about \"Penelope Health - Founding Engineer\" with an attached PDF (Penelope Health Founding Engineer.pdf) — fitting with your founding-engineer job search. There was also a calendar invite from her on 1 Oct for a 20-minute intro call on Fri 2 Oct, 9:20–9:40am.\n\nShe's not yet in Alpha's records (not a LinkedIn connection or saved contact) — want me to add her as a contact in your Job Search module?",
+    "steps": 5,
+    "seconds": 24.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents.",
+    "ok": true,
+    "why": "The answer identifies Sara Ramos via her email about the Penelope Health founding engineer role and the 2 Oct intro meeting, giving a specific last-contact date, without claiming ignorance or inventing unsupported details.",
+    "seconds": 5.3
+   }
+  ],
+  "seconds": 29.9,
+  "error": null
+ },
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (2 Oct), what you said about Vikas was just the one instruction, at 21:14: **\"add a note - to make assistant chat expandable, add it to improvements notes\"** — that mention was in the Advisory module thread while Vikas Badami's RestoPros financials were being loaded, but it wasn't about Vikas himself; it was a side request Alpha acted on (added to an \"Improvements\" note).\n\nEverything else from yesterday involving Vikas was Alpha's own activity, not something you said: setting up the Vikas Badami Emails/Attachments tracker, and pulling in RestoPros (St. Louis, MO) financials from his ",
+    "steps": 4,
+    "seconds": 17.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": false,
+    "why": "The answer claims no real content about Vikas was said and misses the Friday financial model promise entirely, so it fails the rubric.",
+    "seconds": 4.5
+   }
+  ],
+  "seconds": 21.7,
+  "error": null
+ }
+]

@@ -1,0 +1,8 @@
+name: skill_reuse
+title: Know-how is reused, not rewritten — a second Gmail draft uses the procedure Alpha has
+why: "On 2 Oct three Gmail procedures were written where one with fields would do; the skills index is in every turn so an existing skill is used."
+steps:
+  - say: "draft an email in gmail to kenilrameshshah.krs@gmail.com with the subject 'Skill reuse check' saying: hello from Alpha, this is a check that the draft procedure is reused."
+checks:
+  - action: {state: proposed, effect: prepare, preview: true, procedure: gmail_draft}
+  - no_new_skills: {}

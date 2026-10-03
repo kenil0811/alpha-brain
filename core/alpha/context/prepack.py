@@ -9,6 +9,7 @@ sentence, and what is open. Everything else the model fetches itself through the
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
@@ -44,6 +45,64 @@ def clock(at: datetime | None = None) -> list[str]:
         f" are stored in UTC: records made today have created_at >="
         f" {midnight.astimezone(UTC).replace(microsecond=0).isoformat()}.",
     ]
+
+
+DAY_WORDS = {"today": 0, "yesterday": 1, "day before yesterday": 2}
+WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+def day_named(sentence: str, at: datetime | None = None) -> tuple[str, str, str] | None:
+    """The day a sentence names ("yesterday", "on Tuesday", "3 days ago", "last week"), as a
+    UTC window and a label; None when it names none."""
+    words = " ".join(sentence.lower().split())
+    local = (at or datetime.now()).astimezone()
+    start = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo)
+    span = 1
+    chosen: datetime | None = None
+    label = ""
+    for phrase, back in sorted(DAY_WORDS.items(), key=lambda kv: -len(kv[0])):
+        if re.search(rf"\b{phrase}\b", words):
+            chosen, label = start - timedelta(days=back), phrase
+            break
+    if chosen is None:
+        m = re.search(r"\b(\d{1,2}) days? ago\b", words)
+        if m:
+            chosen, label = start - timedelta(days=int(m.group(1))), m.group(0)
+    if chosen is None:
+        m = re.search(r"\b(?:on |last )?(" + "|".join(WEEKDAYS) + r")\b", words)
+        if m:
+            back = (local.weekday() - WEEKDAYS.index(m.group(1))) % 7 or 7
+            chosen, label = start - timedelta(days=back), m.group(1)
+    if chosen is None and re.search(r"\blast week\b", words):
+        chosen, span, label = start - timedelta(days=local.weekday() + 7), 7, "last week"
+    if chosen is None and re.search(r"\bthis week\b", words):
+        chosen, span, label = start - timedelta(days=local.weekday()), 7, "this week"
+    if chosen is None:
+        return None
+    return (chosen.astimezone(UTC).replace(microsecond=0).isoformat(),
+            (chosen + timedelta(days=span)).astimezone(UTC).replace(microsecond=0).isoformat(),
+            label)
+
+
+def entities_named(world: World, sentence: str) -> list[dict[str, Any]]:
+    """People and organisations the sentence names, by canonical name or alias (whole words,
+    case-insensitive). Retrieval, not routing: it only decides which cards to show."""
+    words = " " + " ".join(sentence.lower().split()) + " "
+    out = []
+    for e in world.entities.find(limit=2000):
+        if e["kind"] not in ("person", "organisation"):
+            continue
+        names = [e["name"], *(e.get("aliases") or [])]
+        for name in names:
+            n = " ".join(str(name).lower().split())
+            if len(n) >= 3 and f" {n} " in words:
+                out.append(e)
+                break
+            first = n.split(" ")[0]
+            if len(first) >= 4 and f" {first} " in words and e["kind"] == "person":
+                out.append(e)
+                break
+    return out
 
 
 def build(world: World, sentence: str, *, module: str | None = None,
@@ -99,6 +158,29 @@ def build(world: World, sentence: str, *, module: str | None = None,
         "- Nothing connected yet. Public web pages can always be read (page_read); folders,"
         " sites to sign into and the calendar are connected when the person asks."]))
 
+    # Know-how: every skill, always, but compact (design §3.7 point 7): act and run skills one
+    # line each, read skills as a list by site; bodies by skill_read, search by skills_find.
+    # Found 3 Oct: a line per skill with its description ate a third of the pack and cut the
+    # matches off; the cap is 12,000 characters for everything.
+    can_do = []
+    reads = []
+    for sk in world.skills.index()[:120]:
+        where = sk["site"] or (world.modules.get(sk["module"])["name"] if sk["module"] else "")
+        mark = "" if sk["health"] == "ok" else f", {sk['health']}"
+        use = f" When: {_clip(sk['when_to_use'], 80)}" if sk["when_to_use"] else ""
+        if sk["kind"] == "read":
+            rows = f", {sk['last_count']} rows" if sk["last_count"] else ""
+            reads.append(f"{sk['name']} ({where}{rows}{mark}{use})")
+        else:
+            can_do.append(f"- [{sk['kind']}] {sk['name']} ({where}{mark}"
+                          + (f", {sk['effect']}" if sk["effect"] else "")
+                          + f"): {_clip(sk['description'], 90)}{use}")
+    if reads:
+        can_do.append("- [read] " + "; ".join(reads))
+    if can_do:
+        sections.append(("WHAT ALPHA CAN DO (skills it wrote; skill_read for one, skills_find"
+                         " to search; use one before writing another)", can_do))
+
     local = datetime.now().astimezone()
     day_start = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo).astimezone(UTC)
     day_end = (day_start + timedelta(days=1)).isoformat()
@@ -113,17 +195,66 @@ def build(world: World, sentence: str, *, module: str | None = None,
             for e in today[:15]
         ]))
 
-    notes = [f"- [{n['scope']}] {n['title']} ({n['id']}): {_clip(n['body'], 100)}"
-             for n in k.notes() if n["title"] not in ("Profile", "Standing instructions",
-                                                      "Permissions")][:20]
-    if notes:
-        sections.append(("NOTES", notes))
+    # The wiki's index: every page in one line, always; bodies on demand (note_read).
+    index = [f"- [{p['scope']}] {p['title']}: {_clip(p['summary'], 140)}"
+             for p in k.index() if p["title"] not in ("Profile", "Standing instructions",
+                                                      "Permissions")][:200]
+    if index:
+        sections.append(("WHAT ALPHA KNOWS (the index; note_read for a page)", index))
+    if module:
+        page = next((n for n in k.notes(f"module:{world.modules.get(module)['name']}")), None)
+        if page:
+            body = page["body"]
+            if len(body) > 1500:
+                body = body[:1500].rsplit("\n", 1)[0] + "\n  … (note_read for the rest)"
+            sections.append((f"THIS MODULE'S PAGE ({page['title']})",
+                             [f"  {line}" for line in body.splitlines()[:40]]))
 
+    # Entity cards: anyone or anything the sentence names, with what Alpha knows of them.
+    cards = []
+    for e in entities_named(world, sentence)[:3]:
+        facts_ = world.knowledge.facts(f"entity:{e['id']}")
+        page = next((n for n in k.notes(f"entity:{e['id']}")), None)
+        last = world.store.one(
+            "SELECT j.at, j.text FROM journal j, json_each(j.entity_ids) x WHERE x.value = ?"
+            " AND j.deleted_at IS NULL ORDER BY j.at DESC LIMIT 1", (e["id"],))
+        cards.append(f"- {e['name']} ({e['kind']}, {e['id']}; keys: "
+                     + ", ".join(f"{kk}={', '.join(v)}" for kk, v in (e.get('keys') or {}).items())
+                     + ")")
+        if page:
+            cards.append(f"  page: {_clip(page.get('summary') or page['body'], 200)}")
+        for f in facts_[:8]:
+            cards.append(f"  {f['predicate']}: {f['value']} ({f['state']}, from {f['source']})")
+        if last:
+            cards.append(f"  last seen: {when(last['at'])} {_clip(last['text'], 160)}")
+    if cards:
+        sections.append(("WHO THE SENTENCE NAMES", cards))
+
+    chat = world.modules.thread(thread) if thread else None
+    chat = chat if chat and chat.get("kind") == "chat" else None
     recent = []
-    for e in world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"]):
+    if chat:
+        turns_ = world.journal.recent(RECENT_TURNS, thread=thread, kinds=["said", "replied"])
+    else:
+        turns_ = world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"])
+    for e in turns_:
         who_said = "person" if e["kind"] == "said" else "alpha"
         recent.append(f"- {when(e['at'])} {who_said}: {_clip(e['text'], 400)}")
-    sections.append(("RECENT CONVERSATION (oldest first)", recent or ["- This is the first."]))
+    sections.append((f"THIS CONVERSATION{' (' + chat['title'] + ')' if chat else ''}"
+                     " (oldest first)", recent or ["- This is the first."]))
+    if chat and chat.get("session_ref"):
+        # The model's session carries this conversation; the world may have moved meanwhile.
+        last_row = world.store.one("SELECT MAX(at) AS at FROM journal WHERE thread = ?"
+                                   " AND kind = 'replied'", (thread,))
+        last_at = str(last_row["at"]) if last_row and last_row["at"] else None
+        delta = []
+        if last_at:
+            for e in world.journal.recent(40, kinds=["changed", "did", "made", "answered",
+                                                     "noticed"]):
+                if e["at"] > last_at and e["thread"] != thread:
+                    delta.append(f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 200)}")
+        sections.append(("SINCE YOUR LAST TURN HERE (elsewhere in the world; these override"
+                         " anything you remember)", delta[-10:] or ["- Nothing changed."]))
 
     matches = []
     for hit in world.collections.search(sentence, MATCHES):
@@ -131,7 +262,18 @@ def build(world: World, sentence: str, *, module: str | None = None,
     for doc in Files(world).search(sentence, 3):
         matches.append(f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}")
     recent_ids = {e["id"] for e in world.journal.recent(RECENT_TURNS, stream=True)}
-    hits = world.journal.mark_removed(world.journal.search(sentence, MATCHES + len(recent_ids)))
+    # A sentence that names a day looks there first: matches within it, and that day's turns.
+    window = day_named(sentence)
+    if window:
+        since, until, label = window
+        that_day = [f"- {when(e['at'])} {'person' if e['kind'] == 'said' else 'alpha'}:"
+                    f" {_clip(e['text'], 220)}"
+                    for e in world.journal.between(since, until, kinds=["said", "replied"],
+                                                   limit=14)]
+        sections.append((f"WHAT WAS SAID {label.upper()}", that_day or ["- Nothing was said."]))
+    hits = world.journal.mark_removed(world.journal.search(
+        sentence, MATCHES + len(recent_ids),
+        since=window[0] if window else None, until=window[1] if window else None))
     for hit in hits:
         if hit["id"] in recent_ids:
             continue
@@ -143,7 +285,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if matches:
         sections.append(("MATCHES FOR THIS SENTENCE", matches))
 
-    if thread:
+    if thread and not chat:
         t = world.modules.thread(thread)
         lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
                  f"- Brief: {t['brief']}" if t.get("brief") else

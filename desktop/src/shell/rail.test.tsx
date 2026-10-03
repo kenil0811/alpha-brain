@@ -9,7 +9,10 @@ const panel: PanelControl = { collapsed: false, mode: "expanded", width: 224, di
 describe("the rail", () => {
   it("marks the right item current", () => {
     expect(sameSurface({ kind: "intelligence", tab: "connections" }, { kind: "intelligence" })).toBe(true);
-    expect(knownSurface({ kind: "people" })).toEqual({ kind: "home" });
+    expect(knownSurface({ kind: "people" })).toEqual({ kind: "people" });
+    expect(knownSurface({ kind: "entity", id: "e_1" })).toEqual({ kind: "entity", id: "e_1" });
+    expect(sameSurface({ kind: "entity", id: "e_1" }, { kind: "people" })).toBe(true);
+    expect(knownSurface({ kind: "nowhere" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
     expect(surfaceFromPath(`#${surfacePath({ kind: "module", id: "m_1" })}`)).toEqual({ kind: "module", id: "m_1" });
   });
@@ -24,11 +27,18 @@ describe("the rail", () => {
   });
 
   it("gives each Intelligence item its own address, and keeps the tab addresses", () => {
-    for (const s of [{ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "intelligence", tab: "skills", item: "reader:lumen_jobs" }, { kind: "intelligence", tab: "automations" }, { kind: "intelligence" }] as const)
+    for (const s of [{ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "intelligence", tab: "skills", item: "hand:files" }, { kind: "intelligence", tab: "automations" }, { kind: "intelligence" }] as const)
       expect(surfaceFromPath(`#${surfacePath(s)}`)).toEqual(s);
-    expect(surfacePath({ kind: "intelligence", tab: "skills", item: "reader:lumen_jobs" })).toBe("/intelligence/skills/reader%3Alumen_jobs");
+    expect(surfacePath({ kind: "intelligence", tab: "skills", item: "hand:files" })).toBe("/intelligence/skills/hand%3Afiles");
     expect(surfaceFromPath("#/intelligence/connections")).toEqual({ kind: "intelligence", tab: "connections" });
     expect(sameSurface({ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "home" })).toBe(false);
+  });
+
+  it("gives People & Companies and each person an address, and sends the second brain's person address there", () => {
+    for (const s of [{ kind: "people" }, { kind: "entity", id: "e_1" }] as const) expect(surfaceFromPath(`#${surfacePath(s)}`)).toEqual(s);
+    expect(surfacePath({ kind: "entity", id: "e_1" })).toBe("/people/e_1");
+    expect(surfaceFromPath("#/intelligence/brain/e_1")).toEqual({ kind: "entity", id: "e_1" });
+    expect(surfaceFromPath("#/intelligence/brain")).toEqual({ kind: "intelligence", tab: "brain" });
   });
 
   it("lists the projects, and no Activity item", () => {
@@ -49,7 +59,7 @@ describe("the rail", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
-    expect(screen.queryByRole("button", { name: "People & Companies" })).toBeNull();
+    expect(screen.getByRole("button", { name: "People & Companies" })).toBeInTheDocument();
   });
 });
 

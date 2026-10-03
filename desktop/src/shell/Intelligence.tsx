@@ -5,14 +5,14 @@
  * (`./IntelItem.tsx`); the second brain is its own place to look and edit.
  */
 import { type FormEvent, useEffect, useState } from "react";
-import { CalendarDays, Folder, Globe, Link, Puzzle, ScanText } from "lucide-react";
+import { CalendarDays, Folder, Globe, Link, Puzzle } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { InfoTip, PageHeader, Tabs } from "../ui";
 import { Badge, type BadgeVariant } from "../ui/Badge";
 import { AboutYou } from "./AboutYou";
 import { AutomationTable } from "./Automations";
-import { INSTRUCTIONS, IntelItemPage, OpenRow, OpenTitle, type ItemContext } from "./IntelItem";
+import { INSTRUCTIONS, IntelItemPage, OpenRow, OpenTitle, SKILL_HEALTH, SKILL_KIND, type ItemContext } from "./IntelItem";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
 import { Input } from "../ui/Input";
@@ -21,7 +21,7 @@ import { Button } from "../ui/Button";
 export type IntelTab = "brain" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string; hint: string }[] = [
   { id: "brain", label: "Second brain", hint: "Every project and every fact Alpha holds, and how they connect." },
-  { id: "skills", label: "Skills", hint: "What Alpha can reach, and the site readers it made." },
+  { id: "skills", label: "Skills", hint: "What Alpha has learned to read, do and run, and what it can reach." },
   { id: "automations", label: "Automations", hint: "Every schedule across your projects, switchable in place." },
   { id: "connections", label: "Connections", hint: "The folders, sites and calendars Alpha reads." },
   { id: "knowledge", label: "Knowledge", hint: "What Alpha knows and uses across your projects." },
@@ -278,36 +278,49 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
         <div className="stack">
           <div className="section__head section__head--tight">
             <h2>
-              Built in <InfoTip content="What Alpha can reach without being taught, and the site readers it made." label="About built-in abilities" />
+              Learned <InfoTip content="When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes." label="About learned skills" />
             </h2>
           </div>
           <div className="card list">
-            {data.skills.map((s) => (
-              <OpenRow key={s.name} open={() => open(s.name)}>
+            {!data.skills.length ? <p className="empty">None yet. Alpha keeps one here the first time a task works.</p> : null}
+            {data.skills.map((s) => {
+              const kind = SKILL_KIND[s.kind];
+              const where = s.site ?? modules.find((m) => m.id === s.module)?.name;
+              return (
+                <OpenRow key={s.name} open={() => open(s.name)}>
+                  <div className="item__ico" aria-hidden="true">
+                    <kind.icon size={16} />
+                  </div>
+                  <div className="item__body">
+                    <OpenTitle open={() => open(s.name)}>{s.description}</OpenTitle>
+                    <div className="item__sub">
+                      {kind.words}
+                      {where ? ` · ${where}` : ""} · version {s.version}
+                      {s.last_run_at ? ` · last ${s.kind === "read" ? `read ${s.last_count ?? 0} rows` : "run"} ${when(s.last_run_at)}` : ""}
+                      {s.last_problem ? ` · ${s.last_problem}` : ""}
+                    </div>
+                  </div>
+                  <Badge variant={SKILL_HEALTH[s.health].badge}>{SKILL_HEALTH[s.health].words}</Badge>
+                </OpenRow>
+              );
+            })}
+          </div>
+          <div className="section__head section__head--tight">
+            <h2>
+              Built in <InfoTip content="The hands Alpha has without being taught: the browser, your files, your calendar." label="About built-in abilities" />
+            </h2>
+          </div>
+          <div className="card list">
+            {data.hands.map((h) => (
+              <OpenRow key={h.name} open={() => open(`hand:${h.name}`)}>
                 <div className="item__ico" aria-hidden="true">
                   <Puzzle size={16} />
                 </div>
                 <div className="item__body">
-                  <OpenTitle open={() => open(s.name)}>{s.title}</OpenTitle>
-                  <div className="item__sub">{s.tools.map((t) => humanize(t.name) + (t.effect === "write" ? " (asks first)" : "")).join(" · ")}</div>
+                  <OpenTitle open={() => open(`hand:${h.name}`)}>{h.title}</OpenTitle>
+                  <div className="item__sub">{h.tools.map((t) => humanize(t.name) + (t.effect === "write" ? " (asks first)" : "")).join(" · ")}</div>
                 </div>
-                <Badge variant="neutral">{s.origin === "builtin" ? "Built in" : "Alpha made"}</Badge>
-              </OpenRow>
-            ))}
-            {data.readers.map((r) => (
-              <OpenRow key={r.name} open={() => open(`reader:${r.name}`)}>
-                <div className="item__ico" aria-hidden="true">
-                  <ScanText size={16} />
-                </div>
-                <div className="item__body">
-                  <OpenTitle open={() => open(`reader:${r.name}`)}>{r.description}</OpenTitle>
-                  <div className="item__sub">
-                    Reads {r.site} · version {r.version}
-                    {r.last_run_at ? ` · last read ${r.last_count ?? 0} rows ${when(r.last_run_at)}` : ""}
-                    {r.last_problem ? ` · ${r.last_problem}` : ""}
-                  </div>
-                </div>
-                <Badge variant={r.health === "ok" ? "success" : "danger"}>{r.health === "ok" ? "Working" : "Being repaired"}</Badge>
+                <Badge variant="neutral">Built in</Badge>
               </OpenRow>
             ))}
           </div>

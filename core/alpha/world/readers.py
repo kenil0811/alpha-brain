@@ -4,7 +4,8 @@ A reader is a small JavaScript function body Alpha wrote for one page of one sit
 person's LinkedIn connections): it runs in the page through the browser hand (read-only by
 mechanism) and returns a list of objects. Alpha writes it after looking at the real page, keeps
 it only once it has returned good rows, and repairs it when a run comes back wrong. The platform
-never writes readers; it only runs them and keeps their health.
+never writes readers; it only runs them and keeps their health. Since 3 Oct 2026 a reader is a
+skill of kind read (`skills.py`); this module keeps the reader API over that table.
 
 Health is checked on every run, before anything is written: no rows, far fewer rows than the
 last good run, or rows missing what the target table requires mean the reader is broken, the
@@ -14,22 +15,15 @@ table is left alone, and Alpha is told to repair it.
 from __future__ import annotations
 
 import re
-import sqlite3
 from typing import Any
 
+from alpha.world.skills import Skills
 from alpha.world.store import Problem, Store, now
 
 NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 DROP = 0.5
 HELD = 0.75
 MISSING = 0.2
-
-
-def _view(row: sqlite3.Row) -> dict[str, Any]:
-    out = {k: row[k] for k in row.keys()}
-    out["to_end"] = bool(row["to_end"])
-    out["whole"] = bool(row["whole"])
-    return out
 
 
 def health_problem(rows: Any, *, last_ok: int | None,
@@ -54,61 +48,32 @@ def health_problem(rows: Any, *, last_ok: int | None,
 
 
 class Readers:
+    """Read skills, by the API the rest of the code has used since the first reader."""
+
     def __init__(self, store: Store) -> None:
         self.store = store
+        self.skills = Skills(store)
 
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
-             to_end: bool, count: int, whole: bool = True) -> dict[str, Any]:
+             to_end: bool, count: int, whole: bool = True, when_to_use: str | None = None,
+             source: str | None = None) -> dict[str, Any]:
         if not NAME.match(name):
             raise Problem("A reader's name is lower-case words joined by _, e.g. "
                           "linkedin_connections.")
         stamp = now()
-        prior = self.store.one("SELECT version FROM readers WHERE name = ?", (name,))
-        with self.store.tx() as db:
-            if prior:
-                db.execute(
-                    "UPDATE readers SET site = ?, url = ?, script = ?, to_end = ?, whole = ?,"
-                    " description = ?, version = version + 1, health = 'ok', last_problem = NULL,"
-                    " last_run_at = ?, last_count = ?, last_ok_count = ?, updated_at = ?"
-                    " WHERE name = ?",
-                    (site, url, script, int(to_end), int(whole), description, stamp, count, count,
-                     stamp, name),
-                )
-            else:
-                db.execute(
-                    "INSERT INTO readers (name, site, url, script, to_end, whole, description,"
-                    " last_run_at, last_count, last_ok_count, created_at, updated_at)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (name, site, url, script, int(to_end), int(whole), description, stamp, count,
-                     count, stamp, stamp),
-                )
-        return self.get(name)
+        return self.skills.save(name, "read", description=description, site=site, url=url,
+                                when_to_use=when_to_use, source=source, health="ok",
+                                script=script, to_end=to_end, whole=whole, last_run_at=stamp,
+                                last_count=count, last_ok_count=count, last_problem=None)
 
     def get(self, name: str) -> dict[str, Any]:
-        row = self.store.one("SELECT * FROM readers WHERE name = ?", (name,))
-        if row is None:
-            raise Problem(f"There is no reader '{name}'. Readers: {self.names()}.")
-        return _view(row)
+        return self.skills.get(name, "read")
 
     def names(self) -> list[str]:
-        return [r["name"] for r in self.store.all("SELECT name FROM readers ORDER BY name")]
+        return self.skills.names("read")
 
     def all(self) -> list[dict[str, Any]]:
-        return [_view(r) for r in self.store.all("SELECT * FROM readers ORDER BY site, name")]
+        return self.skills.all("read")
 
     def ran(self, name: str, *, count: int, problem: str | None) -> dict[str, Any]:
-        stamp = now()
-        with self.store.tx() as db:
-            if problem:
-                db.execute(
-                    "UPDATE readers SET health = 'broken', last_problem = ?, last_run_at = ?,"
-                    " last_count = ?, updated_at = ? WHERE name = ?",
-                    (problem, stamp, count, stamp, name),
-                )
-            else:
-                db.execute(
-                    "UPDATE readers SET health = 'ok', last_problem = NULL, last_run_at = ?,"
-                    " last_count = ?, last_ok_count = ?, updated_at = ? WHERE name = ?",
-                    (stamp, count, count, stamp, name),
-                )
-        return self.get(name)
+        return self.skills.ran(name, problem=problem, count=count)

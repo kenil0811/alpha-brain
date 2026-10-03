@@ -1,13 +1,16 @@
 /**
- * One Intelligence item on its own page (`#/intelligence/<tab>/<id>`): a skill, a site reader,
- * an automation, a connection, a fact, a goal, a standing permission, a note, or a person or
- * company from the second brain. Everything the core holds about it, and every field editable:
- * saved directly where the core has a route for it, otherwise drafted for Zazoo to do (the person
- * sends it). The same details show in the second brain's card beside the graph.
+ * One Intelligence item on its own page (`#/intelligence/<tab>/<id>`): a learned skill (reader,
+ * procedure or pipeline), a built-in hand (`hand:<name>`), an automation, a connection, a fact, a
+ * goal, a standing permission or a note. Everything the core holds about it, and every field
+ * editable: saved directly where the core has a route for it, otherwise drafted for Zazoo to do
+ * (the person sends it). A person or company's page is People & Companies' (`#/people/<id>`);
+ * the second brain's card beside the graph shows the short form (`EntityDetailView`).
  */
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, Pencil } from "lucide-react";
-import type { Client, ConnectionRemoval, EntityDetail, Fact, Intelligence as Data, ModuleCard, Note } from "../core/client";
+import { MousePointerClick, ScanText, Workflow, type LucideIcon } from "lucide-react";
+import type { BadgeVariant } from "../ui/Badge";
+import type { Client, ConnectionRemoval, EntityDetail, Fact, Intelligence as Data, ModuleCard, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { IconButton, InfoTip, PageHeader } from "../ui";
 import type { Surface } from "./Rail";
@@ -57,6 +60,20 @@ export function OpenTitle({ open, children }: { open: () => void; children: Reac
     </button>
   );
 }
+
+/** A learned skill's kind, in words and as an icon: a reader reads, a procedure does, a pipeline runs. */
+export const SKILL_KIND: Record<Skill["kind"], { icon: LucideIcon; words: string }> = {
+  read: { icon: ScanText, words: "Reads" },
+  act: { icon: MousePointerClick, words: "Does" },
+  run: { icon: Workflow, words: "Runs" },
+};
+
+export const SKILL_HEALTH: Record<Skill["health"], { badge: BadgeVariant; words: string }> = {
+  ok: { badge: "success", words: "Working" },
+  broken: { badge: "danger", words: "Being repaired" },
+  untried: { badge: "neutral", words: "Not tried yet" },
+};
+
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -219,7 +236,7 @@ export function FactDetail({ fact, ctx }: { fact: Fact; ctx: ItemContext }) {
       <Meta
         rows={[
           ["State", fact.state === "suggested" ? "Waiting for your yes" : humanize(fact.state)],
-          ["About", fact.subject === "person" ? "You" : <ItemLink ctx={ctx} to={{ kind: "intelligence", tab: "brain", item: fact.subject.replace(/^entity:/, "") }}>{fact.subject.replace(/^entity:/, "")}</ItemLink>],
+          ["About", fact.subject === "person" ? "You" : <ItemLink ctx={ctx} to={{ kind: "entity", id: fact.subject.replace(/^entity:/, "") }}>{fact.subject.replace(/^entity:/, "")}</ItemLink>],
           ["Where from", <>{sourceWords(fact.source)} {fact.source.startsWith("module:") ? <Project id={fact.source.slice(7)} ctx={ctx} /> : null}</>],
           ["Why", fact.why],
           ["Confidence", `${Math.round(fact.confidence * 100)}%`],
@@ -272,19 +289,18 @@ function NoteDetail({ note, ctx }: { note: Note; ctx: ItemContext }) {
   );
 }
 
-function SkillDetail({ name, ctx }: { name: string; ctx: ItemContext }) {
-  const s = ctx.data.skills.find((x) => x.name === name)!;
-  const reaches = ctx.data.connections.filter((c) => c.connector === s.name && c.status !== "off");
+function HandDetail({ name, ctx }: { name: string; ctx: ItemContext }) {
+  const h = ctx.data.hands.find((x) => x.name === name)!;
+  const reaches = ctx.data.connections.filter((c) => c.connector === h.name && c.status !== "off");
   return (
     <>
-      <EditField label="Name" value={s.title} zazoo onSave={(next) => ctx.onAsk(`Rename the skill “${s.title}” to “${next}”.`)} />
-      <EditField label="What it does" value={s.description ?? ""} multiline zazoo onSave={(next) => ctx.onAsk(`Change what the skill “${s.title}” does to: ${next}`)} />
-      <Meta rows={[["Origin", s.origin === "builtin" ? "Built in" : "Alpha made"], ["Reaches", reaches.length ? reaches.map((c) => <ItemLink key={c.id} ctx={ctx} to={{ kind: "intelligence", tab: "connections", item: c.id }}>{c.target}</ItemLink>) : null]]} />
+      <p className="muted">{h.description}</p>
+      <Meta rows={[["Origin", "Built in"], ["Reaches", reaches.length ? reaches.map((c) => <ItemLink key={c.id} ctx={ctx} to={{ kind: "intelligence", tab: "connections", item: c.id }}>{c.target}</ItemLink>) : null]]} />
       <div className="section__head section__head--tight">
         <h2>Tools</h2>
       </div>
       <div className="card list">
-        {s.tools.map((t) => (
+        {h.tools.map((t) => (
           <div key={t.name} className="item">
             <div className="item__body">
               <b>{humanize(t.name)}</b>
@@ -298,23 +314,37 @@ function SkillDetail({ name, ctx }: { name: string; ctx: ItemContext }) {
   );
 }
 
-function ReaderDetail({ name, ctx }: { name: string; ctx: ItemContext }) {
-  const r = ctx.data.readers.find((x) => x.name === name)!;
-  const signin = ctx.data.connections.find((c) => c.connector === "browser" && c.target === r.site);
+/** Know-how Alpha wrote: a reader, a procedure or a pipeline, with Alpha's notes on it. */
+function SkillDetail({ name, ctx }: { name: string; ctx: ItemContext }) {
+  const s = ctx.data.skills.find((x) => x.name === name)!;
+  const signin = s.site ? ctx.data.connections.find((c) => c.connector === "browser" && c.target === s.site) : undefined;
   return (
     <>
-      <EditField label="What it reads" value={r.description} zazoo onSave={(next) => ctx.onAsk(`Change the reader “${r.name}” to read: ${next}`)} />
-      <EditField label="Page" value={r.url} zazoo onSave={(next) => ctx.onAsk(`Point the reader “${r.name}” at ${next} instead of ${r.url}.`)} />
-      {r.last_problem ? <p className="notice">{r.last_problem}</p> : null}
+      <EditField label="What it does" value={s.description} zazoo onSave={(next) => ctx.onAsk(`Change the skill “${s.name}” to: ${next}`)} />
+      {s.url ? <EditField label="Page" value={s.url} zazoo onSave={(next) => ctx.onAsk(`Point the skill “${s.name}” at ${next} instead of ${s.url}.`)} /> : null}
+      {s.last_problem ? <p className="notice">{s.last_problem}</p> : null}
       <Meta
         rows={[
-          ["Health", r.health === "ok" ? "Working" : "Being repaired"],
-          ["Site", signin ? <ItemLink ctx={ctx} to={{ kind: "intelligence", tab: "connections", item: signin.id }}>{r.site}</ItemLink> : r.site],
-          ["Version", String(r.version)],
-          ["Last read", r.last_run_at ? `${r.last_count ?? 0} rows · ${when(r.last_run_at)}` : null],
-          ["Name", r.name],
+          ["Kind", SKILL_KIND[s.kind].words],
+          ["Health", SKILL_HEALTH[s.health].words],
+          ["Site", s.site ? (signin ? <ItemLink ctx={ctx} to={{ kind: "intelligence", tab: "connections", item: signin.id }}>{s.site}</ItemLink> : s.site) : null],
+          ["Project", s.module ? <Project id={s.module} ctx={ctx} /> : null],
+          ["When to use", s.when_to_use],
+          ["Effect", s.effect ? (s.effect === "send" ? "Sends, asks every time" : "Prepares, stays in your account") : null],
+          ["Fields", s.fields.join(", ")],
+          ["Version", String(s.version)],
+          ["Last run", s.last_run_at ? `${s.kind === "read" ? `${s.last_count ?? 0} rows · ` : ""}${when(s.last_run_at)}` : null],
+          ["Name", s.name],
         ]}
       />
+      {s.notes ? (
+        <>
+          <div className="section__head section__head--tight">
+            <h2>Alpha's notes</h2>
+          </div>
+          <div className="people__page">{s.notes}</div>
+        </>
+      ) : null}
     </>
   );
 }
@@ -408,7 +438,7 @@ function ConnectionDetail({ id, ctx }: { id: string; ctx: ItemContext }) {
           ["Status", humanize(c.status.replace("needs_ok", "needs your OK"))],
           ["Kind", humanize(c.connector)],
           ["Last read", when(c.last_sync)],
-          ["Readers using it", plan?.readers.length ? plan.readers.map((r) => <ItemLink key={r} ctx={ctx} to={{ kind: "intelligence", tab: "skills", item: `reader:${r}` }}>{r}</ItemLink>) : null],
+          ["Readers using it", plan?.readers.length ? plan.readers.map((r) => <ItemLink key={r} ctx={ctx} to={{ kind: "intelligence", tab: "skills", item: r }}>{r}</ItemLink>) : null],
           ["Automations using it", plan?.automations.length ? plan.automations.map((a) => {
             const auto = ctx.data.automations.find((x) => x.id === a || x.title === a);
             return auto ? <ItemLink key={a} ctx={ctx} to={{ kind: "intelligence", tab: "automations", item: auto.id }}>{auto.title}</ItemLink> : <span key={a}>{a}</span>;
@@ -475,15 +505,14 @@ export function EntityDetailView({ id, ctx }: { id: string; ctx: ItemContext }) 
 export function findItem(tab: string, item: string, ctx: ItemContext): { kind: string; body: ReactNode } | null {
   const d = ctx.data;
   if (tab === "skills") {
-    if (item.startsWith("reader:")) {
-      const name = item.slice(7);
-      return d.readers.some((r) => r.name === name) ? { kind: "Site reader", body: <ReaderDetail name={name} ctx={ctx} /> } : null;
+    if (item.startsWith("hand:")) {
+      const name = item.slice(5);
+      return d.hands.some((h) => h.name === name) ? { kind: "Built in", body: <HandDetail name={name} ctx={ctx} /> } : null;
     }
     return d.skills.some((s) => s.name === item) ? { kind: "Skill", body: <SkillDetail name={item} ctx={ctx} /> } : null;
   }
   if (tab === "automations") return d.automations.some((a) => a.id === item) ? { kind: "Automation", body: <AutomationDetail id={item} ctx={ctx} /> } : null;
   if (tab === "connections") return d.connections.some((c) => c.id === item) ? { kind: "Connection", body: <ConnectionDetail id={item} ctx={ctx} /> } : null;
-  if (tab === "brain") return { kind: "Person or company", body: <EntityDetailView id={item} ctx={ctx} /> };
   if (tab === "knowledge") {
     const k = d.knowledge;
     const fact = k.facts.find((f) => f.id === item);

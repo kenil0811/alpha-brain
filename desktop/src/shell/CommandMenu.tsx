@@ -2,7 +2,7 @@
  *  Alpha whatever was typed. A plain substring filter and a small listbox (Arrow, Enter, Esc)
  *  on the shared Dialog, with the keys spelled out underneath. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Activity, FolderPlus, Home, Link2, MessageCircle, Settings, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { Activity, FolderPlus, Home, Link2, MessageCircle, Settings, Sparkles, UserRound, Users, type LucideIcon } from "lucide-react";
 import type { ModuleCard } from "../core/client";
 import { Dialog, DialogContent, Input } from "../ui";
 import { projectIcon } from "./projectIcons";
@@ -44,6 +44,7 @@ export function CommandMenu({ modules, onGo, onNew, onAsk }: { modules: ModuleCa
       { id: "activity", label: "Go to Activity", icon: Activity, run: () => onGo({ kind: "activity" }) },
       { id: "connections", label: "Go to Connections", icon: Link2, run: () => onGo({ kind: "intelligence", tab: "connections" }) },
       { id: "about", label: "Go to About you", icon: UserRound, run: () => onGo({ kind: "intelligence", tab: "knowledge" }) },
+      { id: "people", label: "Go to People & Companies", icon: Users, run: () => onGo({ kind: "people" }) },
       { id: "intelligence", label: "Go to Intelligence", icon: Sparkles, run: () => onGo({ kind: "intelligence" }) },
       { id: "settings", label: "Go to Settings", icon: Settings, run: () => onGo({ kind: "settings" }) },
       ...modules.map((m) => ({ id: `m-${m.id}`, label: `Open ${m.name}`, icon: projectIcon(m), run: () => onGo({ kind: "module", id: m.id }) })),

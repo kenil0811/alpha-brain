@@ -133,7 +133,8 @@ def test_token_and_errors(world: World) -> None:
 def test_intelligence_lists_connectors_connections_and_knowledge(world: World) -> None:
     seeded(world)
     data = client(world).get("/api/intelligence").json()
-    assert {s["name"] for s in data["skills"]} >= {"files", "browser", "calendar"}
+    assert {s["name"] for s in data["hands"]} >= {"files", "browser", "calendar"}
+    assert data["skills"] == []  # know-how Alpha wrote: none in a fresh world
     assert data["knowledge"]["facts"][0]["predicate"] == "prefers"
     assert data["knowledge"]["goals"] == []
 
@@ -184,11 +185,13 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
 
     turns_ = Turns(world, runner, checks=True)
     started = turns_.start(AskBody(text="i had a shake"))
+    # The turn, then in the background: the check (independent, judge) and the noticing pass
+    # (one judge run) side by side.
     for _ in range(100):
-        if kinds[-1:] == ["judge"]:
+        if len(kinds) == 4 and world.journal.recent(1, kinds=["checked"]):
             break
         time.sleep(0.05)
-    assert kinds == ["turn", "independent", "judge"]
+    assert kinds[0] == "turn" and sorted(kinds[1:]) == ["independent", "judge", "judge"]
     assert turns_.get(started["id"])["state"] == "done"
     assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")
 

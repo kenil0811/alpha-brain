@@ -1,0 +1,9 @@
+name: memory_old_fact
+title: Memory · a fact stated days ago is used without being asked again
+why: "Height and weight were stated on 1 October; Alpha must answer from what it holds."
+steps:
+  - say: "how tall am i, and what do i weigh?"
+checks:
+  - reply: {matches: "178"}
+  - reply: {matches: "63"}
+  - judge: "Passes if the answer gives 178 cm and 63 kg as the person's own figures. Fails if it asks the person for them or guesses."

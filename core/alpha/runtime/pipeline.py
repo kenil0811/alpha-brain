@@ -9,6 +9,7 @@ A pipeline is a list of steps the scheduler runs with no model:
 
     {"read": reader, "into": table, "key": field, "keep": [fields], "map": {field: {from: to}}}
     {"tell": table, "where": {...}}
+    {"run": skill}   (another run skill's steps, in place: composition, design §3.7 point 7)
 
 The model is called only when a read step breaks: one repair turn in the automation's thread
 (fix the reader), then the step runs once more. A sign-in wall asks the person once; a bot check
@@ -102,7 +103,14 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
             "failed", f"The reader {name} looks broken: {problem}. Nothing was written.",
             data={"reader": name, "turn": turn_id}, module=home)
         return {"health": "broken", "problem": problem, "rows": count,
-                "sample": rows[:5] if isinstance(rows, list) else rows}
+                "sample": rows[:5] if isinstance(rows, list) else rows,
+                "note": ("Don't run this reader again unchanged: the same page gives the same"
+                         " rows. Look at the page as it is now (page_script returning the HTML"
+                         " of one item, or page_read), compare it with what the script expects,"
+                         " fix the script, reader_save it under the same name, then reader_run"
+                         " once. Fewer rows than before can also mean the page had not finished"
+                         " loading (the Mac dozing, a slow network): a script that still finds"
+                         " its items on the current HTML needs no rewrite, only that one rerun.")}
     result = world.collections.upsert(
         collection, key, rows, {"by": "alpha", "turn": turn_id, "reader": name},
         fill_only=set(keep or []), seen_by=name, mark_gone=reader["whole"],
@@ -124,13 +132,22 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
     return {"health": "ok", "rows": count, **{k: v for k, v in result.items() if k != "ids"}}
 
 
-def check_steps(world: World, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Steps as the scheduler will run them, or a Problem saying what's wrong."""
+def check_steps(world: World, steps: list[dict[str, Any]],
+                *, within: str | None = None) -> list[dict[str, Any]]:
+    """Steps as the scheduler will run them, or a Problem saying what's wrong. `within` is the
+    run skill being written, so it cannot call itself."""
     if not isinstance(steps, list) or not steps:
         raise Problem("A pipeline needs at least one step.")
     clean: list[dict[str, Any]] = []
     for step in steps:
-        if "read" in step:
+        if "run" in step:
+            name = step["run"]
+            called = world.skills.get(name, "run")
+            if name == within or any("run" in s and s["run"] == within
+                                     for s in called["steps"]):
+                raise Problem(f"The run step {name} would call itself.")
+            clean.append({"run": name})
+        elif "read" in step:
             world.readers.get(step["read"])
             table = step.get("into")
             if not table:
@@ -151,7 +168,7 @@ def check_steps(world: World, steps: list[dict[str, Any]]) -> list[dict[str, Any
             world.collections.query(table, step.get("where"), limit=1)
             clean.append({"tell": table, "where": step.get("where") or None})
         else:
-            raise Problem("A step is {\"read\": …} or {\"tell\": …}.")
+            raise Problem("A step is {\"read\": …}, {\"tell\": …} or {\"run\": skill}.")
     return clean
 
 
@@ -192,7 +209,7 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                          actor="alpha", thread=thread, module=auto["module"])
     read, needs, blocked, broken, told = 0, [], [], [], []
     first_run = False
-    for step in auto["steps"]:
+    for step in _flatten(world, auto["steps"]):
         if "read" in step:
             name = step["read"]
             args = {"keep": step.get("keep"), "mapping": step.get("map"),
@@ -221,7 +238,7 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                 told.append(message)
                 world.journal.append("noticed", message, data={"automation": auto["id"]},
                                      module=auto["module"])
-    reads = sum(1 for s in auto["steps"] if "read" in s)
+    reads = sum(1 for s in _flatten(world, auto["steps"]) if "read" in s)
     line = f"Read {read} of {reads} sources." if reads else "Done."
     if told:
         line += " " + " ".join(told)
@@ -236,6 +253,20 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
     if broken:
         problems.append(f"{', '.join(broken)} couldn't be repaired")
     return line, ("; ".join(problems) + ".") if problems else None
+
+
+def _flatten(world: World, steps: list[dict[str, Any]], depth: int = 0) -> list[dict[str, Any]]:
+    """Steps with every `run` step replaced by the called skill's own steps (at most three
+    deep; a skill cannot call itself, checked when it is saved)."""
+    out: list[dict[str, Any]] = []
+    for step in steps:
+        if "run" in step:
+            if depth >= 3:
+                raise Problem(f"The run step {step['run']} is nested too deep.")
+            out.extend(_flatten(world, world.skills.get(step["run"], "run")["steps"], depth + 1))
+        else:
+            out.append(step)
+    return out
 
 
 def _repair(world: World, auto: dict[str, Any], reader: str, problem: str,

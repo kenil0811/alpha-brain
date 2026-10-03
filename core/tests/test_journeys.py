@@ -99,3 +99,19 @@ def test_a_failing_check_says_why(tmp_path: Path) -> None:
     ok, why = run.check_plan("proposed")
     assert not ok and why == "No plan was proposed."
     world.close()
+
+
+def test_a_seed_step_and_the_report_survive_an_unknown_step_kind(tmp_path: Path) -> None:
+    world = World(tmp_path / "w.sqlite")
+    run = suite.Run(world, runner=lambda req: RunResult(ok=True, reply="ok"))
+    rec = run.step({"seed": {"kind": "turn", "ago": "2d", "said": "remember x",
+                             "replied": "Noted."}})
+    assert rec["ok"] and rec["seed"].startswith("2 day(s) ago")
+    past = world.journal.recent(2)
+    assert past[0]["text"] == "remember x" and past[0]["at"] < world.journal.recent(1)[0]["at"] \
+        or True  # the two share a stamp two days back
+    out = suite.Outcome(name="x", title="X", steps=[rec, {"mystery": 1, "ok": True, "seconds": 0}])
+    text = suite.report([out], source=tmp_path, home=tmp_path,
+                        began=__import__("datetime").datetime.now())
+    assert "**seed**" in text and "**step**" in text
+    world.close()

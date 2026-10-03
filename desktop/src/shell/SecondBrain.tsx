@@ -58,7 +58,7 @@ export function SecondBrain({ ctx, onOpenKnowledge }: { ctx: ItemContext; onOpen
     if (known.length) list.push({ key: "you", label: "You", kind: "you", page: { kind: "intelligence", tab: "knowledge" } });
     list.push(...modules.map((m) => ({ key: `module:${m.id}`, label: m.name, kind: "module" as const, page: { kind: "module" as const, id: m.id } })));
     list.push(...known.map((f) => ({ key: `fact:${f.id}`, label: `${humanize(f.predicate)}: ${f.value}`, kind: "fact" as const, page: { kind: "intelligence" as const, tab: "knowledge", item: f.id } })));
-    list.push(...people.map((p) => ({ key: `entity:${p.id}`, label: p.name, kind: "entity" as const, page: { kind: "intelligence" as const, tab: "brain", item: p.id } })));
+    list.push(...people.map((p) => ({ key: `entity:${p.id}`, label: p.name, kind: "entity" as const, page: { kind: "entity" as const, id: p.id } })));
     return list;
   }, [people, modules, facts]);
 
