@@ -151,12 +151,23 @@ export interface ModuleCard {
   id: string;
   name: string;
   goal: string | null;
+  /** The module this one sits inside, if any (Q31: modules nest, any depth). */
+  parent?: string | null;
+  /** Names from the top down: ["Job", "Search"]. */
+  path?: string[];
+  /** The ids of the modules inside this one. */
+  children?: string[];
   tables: TableSummary[];
   records: number;
   last_at: string | null;
   last_text: string | null;
   threads: Thread[];
   created_at: string;
+}
+
+/** A module's place in words: "Job › Search". */
+export function moduleWords(m: Pick<ModuleCard, "name" | "path">): string {
+  return m.path?.length ? m.path.join(" › ") : m.name;
 }
 
 export interface Goal {
@@ -178,6 +189,8 @@ export interface Note {
 
 export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   tables: TableDesc[];
+  /** The modules inside this one, as cards. */
+  inside?: ModuleCard[];
   activity: JournalEntry[];
   note: Note | null;
   goals: Goal[];
@@ -597,6 +610,8 @@ export class Client {
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
+  /** Put a module inside another (or at the top with null); everything in it moves with it. */
+  moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
   /** The module's page of Alpha's wiki, or none yet. */
   modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 

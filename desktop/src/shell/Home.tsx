@@ -246,7 +246,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           <span className="faint">Made from what you asked for; each grows as you use it</span>
         </div>
         <div className="modgrid">
-          {home.modules.map((m) => (
+          {home.modules.filter((m) => !m.parent).map((m) => (
             <div key={m.id} className="card modcard">
               <div className="modcard__top">
                 <div className="modcard__ico" aria-hidden="true">
@@ -255,6 +255,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                 <div style={{ minWidth: 0 }}>
                   <h3>{m.name}</h3>
                   <div className="faint">
+                    {m.children?.length ? `${m.children.length} ${m.children.length === 1 ? "module" : "modules"} inside · ` : ""}
                     {m.tables.length} {m.tables.length === 1 ? "table" : "tables"} · {m.records} {m.records === 1 ? "row" : "rows"}
                   </div>
                 </div>

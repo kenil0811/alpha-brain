@@ -4,6 +4,7 @@
  * view. The companion is the same stream.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { moduleWords } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
@@ -441,7 +442,7 @@ export function AssistantPanel({
             })}
             {module ? (
               <div className="msg msg--ai">
-                I'm looking at <b>{module.name}</b>. Ask about it, tell me to add or change something, or log to it.
+                I'm looking at <b>{moduleWords(module)}</b>{module.children?.length ? " and what it holds" : ""}. Ask about it, tell me to add or change something, or log to it.
               </div>
             ) : null}
             {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}

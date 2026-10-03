@@ -93,16 +93,21 @@ class Journal:
         limit: int = 20,
         *,
         module: str | None = None,
+        modules: list[str] | None = None,
         thread: str | None = None,
         stream: bool = False,
         kinds: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        """Newest last. `stream=True` keeps only turns outside any thread."""
+        """Newest last. `stream=True` keeps only turns outside any thread; `modules` is a set
+        of modules (a module and what it holds)."""
         where = ["deleted_at IS NULL"]
         args: list[Any] = []
         if module is not None:
             where.append("module = ?")
             args.append(module)
+        if modules is not None:
+            where.append(f"module IN ({','.join('?' * len(modules))})" if modules else "0")
+            args.extend(modules)
         if thread is not None:
             where.append("thread = ?")
             args.append(thread)

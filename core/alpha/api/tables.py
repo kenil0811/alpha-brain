@@ -15,6 +15,7 @@ from alpha.api.bodies import (
     AskBody,
     ExportBody,
     ListBody,
+    MoveModuleBody,
     RecordBody,
 )
 from alpha.api.served import Served
@@ -44,14 +45,25 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/modules/{ref}", dependencies=[api])
     def module(ref: str) -> dict[str, Any]:
         m = world.modules.get(ref)
+        ids = world.modules.subtree(m["id"])
         card = module_card(world, m)
         card["tables"] = [world.collections.describe(t["name"]) for t in card["tables"]]
-        card["activity"] = list(reversed(world.journal.recent(500, module=m["id"])))
+        card["inside"] = [module_card(world, c) for c in world.modules.children(m["id"])]
+        card["activity"] = list(reversed(world.journal.recent(500, modules=ids)))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
-        card["goals"] = [g for g in world.knowledge.goals() if g["module"] == m["id"]]
-        card["automations"] = automation_views(world, scheduler, m["id"])
-        card["sources"] = world.sources.all(m["id"])
+        card["goals"] = [g for g in world.knowledge.goals() if g["module"] in ids]
+        card["automations"] = [a for i in ids for a in automation_views(world, scheduler, i)]
+        card["sources"] = [s for i in ids for s in world.sources.all(i)]
         return card
+
+    @app.post("/api/modules/{ref}/move", dependencies=[api])
+    def move_module(ref: str, body: MoveModuleBody) -> dict[str, Any]:
+        """Put a module inside another, or at the top; everything in it moves with it."""
+        moved = world.modules.move(ref, body.parent or None)
+        where = world.modules.path_words(moved["parent"]) if moved["parent"] else "the top"
+        world.journal.append("changed", f"You moved {moved['name']} under {where}.",
+                             actor="person", module=moved["id"], data={"module": moved["id"]})
+        return module_card(world, moved)
 
     @app.get("/api/modules/{ref}/page", dependencies=[api])
     def module_page(ref: str) -> dict[str, Any]:

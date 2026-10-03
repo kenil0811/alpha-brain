@@ -93,11 +93,14 @@ def table_summary(world: World, name: str) -> dict[str, Any]:
 
 
 def module_summary(world: World, module_id: str) -> dict[str, Any]:
-    tables = [table_summary(world, t["name"]) for t in world.collections.overview(module_id)]
-    autos = [a for a in world.automations.all(module_id) if a["enabled"]]
+    """The module and everything it holds (a parent's summary rolls its children up)."""
+    ids = world.modules.subtree(module_id)
+    tables = [table_summary(world, t["name"]) for m in ids
+              for t in world.collections.overview(m)]
+    autos = [a for m in ids for a in world.automations.all(m) if a["enabled"]]
     return {
         "tables": tables,
-        "goals": [g for g in world.knowledge.goals() if g["module"] == module_id],
+        "goals": [g for g in world.knowledge.goals() if g["module"] in ids],
         "next_run": min((a["next_run_at"] for a in autos if a["next_run_at"]), default=None),
         "automations": len(autos),
     }

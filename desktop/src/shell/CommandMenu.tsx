@@ -5,6 +5,7 @@
  * (An idea from pull request #3, rebuilt on main's search route.)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { moduleWords } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
@@ -75,7 +76,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
     const close = () => onOpenChange(false);
     const out: Item[] = [];
     for (const p of PAGES) if (!q || p.label.toLowerCase().includes(q)) out.push({ key: `page:${p.label}`, kind: "page", label: p.label, go: () => { onGo(p.surface); close(); } });
-    for (const m of modules) if (!q || m.name.toLowerCase().includes(q)) out.push({ key: `module:${m.id}`, kind: "module", label: m.name, hint: m.goal ?? undefined, go: () => { onGo({ kind: "module", id: m.id }); close(); } });
+    for (const m of modules) if (!q || moduleWords(m).toLowerCase().includes(q)) out.push({ key: `module:${m.id}`, kind: "module", label: moduleWords(m), hint: m.goal ?? undefined, go: () => { onGo({ kind: "module", id: m.id }); close(); } });
     if (hits) {
       for (const p of hits.people.slice(0, 5)) out.push({ key: `person:${p.id}`, kind: "person", label: p.name, hint: p.kind === "person" ? "Person" : "Organisation", go: () => { onGo({ kind: "entity", id: p.id }); close(); } });
       for (const r of hits.records.slice(0, 6)) {

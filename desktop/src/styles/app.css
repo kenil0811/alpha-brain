@@ -146,6 +146,13 @@ a { color: var(--primary); }
 .corenote { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--bad-soft); color: var(--bad); font-size: var(--text-md); }
 .corenote--ok { background: var(--good-soft); color: var(--good); }
 .rail__status--lost i { background: var(--warn); }
+/* Modules as a tree on the rail: a row holds the button and, for a parent, a fold. */
+.navrow { display: flex; align-items: center; min-width: 0; }
+.navrow .navbtn { flex: 1 1 auto; min-width: 0; }
+.navfold { flex: none; width: 22px; height: 26px; border: 0; background: none; color: var(--text-3); cursor: pointer; border-radius: 6px; font-size: var(--text-sm); }
+.navfold:hover { background: var(--hover); color: var(--text); }
+.crumbs { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 2px; }
+.select { font: inherit; font-size: var(--text-md); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; }
 .empty { color: var(--text-3); font-size: var(--text-md); padding: 24px; text-align: center; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 10px; }

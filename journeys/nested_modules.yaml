@@ -1,0 +1,15 @@
+name: nested_modules
+title: An area with parts is proposed as a module holding modules, and built that way after the yes
+why: "Kenil, 3 Oct: a Job area with a Search module and a Resume module (Q31). The plan must
+  put the parts inside the parent, and the build must make them so."
+steps:
+  - say: "set up a Job area for my founding-engineer hunt with two parts inside it: a Search module that keeps openings I find, and a Resume module that keeps the versions of my resume I send out"
+checks:
+  - plan: proposed
+  - no_new_modules: {}
+steps_after:
+  - build: latest
+checks_after:
+  - plan: done
+  - module_inside: {module: Search, parent: Job}
+  - module_inside: {module: Resume, parent: Job}

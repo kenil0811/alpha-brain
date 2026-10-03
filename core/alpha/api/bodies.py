@@ -24,6 +24,10 @@ class MoveBody(BaseModel):
     conversation: str
 
 
+class MoveModuleBody(BaseModel):
+    parent: str | None = None
+
+
 class RecordBody(BaseModel):
     values: dict[str, Any]
     revision: int | None = None

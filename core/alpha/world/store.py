@@ -374,6 +374,7 @@ CREATE TABLE IF NOT EXISTS preferences (
 
 # Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
+    ("modules", "parent", "TEXT"),  # a module inside a module (3 Oct night, Q31)
     ("records", "entity_id", "TEXT"),
     ("notes", "source", "TEXT"),
     ("entities", "source", "TEXT"),

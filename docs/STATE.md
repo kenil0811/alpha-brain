@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late night.** Last entries: a plain yes, a plan not asked about twice,
+**As of 3 October 2026, late night.** Last entries: modules inside modules
+([`log/2026-10-03-nested-modules.md`](log/2026-10-03-nested-modules.md), Q31), a plain yes, a plan not asked about twice,
 Add files ([`log/2026-10-03-yes-and-add-files.md`](log/2026-10-03-yes-and-add-files.md)), the desktop's four
 ([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)), fast turns
 ([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)), the split
@@ -29,8 +30,8 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | Core tests | 200, in about 15 s; ruff and mypy strict clean |
 | Desktop tests | 74, in twenty files; typecheck and `cargo check` clean |
 | Tools the model sees | 71 |
-| Journeys | 18 defined; latest full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 (the four read in the fast-turns log: none the change's doing); the two memory ones re-run `docs/journeys/2026-10-03-2048.md`, 1 of 2 |
-| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size |
+| Journeys | 19 defined; latest full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 (the four read in the fast-turns log: none the change's doing); since then `nested_modules` `docs/journeys/2026-10-03-2211.md` 1 of 1, and the two memory ones re-run `docs/journeys/2026-10-03-2048.md`, 1 of 2 |
+| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; after nesting, Home and Settings `docs/checks/2026-10-03-2212.md`, 2 of 2 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
 | Commits | 122 total; 122 since 1 Oct 2026 (this count includes the commit that records it) |
@@ -40,7 +41,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | Step | State |
 |---|---|
-| 1. World store, MCP server, stream, companion | **Built.** One SQLite file per person; the journal verbatim with FTS; what the model saw kept per turn; 71 tools; the companion window and the panel. |
+| 1. World store, MCP server, stream, companion | **Built.** One SQLite file per person; the journal verbatim with FTS; what the model saw kept per turn; 72 tools; the companion window and the panel. Modules nest since 3 Oct night (Q31): a module inside a module to any depth, a parent's page, summary, activity and conversation reaching what it holds, the rail as a tree. |
 | 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) kept only after a real run, health-checked, repaired by Alpha; files in and out (§4.17); calendar read-only. Reading LinkedIn's whole list daily is still the slowest thing (read only what is new: open). |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an automation's "worth telling". |
 | 4. Entities and bi-temporal facts across sources | **Partial.** Facts bi-temporal; entities with hard keys; a page per person (§4.23); noticing after every turn; entity cards in context. But no table in Kenil's world declares its rows as people, so 1,551 connections are rows, not people (20 entities, 6 facts). |
@@ -77,6 +78,8 @@ killed by hand twice came back on the same port within two seconds and the windo
   remain where nothing is shown anyway (a screenshot that didn't load, a module-name lookup).
 - The window's minimum is 1100×560 since the desktop check: below 1100 wide the panel used to
   float over the page.
+- Alpha cannot rename a module (seen in the nested-modules journey: a part kept its old name
+  under the new path); a small missing tool.
 - Noticing keeps session state as suggested facts about the person ("using_module =
   Advisory", 3 Oct 20:21), which then show in Needs you and the companion's bubble; it needs
   a rule, by mechanism, for what a fact about a person is.

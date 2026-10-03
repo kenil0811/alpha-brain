@@ -6,7 +6,7 @@
  * something here. When the core stops answering the window says so and the host brings it back.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Client } from "./core/client";
+import { Client, moduleWords } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
 import { resolveSession } from "./core/session";
@@ -214,7 +214,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
 
   const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule?.name ?? "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   return (
     <div
@@ -275,7 +275,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "home" ? (
           <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
-          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} />
+          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} />
         ) : surface.kind === "people" ? (

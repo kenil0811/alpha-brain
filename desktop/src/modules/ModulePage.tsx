@@ -3,7 +3,8 @@
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
 import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
-import type { Client, ModuleDetail, ModuleSummary, Note, Source } from "../core/client";
+import { moduleWords } from "../core/client";
+import type { Client, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -13,7 +14,7 @@ import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
 
-export function ModulePage({ client, moduleId, version, onChanged, onSay }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void }) {
+export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, modules = [] }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void; modules?: ModuleCard[] }) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("app");
@@ -64,6 +65,26 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
   }, [client, moduleId, version]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
+  // The ids behind the path's names, from the rail's cards (the page itself knows the names).
+  const pathIds = useMemo(() => {
+    const ids: string[] = [];
+    let current = modules.find((m) => m.id === moduleId);
+    while (current?.parent) {
+      ids.unshift(current.parent);
+      current = modules.find((m) => m.id === current?.parent);
+    }
+    return ids;
+  }, [modules, moduleId]);
+  const [moveNote, setMoveNote] = useState<string | null>(null);
+  async function moveUnder(parent: string | null) {
+    try {
+      const card = await client.moveModule(moduleId, parent);
+      setMoveNote(`${card.name} now sits ${card.path && card.path.length > 1 ? `inside ${card.path.slice(0, -1).join(" › ")}` : "at the top"}.`);
+      onChanged();
+    } catch (e) {
+      setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   if (!detail) {
     return <div className="page">{error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}</div>;
   }
@@ -78,6 +99,18 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
             <ModuleIcon size={20} />
           </div>
           <div style={{ minWidth: 0 }}>
+            {detail.path && detail.path.length > 1 ? (
+              <div className="crumbs" aria-label="Inside">
+                {detail.path.slice(0, -1).map((name, i) => (
+                  <span key={`${name}-${i}`}>
+                    <button type="button" className="linkbtn" onClick={() => onGo({ kind: "module", id: pathIds[i] })}>
+                      {name}
+                    </button>
+                    <span className="faint"> › </span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <h1>{detail.name}</h1>
             <div className="faint">{subtitle}</div>
           </div>
@@ -111,6 +144,33 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} />
           ) : (
             <>
+              {detail.inside?.length ? (
+                <div className="section" style={{ marginTop: 0 }}>
+                  <div className="section__head">
+                    <h2>Inside {detail.name}</h2>
+                    <span className="faint">{detail.inside.length} {detail.inside.length === 1 ? "module" : "modules"}; what you ask here reaches them all</span>
+                  </div>
+                  <div className="card list">
+                    {detail.inside.map((m) => (
+                      <div key={m.id} className="item">
+                        <div className="item__ico" aria-hidden="true">
+                          <ModuleIcon size={16} />
+                        </div>
+                        <div className="item__body">
+                          <b>{m.name}</b>
+                          <div className="item__sub">
+                            {m.goal ?? m.last_text ?? "Nothing in it yet."} · {m.tables.length} {m.tables.length === 1 ? "table" : "tables"}
+                            {m.children?.length ? ` · holds ${m.children.length}` : ""}
+                          </div>
+                        </div>
+                        <Button size="sm" onClick={() => onGo({ kind: "module", id: m.id })}>
+                          Open
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />
               <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
             </>
@@ -123,6 +183,28 @@ export function ModulePage({ client, moduleId, version, onChanged, onSay }: { cl
       {section === "settings" ? (
         <>
           <div className="section" style={{ marginTop: 0 }}>
+            <div className="section__head">
+              <h2>Where it sits</h2>
+              <span className="faint">A module can live inside another; everything in it moves with it</span>
+            </div>
+            <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <label className="faint" htmlFor="module-parent">
+                Inside
+              </label>
+              <select id="module-parent" className="select" value={detail.parent ?? ""} onChange={(e) => void moveUnder(e.target.value || null)}>
+                <option value="">Nothing (top level)</option>
+                {modules
+                  .filter((m) => m.id !== moduleId && !(m.path ?? []).includes(detail.name))
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {moduleWords(m)}
+                    </option>
+                  ))}
+              </select>
+              {moveNote ? <span className={`notice${moveNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{moveNote}</span> : null}
+            </div>
+          </div>
+          <div className="section">
             <div className="section__head">
               <h2>What it keeps</h2>
             </div>

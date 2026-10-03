@@ -347,6 +347,18 @@ class Run:
                 (f"Rewrote: {changed}." if changed else "")
         return True, "No skill was written or rewritten."
 
+    def check_module_inside(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A module sits inside another (by name, case-insensitive), to any depth."""
+        wanted, parent = str(arg["module"]).lower(), str(arg["parent"]).lower()
+        found = [m for m in self.world.modules.all() if wanted in m["name"].lower()]
+        if not found:
+            return False, f"No module named like '{arg['module']}'."
+        for m in found:
+            above = [p["name"].lower() for p in self.world.modules.path(m["id"])[:-1]]
+            if any(parent in a for a in above):
+                return True, f"{m['name']} sits inside {self.world.modules.path_words(m['id'])}."
+        return False, f"{found[0]['name']} is at {self.world.modules.path_words(found[0]['id'])}."
+
     def check_no_new_modules(self, arg: dict[str, Any]) -> tuple[bool, str]:
         new = {m["id"] for m in self.world.modules.all()} - self.mark.modules
         return not new, ("No module was made." if not new else f"Made {len(new)} module(s).")

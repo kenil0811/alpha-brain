@@ -75,6 +75,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     module = world.modules.get(ref)
     mid, name = module["id"], module["name"]
     store = world.store
+    # What it holds goes first, each with everything of its own.
+    inside = [remove_module(world, child["id"]) for child in world.modules.children(mid)]
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
     autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
         "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
@@ -92,6 +94,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     threads |= {a["thread"] for a in autos if a["thread"]}
     asks = [a["id"] for a in world.journal.open_asks() if a["module"] == mid]
     counts: dict[str, Any] = {"module": name}
+    if inside:
+        counts["inside"] = inside
     with store.tx() as db:
         records = 0
         for table in tables:

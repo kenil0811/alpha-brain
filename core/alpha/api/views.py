@@ -102,7 +102,7 @@ def conversation_view(world: World, cid: str,
                       thread: dict[str, Any] | None = None) -> dict[str, Any]:
     """A conversation (or work item) for the app: scope name, state, open question, last line."""
     t = thread or world.modules.thread(cid)
-    scope = world.modules.get(t["module"])["name"] if t.get("module") else "General"
+    scope = world.modules.path_words(t["module"]) if t.get("module") else "General"
     question = next((a["text"] for a in world.journal.open_asks() if a["thread"] == cid), None)
     last = world.journal.recent(1, thread=cid, kinds=["said", "replied", "failed"])
     return {"id": cid, "title": t["title"], "kind": t["kind"], "state": t["state"],
@@ -163,7 +163,9 @@ def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
     )
     return {**m, "tables": tables, "records": sum(t["records"] for t in tables),
             "last_at": last["at"] if last else None, "last_text": last["text"] if last else None,
-            "threads": [t for t in world.modules.threads() if t["module"] == m["id"]]}
+            "threads": [t for t in world.modules.threads() if t["module"] == m["id"]],
+            "path": [p["name"] for p in world.modules.path(m["id"])],
+            "children": [c["id"] for c in world.modules.children(m["id"])]}
 
 
 def timeline(world: World, entity_id: str, limit: int = 100) -> list[dict[str, Any]]:

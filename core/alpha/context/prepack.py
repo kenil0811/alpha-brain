@@ -238,13 +238,28 @@ def build(world: World, sentence: str, *, module: str | None = None,
     for t in tables:
         by_module.setdefault(t["module"], []).append(t)
     held = []
-    ordered = sorted(modules, key=lambda m: (m["name"] != module and m["id"] != module, m["name"]))
-    for m in ordered:
-        own = by_module.pop(m["id"], []) + by_module.pop(m["name"], [])
-        goal = f" — {_clip(m['goal'], 140)}" if m["goal"] else ""
-        held.append(f"- Module {m['name']} ({m['id']}){goal}"
-                    + ("" if own else ": no tables yet"))
-        held += [table_line(world, t) for t in own]
+    kids: dict[str | None, list[dict[str, Any]]] = {}
+    for m in modules:
+        kids.setdefault(m.get("parent"), []).append(m)
+    here = world.modules.get(module)["id"] if module else None
+    branch = set(world.modules.subtree(here)) if here else set()
+    root_of = {m["id"]: world.modules.path(m["id"])[0]["id"] for m in modules}
+    mine = root_of.get(here) if here else None
+
+    def walk(parent: str | None, depth: int) -> None:
+        for m in sorted(kids.get(parent, []),
+                        key=lambda m: (m["id"] != mine, m["id"] not in branch, m["name"])):
+            own = by_module.pop(m["id"], []) + by_module.pop(m["name"], [])
+            goal = f" — {_clip(m['goal'], 140)}" if m["goal"] else ""
+            pad = "  " * depth
+            inside = f", holds {', '.join(c['name'] for c in kids.get(m['id'], []))}" \
+                if kids.get(m["id"]) else ""
+            held.append(f"{pad}- Module {m['name']} ({m['id']}){goal}{inside}"
+                        + ("" if own else ": no tables of its own"))
+            held.extend(pad + table_line(world, t) for t in own)
+            walk(m["id"], depth + 1)
+
+    walk(None, 0)
     loose = [t for group in by_module.values() for t in group]
     if loose:
         held.append("- Tables in no module:")

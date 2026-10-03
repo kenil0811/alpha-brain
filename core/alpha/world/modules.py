@@ -1,7 +1,10 @@
 """Modules and threads.
 
 A module is a named bundle of tables, skills, automations and a note around a goal: the tool the
-person works in. It costs nothing to make (no code, no build) and grows as it is used.
+person works in. It costs nothing to make (no code, no build) and grows as it is used. A module
+may sit inside another (Job holds Search and Resume), to any depth: one concept, a `parent`,
+nothing per level (Q31). What a module owns stays its own; a parent is the place that holds
+its children, whose page, activity and conversation reach the whole subtree.
 
 A thread is a piece of work with its own model context (a build, research, an automation, a long
 job, or a topic the person opened deliberately). The person sees one stream; the to-and-fro of
@@ -27,20 +30,66 @@ class Modules:
     def __init__(self, store: Store) -> None:
         self.store = store
 
-    def create(self, name: str, goal: str | None = None) -> dict[str, Any]:
+    def create(self, name: str, goal: str | None = None,
+               parent: str | None = None) -> dict[str, Any]:
         name = name.strip()
         if not name:
             raise Problem("A module needs a name.")
         if self.store.one("SELECT 1 FROM modules WHERE LOWER(name) = LOWER(?)", (name,)):
             raise Problem(f"There is a module called '{name}' already.")
+        parent_id = self.get(parent)["id"] if parent else None
         mid = new_id("m")
         stamp = now()
         with self.store.tx() as db:
             db.execute(
-                "INSERT INTO modules (id, name, goal, created_at, updated_at) VALUES (?,?,?,?,?)",
-                (mid, name, goal, stamp, stamp),
+                "INSERT INTO modules (id, name, goal, parent, created_at, updated_at)"
+                " VALUES (?,?,?,?,?,?)",
+                (mid, name, goal, parent_id, stamp, stamp),
             )
         return self.get(mid)
+
+    def move(self, ref: str, parent: str | None) -> dict[str, Any]:
+        """Put a module inside another, or at the top (parent None). Never inside itself or
+        anything below it."""
+        module = self.get(ref)
+        parent_id = self.get(parent)["id"] if parent else None
+        if parent_id and parent_id in self.subtree(module["id"]):
+            raise Problem(f"{module['name']} can't go inside itself or inside something it"
+                          " holds.")
+        with self.store.tx() as db:
+            db.execute("UPDATE modules SET parent = ?, updated_at = ? WHERE id = ?",
+                       (parent_id, now(), module["id"]))
+        return self.get(module["id"])
+
+    def children(self, mid: str) -> list[dict[str, Any]]:
+        return [_row(r) for r in self.store.all(
+            "SELECT * FROM modules WHERE parent = ? ORDER BY name", (mid,))]
+
+    def subtree(self, mid: str) -> list[str]:
+        """The module's id and every id below it, parents before children."""
+        rows = self.store.all(
+            "WITH RECURSIVE down(id, name, depth) AS (SELECT id, name, 0 FROM modules WHERE id"
+            " = ? UNION ALL SELECT m.id, m.name, down.depth + 1 FROM modules m JOIN down ON"
+            " m.parent = down.id WHERE down.depth < 32) SELECT id FROM down ORDER BY depth, name",
+            (mid,))
+        return [str(r["id"]) for r in rows]
+
+    def path(self, mid: str) -> list[dict[str, Any]]:
+        """The module and its ancestors, top first: Job › Search."""
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        current: str | None = mid
+        while current and current not in seen:
+            seen.add(current)
+            row = self.store.one("SELECT id, name, parent FROM modules WHERE id = ?", (current,))
+            if row is None:
+                break
+            out.append({"id": row["id"], "name": row["name"]})
+            current = row["parent"]
+        return list(reversed(out))
+
+    def path_words(self, mid: str) -> str:
+        return " › ".join(m["name"] for m in self.path(mid))
 
     def get(self, ref: str) -> dict[str, Any]:
         """By id or by name (case-insensitive)."""

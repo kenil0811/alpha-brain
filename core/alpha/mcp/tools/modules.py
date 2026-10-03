@@ -10,26 +10,46 @@ from alpha.mcp.tools.base import Base, tool
 class Modules(Base):
     @tool
     def modules_list(self) -> list[dict[str, Any]]:
-        """The person's modules, each with its tables."""
+        """The person's modules, each with its tables, its parent (the module it sits inside,
+        if any) and its path (Job › Search)."""
         tables = self.world.collections.overview()
         return [
-            {**m, "tables": [t for t in tables if t["module"] == m["id"]]}
+            {**m, "tables": [t for t in tables if t["module"] == m["id"]],
+             "path": self.world.modules.path_words(m["id"])}
             for m in self.world.modules.all()
         ]
 
     @tool
-    def module_create(self, name: str, goal: str | None = None) -> dict[str, Any]:
+    def module_create(self, name: str, goal: str | None = None,
+                      parent: str | None = None) -> dict[str, Any]:
         """Make a module: a named place for a topic the person keeps coming back to (Food, Job
-        search, Cold calls). Name it the way the person would; goal in their words."""
+        search, Cold calls). Name it the way the person would; goal in their words. parent: the
+        module it sits inside, when the person's area has parts (Job holds Search and Resume);
+        a parent's page and conversation reach everything inside it."""
         refused = self._gate("Making a module")
         if refused:
             return refused
-        module = self.world.modules.create(name, goal)
+        module = self.world.modules.create(name, goal, parent=parent)
         plan = self._building()
         if plan and not plan["module"]:
             self.world.plans.set_module(plan["id"], module["id"])
-        self._did("made", f"Made the module {name}.", {"module": module["id"]}, module["id"])
+        where = f" inside {self.world.modules.path_words(module['parent'])}" \
+            if module.get("parent") else ""
+        self._did("made", f"Made the module {name}{where}.", {"module": module["id"]},
+                  module["id"])
         return module
+
+    @tool
+    def module_move(self, module: str, parent: str | None = None) -> dict[str, Any]:
+        """Put a module inside another (parent: its id or name), or at the top (no parent),
+        when the person asks; everything in it moves with it. Never inside itself or inside
+        something it holds."""
+        moved = self.world.modules.move(module, parent)
+        where = self.world.modules.path_words(moved["parent"]) if moved.get("parent") \
+            else "the top"
+        self._did("changed", f"Moved the module {moved['name']} under {where}.",
+                  {"module": moved["id"]}, moved["id"])
+        return {**moved, "path": self.world.modules.path_words(moved["id"])}
 
     @tool
     def threads_list(self, state: str | None = None) -> list[dict[str, Any]]:
