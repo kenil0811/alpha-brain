@@ -33,4 +33,4 @@ with their client pill live in it. Tests: one in the core (titles resolved, a mi
 left out, the record route, a missing record a plain 400), two in the desktop (the pill opens
 the related record and Back returns; the form view's next and previous); 47 desktop tests,
 typecheck clean; `just check-desktop m`: the six module pages clean at every size
-(`docs/checks/2026-10-03-1712.md`).
+(`docs/checks/2026-10-03-1651.md`).
