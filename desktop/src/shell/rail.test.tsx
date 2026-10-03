@@ -91,4 +91,21 @@ describe("records from the core", () => {
     expect(row.values).toEqual({ food: "Eggs", kcal: 155 });
     expect(row.provenance.estimated).toBe(true);
   });
+  it("opens the workspace menu on a click and renames the workspace on a double click", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
+    const name = screen.getByRole("button", { name: /^Workspace:/ });
+    await user.click(name);
+    expect(await screen.findByRole("menuitem", { name: "Rename workspace" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.dblClick(screen.getByRole("button", { name: /^Workspace:/ }));
+    expect(screen.getByRole("textbox", { name: "Workspace name" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Rename workspace" })).toBeNull();
+  });
 });

@@ -9,7 +9,7 @@ import { FileUp, FolderPlus, Home as HomeIcon, MoreVertical, Settings as Setting
 import type { ModuleCard } from "../core/client";
 import { CollapseToggleButton, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, ResizeHandle, Tooltip, useComingSoon, type PanelControl } from "../ui";
 import { ProjectMenuItems } from "./ProjectMenu";
-import { ZazooIcon } from "../ui/ZazooIcon";
+import { useOpenOnClick } from "../dataviews/cells";
 import { projectIcon } from "./projectIcons";
 import { IconButton } from "../ui/IconButton";
 
@@ -140,6 +140,8 @@ export function Rail({
     }
   });
   const [renaming, setRenaming] = useState(false);
+  const [brandMenu, setBrandMenu] = useState(false);
+  const brandClicks = useOpenOnClick();
   const soon = useComingSoon();
 
   const saveWorkspace = (value: string) => {
@@ -224,9 +226,7 @@ export function Rail({
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha" style={{ width: panel.displayWidth }}>
       <div className="brand" data-tauri-drag-region>
         <Tooltip content={runtimeLabel}>
-          <div className="brand__logo" role="status">
-            <ZazooIcon size={24} label="" />
-            <span className={`brand__mark brand__mark--${runtime}`} aria-hidden="true" />
+          <div className={`brand__mark brand__mark--${runtime}`} role="status">
             <span className="sr-only">{runtimeLabel}</span>
           </div>
         </Tooltip>
@@ -245,9 +245,21 @@ export function Rail({
             onBlur={(e) => saveWorkspace(e.target.value)}
           />
         ) : (
-          <DropdownMenu>
+          <DropdownMenu open={brandMenu} onOpenChange={setBrandMenu}>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="brand__name" aria-label={`Workspace: ${workspace}`}>
+              <button
+                type="button"
+                className="brand__name"
+                aria-label={`Workspace: ${workspace}`}
+                title="Double-click to rename"
+                // A click opens the menu (after a beat, so a double click can rename instead).
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={(e) => brandClicks.click(e, () => setBrandMenu(true))}
+                onDoubleClick={() => {
+                  brandClicks.cancel();
+                  setRenaming(true);
+                }}
+              >
                 {workspace}
               </button>
             </DropdownMenuTrigger>

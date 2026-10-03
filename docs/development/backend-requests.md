@@ -142,6 +142,45 @@ direct save.
 | The companion's eyes follow the cursor anywhere on screen. Today they follow it only while it is over the companion's own small window. | A host command `avatar_cursor() -> {x, y}` in screen points, or a cursor event streamed to the companion window. |
 | The avatar (animal, outfit) and the appearance (accent, companion colours, font, corners, contrast, motion) follow the person to another Mac. Today they are kept on this Mac (`alpha.avatar`, `alpha.appearance` in localStorage). | Optional: a core preference such as `profile.avatar = {species, body, suit, tie, shirt, accessory, glasses}` and `profile.appearance`, read and written on a settings route. |
 
+## 13. New requests from the second UI round
+
+| UI change | Backend request |
+|---|---|
+| Formula fields: a value worked out from other fields shows an **fx** icon, and clicking it edits the formula, not the value. | A `formula` field kind: `{kind: "formula", expression, result_kind}` in the table schema, worked out by the core on every read and write and journaled. The expression is set through `PATCH /api/tables/{name}/fields/{field} {expression}` (§5). Today the core has no computed fields at all, so the UI shows nothing for this. |
+| The companion comes back where it was last dragged, not always to the bottom-right corner. | The host saves the companion window's position (per display) when a drag ends and restores it in `place_bottom_right`'s place on launch, falling back to the corner if that display is gone. |
+| ⌘W and ⌘Q can be changed in Settings → Shortcuts. | Host commands to set the Mac menu's accelerators for Close window and Quit (e.g. `menu_set_shortcut {item, accelerator}`). |
+| The bell counts automations whose last run failed. | Nothing new is strictly needed: Activity already lists them from `GET /api/automations` (`last_error`) with a real **Run it again**. `GET /api/attention` (§6) would let the bell count them in one call. |
+
+## 14. Shown in the window as "coming soon"
+
+Every control below is in the window where it will live. Using it says "… is coming soon." Each one
+waits for the request in the section named.
+
+| Control | Where | Section |
+|---|---|---|
+| Other providers: Connect, key field Save, Test, Reconnect, Remove key, the star for the default; the model picker; Thinking | Settings → Models | 1 |
+| + → Add files / images / a folder / audio; a file dropped or pasted on the composer | Composer | 2, 9 |
+| + → Advanced → Model; + → Advanced → Access | Composer | 2 |
+| Rename, Change icon, Edit goal, Add sub project, Take out, Export, Export with data, Delete | Project ⋮ in the sidebar, right-click, project page ⋯ | 4 |
+| Add from a file…; a file dropped on New project | Sidebar, New project | 4 |
+| Undo (menu and ⌘Z) | Table ⋮ | 5 |
+| Rename column, Change type, Add column | Column header menu | 5 |
+| Every change (a row's history) | Record drawer and page | 5 |
+| First steps ("Set up Alpha") | Home | 6 |
+| Add a fact; Forget a known fact | Intelligence → Knowledge → About you | 7 |
+| New skill; Run a skill | Intelligence → Skills | 7 |
+| Project look; Builds (model for making a project, when Alpha needs your OK) | Settings | 8 |
+| Go back (restore a backup) | Settings → Data | 8 |
+| Seven permission rows with Allow / Open System Settings | Settings → Permissions | 9 |
+| Speak replies, Push to talk, Transcription | Settings → Desktop | 2, 9 |
+| Talk: hold Fn; editing ⌘W and ⌘Q | Settings → Shortcuts | 9, 13 |
+
+Not drawn at all, because they need data the core doesn't send: making a project on its own page,
+sub-project nesting, project facts, a table's "Last change" line, row actions, project links and
+their edges in the Second brain, First steps' questions, a skill's runs, the runtime versions line,
+each provider's status and saved-key hint, each permission's state, earlier (done) chats, Archive,
+attachment chips on sent messages.
+
 ---
 
 *Added from the UI-only branch's own work, below: anything its new screens edit through Zazoo, or

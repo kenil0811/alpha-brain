@@ -167,7 +167,9 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           {editing ? (
             <Textarea rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${entity.name}`} placeholder={`Who ${entity.name} is to you, how you know them, what is going on.`} />
           ) : entity.page ? (
-            <div className="people__page">{entity.page.body}</div>
+            <div className="people__page editable" title="Double-click to edit" onDoubleClick={() => setEditing(true)}>
+              {entity.page.body}
+            </div>
           ) : (
             <p className="muted">No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
           )}

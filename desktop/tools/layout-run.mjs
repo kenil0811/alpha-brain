@@ -68,8 +68,16 @@ try {
       page.on("response", (r) => r.url().includes("/api/") && [404, 405].includes(r.status()) && missing.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`));
       const [route, tab] = path.split(":");
       if (tab) await page.addInitScript(([id, t]) => localStorage.setItem(`alpha.module.${id}.tab`, t), [project, tab]);
-      await page.goto(`${vite}/#${route}`);
-      await page.waitForLoadState("networkidle");
+      // A busy Mac sometimes misses a page load; one retry, so a slow load isn't a layout failure.
+      for (let tries = 2; tries--; ) {
+        try {
+          await page.goto(`${vite}/#${route}`);
+          await page.waitForLoadState("networkidle");
+          break;
+        } catch (e) {
+          if (!tries) throw e;
+        }
+      }
       await page.waitForTimeout(400);
       const offline = (await page.locator("text=Alpha's core isn't running").count()) ? ["the window never reached the core"] : [];
       const found = [...(await page.evaluate(check)), ...missing, ...offline];

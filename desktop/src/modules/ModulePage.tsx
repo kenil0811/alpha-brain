@@ -389,12 +389,12 @@ function ProjectNotes({ client, detail, onChanged }: { client: Client; detail: M
         <textarea autoFocus aria-label="Alpha's notes" className="projpage__notesinput" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => void save()} onKeyDown={(e) => e.key === "Escape" && setEditing(false)} />
       ) : body ? (
         <div className="card card--pad">
-          <p className="editable projpage__notes" onClick={start}>
+          <p className="editable projpage__notes" title="Double-click to edit" onDoubleClick={start}>
             {body}
           </p>
         </div>
       ) : (
-        <p className="projempty editable" onClick={start}>
+        <p className="projempty editable" title="Double-click to write" onDoubleClick={start}>
           Nothing yet
         </p>
       )}

@@ -107,7 +107,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
               .map(([field, value]) => (
                 <div key={field} className="action__block">
                   <span className="faint">{field.replace(/_/g, " ")}</span>
-                  {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text">{value}</pre>}
+                  {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text" title={open ? "Double-click to edit" : undefined} onDoubleClick={() => open && setEditing(true)}>{value}</pre>}
                 </div>
               ))}
           </div>
