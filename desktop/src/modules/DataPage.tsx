@@ -204,6 +204,8 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
 
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters, hideDone, statusField, showGone, sort }) : null), [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
   useEffect(() => setPageAt(0), [search, filters, hideDone, showGone, sort]);
+  // A table with a file field says how files get in: the button above, or a drop on the page.
+  const emptyWords = fields.some((f) => f.kind === "file") ? "Nothing here yet. Add files with the button above, or drop them on the page; Alpha keeps each as a row here." : "Nothing here yet.";
   // A table fed by readers: the platform knows when each row was first seen, last seen, gone.
   const tracked = useMemo(() => Boolean(all?.some((r) => r.seen_at || r.gone_at)), [all]);
   const goneCount = useMemo(() => (all ?? []).filter((r) => r.gone_at).length, [all]);
@@ -540,7 +542,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
               openId={openId}
               onOpen={(id) => setOpenId((current) => (current === id ? null : id))}
               onCommit={commit}
-              empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null}
+              empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}
               files={files}
               onFile={(row, field, file) => void addFile(row, field, file)}
               selected={selected}
@@ -550,7 +552,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
               onOpenRelated={openRelated}
             />
           ) : null}
-          {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={openRelated} empty={rows && !rows.length ? (filtered ? "Nothing matches." : "Nothing here yet.") : null} /> : null}
+          {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={openRelated} empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
           {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
           {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
           {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={setOpenId} /> : null}

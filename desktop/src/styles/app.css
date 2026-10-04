@@ -667,10 +667,13 @@ body.avatar-window #root { height: 100vh; }
 .check .m { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: 700; flex: none; }
 .m--y { background: var(--good-soft); color: var(--good); }
 .badge--waiting { color: var(--warn); background: var(--warn-soft); }
-.msg p { margin: 0 0 6px; }
-.msg p:last-child { margin-bottom: 0; }
-.msg__list { margin: 4px 0 6px; padding-left: 18px; }
-.msg__list li { margin: 2px 0; }
+.msg p, .avatar__reply p { margin: 0 0 6px; }
+.msg p:last-child, .avatar__reply p:last-child { margin-bottom: 0; }
+.rich__list { margin: 0 0 6px; padding-left: 18px; }
+.rich__list:last-child { margin-bottom: 0; }
+.rich__list li { margin: 2px 0; }
+.msg code, .avatar__reply code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.avatar__reply { line-height: 1.45; }
 .msg__cite { display: block; font-size: var(--text-xs); color: var(--text-3); margin-top: 4px; }
 .msg--failed { background: var(--bad-soft); }
 .msg--working { color: var(--text-2); }
@@ -1132,3 +1135,12 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__glance .linkbtn { text-align: left; padding: 0; }
 .map__think { background: var(--primary-soft); border-radius: 8px; padding: 6px 8px; font-size: var(--text-sm); }
 .map__busy { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: var(--text-xs); color: var(--text-2); box-shadow: var(--shadow); }
+.trouble { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* The core's state, across the top of the page: not answering, or just back. */
+.corenote { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--bad-soft); color: var(--bad); font-size: var(--text-sm); }
+.corenote--ok { background: var(--good-soft); color: var(--good); }
+.navfold { flex: none; width: 22px; height: 26px; border: 0; background: none; color: var(--text-3); cursor: pointer; border-radius: 6px; font-size: var(--text-xs); }
+.navfold:hover { background: var(--hover); color: var(--text); }
+.crumbs { font-size: var(--text-xs); color: var(--text-2); margin-bottom: 2px; }
+.textfield { font: inherit; font-size: var(--text-sm); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; min-width: 200px; }
+.textfield:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }

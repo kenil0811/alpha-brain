@@ -330,3 +330,30 @@ def test_a_source_the_person_skipped_stays_skipped(world: World) -> None:
     assert statuses == {"Big marketplace": "skipped", "Old broker": "unavailable"}
     assert world.sources.coverage_line(world.modules.get("Deals")["id"]) == (
         "Sources: 2 in all — 1 nothing to read, 1 skipped by you.")
+
+
+def test_a_plain_yes_approves_and_an_approved_plan_is_not_asked_about_again(world: World) -> None:
+    """3 Oct: a plan approved on Home was asked about three more times in the conversation,
+    because "yes" was under three words and the tool checked the quote before the state."""
+    from alpha.mcp.tools import Tools
+
+    first = world.journal.append("said", "track my books", actor="person")
+    plan = world.plans.propose("Books", "A table of books.", turn=first, trial="log a book")
+    yes = world.journal.append("said", "Yes.", actor="person")
+    out = Tools(world, turn=yes).plan_approve(plan["id"], "yes")
+    assert out["state"] == "approved" and world.plans.get(plan["id"])["approval"] == '"yes"'
+    again = world.journal.append("said", "yes build it", actor="person")
+    out = Tools(world, turn=again).plan_approve(plan["id"], "yes build it")
+    assert "error" not in out and out["state"] == "approved"
+    assert out["note"].startswith("Already approved")
+    thread = world.modules.open_thread("Build", "build")
+    world.plans.start(plan["id"], thread["id"])
+    world.plans.finish(plan["id"], "Made the table.")
+    out = Tools(world, turn=again).plan_approve(plan["id"], "yes build it")
+    assert out["state"] == "done" and "built" in out["note"]
+    # A short quote that is only part of the message is still refused: Alpha never approves
+    # on words it picked out.
+    partial = world.journal.append("said", "yes and also remind me tomorrow", actor="person")
+    other = world.plans.propose("Films", "A table of films.", turn=first, trial="log a film")
+    out = Tools(world, turn=partial).plan_approve(other["id"], "yes")
+    assert "error" in out and world.plans.get(other["id"])["state"] == "proposed"

@@ -5,10 +5,16 @@
 //! ready line, hands the window the address and token through one typed command, keeps the core
 //! running when the window closes, and stops it on quit. Because the core is a child of the app,
 //! macOS asks for calendar (and later other) access in Alpha's name.
+//!
+//! The host also watches the core: a core that dies is started again on the same port with the
+//! same token (so the windows' sessions stay good), after a pause that grows while it keeps
+//! failing, and the windows are told (`core-restarted`) so they look again. Found at the 3 Oct
+//! checkpoint: a crash left the window on a dead port saying "Alpha is running".
 
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -16,7 +22,7 @@ use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{
-    AppHandle, LogicalSize, Manager, PhysicalPosition, RunEvent, State, WebviewUrl,
+    AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, RunEvent, State, WebviewUrl,
     WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
@@ -31,6 +37,16 @@ const READY_PREFIX: &str = "ALPHA_CORE_READY ";
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
 const SESSION_WAIT: Duration = Duration::from_secs(120);
 const QUIT_GRACE: Duration = Duration::from_secs(5);
+/// How often the host looks whether the core is still there.
+const WATCH_EVERY: Duration = Duration::from_millis(500);
+/// The pause before starting a dead core again: doubles while it keeps dying, up to a minute.
+const RESTART_PAUSE_FIRST: Duration = Duration::from_secs(1);
+const RESTART_PAUSE_MOST: Duration = Duration::from_secs(60);
+/// A core that stayed up this long had a fresh failure, not the same one: the pause starts over.
+const STEADY_AFTER: Duration = Duration::from_secs(120);
+
+/// Set when the person quits: a core that ends then is not started again.
+static QUITTING: AtomicBool = AtomicBool::new(false);
 
 static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
 static HOST_LOG: OnceLock<PathBuf> = OnceLock::new();
@@ -67,6 +83,7 @@ struct CoreProcess {
     companion_token: String,
     /// The commit the core reported in its ready line.
     commit: Option<String>,
+    started: Instant,
 }
 
 #[derive(Default)]
@@ -292,14 +309,23 @@ fn save_to_downloads(filename: String, text: String) -> Result<String, String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
+/// A path inside Alpha's own folder, both resolved first (symlinks and `..` followed), so the
+/// check is on where the file really is, not on how the path was spelled.
+fn own_file(path: &str, verb: &str) -> Result<PathBuf, String> {
+    let dir = DATA_DIR.get().ok_or("Alpha's data folder isn't set yet")?;
+    let dir = std::fs::canonicalize(dir).map_err(|e| format!("Alpha's data folder: {e}"))?;
+    let target = std::fs::canonicalize(path)
+        .map_err(|_| "That file isn't there any more".to_string())?;
+    if !target.starts_with(&dir) {
+        return Err(format!("Alpha only {verb} files in its own folder"));
+    }
+    Ok(target)
+}
+
 /// Reveal a file Alpha keeps (an export, a fetched attachment) in Finder.
 #[tauri::command]
 fn reveal_path(path: String) -> Result<(), String> {
-    let dir = DATA_DIR.get().ok_or("Alpha's data folder isn't set yet")?;
-    let target = std::path::PathBuf::from(&path);
-    if !target.starts_with(dir) {
-        return Err("Alpha only reveals files in its own folder".into());
-    }
+    let target = own_file(&path, "reveals")?;
     Command::new("/usr/bin/open").arg("-R").arg(&target).status().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -307,11 +333,7 @@ fn reveal_path(path: String) -> Result<(), String> {
 /// Open a file Alpha keeps with the Mac's default app for it.
 #[tauri::command]
 fn open_path(path: String) -> Result<(), String> {
-    let dir = DATA_DIR.get().ok_or("Alpha's data folder isn't set yet")?;
-    let target = std::path::PathBuf::from(&path);
-    if !target.starts_with(dir) {
-        return Err("Alpha only opens files in its own folder".into());
-    }
+    let target = own_file(&path, "opens")?;
     Command::new("/usr/bin/open").arg(&target).status().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -348,7 +370,9 @@ fn core_python() -> PathBuf {
     repo_root().join(".venv/bin/python")
 }
 
-fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
+/// Start the core. `keep`: the port and token of the core this one replaces, so the windows'
+/// sessions stay good; none on the first start (port 0 picks a free one, the token is new).
+fn launch_core(app: &AppHandle, keep: Option<(u16, String, String)>) -> Result<CoreProcess, String> {
     let python = core_python();
     if !python.is_file() {
         return Err(format!(
@@ -372,8 +396,11 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
     let log_dir = data_dir.join("logs");
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("create log dir: {e}"))?;
     let _ = HOST_LOG.set(log_dir.join("host.log"));
-    let token = random_token()?;
-    let companion_token = random_token()?;
+    // The same port and tokens again after a restart, so open windows keep working.
+    let (port_arg, token, companion_token) = match keep {
+        Some((port, token, companion_token)) => (port.to_string(), token, companion_token),
+        None => ("0".to_string(), random_token()?, random_token()?),
+    };
     let core_log = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -398,7 +425,7 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
     ));
     let mut command = Command::new(&python);
     command
-        .args(["-m", "alpha.cli", "serve", "--port", "0"])
+        .args(["-m", "alpha.cli", "serve", "--port", &port_arg])
         .env_clear()
         .env("HOME", &home)
         .env("USER", &user)
@@ -453,7 +480,78 @@ fn launch_core(app: &AppHandle) -> Result<CoreProcess, String> {
     let port = ready["port"].as_u64().ok_or("ready line missing port")? as u16;
     let commit = ready["commit"].as_str().map(str::to_string);
     note(&format!("app commit {} · core commit {}", env!("ALPHA_APP_COMMIT"), commit.as_deref().unwrap_or("unknown")));
-    Ok(CoreProcess { child, port, token, companion_token, commit })
+    Ok(CoreProcess { child, port, token, companion_token, commit, started: Instant::now() })
+}
+
+/// Keep the core alive: when it ends on its own, start it again on the same port with the same
+/// token, pausing longer each time it dies quickly, and tell the windows. Nothing is started
+/// again once the person quits.
+fn watch_core(app: AppHandle, launch: Arc<Launch>) {
+    std::thread::Builder::new()
+        .name("core-watch".into())
+        .spawn(move || {
+            let mut pause = RESTART_PAUSE_FIRST;
+            let mut keep: Option<(u16, String, String)> = None;
+            loop {
+                std::thread::sleep(WATCH_EVERY);
+                if QUITTING.load(Ordering::SeqCst) {
+                    return;
+                }
+                if keep.is_none() {
+                    // The core is meant to be running: is it?
+                    let ended = {
+                        let Ok(mut guard) = launch.core.lock() else { return };
+                        let Some(core) = guard.as_mut() else { continue };
+                        match core.child.try_wait() {
+                            Ok(Some(status)) => {
+                                let lived = core.started.elapsed();
+                                let same = (core.port, core.token.clone(), core.companion_token.clone());
+                                *guard = None;
+                                Some((status.to_string(), lived, same))
+                            }
+                            Ok(None) => None,
+                            Err(error) => {
+                                note(&format!("core watch: {error}"));
+                                None
+                            }
+                        }
+                    };
+                    let Some((status, lived, same)) = ended else { continue };
+                    if lived > STEADY_AFTER {
+                        pause = RESTART_PAUSE_FIRST;
+                    }
+                    note(&format!(
+                        "core ended on its own ({status}) after {}s; starting it again in {}s",
+                        lived.as_secs(),
+                        pause.as_secs()
+                    ));
+                    let _ = app.emit("core-down", format!("the core stopped ({status})"));
+                    keep = Some(same);
+                }
+                // The core is down: start it again after the pause, on the same port and token.
+                std::thread::sleep(pause);
+                if QUITTING.load(Ordering::SeqCst) {
+                    return;
+                }
+                match launch_core(&app, keep.clone()) {
+                    Ok(core) => {
+                        note(&format!("core started again on port {}", core.port));
+                        if let Ok(mut guard) = launch.core.lock() {
+                            *guard = Some(core);
+                        }
+                        keep = None;
+                        pause = (pause * 2).min(RESTART_PAUSE_MOST);
+                        let _ = app.emit("core-restarted", ());
+                    }
+                    Err(error) => {
+                        note(&format!("core did not start again: {error}; next try in {}s", pause.as_secs()));
+                        pause = (pause * 2).min(RESTART_PAUSE_MOST);
+                        let _ = app.emit("core-down", error);
+                    }
+                }
+            }
+        })
+        .expect("core watch thread");
 }
 
 fn stop_core(process: &mut CoreProcess) {
@@ -518,6 +616,7 @@ fn show_main_window(app: &AppHandle) {
 }
 
 fn stop_all(app: &AppHandle) {
+    QUITTING.store(true, Ordering::SeqCst);
     if let Some(state) = app.try_state::<HostState>() {
         if let Ok(mut guard) = state.launch.core.lock() {
             if let Some(mut core) = guard.take() {
@@ -563,12 +662,16 @@ pub fn run() {
             std::thread::Builder::new()
                 .name("core-launch".into())
                 .spawn(move || {
-                    let outcome = launch_core(&handle);
+                    let outcome = launch_core(&handle, None);
                     match &outcome {
                         Ok(core) => note(&format!("core ready on port {}", core.port)),
                         Err(error) => note(&format!("core launch failed: {error}")),
                     }
+                    let started = outcome.is_ok();
                     launch.settle(outcome);
+                    if started {
+                        watch_core(handle, launch);
+                    }
                 })
                 .expect("core launch thread");
 

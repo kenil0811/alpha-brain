@@ -56,6 +56,7 @@ just test-desktop   # typecheck + vitest
 just journeys       # the journey suite on a copy of the app's world (uses the subscription)
 just check-desktop  # every page of the window at its sizes, on a copy of the world (no model)
 just stats          # the measured numbers STATE.md quotes
+just turns          # how long the last turns took: wall, the model's time, steps (from the journal)
 ```
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in

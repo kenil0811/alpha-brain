@@ -190,7 +190,8 @@ shape agreed, each piece built in order and judged by the memory journeys before
    strip on the panel and on Home switches between live ones; closed ones stay in the module's
    history. Builds and automation runs are conversations too and never resume across runs (the
    brief is their memory). Ends on Done, when a build finishes, or after a long gap; no automatic
-   topic splitting; no picker before speaking; no projects above modules. **Memory is shared
+   topic splitting; no picker before speaking; no projects above modules (revised by Q31: a
+   module may sit inside a module, one concept, any depth). **Memory is shared
    only through the world.** This revises Q21 (threads as records) for live conversations and
    the "one stream" of 30 September: many conversations, one world. Kenil's driver: working on
    several modules at once with to-and-fro in each.
@@ -449,7 +450,8 @@ procedure broken, for Alpha to repair (build-plan §4.13).
   keeps its id; the page shows the file's name, Open and Show in Finder. A read: free once the
   connection is granted, journaled. Whether a module keeps such files is a sentence in the plan
   the person approves, or an ask; never silent growth. Removing the module removes its files.
-- **In, from the person.** Files dropped onto a module page or added to a row's file field go
+- **In, from the person.** Files dropped onto a module page, chosen with its Add files button,
+  or added to a row's file field go
   into the module's folder, become documents, and (for a module drop) Alpha reads them into the
   module's tables in a turn of its own, journaled as the person's addition and Alpha's reading.
 - **Out, by a procedure.** An `upload` step names a payload field whose value is a document
@@ -460,7 +462,7 @@ procedure broken, for Alpha to repair (build-plan §4.13).
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn, `file` fields, CSV and Excel export, upload steps. |
+| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn (and, since 3 Oct night, an Add files button on the module's page opening the Mac's picker, the same route), `file` fields, CSV and Excel export, upload steps. |
 | Differs | An upload by Alpha asks every time; the plan decides what is kept. |
 | Not built | — |
 
@@ -523,7 +525,7 @@ Your point 3: the decision of when a one-off is worth turning into a tracker, a 
 
 The workspace is where the person *works* — their tables, their flows, their connected apps in one place — with the companion beside it; it is also where they check what Alpha did. Alpha is a work tool with a companion, not a personal assistant with a window. Every surface answers one of three questions: what needs me, what do I have, what did Alpha do and why. (Research: `design/research/workspace-ui.md`.)
 
-**Rail:** Today · Modules (listed directly, grouped by project when there is one) · People & Companies · Intelligence · Activity. Search everything with ⌘K. Gone: the Home wizard, the technical Settings groups, the session switcher.
+**Rail:** Today · Modules (as a tree since 3 Oct night: a module inside a module, folded or not) · People & Companies · Intelligence · Activity. Search everything with ⌘K. Gone: the Home wizard, the technical Settings groups, the session switcher.
 
 - **Today** — two lanes. *Needs you*: outbound actions, questions, drafts — each card is the action in plain words, the evidence it rests on, one line of "because…", and Yes / Change / Not now; decide-once for recurring senders and sources. Approval is per action; a plan preview exists only for multi-step work and still gates the consequential step — plan approval was found to lower scrutiny during execution: of problematic actions that reached execution, users blocked only 21% (2604.04918). *Digest*: the twice-daily brief as sectioned cards (top actions, calendar, follow-ups, noticed), each with thumbs and "why am I seeing this", expiring at the next digest unless kept — a destination that resets, never a feed (the one proactive UI that survived with users, ChatGPT Pulse). Badge only for Needs-you. Onboarding is Today's empty state.
 - **Module** — 2–4 summary cards Alpha chose; the derived views we already have (table, board, list, calendar, chart; inline edit; record panel; saved lists as named filters); "What runs here" (its automations as sentences with next run) and "Recent changes" (Alpha's edits, each undoable); the conversation scoped to it, with its threads.
@@ -627,6 +629,8 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q28** | Ideas from a contributor's pull request come in as concepts rebuilt on main in Alpha's conventions, never as code copied over; the pull request is credited in the log. The first set (the table views, the UI kit, self-hosted fonts, resizable panes, addresses for pages, ⌘K on search, Intelligence item pages read-only for know-how, fact provenance, the module's page on its tab, quick entry, a desktop acceptance check, the UI rules) is §8 of that review. A knowledge graph is wanted but designed first. | 3 Oct, with Kenil. |
 | **Q29** | A graph, in two steps (3 Oct 2026, from `knowledge-graph-proposal.md`): first a map of Alpha's own work (modules, tables, skills, automations, sources, connections; the world's own kinds of relation, each with its source), computed on each ask and drawn with a force layout in a worker (`d3-force`, the one library); the graph of the person's world (people, documents, pages) only after readers declare their rows as people, because measured on 3 Oct it would have been twenty dots and seven lines. Edges never come from similarity or embeddings: facts with a source, as everything here. |
 | **Q30** | The map of the brain (3 Oct 2026, after the map of work was built): what Kenil wants from a map is "what my brain is, what's concentrated, what's important, what's not linked", so the default view is the person's world (themselves, their areas weighted by what happened, tables, documents, pages, goals, people and organisations, and the links between them), with the map of work kept as a toggle. Links Alpha infers are allowed as a trial, as suggested `related_to` facts with a reason and a source, dashed until the person says yes, never from similarity, dropped unless grounded in the evidence. The map asks the core only on first open and on Refresh, never on a clock; Refresh also runs the link-finding pass. |
+| **Q31** | Modules nest (3 Oct 2026, night, Kenil: "nested projects/modules", like Job holding a Search module and a Resume module). One concept, not two: a module may sit inside a module, to any depth, by a `parent` (nothing per level). What a module owns stays its own; a parent is the place that holds its children: its page shows them, its summary, activity, automations and sources roll them up, a conversation on it reaches the whole subtree, the pack lists the tree with the sentence's own branch first, the maps draw the nesting, removal takes the subtree. Alpha makes a module inside another (`module_create` with `parent`) or moves one (`module_move`); the person moves one in its Settings ("Where it sits"). Revises the conversations round's "no projects above modules" (the `project` column stays unused). | 3 Oct night, when the areas Kenil keeps turned out to have parts. |
+| **Q32** | A second way to think: ChatGPT through the Codex CLI on the person's own subscription, beside Claude through Claude Code (3 Oct 2026, night, Kenil: "similar to using claude subscription, can we add chatgpt subscription route as well?"). One route (`runtime/route.py`) in front of two runners with the same request; the person chooses in Settings (Thinks with), Claude when unset; the model tier is one alias the runner translates. Each runner keeps its own guard: Claude's allowed tools, Codex's read-only sandbox with approvals never and Alpha's rules as its standing instructions. The same caveat as Q1 for anyone but Kenil: a third-party app signing in to ChatGPT needs OpenAI's say, as claude.ai needs Anthropic's. | 3 Oct night; his Codex sign-in had lapsed, so the route is proven by tests until he signs in. |
 
 ---
 

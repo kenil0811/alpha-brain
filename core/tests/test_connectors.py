@@ -9,12 +9,13 @@ import pytest
 
 from alpha.connectors import files
 from alpha.connectors.base import Connections, manifests
-from alpha.connectors.browser import Browser, site_of
+from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Attendee, Calendar, CalendarEvent
 from alpha.connectors.files import Files
 from alpha.context import prepack
 from alpha.mcp.tools import Tools
 from alpha.world.pending import PendingActions
+from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World
 

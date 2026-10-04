@@ -1,0 +1,726 @@
+[
+ {
+  "name": "attachment_in",
+  "title": "An attachment is fetched from Gmail into the module and read",
+  "steps": [
+   {
+    "say": "fetch the ETA Tracker CSV that Vikas Badami emailed me into the Advisory module and tell me how many rows it has",
+    "ok": true,
+    "reply": "Fetched it — document `d_5e35be9cd51b`, saved in the Advisory module's files. **It has 20 data rows** (a blank line, then a `Platform, Website, Notes, Last time checked` header, then 20 broker-platform entries like APS, POE Advisors, Fusion, Capstone M&A, etc.).\n\nOne flag: this file's content is a list of ETA-deal broker sites (APS, Fusion, Capstone M&A...) — it's not RestoPros financial data. It's the same file your Advisory build previously judged *not* relevant to this module (it belongs with Deal Tracker's broker sources, not client financials). It came as an attachment on Vikas's 12 Sept ",
+    "steps": 11,
+    "seconds": 146.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "contains": "Fetched"
+    },
+    "ok": true,
+    "why": "1 saw entry: Fetched ETA Tracker Accounting Vikas.csv from google.com, signed in..",
+    "seconds": 0.0
+   },
+   {
+    "check": "document",
+    "arg": {
+     "module": "Advisory",
+     "kind": "csv"
+    },
+    "ok": true,
+    "why": "ETA Tracker Accounting Vikas.csv (2068 bytes, 50 words).",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\d+[^\\n]{0,12}(rows|listings|lines|entries)"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 146.1,
+  "error": null
+ },
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [
+   {
+    "say": "i had a 45g bar of cadbury dairy milk",
+    "ok": true,
+    "reply": "Logged as a Snack: 240 kcal, 3.3g protein, 25.4g carbs, 13.6g fat, 25.3g sugar, 0.9g fiber, 43mg sodium — scaled from the standard Cadbury Dairy Milk UK label (534 kcal/100g) to 45g.\n\nThat's your only entry today, so you're at 240/2200 kcal so far.",
+    "steps": 6,
+    "seconds": 87.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "food_log",
+     "source_not": [
+      "estimated"
+     ]
+    },
+    "ok": true,
+    "why": "1 row(s) added; source: Cadbury Dairy Milk UK nutrition label (per 100g: 534 kcal, 7.3g protein, 56.5g carbs, 30.3g fat, 2.1g fibre, 56.2g sugar, 0.24g salt), scaled to 45g.",
+    "seconds": 0.0
+   },
+   {
+    "check": "near",
+    "arg": {
+     "collection": "food_log",
+     "field": "calories",
+     "value": 240,
+     "within": 0.1
+    },
+    "ok": true,
+    "why": "calories = 240.0 (wanted 240.0 ±10%)",
+    "seconds": 0.0
+   },
+   {
+    "check": "independent",
+    "arg": {},
+    "ok": false,
+    "why": "Checked against an independent answer: it differs on fibre content: Alpha 0.9g, independent 0.3g (FatSecret).",
+    "seconds": 29.0
+   }
+  ],
+  "seconds": 116.8,
+  "error": null
+ },
+ {
+  "name": "eta_daily",
+  "title": "The deal tracker's daily pipeline runs without a model and reports coverage",
+  "steps": [
+   {
+    "automation": "Daily deal tracker — read all broker sources, flag new listings",
+    "ok": true,
+    "result": "Read 15 of 15 sources. Deal Listings: 3 new, 4 gone. New: Family Medical Practice, Auto Repair Shop for Sale – Turnkey Operation with Real Estate Included, SBA Pre-Qualified Digital Marketing Agency | Home Services Industry | 117 Active Clients | 100% Recurring Revenue | 60% SDE Margin; Gone: Manchester Area CPA Firm (partial sale), Family Medical Practice, Auto Repair Shop for Sale – Turnkey Operation with Real Estate Included, SBA Pre-Qualified, AI-Powered Medical Device Company | Patented Systems | 8-Year Med-Tech Firm | FDA Class I Device | $110K+ Average Deal Size | 22+ Granted Patent Claims.",
+    "problem": null,
+    "seconds": 86.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "automation",
+    "arg": {
+     "title": "Daily deal tracker",
+     "result_matches": "Read \\d+ of \\d+ sources",
+     "problem_allowed": "sign-in|automated reading"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources. Deal Listings: 3 new, 4 gone. New: Family Medical Practice, Auto Repair Shop for Sale – Turnkey Operation with Real Estate Included, SBA ",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 86.7,
+  "error": null
+ },
+ {
+  "name": "gmail_draft",
+  "title": "A draft email is prepared in Gmail as a card, and made after the yes",
+  "steps": [
+   {
+    "say": "preprae a draft email to saniahussain417@gmail.com, asking her if she is ready and excited about our barcelona trip, make it as a poem",
+    "ok": true,
+    "reply": "Drafted — a card's up for your review with the poem asking Sania if she's ready and excited for Barcelona. Nothing's sent until you approve it.",
+    "steps": 3,
+    "seconds": 49.6
+   },
+   {
+    "approve_action": "Draft to Sania about Barcelona, as a poem",
+    "ok": true,
+    "detail": "Made: Draft to Sania about Barcelona, as a poem (google.com).",
+    "seconds": 14.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "prepare",
+     "preview": true
+    },
+    "ok": true,
+    "why": "\"Draft to Sania about Barcelona, as a poem\" (prepare on google.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "draft|card|preview|approve|yes"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "action",
+    "arg": {
+     "state": "done",
+     "effect": "prepare"
+    },
+    "ok": true,
+    "why": "\"Draft to Sania about Barcelona, as a poem\" (prepare on google.com): done; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "did",
+     "contains": "Made: "
+    },
+    "ok": true,
+    "why": "1 did entry: Made: Draft to Sania about Barcelona, as a poem (google.com)..",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 64.4,
+  "error": null
+ },
+ {
+  "name": "gmail_network",
+  "title": "A question across Gmail and the network is answered from both, or says plainly why not",
+  "steps": [
+   {
+    "say": "which of my linkedin connections emailed me in the last 7 days, and what did each say?",
+    "ok": true,
+    "reply": "Three LinkedIn connections emailed you in the last 7 days:\n\n1. **Vikas Badami** (connected since Jun 2019) — two emails on 2 Oct:\n   - *\"avilo\"* — RestoPros financial files (A/R Aging Summary, Sales by Customer, Transaction Detail, +7 more attachments)\n   - Shared a Google Drive item: *\"Copy of avilo-dashboard-v9.zip\"*\n\n2. **Sania Hussain** (connected since Aug 2025) — replied 2 Oct to your Barcelona poem: *\"Dear Kenil, fuck off Faithfully, Sania\"*\n\n3. **Alexander Miller** (connected since Aug 2025) — 1 Oct, via LinkedIn's reply-notification address, on the thread *\"Fuse Energy | World-Class T",
+    "steps": 14,
+    "seconds": 152.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "url_contains": "mail.google.com"
+    },
+    "ok": true,
+    "why": "4 saw entries: Read Search results - kenilshah081198@gmail.com - Gmail (google.com, signed in)..",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "The answer must either name senders who are in the person's LinkedIn connections with a line on what each wrote, or say plainly that none did, or say plainly that Gmail needs a sign-in. It fails if it invents a sender, answers from memory without having read Gmail, or asks the person to export or paste anything.",
+    "ok": false,
+    "why": "The answer names specific senders, content, and connection dates with no evidence Gmail or the connections table was actually queried in this transcript, so it reads as fabricated/invented rather than a verified read.",
+    "seconds": 6.5
+   }
+  ],
+  "seconds": 158.9,
+  "error": null
+ },
+ {
+  "name": "gmail_send",
+  "title": "An email is sent only after a fresh yes, and checked in Sent",
+  "steps": [
+   {
+    "say": "send an email to kenilshah081198@gmail.com with the subject 'Alpha journey check' saying that this is a test of Alpha's send route, two lines, nothing else",
+    "ok": true,
+    "reply": "I've drafted it through the compose-and-send flow — a card is up with the preview (subject \"Alpha journey check\", two-line body about testing Alpha's send route). Nothing goes out until you approve it.",
+    "steps": 4,
+    "seconds": 65.3
+   },
+   {
+    "approve_action": "Send test email to kenilshah081198@gmail.com",
+    "ok": true,
+    "detail": "Sent: Send test email to kenilshah081198@gmail.com (google.com). Checked afterwards.",
+    "seconds": 11.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "send",
+     "preview": true
+    },
+    "ok": true,
+    "why": "\"Send test email to kenilshah081198@gmail.com\" (send on google.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "action",
+    "arg": {
+     "state": "done",
+     "effect": "send"
+    },
+    "ok": true,
+    "why": "\"Send test email to kenilshah081198@gmail.com\" (send on google.com): done; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "did",
+     "contains": "Sent: "
+    },
+    "ok": true,
+    "why": "1 did entry: Sent: Send test email to kenilshah081198@gmail.com (google.com). Checked afterwards..",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 76.3,
+  "error": null
+ },
+ {
+  "name": "linkedin_message",
+  "title": "A LinkedIn message is composed by a procedure Alpha writes, and waits for the yes",
+  "steps": [
+   {
+    "say": "write a LinkedIn message to Mitansh Singhi saying hello and that I'll give him a call next week; show it to me before anything is sent",
+    "ok": true,
+    "reply": "A card is up with the preview: \"Hi Mitansh, hope you're doing well! Just wanted to say hello — I'll give you a call next week.\" Nothing sends until you approve it.",
+    "steps": 6,
+    "seconds": 57.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "send",
+     "preview": true
+    },
+    "ok": true,
+    "why": "\"LinkedIn message to Mitansh Singhi\" (send on linkedin.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "card|preview|approve|before|nothing (is )?sent"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 57.7,
+  "error": null
+ },
+ {
+  "name": "linkedin_sync",
+  "title": "The LinkedIn connections reader reads the whole list in the person's session",
+  "steps": [
+   {
+    "reader": "linkedin_connections",
+    "ok": true,
+    "health": "ok",
+    "detail": null,
+    "seconds": 145.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "reader_health",
+    "arg": "linkedin_connections",
+    "ok": true,
+    "why": "linkedin_connections: ok, 1551 rows.",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "linkedin_connections",
+     "reader": "linkedin_connections",
+     "at_least_fraction_of_last_ok": 0.95
+    },
+    "ok": true,
+    "why": "1551 rows kept; the reader last read 1551.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 145.8,
+  "error": null
+ },
+ {
+  "name": "memory_correction",
+  "title": "Memory · a correction overrides the earlier belief, at once and afterwards",
+  "steps": [
+   {
+    "say": "my protein target is now 130 g a day, not 115",
+    "ok": true,
+    "reply": "Updated — protein target is now 130g/day (was 115g).",
+    "steps": 2,
+    "seconds": 15.3
+   },
+   {
+    "say": "what's my daily protein target?",
+    "ok": true,
+    "reply": "Your daily protein target is **130g**, just updated from 115g.",
+    "steps": 1,
+    "seconds": 20.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "130"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 130 g as the current target and does not present 115 g as still current (mentioning 115 as the old value is fine). Fails otherwise.",
+    "ok": true,
+    "why": "The answer states 130g as the current target and mentions 115g only as the prior value, satisfying the rubric.",
+    "seconds": 4.4
+   }
+  ],
+  "seconds": 40.5,
+  "error": null
+ },
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "The three highest asking-price deals in the tracker:\n\n1. **High Growth Indoor & Outdoor Furniture Brand** (Website Closers) — $90,000,000 asking, $14.4M cash flow, Pending\n2. **CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers) — $29,000,000 asking, $6.0M cash flow, Active\n3. **Mission-Critical SaaS for Financial Trading Firms** (Website Closers) — $28,500,000 asking, $3.35M cash flow, Active",
+    "steps": 2,
+    "seconds": 25.6
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers)\n\n- Full title: \"CPG eCommerce Brand | Niche Furniture Fix-It Products | Internally Designed Products | Full Remote Team | Strong Top & Bottom Line YOY Growth | 20X ROAS\"\n- Asking price: $29,000,000\n- Cash flow: $6,048,663\n- Category: General Business\n- Status: Active\n- Listing: [websiteclosers.com](https://www.websiteclosers.com/businesses/cpg-ecommerce-brand-niche-furniture-fix-it-products-internally-designed-products-full-remote-team-strong-top-bottom-line-yoy-growth-20x-roas/119224/)\n\nRevenue isn't populated for thi",
+    "steps": 2,
+    "seconds": 22.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer gives detailed info on the CPG eCommerce Brand furniture fix-it deal, which was correctly the second item listed previously.",
+    "seconds": 6.0
+   }
+  ],
+  "seconds": 53.7,
+  "error": null
+ },
+ {
+  "name": "memory_noticing",
+  "title": "Memory · what is said in passing about a person is kept on their page, and comes back",
+  "steps": [
+   {
+    "say": "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech",
+    "ok": true,
+    "reply": "Noted — logged that you met Vikas this morning, and updated his record: moving to Bangalore next month, interested in co-founding a fintech startup.",
+    "steps": 4,
+    "seconds": 45.8
+   },
+   {
+    "say": "what's going on with vikas these days?",
+    "ok": true,
+    "reply": "Here's what's on record for Vikas Badami:\n\n- **Today (coffee this morning):** he's relocating to Bangalore next month, and wants to co-found a fintech startup — you told me this directly, so it's confirmed.\n- **Collaboration:** he's been sending over RestoPros financial data (A/R aging, sales by customer, transaction detail, and more attachments) — flagged as a suggestion since it was inferred from the emails, not stated by you.\n- **Relationship:** long-standing connection since June 2019.\n\nNothing else new in the emails/attachments beyond the RestoPros files already logged. Want me to confirm",
+    "steps": 2,
+    "seconds": 25.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details.",
+    "ok": true,
+    "why": "The answer states Vikas is relocating to Bangalore next month and wants to co-found a fintech startup, matching the rubric.",
+    "seconds": 4.1
+   }
+  ],
+  "seconds": 75.5,
+  "error": null
+ },
+ {
+  "name": "memory_old_fact",
+  "title": "Memory · a fact stated days ago is used without being asked again",
+  "steps": [
+   {
+    "say": "how tall am i, and what do i weigh?",
+    "ok": true,
+    "reply": "You're **178 cm** tall and your last logged weight was **63 kg** (self-reported, 1 Oct 2026).",
+    "steps": 2,
+    "seconds": 33.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "178"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "63"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 178 cm and 63 kg as the person's own figures. Fails if it asks the person for them or guesses.",
+    "ok": true,
+    "why": "The answer provides the person's own figures, 178 cm and 63 kg, without asking for them or guessing, matching the rubric.",
+    "seconds": 4.9
+   }
+  ],
+  "seconds": 38.3,
+  "error": null
+ },
+ {
+  "name": "memory_two_sources",
+  "title": "Memory · one person known from two sources is one person",
+  "steps": [
+   {
+    "say": "what do i know about alexander miller, and what did he last write to me?",
+    "ok": true,
+    "reply": "Here's what's on record for **Alexander Miller**:\n\n**What I know:**\n- LinkedIn connection since 5 Aug 2025, headline \"Building Teams That Impact The World\"\n- On the thread \"Fuse Energy | World-Class Team | Real-World Impact at Scale,\" he proposed meeting up — recorded as *exploring a meeting with you, next week or later* (this is still a suggestion, not confirmed)\n\n**What he last wrote to you:**\nOn 1 Oct, via LinkedIn's reply-notification email, on that same Fuse Energy thread, he wrote:\n*\"Could next week or following work for you?\"*\n\nYou haven't replied yet as far as the record shows — want m",
+    "steps": 6,
+    "seconds": 39.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer draws on both the LinkedIn connection (his headline or company, e.g. Fuse Energy) and his email (what he last wrote, e.g. asking whether next week or the following works). Fails if it uses only one source, invents, or says it doesn't know him.",
+    "ok": true,
+    "why": "The answer combines LinkedIn connection details (headline, Fuse Energy thread) with the content of his last message (asking if next week or following works), satisfying the rubric's dual-source requirement.",
+    "seconds": 5.0
+   }
+  ],
+  "seconds": 44.7,
+  "error": null
+ },
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos is a recruiter at **pndtalent.com** — she's not one of your saved LinkedIn connections, so I only know her from email activity.\n\n**Last dealt with her:** she emailed you on **1 Oct 2026** (within the 24-hour window I checked that day), and she showed up again as an email contact in the past-7-days check I ran on **3 Oct 2026** — so she's emailed you at least twice in the last few days. I don't have the subject or content of her emails on record, only that she appeared in your inbox activity; I haven't read those emails directly.",
+    "steps": 5,
+    "seconds": 32.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents.",
+    "ok": false,
+    "why": "The answer never mentions the Penelope Health founding engineer email or the Oct 2 intro meeting, and misattributes her to pndtalent.com, so it fails the rubric.",
+    "seconds": 16.3
+   }
+  ],
+  "seconds": 48.8,
+  "error": null
+ },
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (Fri 2 Oct) you said one thing about Vikas: **\"ok lets track emails then, sent by vikas badami\"** (18:43) — which led Alpha to build the Vikas Badami Emails and Attachments tables for the Advisory module. That's the only direct mention of him from you that day; everything else on 2 Oct was Alpha's own reading/building activity (pulling his emails, downloading RestoPros financial attachments, running integrity checks).",
+    "steps": 3,
+    "seconds": 34.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": false,
+    "why": "The answer discusses an email-tracking comment about Vikas instead of a promise to deliver the financial model by Friday, so it fails the rubric.",
+    "seconds": 10.2
+   }
+  ],
+  "seconds": 44.3,
+  "error": null
+ },
+ {
+  "name": "plan_declined",
+  "title": "A plan the person declines builds nothing",
+  "steps": [
+   {
+    "say": "i want to keep track of every book i read this year with my rating",
+    "ok": true,
+    "reply": "I'd set up a simple **Reading** module with a `books_read` table (title, author, date finished, rating, genre, notes) — all filled in from what you tell me as you finish books, nothing looked up or guessed.\n\nTwo quick questions:\n1. Rating scale — 1–5 stars, 1–10, or something else?\n2. Any other field worth tracking, like format (physical/ebook/audiobook) or whether you'd re-read it?",
+    "steps": 4,
+    "seconds": 47.6
+   },
+   {
+    "decline_plan": "Book tracker",
+    "ok": true,
+    "state": "declined",
+    "seconds": 2.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "plan",
+    "arg": "proposed",
+    "ok": true,
+    "why": "Plans: Book tracker (proposed).",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "plan",
+    "arg": "declined",
+    "ok": true,
+    "why": "Plans: Book tracker (declined).",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 49.8,
+  "error": null
+ },
+ {
+  "name": "skill_reuse",
+  "title": "Know-how is reused, not rewritten — a second Gmail draft uses the procedure Alpha has",
+  "steps": [
+   {
+    "say": "draft an email in gmail to kenilrameshshah.krs@gmail.com with the subject 'Skill reuse check' saying: hello from Alpha, this is a check that the draft procedure is reused.",
+    "ok": true,
+    "reply": "Draft created and ready — you'll see a preview card to approve before it saves in Gmail (it's a draft, nothing gets sent).",
+    "steps": 2,
+    "seconds": 34.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "action",
+    "arg": {
+     "state": "proposed",
+     "effect": "prepare",
+     "preview": true,
+     "procedure": "gmail_draft"
+    },
+    "ok": true,
+    "why": "\"Draft to Kenil: Skill reuse check\" (prepare on google.com): proposed; preview preview.png",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_skills",
+    "arg": {},
+    "ok": true,
+    "why": "No skill was written or rewritten.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 34.2,
+  "error": null
+ },
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask is understood and proposed, and nothing is built",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I found a clean source — [dev.events/EU/GB/London/ai](https://dev.events/EU/GB/London/ai) lists exactly AI conferences in London with structured dates, no sign-in needed. I've proposed a plan to set up a tracker for it; a few quick questions before I build it:\n\n1. Keep every event dev.events tags \"AI\" (a few, like React Advanced, aren't really AI-focused), or filter to clearly AI/ML-focused ones only?\n2. Keep events into 2027 too, or just through end of 2026?\n3. Weekly refresh okay, or daily?",
+    "steps": 9,
+    "seconds": 85.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "plan",
+    "arg": "proposed",
+    "ok": true,
+    "why": "Plans: AI Conferences in London tracker (proposed).",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "(^|\\n)\\s*1[.)]"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 85.7,
+  "error": null
+ }
+]

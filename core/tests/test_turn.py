@@ -7,7 +7,7 @@ from pathlib import Path
 from alpha.context import prepack
 from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
-from alpha.runtime.turn import ask
+from alpha.runtime.turn import ask, timings
 from alpha.world.world import World
 
 
@@ -29,7 +29,7 @@ def test_a_turn_journals_both_sides_and_carries_the_world(world: World) -> None:
     assert out.ok and out.reply.startswith("You've had")
     system = seen[0].system
     assert "THIS CONVERSATION" in system and "log two boiled eggs" in system
-    assert "Module Food" in system and "food_log (1)" in system
+    assert "Module Food" in system and "food_log (1 row)" in system
     assert "MATCHES FOR THIS SENTENCE" in system and "Two boiled [eggs]" in system
     assert seen[0].turn_id == out.said and seen[0].world_path == world.path
     replied = world.journal.read(out.replied)
@@ -145,3 +145,52 @@ def test_a_streamed_run_is_watched_and_its_result_read() -> None:
     ])
     out = claude_cli.parse(stream, "", 0)
     assert out.ok and out.reply == "Done." and out.num_turns == 3
+
+
+def test_the_prepack_lists_each_tables_fields_and_keeps_every_section_within_its_budget(
+        world: World) -> None:
+    """A data question is one query, not a describe and a query (3 Oct: every such turn paid
+    the step); a long section says what it left out instead of the tail being cut blind."""
+    from conftest import building
+
+    t = building(world)
+    module = t.module_create("Nutrition", "eat well")["id"]
+    t.collection_create("food_log", "Food log", [
+        {"name": "date", "kind": "date"}, {"name": "meal", "kind": "choice",
+                                           "choices": ["Breakfast", "Lunch"]},
+        {"name": "item", "kind": "text"}, {"name": "calories", "kind": "number", "unit": "kcal"},
+        {"name": "client", "kind": "relation", "relation": "clients"}], module=module)
+    text = prepack.build(world, "how much did I eat")
+    assert "WHAT ALPHA HOLDS (each table with its fields: query it straight away)" in text
+    assert ("  food_log (0 rows): date date, meal choice[Breakfast|Lunch], item,"
+            " calories number kcal, client relation->clients") in text
+    assert f"- Module Nutrition ({module}) — eat well" in text
+    # Twelve long turns overflow the conversation's budget: the newest stay, the count is said.
+    for i in range(12):
+        world.journal.append("said", f"turn {i} " + "words " * 80, actor="person")
+        world.journal.append("replied", f"reply {i} " + "words " * 80)
+    text = prepack.build(world, "anything")
+    convo = text[text.index("THIS CONVERSATION"):text.index("MATCHES") if "MATCHES" in text
+                 else len(text)]
+    assert "reply 11" in convo and "turn 0 " not in convo
+    assert "earlier lines left out for room" in convo
+    assert len(convo) <= prepack.BUDGET["THIS CONVERSATION"] + 80
+    # A world with a long index still fits: the whole shrinks by section, never cut short.
+    for i in range(300):
+        world.knowledge.write_note(f"topic:t{i}", f"Topic {i}", "Body.", summary="s" * 120)
+    text = prepack.build(world, "anything")
+    assert len(text) <= prepack.MAX_CHARS and "cut short" not in text
+    assert "MATCHES" in text or "THIS CONVERSATION" in text
+    assert "lines left out for room" in text[text.index("WHAT ALPHA KNOWS"):]
+
+
+def test_turn_timings_are_measured_from_the_journal(world: World) -> None:
+    def runner(req: TurnRequest) -> RunResult:
+        return RunResult(reply="Done.", ok=True, duration_ms=1200, num_turns=3, session_id="s1")
+
+    ask(world, "log two eggs", runner=runner)
+    ask(world, "and a banana", runner=runner)
+    rows = timings(world)
+    assert [r["model_s"] for r in rows] == [1.2, 1.2] and [r["steps"] for r in rows] == [3, 3]
+    assert [r["resumed"] for r in rows] == [False, True] and all(r["ok"] for r in rows)
+    assert rows[0]["wall_s"] >= 0 and rows[0]["text"] == "log two eggs"

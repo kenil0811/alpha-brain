@@ -7,7 +7,7 @@ went, and history about a removed thing is marked as such wherever Alpha reads i
 as a record but lose the session the model would resume, and open questions are closed.
 
 `remove_module` deletes a module's tables and their rows, the readers its automations use, its
-automations, its note and its goals; its sub projects move back to the top level. Entities and
+automations, its note and its goals, and every module inside it, the same way. Entities and
 facts stay (they belong to the person, not to a module), and so do connections (a sign-in
 belongs to Alpha's browser).
 
@@ -30,7 +30,8 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.base import Connections
-from alpha.connectors.browser import profile_of, signin_sites, site_of
+from alpha.connectors.browser import profile_of, signin_sites
+from alpha.world.sites import site_of
 from alpha.world.store import Problem, now
 from alpha.world.views import Views
 from alpha.world.world import World, alpha_home
@@ -76,6 +77,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     module = world.modules.get(ref)
     mid, name = module["id"], module["name"]
     store = world.store
+    # What it holds goes first, each with everything of its own.
+    inside = [remove_module(world, child["id"]) for child in world.modules.children(mid)]
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
     autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
         "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
@@ -93,6 +96,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     threads |= {a["thread"] for a in autos if a["thread"]}
     asks = [a["id"] for a in world.journal.open_asks() if a["module"] == mid]
     counts: dict[str, Any] = {"module": name}
+    if inside:
+        counts["inside"] = inside
     with store.tx() as db:
         records = 0
         for table in tables:
@@ -115,8 +120,6 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["notes"] = db.execute(
             "DELETE FROM notes WHERE scope = ?", (f"module:{name}",)).rowcount
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
-        counts["sub_projects"] = db.execute(
-            "UPDATE modules SET project = NULL WHERE project = ?", (mid,)).rowcount
         counts["sources"] = world.sources.remove_module(db, mid)
         counts["actions"] = world.actions.remove_module(db, mid)
         files = [r["path"] for r in db.execute("SELECT path FROM documents WHERE module = ?",

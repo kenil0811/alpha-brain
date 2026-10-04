@@ -153,7 +153,7 @@ export function ProjectEditDialog({ client, project, edit, onClose, onChanged, o
           ) : (
             <>
               <p className="projedit__what">
-                Removes {tables} {tables === 1 ? "table" : "tables"} ({project.records} {project.records === 1 ? "row" : "rows"}), its automations, note and goals. Activity keeps the history.{subProjects ? " Its sub projects move back to the top level." : ""} This cannot be undone.
+                Removes {tables} {tables === 1 ? "table" : "tables"} ({project.records} {project.records === 1 ? "row" : "rows"}), its automations, note and goals. Activity keeps the history.{subProjects ? ` The ${subProjects === 1 ? "project" : `${subProjects} projects`} inside it ${subProjects === 1 ? "goes" : "go"} too.` : ""} This cannot be undone.
               </p>
               <div className="projedit__actions">
                 <Button size="sm" onClick={onClose} disabled={busy}>

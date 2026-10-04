@@ -70,7 +70,7 @@ core/alpha/
   context/prepack.py   the deterministic pre-pack
   runtime/claude_cli.py launch `claude -p` with the MCP server; parse the JSON result
   runtime/turn.py      a turn: journal → pre-pack → run → journal
-  mcp/tools.py         plain functions bound to a World (testable)
+  mcp/tools/           plain methods bound to a World (testable), one module per thing touched
   mcp/server.py        FastMCP stdio server registering those functions
   cli.py               `alpha ask | journal | search | tables | show | notes | prepack | mcp`
 core/tests/
@@ -156,7 +156,9 @@ Scope (a module, a person) moves that module's or entity's material to the top.
 
 *As built it differs: twelve sections (NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE
 GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · TODAY'S CALENDAR · NOTES · RECENT CONVERSATION
-· MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN), cut at 12,000 characters; WHO includes
+· MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN), at most 12,000 characters (14,000 since
+3 Oct night, each section within a budget of its own and the whole shrunk by section, never
+cut blind; WHAT ALPHA HOLDS lists every table with its fields); WHO includes
 suggested facts marked by state; notes are the first 100 characters, at most 20; matches are
 relevance-first (5 records, 3 documents, journal hits to 10 lines in all); only a module scope
 exists and it moves that module first within WHAT ALPHA HOLDS; no entity cards.*
@@ -216,7 +218,7 @@ opens a thread; "do now, deepen later" is gone (§4.7–§4.8). The build, autom
 independent and judge runs each have their own rules in `build.py`, `automation.py`,
 `pipeline.py` and `check.py`.*
 
-### 3.6 MCP tools (`mcp/tools.py`, registered in `mcp/server.py`)
+### 3.6 MCP tools (`mcp/tools/`, registered in `mcp/server.py`)
 
 All take and return JSON-serialisable values; errors are returned as `{"error": ...}` in plain
 words, never raised through the server.
@@ -244,7 +246,7 @@ Server: `FastMCP("alpha")`; tools registered with `mcp.tool(fn)` so the function
 testable; the World path from `ALPHA_WORLD`; stdio transport.
 
 *Thirty-one tools then; 63 on 2 Oct, registered from the `@tool` methods of `Tools` in
-`mcp/tools.py`. Finding: `search` (records, documents, journal; no `kinds`), `journal_recent`,
+`mcp/tools/` (a package since 3 Oct night, one module per thing the tools touch). Finding: `search` (records, documents, journal; no `kinds`), `journal_recent`,
 `journal_read`, `journal_note`. Tables: `collections_list`, `collection_describe`,
 `collection_create` (gated; `rows_are`, `identity_field`), `collection_identify`,
 `collection_add_fields`, `record_history`, `records_add` (`source`, `assumed`),

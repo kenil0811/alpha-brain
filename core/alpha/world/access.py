@@ -21,9 +21,9 @@ import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from alpha.connectors.browser import site_of
 from alpha.models import settings
 from alpha.world.pending import PendingActions, register
+from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World
 

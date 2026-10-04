@@ -56,8 +56,10 @@ core/alpha/
   runtime/      how a run happens: claude_cli (the model boundary), turn, build, pipeline,
                 acting, automation (the scheduler), conversations, judge (the System One seam),
                 noticing, check (the second opinion).
-  mcp/          the world as tools for the model (tools.py, server.py).
-  api/          the loopback HTTP API the app uses (server.py) and the turn runner.
+  mcp/          the world as tools for the model: tools/ (one module per thing they touch, on
+                a shared base), server.py (the MCP server that registers them).
+  api/          the loopback HTTP API the app uses: server.py (create_app, serve), one module
+                of routes per area, turns.py (turns in the background), views.py, served.py.
   connectors/   the Python side of the hands: browser, files, calendar.
   journeys/     the suite that runs ../journeys/*.yaml on a copy of a world.
   cli.py        `alpha …` commands.
@@ -73,7 +75,8 @@ Where a change goes:
 
 - A new kind of thing the world holds → a module in `world/` with its table in `store.py`'s
   schema, its view function, and its purge rule (removal must take everything related).
-- A new way the model can act on the world → a `@tool` method in `mcp/tools.py` (see §3.4),
+- A new way the model can act on the world → a `@tool` method in the `mcp/tools/` module
+  for what it touches (see §3.4),
   and nothing else: the API and the app read the world, they do not have tools of their own.
 - A new way a run happens (a kind of background work, a judgement) → `runtime/`.
 - A new surface for the person → the app, talking to the core only through `client.ts`.
@@ -84,10 +87,10 @@ in `world/` never imports from `runtime/`. An import inside a function is a smel
 the direction is wrong; it is tolerated only to break a cycle that cannot be removed today,
 with a comment saying so.
 
-**Known debt** (the 3 Oct checkpoint, `docs/log/2026-10-03-checkpoint.md`): `mcp/tools.py`
-and `api/server.py` are too big and will become packages; "same site" is computed in four
-places; the record search index is kept in step by hand. New code should not add to any of
-these; the next slice removes them.
+**Known debt** (the 3 Oct checkpoint, `docs/log/2026-10-03-checkpoint.md`): the record search
+index is kept in step by hand. New code should not add to it. (The two giant modules became
+packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a name's rule is
+`world/names.py`; a proposal is answered through `journal.answer_proposal`.)
 
 ## 3. Conventions
 
@@ -223,8 +226,11 @@ threads (a state move, an upsert) is written as in §3.2.
   separate from one that carries an inline transform (WebKit replaces, it does not compose).
 - Every button has a label; every list that updates has a role; keyboard paths exist for
   what a mouse can do (the review of 3 Oct lists the gaps; new code does not add to them).
-- A failed request shows an error state with a way to retry; a poll stops when its window is
-  hidden (both aspirational as of 3 Oct; see the state page's pending list).
+- A failed request shows what failed and offers to try again (`ui/Trouble`), never an empty
+  list or "Loading…" for ever. A page keeps no clock of its own: it refetches when the
+  window's one poll (`core/changes.ts`, `/api/changes`) says something it shows moved, and that
+  poll stops while the window is hidden. A turn's poll survives a missed answer
+  (`Client.waitTurn`); the words come back to the composer when the core is lost.
 - `pnpm typecheck` and `pnpm test` (vitest, jsdom) clean at every commit; a component with
   state gets a test.
 

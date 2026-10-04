@@ -8,6 +8,7 @@
     alpha notes
     alpha prepack "how much protein today" [--module Food]
     alpha context j_turn            (what the model saw for that turn)
+    alpha turns [--limit 40]        (how long the last turns took: wall, model, steps)
     alpha check [j_turn] [--no-repair]   (a reply against an independent answer)
     alpha remove-module Food        (the module and everything made for it; history stays)
     alpha clear-conversation        (the stream's turns; the only physical journal delete)
@@ -67,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("remove-module", help="delete a module and everything that belongs to it")
     p.add_argument("module")
     sub.add_parser("clear-conversation", help="delete the conversation (activity stays)")
+    p = sub.add_parser("turns", help="how long the last turns took, measured from the journal")
+    p.add_argument("--limit", type=int, default=40)
     p = sub.add_parser("context", help="print what the model was given for a turn")
     p.add_argument("turn", help="the turn's journal id (its 'said' entry)")
     p = sub.add_parser("check", help="check a turn's reply against an independent answer")
@@ -199,6 +202,29 @@ def main(argv: list[str] | None = None) -> int:
                 result = Browser(world).start_signin(args.target)
                 print("A window is open: sign in there, then close it.", file=sys.stderr)
             print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0
+        if args.command == "turns":
+            rows = turn.timings(world, args.limit)
+            if not rows:
+                print("No turns with timings yet.")
+                return 0
+            print(_table([{"when": r["at"][5:16].replace("T", " "), "wall s": r["wall_s"],
+                           "model s": r["model_s"], "steps": r["steps"],
+                           "session": "resumed" if r["resumed"] else "fresh",
+                           "said": r["text"]} for r in rows],
+                         ["when", "wall s", "model s", "steps", "session", "said"]))
+
+            def med(xs: list[float]) -> float:
+                return sorted(xs)[len(xs) // 2] if xs else 0.0
+
+            fresh = [r for r in rows if not r["resumed"]]
+            warm = [r for r in rows if r["resumed"]]
+            print(f"\n{len(rows)} turns: wall median {med([r['wall_s'] for r in rows]):.0f} s,"
+                  f" model median {med([r['model_s'] for r in rows]):.0f} s, steps median"
+                  f" {med([r['steps'] for r in rows]):.0f}; overhead median"
+                  f" {med([r['wall_s'] - r['model_s'] for r in rows]):.1f} s."
+                  f" Fresh {len(fresh)} (wall median {med([r['wall_s'] for r in fresh]):.0f} s),"
+                  f" resumed {len(warm)} (wall median {med([r['wall_s'] for r in warm]):.0f} s).")
             return 0
         if args.command == "context":
             kept = world.journal.context(args.turn)

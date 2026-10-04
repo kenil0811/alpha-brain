@@ -14,12 +14,13 @@ import { autoGrow, useComposerDrop, usePasteAttachments } from "../assistant/att
 import { ConnectCard } from "../shell/models";
 import { usePushToTalk } from "../shell/ptt";
 import { useTts } from "../shell/tts";
+import { useVisible } from "../core/changes";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
 import { moved, press, released, type Press } from "./drag";
 import { SIZE_PX, normaliseLook } from "./looks";
 import { hasTauri } from "../core/session";
-import { Button, IconButton } from "../ui";
+import { Button, IconButton, Rich } from "../ui";
 import { ArrowUp, X, Maximize2 } from "../ui/icons";
 
 export const HANDOFF_KEY = "alpha.handoff";
@@ -89,6 +90,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const drop = useComposerDrop(attach.add, formRef);
   const paste = usePasteAttachments(attach.add);
 
+  const [trouble, setTrouble] = useState<string | null>(null);
   const refresh = useCallback(() => {
     client
       .companion()
@@ -99,19 +101,44 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       .then((c) => {
         setTurns(c.turns.slice(-12));
         setRunning(c.running);
+        setTrouble(null);
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
     client.home().then(setHome).catch(() => undefined);
     client
       .modelProviders()
       .then((rows) => setStar(rows.find((r) => r.default) ?? null))
       .catch(() => undefined);
   }, [client]);
+  // One cheap poll asks what changed (every 3 s while Alpha works, 10 s when quiet, nothing
+  // while the window is hidden) and the companion refreshes only when something did.
+  const visible = useVisible();
+  const since = useRef<string | null>(null);
   useEffect(() => {
-    refresh();
-    const timer = setInterval(refresh, 10_000);
-    return () => clearInterval(timer);
-  }, [refresh]);
+    if (!visible) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      let every = 10_000;
+      try {
+        const c = await client.changes(since.current);
+        const first = since.current === null;
+        since.current = c.at;
+        if (first || c.journal > 0 || c.threads || c.plans || c.actions) refresh();
+        if (c.working) every = 3_000;
+        setTrouble(null);
+      } catch (e) {
+        setTrouble(e instanceof Error ? e.message : String(e));
+        every = 5_000;
+      }
+      if (!cancelled) timer = setTimeout(() => void tick(), every);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [client, refresh, visible]);
   useEffect(() => {
     listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight });
   }, [turns, expanded, busy]);
@@ -268,7 +295,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   // The ring and dot keep their four looks: listening, working, needs you, here.
   const state = speech.listening ? "listening" : view.state === "thinking" || view.state === "working" || view.state === "building" ? "working" : view.state === "idle" ? "idle" : "needs";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = speech.listening ? "Listening…" : view.state === "idle" && focusName ? focusName : view.text;
+  const label = trouble ? "Core not answering" : speech.listening ? "Listening…" : view.state === "idle" && focusName ? focusName : view.text;
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && view.state === "disconnected" ? view.text : null);
@@ -320,7 +347,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             {turns.map((t) => (
               <div key={t.id} className={t.kind === "said" ? "avatar__said" : "avatar__reply"}>
                 {t.kind === "said" ? <AttachmentChips items={sentAttachments(t.data)} /> : null}
-                {t.text}
+                {t.kind === "said" ? t.text : <Rich text={t.text} />}
               </div>
             ))}
             {connect ? (

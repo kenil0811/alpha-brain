@@ -62,6 +62,8 @@ def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any
 
     for m in world.modules.all():
         node(f"module:{m['id']}", "module", m["name"], subtitle=m.get("goal"), module=m["id"])
+        if m.get("parent"):
+            edge(f"module:{m['id']}", f"module:{m['parent']}", "in")
 
     for t in world.collections.overview():
         node(f"table:{t['name']}", "table", t["title"], subtitle=f"{t['records']:,} rows",
@@ -194,6 +196,8 @@ def world_graph(world: World) -> dict[str, Any]:
 
     for m in world.modules.all():
         node(f"module:{m['id']}", "module", m["name"], subtitle=m.get("goal"), module=m["id"])
+        if m.get("parent"):
+            edge(f"module:{m['id']}", f"module:{m['parent']}", "in")
     for t in world.collections.overview():
         node(f"table:{t['name']}", "table", t["title"], subtitle=f"{t['records']:,} rows",
              module=t["module"], rows=t["records"])

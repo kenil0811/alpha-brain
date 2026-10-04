@@ -15,7 +15,7 @@ import { usePushToTalk } from "../shell/ptt";
 import { MicButton, useSpeech } from "../shell/voice";
 import { AttachMenu, AttachmentChips, sentAttachments, useAttachments } from "./AttachMenu";
 import { useComposerDrop, usePasteAttachments } from "./attachments";
-import { Button, IconButton } from "../ui";
+import { Button, IconButton, Rich } from "../ui";
 import { ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsRight, PlusIcon, X } from "../ui/icons";
 import { ZazooIcon } from "../ui/ZazooIcon";
 
@@ -135,33 +135,6 @@ function Message({ e, onPage }: { e: JournalEntry; onPage: boolean }) {
   );
 }
 
-/** Replies come as light Markdown: paragraphs, "- " lists and **bold**. */
-function Rich({ text }: { text: string }) {
-  const blocks = text.split(/\n{2,}/);
-  const inline = (line: string, key: number) => (
-    <span key={key}>
-      {line.split(/(\*\*[^*]+\*\*)/).map((part, i) => (part.startsWith("**") && part.endsWith("**") ? <b key={i}>{part.slice(2, -2)}</b> : part))}
-    </span>
-  );
-  return (
-    <>
-      {blocks.map((block, i) => {
-        const lines = block.split("\n");
-        if (lines.every((l) => /^\s*[-•]\s/.test(l))) {
-          return (
-            <ul key={i} className="msg__list">
-              {lines.map((l, j) => (
-                <li key={j}>{inline(l.replace(/^\s*[-•]\s/, ""), j)}</li>
-              ))}
-            </ul>
-          );
-        }
-        return <p key={i}>{lines.map((l, j) => (j ? [<br key={`b${j}`} />, inline(l, j)] : inline(l, j)))}</p>;
-      })}
-    </>
-  );
-}
-
 /** Where the panel's chat stands: the global conversation (`undefined`), a fresh chat that
  *  starts with the next message (`null`), or a chat or thread by id. */
 export type ChatChoice = string | null | undefined;
@@ -270,16 +243,8 @@ export function AssistantPanel({
     return () => window.clearInterval(id);
   }, [client, threadView?.id, threadView?.state]);
   useEffect(load, [load, version]);
-  // Alpha works on its own too (a deepen pass, a folder that changed): look again every 5 s
-  // while something is working, every 15 s otherwise.
-  const working = threads.some((t) => t.state === "working") || threadView?.state === "working";
-  useEffect(() => {
-    const timer = setInterval(() => {
-      load();
-      if (working) onChanged();
-    }, working ? 5000 : 15000);
-    return () => clearInterval(timer);
-  }, [working, load, onChanged]);
+  // Alpha works on its own too (a build, a folder that changed): `version` moves when the
+  // window's one poll sees a change (core/changes.ts); the panel keeps no clock of its own.
   useEffect(() => {
     body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
@@ -292,10 +257,14 @@ export function AssistantPanel({
     return () => clearInterval(timer);
   }, [pendingId]);
 
+  // Set the moment a send starts, before the core has answered: a second ⏎ in that moment
+  // used to send the sentence twice.
+  const sending = useRef(false);
   const send = useCallback(
     async (sentence: string, into?: string) => {
       const clean = sentence.trim();
-      if (!clean || pending) return;
+      if (!clean || pending || sending.current) return;
+      sending.current = true;
       setText("");
       autoGrow(input.current);
       setError(null);
@@ -322,8 +291,11 @@ export function AssistantPanel({
         if (final.state === "needs_connect" && final.provider) setConnect({ provider: final.provider, text: clean, kind: final.connect_kind ?? undefined, reason: final.reply });
         else if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        // The core stopped answering (or lost the turn): the words come back to the box.
+        setError(`${e instanceof Error ? e.message : String(e)} Your message is back in the box.`);
+        setText((current) => current || clean);
       } finally {
+        sending.current = false;
         setPending(null);
         load();
         onChanged();
@@ -377,11 +349,11 @@ export function AssistantPanel({
       if (!turn) return;
       setPending(turn);
       setElapsed(0);
-      let current = turn;
-      while ((current.state === "running" || current.state === "routing") && current.id) {
-        await new Promise((r) => setTimeout(r, 1000));
-        current = await client.turn(current.id).catch(() => ({ ...current, state: "failed" as const }));
-        setPending(current);
+      try {
+        const final = await client.waitTurn(turn, setPending);
+        if (final.state === "failed") setError(final.reply ?? "That didn't work.");
+      } catch (e) {
+        setError(`${e instanceof Error ? e.message : String(e)} The turn may still have run; its answer shows here when the core is back.`);
       }
       setPending(null);
       load();

@@ -1,0 +1,67 @@
+[
+ {
+  "name": "nested_modules",
+  "title": "An area with parts is proposed as a module holding modules, and built that way after the yes",
+  "steps": [
+   {
+    "say": "set up a Job area for my founding-engineer hunt with two parts inside it: a Search module that keeps openings I find, and a Resume module that keeps the versions of my resume I send out",
+    "ok": true,
+    "reply": "I've proposed a plan rather than just building it, since this sets up new modules/tables.\n\n**Short version:** make a new **Job** parent module, move the existing **Job Search** module (118 listings, its daily automation) under it, and add a new **Resume** module with a table for resume versions (label, file, date, sent-to, notes).\n\nOne catch: Alpha can't rename an existing module, so \"Job Search\" would stay called that when nested under Job, rather than becoming plain \"Search.\" Two quick questions in the plan:\n1. Keep that name as-is, or want me to migrate the 118 listings into a freshly-named",
+    "steps": 8,
+    "seconds": 81.2
+   },
+   {
+    "build": "Job area: Search + Resume modules",
+    "ok": true,
+    "state": "done",
+    "report": "Done. I set up a **Job** parent module for the founding-engineer hunt, with two parts under it:\n\n- **Job › Job Search** — your existing 118 scraped listings, daily automation and goal, moved in untouched. Since Alpha can't rename a module, it keeps the \"Job Search\" label at this nested path rather than becoming plain \"Search\" — functionally identical, just that label.\n- **Job › Resume** — new, with a table for resume versions (label, file, date, sent to, notes). It's empty for now since no resume has been dropped yet; every value here will be either what you tell Alpha or a file you drop on th",
+    "seconds": 71.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "plan",
+    "arg": "proposed",
+    "ok": true,
+    "why": "Plans: Job area: Search + Resume modules (proposed).",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "plan",
+    "arg": "done",
+    "ok": true,
+    "why": "Plans: Job area: Search + Resume modules (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "module_inside",
+    "arg": {
+     "module": "Search",
+     "parent": "Job"
+    },
+    "ok": true,
+    "why": "Job Search sits inside Job › Job Search.",
+    "seconds": 0.0
+   },
+   {
+    "check": "module_inside",
+    "arg": {
+     "module": "Resume",
+     "parent": "Job"
+    },
+    "ok": true,
+    "why": "Resume sits inside Job › Resume.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 152.5,
+  "error": null
+ }
+]

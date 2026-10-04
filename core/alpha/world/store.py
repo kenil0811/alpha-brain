@@ -160,7 +160,6 @@ CREATE TABLE IF NOT EXISTS modules (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     goal TEXT,
-    project TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -423,6 +422,7 @@ CREATE TABLE IF NOT EXISTS preferences (
 
 # Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
+    ("modules", "parent", "TEXT"),  # a module inside a module (3 Oct night, Q31)
     ("records", "entity_id", "TEXT"),
     ("notes", "source", "TEXT"),
     ("entities", "source", "TEXT"),
@@ -472,7 +472,17 @@ def _views_as_lists(db: sqlite3.Connection) -> None:
         db.executescript(SCHEMA)
 
 
-STEPS: list[Callable[[sqlite3.Connection], None]] = [_add_columns, _views_as_lists]
+def _sub_projects_as_parents(db: sqlite3.Connection) -> None:
+    """The bridge-parity window's one-level sub projects (`modules.project`) become main's
+    nesting (`modules.parent`, Q31); the old column stays, unread."""
+    have = {r[1] for r in db.execute("PRAGMA table_info(modules)")}
+    if "project" in have:
+        db.execute("UPDATE modules SET parent = project WHERE parent IS NULL"
+                   " AND project IS NOT NULL")
+
+
+STEPS: list[Callable[[sqlite3.Connection], None]] = [_add_columns, _views_as_lists,
+                                                     _sub_projects_as_parents]
 VERSION = len(STEPS)
 
 

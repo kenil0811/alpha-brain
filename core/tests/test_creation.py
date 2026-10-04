@@ -13,7 +13,8 @@ from typing import Any
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
-from alpha.mcp.tools import OUTCOMES_OPEN, Tools
+from alpha.mcp.tools import Tools
+from alpha.mcp.tools.modules import OUTCOMES_OPEN
 from alpha.runtime import turn as turns
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world import taint
@@ -302,26 +303,20 @@ def test_a_restart_while_thinking_is_said_on_the_page(world: World) -> None:
 # ---- project management ----
 
 
-def test_sub_projects_are_one_level_and_come_back_when_the_parent_goes(world: World) -> None:
+def test_a_project_is_edited_in_place_and_nests_as_main_does(world: World) -> None:
     c = client(world, stage_runner())
     school = world.modules.create("School")["id"]
     grades = world.modules.create("Grades")["id"]
-    books = world.modules.create("Books")["id"]
-    assert c.patch(f"/api/modules/{grades}", json={"project": school}).json()["project"] == school
-    assert "sub project already" in c.patch(f"/api/modules/{books}",
-                                            json={"project": grades}).json()["error"]
-    assert "sub projects of its own" in c.patch(f"/api/modules/{school}",
-                                                json={"project": books}).json()["error"]
-    itself = c.patch(f"/api/modules/{books}", json={"project": books}).json()
-    assert "under itself" in itself["error"]
-    assert [s["name"] for s in creation(c, school)["sub_projects"]] == ["Grades"]
-    assert c.patch(f"/api/modules/{grades}", json={"goal": "  Pass  "}).json()["project"] == school
+    assert c.patch(f"/api/modules/{grades}", json={"goal": "  Pass  "}).json()["name"] == "Grades"
     assert world.modules.get(grades)["goal"] == "Pass"
-    out = Tools(world, turn="j").module_update("Books", project="School")
-    assert out["project"] == school
-    assert Tools(world, turn="j").module_update("Books", top_level=True)["project"] is None
-    assert c.delete(f"/api/modules/{school}").json()["sub_projects"] == 1
-    assert world.modules.get(grades)["project"] is None
+    assert c.post(f"/api/modules/{grades}/move", json={"parent": school}).json()["parent"] == school
+    assert [s["name"] for s in creation(c, school)["inside"]] == ["Grades"]
+    out = Tools(world, turn="j").module_update("Grades", name="Marks", icon="target")
+    assert out["name"] == "Marks" and out["icon"] == "target"
+    assert world.modules.get(grades)["parent"] == school
+    removed = c.delete(f"/api/modules/{school}").json()
+    assert removed["inside"][0]["module"] == "Marks"
+    assert world.modules.all() == []
 
 
 def test_chats_are_topic_threads_per_place_with_archive(world: World) -> None:

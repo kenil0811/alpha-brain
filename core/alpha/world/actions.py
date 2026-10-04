@@ -25,10 +25,10 @@ import re
 import sqlite3
 from typing import Any
 
+from alpha.world.names import check_name
 from alpha.world.skills import Skills
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-NAME = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 FIELD_REF = re.compile(r"^\{([a-z][a-z0-9_]*)\}$")
 EFFECTS = ("prepare", "send")
 STATES = ("proposed", "approved", "running", "done", "failed", "declined")
@@ -141,9 +141,7 @@ class Procedures:
              steps: list[dict[str, Any]], fields: list[str],
              verify: list[dict[str, Any]] | None = None, when_to_use: str | None = None,
              source: str | None = None) -> dict[str, Any]:
-        if not NAME.match(name):
-            raise Problem("A procedure's name is lower-case words joined by _, e.g. "
-                          "gmail_draft.")
+        check_name(name, "procedure", "gmail_draft")
         if not description.strip():
             raise Problem("A procedure needs a description: what it does, in a sentence.")
         clean, checks = check_steps(steps, fields, effect=effect, verify=verify)

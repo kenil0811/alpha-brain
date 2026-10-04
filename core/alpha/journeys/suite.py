@@ -53,7 +53,7 @@ from typing import Any
 import yaml
 
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import build, check, claude_cli, noticing, pipeline, turn
+from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn
 from alpha.world.store import SCHEMA, Problem, now
 from alpha.world.world import World
 
@@ -154,7 +154,7 @@ class Outcome:
 
 
 class Run:
-    def __init__(self, world: World, runner: turn.Runner = claude_cli.run) -> None:
+    def __init__(self, world: World, runner: turn.Runner = route.run) -> None:
         self.world = world
         self.runner = runner
         self.last_turn: str | None = None
@@ -351,6 +351,18 @@ class Run:
                 (f"Rewrote: {changed}." if changed else "")
         return True, "No skill was written or rewritten."
 
+    def check_module_inside(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A module sits inside another (by name, case-insensitive), to any depth."""
+        wanted, parent = str(arg["module"]).lower(), str(arg["parent"]).lower()
+        found = [m for m in self.world.modules.all() if wanted in m["name"].lower()]
+        if not found:
+            return False, f"No module named like '{arg['module']}'."
+        for m in found:
+            above = [p["name"].lower() for p in self.world.modules.path(m["id"])[:-1]]
+            if any(parent in a for a in above):
+                return True, f"{m['name']} sits inside {self.world.modules.path_words(m['id'])}."
+        return False, f"{found[0]['name']} is at {self.world.modules.path_words(found[0]['id'])}."
+
     def check_no_new_modules(self, arg: dict[str, Any]) -> tuple[bool, str]:
         new = {m["id"] for m in self.world.modules.all()} - self.mark.modules
         return not new, ("No module was made." if not new else f"Made {len(new)} module(s).")
@@ -470,7 +482,7 @@ class Run:
 
 
 def run_journey(world: World, journey: dict[str, Any],
-                runner: turn.Runner = claude_cli.run) -> Outcome:
+                runner: turn.Runner = route.run) -> Outcome:
     out = Outcome(name=journey["name"], title=journey.get("title", journey["name"]))
     began = time.monotonic()
     run = Run(world, runner)
@@ -505,7 +517,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
     passed = sum(1 for o in outcomes if o.passed)
     lines = [f"# Journeys, {began.strftime('%-d %b %Y %H:%M')}", "",
              f"{passed} of {len(outcomes)} passed. World: a copy of `{source}` in `{home}`."
-             f" Model: {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)}.", ""]
+             f" Model: {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)} (or the"
+             " default in Settings → Models).", ""]
     lines.append("| Journey | Verdict | Time |")
     lines.append("|---|---|---|")
     for o in outcomes:
@@ -533,7 +546,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
 
 def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
               scratch: Path | None = None, out_dir: Path | None = None,
-              runner: turn.Runner = claude_cli.run, keep: bool = False) -> tuple[int, Path]:
+              runner: turn.Runner = route.run, keep: bool = False) -> tuple[int, Path]:
     """Copy the world, run the journeys, write `docs/journeys/<stamp>.md` and `.json`.
     Returns (failures, report path)."""
     began = datetime.now().astimezone()

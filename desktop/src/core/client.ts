@@ -200,12 +200,23 @@ export interface ModuleCard {
   goal: string | null;
   /** A lucide icon name the person picked (shell/projectIcons.ts); null until they pick one. */
   icon?: string | null;
+  /** The module this one sits inside, if any (Q31: modules nest, any depth). */
+  parent?: string | null;
+  /** Names from the top down: ["Job", "Search"]. */
+  path?: string[];
+  /** The ids of the modules inside this one. */
+  children?: string[];
   tables: TableSummary[];
   records: number;
   last_at: string | null;
   last_text: string | null;
   threads: Thread[];
   created_at: string;
+}
+
+/** A module's place in words: "Job › Search". */
+export function moduleWords(m: Pick<ModuleCard, "name" | "path">): string {
+  return m.path?.length ? m.path.join(" › ") : m.name;
 }
 
 export interface Goal {
@@ -227,6 +238,8 @@ export interface Note {
 
 export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   tables: TableDesc[];
+  /** The modules inside this one, as cards. */
+  inside?: ModuleCard[];
   activity: JournalEntry[];
   note: Note | null;
   goals: Goal[];
@@ -609,6 +622,20 @@ export interface Conversation {
   conversations?: Convo[];
 }
 
+/** What changed since a stamp (`/api/changes`): the window's one poll. */
+export interface Changed {
+  at: string;
+  journal: number;
+  kinds: string[];
+  tables: string[];
+  modules: string[];
+  entities: string[];
+  threads: boolean;
+  plans: boolean;
+  actions: boolean;
+  working: boolean;
+}
+
 export interface Companion {
   focus: Convo | null;
   conversations: Convo[];
@@ -670,19 +697,26 @@ export class Client {
   installProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/install`)).provider;
   route = (thread?: string | null) => this.call<ModelRoute>("GET", `/api/route${thread ? `?thread=${encodeURIComponent(thread)}` : ""}`);
   setRoute = (thread: string | null, provider: string | null, model: string | null = null) => this.call<ModelRoute>("PUT", "/api/route", { thread, provider, model });
+  /** What changed since `since`; without one, the stamp to start from. */
+  changes = (since: string | null) => this.call<Changed>("GET", `/api/changes${since ? `?since=${encodeURIComponent(since)}` : ""}`);
   dataInfo = () => this.call<DataInfo>("GET", "/api/data");
   backUp = () => this.call<DataInfo>("POST", "/api/data/backup");
   restoreBackup = (name: string) => this.call<DataInfo>("POST", `/api/data/backups/${encodeURIComponent(name)}/restore`);
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
-  updateModule = (ref: string, patch: { name?: string; icon?: string; goal?: string; project?: string | null }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
+  updateModule = (ref: string, patch: { name?: string; icon?: string; goal?: string }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
   removeModule = (ref: string) => this.call<{ module: string; tables: number; rows: number }>("DELETE", `/api/modules/${encodeURIComponent(ref)}`);
   /** A project as a file: its structure (tables, views, readers, note, goals, automations);
    *  its rows only with `rows`. */
   exportModule = (ref: string, rows = false) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export${rows ? "?rows=true" : ""}`);
   importModule = (bundle: unknown) => this.call<ModuleCard>("POST", "/api/modules/import", bundle);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
+  /** Put a module inside another (or at the top with null); everything in it moves with it. */
+  moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
+  /** A module the person makes here: a place to hold others. Nothing is built. */
+  /** Without a name: New project, a blank "Untitled project" made on its page (its creation). */
+  createModule = (name: string | null = null, goal: string | null = null, parent: string | null = null) => this.call<ModuleCard>("POST", "/api/modules", { name, goal, parent });
   /** The module's page of Alpha's wiki, or none yet. */
   modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 
@@ -773,12 +807,23 @@ export class Client {
   async askAndWait(text: string, opts: AskOptions = {}, onTick?: (t: Turn) => void): Promise<Turn> {    const turn = await this.ask(text, opts);
     return this.waitTurn(turn, onTick);
   }
-  /** Follow a started turn to its end (a routing question comes back as is). */
-  async waitTurn(turn: Turn, onTick?: (t: Turn) => void): Promise<Turn> {
+  /** Follow a started turn to its end (a routing question comes back as is). A poll the core
+   * does not answer is tried again for a while before the turn counts as lost: one missed poll
+   * used to end the turn in the window while the core kept working (3 Oct). A core that says
+   * it knows no such turn (it restarted) ends the wait at once. */
+  async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8): Promise<Turn> {
     let current = turn;
+    let misses = 0;
     while ((current.state === "running" || current.state === "routing") && current.id) {
       await new Promise((r) => setTimeout(r, 1000));
-      current = await this.turn(current.id);
+      try {
+        current = await this.turn(current.id);
+        misses = 0;
+      } catch (e) {
+        const transient = e instanceof CoreError && (e.status === 0 || e.status >= 500);
+        if (!transient || ++misses >= patience) throw e;
+        continue;
+      }
       onTick?.(current);
     }
     return current;
@@ -837,8 +882,6 @@ export class Client {
   projectLinks = () => this.call<ProjectLink[]>("GET", "/api/links");
   setProjectLink = (module: string, reads: string, enabled: boolean) => this.call<ProjectLink[]>("PUT", `/api/modules/${module}/reads`, { reads, enabled });
   // ---- P1: new projects and making them, chats, the Activity bell, Alpha's bug log ----
-  /** New project: a blank "Untitled project" at once, with the thread it is made in. */
-  createModule = (name?: string) => this.call<ModuleCard>("POST", "/api/modules", { name: name ?? null });
   /** What the person did on the project's page while it is being made. */
   answerCreation = (ref: string, answer: CreationAnswer) => this.call<{ turn?: Turn; module?: ModuleCard }>("POST", `/api/modules/${encodeURIComponent(ref)}/creation/answer`, answer);
   importModulePath = (path: string) => this.call<ModuleCard>("POST", "/api/modules/import", { path });
@@ -1029,14 +1072,11 @@ export interface Attention {
 
 export interface ModuleCard {
   creation?: Creation | null;
-  /** The project it is filed under (a sub project), or null. */
-  project?: string | null;
 }
 
 export interface ModuleDetail {
   plan?: Note | null;
   sessions?: Session[];
-  sub_projects?: ModuleCard[];
   facts?: Fact[];
   /** The turn making it, while one runs. */
   running?: Turn[];

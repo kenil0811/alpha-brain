@@ -16,7 +16,7 @@ from typing import Any
 
 from alpha.connectors.browser import Browser
 from alpha.connectors.files import Files
-from alpha.runtime import claude_cli, turn
+from alpha.runtime import route, turn
 from alpha.world.actions import file_fields
 from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
@@ -105,7 +105,7 @@ def dry_run(world: World, action_id: str, *, browser: Browser | None = None,
 
 
 def perform(world: World, action_id: str, *, browser: Browser | None = None,
-            runner: turn.Runner = claude_cli.run, repair: bool = True,
+            runner: turn.Runner = route.run, repair: bool = True,
             turn_id: str | None = None) -> dict[str, Any]:
     """Run an approved action to its end, verify, and record what happened. On a failure the
     procedure is marked broken and, with `repair`, Alpha looks at the page and proposes the
@@ -206,7 +206,7 @@ def _repair(world: World, action: dict[str, Any], why: str, runner: turn.Runner,
 
 
 def approve(world: World, action_id: str, approval: str, *, always: bool = False,
-            browser: Browser | None = None, runner: turn.Runner = claude_cli.run,
+            browser: Browser | None = None, runner: turn.Runner = route.run,
             repair: bool = True, perform_now: bool = True) -> dict[str, Any]:
     """The person's yes: record it (and, for a prepare-level action they want always allowed, the
     standing sentence), then perform the action."""
@@ -218,9 +218,7 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
                       " afresh once repaired.")
     action = world.actions.approve(action_id, approval)
     if action.get("proposal"):
-        world.journal.append("answered", "Yes", actor="person",
-                             data={"proposal": action["proposal"], "accept": True,
-                                   "action": action_id})
+        world.journal.answer_proposal(action["proposal"], True, action=action_id)
     if always and action["effect"] == "prepare":
         procedure = world.procedures.get(action["procedure"])
         granted = world.permissions.grant(
@@ -237,9 +235,7 @@ def approve(world: World, action_id: str, approval: str, *, always: bool = False
 def decline(world: World, action_id: str) -> dict[str, Any]:
     action = world.actions.decline(action_id)
     if action.get("proposal"):
-        world.journal.append("answered", "No", actor="person",
-                             data={"proposal": action["proposal"], "accept": False,
-                                   "action": action_id})
+        world.journal.answer_proposal(action["proposal"], False, action=action_id)
     return action
 
 

@@ -26,3 +26,5 @@ export { StandardDropdown } from "./StandardDropdown";
 export type { StandardDropdownOption } from "./StandardDropdown";
 export { ToastProvider, useOptionalToast, useToast } from "./toast";
 export { PageHeader } from "./PageHeader";
+export { Trouble } from "./Trouble";
+export { Rich } from "./Rich";

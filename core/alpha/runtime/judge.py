@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from alpha.runtime import claude_cli
+from alpha.runtime import route
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 
 DEFAULT_MODEL = "haiku"
@@ -56,7 +56,7 @@ Runner = Callable[[TurnRequest], RunResult]
 
 
 def ask(question: Question, *, rules: list[Rule] | None = None,
-        runner: Runner = claude_cli.run, model: str | None = None,
+        runner: Runner = route.run, model: str | None = None,
         world_path: Any = None, turn_id: str | None = None) -> Verdict:
     """Answer a question: the first rule that returns a verdict wins; otherwise the model."""
     if question.kind == "choose" and not question.options:

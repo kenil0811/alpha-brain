@@ -14,7 +14,7 @@ from alpha.models import accounts as acc
 from alpha.models import claude_oauth, keychain
 from alpha.models.accounts import Accounts
 from alpha.models.providers import ProviderHTTPError
-from alpha.runtime import api_runner, claude_account, codex_cli
+from alpha.runtime import api_runner, claude_account
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.runtime.route import Router
 from alpha.world.world import World
@@ -224,17 +224,6 @@ def test_a_busy_provider_is_tried_again_and_a_refused_key_is_not(
     assert not out.ok and "503" in (out.error or "") and len(tries) == 3
 
 
-def test_codex_gets_only_alphas_tools_and_never_resumes_a_session(tmp_path: Path) -> None:
-    req = TurnRequest(sentence="hi", system="RULES", world_path=tmp_path / "w.sqlite",
-                      turn_id="j_1", thread_id="t_1")
-    args = codex_cli.argv(req, "codex", str(tmp_path))
-    assert args[:6] == ["codex", "exec", "-s", "read-only", "-C", str(tmp_path)]
-    assert "resume" not in args and "--ephemeral" in args and "--ignore-user-config" in args
-    assert "shell_tool" in args and args[-1].endswith("THE PERSON SAYS\n\nhi")
-    out = codex_cli.parse('{"type":"thread.started","thread_id":"s9"}\n'
-                          '{"type":"item.completed","item":{"type":"agent_message","text":"Ok"}}',
-                          "")
-    assert out.ok and out.session_id == "codex:s9"
 
 
 def test_keys_go_to_the_keychain_on_stdin_never_in_argv(tmp_path: Path,

@@ -21,10 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser, site_of
-from alpha.runtime import claude_cli, turn
+from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
+from alpha.runtime import route, turn
 from alpha.world import taint
 from alpha.world.readers import health_problem
+from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -203,7 +204,7 @@ def _ask_once(world: World, text: str, reader: str, module: str | None) -> None:
 
 
 def run_pipeline(world: World, auto: dict[str, Any], *,
-                 runner: turn.Runner = claude_cli.run,
+                 runner: turn.Runner = route.run,
                  browser: Browser | None = None,
                  repair: Callable[..., Any] | None = None) -> tuple[str, str | None]:
     """Run an automation's steps. Returns (one line for its log, a problem or None)."""

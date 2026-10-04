@@ -145,3 +145,19 @@ def test_the_panel_on_a_module_page_uses_that_modules_live_conversation(world: W
                    " state = 'open'")
     assert conversations.close_idle(world) == [a["conversation"]["id"]]
     assert c.get("/api/conversations").json() == []
+
+
+def test_a_core_that_starts_opens_the_conversations_a_dead_one_left_working(world: World) -> None:
+    cid = chat(world, "Deals", said="which are new")
+    world.modules.update_thread(cid, state="working")
+    other = chat(world, "Food", said="log eggs")
+    assert conversations.reset_working(world) == [cid]
+    assert world.modules.thread(cid)["state"] == "open"
+    assert world.modules.thread(other)["state"] == "open"
+    assert world.journal.recent(1, kinds=["changed"])[-1]["text"].startswith(
+        "Alpha's core started; 1 conversation left mid-turn is open again.")
+    assert conversations.reset_working(world) == []
+    # A live core resets them when it starts, before anything else runs.
+    world.modules.update_thread(cid, state="working")
+    with TestClient(create_app(world, live=True)):
+        assert world.modules.thread(cid)["state"] == "open"

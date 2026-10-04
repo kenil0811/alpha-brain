@@ -1,6 +1,6 @@
 /**
  * The rail: the workspace name (with the core's status dot), Home, People & Companies, the
- * person's projects with their sub projects nested under them (drag to reorder, open, hide,
+ * person's projects with the ones inside them nested, any depth, each parent foldable (drag to reorder, open, hide,
  * rename, change icon, export, delete), New project (a project file dropped on it is added),
  * and Intelligence and Settings at the foot. Activity is the bell in the Chief of Staff's
  * header. It folds to icons; App resizes it by its border (shell/useDragWidth).
@@ -31,6 +31,29 @@ export function sameSurface(a: Surface, b: Surface): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
+}
+
+/** Modules as a tree: the top-level ones, each with the ones inside it, by name. */
+export interface ModuleBranch {
+  module: ModuleCard;
+  inside: ModuleBranch[];
+}
+export function treeOf(modules: ModuleCard[], keepOrder = false): ModuleBranch[] {
+  // keepOrder: the list is already in the person's drag order; otherwise by name.
+  const by = (a: ModuleCard, b: ModuleCard) => (keepOrder ? 0 : a.name.localeCompare(b.name));
+  const ids = new Set(modules.map((m) => m.id));
+  const branch = (m: ModuleCard): ModuleBranch => ({ module: m, inside: modules.filter((c) => c.parent === m.id).sort(by).map(branch) });
+  // A module whose parent is unknown here is shown at the top rather than lost.
+  return modules.filter((m) => !m.parent || !ids.has(m.parent)).sort(by).map(branch);
+}
+
+const FOLDED_KEY = "alpha.rail.folded";
+function readFolded(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(FOLDED_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
 }
 
 /** A remembered place that no longer exists (an older build's) becomes Home. */
@@ -102,7 +125,7 @@ export function Rail({
 }: {
   surface: Surface;
   modules: ModuleCard[];
-  runtime: "connecting" | "connected" | "unavailable";
+  runtime: "connecting" | "connected" | "unavailable" | "lost";
   onGo: (surface: Surface) => void;
   onNew: () => void;
   collapsed: boolean;
@@ -114,9 +137,19 @@ export function Rail({
   onChanged?: () => void;
 }) {
   const { visible, hiddenCount, reorder, hide, showAll } = useOrdering(modules);
-  // Sub projects sit under their project; one whose project is hidden shows at the top level.
-  const shownIds = new Set(visible.map((m) => m.id));
-  const top = visible.filter((m) => !m.project || !shownIds.has(m.project));
+  const [folded, setFolded] = useState<Set<string>>(readFolded);
+  const toggleFold = (id: string) =>
+    setFolded((f) => {
+      const next = new Set(f);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem(FOLDED_KEY, JSON.stringify([...next]));
+      } catch {
+        /* per-window convenience */
+      }
+      return next;
+    });
   const toast = useToast();
   const dragId = useRef<string | null>(null);
   const [dropOn, setDropOn] = useState<string | null>(null);
@@ -173,7 +206,7 @@ export function Rail({
     );
   };
 
-  const projectRow = (m: ModuleCard) => {
+  const projectRow = (m: ModuleCard, fold?: { open: boolean; onToggle: () => void }) => {
     const target: Surface = { kind: "module", id: m.id };
     const current = sameSurface(surface, target);
     const Icon = projectIcon(m);
@@ -208,6 +241,11 @@ export function Rail({
           </span>
           <span className="navbtn__text">{m.name}</span>
         </button>
+        {fold && !collapsed ? (
+          <button type="button" className="navfold" aria-label={fold.open ? `Fold ${m.name}` : `Unfold ${m.name}`} aria-expanded={fold.open} onClick={fold.onToggle}>
+            {fold.open ? "▾" : "▸"}
+          </button>
+        ) : null}
         {!collapsed && client ? (
           <DropdownMenu open={menuFor === m.id} onOpenChange={(open) => setMenuFor(open ? m.id : null)}>
             <DropdownMenuTrigger asChild>
@@ -232,8 +270,22 @@ export function Rail({
       </div>
     );
   };
+  // A module whose parent is hidden shows at the top level (treeOf's orphan rule).
+  const branches = (list: ModuleBranch[]): ReactNode[] =>
+    list.map((b) => {
+      const open = !folded.has(b.module.id);
+      const row = projectRow(b.module, b.inside.length ? { open, onToggle: () => toggleFold(b.module.id) } : undefined);
+      return b.inside.length && open ? (
+        <div key={b.module.id} className="rail__project">
+          {row}
+          <div className="rail__nested">{branches(b.inside)}</div>
+        </div>
+      ) : (
+        row
+      );
+    });
 
-  const runtimeLabel = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : "Core not running";
+  const runtimeLabel = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : runtime === "lost" ? "Core not answering" : "Core not running";
   return (
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha" style={width ? { width } : undefined}>
       <div className="brand" data-tauri-drag-region>
@@ -280,17 +332,7 @@ export function Rail({
       <div id="rail-body" className="rail__body">
         {item({ kind: "home" }, <HomeIcon />, "Home")}
         {item({ kind: "people" }, <PeopleIcon />, "People & Companies")}
-        {top.map((m) => {
-          const nested = visible.filter((c) => c.project === m.id);
-          return nested.length ? (
-            <div key={m.id} className="rail__project">
-              {projectRow(m)}
-              <div className="rail__nested">{nested.map(projectRow)}</div>
-            </div>
-          ) : (
-            projectRow(m)
-          );
-        })}
+        {branches(treeOf(visible, true))}
         <div className="navrow">
           <button
             type="button"
@@ -327,7 +369,7 @@ export function Rail({
           project={editing?.project ?? null}
           edit={editing?.edit ?? null}
           onClose={() => setEditing(null)}
-          subProjects={editing ? modules.filter((x) => x.project === editing.project.id).length : 0}
+          subProjects={editing ? modules.filter((x) => x.parent === editing.project.id).length : 0}
           onChanged={() => onChanged?.()}
           onDeleted={(id) => {
             onChanged?.();

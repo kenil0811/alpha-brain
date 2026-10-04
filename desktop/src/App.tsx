@@ -1,7 +1,9 @@
 /**
  * The workspace: the rail, the page it points at, and the conversation beside it. The window
  * gets its core session from the host (or Vite env in a browser), then everything is one
- * client. Pages reload when the core reports a change (a turn finished, a row was edited).
+ * client. Pages reload when the core reports a change that touches them (`core/changes.ts`: one
+ * poll, versions per scope, nothing while the window is hidden), and when the person does
+ * something here. When the core stops answering the window says so and the host brings it back.
  *
  * The rail and Chief of Staff are side panels that fold away and resize by their borders
  * (shell/useDragWidth); neither ever covers the page at full width. Chief of Staff is open on Home and closed on a
@@ -14,6 +16,8 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { Bell, Boxes, Home as HomeIcon, Settings as SettingsIcon } from "lucide-react";
 import { Client } from "./core/client";
+import { useChanges } from "./core/changes";
+import { host } from "./core/host";
 import { driftNotice, resolveSession } from "./core/session";
 import { AssistantPanel, type ChatChoice } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
@@ -30,7 +34,7 @@ import { ModulePage } from "./modules/ModulePage";
 import { Settings } from "./shell/Settings";
 import { ProviderAccounts } from "./shell/models";
 import { useTheme } from "./shell/theme";
-import { InfoTip, PageHeader, ToastProvider, TooltipProvider, useToast } from "./ui";
+import { Button, InfoTip, PageHeader, ToastProvider, TooltipProvider, useToast } from "./ui";
 import { ZazooIcon } from "./ui/ZazooIcon";
 import type { ModuleCard } from "./core/client";
 
@@ -84,7 +88,7 @@ function Workspace({ injected }: { injected?: Client }) {
   const [sendNow, setSendNow] = useState<{ text: string; id: number; thread?: string } | null>(null);
   const [drawer, setDrawer] = useState(false);
   const toast = useToast();
-  const [version, setVersion] = useState(0);
+  const [restarted, setRestarted] = useState(false);
   const [draft, setDraft] = useState<{ text: string; send: boolean } | null>(null);
   const [theme, setTheme] = useTheme();
   // Whether any model is connected (Settings -> Models); null until known.
@@ -155,7 +159,6 @@ function Workspace({ injected }: { injected?: Client }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  const changed = useCallback(() => setVersion((v) => v + 1), []);
   const openAssistant = useCallback(() => {
     if (compact || narrow) setAssistPeek(true);
     else setOpenHere(true);
@@ -225,9 +228,11 @@ function Workspace({ injected }: { injected?: Client }) {
   }, [runtime, injected]);
 
   const client = runtime.kind === "connected" ? runtime.client : null;
+  const moduleOf = useCallback((table: string) => modules.find((m) => m.tables.some((t) => t.name === table))?.id, [modules]);
+  const { versions, down, bump, poll } = useChanges(client, moduleOf);
+  const changed = bump;
 
-  // The rail's projects and the Home badge, refreshed on every change and every 20 s (the core
-  // may have done something on its own: a folder changed, a calendar sync).
+  // The rail's projects and the bell, refreshed when the change poll says Home moved.
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
@@ -246,12 +251,10 @@ function Workspace({ injected }: { injected?: Client }) {
         .catch(() => undefined);
     };
     load();
-    const timer = setInterval(load, 20_000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
     };
-  }, [client, version]);
+  }, [client, versions.home]);
 
   // Whether Alpha can think: checked at start and every minute (the person may sign in or out
   // elsewhere).
@@ -265,7 +268,25 @@ function Workspace({ injected }: { injected?: Client }) {
     check();
     const timer = setInterval(check, 60_000);
     return () => clearInterval(timer);
-  }, [client]);
+  }, [client, versions.all]);
+
+  // The host says when it started the core again: look at everything afresh and say so.
+  useEffect(() => {
+    let stop: (() => void) | null = null;
+    void host.onEvent("core-restarted", () => {
+      setRestarted(true);
+      void poll();
+      bump();
+    }).then((off) => {
+      stop = off;
+    });
+    return () => stop?.();
+  }, [bump, poll]);
+  useEffect(() => {
+    if (!restarted) return;
+    const timer = setTimeout(() => setRestarted(false), 8000);
+    return () => clearTimeout(timer);
+  }, [restarted]);
 
   // The companion hands things over through shared storage: open a project, the conversation.
   useEffect(() => {
@@ -357,11 +378,23 @@ function Workspace({ injected }: { injected?: Client }) {
   return (
     <div className={`app${narrow ? " app--narrow" : ""}${rail.active || panel.active ? " app--resizing" : ""}`} style={{ ["--rail-w" as string]: `${railWidth}px`, ["--panel-w" as string]: `${assistantWidth}px` }}>
       <div ref={railRef} className="app__rail" hidden={narrow}>
-        <Rail surface={surface} modules={modules} runtime={runtime.kind} onGo={setSurface} onNew={startNew} client={client} onChanged={changed} collapsed={railFolded} onToggleCollapsed={compact ? () => setRailPeek((v) => !v) : toggleRail} width={railWidth} />
+        <Rail surface={surface} modules={modules} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} client={client} onChanged={changed} collapsed={railFolded} onToggleCollapsed={compact ? () => setRailPeek((v) => !v) : toggleRail} width={railWidth} />
       </div>
       {docked && !railFolded ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} onPointerDown={rail.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" /> : null}
       {docked && client && assistOpen ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize Chief of Staff" /> : null}
       <main className="main">
+        {down ? (
+          <div className="corenote" role="alert">
+            <span>Alpha's core isn't answering ({down}). The host starts it again on its own; this clears when it is back.</span>
+            <Button size="sm" onClick={() => void poll()}>
+              Try now
+            </Button>
+          </div>
+        ) : restarted ? (
+          <div className="corenote corenote--ok" role="status">
+            Alpha's core started again. Anything that was running is open to ask again.
+          </div>
+        ) : null}
         {runtime.kind !== "connected" ? (
           <div className="page">
             <PageHeader title={runtime.kind === "connecting" ? "Starting Alpha…" : "Alpha's core isn't running"} />
@@ -403,13 +436,13 @@ function Workspace({ injected }: { injected?: Client }) {
               </div>
             ) : null}
             {surface.kind === "home" ? (
-              <Home client={runtime.client} version={version} onGo={setSurface} onChanged={changed} onAsk={ask} onNew={startNew} onOpenThread={(id) => { rememberSession(scopeKey, id); openAssistant(); }} />
+              <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={ask} onNew={startNew} onOpenThread={(id) => { rememberSession(scopeKey, id); openAssistant(); }} />
             ) : surface.kind === "module" ? (
               <ModulePage
                 key={surface.id}
                 client={runtime.client}
                 moduleId={surface.id}
-                version={version}
+                version={(versions.modules[surface.id] ?? 0) + versions.all}
                 onChanged={changed}
                 onGo={setSurface}
                 section={surface.section}
@@ -435,17 +468,17 @@ function Workspace({ injected }: { injected?: Client }) {
               // P2's Settings takes the section from the address (`#/settings/<section>`).
               <Settings {...({ client: runtime.client, theme, onTheme: setTheme, section: surface.section, onSection: (section: string) => setSurface({ kind: "settings", section }) } as ComponentProps<typeof Settings>)} />
             ) : surface.kind === "people" ? (
-              <People client={runtime.client} version={version} onOpen={(id) => setSurface({ kind: "entity", id })} />
+              <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
             ) : surface.kind === "entity" ? (
-              <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={version} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
+              <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
             ) : surface.kind === "skill" ? (
-              <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={version} onGo={setSurface} onAsk={ask} onChanged={changed} />
+              <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={versions.intelligence} onGo={setSurface} onAsk={ask} onChanged={changed} />
             ) : surface.kind === "automation" ? (
-              <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={version} onGo={setSurface} onAsk={ask} onChanged={changed} />
+              <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={ask} onChanged={changed} />
             ) : surface.kind === "intelligence" ? (
-              <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} />
+              <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} />
             ) : (
-              <Activity client={runtime.client} version={version} onChanged={changed} />
+              <Activity client={runtime.client} version={versions.activity} onChanged={changed} />
             )}
           </>
         )}
@@ -457,7 +490,7 @@ function Workspace({ injected }: { injected?: Client }) {
             onCollapse={closeAssistant}
             scopeName={scopeName}
             module={scopeModule}
-            version={version}
+            version={versions.conversation}
             onChanged={changed}
             draft={draft}
             onDraftTaken={() => setDraft(null)}

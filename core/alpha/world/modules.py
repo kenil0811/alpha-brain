@@ -1,10 +1,12 @@
 """Modules and threads.
 
 A module is a named bundle of tables, skills, automations and a note around a goal: the tool the
-person works in. It costs nothing to make (no code, no build) and grows as it is used.
+person works in. It costs nothing to make (no code, no build) and grows as it is used. A module
+may sit inside another (Job holds Search and Resume), to any depth: one concept, a `parent`,
+nothing per level (Q31). What a module owns stays its own; a parent is the place that holds
+its children, whose page, activity and conversation reach the whole subtree.
 
-A module may be filed under another one: a sub project (`project` holds its parent's id), one
-level deep. A module being made through the creation process holds where that stands in
+A module being made through the creation process holds where that stands in
 `creation` (JSON: stage, its thread, and what the page shows; runtime/turn.py CREATION_RULES).
 
 A thread is a piece of work with its own model context (a build, research, an automation, a long
@@ -30,7 +32,7 @@ THREAD_STATES = {"open", "working", "waiting", "done"}
 UNTITLED = "Untitled project"
 # Making a project, in order (runtime/turn.py CREATION_RULES; the project page draws each).
 CREATION_STAGES = ("new", "asking", "researching", "proposing", "planned", "building", "done")
-# "Leave the parent as it is" for `update(project=)`, where None means "take it out".
+# "Leave the parent as it is" for `update(parent=)`, where None means "move it to the top".
 KEEP: Any = object()
 
 
@@ -53,20 +55,66 @@ class Modules:
             name, n = f"{UNTITLED} {n}", n + 1
         return name
 
-    def create(self, name: str, goal: str | None = None) -> dict[str, Any]:
+    def create(self, name: str, goal: str | None = None,
+               parent: str | None = None) -> dict[str, Any]:
         name = name.strip()
         if not name:
             raise Problem("A project needs a name.")
         if self.store.one("SELECT 1 FROM modules WHERE LOWER(name) = LOWER(?)", (name,)):
             raise Problem(f"There is a project called '{name}' already.")
+        parent_id = self.get(parent)["id"] if parent else None
         mid = new_id("m")
         stamp = now()
         with self.store.tx() as db:
             db.execute(
-                "INSERT INTO modules (id, name, goal, created_at, updated_at) VALUES (?,?,?,?,?)",
-                (mid, name, goal, stamp, stamp),
+                "INSERT INTO modules (id, name, goal, parent, created_at, updated_at)"
+                " VALUES (?,?,?,?,?,?)",
+                (mid, name, goal, parent_id, stamp, stamp),
             )
         return self.get(mid)
+
+    def move(self, ref: str, parent: str | None) -> dict[str, Any]:
+        """Put a module inside another, or at the top (parent None). Never inside itself or
+        anything below it."""
+        module = self.get(ref)
+        parent_id = self.get(parent)["id"] if parent else None
+        if parent_id and parent_id in self.subtree(module["id"]):
+            raise Problem(f"{module['name']} can't go inside itself or inside something it"
+                          " holds.")
+        with self.store.tx() as db:
+            db.execute("UPDATE modules SET parent = ?, updated_at = ? WHERE id = ?",
+                       (parent_id, now(), module["id"]))
+        return self.get(module["id"])
+
+    def children(self, mid: str) -> list[dict[str, Any]]:
+        return [_row(r) for r in self.store.all(
+            "SELECT * FROM modules WHERE parent = ? ORDER BY name", (mid,))]
+
+    def subtree(self, mid: str) -> list[str]:
+        """The module's id and every id below it, parents before children."""
+        rows = self.store.all(
+            "WITH RECURSIVE down(id, name, depth) AS (SELECT id, name, 0 FROM modules WHERE id"
+            " = ? UNION ALL SELECT m.id, m.name, down.depth + 1 FROM modules m JOIN down ON"
+            " m.parent = down.id WHERE down.depth < 32) SELECT id FROM down ORDER BY depth, name",
+            (mid,))
+        return [str(r["id"]) for r in rows]
+
+    def path(self, mid: str) -> list[dict[str, Any]]:
+        """The module and its ancestors, top first: Job › Search."""
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        current: str | None = mid
+        while current and current not in seen:
+            seen.add(current)
+            row = self.store.one("SELECT id, name, parent FROM modules WHERE id = ?", (current,))
+            if row is None:
+                break
+            out.append({"id": row["id"], "name": row["name"]})
+            current = row["parent"]
+        return list(reversed(out))
+
+    def path_words(self, mid: str) -> str:
+        return " › ".join(m["name"] for m in self.path(mid))
 
     def get(self, ref: str) -> dict[str, Any]:
         """By id or by name (case-insensitive)."""
@@ -80,29 +128,13 @@ class Modules:
     def all(self) -> list[dict[str, Any]]:
         return [_row(r) for r in self.store.all("SELECT * FROM modules ORDER BY name")]
 
-    def children(self, ref: str) -> list[dict[str, Any]]:
-        """Its sub projects."""
-        mid = self.get(ref)["id"]
-        return [_row(r) for r in self.store.all(
-            "SELECT * FROM modules WHERE project = ? ORDER BY name", (mid,))]
-
     def update(self, ref: str, *, name: str | None = None, icon: str | None = None,
-               goal: str | None = None, project: Any = KEEP) -> dict[str, Any]:
-        """Rename a module, change its icon or goal, or file it under another project (`project`
-        = that project, None = back to the top level). Its note is filed under its name, so it
-        moves with it. Sub projects are one level deep: a project with sub projects can't be
-        filed, and nothing is filed under a sub project."""
+               goal: str | None = None, parent: Any = KEEP) -> dict[str, Any]:
+        """Rename a module, change its icon or goal, or put it inside another (`parent`, as
+        `move`; None = the top). Its note is filed under its name, so it moves with it."""
         current = self.get(ref)
-        parent = current["project"]
-        if project is not KEEP:
-            parent = None if project is None else self.get(project)["id"]
-            if parent == current["id"]:
-                raise Problem("A project can't be filed under itself.")
-            if parent and self.get(parent)["project"]:
-                raise Problem("That is a sub project already; file it under a top-level one.")
-            if parent and self.children(current["id"]):
-                raise Problem(f"{current['name']} has sub projects of its own, so it stays at"
-                              " the top level.")
+        if parent is not KEEP:
+            current = self.move(current["id"], parent)
         new_name = current["name"] if name is None else name.strip()
         if not new_name:
             raise Problem("A project needs a name.")
@@ -113,10 +145,10 @@ class Modules:
             raise Problem(f"'{icon}' isn't one of the project icons.")
         new_goal = current["goal"] if goal is None else (goal.strip() or None)
         with self.store.tx() as db:
-            db.execute("UPDATE modules SET name = ?, icon = ?, goal = ?, project = ?,"
-                       " updated_at = ? WHERE id = ?",
-                       (new_name, current["icon"] if icon is None else icon, new_goal, parent,
-                        now(), current["id"]))
+            db.execute("UPDATE modules SET name = ?, icon = ?, goal = ?, updated_at = ?"
+                       " WHERE id = ?",
+                       (new_name, current["icon"] if icon is None else icon, new_goal, now(),
+                        current["id"]))
             if new_name != current["name"]:
                 db.execute("UPDATE notes SET scope = ?, title = CASE WHEN title = ? THEN ?"
                            " ELSE title END WHERE scope = ?",

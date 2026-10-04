@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import sqlite3
 from typing import Any
-from urllib.parse import urlparse
 
+from alpha.world.sites import site_of
 from alpha.world.store import Problem, Store, new_id, now
 
 STATUSES = ("working", "needs_signin", "blocked", "broken", "not_built", "unavailable",
@@ -30,9 +30,12 @@ WORDS = {"working": "working", "needs_signin": "need your sign-in", "blocked": "
          "skipped": "skipped by you"}
 
 
-def site_of(url: str) -> str:
-    host = (urlparse(url if "://" in url else f"https://{url}").hostname or url).lower()
-    return host.removeprefix("www.")
+def _site(url: str) -> str:
+    """The source's site by the one rule; words that aren't an address stay as they are."""
+    try:
+        return site_of(url)
+    except Problem:
+        return url.lower()
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -66,7 +69,7 @@ class Sources:
                 db.execute(
                     "INSERT INTO sources (id, module, title, url, site, reader, status, detail,"
                     " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    (sid, module, title, url, site_of(url), reader, status, detail, stamp,
+                    (sid, module, title, url, _site(url), reader, status, detail, stamp,
                      stamp),
                 )
         return self.get(sid)

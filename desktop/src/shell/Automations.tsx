@@ -2,7 +2,7 @@
  * What runs on its own: each automation as the sentence the person reads, when it runs next,
  * how its last run went, an on/off switch and Run now.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Automation, Client, ModuleCard } from "../core/client";
 import { when } from "../modules/format";
 import { ModuleIcon } from "../ui/ModuleIcon";
@@ -14,13 +14,8 @@ import { Check, X } from "../ui/icons";
 export function AutomationList({ client, items, onChanged, empty, onOpen }: { client: Client; items: Automation[]; onChanged: () => void; empty: string; onOpen?: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  // While one runs, look again every few seconds so its steps and result show up here.
-  const running = items.some((a) => a.running);
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(onChanged, 4000);
-    return () => clearInterval(timer);
-  }, [running, onChanged]);
+  // While one runs its steps arrive through the window's one poll (core/changes.ts), which
+  // asks every 3 s while anything works; no clock here.
   async function act(id: string, work: () => Promise<unknown>, words: string) {
     setBusy(id);
     setMessage(null);

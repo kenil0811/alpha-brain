@@ -1,0 +1,55 @@
+[
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos Téllez is a tech recruiter at P&D Talent in Barcelona (sara@pndtalent.com, +34 614 452 229). You last dealt with her on **2 Oct 2026**, when she emailed you about a **Penelope Health – Founding Engineer** role (with a PDF attached). There was also a calendar invite from her for a 20-minute intro call on Fri 2 Oct, 9:20–9:40am GMT+1 — Gmail flagged it as from someone you hadn't interacted with before that point.",
+    "steps": 5,
+    "seconds": 51.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents.",
+    "ok": true,
+    "why": "The answer identifies Sara Ramos via her email about the Penelope Health founding engineer role and the 2 Oct intro meeting, with a clear latest-contact date, matching the rubric.",
+    "seconds": 5.1
+   }
+  ],
+  "seconds": 56.3,
+  "error": null
+ },
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "I have what you said about Vikas yesterday (2 Oct 2026):\n\n- **18:43** — *\"ok lets track emails then, sent by vikas badami\"* — this kicked off a build.\n- Right after that, you also wanted attachments tracked, which led to a second plan for email **attachments** from Vikas Badami too.\n\nFrom those two messages, I built two tables in the Advisory module: **Vikas Badami Emails** (5 rows now) and **Vikas Badami Attachments**. There was also a daily 08:00 automation checking Gmail for new emails from him — you switched that off today (3 Oct, 13:07 local).\n\nThat's the only thing you said about Vikas y",
+    "steps": 7,
+    "seconds": 83.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": false,
+    "why": "The answer discusses email tracking for Vikas and does not mention promising a financial model by Friday, so it fails the rubric.",
+    "seconds": 7.3
+   }
+  ],
+  "seconds": 91.1,
+  "error": null
+ }
+]

@@ -5,6 +5,7 @@
  * (An idea from pull request #3, rebuilt on main's search route.)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { moduleWords } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
@@ -43,17 +44,27 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
   }, [open]);
 
   // The core's search, a moment after typing stops; a late answer never overwrites a newer one.
+  const [trouble, setTrouble] = useState<string | null>(null);
   useEffect(() => {
     if (q.length < 2) {
       setHits(null);
+      setTrouble(null);
       return;
     }
     let live = true;
     const timer = setTimeout(() => {
       client
         .search(q)
-        .then((r) => live && setHits(r))
-        .catch(() => live && setHits(null));
+        .then((r) => {
+          if (!live) return;
+          setHits(r);
+          setTrouble(null);
+        })
+        .catch((e: unknown) => {
+          if (!live) return;
+          setHits(null);
+          setTrouble(e instanceof Error ? e.message : String(e));
+        });
     }, 180);
     return () => {
       live = false;
@@ -65,7 +76,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
     const close = () => onOpenChange(false);
     const out: Item[] = [];
     for (const p of PAGES) if (!q || p.label.toLowerCase().includes(q)) out.push({ key: `page:${p.label}`, kind: "page", label: p.label, go: () => { onGo(p.surface); close(); } });
-    for (const m of modules) if (!q || m.name.toLowerCase().includes(q)) out.push({ key: `module:${m.id}`, kind: "module", label: m.name, hint: m.goal ?? undefined, go: () => { onGo({ kind: "module", id: m.id }); close(); } });
+    for (const m of modules) if (!q || moduleWords(m).toLowerCase().includes(q)) out.push({ key: `module:${m.id}`, kind: "module", label: moduleWords(m), hint: m.goal ?? undefined, go: () => { onGo({ kind: "module", id: m.id }); close(); } });
     if (hits) {
       for (const p of hits.people.slice(0, 5)) out.push({ key: `person:${p.id}`, kind: "person", label: p.name, hint: p.kind === "person" ? "Person" : "Organisation", go: () => { onGo({ kind: "entity", id: p.id }); close(); } });
       for (const r of hits.records.slice(0, 6)) {
@@ -108,6 +119,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
           }
         }}
       />
+      {trouble ? <p className="notice" role="alert" style={{ padding: "6px 12px" }}>Search isn't answering: {trouble}</p> : null}
       <ul id="command-list" className="command__list" role="listbox" aria-label="Results">
         {items.map((item, i) => (
           <li key={item.key} id={`command-${item.key}`} role="option" aria-selected={i === active} className={`command__item${i === active ? " command__item--active" : ""}`} onMouseEnter={() => setActive(i)} onClick={item.go}>

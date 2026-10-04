@@ -254,3 +254,32 @@ def test_a_search_asks_for_the_words_that_carry_meaning() -> None:
     # Nothing but function words: they are searched rather than nothing.
     assert fts_query("what is this") == '"what"* OR "is"* OR "this"*'
     assert fts_query("?!") is None
+
+
+def test_one_name_rule_and_one_site_rule_everywhere(world: World) -> None:
+    """The names of tables, readers, procedures and skills follow one rule, said one way; a
+    site is the registrable domain wherever a thing names one (3 Oct, the split)."""
+    from alpha.world.names import check_name
+    from alpha.world.sites import site_of
+
+    with pytest.raises(Problem, match="can't be a reader name"):
+        world.readers.save("Bad Name", site="x.com", url="https://x.com", script="return []",
+                           description="d", to_end=False, count=1)
+    with pytest.raises(Problem, match="can't be a table name"):
+        world.collections.create("Bad", "Bad", [{"name": "a", "kind": "text"}])
+    check_name("ok_name", "skill", "x")
+    assert site_of("https://www.linkedin.com/in/x/") == "linkedin.com"
+    src = world.sources.add("Jobs", "https://jobs.example.co.uk/list", module=None)
+    assert src["site"] == "example.co.uk"
+    assert world.sources.add("Words", "a watched folder", module=None)["site"] == "a watched folder"
+
+
+def test_a_proposal_is_answered_one_way(world: World) -> None:
+    pid = world.journal.append("proposed", "Keep a list", data={"why": "asked"})
+    jid = world.journal.answer_proposal(pid, True, plan="p_1")
+    entry = world.journal.read(jid)
+    assert entry["kind"] == "answered" and entry["text"] == "Yes" and entry["actor"] == "person"
+    assert entry["data"] == {"proposal": pid, "accept": True, "plan": "p_1"}
+    replaced = world.journal.read(world.journal.answer_proposal(
+        pid, None, actor="alpha", words="Replaced by a revised plan.", replaced=True))
+    assert replaced["data"] == {"proposal": pid, "replaced": True}

@@ -5,17 +5,19 @@
  * with its sub projects. The App · Activity · Settings toggle and the subtabs are the shell's
  * own structure; the section lives in the address (`#/m/<id>/<section>`).
  */
-import { useEffect, useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Archive, Folder, MoreHorizontal, Plus, X } from "lucide-react";
 import type { Client, ModuleCard, ModuleDetail, ModuleSummary, Note, Source } from "../core/client";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, Tabs, Tooltip, useToast } from "../ui";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, IconButton, InfoTip, Tabs, Tooltip, useToast } from "../ui";
 import { exportProject, importProject, ProjectEditDialog, ProjectMenuItems, type ProjectEdit } from "../shell/ProjectMenu";
 import { projectIcon } from "../shell/projectIcons";
 import { CreationOnPage, PlanSection } from "./CreationOnPage";
+import { moduleWords } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
+import { Menu, MenuHeading, MenuItem } from "../ui";
 
 type Section = "app" | "activity" | "settings";
 /** While it is still being worked out and holds nothing, only the creation shows. */
@@ -60,10 +62,11 @@ export function ModulePage({
   const setSection = (s: Section) => onSection?.(s);
   const [dragging, setDragging] = useState(false);
   const [dropNote, setDropNote] = useState<string | null>(null);
-  async function dropped(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragging(false);
-    const files = Array.from(e.dataTransfer.files ?? []);
+  // Files come in by the Add files button (the Mac's picker) or by dropping them anywhere on
+  // the page; both take the same route (3 Oct: with only the drop, an empty attachments table
+  // had no visible way in).
+  const picker = useRef<HTMLInputElement>(null);
+  async function added(files: File[]) {
     if (!files.length) return;
     try {
       const out = await client.addFiles(files, { module: moduleId });
@@ -73,6 +76,11 @@ export function ModulePage({
       setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
     }
     window.setTimeout(() => setDropNote(null), 6000);
+  }
+  async function dropped(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    await added(Array.from(e.dataTransfer.files ?? []));
   }
   const [tab, setTab] = useState<string>(() => {
     try {
@@ -104,6 +112,57 @@ export function ModulePage({
   }, [client, moduleId, version, onGo]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
+  // Where this module could go (never itself, what it holds, or where it already is), and
+  // what could come in (never itself, what is already here, or anything above it).
+  const canHoldMe = useMemo(() => modules.filter((m) => m.id !== moduleId && m.id !== (detail?.parent ?? null) && !(m.path ?? []).includes(detail?.name ?? "")), [modules, moduleId, detail?.parent, detail?.name]);
+  const canMoveIn = useMemo(() => modules.filter((m) => m.id !== moduleId && m.parent !== moduleId && !(detail?.path ?? []).slice(0, -1).includes(m.name)), [modules, moduleId, detail?.path]);
+  // The ids behind the path's names, from the rail's cards (the page itself knows the names).
+  const pathIds = useMemo(() => {
+    const ids: string[] = [];
+    let current = modules.find((m) => m.id === moduleId);
+    while (current?.parent) {
+      ids.unshift(current.parent);
+      current = modules.find((m) => m.id === current?.parent);
+    }
+    return ids;
+  }, [modules, moduleId]);
+  const [moveNote, setMoveNote] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
+  async function moveUnder(parent: string | null) {
+    try {
+      const card = await client.moveModule(moduleId, parent);
+      setMoveNote(`${card.name} now sits ${card.path && card.path.length > 1 ? `inside ${card.path.slice(0, -1).join(" › ")}` : "at the top"}.`);
+      onChanged();
+    } catch (e) {
+      setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  /** A new project above this one: made where this one sits, then this one moves into it
+   *  ("create Avilo and have Deals and Advisory in it": make it above one, move the other in). */
+  async function makeParent() {
+    const name = newName.trim();
+    if (!name) return;
+    try {
+      const made = await client.createModule(name, null, detail?.parent ?? null);
+      await client.moveModule(moduleId, made.id);
+      setMoveNote(`${detail?.name ?? "It"} now sits inside ${made.name}.`);
+      setNaming(false);
+      setNewName("");
+      onChanged();
+    } catch (e) {
+      setMoveNote(`Couldn't make it: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  async function moveIn(id: string) {
+    try {
+      const card = await client.moveModule(id, moduleId);
+      setMoveNote(`${card.name} now sits inside ${detail?.name ?? "this project"}.`);
+      onChanged();
+    } catch (e) {
+      setMoveNote(`Couldn't move it in: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   if (!detail) {
     return <div className="page">{error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}</div>;
   }
@@ -135,6 +194,18 @@ export function ModulePage({
     <div className={`page page--wide${section === "app" && table && !early ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
       {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
       {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
+      {detail.path && detail.path.length > 1 ? (
+        <div className="crumbs" aria-label="Inside">
+          {detail.path.slice(0, -1).map((name, i) => (
+            <span key={`${name}-${i}`}>
+              <button type="button" className="linkbtn" onClick={() => onGo({ kind: "module", id: pathIds[i] })}>
+                {name}
+              </button>
+              <span className="faint"> › </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">
@@ -167,6 +238,10 @@ export function ModulePage({
           </DropdownMenu>
         </div>
         {early ? null : <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />}
+        <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void added(files); }} />
+        <Button size="sm" title="Add files to this project from your Mac; Alpha reads them into its tables" onClick={() => picker.current?.click()}>
+          Add files
+        </Button>
       </div>
       {inline === "goal" ? (
         <input autoFocus aria-label="Project goal" className="modhead__desc projpage__goalinput" value={draft} placeholder="What this project is for" onChange={(e) => setDraft(e.target.value)} onBlur={() => void saveEdit()} onKeyDown={onEnterBlur} />
@@ -226,6 +301,33 @@ export function ModulePage({
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onQuickEntry} />
           ) : (
             <>
+              {detail.inside?.length ? (
+                <div className="section" style={{ marginTop: 0 }}>
+                  <div className="section__head">
+                    <h2>Inside {detail.name}</h2>
+                    <span className="faint">{detail.inside.length} {detail.inside.length === 1 ? "project" : "projects"}; what you ask here reaches them all</span>
+                  </div>
+                  <div className="card list">
+                    {detail.inside.map((m) => (
+                      <div key={m.id} className="item">
+                        <div className="item__ico" aria-hidden="true">
+                          <Folder size={16} />
+                        </div>
+                        <div className="item__body">
+                          <b>{m.name}</b>
+                          <div className="item__sub">
+                            {m.goal ?? m.last_text ?? "Nothing in it yet."} · {m.tables.length} {m.tables.length === 1 ? "table" : "tables"}
+                            {m.children?.length ? ` · holds ${m.children.length}` : ""}
+                          </div>
+                        </div>
+                        <Button size="sm" onClick={() => onGo({ kind: "module", id: m.id })}>
+                          Open
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />
               <ProjectFacts client={client} detail={detail} onChanged={onChanged} />
               <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
@@ -251,6 +353,88 @@ export function ModulePage({
         <>
           {!making && detail.plan?.body.trim() ? <PlanSection body={detail.plan.body} /> : null}
           <div className="section section--first">
+            <div className="section__head">
+              <h2>Where it sits</h2>
+              <span className="faint">A project can live inside another; everything in it moves with it</span>
+            </div>
+            <div className="card list">
+              <div className="item">
+                <div className="item__ico" aria-hidden="true">
+                  <Folder size={16} />
+                </div>
+                <div className="item__body">
+                  <b>{detail.name}</b>
+                  <div className="item__sub">{detail.path && detail.path.length > 1 ? `Inside ${detail.path.slice(0, -1).join(" › ")}` : "At the top level"}</div>
+                </div>
+                <Menu
+                  trigger={
+                    <Button size="sm" aria-label={`Move ${detail.name}`}>
+                      Move…
+                    </Button>
+                  }
+                >
+                  <MenuItem onSelect={() => setNaming(true)}>A new project above it…</MenuItem>
+                  {detail.parent ? <MenuItem onSelect={() => void moveUnder(null)}>To the top level</MenuItem> : null}
+                  {canHoldMe.length ? <MenuHeading>Inside</MenuHeading> : null}
+                  {canHoldMe.map((m) => (
+                    <MenuItem key={m.id} onSelect={() => void moveUnder(m.id)}>
+                      {moduleWords(m)}
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </div>
+              {naming ? (
+                <div className="item">
+                  <div className="item__ico" aria-hidden="true">
+                    <Folder size={16} />
+                  </div>
+                  <div className="item__body">
+                    <b>A new project above {detail.name}</b>
+                    <div className="item__sub">Made where {detail.name} sits now; {detail.name} moves into it. Move others in from here afterwards.</div>
+                  </div>
+                  <input className="textfield" aria-label="The new project's name" placeholder="Its name, e.g. Avilo" value={newName} autoFocus onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void makeParent(); if (e.key === "Escape") setNaming(false); }} />
+                  <Button size="sm" variant="primary" disabled={!newName.trim()} onClick={() => void makeParent()}>
+                    Make it
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setNaming(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : null}
+              <div className="item">
+                <div className="item__ico" aria-hidden="true">
+                  <Folder size={16} />
+                </div>
+                <div className="item__body">
+                  <b>Inside it</b>
+                  <div className="item__sub">{detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet. Other projects can move in here."}</div>
+                </div>
+                {canMoveIn.length ? (
+                  <Menu
+                    trigger={
+                      <Button size="sm" aria-label={`Move a project into ${detail.name}`}>
+                        Move a project in…
+                      </Button>
+                    }
+                  >
+                    {canMoveIn.map((m) => (
+                      <MenuItem key={m.id} onSelect={() => void moveIn(m.id)}>
+                        {moduleWords(m)}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                ) : null}
+              </div>
+              {moveNote ? (
+                <div className="item">
+                  <span className={`notice${moveNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">
+                    {moveNote}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <div className="section">
             <div className="section__head">
               <h2>What it keeps</h2>
             </div>
@@ -303,13 +487,12 @@ export function ModulePage({
             </div>
             <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here." />
           </div>
-          <SubProjects client={client} detail={detail} modules={modules} onChanged={onChanged} onGo={onGo} />
         </>
       ) : null}
       <ProjectEditDialog
         client={client}
         project={editing ? detail : null}
-        subProjects={detail.sub_projects?.length ?? 0}
+        subProjects={detail.inside?.length ?? 0}
         edit={editing}
         onClose={() => setEditing(null)}
         onChanged={onChanged}
@@ -651,65 +834,6 @@ function WentWrong({ detail }: { detail: ModuleDetail }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-/** Projects filed under this one: add one from elsewhere, or take one out. */
-function SubProjects({ client, detail, modules, onChanged, onGo }: { client: Client; detail: ModuleDetail; modules: ModuleCard[]; onChanged: () => void; onGo: (s: Surface) => void }) {
-  const mine = detail.sub_projects ?? [];
-  // One level deep: a sub project has no sub projects, and one with its own stays on top.
-  const elsewhere = detail.project ? [] : modules.filter((m) => m.id !== detail.id && !m.project && !modules.some((c) => c.project === m.id) && !mine.some((c) => c.id === m.id));
-  const file = (id: string, project: string | null) => void client.updateModule(id, { project }).then(onChanged, () => undefined);
-  return (
-    <div className="section">
-      <div className="section__head">
-        <h2>Sub projects</h2>
-        {mine.length ? <span className="faint">{mine.length}</span> : null}
-        {elsewhere.length ? (
-          <span className="section__right">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm">
-                  <Plus size={14} strokeWidth={1.75} aria-hidden="true" /> Add sub project
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {elsewhere.map((m) => (
-                  <DropdownMenuItem key={m.id} onSelect={() => file(m.id, detail.id)}>
-                    {m.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </span>
-        ) : null}
-      </div>
-      {mine.length ? (
-        <div className="card list" aria-label="Sub projects">
-          {mine.map((m) => {
-            const Icon = projectIcon(m);
-            return (
-              <div className="item" key={m.id}>
-                <div className="item__ico" aria-hidden="true">
-                  <Icon size={16} />
-                </div>
-                <div className="item__body projrow__body">
-                  <button type="button" className="linkbtn projrow__title" onClick={() => onGo({ kind: "module", id: m.id })}>
-                    <b>{m.name}</b>
-                  </button>
-                  {m.goal ? <InfoTip text={m.goal} /> : null}
-                </div>
-                <Button variant="ghost" size="sm" className="projrow__action" onClick={() => file(m.id, null)} aria-label={`Take ${m.name} out of this project`}>
-                  Take out
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="projempty">None yet</p>
-      )}
     </div>
   );
 }

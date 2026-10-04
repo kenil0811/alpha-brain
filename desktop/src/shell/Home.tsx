@@ -351,7 +351,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           </div>
         </div>
         <div className="modgrid">
-          {home.modules.map((m) => {
+          {home.modules.filter((m) => !m.parent).map((m) => {
             const Icon = projectIcon(m);
             return (
             <div key={m.id} className="card modcard">
@@ -365,6 +365,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                     {m.goal ? <> <InfoTip text={m.goal} /></> : null}
                   </h3>
                   <div className="faint">
+                    {m.children?.length ? `${m.children.length} ${m.children.length === 1 ? "project" : "projects"} inside · ` : ""}
                     {m.tables.length} {m.tables.length === 1 ? "table" : "tables"} · {m.records} {m.records === 1 ? "row" : "rows"}
                   </div>
                 </div>

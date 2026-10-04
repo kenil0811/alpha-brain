@@ -1,10 +1,17 @@
 """The pre-pack: what the model sees before it looks anything up.
 
-Deterministic and free: no model call, cut at MAX_CHARS (12,000 characters, roughly
-three thousand tokens). Every line names
-where it came from. It carries who the person is and how they want things done, what they are
-working towards, what Alpha holds, the recent stream, the records and moments that match the
-sentence, and what is open. Everything else the model fetches itself through the tools.
+Deterministic and free: no model call, at most MAX_CHARS (12,000 characters, roughly three
+thousand tokens). Every line names where it came from. It carries who the person is and how they
+want things done, what they are working towards, what Alpha holds (every table with its fields,
+so a question about the data is one query, not a describe and then a query), the recent stream,
+the records and moments that match the sentence, and what is open. Everything else the model
+fetches itself through the tools.
+
+Each section has a budget; one over it keeps whole lines from its start (or its end, where the
+newest matter most: the conversation, a thread's history, a day's turns) and says how many it
+left out. The whole stays under MAX_CHARS by shrinking the largest section, never by a blind cut
+of the tail (found 3 Oct: the tail held the matches for the sentence, the one part that was
+about the sentence; cut whenever the index and a module's page were long).
 """
 
 from __future__ import annotations
@@ -18,10 +25,105 @@ from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.world.world import World
 
-MAX_CHARS = 12_000
+# Raised from 12,000 on 3 Oct when every table's fields joined the pack: about 500 more tokens a
+# turn, measured on Kenil's world (13 tables), against one model step saved per data question.
+MAX_CHARS = 14_000
 RECENT_TURNS = 12
 THREAD_HISTORY = 15
 MATCHES = 5
+# Characters a section may take before it says what it left out; matched by the title's start.
+BUDGET = {"WHAT ALPHA HOLDS": 3_600, "WHAT ALPHA CAN DO": 2_000, "WHAT ALPHA KNOWS": 1_600,
+          "THIS MODULE'S PAGE": 1_700, "THIS CONVERSATION": 2_400, "SINCE YOUR LAST TURN": 800,
+          "WHAT WAS SAID": 1_600, "MATCHES FOR THIS SENTENCE": 2_200, "THIS THREAD": 2_400,
+          "OPEN": 900, "WHO THE SENTENCE NAMES": 1_200, "TODAY'S CALENDAR": 700}
+DEFAULT_BUDGET = 900
+# Sections where the newest lines matter most: they are cut from the front.
+KEEP_NEWEST = ("THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "SINCE YOUR LAST TURN")
+# When the whole still runs over, sections give up room in this order: the index and the skills
+# first (both are reachable by a tool), what the sentence is about last.
+SHRINK_ORDER = ("WHAT ALPHA KNOWS", "WHAT ALPHA CAN DO", "THIS MODULE'S PAGE",
+                "THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "WHAT ALPHA HOLDS", "OPEN",
+                "WHO THE SENTENCE NAMES", "MATCHES FOR THIS SENTENCE")
+FIELDS_LINE = 320
+
+
+def _budget(title: str) -> int:
+    return next((cap for key, cap in BUDGET.items() if title.startswith(key)), DEFAULT_BUDGET)
+
+
+def _fit(title: str, lines: list[str], cap: int) -> list[str]:
+    """The lines of a section within `cap` characters: whole lines, from the start (or the end
+    for the sections where the newest matter), and one line saying how many were left out."""
+    if len(title) + 1 + sum(len(line) + 1 for line in lines) <= cap:
+        return lines
+    newest = title.startswith(KEEP_NEWEST)
+    room = cap - len(title) - 60
+    kept: list[str] = []
+    used = 0
+    for line in (reversed(lines) if newest else lines):
+        if used + len(line) + 1 > room:
+            break
+        kept.append(line)
+        used += len(line) + 1
+    if newest:
+        kept.reverse()
+    left = len(lines) - len(kept)
+    note = (f"- … {left} {'earlier ' if newest else ''}line{'s' if left != 1 else ''}"
+            " left out for room")
+    return [note, *kept] if newest else [*kept, note]
+
+
+def _assemble(sections: list[tuple[str, list[str]]]) -> str:
+    """Every section within its budget, and the whole within MAX_CHARS: when it still runs
+    over, sections give up a third of their room in SHRINK_ORDER, round after round, until it
+    fits; a section down to two lines gives up no more."""
+    caps = [_budget(title) for title, _ in sections]
+    fitted = [(title, _fit(title, lines, cap)) for (title, lines), cap in zip(sections, caps,
+                                                                              strict=True)]
+
+    def join(parts: list[tuple[str, list[str]]]) -> str:
+        return "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in parts)
+
+    text = join(fitted)
+
+    def rank(i: int) -> int:
+        title = sections[i][0]
+        return next((n for n, key in enumerate(SHRINK_ORDER) if title.startswith(key)),
+                    len(SHRINK_ORDER))
+
+    while len(text) > MAX_CHARS:
+        sizes = [len(title) + sum(len(line) + 1 for line in lines) for title, lines in fitted]
+        shrinkable = [i for i, (_, lines) in enumerate(fitted) if len(lines) > 2
+                      and sizes[i] > 400 and rank(i) < len(SHRINK_ORDER)]
+        if not shrinkable:
+            break
+        i = min(shrinkable, key=lambda j: (rank(j), -sizes[j]))
+        caps[i] = int(sizes[i] * 0.66)
+        fitted[i] = (sections[i][0], _fit(sections[i][0], sections[i][1], caps[i]))
+        text = join(fitted)
+    return text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(pre-pack cut short)"
+
+
+def table_line(world: World, table: dict[str, Any]) -> str:
+    """A table with its fields in one line: name kind unit[choices]->relation, so the model
+    queries it without a describe first (3 Oct: every data question paid that step)."""
+    desc = world.collections.describe(table["name"])
+    parts = []
+    for f in desc["fields"]:
+        bit = f["name"]
+        if f["kind"] != "text":
+            bit += f" {f['kind']}"
+        if f.get("unit"):
+            bit += f" {f['unit']}"
+        if f.get("choices"):
+            shown = [str(c)[:20] for c in f["choices"][:5]]
+            bit += "[" + "|".join(shown) + ("|…" if len(f["choices"]) > 5 else "") + "]"
+        if f.get("relation"):
+            bit += f"->{f['relation']}"
+        parts.append(bit)
+    rows = table["records"]
+    return "  " + _clip(f"{table['name']} ({rows} row{'s' if rows != 1 else ''}): "
+                        + ", ".join(parts), FIELDS_LINE - 2)
 
 
 def _clip(text: str, n: int) -> str:
@@ -145,17 +247,34 @@ def build_with_taint(world: World, sentence: str, *, module: str | None = None,
     for t in tables:
         by_module.setdefault(t["module"], []).append(t)
     held = []
-    ordered = sorted(modules, key=lambda m: (m["name"] != module and m["id"] != module, m["name"]))
-    for m in ordered:
-        own = by_module.pop(m["id"], []) + by_module.pop(m["name"], [])
-        listing = ", ".join(f"{t['name']} ({t['records']})" for t in own) or "no tables yet"
-        goal = f" — {m['goal']}" if m["goal"] else ""
-        held.append(f"- Module {m['name']} ({m['id']}){goal}: {listing}")
+    kids: dict[str | None, list[dict[str, Any]]] = {}
+    for m in modules:
+        kids.setdefault(m.get("parent"), []).append(m)
+    here = world.modules.get(module)["id"] if module else None
+    branch = set(world.modules.subtree(here)) if here else set()
+    root_of = {m["id"]: world.modules.path(m["id"])[0]["id"] for m in modules}
+    mine = root_of.get(here) if here else None
+
+    def walk(parent: str | None, depth: int) -> None:
+        for m in sorted(kids.get(parent, []),
+                        key=lambda m: (m["id"] != mine, m["id"] not in branch, m["name"])):
+            own = by_module.pop(m["id"], []) + by_module.pop(m["name"], [])
+            goal = f" — {_clip(m['goal'], 140)}" if m["goal"] else ""
+            pad = "  " * depth
+            inside = f", holds {', '.join(c['name'] for c in kids.get(m['id'], []))}" \
+                if kids.get(m["id"]) else ""
+            held.append(f"{pad}- Module {m['name']} ({m['id']}){goal}{inside}"
+                        + ("" if own else ": no tables of its own"))
+            held.extend(pad + table_line(world, t) for t in own)
+            walk(m["id"], depth + 1)
+
+    walk(None, 0)
     loose = [t for group in by_module.values() for t in group]
     if loose:
-        held.append("- Tables in no module: "
-                    + ", ".join(f"{t['name']} ({t['records']})" for t in loose))
-    sections.append(("WHAT ALPHA HOLDS", held or ["- Nothing yet: no modules, no tables."]))
+        held.append("- Tables in no module:")
+        held += [table_line(world, t) for t in loose]
+    sections.append(("WHAT ALPHA HOLDS (each table with its fields: query it straight away)",
+                     held or ["- Nothing yet: no modules, no tables."]))
 
     reach = [
         f"- {c['connector']}: {c['target']} — {c['status']}"
@@ -288,6 +407,9 @@ def build_with_taint(world: World, sentence: str, *, module: str | None = None,
     hits = world.journal.mark_removed(world.journal.search(
         sentence, MATCHES + len(recent_ids),
         since=window[0] if window else None, until=window[1] if window else None))
+    # The journal's hits have a cap of their own: records and documents never crowd them out
+    # (found 3 Oct: a day-named question's own sentence sat beyond the shared cap).
+    found = 0
     for hit in hits:
         if hit["id"] in recent_ids:
             continue
@@ -296,7 +418,8 @@ def build_with_taint(world: World, sentence: str, *, module: str | None = None,
         gone = f" [history: {hit['removed']}]" if "removed" in hit else ""
         matches.append(f"- {when(hit['at'])} {hit['kind']} ({hit['id']}):"
                        f" {_clip(hit['snippet'], 160)}{gone}")
-        if len(matches) >= MATCHES * 2:
+        found += 1
+        if found >= MATCHES * 2:
             break
     if matches:
         sections.append(("MATCHES FOR THIS SENTENCE", matches))
@@ -328,6 +451,4 @@ def build_with_taint(world: World, sentence: str, *, module: str | None = None,
     if open_items:
         sections.append(("OPEN", open_items))
 
-    text = "\n\n".join(f"{title}\n" + "\n".join(lines) for title, lines in sections)
-    text = text if len(text) <= MAX_CHARS else text[: MAX_CHARS - 40] + "\n…(pre-pack cut short)"
-    return text, taints[0] if taints else None
+    return _assemble(sections), taints[0] if taints else None

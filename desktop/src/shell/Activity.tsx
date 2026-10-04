@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Attention, Client, JournalEntry } from "../core/client";
 import { Search } from "lucide-react";
 import { dayLabel, when } from "../modules/format";
-import { InfoTip, PageHeader, useToast } from "../ui";
+import { InfoTip, PageHeader, Trouble, useToast } from "../ui";
 import { Need } from "./Home";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
@@ -58,6 +58,8 @@ export function Activity({ client, version, onChanged }: { client: Client; versi
   useEffect(() => {
     client.attention().then(setAttention, () => setAttention(null));
   }, [client, version]);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "alpha" | "you" | "failed">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -65,11 +67,14 @@ export function Activity({ client, version, onChanged }: { client: Client; versi
     const t = setTimeout(() => {
       client
         .activity({ q: q.trim() || undefined, limit: 300 })
-        .then(setRows)
-        .catch(() => setRows([]));
+        .then((r) => {
+          setRows(r);
+          setError(null);
+        })
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
     }, 200);
     return () => clearTimeout(t);
-  }, [client, q, version]);
+  }, [client, q, version, tick]);
   const shown = useMemo(
     () =>
       (rows ?? []).filter(
@@ -121,6 +126,7 @@ export function Activity({ client, version, onChanged }: { client: Client; versi
           ))}
         </div>
         <div className="runs">
+          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Activity: {error}</Trouble> : null}
           {rows === null ? <p className="empty">Loading…</p> : null}
           {rows && !shown.length ? <p className="empty">{q ? "Nothing matches." : "Nothing has happened yet."}</p> : null}
           {shown.map((e) => {

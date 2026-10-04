@@ -93,16 +93,21 @@ class Journal:
         limit: int = 20,
         *,
         module: str | None = None,
+        modules: list[str] | None = None,
         thread: str | None = None,
         stream: bool = False,
         kinds: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        """Newest last. `stream=True` keeps only turns outside any thread."""
+        """Newest last. `stream=True` keeps only turns outside any thread; `modules` is a set
+        of modules (a module and what it holds)."""
         where = ["deleted_at IS NULL"]
         args: list[Any] = []
         if module is not None:
             where.append("module = ?")
             args.append(module)
+        if modules is not None:
+            where.append(f"module IN ({','.join('?' * len(modules))})" if modules else "0")
+            args.extend(modules)
         if thread is not None:
             where.append("thread = ?")
             args.append(thread)
@@ -235,6 +240,19 @@ class Journal:
         asked = self.read(ask_id)
         return self.append("answered", words, actor=actor, data={"ask": ask_id, "closed": closed},
                            module=asked["module"], thread=asked["thread"])
+
+    def answer_proposal(self, proposal: str, accept: bool | None, *, words: str | None = None,
+                        actor: str = "person", module: str | None = None,
+                        thread: str | None = None, **about: Any) -> str:
+        """The one way a proposal is answered: Yes or No (or other words: a standing permission,
+        a revised plan replacing it), with what the answer was about (the plan, the action), so
+        Home stops showing it and Activity shows who decided."""
+        data: dict[str, Any] = {"proposal": proposal}
+        if accept is not None:
+            data["accept"] = accept
+        data.update(about)
+        return self.append("answered", words or ("Yes" if accept else "No"), actor=actor,
+                           data=data, module=module, thread=thread)
 
     def close_asks_about(self, connection: str, words: str, closed: str) -> int:
         """Close the open questions a connection asked (a sign-in that is done or asked again)."""

@@ -19,7 +19,6 @@ from typing import Any
 
 from fastmcp.tools import Tool
 
-from alpha.mcp.tools import Tools
 from alpha.models.providers import ProviderHTTPError, auth_headers, request
 from alpha.runtime import claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
@@ -165,6 +164,8 @@ def run(req: TurnRequest, *, kind: str, base_url: str, key: str | None, model: s
 
     world = World(req.world_path)
     try:
+        from alpha.mcp.tools import Tools  # here: the tools import the route, which imports this
+
         fns = Tools(world, turn=req.turn_id, thread=req.thread_id, module=req.module_id).all()
         by_name = {fn.__name__: fn for fn in fns}
         turns = [*history(world, req), ("user", req.sentence)]

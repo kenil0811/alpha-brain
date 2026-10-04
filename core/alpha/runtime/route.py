@@ -96,3 +96,17 @@ class Router:
             result.raw.update(needs_connect=connect, connect_kind=how)
         result.error = said
         return result
+
+
+_ROUTERS: dict[str, Router] = {}
+
+
+def run(req: TurnRequest) -> RunResult:
+    """The default runner for everything that runs a model (builds, checks, automations, acting):
+    the Router of the world at `req.world_path`, made once per world."""
+    from alpha.world.store import Store
+
+    key = str(req.world_path)
+    if key not in _ROUTERS:
+        _ROUTERS[key] = Router(Accounts(Store(req.world_path)))
+    return _ROUTERS[key](req)

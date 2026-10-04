@@ -31,7 +31,7 @@ import time
 from typing import Any
 
 from alpha.bugs import bug_log
-from alpha.runtime import build, pipeline, turn
+from alpha.runtime import build, pipeline, route, turn
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -83,7 +83,7 @@ def worth_telling(reply: str) -> str | None:
 
 
 def run(world: World, automation_id: str, *,
-        runner: turn.Runner) -> dict[str, Any]:
+        runner: turn.Runner = route.run) -> dict[str, Any]:
     auto = world.automations.get(automation_id)
     thread = auto["thread"]
     if not thread:
@@ -135,10 +135,10 @@ class Scheduler:
     """Runs due automations while the core is up, each in its own thread, once the Mac is
     properly awake; `run_now` runs one at once in the background."""
 
-    def __init__(self, world: World, runner: turn.Runner,
+    def __init__(self, world: World, runner: turn.Runner | None = None,
                  clock: Any = time.time) -> None:
         self.world = world
-        self.runner = runner
+        self.runner = runner or route.run
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()
