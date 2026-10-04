@@ -100,7 +100,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
         className="command__input"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="A page, a module, a person, a row, a document, or a question for Alpha"
+        placeholder="A page, a project, a person, a row, a document, or a question for Alpha"
         aria-label="Search everything"
         role="combobox"
         aria-expanded={items.length > 0}

@@ -106,6 +106,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     else:
         keys = [f"{req.kind}:{req.turn_id}:{uuid.uuid4().hex[:8]}"]
     began = time.monotonic()
+    live = LIVE.begin(keys)
     with tempfile.TemporaryDirectory(prefix="alpha-codex-") as tmp:
         cwd = Path(tmp)
         (cwd / "AGENTS.md").write_text(instructions(req))
@@ -117,9 +118,10 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                 text=True, env=env, cwd=tmp, start_new_session=True,
             )
         except FileNotFoundError:
+            LIVE.end(keys, live)
             return RunResult(reply="", ok=False, error="The Codex CLI isn't on this Mac yet:"
                              " connect ChatGPT in Settings.")
-        LIVE.add(keys, proc)
+        LIVE.attach(live, proc)
         errors: list[str] = []
 
         def drain() -> None:
@@ -155,7 +157,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
             proc.wait()
         finally:
             done.set()
-            stopped = LIVE.remove(keys, proc)
+            stopped = LIVE.end(keys, live)
         reply_file = last.read_text() if last.exists() else ""
     if stopped:
         return RunResult(reply="", ok=False, error=STOPPED, stopped=True)

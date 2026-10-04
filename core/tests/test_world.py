@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from alpha.world.store import Problem
+from alpha.world.store import VERSION, Problem, Store, version_of
 from alpha.world.world import World
 
 FOOD: list[dict[str, Any]] = [
@@ -229,6 +231,20 @@ def test_modules_and_threads(world: World) -> None:
         "Keep it to whole foods."
 
 
+def test_an_older_store_is_upgraded_and_a_newer_one_refused(tmp_path: Path) -> None:
+    path = tmp_path / "world.sqlite"
+    Store(path).close()
+    old = sqlite3.connect(path)  # a store from before versions were kept
+    old.execute("ALTER TABLE skills DROP COLUMN allow_posts")
+    old.execute("PRAGMA user_version = 0")
+    old.close()
+    store = Store(path)
+    assert "allow_posts" in {r[1] for r in store.db.execute("PRAGMA table_info(skills)")}
+    assert version_of(store.db) == VERSION
+    store.db.execute(f"PRAGMA user_version = {VERSION + 1}")
+    store.close()
+    with pytest.raises(Problem, match="newer Alpha"):
+        Store(path)
 def test_a_search_asks_for_the_words_that_carry_meaning() -> None:
     from alpha.world.store import fts_query
 

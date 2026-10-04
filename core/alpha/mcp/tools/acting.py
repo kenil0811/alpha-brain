@@ -6,6 +6,8 @@ from typing import Any
 
 from alpha.mcp.tools.base import Base, tool
 from alpha.runtime import route
+from alpha.world import person_skills
+from alpha.world.pending import PendingActions
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
 
@@ -140,3 +142,37 @@ class Acting(Base):
         return [{k: a[k] for k in ("id", "title", "procedure", "effect", "site", "state",
                                     "payload", "undo", "error", "created_at")}
                 for a in self.world.actions.all((state,) if state else None)]
+
+    @tool
+    def propose_action(self, kind: str, summary: str, payload: dict[str, Any],
+                       connector: str | None = None) -> dict[str, Any]:
+        """The only way to do something outside Alpha (send, post, submit, apply, change a
+        calendar, write to the person's folders): propose it, and it waits on Home for the
+        person's yes. Then exactly this payload runs once; nothing runs without that yes, and
+        you never decide it. kind: snake_case, e.g. send_email. summary: one sentence the person
+        reads ("Send Priya the thank-you note"). payload: everything the action needs, final.
+        Moving money, permanent deletion, and passwords or card numbers are never possible."""
+        action = PendingActions(self.world).propose(kind, summary, payload, connector=connector,
+                                                    turn=self.turn, thread=self.thread,
+                                                    module=self.module)
+        return {"pending_action": action["id"], "state": action["state"],
+                "note": "Waiting for the person's approval; tell them it's on Home."}
+
+    # ---- skills the person made (Intelligence › Skills) and row actions ----
+
+    @tool
+    def skills_list(self) -> list[dict[str, Any]]:
+        """The skills the person made: each a procedure in their words (what it does, the
+        steps, what it needs, the sources it may read, what it produces). When a sentence calls
+        for one, follow its steps; anything outward still goes through propose_action."""
+        return person_skills.all_skills(self.world.store)
+
+    @tool
+    def table_row_action(self, collection: str, skill: str) -> dict[str, Any]:
+        """Offer a skill (its id from skills_list) on every row of a table: it shows in the
+        row's menu and runs with that row's values as its inputs."""
+        actions = person_skills.attach_row_action(self.world.store, collection, skill)
+        self._did("changed", f"Added a row action to {collection}.",
+                  {"collection": collection, "skill": skill},
+                  module=self._module_of(collection))
+        return {"row_actions": actions}

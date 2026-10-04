@@ -12,7 +12,8 @@ from alpha.world.knowledge import GATED_NOTES
 class Knowledge(Base):
     @tool
     def notes_list(self, scope: str | None = None) -> list[dict[str, Any]]:
-        """Alpha's notes, optionally for one scope: person, module:<name> or topic:<slug>."""
+        """Alpha's notes, optionally for one scope: person, module:<project name> or
+        topic:<slug>."""
         return self.world.knowledge.notes(scope)
 
     @tool
@@ -115,7 +116,8 @@ class Knowledge(Base):
         otherwise it waits as a suggestion for their yes. why: the words it came from."""
         fact = self.world.knowledge.record_fact(
             subject, predicate, value,
-            source=f"turn:{self.turn}" if self.turn else "alpha",
+            source=f"module:{self.module}" if self.module
+            else f"turn:{self.turn}" if self.turn else "alpha",
             state="accepted" if stated else "suggested",
             confidence=0.95 if stated else 0.6,
             why=why,

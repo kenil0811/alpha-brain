@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 
+from alpha.world.journal import Journal
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
 STATUSES = {"connected", "needs_ok", "broken", "off"}
@@ -119,12 +120,24 @@ class Connections:
         return [_row(r) for r in rows]
 
     def synced(self, cid: str, error: str | None = None) -> None:
+        """Record a read. A new problem goes into the journal (Activity › Failed), and so does
+        the read that works again: a background sync must never fail where only the log sees
+        it."""
+        before = self.get(cid)
         with self.store.tx() as db:
             db.execute(
                 "UPDATE connections SET last_sync = ?, last_error = ?, status = ?, updated_at = ?"
                 " WHERE id = ?",
                 (now(), error, "broken" if error else "connected", now(), cid),
             )
+        name = f"{before['connector']} ({before['target']})"
+        source = f"connector:{before['connector']}"
+        if error and error != before["last_error"]:
+            Journal(self.store).append("failed", f"Couldn't read {name}: {error}",
+                                       data={"connection": cid}, source=source)
+        elif not error and before["status"] == "broken":
+            Journal(self.store).append("did", f"Reading {name} works again.",
+                                       data={"connection": cid}, source=source)
 
     def remove(self, cid: str) -> None:
         with self.store.tx() as db:

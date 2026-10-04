@@ -4,6 +4,9 @@ A watched folder is a connection. Syncing walks it, reads every new or changed d
 the world (text extracted; the file itself is never changed), makes each one a `document`
 entity keyed by its path, and journals what it saw. A file that disappears is marked removed.
 While the core runs, FSEvents (through watchdog) triggers the same sync for the folder.
+
+The one write (`save_document`) is outward, so it runs only as an approved pending action: a
+new text document in a folder the person shared, never over an existing file.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.base import Connections
+from alpha.world.pending import register
 from alpha.world.store import Problem, new_id, now
 from alpha.world.world import World
 
@@ -408,3 +412,40 @@ class Files:
                     t.cancel()
 
         return stop
+
+
+SAVE = "save_document"
+SAVABLE = {".md", ".txt", ".csv"}
+
+
+def save_document(world: World, payload: dict[str, Any]) -> dict[str, Any]:
+    """Write `text` as a new file `name` in `folder`, which must be a folder the person shared
+    (or inside one). Refuses rather than overwrite, and never leaves a half-written file."""
+    folder = Path(str(payload.get("folder") or "")).expanduser().resolve()
+    name, text = str(payload.get("name") or ""), payload.get("text")
+    if not isinstance(text, str):
+        raise Problem("There is no text to save.")
+    shared = [Path(c["target"]) for c in Connections(world.store).all("files")
+              if c["status"] != "off"]
+    if not any(folder == root or root in folder.parents for root in shared):
+        raise Problem(f"{folder} isn't a folder you shared with Alpha.")
+    if Path(name).name != name or name.startswith(".") or Path(name).suffix.lower() not in SAVABLE:
+        raise Problem(f"'{name}' isn't a plain file name ending in {', '.join(sorted(SAVABLE))}.")
+    if not folder.is_dir():
+        raise Problem(f"The folder {folder} is gone.")
+    target = folder / name
+    try:
+        with target.open("x", encoding="utf-8") as f:  # "x": never over an existing file
+            try:
+                f.write(text)
+            except BaseException:
+                target.unlink(missing_ok=True)
+                raise
+    except FileExistsError as e:
+        raise Problem(f"{target} already exists; nothing was overwritten.") from e
+    return {"path": str(target), "chars": len(text)}
+
+
+def enable(world: World) -> None:
+    """Let an approved `save_document` run (from the core, once, exactly as stored)."""
+    register(SAVE, "files", lambda payload: save_document(world, payload))

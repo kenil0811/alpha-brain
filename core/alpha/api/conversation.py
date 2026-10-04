@@ -1,4 +1,5 @@
-"""Routes for Activity, search, conversations, the companion, turns and threads."""
+"""Routes for Activity, search, conversations, the companion, turns and threads (and the chats
+the person opens: sessions)."""
 
 from __future__ import annotations
 
@@ -10,6 +11,8 @@ from alpha.api.bodies import (
     AskBody,
     ConversationBody,
     MoveBody,
+    ThreadBody,
+    ThreadPatch,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -124,3 +127,22 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/threads/{tid}", dependencies=[api])
     def thread(tid: str) -> dict[str, Any]:
         return {**world.modules.thread(tid), "journal": world.journal.recent(200, thread=tid)}
+
+    @app.post("/api/threads", dependencies=[api])
+    def new_thread(body: ThreadBody) -> dict[str, Any]:
+        """A chat the person opens ("+ New chat", then their first message): a topic thread in
+        the place it was opened (a project, or global)."""
+        module_id = world.modules.get(body.module)["id"] if body.module else None
+        title = " ".join((body.title or "").split())[:60] or "Untitled session"
+        return world.modules.open_thread(title, "topic", module_id)
+
+    @app.get("/api/threads", dependencies=[api])
+    def list_threads(module: str | None = None,
+                     include_done: bool = False) -> list[dict[str, Any]]:
+        module_id = world.modules.get(module)["id"] if module else None
+        return world.modules.sessions(module_id, include_done=include_done)
+
+    @app.patch("/api/threads/{tid}", dependencies=[api])
+    def edit_thread(tid: str, body: ThreadPatch) -> dict[str, Any]:
+        """Archive a chat (state done) or rename it."""
+        return world.modules.update_thread(tid, state=body.state, title=body.title)

@@ -1,9 +1,11 @@
-"""Routes for modules and their tables: records read and edited in place, saved lists, exports,
-documents and files dropped in."""
+"""Routes for modules and their tables: a new project and making it on its page, a project's
+edits, export and import, records read and edited in place (bulk, history, undo, fields), saved
+lists, exports, documents and files dropped in."""
 
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -13,9 +15,14 @@ from fastapi import FastAPI, Form, UploadFile
 
 from alpha.api.bodies import (
     AskBody,
+    BulkBody,
     CreateModuleBody,
+    CreationAnswerBody,
     ExportBody,
+    FieldChangeBody,
+    FieldsBody,
     ListBody,
+    ModuleBody,
     MoveModuleBody,
     RecordBody,
 )
@@ -28,7 +35,10 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
-from alpha.world.store import Problem
+from alpha.world import edits
+from alpha.world.bundle import export_module, import_module
+from alpha.world.purge import remove_module
+from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
 
 
@@ -55,16 +65,49 @@ def routes(app: FastAPI, s: Served) -> None:
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] in ids]
         card["automations"] = [a for i in ids for a in automation_views(world, scheduler, i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
+        card["plan"] = world.knowledge.find_note(f"module:{m['name']}", "Plan")
+        card["sessions"] = world.modules.sessions(m["id"])
+        # Facts that hold only inside this project (world/knowledge.py).
+        card["facts"] = world.knowledge.facts(f"module:{m['id']}")
+        # The turn making it, while one runs (the page shows its clock and Stop).
+        making = (m["creation"] or {}).get("thread")
+        card["running"] = [t for t in running.running() if making and t.get("thread") == making]
         return card
+
+    @app.patch("/api/modules/{ref}", dependencies=[api])
+    def edit_module(ref: str, body: ModuleBody) -> dict[str, Any]:
+        return module_card(world, world.modules.update(ref, name=body.name, icon=body.icon,
+                                                       goal=body.goal))
+
+    @app.delete("/api/modules/{ref}", dependencies=[api])
+    def delete_module(ref: str) -> dict[str, Any]:
+        return remove_module(world, ref)
+
+    @app.get("/api/modules/{ref}/export", dependencies=[api])
+    def export_project(ref: str, rows: bool = False) -> dict[str, Any]:
+        return export_module(world, ref, rows=rows)
+
+    @app.post("/api/modules/import", dependencies=[api])
+    def import_project(bundle: dict[str, Any]) -> dict[str, Any]:
+        if set(bundle) == {"path"}:
+            bundle = read_project_file(str(bundle["path"]))
+        return module_card(world, import_module(world, bundle))
 
     @app.post("/api/modules", dependencies=[api])
     def create_module(body: CreateModuleBody) -> dict[str, Any]:
         """A module the person makes themselves in the window: a place to hold others (Avilo
         above Advisory and Deal Tracker). Nothing is built; Alpha's own making stays behind a
-        plan."""
-        made = world.modules.create(body.name, body.goal, parent=body.parent or None)
+        plan. Without a name it is New project: a blank "Untitled project" at once, with the
+        thread it is made in; its page asks the person to describe it."""
+        if not (body.name or "").strip():
+            m = world.modules.create(world.modules.untitled(), parent=body.parent or None)
+            tid = world.modules.open_thread(f"Making {m['name']}", "build", m["id"])["id"]
+            return module_card(world, world.modules.set_creation(
+                m["id"], {"stage": "new", "thread": tid}))
+        made = world.modules.create(str(body.name).strip(), body.goal,
+                                    parent=body.parent or None)
         where = f" inside {world.modules.path_words(made['parent'])}" if made["parent"] else ""
-        world.journal.append("changed", f"You made the module {made['name']}{where}.",
+        world.journal.append("changed", f"You made the project {made['name']}{where}.",
                              actor="person", module=made["id"], data={"module": made["id"]})
         return module_card(world, made)
 
@@ -76,6 +119,54 @@ def routes(app: FastAPI, s: Served) -> None:
         world.journal.append("changed", f"You moved {moved['name']} under {where}.",
                              actor="person", module=moved["id"], data={"module": moved["id"]})
         return module_card(world, moved)
+
+    def said_last(tid: str) -> str:
+        last = world.journal.recent(1, thread=tid, kinds=["said"])
+        if not last:
+            raise Problem("There is nothing to try again yet.")
+        return str(last[-1]["text"])
+
+    @app.post("/api/modules/{ref}/creation/answer", dependencies=[api])
+    def answer_creation(ref: str, body: CreationAnswerBody) -> dict[str, Any]:
+        m = world.modules.get(ref)
+        creation = m["creation"] or {}
+        if not creation.get("thread") or creation.get("stage") == "done":
+            raise Problem(f"{m['name']} isn't being made.")
+        tid = str(creation["thread"])
+        if body.start_over:
+            world.modules.update_thread(tid, state="done")
+            fresh = world.modules.open_thread(f"Making {m['name']}", "build", m["id"])["id"]
+            world.modules.set_creation(m["id"], None)
+            return {"module": module_card(world, world.modules.set_creation(
+                m["id"], {"stage": "new", "thread": fresh}))}
+        asked = {q["id"]: q["question"] for q in creation.get("questions", [])
+                 + (creation.get("proposal") or {}).get("questions", [])}
+        lines = [f"{asked.get(k, k)} {v}" for k, v in (body.answers or {}).items() if v.strip()]
+        if body.retry:
+            text = said_last(tid)
+        elif body.carry_on:
+            text = "Carry on building from where you stopped; check what exists first."
+        elif body.build:
+            text = "Build it now from the plan."
+        elif body.choice:
+            options = (creation.get("proposal") or {}).get("options", [])
+            option = next((o for o in options if o.get("id") == body.choice), None)
+            if option is None:
+                raise Problem("That option isn't on the page any more.")
+            text = "\n".join([f'Go with "{option["title"]}": {option.get("summary", "")}',
+                              *lines])
+        elif body.use_defaults:
+            text = ("Use your defaults for anything still open; I will revise later. Resolve"
+                    " every open question with a stated assumption and ask nothing more.")
+        else:
+            text = "\n".join([*([body.text.strip()] if body.text and body.text.strip() else []),
+                              *lines])
+        if not text.strip():
+            raise Problem("Pick an answer first.")
+        if body.build or body.carry_on:
+            # The person's yes to the plan on the page: making lasting things is open from now.
+            world.modules.set_creation(m["id"], {"approved_at": now()})
+        return {"turn": running.start(AskBody(text=text, module=m["id"], thread=tid))}
 
     @app.get("/api/modules/{ref}/page", dependencies=[api])
     def module_page(ref: str) -> dict[str, Any]:
@@ -108,9 +199,12 @@ def routes(app: FastAPI, s: Served) -> None:
                 if row is not None:
                     files[did] = {"id": did, "name": row["title"], "path": row["path"],
                                   "size": row["size"], "kind": row["kind"]}
+        last = edits.last_edit(world, name)
         return {"table": desc, "records": records, "files": files,
                 "lists": world.views.for_table(name),
-                "relations": relation_titles(world, desc, records)}
+                "relations": relation_titles(world, desc, records),
+                "last_edit": {"text": last["text"], "at": last["at"], "actor": last["actor"]}
+                if last else None}
 
     @app.get("/api/tables/{name}/records/{rid}", dependencies=[api])
     def record(name: str, rid: str) -> dict[str, Any]:
@@ -257,3 +351,48 @@ def routes(app: FastAPI, s: Served) -> None:
         person_did("changed", f"You removed a row from {title}.", name,
                    {"record": rid, "removed": before})
         return {"removed": rid}
+
+    @app.post("/api/tables/{name}/records/bulk", dependencies=[api])
+    def bulk_records(name: str, body: BulkBody) -> dict[str, Any]:
+        return edits.bulk(world, name, body.action, body.items, body.values, actor="person",
+                          provenance={"by": "person"})
+
+    @app.get("/api/tables/{name}/records/{rid}/history", dependencies=[api])
+    def record_history(name: str, rid: str) -> list[dict[str, Any]]:
+        return edits.history(world, name, rid)
+
+    @app.post("/api/tables/{name}/undo", dependencies=[api])
+    def undo_edit(name: str) -> dict[str, Any]:
+        return edits.undo(world, name, actor="person", provenance={"by": "person"})
+
+    @app.post("/api/tables/{name}/fields", dependencies=[api])
+    def add_fields(name: str, body: FieldsBody) -> dict[str, Any]:
+        desc = world.collections.add_fields(name, body.fields)
+        person_did("changed", f"You added {', '.join(str(f.get('name')) for f in body.fields)}"
+                   f" to {desc['title']}.", name, {})
+        return desc
+
+    @app.patch("/api/tables/{name}/fields/{field}", dependencies=[api])
+    def change_field(name: str, field: str, body: FieldChangeBody) -> dict[str, Any]:
+        return edits.change_field(world, name, field, actor="person",
+                                  **body.model_dump(exclude_none=True))
+
+
+PROJECT_SUFFIXES = (".alphaproject", ".json")
+PROJECT_MAX_BYTES = 10 * 1024 * 1024
+
+
+def read_project_file(path: str) -> dict[str, Any]:
+    """A project file on this Mac, by its path (what the window's attachments carry)."""
+    file = Path(path).expanduser()
+    if file.suffix.lower() not in PROJECT_SUFFIXES or not file.is_file():
+        raise Problem("That isn't a project file exported from Alpha.")
+    if file.stat().st_size > PROJECT_MAX_BYTES:
+        raise Problem("That project file is larger than 10 MB.")
+    try:
+        bundle = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise Problem("That project file couldn't be read.") from e
+    if not isinstance(bundle, dict):
+        raise Problem("That isn't a project file exported from Alpha.")
+    return bundle

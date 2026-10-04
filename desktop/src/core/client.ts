@@ -6,6 +6,9 @@
 export interface CoreSession {
   baseUrl: string;
   token: string;
+  /** The commits the app was built from and the core runs (the host's; absent in a browser). */
+  appCommit?: string;
+  coreCommit?: string | null;
 }
 
 export interface Field {
@@ -88,7 +91,8 @@ export interface TableSummary {
 export interface Provenance {
   by?: string;
   turn?: string | null;
-  estimated?: boolean;
+  /** true: the row's numbers are estimates; a list names the estimated fields. */
+  estimated?: boolean | string[];
   source?: string;
   assumed?: string;
 }
@@ -116,6 +120,49 @@ export interface RecordRow {
   seen_at?: string | null;
   gone_at?: string | null;
   entity?: string | null;
+}
+
+export interface SavedView {
+  id: string;
+  collection: string;
+  title: string;
+  config: Record<string, unknown>;
+  is_default: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LastEdit {
+  text: string;
+  at: string;
+  actor: string;
+}
+
+export interface TableData {
+  table: TableDesc;
+  records: RecordRow[];
+  views: SavedView[];
+  last_edit: LastEdit | null;
+  files: Record<string, FileInfo>;
+}
+
+/** One journal entry that touched a record: who, when, and what the person said in that turn. */
+export interface HistoryEntry {
+  id: string;
+  at: string;
+  kind: string;
+  actor: string;
+  text: string;
+  turn: string | null;
+  said: string | null;
+}
+
+export interface FieldChange {
+  kind?: string;
+  label?: string;
+  choices?: string[];
+  relation?: string;
 }
 
 export interface JournalEntry {
@@ -151,6 +198,8 @@ export interface ModuleCard {
   id: string;
   name: string;
   goal: string | null;
+  /** A lucide icon name the person picked (shell/projectIcons.ts); null until they pick one. */
+  icon?: string | null;
   /** The module this one sits inside, if any (Q31: modules nest, any depth). */
   parent?: string | null;
   /** Names from the top down: ["Job", "Search"]. */
@@ -300,6 +349,22 @@ export interface NeedItem {
   action?: Action;
 }
 
+/** Something Alpha wants to do outside its own space, waiting for the person's yes (core
+ *  world/actions.py). `result` is set once it has been decided and, if approved, run. */
+export interface PendingAction {
+  id: string;
+  kind: string;
+  connector: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  module: string | null;
+  asked: string | null;
+  state: "pending" | "approved" | "rejected" | "expired" | "unavailable";
+  created_at: string;
+  expires_at: string | null;
+  result: { error?: string } | null;
+}
+
 export interface CalendarItem {
   id: string;
   title: string;
@@ -358,21 +423,31 @@ export interface EntityDetail extends Entity {
 }
 
 /** Whether Alpha can think: Claude Code on this Mac, signed in to the person's Claude. */
-export interface ClaudeStatus {
-  installed: boolean;
-  signed_in: boolean;
-  email?: string | null;
-  plan?: string | null;
-  via?: "subscription" | "console" | "chatgpt" | "api_key" | "unknown";
+/** Settings -> Models: one way of reaching a model (a sign-in, a key, or Ollama on this Mac). */
+export interface ModelProvider {
+  id: string;
+  label: string;
+  kind: "sign_in" | "key" | "local";
+  state: "connected" | "needs_sign_in" | "cli_missing" | "cli_too_old" | "needs_key" | "not_running";
+  dot: { color: "green" | "grey" | "red"; tooltip: string };
+  /** One line: why the last call or check failed. */
+  error: string | null;
+  key_last4: string | null;
+  installing: boolean;
+  who: string | null;
+  default: boolean;
+  needs_code?: boolean;
 }
 
-/** Which way Alpha thinks (Q32): Claude through Claude Code, or ChatGPT through the Codex
- * CLI, each on the person's own subscription; the choice and both states. */
-export type ThinkRoute = "claude" | "codex";
-export interface Thinking {
-  route: ThinkRoute;
-  claude: ClaudeStatus;
-  codex: ClaudeStatus;
+export interface ProviderModel {
+  id: string;
+  label: string;
+}
+
+export interface ModelRoute {
+  provider: string;
+  model: string | null;
+  chosen: boolean;
 }
 
 export interface DataInfo {
@@ -519,8 +594,10 @@ export interface Ask {
 export interface Turn {
   id: string | null;
   /** "routing": the companion's sentence is being placed in a conversation (a judge may run). */
-  state: "routing" | "running" | "done" | "failed" | "asked";
+  state: "routing" | "running" | "done" | "failed" | "asked" | "needs_connect" | "cancelled";
   text: string;
+  /** The model it went (or would go) to. */
+  provider?: string | null;
   conversation?: Convo | null;
   /** When the sentence had to be routed and Alpha wasn't sure: the question to answer. */
   ask?: string;
@@ -607,27 +684,39 @@ export class Client {
   }
 
   health = () => this.call<{ ok: boolean; world: string }>("GET", "/api/health");
+  modelProviders = async () => (await this.call<{ providers: ModelProvider[] }>("GET", "/api/models")).providers;
+  providerModels = (id: string) => this.call<{ models: ProviderModel[]; selected: string | null }>("GET", `/api/models/${id}/models`);
+  setProviderModel = (id: string, model: string) => this.call<{ models: ProviderModel[]; selected: string | null }>("PUT", `/api/models/${id}/model`, { model });
+  starProvider = async (id: string) => (await this.call<{ providers: ModelProvider[] }>("POST", `/api/models/${id}/star`)).providers;
+  saveProviderKey = async (id: string, key: string) => (await this.call<{ provider: ModelProvider }>("PUT", `/api/models/${id}/key`, { key })).provider;
+  removeProviderKey = async (id: string) => (await this.call<{ provider: ModelProvider }>("DELETE", `/api/models/${id}/key`)).provider;
+  testProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/test`)).provider;
+  reconnectProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/reconnect`)).provider;
+  signInProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/sign-in`)).provider;
+  finishProviderSignIn = async (id: string, code: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/sign-in/finish`, { code })).provider;
+  installProvider = async (id: string) => (await this.call<{ provider: ModelProvider }>("POST", `/api/models/${id}/install`)).provider;
+  route = (thread?: string | null) => this.call<ModelRoute>("GET", `/api/route${thread ? `?thread=${encodeURIComponent(thread)}` : ""}`);
+  setRoute = (thread: string | null, provider: string | null, model: string | null = null) => this.call<ModelRoute>("PUT", "/api/route", { thread, provider, model });
   /** What changed since `since`; without one, the stamp to start from. */
   changes = (since: string | null) => this.call<Changed>("GET", `/api/changes${since ? `?since=${encodeURIComponent(since)}` : ""}`);
-  claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
-  thinking = () => this.call<Thinking>("GET", "/api/thinking");
-  setThinking = (route: ThinkRoute) => this.call<Thinking>("PUT", "/api/thinking", { route });
-  installCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/install");
-  signInCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/signin");
-  signOutCodex = () => this.call<ClaudeStatus>("POST", "/api/codex/signout");
-  installClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/install");
-  signInClaude = () => this.call<{ started: boolean }>("POST", "/api/claude/signin");
-  signOutClaude = () => this.call<ClaudeStatus>("POST", "/api/claude/signout");
   dataInfo = () => this.call<DataInfo>("GET", "/api/data");
   backUp = () => this.call<DataInfo>("POST", "/api/data/backup");
+  restoreBackup = (name: string) => this.call<DataInfo>("POST", `/api/data/backups/${encodeURIComponent(name)}/restore`);
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
+  updateModule = (ref: string, patch: { name?: string; icon?: string; goal?: string }) => this.call<ModuleCard>("PATCH", `/api/modules/${encodeURIComponent(ref)}`, patch);
+  removeModule = (ref: string) => this.call<{ module: string; tables: number; rows: number }>("DELETE", `/api/modules/${encodeURIComponent(ref)}`);
+  /** A project as a file: its structure (tables, views, readers, note, goals, automations);
+   *  its rows only with `rows`. */
+  exportModule = (ref: string, rows = false) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export${rows ? "?rows=true" : ""}`);
+  importModule = (bundle: unknown) => this.call<ModuleCard>("POST", "/api/modules/import", bundle);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
   /** Put a module inside another (or at the top with null); everything in it moves with it. */
   moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
   /** A module the person makes here: a place to hold others. Nothing is built. */
-  createModule = (name: string, goal: string | null, parent: string | null) => this.call<ModuleCard>("POST", "/api/modules", { name, goal, parent });
+  /** Without a name: New project, a blank "Untitled project" made on its page (its creation). */
+  createModule = (name: string | null = null, goal: string | null = null, parent: string | null = null) => this.call<ModuleCard>("POST", "/api/modules", { name, goal, parent });
   /** The module's page of Alpha's wiki, or none yet. */
   modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 
@@ -640,6 +729,18 @@ export class Client {
     const data = await this.call<{ table: TableDesc; record: Raw; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}`);
     return { table: data.table, record: toRow(data.record), relations: data.relations ?? {} };
   }
+  bulkRecords = (table: string, action: "set" | "delete", items: { id: string; revision: number }[], values?: Record<string, unknown>) =>
+    this.call<{ done: number; skipped: string[] }>("POST", `/api/tables/${encodeURIComponent(table)}/records/bulk`, { action, items, values });
+  undo = (table: string) => this.call<{ undone: string; text: string }>("POST", `/api/tables/${encodeURIComponent(table)}/undo`);
+  history = (table: string, id: string) => this.call<HistoryEntry[]>("GET", `/api/tables/${encodeURIComponent(table)}/records/${id}/history`);
+  changeField = (table: string, field: string, change: FieldChange) =>
+    this.call<{ before: Field; after: Field; rewritten: number; table: TableDesc }>("PATCH", `/api/tables/${encodeURIComponent(table)}/fields/${encodeURIComponent(field)}`, change);
+  addFields = (table: string, fields: Field[]) => this.call<TableDesc>("POST", `/api/tables/${encodeURIComponent(table)}/fields`, { fields });
+  views = (table: string) => this.call<SavedView[]>("GET", `/api/tables/${encodeURIComponent(table)}/views`);
+  saveView = (table: string, title: string, config: object, isDefault = false) =>
+    this.call<SavedView>("POST", `/api/tables/${encodeURIComponent(table)}/views`, { title, config, is_default: isDefault });
+  updateView = (id: string, patch: { title?: string; config?: object; is_default?: boolean }) => this.call<SavedView>("PATCH", `/api/views/${id}`, patch);
+  deleteView = (id: string) => this.call<{ deleted: string }>("DELETE", `/api/views/${id}`);
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
     toRow(await this.call<Raw>("PATCH", `/api/tables/${encodeURIComponent(table)}/records/${id}`, { values, revision }));
@@ -698,13 +799,12 @@ export class Client {
   preference = (key: string) => this.call<{ key: string; value: unknown }>("GET", `/api/preferences/${encodeURIComponent(key)}`);
   setPreference = (key: string, value: unknown) => this.call<{ key: string; value: unknown }>("PUT", `/api/preferences/${encodeURIComponent(key)}`, { value });
   moveTurn = (key: string, conversation: string) => this.call<Turn>("POST", `/api/turns/${key}/move`, { conversation });
-  ask = (text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null, conversation: opts.conversation ?? null });
+  ask = (text: string, opts: AskOptions = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null, conversation: opts.conversation ?? null, attachments: opts.attachments ?? [] });
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
   thread = (id: string) => this.call<Thread & { journal: JournalEntry[] }>("GET", `/api/threads/${id}`);
 
   /** Ask and wait for the answer, polling once a second. */
-  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void): Promise<Turn> {
-    const turn = await this.ask(text, opts);
+  async askAndWait(text: string, opts: AskOptions = {}, onTick?: (t: Turn) => void): Promise<Turn> {    const turn = await this.ask(text, opts);
     return this.waitTurn(turn, onTick);
   }
   /** Follow a started turn to its end (a routing question comes back as is). A poll the core
@@ -739,6 +839,9 @@ export class Client {
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
+  pending = () => this.call<PendingAction[]>("GET", "/api/pending");
+  approvePending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/approve`);
+  rejectPending = (id: string) => this.call<PendingAction>("POST", `/api/pending/${id}/reject`);
   approveAction = (id: string, always: boolean) => this.call<Action>("POST", `/api/actions/${id}/approve`, { always });
   declineAction = (id: string) => this.call<Action>("POST", `/api/actions/${id}/decline`);
   editAction = (id: string, payload: Record<string, string>) => this.call<Action>("PATCH", `/api/actions/${id}`, { payload });
@@ -754,7 +857,227 @@ export class Client {
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
   stopPlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/stop`);
-  stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
+  // ---- P2: settings fields, access modes, stopping a turn ----
+  runtimeInfo = () => this.call<HealthInfo>("GET", "/api/health");
+  settings = () => this.call<SettingField[]>("GET", "/api/settings");
+  updateSettings = (values: Record<string, unknown>) => this.call<SettingField[]>("PATCH", "/api/settings", { values });
+  access = (thread?: string | null) => this.call<AccessInfo>("GET", `/api/access${thread ? `?thread=${encodeURIComponent(thread)}` : ""}`);
+  setAccess = (thread: string | null, mode: AccessMode | null) => this.call<AccessInfo>("PUT", "/api/access", { thread, mode });
+
+  // ---- About you, skills, first steps, project links, row actions (core/alpha/api/brain.py) ----
+  addFact = (predicate: string, value: string) => this.call<Fact>("POST", "/api/facts", { predicate, value });
+  forgetFact = (id: string) => this.call<{ forgotten: string }>("DELETE", `/api/facts/${id}`);
+  listSkills = () => this.call<SkillSpec[]>("GET", "/api/skills");
+  createSkill = (draft: SkillDraft) => this.call<SkillSpec>("POST", "/api/skills", draft);
+  getSkill = (id: string) => this.call<{ skill: SkillSpec; runs: SkillRun[] }>("GET", `/api/skills/${id}`);
+  retireSkill = (id: string) => this.call<{ retired: string }>("DELETE", `/api/skills/${id}`);
+  runSkill = (id: string, inputs: Record<string, unknown>) => this.call<SkillRun>("POST", `/api/skills/${id}/run`, { inputs });
+  rowActions = (table: string) => this.call<RowAction[]>("GET", `/api/tables/${encodeURIComponent(table)}/row-actions`);
+  runRowAction = (table: string, row: string, skill: string) => this.call<SkillRun>("POST", `/api/tables/${encodeURIComponent(table)}/rows/${row}/run/${skill}`);
+  onboarding = () => this.call<OnboardingStatus>("GET", "/api/onboarding");
+  answerOnboarding = (answers: Record<string, string>) => this.call<OnboardingStatus>("POST", "/api/onboarding", { answers });
+  skipOnboarding = () => this.call<OnboardingStatus>("POST", "/api/onboarding/skip");
+  projectLinks = () => this.call<ProjectLink[]>("GET", "/api/links");
+  setProjectLink = (module: string, reads: string, enabled: boolean) => this.call<ProjectLink[]>("PUT", `/api/modules/${module}/reads`, { reads, enabled });
+  // ---- P1: new projects and making them, chats, the Activity bell, Alpha's bug log ----
+  /** What the person did on the project's page while it is being made. */
+  answerCreation = (ref: string, answer: CreationAnswer) => this.call<{ turn?: Turn; module?: ModuleCard }>("POST", `/api/modules/${encodeURIComponent(ref)}/creation/answer`, answer);
+  importModulePath = (path: string) => this.call<ModuleCard>("POST", "/api/modules/import", { path });
+  /** The chats opened in one place (a project's, or the global ones). */
+  sessions = (module: string | null, includeDone = false) => this.call<Session[]>("GET", `/api/threads?${new URLSearchParams({ ...(module ? { module } : {}), ...(includeDone ? { include_done: "true" } : {}) })}`);
+  createSession = (title: string, module: string | null) => this.call<Thread>("POST", "/api/threads", { title, module });
+  updateSession = (id: string, patch: { state?: string; title?: string }) => this.call<Thread>("PATCH", `/api/threads/${id}`, patch);
+  attention = () => this.call<Attention>("GET", "/api/attention");
+  bugs = () => this.call<{ path: string; text: string | null }>("GET", "/api/bugs");
+  /** Forget a fact that holds for one project (P3's DELETE /api/facts/{id}). */
+  forgetProjectFact = (id: string) => this.call<unknown>("DELETE", `/api/facts/${id}`);
+  /** Stop a running turn (P2's endpoint). False when this core can't stop one yet. */
+  async cancelTurn(id: string): Promise<boolean> {
+    try {
+      await this.call<unknown>("POST", `/api/turns/${id}/cancel`);
+      return true;
+    } catch (e) {
+      if (e instanceof CoreError && (e.status === 404 || e.status === 405)) return false;
+      throw e;
+    }
+  }
+}
+
+// ---- P2: attachments, settings fields, access modes ----
+
+export interface ModelProvider {
+  /** Codex's install ended without Codex: "Retry install". */
+  install_failed?: boolean;
+  /** Groq: a key used only to turn speech into text; never starred. */
+  transcribe_only?: boolean;
+  /** When the last call (or Check again) worked, and how long it took. */
+  last_ok?: { at: string; latency_ms: number | null } | null;
+  why?: string | null;
+}
+
+export interface Turn {
+  /** On needs_connect after a failed call: how the row connects. */
+  connect_kind?: "sign_in" | "key" | null;
+}
+
+/** One thing attached to a message, as the core reads it (runtime/attachments.py). */
+export interface AttachmentWire {
+  kind: "file" | "image" | "folder" | "audio";
+  name: string;
+  size: number | null;
+  mime: string | null;
+  path: string | null;
+  content_b64: string | null;
+}
+
+export interface AskOptions {
+  module?: string | null;
+  thread?: string | null;
+  conversation?: string | null;
+  attachments?: AttachmentWire[];
+}
+
+export interface HealthInfo {
+  ok: boolean;
+  world: string;
+  core_version: string;
+  python_version: string;
+}
+
+export interface SettingField {
+  id: string;
+  group: string;
+  title: string;
+  description: string;
+  kind: "choice" | "integer" | "text";
+  default: string | number;
+  value: string | number;
+  options: { value: string; label: string }[];
+  minimum: number | null;
+  maximum: number | null;
+  unit: string | null;
+}
+
+export type AccessMode = "ask" | "approve_for_me" | "full";
+
+export interface AccessInfo {
+  thread: string | null;
+  mode: AccessMode;
+  default: AccessMode;
+}
+
+export interface SkillInput {
+  name: string;
+  description: string;
+  required: boolean;
+}
+export interface SkillDraft {
+  title: string;
+  description: string;
+  instructions: string;
+  inputs: SkillInput[];
+  sources: string[];
+  produces: string;
+}
+export interface SkillSpec extends SkillDraft {
+  id: string;
+  kind: "procedure";
+  created_at: string;
+}
+export interface SkillRun {
+  skill: string;
+  state: "done" | "failed";
+  inputs: Record<string, unknown>;
+  summary: string;
+  items: Record<string, unknown>[];
+  evidence: { title?: string; url?: string; snippet?: string }[];
+  started_at: string;
+}
+export interface RowAction {
+  skill: string;
+  title: string;
+}
+export interface OnboardingStatus {
+  done: boolean;
+  questions: { id: string; label: string; hint: string }[];
+  proposal: { skipped?: boolean; intro: string; options: { title: string; request: string; why: string }[] } | null;
+}
+export interface ProjectLink {
+  module: string;
+  name: string;
+  reads: string;
+  reads_name: string;
+  tables: string[];
+  why: string;
+  enabled: boolean;
+}
+
+// ---- P1: new projects and making them, chats, the Activity bell ----
+
+export type CreationStage = "new" | "asking" | "researching" | "proposing" | "planned" | "building" | "done";
+
+export interface CreationQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  why_it_matters?: string;
+}
+
+export interface CreationOption {
+  id: string;
+  title: string;
+  summary?: string;
+  why?: string;
+}
+
+/** Where making a project stands (core world/modules.py `creation`, written by creation_show). */
+export interface Creation {
+  stage: CreationStage;
+  thread: string;
+  at?: string;
+  questions?: CreationQuestion[];
+  proposal?: { intro: string; findings: string[]; options: CreationOption[]; default: string; questions: CreationQuestion[]; evidence: { title?: string; url?: string; note?: string; kind?: string }[] };
+  assumptions?: { text?: string; source?: string }[];
+  /** The build turn's journal id: its steps are the build's progress. */
+  turn?: string;
+  /** Why the last turn didn't work, in plain words. */
+  error?: string;
+  /** A build the model ran out of time on: what's made is kept; Carry on resumes it. */
+  timed_out?: boolean;
+}
+
+export interface CreationAnswer {
+  text?: string;
+  answers?: Record<string, string>;
+  choice?: string;
+  use_defaults?: boolean;
+  build?: boolean;
+  carry_on?: boolean;
+  retry?: boolean;
+  start_over?: boolean;
+}
+
+/** A chat (a topic thread), with how many times the person spoke in it. */
+export interface Session extends Thread {
+  turns: number;
+}
+
+export interface Attention {
+  count: number;
+  needs_you: NeedItem[];
+  failed: { id: string; title: string; module: string | null; at: string | null; error: string | null }[];
+}
+
+export interface ModuleCard {
+  creation?: Creation | null;
+}
+
+export interface ModuleDetail {
+  plan?: Note | null;
+  sessions?: Session[];
+  facts?: Fact[];
+  /** The turn making it, while one runs. */
+  running?: Turn[];
 }

@@ -36,6 +36,7 @@ def _view(row: sqlite3.Row) -> dict[str, Any]:
     out["steps"] = loads(row["steps"], []) if row["steps"] else []
     out["verify"] = loads(row["verify"], []) if row["verify"] else []
     out["fields"] = loads(row["fields"], []) if row["fields"] else []
+    out["allow_posts"] = loads(row["allow_posts"], []) if "allow_posts" in row.keys() else []
     return out
 
 
@@ -146,10 +147,10 @@ class Skills:
             "when_to_use": (when_to_use or "").strip() or None,
         }
         for key in ("script", "to_end", "whole", "effect", "steps", "verify", "fields",
-                    "last_count", "last_ok_count", "last_run_at", "last_problem"):
+                    "last_count", "last_ok_count", "last_run_at", "last_problem", "allow_posts"):
             if key in fields:
                 v = fields[key]
-                if key in ("steps", "verify", "fields") and v is not None:
+                if key in ("steps", "verify", "fields", "allow_posts") and v is not None:
                     v = dumps(v)
                 if key in ("to_end", "whole") and v is not None:
                     v = int(bool(v))

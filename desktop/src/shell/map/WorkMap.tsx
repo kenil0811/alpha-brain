@@ -443,7 +443,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
   return (
     <div className="map" ref={box} aria-label={kind === "world" ? "The map of your world" : "The map of Alpha's work"}>
       {!graph.nodes.length ? (
-        <p className="empty" style={{ padding: 24 }}>Nothing to map yet. A module, a table or a skill is the first dot.</p>
+        <p className="empty" style={{ padding: 24 }}>Nothing to map yet. A project, a table or a skill is the first dot.</p>
       ) : (
         <svg className={`map__svg${settled ? "" : " map__svg--settling"}`} width={size.width} height={size.height} role="img" aria-label={`${shown.nodes.length} things and ${shown.edges.filter((e) => !MEMBERSHIP.has(e.kind)).length} links`} onPointerDown={(e) => onPointerDown(e, null)} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onWheel={onWheel}>
           <defs>

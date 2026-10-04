@@ -23,6 +23,7 @@ from typing import Any
 
 from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
 from alpha.runtime import route, turn
+from alpha.world import taint
 from alpha.world.readers import health_problem
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
@@ -81,7 +82,11 @@ def run_reader(world: World, name: str, collection: str, key: str, *,
     _source(world, reader, home)
     out = (browser or Browser(world)).script(
         reader["url"], reader["script"], to_end=reader["to_end"], turn=turn_id, module=home,
-        label=f"the reader {name}", thread=thread)
+        label=f"the reader {name}", allow_posts=reader["allow_posts"],
+        thread=thread)
+    if out.get("signed_in"):
+        # What a page showed through the person's sign-in is private: the run's web goes off.
+        taint.mark(world.store, turn_id, thread, taint.SIGNED_IN_PAGE)
     if out.get("bot_check"):
         world.readers.ran(name, count=0, problem="a bot check stopped it")
         world.sources.ran(name, status="blocked", detail=BOT_CHECK)

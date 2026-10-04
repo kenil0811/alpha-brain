@@ -7,7 +7,7 @@
   <key>NSCalendarsUsageDescription</key>
   <string>Alpha reads your calendars so it knows what's coming up and who you're meeting. Nothing leaves your Mac.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Alpha listens when you press the microphone, so you can speak instead of typing.</string>
+  <string>Alpha listens when you speak to it, by tapping the mic or holding your push-to-talk key.</string>
   <key>NSSpeechRecognitionUsageDescription</key>
   <string>Alpha turns what you say into text when you press the microphone.</string>
 </dict>

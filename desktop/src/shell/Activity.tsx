@@ -1,11 +1,15 @@
 /**
- * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched.
+ * Activity, where the Chief of Staff's bell goes: first what the bell counts (what waits on you,
+ * and automations whose last run failed), then what Alpha did, what it read, what you changed,
+ * newest first and grouped by day; search finds anything that happened. Each row opens to what
+ * it touched.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, JournalEntry } from "../core/client";
+import type { Attention, Client, JournalEntry } from "../core/client";
+import { Search } from "lucide-react";
 import { dayLabel, when } from "../modules/format";
-import { Trouble } from "../ui";
+import { InfoTip, PageHeader, Trouble, useToast } from "../ui";
+import { Need } from "./Home";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
@@ -47,8 +51,13 @@ function Details({ e }: { e: JournalEntry }) {
   );
 }
 
-export function Activity({ client, version }: { client: Client; version: number; onChanged: () => void }) {
+export function Activity({ client, version, onChanged }: { client: Client; version: number; onChanged: () => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
+  const [attention, setAttention] = useState<Attention | null>(null);
+  const toast = useToast();
+  useEffect(() => {
+    client.attention().then(setAttention, () => setAttention(null));
+  }, [client, version]);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
@@ -76,15 +85,39 @@ export function Activity({ client, version }: { client: Client; version: number;
   let lastDay = "";
   return (
     <div className="page">
-      <div className="home__head">
-        <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
-      </div>
-      <div style={{ marginTop: 18 }}>
-        <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
-          <div className="search" style={{ maxWidth: "none" }}>
-            <span aria-hidden="true">⌕</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
+      <PageHeader title={<>Activity <InfoTip text="What Alpha read, made and changed, and what you did." /></>} />
+      {attention?.count ? (
+        <div className="section section--first">
+          <div className="section__head">
+            <h2>Needs you</h2>
+            <span className="faint">{attention.count}</span>
+          </div>
+          <div className="needs">
+            {attention.failed.map((f) => (
+              <article key={f.id} className="card need">
+                <div className="need__head">
+                  <h3>{f.title}</h3>
+                  {f.error ? <InfoTip text={f.error} /> : null}
+                </div>
+                <p className="because">Failed last time{f.at ? `, ${when(f.at)}` : ""}</p>
+                <div className="row">
+                  <button type="button" className="btn btn--primary" onClick={() => void client.runAutomation(f.id).then(() => { toast.show("Running it again."); onChanged(); }, (e: unknown) => toast.show(e instanceof Error ? e.message : String(e)))}>
+                    Run it again
+                  </button>
+                </div>
+              </article>
+            ))}
+            {attention.needs_you.map((item) => (
+              <Need key={item.id} item={item} client={client} onDone={(words) => { toast.show(words); onChanged(); }} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="section">
+        <div className="card toolbar toolbar--page toolbar--activity">
+          <div className="search search--wide">
+            <Search size={14} aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search activity" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>

@@ -7,12 +7,14 @@ from typing import Any
 
 import pytest
 
+from alpha.connectors import files
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Attendee, Calendar, CalendarEvent
 from alpha.connectors.files import Files
 from alpha.context import prepack
 from alpha.mcp.tools import Tools
+from alpha.world.pending import PendingActions
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -189,6 +191,36 @@ def test_read_refuses_local_addresses(world: World) -> None:
         Browser(world, lambda j, t: {}).read("http://192.168.1.1/admin")
 
 
+def test_saving_a_document_waits_for_approval_and_never_overwrites(
+        world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ALPHA_TURN", raising=False)
+    shared = tmp_path / "Notes"
+    shared.mkdir()
+    Files(world).watch(str(shared))
+    files.enable(world)
+    actions = PendingActions(world)
+
+    def save(name: str, folder: Path = shared) -> dict[str, Any]:
+        aid = actions.propose("save_document", f"Save {name}", {
+            "folder": str(folder), "name": name, "text": "Thank Priya."}, connector="files")["id"]
+        return actions.approve(aid, by="person")
+
+    assert not (shared / "thanks.md").exists()
+    done = save("thanks.md")
+    assert done["state"] == "approved" and done["result"]["path"] == str(shared / "thanks.md")
+    assert (shared / "thanks.md").read_text() == "Thank Priya."
+    with pytest.raises(Problem, match="already approved"):
+        actions.approve(done["id"], by="person")  # once, whatever the clicks
+
+    (shared / "thanks.md").write_text("Theirs now.")
+    again = save("thanks.md")
+    assert "nothing was overwritten" in again["result"]["error"]
+    assert (shared / "thanks.md").read_text() == "Theirs now."
+    assert "isn't a plain file name" in save("../escape.md")["result"]["error"]
+    assert "isn't a folder you shared" in save("x.md", tmp_path)["result"]["error"]
+    assert not (tmp_path / "x.md").exists() and not (tmp_path / "escape.md").exists()
+
+
 # ---- calendar ----
 
 
@@ -241,6 +273,29 @@ def test_calendar_without_access_needs_ok(world: World) -> None:
     assert cal.connect()["status"] == "needs_ok"
     with pytest.raises(Problem, match="System Settings"):
         cal.sync()
+
+
+def test_calendar_failure_reaches_the_journal_once_and_recovery_too(world: World) -> None:
+    source = FakeCalendar()
+    cal = Calendar(world, source)
+    cal.connect()
+
+    def broken(start: datetime, end: datetime) -> list[CalendarEvent]:
+        raise RuntimeError("EventKit stopped answering")
+
+    source.events = broken  # type: ignore[method-assign]
+    for _ in range(3):  # the poll keeps failing: one entry, not three
+        with pytest.raises(RuntimeError):
+            cal.sync()
+    conn = Connections(world.store).find("calendar", "macos")
+    assert conn and conn["status"] == "broken"
+    assert conn["last_error"] == "EventKit stopped answering"
+    failed = world.journal.recent(20, kinds=["failed"])
+    assert [e["text"] for e in failed] == [
+        "Couldn't read calendar (macos): EventKit stopped answering"]
+    del source.events
+    cal.sync()
+    assert world.journal.recent(1)[0]["text"] == "Reading calendar (macos) works again."
 
 
 # ---- the pre-pack and tools see it ----

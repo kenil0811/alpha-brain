@@ -54,7 +54,7 @@ import yaml
 
 from alpha.runtime import automation as automation_runtime
 from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn
-from alpha.world.store import Problem, now
+from alpha.world.store import SCHEMA, Problem, now
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
@@ -207,8 +207,12 @@ class Run:
                 said = self.world.journal.append("said", seed["said"], actor="person")
                 replied = self.world.journal.append("replied", seed["replied"],
                                                     data={"turn": said})
+                # The journal refuses any change but forgetting (store.py): a seed is the one
+                # writer allowed to date an entry, so the guard is lifted for it and put back.
                 with self.world.store.tx() as db:
+                    db.execute("DROP TRIGGER journal_only_forget")
                     db.execute("UPDATE journal SET at = ? WHERE id IN (?, ?)", (at, said, replied))
+                self.world.store.db.executescript(SCHEMA)
                 record = {"seed": f"{days} day(s) ago: {seed['said'][:60]}", "ok": True}
             elif seed.get("kind") == "fact":
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
@@ -513,8 +517,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
     passed = sum(1 for o in outcomes if o.passed)
     lines = [f"# Journeys, {began.strftime('%-d %b %Y %H:%M')}", "",
              f"{passed} of {len(outcomes)} passed. World: a copy of `{source}` in `{home}`."
-             f" Thinks with: {route.WORDS[route.chosen(home / 'world.sqlite')]}, model"
-             f" {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)}.", ""]
+             f" Model: {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)} (or the"
+             " default in Settings → Models).", ""]
     lines.append("| Journey | Verdict | Time |")
     lines.append("|---|---|---|")
     for o in outcomes:

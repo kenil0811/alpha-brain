@@ -1,15 +1,23 @@
 """What every tool shares: the decorator that turns a method into a tool the model may call
 (problems come back as plain words), provenance words for records, and the base class bound to
-one World with the gates every group of tools checks in code."""
+one World with the gates every group of tools checks in code. Tools that read private or
+third-party material taint the run (`alpha.world.taint`); after that, pages open only on sites
+the run already knows. The conversation's access mode may hold a call for the person's yes
+(`alpha.world.access`)."""
 
 from __future__ import annotations
 
 import functools
 import logging
 import os
+import re
 from collections.abc import Callable
 from typing import Any, cast
 
+from alpha.connectors.base import Connections
+from alpha.connectors.browser import signin_sites
+from alpha.world import access, taint
+from alpha.world.sites import site_of
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -66,12 +74,18 @@ def tool[F: Callable[..., Any]](fn: F) -> F:
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
-            return fn(*args, **kwargs)
+            # The conversation's access mode may make this call wait for the person's yes.
+            held = access.hold(args[0], fn, args[1:], kwargs) if args else None
+            return held if held is not None else fn(*args, **kwargs)
         except Problem as e:
             return {"error": str(e)}
         except Exception as e:  # a bug of ours: say so plainly, keep the details in the log
             log.exception("tool %s failed", fn.__name__)
             return {"error": f"Alpha hit an internal problem in {fn.__name__}: {e}"}
+        finally:
+            # Whatever it returned (or half-returned) is now in the model's context.
+            if fn.__name__ in taint.READS and args:
+                args[0]._taint(taint.READS[fn.__name__])
 
     wrapper.is_tool = True  # type: ignore[attr-defined]
     return cast(F, wrapper)
@@ -79,6 +93,9 @@ def tool[F: Callable[..., Any]](fn: F) -> F:
 
 
 class Base:
+    # True only for the one call the person approved (alpha.world.access.enable).
+    approved = False
+
     def __init__(
         self,
         world: World,
@@ -91,6 +108,8 @@ class Base:
         self.turn = turn if turn is not None else os.environ.get("ALPHA_TURN") or None
         self.thread = thread if thread is not None else os.environ.get("ALPHA_THREAD") or None
         self.module = module if module is not None else os.environ.get("ALPHA_MODULE") or None
+        self._tainted: str | None = None
+        self._sites: set[str] = set()
 
     def all(self) -> list[Callable[..., Any]]:
         return [
@@ -98,6 +117,48 @@ class Base:
             for name in dir(self)
             if not name.startswith("_") and getattr(getattr(self, name), "is_tool", False)
         ]
+
+    def _taint(self, why: str) -> None:
+        if self._tainted is None:
+            self._tainted = why
+            taint.mark(self.world.store, self.turn, self.thread, why)
+
+    def _taint_reason(self) -> str | None:
+        return self._tainted or taint.reason(self.world.store, self.turn, self.thread)
+
+    def _page_read(self, out: dict[str, Any]) -> dict[str, Any]:
+        if out.get("signed_in"):
+            self._taint(taint.SIGNED_IN_PAGE)
+        return out
+
+    def _known_sites(self) -> set[str]:
+        """Sites a tainted run may still open: those it read, those signed in to in Alpha's
+        browser, and those named in the turn's own words."""
+        known = set(self._sites)
+        for conn in Connections(self.world.store).all("browser"):
+            if conn["status"] == "connected":
+                known.update(signin_sites(conn))
+        if self.turn:
+            try:
+                words = self.world.journal.read(self.turn)["text"]
+            except Problem:
+                words = ""
+            for host in re.findall(r"(?i)\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b", words):
+                try:
+                    known.add(site_of(host))
+                except Problem:
+                    continue
+        return known
+
+    def _open(self, url: str) -> None:
+        """Before any page opens: once the run is tainted, a new site could be where private
+        material is carried off (in the address), so only known sites open."""
+        site = site_of(url)
+        why = self._taint_reason()
+        if why and site not in self._known_sites():
+            raise Problem(f"Alpha won't open {site} in this run: it already {why}, and a new "
+                          "site could carry that out. Read it in a new message first.")
+        self._sites.add(site)
 
     def _did(self, kind: str, text: str, data: dict[str, Any], module: str | None = None) -> str:
         return self.world.journal.append(
@@ -116,9 +177,15 @@ class Base:
         plan = self.world.plans.of_thread(self.thread)
         return plan if plan and plan["state"] == "building" else None
 
+    def _approved_creation(self) -> bool:
+        """A project being made on its page, after the person pressed Build there (the server
+        records it; the model can't)."""
+        making = self.world.modules.making(self.thread)
+        return bool(making and (making["creation"] or {}).get("approved_at"))
+
     def _gate(self, what: str) -> dict[str, Any] | None:
         """Lasting things are made only in the build of a plan the person said yes to."""
-        if self._building():
+        if self._building() or self._approved_creation():
             return None
         return {"error": f"{what} happens only in the build of a plan the person approved."
                 " Understand what they want, look into it, and propose it with plan_propose;"

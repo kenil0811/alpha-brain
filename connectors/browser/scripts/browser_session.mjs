@@ -1,6 +1,6 @@
 /**
  * Alpha's browser session worker (the `browser` capability). One JSON job on stdin, one JSON
- * result on stdout, then exit. Two jobs:
+ * result on stdout, then exit. The jobs:
  *   signin: open a visible window on a profile Alpha keeps, so the person signs in themselves;
  *           resolves when they close the window. Alpha never reads what they type. A sign-in
  *           often passes through other sites (gmail.com signs in at google.com), so the sites
@@ -9,11 +9,6 @@
  *           title, readable text and links. Never clicks, types or submits anything.
  *   script: load a page the same way, optionally read it to its end, then run Alpha's own
  *           JavaScript in it and return what the script returns (JSON).
- * Alpha's own code never changes anything on a site: while its script runs, every request other
- * than GET, HEAD and OPTIONS is blocked at the network. Loading and reading a page to its end are
- * done by this driver alone (it only scrolls and presses "Show more" style paging buttons), and
- * the page may use any request it needs for that, because many sites load the next page of a
- * list with a POST that only reads.
  *   status: whether a profile holds cookies for a site (or any of `sites`).
  *   download: fetch a file through the person's session: a direct address (the site's
  *           cookies go with the request), or the file a page hands back when a control is
@@ -23,6 +18,16 @@
  *           expect). Fills and typing take only values of the approved payload. With
  *           `stop_before_last` it is a dry run: every step but the commit, then a screenshot.
  *           It refuses to type into password or payment fields, whatever the step says.
+ * A read session never changes anything on a site: from the moment its browser opens, every
+ * request other than GET, HEAD and OPTIONS is blocked at the network, for the page's own scripts
+ * and the driver's paging alike. A reader that truly needs a POST that only reads (some sites
+ * load the next page of a list that way) names it in `job.allow_posts` ({origin, path}, `*` in
+ * the path matches anything); Core keeps that list with the reader and journals every use.
+ * While Alpha's own script runs, requests may go only to the origins the page used while it
+ * loaded (and the hosts of its WebSockets): anything else (a fetch, an image, a navigation to
+ * another site) is blocked, so nothing the page holds can be carried off in an address. Typing
+ * into a password or card field is refused, whatever the script does. Counts come back as
+ * `writes_blocked` and `egress_blocked`; allowed POSTs as `posts_allowed`.
  * A page that stops automated reading with a bot check or a captcha comes back as `bot_check`
  * with nothing read: Alpha says so and never tries to get past it.
  */
@@ -114,16 +119,98 @@ async function isSignIn(page, askedFor) {
     .catch(() => false);
 }
 
-/** From the moment this is called, block every request that could change data on a site. */
-async function readOnly(context) {
-  let blocked = 0;
-  await context.route("**/*", (route) => {
-    if (SAFE_METHODS.has(route.request().method())) return route.continue();
-    blocked += 1;
-    return route.abort("blockedbyclient");
-  });
-  return () => blocked;
+function pathPattern(path) {
+  const body = String(path).split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+  return new RegExp(`^${body}$`);
 }
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+}
+
+/** From the moment this is called, block every request that could change data on a site (but
+ * the POSTs the reader allows), and once `lock()` is called, every request to an origin the
+ * page did not use before. */
+async function guard(context, job) {
+  const rules = (job.allow_posts || []).map((r) => ({ origin: r.origin, path: pathPattern(r.path) }));
+  const state = { writes: 0, egress: 0, allowed: [], origins: new Set(), hosts: new Set(), locked: false };
+  await context.route("**/*", (route) => {
+    const request = route.request();
+    const url = request.url();
+    const origin = originOf(url);
+    if (!SAFE_METHODS.has(request.method())) {
+      const ok = rules.some((r) => r.origin === origin && r.path.test(new URL(url).pathname));
+      if (!ok) {
+        state.writes += 1;
+        return route.abort("blockedbyclient");
+      }
+      if (state.allowed.length < 50) state.allowed.push({ method: request.method(), url: url.slice(0, 300) });
+      return route.continue();
+    }
+    if (state.locked && !state.origins.has(origin)) {
+      state.egress += 1;
+      return route.abort("blockedbyclient");
+    }
+    if (!state.locked) {
+      state.origins.add(origin);
+      try {
+        state.hosts.add(new URL(url).hostname);
+      } catch {
+        // not a web address
+      }
+    }
+    return route.continue();
+  });
+  await context.routeWebSocket(/.*/, (ws) => {
+    let host = "";
+    try {
+      host = new URL(ws.url()).hostname;
+    } catch {
+      // not a web address
+    }
+    if (state.locked && !state.hosts.has(host)) {
+      state.egress += 1;
+      return ws.close();
+    }
+    if (!state.locked) state.hosts.add(host);
+    return ws.connectToServer();
+  });
+  return state;
+}
+
+// Run in every frame before Alpha's script: setting a password or card field's value throws.
+// ponytail: patches the value setter and setAttribute only; a script that borrows a pristine
+// setter from a frame created before the init script runs could get round it (the network
+// walls still hold). Upgrade path: CDP Input-domain blocking per element.
+const NEVER_TYPE = () => {
+  if (window.__alphaNeverType) return;
+  window.__alphaNeverType = true;
+  const sensitive = (el) =>
+    el instanceof HTMLInputElement &&
+    (el.type === "password" ||
+      /^cc-/.test(el.autocomplete || "") ||
+      /card.?number|cardnum|\bcvc\b|\bcvv\b|\bcsc\b|security.?code|\biban\b/i.test(`${el.name} ${el.id} ${el.getAttribute("aria-label") || ""} ${el.placeholder || ""}`));
+  const refuse = () => {
+    throw new Error("Alpha never types into password or card fields.");
+  };
+  const value = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(HTMLInputElement.prototype, "value", {
+    ...value,
+    set(v) {
+      if (sensitive(this)) refuse();
+      value.set.call(this, v);
+    },
+  });
+  const setAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, v) {
+    if (String(name).toLowerCase() === "value" && sensitive(this)) refuse();
+    return setAttribute.call(this, name, v);
+  };
+};
 
 async function cookiesFor(job) {
   const context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
@@ -183,13 +270,18 @@ async function read(job) {
   const maxChars = job.max_chars || 60000;
   let browser = null;
   let context;
+  // A service worker's requests would not pass the guard, and a DNS prefetch or a WebRTC probe
+  // would leave by a road the guard does not see: none of them run in a read session.
+  const options = launchOptions(job, true);
+  options.args = [...options.args, "--dns-prefetch-disable", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"];
   if (job.profile) {
-    context = await chromium.launchPersistentContext(job.profile, launchOptions(job, true));
+    context = await chromium.launchPersistentContext(job.profile, { ...options, serviceWorkers: "block" });
   } else {
-    browser = await chromium.launch(launchOptions(job, true));
-    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT });
+    browser = await chromium.launch(options);
+    context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: job.locale || "en-GB", userAgent: USER_AGENT, serviceWorkers: "block" });
   }
-  let blockedCount = () => 0;
+  const walls = await guard(context, job);
+  const counts = () => ({ writes_blocked: walls.writes, egress_blocked: walls.egress, posts_allowed: walls.allowed });
   try {
     const page = context.pages()[0] || (await context.newPage());
     const response = await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: job.timeout_ms || 30000 });
@@ -205,7 +297,7 @@ async function read(job) {
         links: [],
         result: null,
         scrolls: 0,
-        writes_blocked: 0,
+        ...counts(),
       };
     }
     let scrolls = 0;
@@ -251,9 +343,12 @@ async function read(job) {
     }
     if (job.op === "script") {
       // Alpha's own code, run in the page: a function body that may use `document` and must
-      // return something JSON can carry (a list of rows, usually). Writes are blocked first.
+      // return something JSON can carry (a list of rows, usually). From here on only the origins
+      // the page already used are reachable, and password and card fields refuse input.
+      walls.locked = true;
+      await context.addInitScript(NEVER_TYPE);
+      for (const frame of page.frames()) await frame.evaluate(NEVER_TYPE).catch(() => {});
       const morePages = job.scroll_to_end ? false : await hasMorePages(page);
-      blockedCount = await readOnly(context);
       const value = await page.evaluate(async (body) => {
         const fn = new Function(`return (async () => { ${body} })();`);
         return await fn();
@@ -267,7 +362,7 @@ async function read(job) {
         more_pages: morePages,
         result: value === undefined ? null : value,
         scrolls,
-        writes_blocked: blockedCount(),
+        ...counts(),
       };
     }
     const data = await page.evaluate((limit) => {
@@ -317,7 +412,7 @@ async function read(job) {
       blocked,
       html: html ? html.slice(0, 3000000) : null,
       scrolls,
-      writes_blocked: blockedCount(),
+      ...counts(),
     };
   } finally {
     await context.close().catch(() => {});

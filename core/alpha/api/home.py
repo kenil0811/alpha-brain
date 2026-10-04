@@ -1,4 +1,5 @@
-"""Routes for Home: what needs the person, their answers and decisions; plans; a turn stopped."""
+"""Routes for Home: what needs the person, their answers and decisions; pending outward actions;
+plans; a turn stopped; what the Activity bell counts; Alpha's own bug log."""
 
 from __future__ import annotations
 
@@ -19,8 +20,10 @@ from alpha.api.views import (
     needs_you,
     thread_views,
 )
+from alpha.bugs import bug_log
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import build, claude_cli, conversations
+from alpha.world.pending import PendingActions
 from alpha.world.store import Problem
 
 
@@ -55,8 +58,30 @@ def routes(app: FastAPI, s: Served) -> None:
             "brief": None,
         }
 
+    pending_actions = PendingActions(world)
+
+    @app.get("/api/pending", dependencies=[api])
+    def pending() -> list[dict[str, Any]]:
+        return pending_actions.pending()
+
+    # The one approve path: these two, and an answer to a pending action's question, all end in
+    # Actions.approve / reject, which runs the stored payload once.
+    @app.post("/api/pending/{aid}/approve", dependencies=[api])
+    def approve(aid: str) -> dict[str, Any]:
+        return pending_actions.approve(aid, by="person")
+
+    @app.post("/api/pending/{aid}/reject", dependencies=[api])
+    def reject(aid: str) -> dict[str, Any]:
+        return pending_actions.reject(aid, by="person")
+
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
     def answer(ask_id: str, body: AnswerBody) -> dict[str, Any]:
+        action = pending_actions.by_ask(ask_id)
+        if action is not None:
+            yes = body.text.strip().lower() in {"approve", "yes", "approved"}
+            decide = pending_actions.approve if yes else pending_actions.reject
+            decided = decide(action["id"], by="person")
+            return {"pending_action": decided}
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
@@ -74,7 +99,10 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
     def dismiss(ask_id: str) -> dict[str, Any]:
-        # Closed without an answer: nothing runs.
+        # Closed without an answer: nothing runs (a pending action is rejected).
+        action = pending_actions.by_ask(ask_id)
+        if action is not None:
+            return {"pending_action": pending_actions.reject(action["id"], by="person")}
         return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
 
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
@@ -132,7 +160,12 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.post("/api/turns/{key}/stop", dependencies=[api])
     def stop_turn(key: str) -> dict[str, Any]:
-        return running.stop(key)
+        return running.cancel(key)
+
+    @app.post("/api/turns/{key}/cancel", dependencies=[api])
+    def cancel_turn(key: str) -> dict[str, Any]:
+        """Stop a running turn: its model process ends, and the journal says "You stopped it"."""
+        return running.cancel(key)
 
     @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
     def resume_plan(plan_id: str) -> dict[str, Any]:
@@ -152,3 +185,20 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/facts/{fid}/decide", dependencies=[api])
     def decide_fact(fid: str, body: DecideBody) -> dict[str, Any]:
         return world.knowledge.decide_fact(fid, body.accept)
+
+    @app.get("/api/attention", dependencies=[api])
+    def attention() -> dict[str, Any]:
+        """What the Activity bell counts: everything waiting on the person, and automations
+        whose last run in the past day failed."""
+        since = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+        failed = [{"id": a["id"], "title": a["title"], "module": a["module"],
+                   "at": a["last_run_at"], "error": a["last_error"]}
+                  for a in world.automations.all()
+                  if a["last_error"] and (a["last_run_at"] or "") >= since]
+        needs = needs_you(world)
+        return {"count": len(needs) + len(failed), "needs_you": needs, "failed": failed}
+
+    @app.get("/api/bugs", dependencies=[api])
+    def bugs() -> dict[str, Any]:
+        """Alpha's own bug log (`<data dir>/bugs.md`)."""
+        return {"path": str(bug_log(world).path), "text": bug_log(world).read()}

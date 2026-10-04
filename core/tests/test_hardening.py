@@ -60,13 +60,13 @@ def test_a_check_or_a_noticing_run_never_touches_the_turns_own_run(world: World,
     time.sleep(0.5)
     assert claude_cli.LIVE.running("j_t") and claude_cli.LIVE.running("t_t")
     with claude_cli.LIVE.lock:
-        keys = sorted(claude_cli.LIVE.procs)
+        keys = sorted(claude_cli.LIVE.runs)
     # (other tests' runs may still be registered; only these keys are ours)
     assert any(k.startswith("judge:j_t:") for k in keys) and {"j_t", "t_t"} <= set(keys)
     assert claude_cli.LIVE.stop("j_t")  # stops the turn, not the judge run
     time.sleep(0.5)
     assert not claude_cli.LIVE.running("j_t")
-    assert any(k.startswith("judge:j_t:") for k in claude_cli.LIVE.procs)
+    assert any(k.startswith("judge:j_t:") for k in claude_cli.LIVE.runs)
     for th in threads:
         th.join(timeout=10)
 

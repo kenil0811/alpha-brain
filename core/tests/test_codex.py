@@ -1,16 +1,12 @@
-"""The ChatGPT route (Q32): one route in front of two runners; the Codex CLI's command line,
-instructions, events and account words; the Settings routes."""
+"""The Codex CLI runner (Q32): its command line, instructions, events and account words. Which
+model a turn goes to is Settings -> Models (runtime/route.py Router, tests in test_models)."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from fastapi.testclient import TestClient
-
-from alpha.api.server import create_app
-from alpha.runtime import claude_account, codex_account, codex_cli, route
-from alpha.runtime.claude_cli import LIVE, NO_ANSWER, RunResult, TurnRequest
+from alpha.runtime import codex_account, codex_cli
+from alpha.runtime.claude_cli import LIVE, NO_ANSWER, TurnRequest
 from alpha.world.world import World
 
 
@@ -20,28 +16,6 @@ def _req(world: World, kind: str = "turn", model: str | None = None, **kw: Any) 
                        **kw)
 
 
-def test_the_route_follows_the_persons_choice_and_falls_back_to_claude(world: World,
-                                                                        monkeypatch: Any) -> None:
-    calls: list[str] = []
-    from alpha.runtime import claude_cli
-
-    def fake(which: str, reply: str) -> Any:
-        def runner(req: TurnRequest) -> RunResult:
-            calls.append(which)
-            return RunResult(reply=reply, ok=True)
-        return runner
-
-    monkeypatch.setattr(claude_cli, "run", fake("claude", "c"))
-    monkeypatch.setattr(codex_cli, "run", fake("codex", "x"))
-    assert route.chosen(world.path) == "claude"
-    assert route.run(_req(world)).reply == "c"
-    world.preferences.set("thinks_with", "codex")
-    assert route.chosen(world.path) == "codex"
-    assert route.run(_req(world)).reply == "x"
-    world.preferences.set("thinks_with", "something else")
-    assert route.chosen(world.path) == "claude"
-    assert route.chosen(Path("/nowhere/world.sqlite")) == "claude"
-    assert calls == ["claude", "codex"]
 
 
 def test_the_codex_command_line_and_instructions(world: World, monkeypatch: Any,
@@ -107,18 +81,3 @@ def test_codex_account_words() -> None:
     assert codex_account.parse_status(1, "Not logged in") == {"installed": True,
                                                               "signed_in": False}
 
-
-def test_the_thinking_routes(world: World, monkeypatch: Any) -> None:
-    monkeypatch.setattr(claude_account, "status",
-                        lambda: {"installed": True, "signed_in": True, "email": "k@x.com"})
-    monkeypatch.setattr(codex_account, "status",
-                        lambda: {"installed": True, "signed_in": False})
-    c = TestClient(create_app(world, live=False))
-    now = c.get("/api/thinking").json()
-    assert now["route"] == "claude" and now["codex"]["signed_in"] is False
-    after = c.put("/api/thinking", json={"route": "codex"}).json()
-    assert after["route"] == "codex"
-    assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == \
-        "You chose to think with ChatGPT."
-    assert c.put("/api/thinking", json={"route": "gemini"}).status_code == 400
-    assert json.loads(json.dumps(c.get("/api/thinking").json()))["route"] == "codex"

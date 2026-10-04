@@ -8,7 +8,8 @@ import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
 import { factOrigin } from "./facts";
-import { Button, Badge, Trouble } from "../ui";
+import { Badge, Button, InfoTip, Trouble } from "../ui";
+import { PageHeader } from "../ui/PageHeader";
 import { ArrowLeft } from "../ui/icons";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
@@ -55,16 +56,15 @@ export function People({ client, version, onOpen }: { client: Client; version: n
     ) : null;
   return (
     <div className="page">
-        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load People & Companies: {error}</Trouble> : null}
-      <div className="modhead">
-        <div className="modhead__title">
-          <h1>People &amp; Companies</h1>
-          <span className="faint">Everyone Alpha has come across: from your connections, your mail, and what you tell it.</span>
-        </div>
-        <div className="search people__search">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
-        </div>
-      </div>
+      <PageHeader
+        title={<>People &amp; Companies <InfoTip text="Everyone Alpha has come across: from your connections, your mail, and what you tell it." /></>}
+        right={
+          <div className="search people__search">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
+          </div>
+        }
+      />
+      {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load People & Companies: {error}</Trouble> : null}
       {people === null ? <p className="empty">Loading…</p> : null}
       {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Alpha."}</p> : null}
       {group("People", persons)}

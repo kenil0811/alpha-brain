@@ -271,7 +271,8 @@ class Browser:
             data={"url": url, "final_url": page.get("final_url"), "status": page.get("status"),
                   "signed_in": use_profile, "blocked": bool(page.get("blocked")),
                   "bot_check": bool(page.get("bot_check")),
-                  "links": len(links), "turn": turn},
+                  "links": len(links), "writes_blocked": page.get("writes_blocked"),
+                  "turn": turn},
             module=module, source="connector:browser",
         )
         self._walls(site, page)
@@ -293,6 +294,7 @@ class Browser:
 
     def script(self, url: str, script: str, *, to_end: bool = False, turn: str | None = None,
                module: str | None = None, label: str | None = None,
+               allow_posts: list[dict[str, str]] | None = None,
                thread: str | None = None) -> dict[str, Any]:
         """Run Alpha's own JavaScript (a function body that returns JSON) in a page, read
         through the person's sign-in where they connected the site. Read-only by mechanism:
@@ -310,7 +312,7 @@ class Browser:
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected"
         job: dict[str, Any] = {"op": "script", "url": url, "script": script, "channel": "chrome",
-                               "scroll_to_end": to_end}
+                               "scroll_to_end": to_end, "allow_posts": allow_posts or []}
         if use_profile and conn is not None:
             job["profile"] = str(profile_of(conn))
         timeout = READ_TIMEOUT_S * 3 if to_end else READ_TIMEOUT_S
@@ -329,7 +331,9 @@ class Browser:
             + (" — it stopped Alpha with a bot check" if page.get("bot_check") else "")
             + (" — it asked for a sign-in" if page.get("blocked") else "") + ".",
             data={"url": url, "signed_in": use_profile, "rows": count,
-                  "writes_blocked": page.get("writes_blocked"), "turn": turn},
+                  "writes_blocked": page.get("writes_blocked"),
+                  "egress_blocked": page.get("egress_blocked"),
+                  "posts_allowed": page.get("posts_allowed") or [], "turn": turn},
             module=module, thread=thread, source="connector:browser",
         )
         self._walls(site, page)
@@ -337,7 +341,9 @@ class Browser:
                 "signed_in": use_profile, "needs_signin": bool(page.get("blocked")),
                 "bot_check": bool(page.get("bot_check")),
                 "more_pages": bool(page.get("more_pages")),
-                "result": result, "scrolls": page.get("scrolls")}
+                "result": result, "scrolls": page.get("scrolls"),
+                "writes_blocked": page.get("writes_blocked") or 0,
+                "egress_blocked": page.get("egress_blocked") or 0}
 
     def download(self, url: str, into: Path, *, click: str | None = None,
                  click_text: str | None = None, name: str | None = None,

@@ -10,8 +10,13 @@ description: Read web pages, including sites behind a sign-in, through the perso
   by guessing at the text.
 - `page_script(url, script, to_end)` runs your own JavaScript in the page and returns what it
   returns. It is how you see a page exactly (return `el.outerHTML.slice(0, 2000)` for one item)
-  and how you read it exactly. Read-only by mechanism: anything that would change data on the
-  site is blocked, so clicking "Show more" style paging is fine and nothing can be sent.
+  and how you read it exactly. Read-only by mechanism: every request but GET is blocked for the
+  whole session, and while your script runs it can reach only the sites the page itself loaded
+  from (`writes_blocked` and `egress_blocked` say how many were stopped). Password and card
+  fields refuse input.
+- If a list stops short and `writes_blocked` is above zero, the site may load more with a POST
+  that only reads. Find its address (origin and path) and give it to `reader_save` as
+  `allow_posts`; only that reader may send it, and every use is journaled.
 - **Readers** are your own know-how: a `page_script` that returns clean rows for one page of one
   site. Write one for any list you will keep, from what the real page looks like today; try
   it; keep it with `reader_save`; fill the table with `reader_run` (matched on a key, so repeat

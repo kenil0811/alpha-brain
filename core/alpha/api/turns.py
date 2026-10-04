@@ -11,6 +11,8 @@ from typing import Any
 
 from alpha.api.bodies import AskBody
 from alpha.api.views import conversation_view
+from alpha.bugs import bug_log
+from alpha.models.accounts import Accounts
 from alpha.runtime import check, claude_cli, conversations, noticing
 from alpha.runtime import turn as turns
 from alpha.world.store import Problem
@@ -23,9 +25,11 @@ class Turns:
     """Turns run in the background; the window polls for the answer."""
 
     def __init__(self, world: World, runner: turns.Runner | None = None,
-                 after: Callable[[], None] | None = None, checks: bool = True) -> None:
+                 accounts: Accounts | None = None, after: Callable[[], None] | None = None,
+                 checks: bool = True) -> None:
         self.world = world
         self.runner = runner
+        self.accounts = accounts
         self.after = after
         # After a turn in which Alpha wrote values it worked out itself, an independent answer
         # checks them in the background and Alpha corrects itself in the conversation.
@@ -52,10 +56,17 @@ class Turns:
             # request never waits on one), so the turn comes back at once as "routing".
             routing = True
         key = secrets.token_hex(6)
+        if self.accounts is not None:
+            # Nothing is said into the conversation until the model it goes to is connected:
+            # the window connects it and sends the same words again.
+            provider = str(self.accounts.route(conversation or body.thread)["provider"])
+            if not self.accounts.connected(provider):
+                return {"id": key, "state": "needs_connect", "text": body.text,
+                        "provider": provider, "started_at": datetime.now(UTC).isoformat()}
         self._evict()
         with self.lock:
             self.state[key] = {"id": key, "state": "routing" if routing else "running",
-                               "text": body.text,
+                               "text": body.text, "thread": body.thread,
                                "started_at": datetime.now(UTC).isoformat(),
                                "conversation": conversation_view(self.world, conversation)
                                if conversation else None}
@@ -64,6 +75,9 @@ class Turns:
             def said(jid: str) -> None:
                 with self.lock:
                     self.state[key]["said"] = jid
+                    stopping = self.state[key].get("stopping")
+                if stopping:  # stopped before the model started: it never does
+                    claude_cli.LIVE.stop(jid, before_start=True)
 
             nonlocal conversation
             try:
@@ -87,16 +101,28 @@ class Turns:
                                           "conversation": bool(conversation)}
                 if conversation:
                     self.world.modules.update_thread(conversation, state="working")
+                if body.attachments:
+                    kwargs["attachments"] = body.attachments
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
                 out = turns.ask(self.world, body.text, **kwargs)
+                raw = out.result.raw
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
-                          "duration_ms": out.result.duration_ms}
+                          "duration_ms": out.result.duration_ms,
+                          "provider": raw.get("provider")}
+                if not out.ok and raw.get("cancelled"):
+                    result["state"] = "cancelled"
+                elif not out.ok and raw.get("needs_connect"):
+                    # The call itself showed a connection problem: the window shows the
+                    # connect card for that row, and sends the words again once it's green.
+                    result.update(state="needs_connect", provider=raw["needs_connect"],
+                                  connect_kind=raw.get("connect_kind"))
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
-            except Exception:
+            except Exception as e:
                 log.exception("turn failed")
+                bug_log(self.world).record("core", type(e).__name__, str(e))
                 result = {"state": "failed", "reply": "Alpha hit a problem it couldn't recover"
                           " from; the details are in its log."}
             with self.lock:
@@ -178,17 +204,20 @@ class Turns:
         out["live"] = claude_cli.LIVE.progress_for(said)
         return out
 
+    def cancel(self, key: str) -> dict[str, Any]:
+        with self.lock:
+            if key not in self.state:
+                raise Problem(f"There is no turn {key}.")
+            entry = self.state[key]
+            if entry["state"] != "running":
+                return dict(entry)
+            entry["stopping"] = True
+            said = entry.get("said")
+        if said:
+            claude_cli.LIVE.stop(said, before_start=True)
+        return self.get(key)
+
     def running(self) -> list[dict[str, Any]]:
         with self.lock:
             return [dict(v) for v in self.state.values()
                     if v["state"] in ("running", "routing")]
-
-    def stop(self, key: str) -> dict[str, Any]:
-        """Stop a turn that is still working; it ends with "You stopped it."."""
-        with self.lock:
-            if key not in self.state:
-                raise Problem(f"There is no turn {key}.")
-            said = self.state[key].get("said")
-        if said:
-            claude_cli.LIVE.stop(said)
-        return self.get(key)

@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
+import { ToastProvider, TooltipProvider } from "../ui";
+import { pathFor as surfacePath, surfaceFromPath } from "./address";
 import { Rail, knownSurface, sameSurface, treeOf } from "./Rail";
 
 describe("the rail", () => {
@@ -11,14 +13,33 @@ describe("the rail", () => {
     expect(sameSurface({ kind: "entity", id: "e_1" }, { kind: "people" })).toBe(true);
     expect(knownSurface({ kind: "nowhere" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
+    expect(surfaceFromPath(`#${surfacePath({ kind: "module", id: "m_1" })}`)).toEqual({ kind: "module", id: "m_1" });
   });
 
-  it("lists the modules and what needs the person", () => {
-    render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
+  it("keeps sections and Alpha's aliases in the address", () => {
+    expect(surfacePath({ kind: "module", id: "m_1", section: "activity" })).toBe("/m/m_1/activity");
+    expect(surfaceFromPath("#/m/m_1/settings")).toEqual({ kind: "module", id: "m_1", section: "settings" });
+    expect(surfaceFromPath("#/settings/models")).toEqual({ kind: "settings", section: "models" });
+    expect(surfaceFromPath("#/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(surfaceFromPath("#/settings/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(surfaceFromPath("#/about")).toEqual({ kind: "intelligence", tab: "knowledge" });
+  });
+
+  it("lists the projects with the ones inside them nested, and no Activity item", () => {
+    const card = (id: string, name: string, parent: string | null = null) => ({ id, name, goal: null, parent, path: [], children: [], tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
+    const { container } = render(
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[card("m_1", "School"), card("m_2", "Grades", "m_1"), card("m_3", "Food")]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />
+        </ToastProvider>
+      </TooltipProvider>,
     );
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
+    expect(container.querySelector(".rail__nested")).toHaveTextContent("Grades");
+    expect(screen.queryByRole("button", { name: "Activity" })).toBeNull();
+    expect(screen.queryByText("Projects")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add a project from a file" })).toBeNull();
+    expect(screen.getByRole("button", { name: "New project" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
@@ -47,7 +68,13 @@ describe("modules as a tree", () => {
   });
 
   it("lists the tree on the rail with a fold on each parent", () => {
-    render(<Rail surface={{ kind: "home" }} modules={[card("m_j", "Job"), card("m_s", "Search", "m_j")]} needs={0} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />);
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[card("m_j", "Job"), card("m_s", "Search", "m_j")]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Fold Job" }));
     expect(screen.queryByRole("button", { name: "Search" })).toBeNull();

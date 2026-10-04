@@ -35,14 +35,14 @@ def test_a_module_can_sit_inside_another_to_any_depth(world: World) -> None:
     assert world.modules.path_words(search) == "Job › Search"
     deep = world.modules.create("Drafts", parent=resume)["id"]
     assert world.modules.path_words(deep) == "Job › Resume › Drafts"
-    assert "Made the module Resume inside Job." in \
+    assert "Made the project Resume inside Job." in \
         [e["text"] for e in world.journal.recent(20, kinds=["made"])]
     with pytest.raises(Problem, match="inside itself"):
         world.modules.move(job, deep)
     moved = Tools(world).module_move("Drafts", None)
     assert moved["parent"] is None and moved["path"] == "Drafts"
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == \
-        "Moved the module Drafts under the top."
+        "Moved the project Drafts under the top."
     Tools(world).module_move("Drafts", "Search")
     assert world.modules.path_words(deep) == "Job › Search › Drafts"
 
@@ -105,7 +105,7 @@ def test_the_person_makes_a_parent_in_the_window_and_moves_modules_into_it(world
     c = TestClient(create_app(world, live=False))
     made = c.post("/api/modules", json={"name": "Avilo", "goal": None, "parent": None}).json()
     assert made["name"] == "Avilo" and made["path"] == ["Avilo"] and made["tables"] == []
-    assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == "You made the module Avilo."
+    assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == "You made the project Avilo."
     c.post(f"/api/modules/{advisory}/move", json={"parent": made["id"]})
     c.post(f"/api/modules/{deals}/move", json={"parent": "Avilo"})
     assert [m["name"] for m in world.modules.children(made["id"])] == ["Advisory", "Deal Tracker"]

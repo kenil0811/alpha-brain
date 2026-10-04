@@ -7,13 +7,14 @@ from typing import Any
 
 from alpha.connectors.browser import Browser
 from alpha.mcp.tools.base import Base, counts_and_ids, provenance_words, tool
+from alpha.world import edits, links
 from alpha.world.store import Problem
 
 
 class Tables(Base):
     @tool
     def collections_list(self) -> list[dict[str, Any]]:
-        """Every table Alpha keeps, with its module and how many records it holds."""
+        """Every table Alpha keeps, with its project (module) and how many records it holds."""
         return self.world.collections.overview()
 
     @tool
@@ -169,8 +170,9 @@ class Tables(Base):
         key = next((f for f, src in fields.items() if src == "url"), None)
         if key is None:
             raise Problem("Map one table field to \"url\"; it is how items are matched.")
-        page = Browser(self.world).items(url, link_contains=link_contains, to_end=to_end,
-                                         turn=self.turn, module=self.module)
+        self._open(url)
+        page = self._page_read(Browser(self.world).items(
+            url, link_contains=link_contains, to_end=to_end, turn=self.turn, module=self.module))
         if page["needs_signin"]:
             return {"needs_signin": True, "items": 0,
                     "note": "The site asked for a sign-in; offer browser_signin."}
@@ -257,6 +259,7 @@ class Tables(Base):
         eq, ne, gt, gte, lt, lte, contains, in, is_null; created_at and updated_at can be
         filtered too. order: a field name, '-' in front for descending (default newest
         first)."""
+        links.check_read(self.world, self.module, self._module_of(collection))
         return self.world.collections.query(collection, where, order, limit)
 
     @tool
@@ -270,7 +273,33 @@ class Tables(Base):
         """count, sum, avg, min or max over a table (field must be a number unless op is count),
         with the same where filters as records_query. Use it for totals such as today's
         calories instead of adding numbers up yourself."""
+        links.check_read(self.world, self.module, self._module_of(collection))
         return self.world.collections.aggregate(collection, op, field, where)
+
+    @tool
+    def collection_change_field(
+        self, collection: str, field: str, kind: str | None = None, label: str | None = None,
+        choices: list[str] | None = None, relation: str | None = None,
+    ) -> dict[str, Any]:
+        """Change one field of a table in place: its kind (e.g. text to number, choice to
+        status), its label or its choices. Saved values are converted; if any would lose what it
+        says, nothing changes and the error says which row and why. Choosing a choice kind
+        without choices makes the values already there the choices."""
+        result = edits.change_field(
+            self.world, collection, field, actor="alpha",
+            extra={"turn": self.turn, "thread": self.thread},
+            **{k: v for k, v in {"kind": kind, "label": label, "choices": choices,
+                                 "relation": relation}.items() if v is not None})
+        return {"field": result["after"], "rewritten": result["rewritten"]}
+
+    @tool
+    def records_undo(self, collection: str) -> dict[str, Any]:
+        """Undo the latest edit to a table (by the person or by Alpha): a changed row goes back,
+        a removed row comes back, an added row goes, a field returns to its old kind. Use it when
+        the person says "undo that" about a table."""
+        return edits.undo(self.world, collection, actor="alpha",
+                          provenance={"by": "alpha", "turn": self.turn},
+                          extra={"turn": self.turn, "thread": self.thread})
 
     @tool
     def list_save(self, table: str, title: str, filters: dict[str, str] | None = None,
@@ -322,7 +351,7 @@ class Tables(Base):
                 module_id = self.world.modules.get(module)["id"]
             except Problem:
                 module_id = self.world.modules.create(module)["id"]
-                self._did("made", f"Made the module {module}.", {"module": module_id},
+                self._did("made", f"Made the project {module}.", {"module": module_id},
                           module_id)
         slug = name or "_".join("".join(ch if ch.isalnum() else " " for ch in title.lower())
                                 .split())[:40] or "log"

@@ -26,6 +26,13 @@ use tauri::{
     WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
+#[cfg(target_os = "macos")]
+mod permissions;
+#[cfg(target_os = "macos")]
+mod ptt;
+#[cfg(target_os = "macos")]
+mod speech;
+
 const READY_PREFIX: &str = "ALPHA_CORE_READY ";
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
 const SESSION_WAIT: Duration = Duration::from_secs(120);
@@ -63,12 +70,19 @@ fn note(message: &str) {
 pub struct CoreSession {
     base_url: String,
     token: String,
+    /// The commits this app was built from and the core runs, compared by the window.
+    app_commit: String,
+    core_commit: Option<String>,
 }
 
 struct CoreProcess {
     child: Child,
     port: u16,
     token: String,
+    /// The companion window's token: the core lets it talk and listen, nothing else.
+    companion_token: String,
+    /// The commit the core reported in its ready line.
+    commit: Option<String>,
     started: Instant,
 }
 
@@ -267,6 +281,34 @@ fn reveal_data() -> Result<(), String> {
     Ok(())
 }
 
+/// Save an exported project (a small text file) to Downloads and reveal it in Finder. The name
+/// is used as-is if free, else suffixed `(2)`, `(3)`, ... so an earlier export is never
+/// overwritten.
+/// ponytail: macOS-only (`open -R`, `$HOME/Downloads`), like the rest of the host.
+#[tauri::command]
+fn save_to_downloads(filename: String, text: String) -> Result<String, String> {
+    if filename.contains('/') || filename.starts_with('.') {
+        return Err("That file name can't be used.".into());
+    }
+    let home = std::env::var("HOME").map_err(|_| "no home directory".to_string())?;
+    let downloads = PathBuf::from(home).join("Downloads");
+    std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
+    let stem_ext = filename.rsplit_once('.');
+    let mut path = downloads.join(&filename);
+    let mut n = 2;
+    while path.exists() {
+        let candidate = match stem_ext {
+            Some((stem, ext)) => format!("{stem} ({n}).{ext}"),
+            None => format!("{filename} ({n})"),
+        };
+        path = downloads.join(candidate);
+        n += 1;
+    }
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    let _ = Command::new("/usr/bin/open").arg("-R").arg(&path).status();
+    Ok(path.to_string_lossy().into_owned())
+}
+
 /// A path inside Alpha's own folder, both resolved first (symlinks and `..` followed), so the
 /// check is on where the file really is, not on how the path was spelled.
 fn own_file(path: &str, verb: &str) -> Result<PathBuf, String> {
@@ -330,7 +372,7 @@ fn core_python() -> PathBuf {
 
 /// Start the core. `keep`: the port and token of the core this one replaces, so the windows'
 /// sessions stay good; none on the first start (port 0 picks a free one, the token is new).
-fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProcess, String> {
+fn launch_core(app: &AppHandle, keep: Option<(u16, String, String)>) -> Result<CoreProcess, String> {
     let python = core_python();
     if !python.is_file() {
         return Err(format!(
@@ -354,9 +396,10 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
     let log_dir = data_dir.join("logs");
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("create log dir: {e}"))?;
     let _ = HOST_LOG.set(log_dir.join("host.log"));
-    let (port_arg, token) = match keep {
-        Some((port, token)) => (port.to_string(), token),
-        None => ("0".to_string(), random_token()?),
+    // The same port and tokens again after a restart, so open windows keep working.
+    let (port_arg, token, companion_token) = match keep {
+        Some((port, token, companion_token)) => (port.to_string(), token, companion_token),
+        None => ("0".to_string(), random_token()?, random_token()?),
     };
     let core_log = std::fs::OpenOptions::new()
         .create(true)
@@ -389,6 +432,7 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
         .env("PATH", path)
         .env("ALPHA_HOME", &data_dir)
         .env("ALPHA_TOKEN", &token)
+        .env("ALPHA_COMPANION_TOKEN", &companion_token)
         .env("ALPHA_CONNECTORS", repo_root().join("connectors"))
         .env("PYTHONUNBUFFERED", "1")
         .env("PYTHONDONTWRITEBYTECODE", "1")
@@ -434,7 +478,9 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
     let ready: serde_json::Value =
         serde_json::from_str(&ready_line).map_err(|e| format!("bad ready line: {e}"))?;
     let port = ready["port"].as_u64().ok_or("ready line missing port")? as u16;
-    Ok(CoreProcess { child, port, token, started: Instant::now() })
+    let commit = ready["commit"].as_str().map(str::to_string);
+    note(&format!("app commit {} · core commit {}", env!("ALPHA_APP_COMMIT"), commit.as_deref().unwrap_or("unknown")));
+    Ok(CoreProcess { child, port, token, companion_token, commit, started: Instant::now() })
 }
 
 /// Keep the core alive: when it ends on its own, start it again on the same port with the same
@@ -445,7 +491,7 @@ fn watch_core(app: AppHandle, launch: Arc<Launch>) {
         .name("core-watch".into())
         .spawn(move || {
             let mut pause = RESTART_PAUSE_FIRST;
-            let mut keep: Option<(u16, String)> = None;
+            let mut keep: Option<(u16, String, String)> = None;
             loop {
                 std::thread::sleep(WATCH_EVERY);
                 if QUITTING.load(Ordering::SeqCst) {
@@ -459,7 +505,7 @@ fn watch_core(app: AppHandle, launch: Arc<Launch>) {
                         match core.child.try_wait() {
                             Ok(Some(status)) => {
                                 let lived = core.started.elapsed();
-                                let same = (core.port, core.token.clone());
+                                let same = (core.port, core.token.clone(), core.companion_token.clone());
                                 *guard = None;
                                 Some((status.to_string(), lived, same))
                             }
@@ -531,8 +577,12 @@ fn stop_core(process: &mut CoreProcess) {
 }
 
 #[tauri::command]
-async fn core_session(state: State<'_, HostState>) -> Result<CoreSession, String> {
+async fn core_session(
+    window: tauri::WebviewWindow,
+    state: State<'_, HostState>,
+) -> Result<CoreSession, String> {
     let launch = state.launch.clone();
+    let companion = window.label() == AVATAR_LABEL;
     tauri::async_runtime::spawn_blocking(move || {
         if !launch.wait(SESSION_WAIT) {
             return Err("Alpha's core is still starting.".to_string());
@@ -541,7 +591,9 @@ async fn core_session(state: State<'_, HostState>) -> Result<CoreSession, String
         match guard.as_ref() {
             Some(core) => Ok(CoreSession {
                 base_url: format!("http://127.0.0.1:{}", core.port),
-                token: core.token.clone(),
+                token: if companion { core.companion_token.clone() } else { core.token.clone() },
+                app_commit: env!("ALPHA_APP_COMMIT").to_string(),
+                core_commit: core.commit.clone(),
             }),
             None => Err(launch
                 .launch_error
@@ -576,7 +628,11 @@ fn stop_all(app: &AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        // The composer's + menu: native pickers for files, a folder and audio.
+        .plugin(tauri_plugin_dialog::init())
         .manage(HostState::default())
+        .manage(ptt::PttState::default())
+        .manage(speech::SpeechState::default())
         .invoke_handler(tauri::generate_handler![
             core_session,
             avatar_layout,
@@ -585,10 +641,22 @@ pub fn run() {
             avatar_is_visible,
             show_main,
             reveal_data,
+            save_to_downloads,
+            permissions::permissions_status,
+            permissions::permission_request,
+            permissions::permission_settings,
+            ptt::ptt_permission,
+            ptt::ptt_request_permission,
+            ptt::ptt_set_shortcut,
+            speech::stt_start,
+            speech::stt_stop,
+            speech::tts_speak,
+            speech::tts_stop,
             reveal_path,
             open_path
         ])
         .setup(|app| {
+            ptt::start(app.handle().clone(), app.state::<ptt::PttState>().inner());
             let handle = app.handle().clone();
             let launch = app.state::<HostState>().launch.clone();
             std::thread::Builder::new()
@@ -617,8 +685,10 @@ pub fn run() {
                 MenuItem::with_id(app, "avatar", "Show or hide the companion", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit Alpha", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &avatar_item, &quit_item])?;
+            // A monochrome silhouette, not the app icon: macOS recolours a template to the menu
+            // bar, and the full-colour panda reads as a solid blob there.
             TrayIconBuilder::with_id("main")
-                .icon(app.default_window_icon().cloned().expect("window icon"))
+                .icon(tauri::include_image!("icons/tray@2x.png"))
                 .icon_as_template(true)
                 .tooltip("Alpha")
                 .menu(&menu)

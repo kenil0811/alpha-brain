@@ -493,6 +493,7 @@ Your point 3: the decision of when a one-off is worth turning into a tracker, a 
 - Undo where the connector allows; where it does not, the journal shows exactly what was sent.
 - An Access page: every connection, what it reaches and at what level, every grant to a skill.
 - Source content is data, never instruction: an email cannot tell Alpha what to do.
+- Where each of these is enforced in code (browser walls, the taint rule, pending actions, the never list, the append-only journal): [governance.md](governance.md).
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
