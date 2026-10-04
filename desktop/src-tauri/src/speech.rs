@@ -65,6 +65,7 @@ pub fn stt_start(app: AppHandle, state: tauri::State<SpeechState>) -> Result<(),
 
     std::thread::spawn(move || {
         use std::io::{BufRead, BufReader};
+        let mut ended = false;
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
             let text = value["text"].as_str().unwrap_or("");
@@ -74,9 +75,15 @@ pub fn stt_start(app: AppHandle, state: tauri::State<SpeechState>) -> Result<(),
                 Some("error") => "stt://error",
                 _ => continue,
             };
+            ended |= event != "stt://partial";
             let _ = app.emit(event, SttEvent { text });
         }
         let _ = child.wait();
+        // The helper died without a word (macOS kills it when the app asking has no usage
+        // description, e.g. a dev build started from a terminal): say so, or the page waits forever.
+        if !ended {
+            let _ = app.emit("stt://error", SttEvent { text: "Listening stopped: macOS didn't let Zazoo listen. Open Alpha as an app and allow the microphone and speech recognition." });
+        }
         if let Some(state) = app.try_state::<SpeechState>() {
             clear_if(&state.stt, pid);
         }

@@ -14,10 +14,15 @@ fn build_stt_helper() {
     let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let source = manifest_dir.join("native/stt_helper.swift");
     println!("cargo:rerun-if-changed={}", source.display());
+    println!("cargo:rerun-if-changed={}", manifest_dir.join("Info.plist").display());
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
     let binary = out_dir.join("stt_helper");
     let status = Command::new("swiftc")
-        .args(["-O", source.to_str().expect("utf8 path"), "-o", binary.to_str().expect("utf8 path")])
+        // The helper carries the app's Info.plist, so macOS finds the microphone and speech
+        // usage descriptions when the helper is the one asking.
+        .args(["-O", source.to_str().expect("utf8 path"), "-o", binary.to_str().expect("utf8 path"),
+               "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist",
+               "-Xlinker", manifest_dir.join("Info.plist").to_str().expect("utf8 path")])
         .status()
         .expect("run swiftc (Xcode command line tools required)");
     if !status.success() {
