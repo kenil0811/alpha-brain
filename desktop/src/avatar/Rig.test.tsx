@@ -10,20 +10,25 @@ import { POSES, Rig, type Mood } from "./Rig";
 describe("the rig", () => {
   it("says who it is and what it is doing", () => {
     render(<Rig look={DEFAULT_LOOK} mood="idle" />);
-    const svg = screen.getByRole("img", { name: "Alpha, a panda, is here" });
+    const svg = screen.getByRole("img", { name: "Zazoo, a panda, is here" });
     expect(svg).toHaveAttribute("data-animal", "panda");
     expect(svg).toHaveClass("rig--idle");
   });
 
   it("draws the chosen animal and wardrobe", () => {
-    const { container } = render(<Rig look={{ ...DEFAULT_LOOK, animal: "cat", glasses: true, neckwear: "bow" }} mood="thinking" />);
-    expect(screen.getByRole("img", { name: "Alpha, a cat, is thinking" })).toHaveAttribute("data-animal", "cat");
+    const { container } = render(<Rig look={{ ...DEFAULT_LOOK, animal: "cat", accessories: ["bowtie", "scarf", "spectacles"] }} mood="thinking" />);
+    expect(screen.getByRole("img", { name: "Zazoo, a cat, is thinking" })).toHaveAttribute("data-animal", "cat");
     // The painted panda patches are the panda's alone; the cat has whiskers and a drawn nose.
     expect(container.querySelectorAll("image[href$='patch.webp']").length).toBe(0);
     expect(container.querySelectorAll("image[href$='snout.webp']").length).toBe(0);
     const { container: panda } = render(<Rig look={DEFAULT_LOOK} mood="idle" />);
     expect(panda.querySelectorAll("image[href$='patch.webp']").length).toBe(2);
     expect(panda.querySelectorAll("image[href$='tie.webp']").length).toBe(1);
+    // Every accessory chosen is drawn, the bow tie after (over) the scarf; no tie unless chosen.
+    expect(container.querySelectorAll("image[href$='tie.webp']").length).toBe(0);
+    const parts = Array.from(container.querySelectorAll("[data-part]")).map((p) => p.getAttribute("data-part"));
+    expect(parts).toEqual(expect.arrayContaining(["spectacles", "scarf", "bowtie"]));
+    expect(parts.indexOf("bowtie")).toBeGreaterThan(parts.indexOf("scarf"));
   });
 });
 
@@ -34,12 +39,12 @@ describe("the moods", () => {
       const { unmount } = render(<Rig look={DEFAULT_LOOK} mood={mood} />);
       const svg = screen.getByRole("img");
       expect(svg).toHaveAttribute("data-mood", mood);
-      expect(svg.getAttribute("aria-label")).toMatch(/^Alpha, a panda, is /);
+      expect(svg.getAttribute("aria-label")).toMatch(/^Zazoo, a panda, is /);
       unmount();
     }
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     render(<Rig look={DEFAULT_LOOK} mood="curious" />);
-    expect(screen.getByRole("img", { name: "Alpha, a panda, is curious" })).toHaveClass("rig--curious");
+    expect(screen.getByRole("img", { name: "Zazoo, a panda, is curious" })).toHaveClass("rig--curious");
   });
 
   it("happy blushes and squints, thinking looks up and aside, sleepy droops", () => {
@@ -66,7 +71,7 @@ describe("the look picker", () => {
 
   it("shows the stored look and keeps every change in the world", async () => {
     const user = userEvent.setup();
-    const c = client({ animal: "otter", glasses: false });
+    const c = client({ animal: "otter", neckwear: "bow", glasses: false });
     render(
       <TooltipProvider>
         <LookPicker client={c} />
@@ -75,8 +80,18 @@ describe("the look picker", () => {
     expect(await screen.findByRole("button", { name: "Otter", pressed: true })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Fox" }));
     expect(c.setPreference).toHaveBeenLastCalledWith("companion_look", expect.objectContaining({ animal: "fox", fur: null }));
-    await user.click(screen.getByRole("switch", { name: "Glasses" }));
-    expect(c.setPreference).toHaveBeenLastCalledWith("companion_look", expect.objectContaining({ animal: "fox", glasses: true }));
+    // Accessories: any mix, none too; the old bow became the bow tie.
+    expect(screen.getByRole("button", { name: "Bow tie", pressed: true })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Glasses" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Spectacles" }));
+    expect(c.setPreference).toHaveBeenLastCalledWith("companion_look", expect.objectContaining({ animal: "fox", accessories: ["bowtie", "spectacles"] }));
+    await user.click(screen.getByRole("button", { name: "Scarf" }));
+    expect(c.setPreference).toHaveBeenLastCalledWith("companion_look", expect.objectContaining({ accessories: ["bowtie", "scarf", "spectacles"] }));
+    await user.click(screen.getByRole("button", { name: "Bow tie" }));
+    await user.click(screen.getByRole("button", { name: "Scarf" }));
+    await user.click(screen.getByRole("button", { name: "Spectacles" }));
+    expect(c.setPreference).toHaveBeenLastCalledWith("companion_look", expect.objectContaining({ accessories: [] }));
+    expect(screen.queryByRole("group", { name: "Tie colour" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Honey" }));
     expect(c.setPreference).toHaveBeenLastCalledWith("companion_look", expect.objectContaining({ fur: "#d99a66" }));
   });

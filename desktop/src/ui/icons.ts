@@ -27,6 +27,8 @@ export {
   Mic,
   Circle,
   Maximize2,
+  Minimize2,
+  AppWindow,
   MoreHorizontal,
   Info,
   FolderOpen,

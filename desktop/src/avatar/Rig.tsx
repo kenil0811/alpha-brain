@@ -10,10 +10,17 @@
  * squash or stretch, and how often it blinks and breathes. Bridge springs these every frame
  * under a director; here a mood change eases by CSS transitions, the breath, the blinks and
  * the nod are CSS animations, the pupils drift on a timer (saccades), and a happy or
- * celebrating mood hops once. It is still when the window is hidden, when the Mac asks for
- * reduced motion, and after a while with nothing happening.
+ * celebrating mood hops once, and so does a thing done (`done`), squashing and stretching.
+ *
+ * What makes it read as lit and alive (from pull request #3's Zazoo): a soft studio light on
+ * the body (a key up-left and the shading it casts, an SVG lighting filter over the painted
+ * parts), a wet line along each lower lid, blinks that squash the eye rather than only shut
+ * it, ears and whiskers that trail the head and the hop (follow-through), and, in the
+ * companion (`follow`), eyes that follow the pointer over the window. It is still when the
+ * window is hidden, when the Mac asks for reduced motion, and after a while with nothing
+ * happening.
  */
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import arm from "./art/panda/arm.webp";
 import brow from "./art/panda/brow.webp";
@@ -32,7 +39,7 @@ import shirt from "./art/panda/shirt.webp";
 import snout from "./art/panda/snout.webp";
 import suit from "./art/panda/suit.webp";
 import tie from "./art/panda/tie.webp";
-import { animalOf, furOf, shade, type Look } from "./looks";
+import { animalOf, furOf, shade, type Accessory, type Look } from "./looks";
 
 /** What the companion feels or does; `talking` is the mouth moving over whatever it feels. */
 export type Mood = "idle" | "curious" | "listening" | "thinking" | "talking" | "happy" | "proud" | "unsure" | "concerned" | "comforting" | "celebrating" | "sleepy";
@@ -229,25 +236,49 @@ function Bow({ color }: { color: string }) {
   const x = AXIS;
   const y = 1720;
   return (
-    <g>
-      <path d={`M ${x} ${y} L ${x - 230} ${y - 110} Q ${x - 290} ${y} ${x - 230} ${y + 110} Z`} fill={color} />
-      <path d={`M ${x} ${y} L ${x + 230} ${y - 110} Q ${x + 290} ${y} ${x + 230} ${y + 110} Z`} fill={color} />
+    <g data-part="bowtie" stroke={shade(color, -0.5)} strokeWidth="14" strokeLinejoin="round">
+      <path d={`M ${x} ${y} L ${x - 230} ${y - 110} Q ${x - 290} ${y} ${x - 230} ${y + 110} Z`} fill={shade(color, 0.12)} />
+      <path d={`M ${x} ${y} L ${x + 230} ${y - 110} Q ${x + 290} ${y} ${x + 230} ${y + 110} Z`} fill={shade(color, 0.12)} />
       <rect x={x - 48} y={y - 48} width="96" height="96" rx="22" fill={shade(color, -0.35)} />
     </g>
   );
 }
 
-function Glasses() {
+/** A scarf round the neck, over the collar, with one end hanging; in the tie's colour. */
+function Scarf({ color }: { color: string }) {
+  const x = AXIS;
+  const dark = shade(color, -0.35);
+  return (
+    <g data-part="scarf" stroke={dark} strokeWidth="14" strokeLinejoin="round">
+      <path d={`M ${x - 470} 1560 Q ${x} 1790 ${x + 470} 1560 L ${x + 450} 1720 Q ${x} 1960 ${x - 450} 1720 Z`} fill={color} />
+      <path d={`M ${x - 250} 1760 L ${x - 60} 1790 L ${x - 120} 2260 L ${x - 330} 2220 Z`} fill={shade(color, -0.12)} />
+      <path d={`M ${x - 300} 1650 Q ${x} 1800 ${x + 300} 1650`} fill="none" stroke={shade(color, 0.25)} strokeWidth="18" opacity="0.6" />
+    </g>
+  );
+}
+
+function Spectacles() {
   const r = 215;
   const rx = 2 * AXIS - EYE.x;
   return (
-    <g fill="none" stroke="#2a2b31" strokeWidth="26" strokeLinecap="round" data-part="glasses">
+    <g fill="none" stroke="#2a2b31" strokeWidth="26" strokeLinecap="round" data-part="spectacles">
       <circle cx={EYE.x} cy={EYE.y + 8} r={r} />
       <circle cx={rx} cy={EYE.y + 8} r={r} />
       <path d={`M ${EYE.x + r} ${EYE.y - 20} Q ${AXIS} ${EYE.y - 80} ${rx - r} ${EYE.y - 20}`} />
       <path d={`M ${EYE.x - r} ${EYE.y - 10} L ${EYE.x - r - 170} ${EYE.y - 70}`} />
       <path d={`M ${rx + r} ${EYE.y - 10} L ${rx + r + 170} ${EYE.y - 70}`} />
     </g>
+  );
+}
+
+/** On a white eye, a dark iris under the painted pupil (whose paint is the catchlights, which
+ *  alone vanish on white). */
+function WhitePupil({ cx }: { cx: number }) {
+  return (
+    <>
+      <circle cx={cx} cy={EYE.y + 6} r="96" fill="#2a2530" />
+      <image href={pupil} x={cx - 110} y={EYE.y - 104} width="220" height="209" />
+    </>
   );
 }
 
@@ -296,7 +327,10 @@ const PIVOT = {
   whiskerR: { x: AXIS + 420, y: NOSE.y + 60 },
 };
 
-export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mood; size?: number; className?: string }) {
+/** How far the eyes go towards the pointer, in canvas units, and how long they stay after it stops. */
+const FOLLOW = { x: 70, y: 45, ms: 2_500 };
+
+export function Rig({ look, mood, size = 96, className, follow = false, done = 0 }: { look: Look; mood: Mood; size?: number; className?: string; follow?: boolean; done?: number }) {
   const id = useId().replace(/:/g, "");
   const animal = animalOf(look.animal);
   const fur = furOf(look);
@@ -307,8 +341,10 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
   const [rested, setRested] = useState(false);
   const [drift, setDrift] = useState({ x: 0, y: 0 });
   const [hop, setHop] = useState(false);
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  // The mouth moves while Alpha talks and the window is in view; otherwise it holds.
+  // The mouth moves while Zazoo talks and the window is in view; otherwise it holds.
   useEffect(() => {
     if (mood !== "talking" || !visible) return;
     const timer = setInterval(() => setTalk((n) => n + 1), 170);
@@ -336,13 +372,35 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
     timer = setTimeout(look, 600);
     return () => clearTimeout(timer);
   }, [visible, reduced, rested, pose.saccade]);
-  // Joy has a gesture: a hop when the mood arrives (the class goes again so the next one plays).
+  // The eyes follow the pointer while it moves over the window, then go back to wandering.
   useEffect(() => {
-    if ((mood !== "happy" && mood !== "celebrating") || reduced) return;
+    if (!follow || !visible || reduced) {
+      setPointer(null);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clamp = (n: number) => Math.max(-1, Math.min(1, n));
+    const onMove = (e: PointerEvent) => {
+      const r = svgRef.current?.getBoundingClientRect();
+      if (!r || !r.width) return;
+      setPointer({ x: clamp((e.clientX - r.left - r.width / 2) / r.width) * FOLLOW.x, y: clamp((e.clientY - r.top - r.height * 0.35) / r.height) * FOLLOW.y });
+      clearTimeout(timer);
+      timer = setTimeout(() => setPointer(null), FOLLOW.ms);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointermove", onMove);
+    };
+  }, [follow, visible, reduced]);
+  // Joy has a gesture: a hop when the mood arrives or a thing is done (the class goes again so
+  // the next one plays).
+  useEffect(() => {
+    if ((mood !== "happy" && mood !== "celebrating" && !done) || reduced) return;
     setHop(true);
     const timer = setTimeout(() => setHop(false), 750);
     return () => clearTimeout(timer);
-  }, [mood, reduced]);
+  }, [mood, done, reduced]);
 
   const mouth: MouthName = mood === "talking" ? TALK[talk % TALK.length] : pose.mouth;
   const still = !visible || rested || reduced;
@@ -360,6 +418,10 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
   const earMove = animal.ears === "cap" ? `translateY(${-pose.earPerk * 3}px) scale(${pose.earScale})` : `rotate(${-pose.earPerk}deg) scale(${pose.earScale})`;
   const mouthBox = MOUTH[mouth];
   const mouthScale = mood === "talking" ? 1 : pose.mouthScale;
+  const gaze = pointer ?? { x: pose.gazeX + drift.x, y: pose.gazeY + drift.y };
+  const wears = (a: Accessory) => look.accessories.includes(a);
+  /** The wet line: light caught along a lower lid. */
+  const wetLine = (cx: number) => <path d={`M ${cx - 120} ${EYE.y + 118} Q ${cx} ${EYE.y + 168} ${cx + 120} ${EYE.y + 118}`} />;
 
   return (
     <svg
@@ -368,7 +430,8 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
       height={size}
       viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
       role="img"
-      aria-label={`Alpha, a ${animal.name.toLowerCase()}, is ${state}`}
+      ref={svgRef}
+      aria-label={`Zazoo, a ${animal.name.toLowerCase()}, is ${state}`}
       data-animal={animal.id}
       data-mood={mood}
       style={{ "--blink-every": `${pose.blinkEvery}s`, "--blink-speed": `${pose.blinkSpeed}`, "--breath": `${pose.breath}s` } as React.CSSProperties}
@@ -378,6 +441,21 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
         <Tint id={`${id}-suit`} color={look.suit} />
         <Tint id={`${id}-shirt`} color={look.shirt} lo={-0.3} hi={0.12} />
         <Tint id={`${id}-tie`} color={look.tie} />
+        {/* Studio light: a soft key up-left over the body's rounded shape (the blurred
+            silhouette as a height map): the far side falls into shade, the near side catches a
+            soft highlight, both over the paint. */}
+        <filter id={`${id}-light`} x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="90" result="bump" />
+          <feDiffuseLighting in="bump" surfaceScale="9" diffuseConstant="1" lightingColor="#ffffff" result="fill">
+            <fePointLight x="1050" y="250" z="1500" />
+          </feDiffuseLighting>
+          <feComposite in="SourceGraphic" in2="fill" operator="arithmetic" k1="0.3" k2="0.74" k3="0" k4="0" result="shaded" />
+          <feSpecularLighting in="bump" surfaceScale="9" specularConstant="0.55" specularExponent="14" lightingColor="#fff6e8" result="key">
+            <fePointLight x="1050" y="250" z="1500" />
+          </feSpecularLighting>
+          <feComposite in="key" in2="SourceAlpha" operator="in" result="lit" />
+          <feComposite in="shaded" in2="lit" operator="arithmetic" k1="0" k2="1" k3="0.2" k4="0" />
+        </filter>
       </defs>
       {/* The body breathes (an animation on rig__body) and squashes with the mood (a transform on
           rig__squash): two groups, because an animation would replace an inline transform. The
@@ -387,15 +465,21 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
         <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className="rig__squash" transform={`scale(${1 + 0.07 * pose.squash}, ${1 - 0.07 * pose.squash})`}>
           <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
           <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
-              {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
+              <Pivot x={earPivot.x} y={earPivot.y} className="rig__follow" transform="none">
+                  {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
+                </Pivot>
             </Pivot>
             <g transform={mirror}>
               <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
-                {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
+                <Pivot x={earPivot.x} y={earPivot.y} className="rig__follow" transform="none">
+                  {animal.ears === "cap" ? <Part href={ear} box={BOX.ear} /> : <DrawnEar kind={animal.ears} size={animal.earSize} fur={fur ?? "#f0e4cf"} inner={animal.earInner} />}
+                </Pivot>
               </Pivot>
             </g>
           </Pivot>
-          <Part href={shell} box={BOX.shell} filter={tints.fur} />
+          <g filter={`url(#${id}-light)`}>
+            <Part href={shell} box={BOX.shell} filter={tints.fur} />
+          </g>
           <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
           <g className="rig__face">
             {animal.id === "panda" ? (
@@ -428,23 +512,27 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
                     <Part href={eye} box={BOX.eye} transform={rightEye} />
                   </>
                 )}
-                <g className="rig__pupils" style={{ transform: `translate(${pose.gazeX + drift.x}px, ${pose.gazeY + drift.y}px)` }}>
+                <g className="rig__pupils" style={{ transform: `translate(${gaze.x}px, ${gaze.y}px)` }}>
                   <Pivot x={EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} />}
+                    {animal.eyes === "white" ? <WhitePupil cx={EYE.x} /> : <Part href={pupil} box={BOX.pupil} />}
                   </Pivot>
                   <Pivot x={2 * AXIS - EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={2 * AXIS - EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
+                    {animal.eyes === "white" ? <WhitePupil cx={2 * AXIS - EYE.x} /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
                   </Pivot>
+                </g>
+                <g className="rig__wet" fill="none" stroke="#ffffff" strokeWidth="16" strokeLinecap="round" opacity="0.55">
+                  {wetLine(EYE.x)}
+                  {wetLine(2 * AXIS - EYE.x)}
                 </g>
               </Pivot>
             </Pivot>
-            {look.glasses ? <Glasses /> : null}
+            {wears("spectacles") ? <Spectacles /> : null}
             {animal.nose === "painted" ? <Part href={snout} box={BOX.snout} /> : <Nose kind={animal.nose} color={animal.noseColor} />}
             <Pivot x={LIP.x} y={LIP.y} className="rig__mouth" transform={`scale(${mouthScale})`}>
               <Part href={MOUTH_ART[mouth]} box={mouthBox} />
             </Pivot>
             {animal.whiskers ? (
-              <g className="rig__whiskers" stroke="#3a3238" strokeWidth="14" strokeLinecap="round" opacity="0.55">
+              <g className="rig__whiskers rig__follow" stroke="#3a3238" strokeWidth="14" strokeLinecap="round" opacity="0.55">
                 <Pivot x={PIVOT.whiskerL.x} y={PIVOT.whiskerL.y} className="rig__whisker" transform={`rotate(${10 * pose.whiskerDroop}deg)`}>
                   <path d={`M ${AXIS - 420} ${NOSE.y + 20} L ${AXIS - 760} ${NOSE.y - 60}`} />
                   <path d={`M ${AXIS - 430} ${NOSE.y + 110} L ${AXIS - 780} ${NOSE.y + 120}`} />
@@ -457,11 +545,17 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
             ) : null}
           </g>
           </Pivot>
-          <Part href={shirt} box={BOX.shirt} filter={tints.shirt} />
-          {look.neckwear === "tie" ? <Part href={tie} box={BOX.tie} filter={tints.tie} /> : look.neckwear === "bow" ? <Bow color={look.tie} /> : null}
-          <Part href={suit} box={BOX.suit} filter={tints.suit} />
-          <Part href={arm} box={BOX.arm} filter={tints.fur} />
-          <Part href={arm} box={BOX.arm} filter={tints.fur} transform={mirror} />
+          <g filter={`url(#${id}-light)`}>
+            <Part href={shirt} box={BOX.shirt} filter={tints.shirt} />
+            {wears("tie") ? <Part href={tie} box={BOX.tie} filter={tints.tie} /> : null}
+            <Part href={suit} box={BOX.suit} filter={tints.suit} />
+            {/* Any mix can be worn: the scarf wraps over the collar and the tie's knot, and the
+                bow tie sits on top of both so it never hides under the scarf. */}
+            {wears("scarf") ? <Scarf color={look.tie} /> : null}
+            {wears("bowtie") ? <Bow color={look.tie} /> : null}
+            <Part href={arm} box={BOX.arm} filter={tints.fur} />
+            <Part href={arm} box={BOX.arm} filter={tints.fur} transform={mirror} />
+          </g>
         </Pivot>
       </Pivot>
     </svg>
