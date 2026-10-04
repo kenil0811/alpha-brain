@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from alpha.api.bodies import PreferenceBody, ThinkingBody
+from alpha.api.bodies import ModelBody, PreferenceBody, ThinkingBody
 from alpha.api.served import Served
 from alpha.runtime import claude_account, codex_account, route
 from alpha.world import backup
@@ -46,6 +46,16 @@ def routes(app: FastAPI, s: Served) -> None:
         world.preferences.set(route.PREFERENCE, body.route)
         world.journal.append("changed", f"You chose to think with {route.WORDS[body.route]}.",
                              actor="person", data={"thinks_with": body.route})
+        return route.status(world.path)
+
+    @app.put("/api/thinking/model", dependencies=[api])
+    def set_codex_model(body: ModelBody) -> dict[str, Any]:
+        offered = {m["id"]: m["name"] for m in codex_account.models()}
+        if body.model not in offered:
+            raise Problem("Your ChatGPT account doesn't offer that model.")
+        world.preferences.set(codex_account.MODEL_PREFERENCE, body.model)
+        world.journal.append("changed", f"You chose {offered[body.model]} for ChatGPT.",
+                             actor="person", data={"codex_model": body.model})
         return route.status(world.path)
 
     @app.post("/api/codex/install", dependencies=[api])

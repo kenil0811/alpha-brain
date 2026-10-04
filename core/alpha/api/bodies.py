@@ -85,6 +85,10 @@ class ThinkingBody(BaseModel):
     route: str
 
 
+class ModelBody(BaseModel):
+    model: str
+
+
 class NoteBody(BaseModel):
     scope: str
     title: str

@@ -122,3 +122,28 @@ def test_the_thinking_routes(world: World, monkeypatch: Any) -> None:
         "You chose to think with ChatGPT."
     assert c.put("/api/thinking", json={"route": "gemini"}).status_code == 400
     assert json.loads(json.dumps(c.get("/api/thinking").json()))["route"] == "codex"
+
+
+def test_only_a_model_the_account_offers_is_used(world: World, monkeypatch: Any,
+                                                  tmp_path: Path) -> None:
+    cache = tmp_path / "models_cache.json"
+    cache.write_text(json.dumps({"models": [
+        {"slug": "gpt-hidden", "visibility": "hide", "priority": 1},
+        {"slug": "gpt-b", "display_name": "GPT-B", "visibility": "list", "priority": 7},
+        {"slug": "gpt-a", "display_name": "GPT-A", "visibility": "list", "priority": 5}]}))
+    config = tmp_path / "config.toml"
+    config.write_text('model = "gpt-6-astra"\n')
+    monkeypatch.setattr(codex_account, "MODELS", cache)
+    monkeypatch.setattr(codex_account, "CONFIG", config)
+    monkeypatch.delenv("ALPHA_CODEX_MODEL", raising=False)
+    assert codex_account.models() == [{"id": "gpt-a", "name": "GPT-A"},
+                                      {"id": "gpt-b", "name": "GPT-B"}]
+    assert codex_account.model(world.path) == "gpt-a"  # the config's model isn't offered
+    world.preferences.set(codex_account.MODEL_PREFERENCE, "gpt-b")
+    assert codex_account.model(world.path) == "gpt-b"
+    world.preferences.set(codex_account.MODEL_PREFERENCE, "gpt-gone")
+    assert codex_account.model(world.path) == "gpt-a"
+    config.write_text('model = "gpt-b"\n')
+    cache.unlink()  # no list known: the person's own config stands
+    world.preferences.set(codex_account.MODEL_PREFERENCE, None)
+    assert codex_account.model(world.path) == "gpt-b"

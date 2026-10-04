@@ -381,7 +381,8 @@ export type ThinkRoute = "claude" | "codex";
 export interface Thinking {
   route: ThinkRoute;
   claude: ClaudeStatus;
-  codex: ClaudeStatus;
+  /** With the models the person's ChatGPT account offers and the one runs use. */
+  codex: ClaudeStatus & { models?: { id: string; name: string }[]; model?: string | null };
 }
 
 export interface DataInfo {
@@ -621,6 +622,7 @@ export class Client {
   claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
   thinking = () => this.call<Thinking>("GET", "/api/thinking");
   setThinking = (route: ThinkRoute) => this.call<Thinking>("PUT", "/api/thinking", { route });
+  setCodexModel = (model: string) => this.call<Thinking>("PUT", "/api/thinking/model", { model });
   installCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/install");
   signInCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/signin");
   signOutCodex = () => this.call<ClaudeStatus>("POST", "/api/codex/signout");
