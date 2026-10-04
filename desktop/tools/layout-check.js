@@ -17,7 +17,9 @@
     (e.getAttribute("aria-label") ? `[${e.getAttribute("aria-label")}]` : "");
   // Drawn past their box on purpose (the panda's ears) or screen-reader only.
   const skip = (e) => e.closest(".sr-only, .zazoo, [data-overflow-ok]");
-  for (const e of document.querySelectorAll("body *")) {
+  // An open dialog is the screen: what's behind its overlay is meant to be covered.
+  const screen = document.querySelector('[role="dialog"]') ?? document.body;
+  for (const e of screen.querySelectorAll("*")) {
     const cs = getComputedStyle(e);
     const r = e.getBoundingClientRect();
     if (cs.display === "none" || cs.visibility === "hidden" || !r.width || skip(e)) continue;
