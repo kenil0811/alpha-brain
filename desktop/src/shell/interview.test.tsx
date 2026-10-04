@@ -31,21 +31,27 @@ vi.mock("./voice", () => ({
   },
 }));
 
+// Zazoo knows nothing about the person: "About you" opens, then Work and Alpha in the interview's drawn order.
 const PLAN =
-  '{"context": "Busy term.", "gaps": ["No targets"], "questions": [' +
-  '{"id": "q1", "topic": "Work", "question": "What matters most this month?", "value": 9, "minutes": 1}, ' +
-  '{"id": "q2", "topic": "Work", "question": "Who is in the way?", "value": 8, "minutes": 1}, ' +
-  '{"id": "q3", "topic": "Alpha", "question": "What does done look like?", "value": 7, "minutes": 1}]}';
+  '{"context": "New here.", "gaps": ["Who they are"], "topics": [{"name": "About you", "goal": "Who they are", "opening": true}, {"name": "Work", "goal": "What they work on"}, {"name": "Alpha", "goal": "What done means"}], "questions": [' +
+  '{"id": "y1", "topic": "About you", "question": "What do you do?", "value": 6, "seconds": 12}, ' +
+  '{"id": "w1", "topic": "Work", "question": "What are you working on?", "value": 9, "seconds": 12}, ' +
+  '{"id": "w2", "topic": "Work", "question": "Who is in the way?", "parent": "w1", "when": "they are working on something", "value": 8, "seconds": 12}, ' +
+  '{"id": "a1", "topic": "Alpha", "question": "What does done look like?", "value": 7, "seconds": 12}]}';
 const DRAFTS = '{"summary": "Two things to keep.", "items": [{"kind": "fact", "about": "person", "label": "focus", "text": "Recruiting"}, {"kind": "note", "about": "alpha", "label": "Done means", "text": "A beta"}]}';
 
 const zazoo = () => document.querySelector(".interview__zazoo")!.getAttribute("data-mood");
 const wait = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("Interview", () => {
-  it("speaks, listens, hears skip, and ends in the review", { timeout: 20_000 }, async () => {
+  it("opens about the person, moves to the next topic when told to, and ends in the review", { timeout: 20_000 }, async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(Math, "random").mockReturnValue(0.5); // draws Work before Alpha
     localStorage.clear();
     fake.spoken = [];
     const asked: string[] = [];
@@ -64,33 +70,38 @@ describe("Interview", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: /Start the interview/ }));
 
-    // The first question is said aloud, mouth talking, and never written on screen.
-    expect(fake.spoken[0]).toMatch(/What matters most this month\?$/);
+    // The opening question is about the person, said aloud, mouth talking, and never written on screen.
+    expect(fake.spoken[0]).toMatch(/What do you do\?$/);
     expect(zazoo()).toBe("talking");
-    expect(screen.queryByText("What matters most this month?")).toBeNull();
+    expect(screen.queryByText("What do you do?")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Show words/ }));
-    expect(screen.getByText("What matters most this month?")).toBeInTheDocument();
+    expect(screen.getByText("What do you do?")).toBeInTheDocument();
 
-    // Said: Zazoo listens; an answer and two seconds of quiet bring the next question.
+    // Said: Zazoo listens; an answer and two seconds of quiet bring the next topic's gate question.
     await act(async () => fake.done());
     expect(zazoo()).toBe("listening");
     expect(fake.speech.listening).toBe(true);
     act(() => fake.hear("Recruiting", ""));
     await wait(3200);
-    expect(fake.spoken[1]).toBe("Who is in the way?");
+    expect(fake.spoken[1]).toBe("Thanks. Next, work. What are you working on?");
     expect(zazoo()).toBe("talking");
 
-    // "skip" by voice moves on without an answer.
+    // Vikas's answer: the follow-up that assumed work is never asked; Zazoo bridges to the next topic.
+    await act(async () => fake.done());
+    act(() => fake.hear("I'm not working on anything, let's move on to a different topic", ""));
+    await wait(3200);
+    expect(fake.spoken[2]).toBe("OK, let's talk about alpha. What does done look like?");
+    expect(screen.getByText("OK, let's talk about alpha.")).toBeInTheDocument(); // shown, since words are on
+
+    // "skip" by voice moves on without an answer; nothing is left, so Zazoo drafts and the review lists it to tick.
     await act(async () => fake.done());
     act(() => fake.hear("skip", ""));
     await wait(3200);
-    expect(fake.spoken[2]).toMatch(/What does done look like\?$/);
-
-    // End: Zazoo drafts from what was said, and the review lists it to tick.
-    fireEvent.click(screen.getByRole("button", { name: /End/ }));
     expect(await screen.findByText("Two things to keep.")).toBeInTheDocument();
+    expect(fake.spoken).toHaveLength(3);
     expect(asked[1]).toContain("A: Recruiting");
     expect(asked[1]).not.toContain("Who is in the way?");
+    expect(asked[1]).not.toContain("What does done look like?");
     fireEvent.click(screen.getByLabelText("Keep focus"));
     fireEvent.click(screen.getByRole("button", { name: "Keep 1" }));
     expect(await screen.findByText(/Kept 1 thing/)).toBeInTheDocument();

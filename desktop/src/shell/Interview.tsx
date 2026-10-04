@@ -6,9 +6,10 @@
  * on "Show words"; a typed answer appears only where the window can't listen.
  *
  * Zazoo prepares in the interview's own conversation (reads what it holds, finds the gaps,
- * writes questions with a value and a time each: ./interviewPlan); the person slides how long
- * they have and sees what share of the questions and of their value fits. The plan is redone
- * after every answer with the time left. At the end Zazoo drafts facts and notes; nothing is
+ * writes topics with goals and questions with a value and a time each: ./interviewPlan); the
+ * person slides how long they have and sees what share of the questions and of their value fits.
+ * The plan is redone after every answer with the time left: a "no" drops that question's
+ * follow-ups, "let's move on" drops the topic, and Zazoo bridges to the next one aloud. At the end Zazoo drafts facts and notes; nothing is
  * kept until the person ticks it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +20,7 @@ import { ZazooDirector } from "../avatar/zazoo/director";
 import { IconButton, InfoTip, PageHeader, StandardDropdown } from "../ui";
 import { Button } from "../ui/Button";
 import { Textarea } from "../ui/Input";
-import { closePrompt, command, fullMinutes, parseDrafts, parsePrepared, plan, preparePrompt, type Answered, type Draft, type Prepared, type Question, type Tool } from "./interviewPlan";
+import { afterAnswer, closePrompt, command, fullMinutes, parseDrafts, parsePrepared, plan, preparePrompt, type Answered, type Draft, type Prepared, type Question, type Tool } from "./interviewPlan";
 import { say, stopSaying } from "./say";
 import { useSpeech } from "./voice";
 
@@ -41,7 +42,7 @@ interface Saved {
   at: string;
 }
 
-const cacheKey = (tool: Tool, scope: string) => `alpha.interview.${tool.id}.${scope || "all"}`;
+const cacheKey = (tool: Tool, scope: string) => `alpha.interview.v2.${tool.id}.${scope || "all"}`;
 function readCache(key: string): Saved | null {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null") as Saved | null;
@@ -111,6 +112,11 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
   const [answered, setAnswered] = useState<Answered[]>([]);
   const answeredRef = useRef<Answered[]>([]);
   const [current, setCurrent] = useState<Question | null>(null);
+  // The questions still to ask (answers drop follow-ups and topics), and the draw that orders topics for this interview.
+  const leftRef = useRef<Question[]>([]);
+  const seedRef = useRef(0);
+  // What Zazoo says before the question ("OK, let's talk about ..."): spoken, shown only with "Show words".
+  const [lead, setLead] = useState("");
   const [ahead, setAhead] = useState(0);
   const [stage, setStageState] = useState<Stage>("speaking");
   const stageRef = useRef<Stage>("speaking");
@@ -174,6 +180,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
     saying.current += 1;
     stopSaying();
     speechRef.current.stop();
+    setStage("paused"); // the ear stops for good: a stale answer must not settle (and draft) again
     setCurrent(null);
     const said = answeredRef.current.filter((a) => !a.skipped && a.answer.trim());
     if (!said.length || !saved) {
@@ -195,15 +202,16 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
   }, [client, saved, tool]);
 
   const askNext = useCallback(
-    (topic?: string) => {
+    (topic?: string, movedOn = false) => {
       if (!saved) return;
-      const asked = new Set(answeredRef.current.map((a) => a.question.id));
-      const left = saved.prepared.questions.filter((q) => !asked.has(q.id));
+      const left = leftRef.current;
+      const opening = saved.prepared.topics.find((t) => t.opening)?.name;
       // A question that would just fit when the clock started still fits a moment later.
-      const p = plan(left, Math.max(0, minutesLeft() + GRACE_MINUTES), topic);
+      const p = plan(left, Math.max(0, minutesLeft() + GRACE_MINUTES), { current: topic, opening, seed: seedRef.current });
       const q = p.order[0];
       if (!q) {
         speechRef.current.stop();
+        setStage("paused");
         setCurrent(null);
         if (left.length) setPhase("timeup");
         else void finish();
@@ -211,13 +219,18 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
       }
       setCurrent(q);
       setAhead(p.order.length);
-      const lead =
+      setHeard("");
+      const name = q.topic.toLowerCase().replace(/^about /, "");
+      const line =
         answeredRef.current.length === 0
-          ? `I have ${p.order.length} question${p.order.length === 1 ? "" : "s"} for you. Say skip to move on, or stop to finish. `
-          : q.topic !== topic
-            ? `Thanks. Next, ${q.topic.toLowerCase()}. `
-            : "";
-      void speak(lead + q.question);
+          ? "Say skip to move on, or stop to finish. "
+          : q.topic === topic
+            ? ""
+            : movedOn
+              ? `OK, let's talk about ${name}. `
+              : `Thanks. Next, ${name}. `;
+      setLead(line.trim());
+      void speak(line + q.question);
     },
     // minutesLeft reads refs only
     [saved, speak, finish],
@@ -239,10 +252,14 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
         listen(); // nothing came through: keep listening
         return;
       }
-      answeredRef.current = [...answeredRef.current, { question: q, answer: cmd ? "" : answer.trim(), skipped: cmd === "skip" }];
+      const said = cmd ? "" : answer.trim();
+      answeredRef.current = [...answeredRef.current, { question: q, answer: said, skipped: cmd === "skip" }];
       setAnswered(answeredRef.current);
       setTyped("");
-      askNext(q.topic);
+      // A skip counts as "no": its follow-ups go with it.
+      const next = afterAnswer(leftRef.current, q, said);
+      leftRef.current = next.left;
+      askNext(next.moveOn ? undefined : q.topic, next.moveOn);
     },
     [askNext, current, finish, listen],
   );
@@ -305,6 +322,8 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
     setKept(0);
     answeredRef.current = [];
     setAnswered([]);
+    leftRef.current = saved?.prepared.questions ?? [];
+    seedRef.current = Math.floor(Math.random() * 2 ** 31);
     setPhase("live");
     askNext();
   };
@@ -380,7 +399,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
   const questions = saved?.prepared.questions ?? [];
   const full = Math.max(1, Math.ceil(fullMinutes(questions)));
   // The shortest interview that still asks one question.
-  const least = Math.min(full, Math.ceil(Math.min(...questions.map((q) => fullMinutes([q])))));
+  const least = Math.min(full, Math.ceil(Math.min(...questions.filter((q) => !q.parent).map((q) => fullMinutes([q])))));
   const minutes = Math.min(Math.max(budget, least), full);
   const preview = useMemo(() => plan(questions, minutes), [questions, minutes]);
   const canListen = speech.supported && !speech.error;
@@ -392,7 +411,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
       : phase === "closing"
         ? "Drafting what to keep…"
         : phase === "timeup"
-          ? `That's your time. ${questions.length - answered.length} questions are left.`
+          ? `That's your time. ${leftRef.current.length} question${leftRef.current.length === 1 ? " is" : "s are"} left.`
           : phase === "live"
             ? stage === "speaking"
               ? "Zazoo is asking"
@@ -467,6 +486,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
           <>
             {words ? (
               <div className="interview__words" aria-live="polite">
+                {lead ? <p className="muted">{lead}</p> : null}
                 <p className="interview__q">{current.question}</p>
                 {heard ? <p className="muted">{heard}</p> : null}
               </div>

@@ -46,7 +46,7 @@ const BROWSER = [process.env.ALPHA_TEST_BROWSER, "/Applications/Google Chrome.ap
 const SIGNED_IN = { installed: true, signed_in: true, email: "layout@example.com", plan: "Max" };
 const CONNECTED = { route: "claude", claude: SIGNED_IN, codex: { ...SIGNED_IN, plan: "Plus", models: [{ id: "gpt-5", name: "GPT-5" }, { id: "gpt-5-codex", name: "GPT-5 Codex" }], model: "gpt-5" } };
 // No real model turn ever: the interview's preparation is answered with a fixed plan.
-const PREPARED = { id: null, state: "done", text: "", started_at: "", reply: JSON.stringify({ context: "A busy term.", gaps: ["No targets"], questions: [{ id: "q1", topic: "Work", question: "What matters most this month?", value: 9, minutes: 1.5 }, { id: "q2", topic: "Work", question: "Who is in the way?", value: 6, minutes: 2 }, { id: "q3", topic: "Health", question: "How are you sleeping?", value: 4, minutes: 1 }] }) };
+const PREPARED = { id: null, state: "done", text: "", started_at: "", reply: JSON.stringify({ context: "A busy term.", gaps: ["No targets"], topics: [{ name: "About you", goal: "Who they are", opening: true }, { name: "Work", goal: "What they work on" }], questions: [{ id: "q1", topic: "About you", question: "What do you do?", value: 6, seconds: 12 }, { id: "q2", topic: "Work", question: "What are you working on?", value: 9, seconds: 12 }, { id: "q3", topic: "Work", question: "Who is in the way?", parent: "q2", when: "they are working on something", value: 6, seconds: 15 }] }) };
 
 // ALPHA_LAYOUT_PORT lets two checkouts run it at once.
 const WEB_PORT = process.env.ALPHA_LAYOUT_PORT ?? "5199";
