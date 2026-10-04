@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { LookPicker } from "./LookPicker";
-import { DEFAULT_LOOK } from "./looks";
+import { ANIMALS, DEFAULT_LOOK } from "./looks";
 import { POSES, Rig, type Mood } from "./Rig";
 
 describe("the rig", () => {
@@ -24,6 +24,18 @@ describe("the rig", () => {
     const { container: panda } = render(<Rig look={DEFAULT_LOOK} mood="idle" />);
     expect(panda.querySelectorAll("image[href$='patch.webp']").length).toBe(2);
     expect(panda.querySelectorAll("image[href$='tie.webp']").length).toBe(1);
+  });
+
+  it("gives every animal dark eyes under the lids (pupil.webp is only the white glints)", () => {
+    for (const a of ANIMALS) {
+      const { container, unmount } = render(<Rig look={{ ...DEFAULT_LOOK, animal: a.id }} mood="idle" />);
+      const pupils = container.querySelectorAll(".rig__lids .rig__pupil");
+      expect(pupils.length).toBe(2);
+      // the panda's dark is the painted eye; a white eye draws its own iris
+      const dark = a.eyes === "dark" ? container.querySelectorAll(".rig__lids image[href$='eye.webp']") : container.querySelectorAll(".rig__pupil ellipse[fill='#393841']");
+      expect(dark.length, a.id).toBe(2);
+      unmount();
+    }
   });
 });
 

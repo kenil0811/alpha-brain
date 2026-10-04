@@ -109,8 +109,9 @@ struct HostState {
 
 const AVATAR_LABEL: &str = "avatar";
 /// The companion's window only covers what it shows: the character, the character with a
-/// bubble, or the open panel. (Even a transparent window catches clicks.)
-const AVATAR_IDLE: (f64, f64) = (112.0, 124.0);
+/// bubble, or the open panel. (Even a transparent window catches clicks.) The first idle size is the
+/// page's own for Medium (AvatarWindow: rig width + 32, height + 44).
+const AVATAR_IDLE: (f64, f64) = (122.0, 159.0);
 const AVATAR_MARGIN: f64 = 20.0;
 const AVATAR_HIDDEN_MARKER: &str = "avatar-hidden";
 /// Even sized to what it shows, the companion's window is a rectangle around a round character
