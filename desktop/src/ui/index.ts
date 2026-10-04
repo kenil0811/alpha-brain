@@ -9,3 +9,4 @@ export { Tooltip, TooltipProvider, InfoTip } from "./Tooltip";
 export { Confirm } from "./Confirm";
 export { Trouble } from "./Trouble";
 export { Rich } from "./Rich";
+export { SoonBadge, SoonProvider, useComingSoon } from "./Soon";
