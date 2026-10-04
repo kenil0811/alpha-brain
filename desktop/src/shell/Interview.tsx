@@ -397,9 +397,11 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
 
   // ---- the screen ----
   const questions = saved?.prepared.questions ?? [];
-  const full = Math.max(1, Math.ceil(fullMinutes(questions)));
+  // Half minutes: with short spoken answers a whole plan is often only a few minutes.
+  const half = (m: number) => Math.ceil(m * 2) / 2;
+  const full = Math.max(0.5, half(fullMinutes(questions)));
   // The shortest interview that still asks one question.
-  const least = Math.min(full, Math.ceil(Math.min(...questions.filter((q) => !q.parent).map((q) => fullMinutes([q])))));
+  const least = Math.min(full, half(Math.min(...questions.filter((q) => !q.parent).map((q) => fullMinutes([q])))));
   const minutes = Math.min(Math.max(budget, least), full);
   const preview = useMemo(() => plan(questions, minutes), [questions, minutes]);
   const canListen = speech.supported && !speech.error;
@@ -552,7 +554,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
               <InfoTip content={[saved.prepared.context, ...saved.prepared.gaps].filter(Boolean).join(" · ")} label="What Zazoo sees" />
               <span className="interview__minutes num">{minutes} min</span>
             </div>
-            <input id="interview-minutes" type="range" min={least} max={full} step={1} value={minutes} onChange={(e) => setBudget(Number(e.target.value))} aria-valuetext={`${minutes} minutes, ${pct(preview.questionShare)} of the questions`} />
+            <input id="interview-minutes" type="range" min={least} max={full} step={0.5} value={minutes} onChange={(e) => setBudget(Number(e.target.value))} aria-valuetext={`${minutes} minutes, ${pct(preview.questionShare)} of the questions`} />
             <div className="interview__bar" aria-hidden="true">
               <div style={{ width: pct(preview.questionShare) }} />
             </div>
