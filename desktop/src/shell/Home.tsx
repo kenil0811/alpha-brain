@@ -4,6 +4,7 @@
  * decoration: each card is something to answer or open.
  */
 import { useEffect, useState } from "react";
+import { Mic } from "lucide-react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { isOwnClick } from "../dataviews/cells";
@@ -165,6 +166,13 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
     <div className="page">
       {header}
       <div className="today" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        <button type="button" className="card tile tile--action" onClick={() => onGo({ kind: "intelligence", tab: "tools", item: "interviewer" })}>
+          <div className="tile__lab">Interview me</div>
+          <div className="tile__big">
+            <Mic size={22} aria-hidden="true" />
+          </div>
+          <div className="tile__sub">Zazoo asks what it's missing</div>
+        </button>
         <div className="card tile">
           <div className="tile__lab">Projects</div>
           <div className="tile__big num">{home.modules.length}</div>
