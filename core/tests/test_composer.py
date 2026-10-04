@@ -52,7 +52,7 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
 def wait(c: TestClient, key: str) -> dict[str, Any]:
     for _ in range(100):
         state: dict[str, Any] = c.get(f"/api/turns/{key}").json()
-        if state["state"] != "running":
+        if state["state"] not in ("running", "routing"):
             return state
         time.sleep(0.05)
     return state
