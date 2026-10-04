@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Button, Dialog } from "../ui";
+import { Button } from "../ui/Button";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 /** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
@@ -107,7 +107,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
               .map(([field, value]) => (
                 <div key={field} className="action__block">
                   <span className="faint">{field.replace(/_/g, " ")}</span>
-                  {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text">{value}</pre>}
+                  {editing ? <textarea value={draft[field] ?? ""} rows={Math.min(14, Math.max(4, (draft[field] ?? "").split("\n").length + 1))} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} /> : <pre className="action__text" title={open ? "Double-click to edit" : undefined} onDoubleClick={() => open && setEditing(true)}>{value}</pre>}
                 </div>
               ))}
           </div>
@@ -120,10 +120,10 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         ) : null}
       </div>
       {!shot && open && action.preview_note ? <p className="faint">{action.preview_note}</p> : null}
-      {shot ? (
-        <Dialog open={full} onOpenChange={setFull} title="Screenshot, full size" bare>
-          <img src={shot} alt="Screenshot, full size" onClick={() => setFull(false)} />
-        </Dialog>
+      {full && shot ? (
+        <div className="lightbox" role="dialog" aria-label="Screenshot" onClick={() => setFull(false)}>
+          <img src={shot} alt="Screenshot, full size" />
+        </div>
       ) : null}
       <p className="because">
         <b>Undo</b> {action.undo}
@@ -134,7 +134,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         <div className="row">
           {editing ? (
             <>
-              <Button variant="primary" disabled={busy} onClick={() => void save()}>
+              <Button disabled={busy} onClick={() => void save()}>
                 Save changes
               </Button>
               <Button variant="ghost" disabled={busy} onClick={() => { setEditing(false); setDraft(action.payload); }}>
@@ -143,15 +143,15 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
             </>
           ) : (
             <>
-              <Button variant="primary" disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
+              <Button disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
                 {action.effect === "send" ? "Send it" : "Do it"}
               </Button>
               {action.effect === "prepare" ? (
-                <Button disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+                <Button variant="outline" disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
                   Always allow
                 </Button>
               ) : null}
-              <Button disabled={busy} onClick={() => setEditing(true)}>
+              <Button variant="outline" disabled={busy} onClick={() => setEditing(true)}>
                 Change
               </Button>
               <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Left it.")}>

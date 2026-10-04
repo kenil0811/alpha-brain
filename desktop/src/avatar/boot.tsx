@@ -6,7 +6,16 @@
 import { useEffect, useState } from "react";
 import { Client } from "../core/client";
 import { hasTauri, resolveSession } from "../core/session";
+import { reapplyAppearance } from "../shell/appearance";
+import { applyTheme, readTheme } from "../shell/theme";
 import { AvatarWindow, type AvatarHost } from "./AvatarWindow";
+import { useLookChange } from "./look";
+
+/** The workspace's theme, accent and companion colours, here too; again when they change there. */
+function syncLook() {
+  applyTheme(readTheme());
+  reapplyAppearance();
+}
 
 export async function isAvatarWindow(): Promise<boolean> {
   if (typeof window === "undefined") return false;
@@ -20,17 +29,22 @@ export async function isAvatarWindow(): Promise<boolean> {
   }
 }
 
+/** The window's size per mode; main's host takes the size from the page. */
+const SIZES = { idle: { width: 112, height: 124 }, bubble: { width: 320, height: 230 }, open: { width: 380, height: 560 } };
+
 async function tauriHost(): Promise<AvatarHost | undefined> {
   if (!hasTauri()) return undefined;
   const { invoke } = await import("@tauri-apps/api/core");
   return {
-    layout: (mode, width, height) => invoke("avatar_layout", { mode, width, height }),
+    layout: (mode) => invoke("avatar_layout", { mode, ...SIZES[mode] }),
     showMain: () => invoke("show_main"),
     hotAreas: (areas) => invoke("avatar_hot_areas", { areas }),
   };
 }
 
 export function AvatarBoot() {
+  useEffect(syncLook, []);
+  useLookChange(syncLook);
   const [state, setState] = useState<{ client: Client; host?: AvatarHost } | { reason: string } | null>(null);
   useEffect(() => {
     document.body.classList.add("avatar-window");

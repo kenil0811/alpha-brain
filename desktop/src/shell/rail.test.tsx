@@ -1,7 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
-import { Rail, knownSurface, sameSurface, treeOf } from "./Rail";
+import { ToastProvider, TooltipProvider, type PanelControl } from "../ui";
+import { Rail, knownSurface, sameSurface, surfaceFromPath, surfacePath } from "./Rail";
+
+const panel: PanelControl = { collapsed: false, mode: "expanded", width: 224, displayWidth: 224, isDragging: false, setCollapsed: vi.fn(), toggleCollapsed: vi.fn(), resizeBy: vi.fn(), startDrag: vi.fn(), handleEscape: () => false };
 
 describe("the rail", () => {
   it("marks the right item current", () => {
@@ -11,20 +15,73 @@ describe("the rail", () => {
     expect(sameSurface({ kind: "entity", id: "e_1" }, { kind: "people" })).toBe(true);
     expect(knownSurface({ kind: "nowhere" })).toEqual({ kind: "home" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
+    expect(surfaceFromPath(`#${surfacePath({ kind: "module", id: "m_1" })}`)).toEqual({ kind: "module", id: "m_1" });
   });
 
-  it("lists the modules and what needs the person", () => {
+  it("keeps sections and Alpha's aliases in the address", () => {
+    expect(surfacePath({ kind: "module", id: "m_1", section: "activity" })).toBe("/m/m_1/activity");
+    expect(surfaceFromPath("#/m/m_1/settings")).toEqual({ kind: "module", id: "m_1", section: "settings" });
+    expect(surfaceFromPath("#/settings/models")).toEqual({ kind: "settings", section: "models" });
+    expect(surfaceFromPath("#/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(surfaceFromPath("#/settings/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(surfaceFromPath("#/about")).toEqual({ kind: "intelligence", tab: "knowledge" });
+  });
+
+  it("gives each Intelligence item its own address, and keeps the tab addresses", () => {
+    for (const s of [{ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "intelligence", tab: "skills", item: "hand:files" }, { kind: "intelligence", tab: "automations" }, { kind: "intelligence" }] as const)
+      expect(surfaceFromPath(`#${surfacePath(s)}`)).toEqual(s);
+    expect(surfacePath({ kind: "intelligence", tab: "skills", item: "hand:files" })).toBe("/intelligence/skills/hand%3Afiles");
+    expect(surfaceFromPath("#/intelligence/connections")).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(sameSurface({ kind: "intelligence", tab: "knowledge", item: "g_1" }, { kind: "home" })).toBe(false);
+  });
+
+  it("gives People & Companies and each person an address, and sends the second brain's person address there", () => {
+    for (const s of [{ kind: "people" }, { kind: "entity", id: "e_1" }] as const) expect(surfaceFromPath(`#${surfacePath(s)}`)).toEqual(s);
+    expect(surfacePath({ kind: "entity", id: "e_1" })).toBe("/people/e_1");
+    expect(surfaceFromPath("#/intelligence/brain/e_1")).toEqual({ kind: "entity", id: "e_1" });
+    expect(surfaceFromPath("#/intelligence/brain")).toEqual({ kind: "intelligence", tab: "brain" });
+  });
+
+  it("lists the projects, and no Activity item", () => {
+    const card = (id: string, name: string) => ({ id, name, goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
     render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[card("m_1", "School"), card("m_2", "Grades"), card("m_3", "Food")]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
     );
     expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: "Grades" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Activity" })).toBeNull();
+    expect(screen.queryByText("Projects")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add a project from a file" })).toBeNull();
+    expect(screen.getByRole("button", { name: "New project" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
     expect(screen.getByRole("button", { name: "People & Companies" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
+  });
+});
+
+describe("a project's menu", () => {
+  it("opens for real, and says an edit the core can't make yet is coming soon", async () => {
+    const user = userEvent.setup();
+    const onGo = vi.fn();
+    const card = { id: "m_1", name: "School", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" };
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[card]} runtime="connected" onGo={onGo} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "School options" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    expect(await screen.findByText("Renaming a project is coming soon.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "School options" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Open" }));
+    expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_1" });
   });
 });
 
@@ -34,24 +91,21 @@ describe("records from the core", () => {
     expect(row.values).toEqual({ food: "Eggs", kcal: 155 });
     expect(row.provenance.estimated).toBe(true);
   });
-});
-
-
-describe("modules as a tree", () => {
-  const card = (id: string, name: string, parent: string | null = null) => ({ id, name, parent, path: [], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
-  it("nests each module under its parent, any depth, and shows an orphan at the top", () => {
-    const tree = treeOf([card("m_s", "Search", "m_j"), card("m_j", "Job"), card("m_r", "Resume", "m_j"), card("m_d", "Drafts", "m_r"), card("m_x", "Lost", "m_gone")]);
-    expect(tree.map((b) => b.module.name)).toEqual(["Job", "Lost"]);
-    expect(tree[0].inside.map((b) => b.module.name)).toEqual(["Resume", "Search"]);
-    expect(tree[0].inside[0].inside[0].module.name).toBe("Drafts");
-  });
-
-  it("lists the tree on the rail with a fold on each parent", () => {
-    render(<Rail surface={{ kind: "home" }} modules={[card("m_j", "Job"), card("m_s", "Search", "m_j")]} needs={0} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Fold Job" }));
-    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Unfold Job" }));
-    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+  it("opens the workspace menu on a click and renames the workspace on a double click", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <Rail surface={{ kind: "home" }} modules={[]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} panel={panel} />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
+    const name = screen.getByRole("button", { name: /^Workspace:/ });
+    await user.click(name);
+    expect(await screen.findByRole("menuitem", { name: "Rename workspace" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.dblClick(screen.getByRole("button", { name: /^Workspace:/ }));
+    expect(screen.getByRole("textbox", { name: "Workspace name" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Rename workspace" })).toBeNull();
   });
 });

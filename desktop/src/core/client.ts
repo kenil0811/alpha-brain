@@ -270,6 +270,15 @@ export interface FileInfo {
   kind: string;
 }
 
+export interface TableData {
+  table: TableDesc;
+  records: RecordRow[];
+  /** The documents the table's file fields point at, by id. */
+  files: Record<string, FileInfo>;
+  lists: SavedList[];
+  relations: Relations;
+}
+
 export interface DocumentInfo {
   id: string;
   path: string;
@@ -631,7 +640,7 @@ export class Client {
   /** The module's page of Alpha's wiki, or none yet. */
   modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 
-  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo>; lists: SavedList[]; relations: Relations }> {
+  async table(name: string): Promise<TableData> {
     const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo>; lists?: SavedList[]; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(name)}`);
     return { table: data.table, records: data.records.map(toRow), files: data.files ?? {}, lists: data.lists ?? [], relations: data.relations ?? {} };
   }
@@ -734,6 +743,7 @@ export class Client {
   deleteList = (id: string) => this.call<SavedList>("DELETE", `/api/lists/${id}`);
   skillPage = (name: string) => this.call<SkillDetail>("GET", `/api/skills/${encodeURIComponent(name)}`);
   automationPage = (id: string) => this.call<AutomationDetail>("GET", `/api/automations/${encodeURIComponent(id)}`);
+  automations = () => this.call<Automation[]>("GET", "/api/automations");
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 

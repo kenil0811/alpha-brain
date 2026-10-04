@@ -1,44 +1,63 @@
 /**
- * A module: its summary, a page per table, what Alpha did here, and what it is made of. The
- * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
+ * A project (a module in the core): its name and goal, its summary with Alpha's notes, a page
+ * per table, what Alpha did here and what went wrong, and what it is made of. The App ·
+ * Activity · Settings toggle and the subtabs are the shell's own structure; the section lives
+ * in the address (`#/m/<id>/<section>`).
  */
-import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
-import { moduleWords } from "../core/client";
-import type { Client, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
+import { type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Folder, MoreHorizontal, Plus } from "lucide-react";
+import type { Client, ModuleDetail, ModuleSummary, Source } from "../core/client";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, IconButton, InfoTip } from "../ui";
+import { Badge, type BadgeVariant } from "../ui/Badge";
+import { ProjectMenuItems } from "../shell/ProjectMenu";
+import { projectIcon } from "../shell/projectIcons";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
-import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
-import { ModuleIcon } from "../ui/icons";
+import { MicButton, useSpeech } from "../shell/voice";
 
 type Section = "app" | "activity" | "settings";
 
-export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, modules = [] }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void; modules?: ModuleCard[] }) {
+export function ModulePage({
+  client,
+  moduleId,
+  version,
+  onChanged,
+  onGo,
+  section: shownSection,
+  onSection,
+  onQuickEntry,
+}: {
+  client: Client;
+  moduleId: string;
+  version: number;
+  onChanged: () => void;
+  onGo: (s: Surface) => void;
+  section?: string;
+  onSection?: (section: Section) => void;
+  /** A table's one-line quick entry, sent to Zazoo in this project's chat. */
+  onQuickEntry?: (text: string) => void;
+}) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [section, setSection] = useState<Section>("app");
+  const section: Section = shownSection === "activity" || shownSection === "settings" ? shownSection : "app";
+  const setSection = (s: Section) => onSection?.(s);
   const [dragging, setDragging] = useState(false);
   const [dropNote, setDropNote] = useState<string | null>(null);
-  // Files come in by the Add files button (the Mac's picker) or by dropping them anywhere on
-  // the page; both take the same route (3 Oct: with only the drop, an empty attachments table
-  // had no visible way in).
-  const picker = useRef<HTMLInputElement>(null);
-  async function added(files: File[]) {
+  async function dropped(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files ?? []);
     if (!files.length) return;
     try {
       const out = await client.addFiles(files, { module: moduleId });
-      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
+      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Zazoo is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
       onChanged();
     } catch (err) {
       setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
     }
     window.setTimeout(() => setDropNote(null), 6000);
-  }
-  async function dropped(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragging(false);
-    await added(Array.from(e.dataTransfer.files ?? []));
   }
   const [tab, setTab] = useState<string>(() => {
     try {
@@ -61,241 +80,99 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
         setDetail(d);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [client, moduleId, version]);
+      .catch((e: unknown) => {
+        const words = e instanceof Error ? e.message : String(e);
+        // A project that no longer exists (deleted elsewhere, another data folder): go Home.
+        if (/there is no project/i.test(words)) onGo({ kind: "home" });
+        else setError(words);
+      });
+  }, [client, moduleId, version, onGo]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
-  // Where this module could go (never itself, what it holds, or where it already is), and
-  // what could come in (never itself, what is already here, or anything above it).
-  const canHoldMe = useMemo(() => modules.filter((m) => m.id !== moduleId && m.id !== (detail?.parent ?? null) && !(m.path ?? []).includes(detail?.name ?? "")), [modules, moduleId, detail?.parent, detail?.name]);
-  const canMoveIn = useMemo(() => modules.filter((m) => m.id !== moduleId && m.parent !== moduleId && !(detail?.path ?? []).slice(0, -1).includes(m.name)), [modules, moduleId, detail?.path]);
-  // The ids behind the path's names, from the rail's cards (the page itself knows the names).
-  const pathIds = useMemo(() => {
-    const ids: string[] = [];
-    let current = modules.find((m) => m.id === moduleId);
-    while (current?.parent) {
-      ids.unshift(current.parent);
-      current = modules.find((m) => m.id === current?.parent);
-    }
-    return ids;
-  }, [modules, moduleId]);
-  const [moveNote, setMoveNote] = useState<string | null>(null);
-  const [naming, setNaming] = useState(false);
-  const [newName, setNewName] = useState("");
-  async function moveUnder(parent: string | null) {
-    try {
-      const card = await client.moveModule(moduleId, parent);
-      setMoveNote(`${card.name} now sits ${card.path && card.path.length > 1 ? `inside ${card.path.slice(0, -1).join(" › ")}` : "at the top"}.`);
-      onChanged();
-    } catch (e) {
-      setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-  /** A new module above this one: made where this one sits, then this one moves into it
-   *  ("create Avilo and have Deals and Advisory in it": make it above one, move the other in). */
-  async function makeParent() {
-    const name = newName.trim();
-    if (!name) return;
-    try {
-      const made = await client.createModule(name, null, detail?.parent ?? null);
-      await client.moveModule(moduleId, made.id);
-      setMoveNote(`${detail?.name ?? "It"} now sits inside ${made.name}.`);
-      setNaming(false);
-      setNewName("");
-      onChanged();
-    } catch (e) {
-      setMoveNote(`Couldn't make it: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-  async function moveIn(id: string) {
-    try {
-      const card = await client.moveModule(id, moduleId);
-      setMoveNote(`${card.name} now sits inside ${detail?.name ?? "this module"}.`);
-      onChanged();
-    } catch (e) {
-      setMoveNote(`Couldn't move it in: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
   if (!detail) {
-    return <div className="page">{error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}</div>;
+    return <div className="page">{error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}</div>;
   }
-  const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
+  const Icon = projectIcon(detail);
   return (
     <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
-      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
+      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Zazoo reads them into its tables.</div> : null}
       {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">
-            <ModuleIcon size={20} />
+            <Icon size={18} />
           </div>
-          <div style={{ minWidth: 0 }}>
-            {detail.path && detail.path.length > 1 ? (
-              <div className="crumbs" aria-label="Inside">
-                {detail.path.slice(0, -1).map((name, i) => (
-                  <span key={`${name}-${i}`}>
-                    <button type="button" className="linkbtn" onClick={() => onGo({ kind: "module", id: pathIds[i] })}>
-                      {name}
-                    </button>
-                    <span className="faint"> › </span>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <h1>{detail.name}</h1>
-            <div className="faint">{subtitle}</div>
-          </div>
+          <h1 className="modhead__name">{detail.name}</h1>
+          <span className="faint num">
+            {detail.tables.length} {detail.tables.length === 1 ? "table" : "tables"}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton aria-label="Project options" title="Project options" size="sm">
+                <MoreHorizontal size={16} />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <ProjectMenuItems />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void added(files); }} />
-        <Button size="sm" title="Add files to this module from your Mac; Alpha reads them into its tables" onClick={() => picker.current?.click()}>
-          Add files
-        </Button>
-        <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />
+        <div className="toggle" role="tablist" aria-label="Section">
+          {(["app", "activity", "settings"] as Section[]).map((s) => (
+            <button key={s} type="button" role="tab" aria-selected={section === s} onClick={() => setSection(s)}>
+              {s === "app" ? "App" : s === "activity" ? "Activity" : "Settings"}
+            </button>
+          ))}
+        </div>
       </div>
+      {detail.goal ? <div className="modhead__desc">{detail.goal}</div> : null}
+      {error ? (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {section === "app" ? (
         <>
-          <Tabs
-            label="Tables"
-            value={table ? tab : "summary"}
-            onChange={setTab}
-            items={[
-              { id: "summary", label: "Summary" },
-              ...detail.tables.map((t) => ({
-                id: t.name,
-                label: (
-                  <>
-                    {t.title} <span className="faint num">{t.records}</span>
-                  </>
-                ),
-              })),
-            ]}
-          />
+          <div className="subtabs" role="tablist">
+            <button type="button" role="tab" aria-selected={!table} onClick={() => setTab("summary")}>
+              Summary
+            </button>
+            {detail.tables.map((t) => (
+              <button key={t.name} type="button" role="tab" aria-selected={tab === t.name} onClick={() => setTab(t.name)}>
+                {t.title} <span className="faint num">{t.records}</span>
+              </button>
+            ))}
+          </div>
           {table ? (
-            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} />
+            <>
+              {onQuickEntry ? <QuickEntry key={`quick-${table.name}`} title={table.title} onSend={onQuickEntry} /> : null}
+              <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
+            </>
           ) : (
             <>
-              {detail.inside?.length ? (
-                <div className="section" style={{ marginTop: 0 }}>
-                  <div className="section__head">
-                    <h2>Inside {detail.name}</h2>
-                    <span className="faint">{detail.inside.length} {detail.inside.length === 1 ? "module" : "modules"}; what you ask here reaches them all</span>
-                  </div>
-                  <div className="card list">
-                    {detail.inside.map((m) => (
-                      <div key={m.id} className="item">
-                        <div className="item__ico" aria-hidden="true">
-                          <ModuleIcon size={16} />
-                        </div>
-                        <div className="item__body">
-                          <b>{m.name}</b>
-                          <div className="item__sub">
-                            {m.goal ?? m.last_text ?? "Nothing in it yet."} · {m.tables.length} {m.tables.length === 1 ? "table" : "tables"}
-                            {m.children?.length ? ` · holds ${m.children.length}` : ""}
-                          </div>
-                        </div>
-                        <Button size="sm" onClick={() => onGo({ kind: "module", id: m.id })}>
-                          Open
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />
+              <ProjectNotes client={client} detail={detail} onChanged={onChanged} />
               <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
             </>
           )}
         </>
       ) : null}
 
-      {section === "activity" ? <ModuleActivity detail={detail} /> : null}
+      {section === "activity" ? (
+        <>
+          <WentWrong detail={detail} />
+          <div className="section">
+            <div className="section__head">
+              <h2>Everything that happened here</h2>
+            </div>
+            <ModuleActivity detail={detail} />
+          </div>
+        </>
+      ) : null}
 
       {section === "settings" ? (
         <>
-          <div className="section" style={{ marginTop: 0 }}>
-            <div className="section__head">
-              <h2>Where it sits</h2>
-              <span className="faint">A module can live inside another; everything in it moves with it</span>
-            </div>
-            <div className="card list">
-              <div className="item">
-                <div className="item__ico" aria-hidden="true">
-                  <ModuleIcon size={16} />
-                </div>
-                <div className="item__body">
-                  <b>{detail.name}</b>
-                  <div className="item__sub">{detail.path && detail.path.length > 1 ? `Inside ${detail.path.slice(0, -1).join(" › ")}` : "At the top level"}</div>
-                </div>
-                <Menu
-                  trigger={
-                    <Button size="sm" aria-label={`Move ${detail.name}`}>
-                      Move…
-                    </Button>
-                  }
-                >
-                  <MenuItem onSelect={() => setNaming(true)}>A new module above it…</MenuItem>
-                  {detail.parent ? <MenuItem onSelect={() => void moveUnder(null)}>To the top level</MenuItem> : null}
-                  {canHoldMe.length ? <MenuHeading>Inside</MenuHeading> : null}
-                  {canHoldMe.map((m) => (
-                    <MenuItem key={m.id} onSelect={() => void moveUnder(m.id)}>
-                      {moduleWords(m)}
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </div>
-              {naming ? (
-                <div className="item">
-                  <div className="item__ico" aria-hidden="true">
-                    <ModuleIcon size={16} />
-                  </div>
-                  <div className="item__body">
-                    <b>A new module above {detail.name}</b>
-                    <div className="item__sub">Made where {detail.name} sits now; {detail.name} moves into it. Move others in from here afterwards.</div>
-                  </div>
-                  <input className="textfield" aria-label="The new module's name" placeholder="Its name, e.g. Avilo" value={newName} autoFocus onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void makeParent(); if (e.key === "Escape") setNaming(false); }} />
-                  <Button size="sm" variant="primary" disabled={!newName.trim()} onClick={() => void makeParent()}>
-                    Make it
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setNaming(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              ) : null}
-              <div className="item">
-                <div className="item__ico" aria-hidden="true">
-                  <ModuleIcon size={16} />
-                </div>
-                <div className="item__body">
-                  <b>Inside it</b>
-                  <div className="item__sub">{detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet. Other modules can move in here."}</div>
-                </div>
-                {canMoveIn.length ? (
-                  <Menu
-                    trigger={
-                      <Button size="sm" aria-label={`Move a module into ${detail.name}`}>
-                        Move a module in…
-                      </Button>
-                    }
-                  >
-                    {canMoveIn.map((m) => (
-                      <MenuItem key={m.id} onSelect={() => void moveIn(m.id)}>
-                        {moduleWords(m)}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                ) : null}
-              </div>
-              {moveNote ? (
-                <div className="item">
-                  <span className={`notice${moveNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">
-                    {moveNote}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <div className="section">
+          <div className="section section--first">
             <div className="section__head">
               <h2>What it keeps</h2>
             </div>
@@ -303,7 +180,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
               {detail.tables.map((t) => (
                 <div key={t.name} className="item item--top">
                   <div className="item__ico" aria-hidden="true">
-                    ▤
+                    <Folder size={16} />
                   </div>
                   <div className="item__body">
                     <b>{t.title}</b>
@@ -335,7 +212,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
                         {src.detail ?? (src.status === "working" ? `${src.last_rows ?? 0} rows${src.last_checked ? ` · read ${when(src.last_checked)}` : ""}` : src.site)}
                       </div>
                     </div>
-                    <span className={`pill ${SOURCE_STATUS[src.status].pill}`}>{SOURCE_STATUS[src.status].words}</span>
+                    <Badge variant={SOURCE_STATUS[src.status].badge}>{SOURCE_STATUS[src.status].words}</Badge>
                   </div>
                 ))}
               </div>
@@ -344,9 +221,9 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
-              <span className="faint">Switch any off; Alpha says so if something needs it</span>
+              <InfoTip content="Switch any off; Alpha says so if something needs it. Ask Zazoo to keep something here current and it shows up with a switch." label="About automations" />
             </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here." />
           </div>
         </>
       ) : null}
@@ -354,14 +231,14 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
   );
 }
 
-const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> = {
-  working: { pill: "pill--good", words: "Working" },
-  needs_signin: { pill: "pill--warn", words: "Needs your sign-in" },
-  blocked: { pill: "pill--bad", words: "Blocked" },
-  broken: { pill: "pill--bad", words: "Being repaired" },
-  not_built: { pill: "pill--gray", words: "Not read yet" },
-  unavailable: { pill: "pill--gray", words: "Nothing to read" },
-  skipped: { pill: "pill--gray", words: "Skipped by you" },
+const SOURCE_STATUS: Record<Source["status"], { badge: BadgeVariant; words: string }> = {
+  working: { badge: "success", words: "Working" },
+  needs_signin: { badge: "warning", words: "Needs your sign-in" },
+  blocked: { badge: "danger", words: "Blocked" },
+  broken: { badge: "danger", words: "Being repaired" },
+  not_built: { badge: "neutral", words: "Not read yet" },
+  unavailable: { badge: "neutral", words: "Nothing to read" },
+  skipped: { badge: "neutral", words: "Skipped by you" },
 };
 
 function sourceSummary(sources: Source[]): string {
@@ -400,69 +277,10 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
         })}
       </div>
       {rows.length > shown ? (
-        <Button size="sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
+        <Button variant="outline" size="sm" className="btn--start" onClick={() => setShown((n) => n + PAGE)}>
           Show more ({rows.length - shown} earlier)
         </Button>
       ) : null}
-    </div>
-  );
-}
-
-/** The module's page of Alpha's wiki, on the module itself: what it is for, what it holds,
- *  what was tried, what is open; Alpha writes it and the person may edit it. */
-function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Client; moduleRef: string; version: number; onChanged: () => void }) {
-  const [page, setPage] = useState<{ name: string; scope: string; page: Note | null } | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [body, setBody] = useState("");
-  useEffect(() => {
-    let live = true;
-    client
-      .modulePage(moduleRef)
-      .then((p) => {
-        if (!live) return;
-        setPage(p);
-        if (!editing) setBody(p.page?.body ?? "");
-      })
-      .catch(() => live && setPage(null));
-    return () => {
-      live = false;
-    };
-  }, [client, moduleRef, version, editing]);
-  if (!page) return null;
-  const save = () =>
-    void client.writeNote(page.scope, page.name, body, page.page?.summary ?? undefined).then(() => {
-      setEditing(false);
-      onChanged();
-    });
-  return (
-    <div className="card card--pad" style={{ marginBottom: 14 }}>
-      <div className="section__head" style={{ marginBottom: 8 }}>
-        <h2 style={{ fontSize: "var(--text-lg)" }}>Alpha's page</h2>
-        <span className="faint">what this is for, what it holds, what is open</span>
-        <span className="section__right">
-          {editing ? (
-            <>
-              <Button size="sm" variant="primary" onClick={save}>
-                Save
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBody(page.page?.body ?? ""); }}>
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <Button size="sm" onClick={() => setEditing(true)}>
-              {page.page ? "Edit" : "Write"}
-            </Button>
-          )}
-        </span>
-      </div>
-      {editing ? (
-        <textarea className="note__edit" rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${page.name}`} />
-      ) : page.page ? (
-        <div className="people__page">{page.page.body}</div>
-      ) : (
-        <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
-      )}
     </div>
   );
 }
@@ -481,7 +299,7 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
         <div className="card card--pad">
           <div className="metric__lab">{data.goals.length === 1 ? "Goal" : "Goals"}</div>
           {data.goals.map((g) => (
-            <div key={g.id} style={{ marginTop: 6 }}>
+            <div key={g.id} className="goal__text">
               {g.text}
             </div>
           ))}
@@ -489,14 +307,14 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
       ) : null}
       {data.tables.map((t) => (
         <div key={t.name} className="stack">
-          <div className="section__head" style={{ marginBottom: 0 }}>
+          <div className="section__head section__head--tight">
             <h2>{t.title}</h2>
             <span className="faint">
               {t.rows} {t.rows === 1 ? "row" : "rows"}
               {t.added_this_week ? ` · ${t.added_this_week} added this week` : ""}
             </span>
             <span className="section__right">
-              <Button size="sm" onClick={() => onOpen(t.name)}>
+              <Button variant="outline" size="sm" onClick={() => onOpen(t.name)}>
                 Open
               </Button>
             </span>
@@ -518,11 +336,11 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
           {t.split && Object.keys(t.split.counts).length ? (
             <div className="card card--pad">
               <div className="metric__lab">{t.split.label}</div>
-              <div className="row" style={{ marginTop: 8 }}>
+              <div className="row">
                 {Object.entries(t.split.counts).map(([choice, n]) => (
-                  <span key={choice} className={`pill ${t.split?.done.includes(choice) ? "pill--good" : "pill--gray"}`}>
+                  <Badge key={choice} variant={t.split?.done.includes(choice) ? "success" : "neutral"}>
                     {humanize(choice)} <b className="num">{n}</b>
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -532,9 +350,126 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
       ))}
       {data.automations ? (
         <p className="faint">
-          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
+          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}.
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Alpha's notes on this project (the project's note): click to edit, yours to clear. */
+function ProjectNotes({ client, detail, onChanged }: { client: Client; detail: ModuleDetail; onChanged: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const body = detail.note?.body.trim() ?? "";
+  const save = async () => {
+    setEditing(false);
+    if (draft.trim() === body) return;
+    try {
+      await client.writeNote(`module:${detail.name}`, detail.name, draft.trim());
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const start = () => {
+    setDraft(body);
+    setEditing(true);
+  };
+  return (
+    <div className="section section--first">
+      <div className="section__head">
+        <h2>
+          Alpha's notes
+          <InfoTip content="What Alpha keeps in mind about this project, from your sessions. Yours to edit or clear." label="About Alpha's notes" />
+        </h2>
+      </div>
+      {editing ? (
+        <textarea autoFocus aria-label="Alpha's notes" className="projpage__notesinput" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => void save()} onKeyDown={(e) => e.key === "Escape" && setEditing(false)} />
+      ) : body ? (
+        <div className="card card--pad">
+          <p className="editable projpage__notes" title="Double-click to edit" onDoubleClick={start}>
+            {body}
+          </p>
+        </div>
+      ) : (
+        <p className="projempty editable" title="Double-click to write" onDoubleClick={start}>
+          Nothing yet
+        </p>
+      )}
+      {error ? (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Recent failures here, in plain words. */
+function WentWrong({ detail }: { detail: ModuleDetail }) {
+  const failed = detail.activity.filter((e) => e.kind === "failed").slice(0, 8);
+  if (!failed.length) return null;
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>
+          What went wrong
+          <InfoTip content="Recent failures in plain words, and what Alpha did about them." label="About what went wrong" />
+        </h2>
+      </div>
+      <div className="card list" aria-label="What went wrong">
+        {failed.map((e) => (
+          <div key={e.id} className="item item--top">
+            <span className="item__when">{when(e.at)}</span>
+            <div className="item__body activity__text">{e.text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Alpha's quick entry above a table: type or say one line and Zazoo adds it. */
+function QuickEntry({ title, onSend }: { title: string; onSend: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const typedBefore = useRef("");
+  const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value) return;
+    onSend(`Add to ${title}: ${value}`);
+    setText("");
+    setSent(true);
+  }
+  return (
+    <form className="card quick quick--table" onSubmit={submit} aria-label={`Quick entry for ${title}`}>
+      <Plus size={16} strokeWidth={1.75} aria-hidden="true" className="quick__plus" />
+      <input
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setSent(false);
+        }}
+        placeholder={`Add to ${title}…`}
+        aria-label={`Add to ${title}`}
+      />
+      {sent ? <span className="faint quick__status">Sent to Zazoo</span> : null}
+      <MicButton
+        listening={speech.listening}
+        supported={speech.supported}
+        onToggle={() => {
+          if (!speech.listening) typedBefore.current = text;
+          speech.toggle();
+        }}
+        small
+      />
+      <Button type="submit" size="sm" disabled={!text.trim()}>
+        Add
+      </Button>
+    </form>
   );
 }

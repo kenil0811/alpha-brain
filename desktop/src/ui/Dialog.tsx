@@ -1,18 +1,28 @@
-import * as RadixDialog from "@radix-ui/react-dialog";
-import type { ReactNode } from "react";
+import * as RDialog from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import "./Dialog.css";
 
-/** A dialog over the page: focus kept inside, Escape and the overlay close it. `bare` is the
- *  lightbox shape (an image on a dark field) rather than a card. */
-export function Dialog({ open, onOpenChange, title, children, bare, className }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode; bare?: boolean; className?: string }) {
+export const Dialog = RDialog.Root;
+export const DialogTrigger = RDialog.Trigger;
+
+export function DialogContent({ children, title, description }: { children: React.ReactNode; title: string; description?: string }) {
   return (
-    <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
-      <RadixDialog.Portal>
-        <RadixDialog.Overlay className="dialog__overlay" />
-        <RadixDialog.Content className={[bare ? "dialog dialog--bare" : "dialog", className ?? ""].filter(Boolean).join(" ")} aria-describedby={undefined}>
-          <RadixDialog.Title className={bare ? "sr-only" : "dialog__title"}>{title}</RadixDialog.Title>
-          {children}
-        </RadixDialog.Content>
-      </RadixDialog.Portal>
-    </RadixDialog.Root>
+    <RDialog.Portal>
+      <RDialog.Overlay className="ui-dialog-overlay" />
+      <RDialog.Content className="ui-dialog-content" aria-describedby={description ? undefined : undefined}>
+        <div className="ui-dialog__head">
+          <RDialog.Title className="ui-dialog__title">{title}</RDialog.Title>
+          <RDialog.Close asChild>
+            <button type="button" className="ui-iconbtn ui-iconbtn--sm" aria-label="Close">
+              <X size={16} />
+            </button>
+          </RDialog.Close>
+        </div>
+        {description ? <RDialog.Description className="ui-dialog__desc">{description}</RDialog.Description> : null}
+        {children}
+      </RDialog.Content>
+    </RDialog.Portal>
   );
 }
+
+export const DialogClose = RDialog.Close;

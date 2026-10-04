@@ -1,11 +1,8 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes } from "react";
+import "./Badge.css";
 
-/** A small coloured word: a state, a kind, a count. Tone says what it means, never red for
- *  decoration. */
-export function Badge({ tone = "gray", className, children, ...rest }: HTMLAttributes<HTMLSpanElement> & { tone?: "good" | "warn" | "bad" | "info" | "gray"; children: ReactNode }) {
-  return (
-    <span className={["pill", `pill--${tone}`, className ?? ""].filter(Boolean).join(" ")} {...rest}>
-      {children}
-    </span>
-  );
+export type BadgeVariant = "success" | "warning" | "danger" | "neutral" | "info" | "default";
+
+export function Badge({ variant = "default", className = "", ...rest }: HTMLAttributes<HTMLSpanElement> & { variant?: BadgeVariant }) {
+  return <span className={`ui-badge ui-badge--${variant} ${className}`.trim()} {...rest} />;
 }

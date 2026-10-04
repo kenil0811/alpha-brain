@@ -5,31 +5,27 @@
  * journal that involves them.
  */
 import { useEffect, useState } from "react";
+import { ArrowLeft, ChevronRight, Search } from "lucide-react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
-import { factOrigin } from "./facts";
-import { Button, Badge, Trouble } from "../ui";
-import { ArrowLeft } from "../ui/icons";
+import { IconButton, InfoTip, PageHeader } from "../ui";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Textarea } from "../ui/Input";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
   useEffect(() => {
     let live = true;
     client
       .people(q.trim() || undefined)
-      .then((rows) => {
-        if (!live) return;
-        setPeople(rows);
-        setError(null);
-      })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .then((rows) => live && setPeople(rows))
+      .catch(() => live && setPeople([]));
     return () => {
       live = false;
     };
-  }, [client, q, version, tick]);
+  }, [client, q, version]);
   const persons = (people ?? []).filter((e) => e.kind === "person");
   const orgs = (people ?? []).filter((e) => e.kind !== "person");
   const group = (title: string, rows: Entity[]) =>
@@ -55,18 +51,17 @@ export function People({ client, version, onOpen }: { client: Client; version: n
     ) : null;
   return (
     <div className="page">
-        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load People & Companies: {error}</Trouble> : null}
-      <div className="modhead">
-        <div className="modhead__title">
-          <h1>People &amp; Companies</h1>
-          <span className="faint">Everyone Alpha has come across: from your connections, your mail, and what you tell it.</span>
-        </div>
-        <div className="search people__search">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
-        </div>
-      </div>
+      <PageHeader
+        title={<>People &amp; Companies <InfoTip content="Everyone Alpha has come across: from your connections, your mail, and what you tell it." label="About People & Companies" /></>}
+        right={
+          <div className="search people__search">
+            <Search size={14} aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone" aria-label="Find a person or company" />
+          </div>
+        }
+      />
       {people === null ? <p className="empty">Loading…</p> : null}
-      {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Alpha."}</p> : null}
+      {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Zazoo."}</p> : null}
       {group("People", persons)}
       {group("Companies and organisations", orgs)}
     </div>
@@ -82,7 +77,6 @@ function keysLine(e: Entity): string {
 
 export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: { client: Client; id: string; version: number; onBack: () => void; onOpen: (id: string) => void; onChanged: () => void }) {
   const [entity, setEntity] = useState<EntityDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState("");
   const [tick, setTick] = useState(0);
@@ -93,21 +87,14 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
       .then((e) => {
         if (!live) return;
         setEntity(e);
-        setError(null);
         if (!editing) setBody(e.page?.body ?? "");
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch(() => live && setEntity(null));
     return () => {
       live = false;
     };
   }, [client, id, version, tick, editing]);
-  if (!entity) {
-    return (
-      <div className="page">
-        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this page: {error}</Trouble> : <p className="empty">Loading…</p>}
-      </div>
-    );
-  }
+  if (!entity) return <div className="page"><p className="empty">Loading…</p></div>;
   const refresh = () => {
     setTick((n) => n + 1);
     onChanged();
@@ -122,27 +109,35 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
   const suggested = entity.facts.filter((f) => f.state === "suggested");
   return (
     <div className="page">
-      <Button size="sm" onClick={onBack}>
-        <ArrowLeft size={14} aria-hidden="true" /> People &amp; Companies
-      </Button>
-      <div className="modhead" style={{ marginTop: 12 }}>
+      <PageHeader
+        title={
+          <span className="crumbs">
+            <IconButton size="sm" aria-label="Back to People & Companies" title="Back to People & Companies" onClick={onBack}>
+              <ArrowLeft size={16} />
+            </IconButton>
+            <button type="button" className="crumbs__up" onClick={onBack}>
+              People &amp; Companies
+            </button>
+            <ChevronRight size={14} className="faint" aria-hidden="true" />
+            {entity.name}
+          </span>
+        }
+      />
+      <div className="people__head">
         <span className="people__avatar people__avatar--big" aria-hidden="true">
           {initials(entity.name)}
         </span>
-        <div className="modhead__title">
-          <div style={{ minWidth: 0 }}>
-            <h1>{entity.name}</h1>
-            <div className="faint">
-              {entity.kind === "person" ? "Person" : "Organisation"}
-              {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
-            </div>
-            <div className="row" style={{ marginTop: 6 }}>
-              {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
-                <Badge key={`${k}:${v}`} tone="gray" title={k}>
-                  {v}
-                </Badge>
-              )))}
-            </div>
+        <div className="stack people__who">
+          <span className="muted">
+            {entity.kind === "person" ? "Person" : "Organisation"}
+            {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
+          </span>
+          <div className="row">
+            {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
+              <Badge key={`${k}:${v}`} variant="neutral" title={k}>
+                {v}
+              </Badge>
+            )))}
           </div>
         </div>
       </div>
@@ -154,15 +149,15 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           <div className="section__right">
             {editing ? (
               <>
-                <Button size="sm" variant="primary" onClick={save}>
+                <Button size="sm" onClick={save}>
                   Save
                 </Button>
-                <Button size="sm" onClick={() => { setEditing(false); setBody(entity.page?.body ?? ""); }}>
+                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setBody(entity.page?.body ?? ""); }}>
                   Cancel
                 </Button>
               </>
             ) : (
-              <Button size="sm" onClick={() => setEditing(true)}>
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 {entity.page ? "Edit" : "Write"}
               </Button>
             )}
@@ -170,11 +165,13 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
         </div>
         <div className="card card--pad">
           {editing ? (
-            <textarea className="note__edit" rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${entity.name}`} placeholder={`Who ${entity.name} is to you, how you know them, what is going on.`} />
+            <Textarea rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${entity.name}`} placeholder={`Who ${entity.name} is to you, how you know them, what is going on.`} />
           ) : entity.page ? (
-            <div className="people__page">{entity.page.body}</div>
+            <div className="people__page editable" title="Double-click to edit" onDoubleClick={() => setEditing(true)}>
+              {entity.page.body}
+            </div>
           ) : (
-            <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
+            <p className="muted">No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
           )}
         </div>
       </div>
@@ -189,27 +186,24 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
             {accepted.map((f) => (
               <div key={f.id}>
                 <dt>{f.predicate.replace(/_/g, " ")}</dt>
-                <dd>
-                  {f.value}
-                  <div className="faint">{factOrigin(f)}</div>
-                </dd>
+                <dd>{f.value}</dd>
               </div>
             ))}
           </dl>
         ) : null}
         {suggested.length ? (
-          <div className="needs" style={{ marginTop: 12 }}>
+          <div className="needs people__suggested">
             {suggested.map((f) => (
               <div key={f.id} className="card card--pad row">
                 <span>
                   Alpha thinks <b>{f.predicate.replace(/_/g, " ")}</b> is <b>{f.value}</b>
-                  <span className="faint"> · {factOrigin(f)}</span>
+                  {f.why ? <span className="faint"> — from “{f.why}”</span> : null}
                 </span>
                 <span className="section__right">
-                  <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(refresh)}>
+                  <Button size="sm" onClick={() => void client.decideFact(f.id, true).then(refresh)}>
                     Yes
                   </Button>
-                  <Button size="sm" onClick={() => void client.decideFact(f.id, false).then(refresh)}>
+                  <Button variant="outline" size="sm" onClick={() => void client.decideFact(f.id, false).then(refresh)}>
                     No
                   </Button>
                 </span>
@@ -228,12 +222,12 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           <div className="card list">
             {entity.maybe_same.map((m) => (
               <div key={m.id} className="list__row">
-                <button type="button" className="people__name" style={{ background: "none", border: 0, padding: 0, textAlign: "left" }} onClick={() => onOpen(m.id)}>
+                <button type="button" className="linklike people__name" onClick={() => onOpen(m.id)}>
                   {m.name}
                 </button>
                 <span className="muted">{keysLine(m) || m.last_text || ""}</span>
                 <span className="section__right">
-                  <Button size="sm" onClick={() => void client.merge(entity.id, m.id).then(refresh)}>
+                  <Button variant="outline" size="sm" onClick={() => void client.merge(entity.id, m.id).then(refresh)}>
                     Same person
                   </Button>
                 </span>
@@ -253,7 +247,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           {entity.timeline.map((e) => (
             <div key={e.id} className="list__row">
               <span className="faint people__when">{when(e.at)}</span>
-              <Badge tone={e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray"}>{e.kind}</Badge>
+              <Badge variant={e.kind === "failed" ? "danger" : e.actor === "person" ? "info" : "neutral"}>{e.kind}</Badge>
               <span className="people__line">{e.text}</span>
             </div>
           ))}

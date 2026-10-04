@@ -1,28 +1,28 @@
 /**
  * The companion: Alpha's character in a small always-on-top window. It shows what Alpha is
- * doing (here, listening, working, needs you); a bubble carries the one thing that needs the
- * person; a click opens a small panel to say or type one thing, answered at once. Anything that
- * needs the full window is handed to the workspace, which comes forward.
+ * really doing, most pressing first (pr1's avatar state): not connected, something failed,
+ * waiting for the person, making a project, thinking, working, here. A bubble carries the one
+ * thing that needs the person; a click opens a compact bubble with only the same composer as
+ * Zazoo's panel (growing box, mic), then the working line, then only the reply. Expand shows the
+ * whole chat (turns, questions as choices, action cards); a final spoken sentence sends by itself.
+ * Anything that needs the full window is handed to the workspace.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
-import { useVisible } from "../core/changes";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import { AppWindow, ArrowUp, Maximize2, Minimize2, X } from "lucide-react";
+import type { ClaudeStatus, Client, Companion, Home, JournalEntry, Thread, Turn } from "../core/client";
+import { Message } from "../assistant/AssistantPanel";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Character, type Mood } from "./Character";
-import { moved, press, released, type Press } from "./drag";
-import { SIZE_PX, normaliseLook } from "./looks";
-import { hasTauri } from "../core/session";
-import { Button, IconButton, Rich } from "../ui";
-import { X, Maximize2 } from "../ui/icons";
+import { IconButton } from "../ui";
+import { type AvatarState, Character, type Mood } from "./Character";
+import { Button } from "../ui/Button";
+import { bindingOf, matches } from "../shell/shortcuts";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
 export type AvatarMode = "idle" | "bubble" | "open";
 
 export interface AvatarHost {
-  /** Size the window to what it shows (the page says what it needs, which follows the
-   * character's size), keeping its bottom-right corner in place. */
-  layout(mode: AvatarMode, width: number, height: number): Promise<void>;
+  layout(mode: AvatarMode): Promise<void>;
   showMain(): Promise<void>;
   /** What is drawn, as [left, top, width, height] in the window; clicks anywhere else pass
    * through to whatever is behind the companion. */
@@ -30,6 +30,40 @@ export interface AvatarHost {
 }
 
 const HOT = ".avatar__panel, .avatar__bubble, .avatar__dock";
+const GREETING = "Tell me what to do: log a meal, check the boards, open a project, or ask for something new.";
+const BUBBLE_MS = 9_000;
+const THINKING = "Working out your request";
+/** A failed request is shown for this long, then the companion lets it go (Activity keeps it). */
+const FAILURE_SHOWN_MS = 15 * 60 * 1000;
+
+/** What the companion shows, from real state only, most pressing first (pr1 avatar/state.ts). */
+export function avatarView(s: { busy: boolean; claude: ClaudeStatus | null; turns: JournalEntry[]; needs: number; threads: Thread[]; running: number }, now = Date.now()): { state: AvatarState; text: string } {
+  if (s.claude && !s.claude.signed_in) return { state: "disconnected", text: "Connect Claude in Settings to start" };
+  const last = s.turns[s.turns.length - 1];
+  if (last?.kind === "failed" && now - new Date(last.at).getTime() < FAILURE_SHOWN_MS) return { state: "error", text: "Your last request didn't work out" };
+  if (s.needs) return { state: "awaiting", text: needsText(s.needs) };
+  const making = s.threads.find((t) => t.kind === "build" && t.state === "working");
+  if (making) return { state: "building", text: making.title };
+  if (s.busy) return { state: "thinking", text: THINKING };
+  const active = s.running + s.threads.filter((t) => t.state === "working").length;
+  if (active) return { state: "working", text: "Working on it…" };
+  return { state: "idle", text: "Here" };
+}
+
+function needsText(n: number) {
+  return n === 1 ? "One thing needs you" : `${n} things need you`;
+}
+
+/** A reply shown in the compact bubble, shaped like a journal entry so it renders as the panel's. */
+function replyEntry(text: string, ok: boolean): JournalEntry {
+  return { id: `reply-${Date.now()}`, at: new Date().toISOString(), kind: ok ? "replied" : "failed", actor: "alpha", text, data: {}, module: null, thread: null, entity_ids: [], source: null };
+}
+
+/** The composer grows with its text up to its CSS max-height. */
+function autoGrow(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
 
 function handOff(value: Record<string, unknown>, host?: AvatarHost) {
   try {
@@ -42,21 +76,26 @@ function handOff(value: Record<string, unknown>, host?: AvatarHost) {
 
 export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHost }) {
   const [expanded, setExpanded] = useState(false);
+  // Compact (only the box, then only the reply) or the whole chat; kept while this window lives.
+  const [full, setFull] = useState(false);
+  const [reply, setReply] = useState<JournalEntry | null>(null);
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [mood, setMood] = useState<Mood>("idle");
   const [bubble, setBubble] = useState<string | null>(null);
   const [home, setHome] = useState<Home | null>(null);
+  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
+  const [running, setRunning] = useState<Turn[]>([]);
+  const [done, setDone] = useState(0);
   const [comp, setComp] = useState<Companion | null>(null);
   const [routing, setRouting] = useState<{ ask: string; options: string[]; text: string } | null>(null);
   const [whereNote, setWhereNote] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [trouble, setTrouble] = useState<string | null>(null);
   const refresh = useCallback(() => {
     client
       .companion()
@@ -66,40 +105,17 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       })
       .then((c) => {
         setTurns(c.turns.slice(-12));
-        setTrouble(null);
+        setRunning(c.running);
       })
-      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+      .catch(() => undefined);
     client.home().then(setHome).catch(() => undefined);
+    client.claude().then(setClaude).catch(() => undefined);
   }, [client]);
-  // One cheap poll asks what changed (every 3 s while Alpha works, 10 s when quiet, nothing
-  // while the window is hidden) and the companion refreshes only when something did.
-  const visible = useVisible();
-  const since = useRef<string | null>(null);
   useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const tick = async () => {
-      let every = 10_000;
-      try {
-        const c = await client.changes(since.current);
-        const first = since.current === null;
-        since.current = c.at;
-        if (first || c.journal > 0 || c.threads || c.plans || c.actions) refresh();
-        if (c.working) every = 3_000;
-        setTrouble(null);
-      } catch (e) {
-        setTrouble(e instanceof Error ? e.message : String(e));
-        every = 5_000;
-      }
-      if (!cancelled) timer = setTimeout(() => void tick(), every);
-    };
-    void tick();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [client, refresh, visible]);
+    refresh();
+    const timer = setInterval(refresh, 10_000);
+    return () => clearInterval(timer);
+  }, [refresh]);
   useEffect(() => {
     listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight });
   }, [turns, expanded, busy]);
@@ -107,23 +123,68 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const toggle = useCallback(() => {
     const next = !expanded;
     setExpanded(next);
-    if (next) setTimeout(() => inputRef.current?.focus(), 50);
+    if (!next) setReply(null);
   }, [expanded]);
+  // A click anywhere outside the open chat closes it: elsewhere in this window, or in another
+  // app (the window loses focus). The character's own click toggles it already.
+  useEffect(() => {
+    if (!expanded) return;
+    const close = () => {
+      setExpanded(false);
+      setReply(null);
+    };
+    const onDown = (e: globalThis.PointerEvent) => {
+      const at = e.target as Element | null;
+      if (!at?.closest(".avatar__panel, .avatar__button")) close();
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("blur", close);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("blur", close);
+    };
+  }, [expanded]);
+  // The box is focused on open and again when the view switches (it is drawn anew).
+  useEffect(() => {
+    if (expanded) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [expanded, full]);
 
-  const talkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** A reply: the mouth moves for a moment, then the mood it came with holds while the
-   * bubble shows (happy for an answer, concerned for a failure, celebrating for a thing done). */
-  const say = useCallback((reply: string, tone: Mood) => {
-    setMood("talking");
-    if (talkTimer.current) clearTimeout(talkTimer.current);
-    talkTimer.current = setTimeout(() => setMood(tone), 2_200);
-    setBubble(reply.length > 220 ? `${reply.slice(0, 217)}…` : reply);
-    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = setTimeout(() => {
-      setBubble(null);
-      setMood("idle");
-    }, 12_000);
-  }, []);
+  // Drag the character itself: past a small threshold the window moves with the pointer (the
+  // host's own window drag); a press without movement stays a click.
+  const dragged = useRef(false);
+  const press = useRef<{ x: number; y: number } | null>(null);
+  const dragHandlers = {
+    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) return;
+      press.current = { x: e.screenX, y: e.screenY };
+      dragged.current = false;
+    },
+    onPointerMove: (e: PointerEvent<HTMLButtonElement>) => {
+      const p = press.current;
+      if (!p || dragged.current || Math.hypot(e.screenX - p.x, e.screenY - p.y) < 4) return;
+      dragged.current = true;
+      press.current = null;
+      void import("@tauri-apps/api/window")
+        .then(({ getCurrentWindow }) => getCurrentWindow().startDragging())
+        .catch(() => undefined);
+    },
+    onPointerUp: () => {
+      press.current = null;
+    },
+  };
+
+  const say = useCallback(
+    (reply: string, tone: Mood) => {
+      setMood(tone);
+      setBubble(reply.length > 220 ? `${reply.slice(0, 217)}…` : reply);
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = setTimeout(() => {
+        setBubble(null);
+        setMood("idle");
+      }, BUBBLE_MS);
+    },
+    [],
+  );
 
   /** Follow a routed turn to its answer; a routing question comes back as choices. */
   const finish = useCallback(
@@ -133,12 +194,15 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       const turn = await client.waitTurn(started);
       if (turn.state === "asked" && turn.ask) {
         setRouting({ ask: turn.ask, options: turn.options ?? [], text: turn.text });
-        setMood("unsure");
+        setMood("idle");
         return;
       }
       const went = turn.conversation;
+      const moved = went && went.id !== before ? `In ${went.scope}: ` : "";
       setWhereNote(went ? `${went.scope}: ${went.title}` : null);
-      say(`${went && went.id !== before ? `In ${went.scope}: ` : ""}${turn.reply ?? ""}`, turn.state === "done" ? "happy" : "concerned");
+      setReply(replyEntry(`${moved}${turn.reply ?? ""}`, turn.state === "done"));
+      say(`${moved}${turn.reply ?? ""}`, turn.state === "done" ? "talking" : "sorry");
+      if (turn.state === "done") setDone((n) => n + 1);
     },
     [client, say],
   );
@@ -149,13 +213,15 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       setBusy(true);
       setMood("thinking");
       setText("");
+      if (inputRef.current) inputRef.current.style.height = "";
       setRouting(null);
       try {
         // No conversation named: the core routes it (structure first, the judge when there
         // is a real choice, a question when unsure).
         await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        setReply(replyEntry(e instanceof Error ? e.message : String(e), false));
+        say(e instanceof Error ? e.message : String(e), "sorry");
       } finally {
         setBusy(false);
         refresh();
@@ -172,7 +238,8 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setRouting(null);
         if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        setReply(replyEntry(e instanceof Error ? e.message : String(e), false));
+        say(e instanceof Error ? e.message : String(e), "sorry");
       } finally {
         setBusy(false);
         refresh();
@@ -181,64 +248,31 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     [client, finish, say, refresh, comp?.focus?.id],
   );
 
+  // A final spoken sentence goes at once, as in Alpha; while speaking, the words show in the box.
+  const sendRef = useRef(send);
+  sendRef.current = send;
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
+    if (final) void sendRef.current(final);
   });
   useEffect(() => {
     setMood((m) => (speech.listening ? "listening" : m === "listening" ? "idle" : m));
   }, [speech.listening]);
 
-  // Ten minutes with nothing happening and the companion dozes; anything wakes it.
-  const [drowsy, setDrowsy] = useState(false);
-  useEffect(() => {
-    setDrowsy(false);
-    if (busy || expanded || mood !== "idle") return;
-    const timer = setTimeout(() => setDrowsy(true), 10 * 60_000);
-    return () => clearTimeout(timer);
-  }, [busy, expanded, mood, text, bubble]);
-  const typing = expanded && text.trim().length > 0 && !busy && !speech.listening;
-  const shownMood: Mood = busy ? "thinking" : speech.listening ? "listening" : mood !== "idle" ? mood : typing ? "curious" : drowsy ? "sleepy" : "idle";
-  const look = normaliseLook(comp?.look);
-  const px = SIZE_PX[look.size];
-
-  // Drag from the character itself: a press that moves becomes a drag of the window; one
-  // that does not is the click that opens the panel. Only the host can move a window.
-  const pressed = useRef<Press | null>(null);
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    pressed.current = press(e.clientX, e.clientY);
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    const p = pressed.current;
-    if (!p || p.dragging) return;
-    const next = moved(p, e.clientX, e.clientY);
-    pressed.current = next;
-    if (next.dragging && hasTauri()) {
-      void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().startDragging()).catch(() => undefined);
-    }
-  };
-  const onPointerUp = (e: React.PointerEvent) => {
-    const outcome = released(pressed.current);
-    pressed.current = null;
-    // A pointer leaves no focus ring behind; the keyboard still gets one.
-    (e.currentTarget as HTMLElement).blur();
-    if (outcome === "click") toggle();
-  };
-
   const needs = home?.needs_you ?? [];
-  const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
+  const view = avatarView({ busy, claude, turns, needs: needs.length, threads: home?.threads ?? [], running: running.length });
+  // The ring and dot keep their four looks: listening, working, needs you, here.
+  const state = speech.listening ? "listening" : view.state === "thinking" || view.state === "working" || view.state === "building" ? "working" : view.state === "idle" ? "idle" : "needs";
+  // At rest the companion names the conversation it is in.
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = trouble ? "Core not answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const label = speech.listening ? "Listening…" : view.state === "idle" && focusName ? focusName : view.text;
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
-  const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
+  const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && view.state === "disconnected" ? view.text : null);
   const mode: AvatarMode = expanded ? "open" : shownBubble ? "bubble" : "idle";
   useEffect(() => {
-    // The window covers what it shows: the character with room for its shadow, the character
-    // under a bubble, or the open panel.
-    const [width, height] = mode === "open" ? [380, 560] : mode === "bubble" ? [320, 150 + px] : [px + 32, px + 44];
-    host?.layout(mode, width, height).catch(() => undefined);
-  }, [host, mode, px]);
+    host?.layout(mode).catch(() => undefined);
+  }, [host, mode]);
 
   // Tell the host where the companion is drawn, whenever that moves or changes size.
   useLayoutEffect(() => {
@@ -260,59 +294,132 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       watcher.disconnect();
       window.removeEventListener("resize", report);
     };
-  }, [host, mode, shownBubble]);
+  }, [host, mode, shownBubble, full]);
+
+  const composer = (
+    <form
+      className="avatar__composer"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (speech.listening) speech.stop();
+        void send(text);
+      }}
+    >
+      <div className="avatar__ask">
+        <textarea
+          ref={inputRef}
+          rows={1}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            autoGrow(e.target);
+          }}
+          onKeyDown={(e) => {
+            if (!e.nativeEvent.isComposing && matches(e, bindingOf("send"))) {
+              e.preventDefault();
+              if (speech.listening) speech.stop();
+              void send(text);
+            }
+          }}
+          placeholder="Ask…"
+          aria-label="What should Zazoo do"
+          disabled={busy}
+        />
+        {full ? null : (
+          <IconButton size="sm" aria-label="Show the whole chat" title="Show the whole chat" onClick={() => setFull(true)}>
+            <Maximize2 size={14} aria-hidden="true" />
+          </IconButton>
+        )}
+        <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
+        <IconButton type="submit" size="sm" className="avatar__send" aria-label="Send" title="Enter to send, Shift+Enter for a new line" disabled={busy || !text.trim()}>
+          <ArrowUp size={14} aria-hidden="true" />
+        </IconButton>
+      </div>
+    </form>
+  );
+  const routingChoices = routing ? (
+    <div className="avatar__pills" role="group" aria-label="Which conversation">
+      <p className="panel__hint">Which is this about?</p>
+      {routing.options.map((o) => (
+        <Button key={o} variant="outline" size="sm" className="askcard__opt" disabled={busy} onClick={() => void choose(routing.ask, o)}>
+          {o}
+        </Button>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <div ref={rootRef} className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
-      {expanded ? (
-        <section className="avatar__panel" aria-label="Alpha companion">
+      {expanded && !full ? (
+        <section className="avatar__panel avatar__panel--compact" aria-label="Zazoo">
+          {needs.length ? (
+            <Button variant="ghost" size="sm" className="avatar__needs" onClick={() => setFull(true)}>
+              <span className="presence presence--needs" aria-hidden="true" />
+              {needsText(needs.length)}
+            </Button>
+          ) : null}
+          {busy ? (
+            <p className="avatar__working" role="status">
+              <span className="presence presence--working" aria-hidden="true" />
+              {THINKING}
+            </p>
+          ) : routingChoices ? (
+            <div className="avatar__last">{routingChoices}</div>
+          ) : reply ? (
+            <div className="avatar__last">
+              <Message e={reply} />
+            </div>
+          ) : null}
+          {composer}
+        </section>
+      ) : expanded ? (
+        <section className="avatar__panel" aria-label="Zazoo">
           <header className="avatar__head" data-tauri-drag-region>
             <span className={`presence presence--${state}`} aria-hidden="true" />
-            <span className="faint" data-tauri-drag-region>
+            <b data-tauri-drag-region>Zazoo</b>
+            <span className="faint avatar__state" data-tauri-drag-region>
               {label}
             </span>
-            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
-            <IconButton size="sm" label="Close" icon={<X />} onClick={() => toggle()} />
+            <IconButton size="sm" aria-label="Collapse the chat" title="Show only the last reply" onClick={() => setFull(false)}>
+              <Minimize2 size={14} aria-hidden="true" />
+            </IconButton>
+            <IconButton size="sm" aria-label="Open the workspace" title="Open this conversation in the workspace" onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)}>
+              <AppWindow size={14} aria-hidden="true" />
+            </IconButton>
+            <IconButton size="sm" aria-label="Close" title="Close" onClick={() => toggle()}>
+              <X size={14} aria-hidden="true" />
+            </IconButton>
           </header>
           <div className="avatar__turns" ref={listRef}>
-            {!turns.length ? <p className="panel__hint">Tell me what to do: log a meal, check a board, ask what's coming up.</p> : null}
+            {!turns.length ? <p className="panel__hint">{GREETING}</p> : null}
             {turns.map((t) => (
               <div key={t.id} className={t.kind === "said" ? "avatar__said" : "avatar__reply"}>
-                {t.kind === "said" ? t.text : <Rich text={t.text} />}
+                {t.text}
               </div>
             ))}
-            {routing ? (
-              <div className="avatar__pills" role="group" aria-label="Which conversation">
-                <p className="panel__hint">Which is this about?</p>
-                {routing.options.map((o) => (
-                  <Button size="sm" className="askcard__opt" key={o} disabled={busy} onClick={() => void choose(routing.ask, o)}>
-                    {o}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
+            {routingChoices}
             {!busy && !routing && openAsk ? (
-              <div className="avatar__pills" role="group" aria-label="Alpha asks">
+              <div className="avatar__pills" role="group" aria-label="Zazoo asks">
                 <p className="panel__hint">{openAsk.text}</p>
                 {(openAsk.options ?? []).map((o) => (
-                  <Button size="sm" className="askcard__opt" key={o} onClick={() => void choose(openAsk.id, o)}>
+                  <Button key={o} variant="outline" size="sm" className="askcard__opt" onClick={() => void choose(openAsk.id, o)}>
                     {o}
                   </Button>
                 ))}
               </div>
             ) : null}
             {!busy && openAction?.action ? (
-              <div className="avatar__pills" role="group" aria-label="Alpha proposes">
+              <div className="avatar__pills" role="group" aria-label="Zazoo proposes">
                 <p className="panel__hint">
                   {openAction.action.effect === "send" ? "Send" : "Make"}: {openAction.action.title}
                 </p>
-                <Button size="sm" variant="primary" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "celebrating"); refresh(); })}>
+                <Button size="sm" disabled={!openAction.action.preview} onClick={() => void client.approveAction(openAction.action!.id, false).then(() => { say(openAction.action!.effect === "send" ? "Sending it." : "Doing it.", "talking"); refresh(); })}>
                   {openAction.action.effect === "send" ? "Send it" : "Do it"}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => void client.declineAction(openAction.action!.id).then(refresh)}>
                   Not now
                 </Button>
-                <Button size="sm" onClick={() => handOff({ panel: true, surface: { kind: "home" } }, host)}>
+                <Button size="sm" variant="outline" onClick={() => handOff({ panel: true, surface: { kind: "home" } }, host)}>
                   See it
                 </Button>
               </div>
@@ -323,13 +430,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               </p>
             ) : null}
           </div>
-          <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
-            <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-            <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Log two eggs… what's on today…" aria-label="What should Alpha do" disabled={busy} />
-            <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
-              Do it
-            </Button>
-          </form>
+          {composer}
         </section>
       ) : null}
       <div className="avatar__dock">
@@ -337,27 +438,19 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           <div className="avatar__bubble" role="status">
             <p>{shownBubble}</p>
             {!bubble && needs.length ? (
-              <div className="row" style={{ marginTop: 6 }}>
-                <Button size="sm" variant="primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
+              <div className="row">
+                <Button size="sm" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
                   Open
                 </Button>
               </div>
             ) : null}
           </div>
         ) : null}
-        <button
-          type="button"
-          className={`avatar__button is-${state}`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={() => { pressed.current = null; }}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
-          aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"}
-          aria-expanded={expanded}
-          title={`${label} · drag to move`}
-        >
-          <Character mood={shownMood} size={expanded ? Math.round(px * 0.7) : px} look={look} />
+        <div className="avatar__grip" data-tauri-drag-region title="Drag to move Alpha" aria-hidden="true">
+          ⋯
+        </div>
+        <button type="button" className={`avatar__button is-${state}`} {...dragHandlers} onClick={() => (dragged.current ? (dragged.current = false) : toggle())} aria-label={expanded ? "Hide Zazoo's panel" : "Ask Zazoo"} aria-expanded={expanded} title={label}>
+          <Character mood={busy ? "thinking" : speech.listening ? "listening" : mood} state={view.state} done={done} size={expanded ? 56 : 88} />
         </button>
       </div>
     </div>

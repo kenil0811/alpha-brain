@@ -1,17 +1,16 @@
-import * as RadixPopover from "@radix-ui/react-popover";
-import type { ReactNode } from "react";
+import * as RPopover from "@radix-ui/react-popover";
+import "./Popover.css";
 
-/** A small panel on a trigger for controls that stay open while used (checkboxes, arrows);
- *  focus, Escape and outside-click handled (Radix). */
-export function Popover({ trigger, children, label, align = "end" }: { trigger: ReactNode; children: ReactNode; label: string; align?: "start" | "end" }) {
+export const Popover = RPopover.Root;
+export const PopoverTrigger = RPopover.Trigger;
+
+export function PopoverContent({ children, align = "start" }: { children: React.ReactNode; align?: "start" | "center" | "end" }) {
   return (
-    <RadixPopover.Root>
-      <RadixPopover.Trigger asChild>{trigger}</RadixPopover.Trigger>
-      <RadixPopover.Portal>
-        <RadixPopover.Content className="menu__list" align={align} sideOffset={4} aria-label={label}>
-          {children}
-        </RadixPopover.Content>
-      </RadixPopover.Portal>
-    </RadixPopover.Root>
+    <RPopover.Portal>
+      <RPopover.Content className="ui-popover" align={align} sideOffset={6}>
+        {children}
+        <RPopover.Arrow className="ui-popover__arrow" />
+      </RPopover.Content>
+    </RPopover.Portal>
   );
 }

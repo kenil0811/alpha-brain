@@ -1,30 +1,26 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef } from "react";
+import type { ButtonHTMLAttributes } from "react";
+import "./Button.css";
 
-/** The one button: a plain action, the primary one, a quiet one, or a dangerous one. */
-export function Button({
-  variant = "default",
-  size = "md",
-  icon,
-  className,
-  children,
-  type = "button",
-  ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "default" | "primary" | "ghost" | "danger";
-  size?: "md" | "sm";
-  icon?: ReactNode;
-}) {
-  const classes = ["btn", size === "sm" ? "btn--sm" : "", variant !== "default" ? `btn--${variant}` : "", className ?? ""]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    <button type={type} className={classes} {...rest}>
-      {icon ? (
-        <span className="btn__ico" aria-hidden="true">
-          {icon}
-        </span>
-      ) : null}
-      {children}
-    </button>
-  );
+export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+export type ButtonSize = "sm" | "default" | "lg" | "icon";
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 }
+
+/** Bridge-styled button. Native <button> — no Slot indirection, nothing here needs `asChild`. */
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className = "", variant = "default", size = "default", type = "button", ...rest },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type={type}
+      className={`ui-btn ui-btn--${variant} ui-btn--${size} ${className}`.trim()}
+      {...rest}
+    />
+  );
+});
