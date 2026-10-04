@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { AppWindow, ArrowUp, Maximize2, Minimize2, X } from "lucide-react";
-import type { ClaudeStatus, Client, Companion, Home, JournalEntry, Thread, Turn } from "../core/client";
+import { canThink, type Client, type Companion, type Home, type JournalEntry, type Thinking, type Thread, type Turn } from "../core/client";
 import { Message } from "../assistant/AssistantPanel";
 import { MicButton, useSpeech } from "../shell/voice";
 import { IconButton } from "../ui";
@@ -37,8 +37,8 @@ const THINKING = "Working out your request";
 const FAILURE_SHOWN_MS = 15 * 60 * 1000;
 
 /** What the companion shows, from real state only, most pressing first (pr1 avatar/state.ts). */
-export function avatarView(s: { busy: boolean; claude: ClaudeStatus | null; turns: JournalEntry[]; needs: number; threads: Thread[]; running: number }, now = Date.now()): { state: AvatarState; text: string } {
-  if (s.claude && !s.claude.signed_in) return { state: "disconnected", text: "Connect Claude in Settings to start" };
+export function avatarView(s: { busy: boolean; thinking: Thinking | null; turns: JournalEntry[]; needs: number; threads: Thread[]; running: number }, now = Date.now()): { state: AvatarState; text: string } {
+  if (s.thinking && !canThink(s.thinking)) return { state: "disconnected", text: "Connect Claude or ChatGPT in Settings → Models" };
   const last = s.turns[s.turns.length - 1];
   if (last?.kind === "failed" && now - new Date(last.at).getTime() < FAILURE_SHOWN_MS) return { state: "error", text: "Your last request didn't work out" };
   if (s.needs) return { state: "awaiting", text: needsText(s.needs) };
@@ -85,7 +85,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const [mood, setMood] = useState<Mood>("idle");
   const [bubble, setBubble] = useState<string | null>(null);
   const [home, setHome] = useState<Home | null>(null);
-  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
+  const [thinking, setThinking] = useState<Thinking | null>(null);
   const [running, setRunning] = useState<Turn[]>([]);
   const [done, setDone] = useState(0);
   const [comp, setComp] = useState<Companion | null>(null);
@@ -109,7 +109,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       })
       .catch(() => undefined);
     client.home().then(setHome).catch(() => undefined);
-    client.claude().then(setClaude).catch(() => undefined);
+    client.thinking().then(setThinking).catch(() => undefined);
   }, [client]);
   useEffect(() => {
     refresh();
@@ -260,7 +260,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   }, [speech.listening]);
 
   const needs = home?.needs_you ?? [];
-  const view = avatarView({ busy, claude, turns, needs: needs.length, threads: home?.threads ?? [], running: running.length });
+  const view = avatarView({ busy, thinking, turns, needs: needs.length, threads: home?.threads ?? [], running: running.length });
   // The ring and dot keep their four looks: listening, working, needs you, here.
   const state = speech.listening ? "listening" : view.state === "thinking" || view.state === "working" || view.state === "building" ? "working" : view.state === "idle" ? "idle" : "needs";
   // At rest the companion names the conversation it is in.
@@ -437,9 +437,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         {!expanded && shownBubble ? (
           <div className="avatar__bubble" role="status">
             <p>{shownBubble}</p>
-            {!bubble && needs.length ? (
+            {!bubble && (needs.length || view.state === "disconnected") ? (
               <div className="row">
-                <Button size="sm" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
+                <Button size="sm" onClick={() => handOff({ surface: needs.length ? { kind: "home" } : { kind: "settings", section: "models" } }, host)}>
                   Open
                 </Button>
               </div>

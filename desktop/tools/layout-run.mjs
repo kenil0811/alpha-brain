@@ -41,9 +41,10 @@ function start(cmd, args, opts, ready) {
 }
 
 const BROWSER = [process.env.ALPHA_TEST_BROWSER, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"].find((p) => p && existsSync(p));
-// Claude signed in, so pages render instead of "Connect Claude to start" (that screen is
-// checked too, on its own).
-const CONNECTED = { installed: true, signed_in: true, email: "layout@example.com", plan: "Max" };
+// Claude and ChatGPT signed in, so pages render instead of "Connect Claude or ChatGPT to start"
+// (that screen is checked too, on its own), and ChatGPT's model picker shows.
+const SIGNED_IN = { installed: true, signed_in: true, email: "layout@example.com", plan: "Max" };
+const CONNECTED = { route: "claude", claude: SIGNED_IN, codex: { ...SIGNED_IN, plan: "Plus", models: [{ id: "gpt-5", name: "GPT-5" }, { id: "gpt-5-codex", name: "GPT-5 Codex" }], model: "gpt-5" } };
 
 // ALPHA_LAYOUT_PORT lets two checkouts run it at once.
 const WEB_PORT = process.env.ALPHA_LAYOUT_PORT ?? "5199";
@@ -62,7 +63,7 @@ try {
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
     for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {
       const page = await browser.newPage({ viewport: { width, height } });
-      if (model) await page.route("**/api/claude", (r) => (r.request().method() === "GET" ? r.fulfill({ json: CONNECTED }) : r.fallback()));
+      if (model) await page.route("**/api/thinking", (r) => (r.request().method() === "GET" ? r.fulfill({ json: CONNECTED }) : r.fallback()));
       // The window may only call routes the core has: a 404/405 means a page asks for one it lacks.
       const missing = [];
       page.on("response", (r) => r.url().includes("/api/") && [404, 405].includes(r.status()) && missing.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`));

@@ -1,14 +1,21 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Client } from "../core/client";
+import type { Client, Thinking } from "../core/client";
 import { avatarView } from "../avatar/AvatarWindow";
 import { ToastProvider } from "../ui";
 import { Settings } from "./Settings";
 import { readTheme } from "./theme";
 
+const THINKING: Thinking = {
+  route: "claude",
+  claude: { installed: true, signed_in: true, email: "k@example.com", plan: "Max" },
+  codex: { installed: true, signed_in: true, models: [{ id: "gpt-5", name: "GPT-5" }, { id: "gpt-5-codex", name: "GPT-5 Codex" }], model: "gpt-5" },
+};
+
 function fake(): Client {
   return {
-    claude: vi.fn().mockResolvedValue({ installed: true, signed_in: true, email: "k@example.com", plan: "Max" }),
+    setThinking: vi.fn().mockResolvedValue({ ...THINKING, route: "codex" }),
+    setCodexModel: vi.fn().mockResolvedValue({ ...THINKING, codex: { ...THINKING.codex, model: "gpt-5-codex" } }),
     dataInfo: vi.fn().mockResolvedValue({ folder: "/tmp/alpha", size: 2048, backups: [] }),
   } as unknown as Client;
 }
@@ -16,7 +23,7 @@ function fake(): Client {
 describe("Settings", () => {
   it("has its sections in a side nav and opens the one the address names", async () => {
     const onSection = vi.fn();
-    render(<Settings client={fake()} theme="light" onTheme={() => undefined} claude={null} onClaude={() => undefined} section="data" onSection={onSection} />);
+    render(<Settings client={fake()} theme="light" onTheme={() => undefined} thinking={null} onThinking={() => undefined} section="data" onSection={onSection} />);
     const nav = screen.getByRole("navigation", { name: "Settings sections" });
     expect([...nav.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Models", "Appearance", "Avatar", "Project look", "Builds", "Desktop", "Permissions", "Shortcuts", "Data", "About"]);
     expect(screen.getByRole("button", { name: "Data" })).toHaveAttribute("aria-current", "page");
@@ -26,15 +33,43 @@ describe("Settings", () => {
   });
 
   it("says who Claude is signed in as under Models, also at the old claude address", () => {
-    render(<Settings client={fake()} theme="light" onTheme={() => undefined} claude={{ installed: true, signed_in: true, email: "k@example.com", plan: "Max" }} onClaude={() => undefined} section="claude" onSection={() => undefined} />);
+    render(<Settings client={fake()} theme="light" onTheme={() => undefined} thinking={THINKING} onThinking={() => undefined} section="claude" onSection={() => undefined} />);
     expect(screen.getByRole("button", { name: "Models" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("k@example.com · Max plan · through Claude Code on this Mac")).toBeInTheDocument();
+  });
+
+  it("stars ChatGPT as the way Zazoo thinks and picks its model", async () => {
+    const client = fake();
+    const onThinking = vi.fn();
+    render(
+      <ToastProvider>
+        <Settings client={client} theme="light" onTheme={() => undefined} thinking={THINKING} onThinking={onThinking} section="models" onSection={() => undefined} />
+      </ToastProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Claude is the default" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Make ChatGPT the default" }));
+    expect(client.setThinking).toHaveBeenCalledWith("codex");
+    await waitFor(() => expect(onThinking).toHaveBeenCalledWith(expect.objectContaining({ route: "codex" })));
+    fireEvent.click(screen.getByRole("button", { name: "ChatGPT model" }));
+    fireEvent.click(await screen.findByText("GPT-5 Codex"));
+    expect(client.setCodexModel).toHaveBeenCalledWith("gpt-5-codex");
+  });
+
+  it("keeps the star off until that way is connected", () => {
+    const off = { ...THINKING, codex: { installed: false, signed_in: false } };
+    render(
+      <ToastProvider>
+        <Settings client={fake()} theme="light" onTheme={() => undefined} thinking={off} onThinking={() => undefined} section="models" onSection={() => undefined} />
+      </ToastProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Make ChatGPT the default" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Install" })).toBeInTheDocument();
   });
 
   it("says a provider that isn't wired yet is coming soon", () => {
     render(
       <ToastProvider>
-        <Settings client={fake()} theme="light" onTheme={() => undefined} claude={null} onClaude={() => undefined} section="models" onSection={() => undefined} />
+        <Settings client={fake()} theme="light" onTheme={() => undefined} thinking={null} onThinking={() => undefined} section="models" onSection={() => undefined} />
       </ToastProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Make Grok the default" }));
@@ -45,7 +80,7 @@ describe("Settings", () => {
     const onSection = vi.fn();
     render(
       <ToastProvider>
-        <Settings client={fake()} theme="light" onTheme={() => undefined} claude={null} onClaude={() => undefined} section="desktop" onSection={onSection} />
+        <Settings client={fake()} theme="light" onTheme={() => undefined} thinking={null} onThinking={() => undefined} section="desktop" onSection={onSection} />
       </ToastProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "On" }));
@@ -56,7 +91,7 @@ describe("Settings", () => {
 
   it("records a new shortcut, refuses one in use, and resets it", () => {
     localStorage.clear();
-    render(<Settings client={fake()} theme="light" onTheme={() => undefined} claude={null} onClaude={() => undefined} section="shortcuts" onSection={() => undefined} />);
+    render(<Settings client={fake()} theme="light" onTheme={() => undefined} thinking={null} onThinking={() => undefined} section="shortcuts" onSection={() => undefined} />);
     const menu = () => screen.getByRole("button", { name: /^Go to a project or a page, or ask Zazoo: / });
     fireEvent.click(menu());
     fireEvent.keyDown(window, { key: "w", code: "KeyW", metaKey: true });
@@ -76,12 +111,12 @@ describe("Settings", () => {
 });
 
 describe("the companion's state", () => {
-  const base = { busy: false, claude: null, turns: [], needs: 0, threads: [], running: 0 };
+  const base = { busy: false, thinking: null, turns: [], needs: 0, threads: [], running: 0 };
   it("shows the most pressing real state first", () => {
     expect(avatarView(base).state).toBe("idle");
     expect(avatarView({ ...base, busy: true }).state).toBe("thinking");
     expect(avatarView({ ...base, needs: 2, busy: true })).toEqual({ state: "awaiting", text: "2 things need you" });
-    expect(avatarView({ ...base, claude: { installed: true, signed_in: false }, needs: 2 }).state).toBe("disconnected");
+    expect(avatarView({ ...base, thinking: { ...THINKING, route: "codex", codex: { installed: true, signed_in: false } }, needs: 2 }).state).toBe("disconnected");
     const failed = { id: "j", at: new Date().toISOString(), kind: "failed", actor: "alpha", text: "x", data: {}, module: null, thread: null, entity_ids: [], source: null };
     expect(avatarView({ ...base, turns: [failed], needs: 1 }).state).toBe("error");
     const making = { id: "t", title: "Making Jobs", kind: "build", state: "working", module: null, session_ref: null, created_at: "", updated_at: "" };

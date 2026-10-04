@@ -23,12 +23,11 @@ import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, surfaceFromPath, surfacePath, type Surface } from "./shell/Rail";
 import { ModulePage } from "./modules/ModulePage";
-import { ClaudeRow } from "./shell/models";
 import { Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
-import { PageHeader, ResizeHandle, ToastProvider, TooltipProvider, usePanelControl } from "./ui";
+import { InfoTip, PageHeader, ResizeHandle, ToastProvider, TooltipProvider, usePanelControl } from "./ui";
 import { ZazooIcon } from "./ui/ZazooIcon";
-import type { ClaudeStatus, ModuleCard } from "./core/client";
+import { canThink, type ModuleCard, type Thinking } from "./core/client";
 import { Button } from "./ui/Button";
 import { IconButton } from "./ui/IconButton";
 
@@ -83,8 +82,8 @@ function Workspace({ injected }: { injected?: Client }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
-  // Whether Alpha can think (Claude Code signed in); null until known.
-  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
+  // How Zazoo thinks (Claude or ChatGPT) and whether each is signed in; null until known.
+  const [thinking, setThinking] = useState<Thinking | null>(null);
   const [viewport, setViewport] = useState(() => window.innerWidth);
   const [railPeek, setRailPeek] = useState(false);
   const [assistPeek, setAssistPeek] = useState(false);
@@ -213,11 +212,11 @@ function Workspace({ injected }: { injected?: Client }) {
     };
   }, [client, version]);
 
-  // Whether Alpha can think: checked at start and every minute (the person may sign Claude
-  // Code in or out elsewhere).
+  // Whether Zazoo can think: checked at start and every minute (the person may sign Claude
+  // Code or Codex in or out elsewhere).
   useEffect(() => {
     if (!client) return;
-    const check = () => client.claude().then(setClaude).catch(() => undefined);
+    const check = () => client.thinking().then(setThinking).catch(() => undefined);
     check();
     const timer = setInterval(check, 60_000);
     return () => clearInterval(timer);
@@ -308,15 +307,17 @@ function Workspace({ injected }: { injected?: Client }) {
           </div>
         ) : (
           <>
-            {claude && !claude.signed_in && surface.kind !== "settings" ? (
+            {thinking && !canThink(thinking) && surface.kind !== "settings" ? (
               <div className="page firstrun">
                 <div className="card firstrun__card">
                   <div className="firstrun__head">
-                    <h2>Connect Claude to start</h2>
-                    <span className="muted">Alpha thinks with your Claude account. It takes a minute, once.</span>
-                  </div>
-                  <div className="list">
-                    <ClaudeRow client={runtime.client} status={claude} onStatus={setClaude} />
+                    <span className="models__name">
+                      <h2>Connect Claude or ChatGPT to start</h2>
+                      <InfoTip content="Zazoo thinks with your Claude or ChatGPT account. Connect one in Settings → Models and star it; it takes a minute, once." label="About connecting" />
+                    </span>
+                    <Button size="sm" onClick={() => setSurface({ kind: "settings", section: "models" })}>
+                      Open Settings → Models
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -339,7 +340,7 @@ function Workspace({ injected }: { injected?: Client }) {
                 }}
               />
             ) : surface.kind === "settings" ? (
-              <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} section={surface.section} onSection={(section) => setSurface({ kind: "settings", section })} />
+              <Settings client={runtime.client} theme={theme} onTheme={setTheme} thinking={thinking} onThinking={setThinking} section={surface.section} onSection={(section) => setSurface({ kind: "settings", section })} />
             ) : surface.kind === "people" ? (
               <People client={runtime.client} version={version} onOpen={(id) => setSurface({ kind: "entity", id })} />
             ) : surface.kind === "entity" ? (

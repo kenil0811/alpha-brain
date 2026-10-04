@@ -12,7 +12,7 @@ function setup(needs: unknown[] = []) {
     companion: async () => ({ focus: null, conversations: [], needs_you: [] }),
     conversation: async () => ({ turns: [{ id: "j0", at: "", kind: "said", actor: "person", text: "an older message", data: {}, module: null, thread: null, entity_ids: [], source: null }], threads: [], running: [], plans: [] }),
     home: async () => ({ date: "", needs_you: needs, ran_today: 0, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [], brief: null }),
-    claude: async () => ({ installed: true, signed_in: true }),
+    thinking: async () => ({ route: "claude", claude: { installed: true, signed_in: true }, codex: { installed: false, signed_in: false } }),
     ask: vi.fn(async () => turn({})),
     waitTurn: () => new Promise<Turn>((resolve) => (finishTurn = resolve)),
   } as unknown as Client;

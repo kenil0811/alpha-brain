@@ -13,7 +13,7 @@ import { ACCESSORIES, type AvatarLook, BODY_COLORS, DEFAULT_LOOK, kindLabel, sav
 import { CompanionZazooFace } from "../avatar/zazoo/CompanionZazooFace";
 import { ZazooDirector } from "../avatar/zazoo/director";
 import { SPECIES } from "../avatar/zazoo/species";
-import type { ClaudeStatus, Client, DataInfo } from "../core/client";
+import type { Client, DataInfo, Thinking } from "../core/client";
 import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
@@ -545,21 +545,21 @@ function Shortcuts() {
 }
 
 /** pr1's About: what leaves this Mac. */
-function About() {
+function About({ to }: { to: string }) {
   return (
     <div className="card list" aria-label="What leaves this Mac">
       <div className="item">
         <div className="item__body">
           <b>What leaves this Mac</b>
-          <InfoTip content="Your requests, and what Zazoo needs to answer them, go to Claude through your own sign-in. Projects read the web only when they were made to, and sites you signed into only through Alpha's browser. Records, files and settings stay in the folder under Data & runtime." label="About what leaves this Mac" />
-          <div className="item__sub models__line">Your requests go to Claude.</div>
+          <InfoTip content="Your requests, and what Zazoo needs to answer them, go to Claude or ChatGPT, whichever is the default under Models, through your own sign-in. Projects read the web only when they were made to, and sites you signed into only through Alpha's browser. Records, files and settings stay in the folder under Data & runtime." label="About what leaves this Mac" />
+          <div className="item__sub models__line">Your requests go to {to}.</div>
         </div>
       </div>
     </div>
   );
 }
 
-export function Settings({ client, theme, onTheme, claude, onClaude, section: requested, onSection }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; section?: string; onSection?: (section: string) => void }) {
+export function Settings({ client, theme, onTheme, thinking, onThinking, section: requested, onSection }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; thinking: Thinking | null; onThinking: (t: Thinking) => void; section?: string; onSection?: (section: string) => void }) {
   const [own, setOwn] = useState(readSection);
   const section = known(requested) ?? (onSection ? "models" : own);
   const setSection = (next: string) => {
@@ -593,7 +593,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, section: re
         <div className="settings-content">
           {section === "models" ? (
             <>
-              <Models client={client} claude={claude} onClaude={onClaude} />
+              <Models client={client} thinking={thinking} onThinking={onThinking} />
               <SoonSettings groups={["Models"]} />
             </>
           ) : null}
@@ -618,7 +618,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, section: re
           {section === "permissions" ? <Permissions /> : null}
           {section === "shortcuts" ? <Shortcuts /> : null}
           {section === "data" ? <DataAndRuntime client={client} /> : null}
-          {section === "about" ? <About /> : null}
+          {section === "about" ? <About to={thinking?.route === "codex" ? "ChatGPT" : "Claude"} /> : null}
         </div>
       </div>
     </section>

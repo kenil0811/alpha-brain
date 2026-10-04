@@ -385,6 +385,9 @@ export interface Thinking {
   codex: ClaudeStatus & { models?: { id: string; name: string }[]; model?: string | null };
 }
 
+/** Whether Zazoo can think: the chosen way is signed in. */
+export const canThink = (t: Thinking) => t[t.route].signed_in;
+
 export interface DataInfo {
   folder: string;
   size: number;

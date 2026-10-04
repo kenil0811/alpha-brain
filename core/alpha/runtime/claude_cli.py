@@ -33,7 +33,8 @@ ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
 DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
 
 
-SIGNED_OUT = "Claude isn't signed in on this Mac: sign in from Settings."
+SIGNED_OUT = ("Claude isn't signed in on this Mac: connect Claude or ChatGPT in Settings →"
+              " Models.")
 OUT_OF_STEPS = "It reached the most steps Claude Code takes in one run."
 log = logging.getLogger(__name__)
 
@@ -247,7 +248,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
             )
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
-                             " connect Claude in Settings.")
+                             " connect Claude or ChatGPT in Settings → Models.")
         LIVE.add(keys, proc)
         errors: list[str] = []
 

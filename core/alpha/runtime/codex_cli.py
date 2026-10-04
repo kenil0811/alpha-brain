@@ -40,7 +40,8 @@ from alpha.runtime.claude_cli import (
 
 log = logging.getLogger(__name__)
 
-SIGNED_OUT = "ChatGPT isn't signed in on this Mac (or its sign-in lapsed): sign in from Settings."
+SIGNED_OUT = ("ChatGPT isn't signed in on this Mac (or its sign-in lapsed): connect ChatGPT or"
+              " Claude in Settings → Models.")
 # The Claude aliases the rest of Alpha speaks in, as Codex's reasoning effort.
 EFFORT = {"haiku": "low", "sonnet": "medium", "opus": "high"}
 CLAUDE_ALIASES = set(EFFORT)
@@ -118,7 +119,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
             )
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="The Codex CLI isn't on this Mac yet:"
-                             " connect ChatGPT in Settings.")
+                             " connect ChatGPT or Claude in Settings → Models.")
         LIVE.add(keys, proc)
         errors: list[str] = []
 

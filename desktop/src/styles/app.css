@@ -643,7 +643,7 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .item__sub--warn { color: var(--warn); }
 .firstrun { padding-bottom: 0; }
 .firstrun__card { border-color: var(--warn); }
-.firstrun__head { display: flex; flex-direction: column; gap: 4px; padding: 16px 16px 4px; }
+.firstrun__head { display: flex; flex-direction: column; gap: 4px; padding: 16px; }
 .firstrun__head h2 { margin: 0; font-size: var(--text-lg); }
 
 /* Shell pieces added with the Alpha UI port */
