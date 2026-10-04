@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "../ui";
 import type { Client, ModuleDetail } from "../core/client";
 import { ModulePage } from "./ModulePage";
 
@@ -9,7 +10,7 @@ describe("adding files to a module", () => {
   it("has a button that opens the Mac's picker and sends what was chosen the way a drop does", async () => {
     const addFiles = vi.fn(() => Promise.resolve({ documents: [{ id: "d_1", title: "RestoPros P&L.xlsx" }], turn: null }));
     const client = { module: () => Promise.resolve(detail), addFiles, modulePage: () => new Promise(() => undefined), moduleSummary: () => new Promise(() => undefined) } as unknown as Client;
-    render(<ModulePage client={client} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />);
+    render(<TooltipProvider><ModulePage client={client} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} /></TooltipProvider>);
     const button = await screen.findByRole("button", { name: "Add files" });
     expect(button).toBeInTheDocument();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;

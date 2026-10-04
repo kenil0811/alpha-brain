@@ -1,8 +1,9 @@
 /**
  * Settings: only what a person decides. How Alpha thinks (their Claude, through Claude Code on
  * this Mac), the companion and how the app looks, where their world is kept and copies of it,
- * and the defaults set elsewhere in the app. Each row says what is so and offers the one thing
- * to do about it.
+ * and the defaults set elsewhere in the app, one section at a time (the toggle in the header).
+ * Each row says what is so and offers the one thing to do about it; what a row is for is behind
+ * its ⓘ, never written out.
  */
 import { useCallback, useEffect, useState } from "react";
 import { LookPicker } from "../avatar/LookPicker";
@@ -11,7 +12,26 @@ import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
-import { Button, Trouble } from "../ui";
+import { Button, InfoTip, PageHeader, Tabs, Trouble } from "../ui";
+
+type Section = "thinking" | "appearance" | "data" | "defaults";
+const SECTIONS: { id: Section; label: string; info: string }[] = [
+  { id: "thinking", label: "Thinks with", info: "Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription." },
+  { id: "appearance", label: "Appearance", info: "The companion and how the app looks." },
+  { id: "data", label: "Your data", info: "Where your world is kept, and copies of it." },
+  { id: "defaults", label: "Defaults", info: "Choices the rest of the app starts from." },
+];
+const SECTION_KEY = "alpha.settings.section";
+
+/** A row's label with what it is for behind an ⓘ. */
+function Label({ children, info }: { children: string; info: string }) {
+  return (
+    <span className="row" style={{ gap: 4 }}>
+      <b>{children}</b>
+      <InfoTip text={info} />
+    </span>
+  );
+}
 
 const WAIT_EVERY_MS = 3000;
 
@@ -31,7 +51,7 @@ function readPageSize(): PageSize {
 
 /** One way to think, connected or not, and the one step that gets there: Claude through Claude
  *  Code, or ChatGPT through the Codex CLI (Q32). Also used on first run for the chosen one. */
-export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { which: ThinkRoute; client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void; inUse?: boolean; onUse?: () => void }) {
+export function ThinkerRow({ which, client, status, onStatus, inUse, onUse, onThinking }: { which: ThinkRoute; client: Client; status: (ClaudeStatus & Partial<Pick<Thinking["codex"], "models" | "model">>) | null; onStatus: (s: ClaudeStatus) => void; inUse?: boolean; onUse?: () => void; onThinking?: (t: Thinking) => void }) {
   const [waiting, setWaiting] = useState<"install" | "signin" | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +115,25 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
         <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
         {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
       </div>
+      {connected && status?.models?.length ? (
+        <select
+          className="btn btn--sm"
+          aria-label="ChatGPT model"
+          value={status.model ?? status.models[0].id}
+          onChange={(e) =>
+            void client
+              .setCodexModel(e.target.value)
+              .then((t) => onThinking?.(t))
+              .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+          }
+        >
+          {status.models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
       {inUse ? <span className="pill pill--good">In use</span> : onUse && connected ? (
         <Button size="sm" onClick={onUse}>
           Use this
@@ -139,6 +178,23 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
   const [data, setData] = useState<DataInfo | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
   const [busy, setBusy] = useState(false);
+  const [section, setSectionState] = useState<Section>(() => {
+    try {
+      const saved = localStorage.getItem(SECTION_KEY);
+      return SECTIONS.some((s) => s.id === saved) ? (saved as Section) : "thinking";
+    } catch {
+      return "thinking";
+    }
+  });
+  const setSection = (next: Section) => {
+    setSectionState(next);
+    try {
+      localStorage.setItem(SECTION_KEY, next);
+    } catch {
+      /* the choice lasts this window */
+    }
+  };
+  const current = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
 
   const [trouble, setTrouble] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -167,57 +223,46 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
   return (
     <div className="page">
       {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
-      <div className="home__head">
-        <h1>Settings</h1>
-        <span className="muted">How Alpha thinks, looks and keeps your data</span>
-      </div>
+      <PageHeader
+        path={[{ label: "Settings" }]}
+        title={current.label}
+        info={current.info}
+        right={<Tabs className="toggle" label="Settings" value={section} onChange={setSection} items={SECTIONS.map(({ id, label }) => ({ id, label }))} />}
+      />
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Thinks with</h2>
-          <span className="faint">Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription</span>
-        </div>
+      {section === "thinking" ? (
         <div className="card list">
           <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => void client.setThinking("claude").then((t) => onThinking?.(t))} />
-          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => void client.setThinking("codex").then((t) => onThinking?.(t))} />
+          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: { ...thinking.codex, ...s } }); }} inUse={thinking?.route === "codex"} onUse={() => void client.setThinking("codex").then((t) => onThinking?.(t))} onThinking={onThinking} />
         </div>
-      </div>
+      ) : null}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Companion and appearance</h2>
-        </div>
+      {section === "appearance" ? (
         <div className="card list">
           {companion !== null ? (
             <div className="item">
               <div className="item__body">
-                <b>Companion</b>
-                <div className="item__sub">Alpha's character, always on top, for quick asks</div>
+                <Label info="Alpha's character, always on top, for quick asks.">Companion</Label>
               </div>
               <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
             </div>
           ) : null}
           <div className="item">
             <div className="item__body">
-              <b>Appearance</b>
-              <div className="item__sub">Light, dark, or the same as your Mac</div>
+              <Label info="Light, dark, or the same as your Mac.">Theme</Label>
             </div>
             <ThemeControl theme={theme} onChange={onTheme} />
           </div>
           <div className="item item--stack">
             <div className="item__body">
-              <b>The companion's look</b>
-              <div className="item__sub">The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.</div>
+              <Label info="The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.">The companion's look</Label>
             </div>
             <LookPicker client={client} />
           </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Your data</h2>
-        </div>
+      {section === "data" ? (
         <div className="card list">
           <div className="item">
             <div className="item__body">
@@ -240,17 +285,13 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
             </Button>
           </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Defaults</h2>
-        </div>
+      {section === "defaults" ? (
         <div className="card list">
           <div className="item">
             <div className="item__body">
-              <b>Rows per page</b>
-              <div className="item__sub">How many rows a table shows at once</div>
+              <Label info="How many rows a table shows at once.">Rows per page</Label>
             </div>
             <select className="btn btn--sm" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))} aria-label="Rows per page">
               <option value="fit">Fit to window</option>
@@ -262,7 +303,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
             </select>
           </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

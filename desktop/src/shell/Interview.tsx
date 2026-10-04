@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Client, ModuleCard } from "../core/client";
-import { Button } from "../ui";
+import { Button, InfoTip, PageHeader } from "../ui";
 import { Mic } from "../ui/icons";
 import { closePrompt, command, fullMinutes, parseDrafts, parsePrepared, plan, preparePrompt, type Answered, type Draft, type Prepared, type Question, type Tool } from "./interviewPlan";
 import type { Surface } from "./Rail";
@@ -390,21 +390,23 @@ export function Interview({ client, tool, modules, onGo, onChanged }: { client: 
 
   return (
     <div className="page interview">
-      <div className="home__head">
-        <h1>{tool.title}</h1>
-        <span className="muted">{tool.description}</span>
-        {phase === "setup" ? (
-          <Button size="sm" variant="ghost" onClick={() => void prepare(true)}>
-            Prepare again
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        path={[{ label: "Intelligence", onClick: () => onGo({ kind: "intelligence" }) }, { label: "Tools", onClick: () => onGo({ kind: "intelligence", tab: "tools" }) }]}
+        title={tool.title}
+        info={tool.description}
+        right={
+          phase === "setup" ? (
+            <Button size="sm" variant="ghost" onClick={() => void prepare(true)}>
+              Prepare again
+            </Button>
+          ) : null
+        }
+      />
 
       {phase === "preparing" ? (
         <div className="card interview__card" role="status">
           <div className="interview__orb interview__orb--thinking" aria-hidden="true" />
           <p>{progress}</p>
-          <p className="faint">Alpha is reading your projects, goals and notes to find what's missing.</p>
         </div>
       ) : null}
 
@@ -582,7 +584,6 @@ export function Interview({ client, tool, modules, onGo, onChanged }: { client: 
           <p>{drafts.summary}</p>
           {drafts.items.length ? (
             <>
-              <p className="faint">Nothing is kept until you say so. Untick what's wrong, fix the words, then keep the rest.</p>
               <ul className="interview__drafts">
                 {drafts.items.map((d, i) => (
                   <li key={i}>
@@ -605,6 +606,7 @@ export function Interview({ client, tool, modules, onGo, onChanged }: { client: 
             <Button variant="primary" onClick={() => void keep()} disabled={!drafts.items.some((d) => d.keep)}>
               Keep {drafts.items.filter((d) => d.keep).length}
             </Button>
+            <InfoTip text="Nothing is kept until you say so. Untick what's wrong, fix the words, then keep the rest." />
             <Button variant="ghost" onClick={() => setPhase("done")}>
               Keep nothing
             </Button>

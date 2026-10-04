@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
-import { Trouble } from "../ui";
+import { PageHeader, Trouble } from "../ui";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
@@ -76,21 +76,25 @@ export function Activity({ client, version }: { client: Client; version: number;
   let lastDay = "";
   return (
     <div className="page">
-      <div className="home__head">
-        <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
-      </div>
-      <div style={{ marginTop: 18 }}>
+      <PageHeader
+        title="Activity"
+        info="What Alpha read, made and changed, and what you did."
+        right={
+          <div className="toggle" role="group" aria-label="Show">
+            {(["all", "alpha", "you", "failed"] as const).map((f) => (
+              <button key={f} type="button" aria-selected={filter === f} aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                {f === "all" ? "All" : f === "alpha" ? "Alpha" : f === "you" ? "You" : "Failed"}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      <div>
         <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
           <div className="search" style={{ maxWidth: "none" }}>
             <span aria-hidden="true">⌕</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
           </div>
-          {(["all", "alpha", "you", "failed"] as const).map((f) => (
-            <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {f === "all" ? "All" : f === "alpha" ? "Alpha" : f === "you" ? "You" : "Failed"}
-            </button>
-          ))}
         </div>
         <div className="runs">
           {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Activity: {error}</Trouble> : null}

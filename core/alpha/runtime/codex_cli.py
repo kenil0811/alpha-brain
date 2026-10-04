@@ -71,7 +71,7 @@ def model_for(req: TurnRequest) -> tuple[str | None, str]:
         effort = EFFORT[alias]
         if req.kind in ("judge", "independent"):
             effort = "low"
-        return codex_account.default_model(), effort
+        return codex_account.model(req.world_path), effort
     return alias, "medium"
 
 

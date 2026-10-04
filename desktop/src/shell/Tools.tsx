@@ -98,8 +98,7 @@ export function Tools({ client, onGo }: { client: Client; onGo: (s: Surface) => 
   );
 
   return (
-    <div className="stack" style={{ marginTop: 16 }}>
-      <p className="muted">Voice tools Alpha runs with you. Each reads what Alpha holds, finds what's missing for its purpose, and asks the most valuable questions first, in the time you give it.</p>
+    <div className="stack">
       {message ? <p className="notice">{message}</p> : null}
       <div className="tools__grid">
         {card(INTERVIEWER, true)}

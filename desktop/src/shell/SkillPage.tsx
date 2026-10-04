@@ -6,8 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Client, SkillDetail } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button } from "../ui";
-import { ArrowLeft } from "../ui/icons";
+import { Badge, Button, PageHeader } from "../ui";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
 
@@ -43,28 +42,28 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
     });
   return (
     <div className="page">
-      <Button size="sm" onClick={() => onGo({ kind: "intelligence", tab: "skills" })}>
-        <ArrowLeft size={14} aria-hidden="true" /> Skills
-      </Button>
-      <div className="modhead" style={{ marginTop: 12 }}>
-        <div className="modhead__title" style={{ display: "block" }}>
-          <h1 style={skill.description.length > 60 ? { fontSize: "var(--text-xl)", lineHeight: 1.3 } : undefined}>{skill.description}</h1>
-          <div className="row" style={{ marginTop: 6 }}>
+      <PageHeader
+        path={[{ label: "Intelligence", onClick: () => onGo({ kind: "intelligence" }) }, { label: "Skills", onClick: () => onGo({ kind: "intelligence", tab: "skills" }) }]}
+        title={<span title={skill.description}>{skill.description}</span>}
+        info={skill.when_to_use ? `When: ${skill.when_to_use}` : undefined}
+        meta={
+          <>
             <Badge tone="info">{KIND[skill.kind] ?? skill.kind}</Badge>
             <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
-            <span className="faint">
+            <span>
               {skill.name} · version {skill.version}
               {skill.site ? ` · ${skill.site}` : ""}
               {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
               {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
             </span>
-          </div>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => onAsk(`Change the skill ${skill.name} (${skill.description}): `)}>
-          Ask Alpha to change this
-        </Button>
-      </div>
-      {skill.when_to_use ? <p className="muted">When: {skill.when_to_use}</p> : null}
+          </>
+        }
+        right={
+          <Button variant="primary" size="sm" onClick={() => onAsk(`Change the skill ${skill.name} (${skill.description}): `)}>
+            Ask Alpha to change this
+          </Button>
+        }
+      />
       {skill.last_problem ? <p className="notice">{skill.last_problem}</p> : null}
 
       <div className="section">

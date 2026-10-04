@@ -9,7 +9,7 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
-import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
+import { Button, PageHeader, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
@@ -124,34 +124,25 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
       {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
       {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
-      <div className="modhead">
-        <div className="modhead__title">
+      <PageHeader
+        path={[{ label: "Your modules" }, ...(detail.path ?? []).slice(0, -1).map((name, i) => ({ label: name, onClick: () => onGo({ kind: "module", id: pathIds[i] }) }))]}
+        title={detail.name}
+        info={subtitle}
+        icon={
           <div className="modhead__ico" aria-hidden="true">
             <ModuleIcon size={20} />
           </div>
-          <div style={{ minWidth: 0 }}>
-            {detail.path && detail.path.length > 1 ? (
-              <div className="crumbs" aria-label="Inside">
-                {detail.path.slice(0, -1).map((name, i) => (
-                  <span key={`${name}-${i}`}>
-                    <button type="button" className="linkbtn" onClick={() => onGo({ kind: "module", id: pathIds[i] })}>
-                      {name}
-                    </button>
-                    <span className="faint"> › </span>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <h1>{detail.name}</h1>
-            <div className="faint">{subtitle}</div>
-          </div>
-        </div>
-        <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void added(files); }} />
-        <Button size="sm" title="Add files to this module from your Mac; Alpha reads them into its tables" onClick={() => picker.current?.click()}>
-          Add files
-        </Button>
-        <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />
-      </div>
+        }
+        right={
+          <>
+            <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void added(files); }} />
+            <Button size="sm" title="Add files to this module from your Mac; Alpha reads them into its tables" onClick={() => picker.current?.click()}>
+              Add files
+            </Button>
+            <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />
+          </>
+        }
+      />
 
       {section === "app" ? (
         <>

@@ -5,8 +5,8 @@
 import { useEffect, useState } from "react";
 import type { AutomationDetail, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button } from "../ui";
-import { ArrowLeft, Check, X } from "../ui/icons";
+import { Badge, Button, PageHeader } from "../ui";
+import { Check, X } from "../ui/icons";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
 
@@ -42,21 +42,20 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
   };
   return (
     <div className="page">
-      <Button size="sm" onClick={() => onGo({ kind: "intelligence", tab: "automations" })}>
-        <ArrowLeft size={14} aria-hidden="true" /> Automations
-      </Button>
-      <div className="modhead" style={{ marginTop: 12 }}>
-        <div className="modhead__title" style={{ display: "block" }}>
-          <h1 style={auto.title.length > 60 ? { fontSize: "var(--text-xl)", lineHeight: 1.3 } : undefined}>{auto.title}</h1>
-          <div className="row" style={{ marginTop: 6 }}>
+      <PageHeader
+        path={[{ label: "Intelligence", onClick: () => onGo({ kind: "intelligence" }) }, { label: "Automations", onClick: () => onGo({ kind: "intelligence", tab: "automations" }) }]}
+        title={<span title={auto.title}>{auto.title}</span>}
+        meta={
+          <>
             <Badge tone={auto.running ? "info" : auto.enabled ? "good" : "gray"}>{auto.running ? "Running now" : auto.enabled ? "On" : "Off"}</Badge>
-            <span className="faint">
+            <span>
               {auto.when}
               {auto.enabled && auto.next_run_at ? ` · next ${when(auto.next_run_at)}` : ""}
               {auto.last_run_at ? ` · last ran ${when(auto.last_run_at)}` : " · hasn't run on its own yet"}
             </span>
-          </div>
-        </div>
+          </>
+        }
+        right={
         <div className="row">
           <Button size="sm" onClick={() => void act(() => client.switchAutomation(auto.id, !auto.enabled), auto.enabled ? "Switched off." : "Switched on.")}>
             {auto.enabled ? "Switch off" : "Switch on"}
@@ -68,7 +67,8 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
             Ask Alpha to change this
           </Button>
         </div>
-      </div>
+        }
+      />
       {message ? <p className="notice notice--ok" role="status">{message}</p> : null}
       {auto.last_error ? <p className="notice">Last run didn't work: {auto.last_error}</p> : null}
 

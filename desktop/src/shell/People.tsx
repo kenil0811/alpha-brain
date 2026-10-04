@@ -8,8 +8,7 @@ import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
 import { factOrigin } from "./facts";
-import { Button, Badge, Trouble } from "../ui";
-import { ArrowLeft } from "../ui/icons";
+import { Badge, Button, PageHeader, Trouble } from "../ui";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
@@ -56,15 +55,15 @@ export function People({ client, version, onOpen }: { client: Client; version: n
   return (
     <div className="page">
         {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load People & Companies: {error}</Trouble> : null}
-      <div className="modhead">
-        <div className="modhead__title">
-          <h1>People &amp; Companies</h1>
-          <span className="faint">Everyone Alpha has come across: from your connections, your mail, and what you tell it.</span>
-        </div>
-        <div className="search people__search">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
-        </div>
-      </div>
+      <PageHeader
+        title="People & Companies"
+        info="Everyone Alpha has come across: from your connections, your mail, and what you tell it."
+        right={
+          <div className="search people__search">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
+          </div>
+        }
+      />
       {people === null ? <p className="empty">Loading…</p> : null}
       {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Alpha."}</p> : null}
       {group("People", persons)}
@@ -122,30 +121,28 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
   const suggested = entity.facts.filter((f) => f.state === "suggested");
   return (
     <div className="page">
-      <Button size="sm" onClick={onBack}>
-        <ArrowLeft size={14} aria-hidden="true" /> People &amp; Companies
-      </Button>
-      <div className="modhead" style={{ marginTop: 12 }}>
-        <span className="people__avatar people__avatar--big" aria-hidden="true">
-          {initials(entity.name)}
-        </span>
-        <div className="modhead__title">
-          <div style={{ minWidth: 0 }}>
-            <h1>{entity.name}</h1>
-            <div className="faint">
+      <PageHeader
+        path={[{ label: "People & Companies", onClick: onBack }]}
+        title={entity.name}
+        icon={
+          <span className="people__avatar people__avatar--big" aria-hidden="true">
+            {initials(entity.name)}
+          </span>
+        }
+        meta={
+          <>
+            <span>
               {entity.kind === "person" ? "Person" : "Organisation"}
               {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
-            </div>
-            <div className="row" style={{ marginTop: 6 }}>
-              {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
-                <Badge key={`${k}:${v}`} tone="gray" title={k}>
-                  {v}
-                </Badge>
-              )))}
-            </div>
-          </div>
-        </div>
-      </div>
+            </span>
+            {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
+              <Badge key={`${k}:${v}`} tone="gray" title={k}>
+                {v}
+              </Badge>
+            )))}
+          </>
+        }
+      />
 
       <div className="section">
         <div className="section__head">

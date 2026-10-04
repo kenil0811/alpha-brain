@@ -8,7 +8,7 @@ import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
-import { Badge, Button } from "../ui";
+import { Badge, Button, PageHeader } from "../ui";
 import { ModuleIcon, ArrowRight, Check, X, Eye, Mic } from "../ui/icons";
 
 function greeting(): string {
@@ -134,8 +134,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
   if (!home) {
     return (
       <div className="page">
-        <div className="eyebrow">{date}</div>
-        <h1>{greeting()}</h1>
+        <PageHeader title="Home" info={greeting()} right={<span className="faint">{date}</span>} />
         {error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}
       </div>
     );
@@ -143,8 +142,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
   const next = home.coming_up[0];
   return (
     <div className="page">
-      <div className="eyebrow">{date}</div>
-      <h1>{greeting()}</h1>
+      <PageHeader title="Home" info={`${greeting()}. What needs you, what ran today and what's coming up.`} right={<span className="faint">{date}</span>} />
       <div className="today" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         <button type="button" className="card tile tile--action" onClick={() => onGo({ kind: "tool", id: "interviewer" })}>
           <div className="tile__lab">Interview me</div>

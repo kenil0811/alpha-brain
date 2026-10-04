@@ -11,16 +11,16 @@ import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
 import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
-import { Button, Badge, Tabs } from "../ui";
+import { Button, Badge, PageHeader, Tabs } from "../ui";
 
 export type IntelTab = "tools" | "map" | "skills" | "automations" | "connections" | "knowledge";
-const TABS: { id: IntelTab; label: string }[] = [
-  { id: "tools", label: "Tools" },
-  { id: "map", label: "Map" },
-  { id: "skills", label: "Skills" },
-  { id: "automations", label: "Automations" },
-  { id: "connections", label: "Connections" },
-  { id: "knowledge", label: "Knowledge" },
+const TABS: { id: IntelTab; label: string; info: string }[] = [
+  { id: "tools", label: "Tools", info: "Voice tools Alpha runs with you. Each reads what Alpha holds, finds what's missing for its purpose, and asks the most valuable questions first, in the time you give it." },
+  { id: "map", label: "Map", info: "Your world and Alpha's work, and how they connect." },
+  { id: "skills", label: "Skills", info: "How Alpha reads a list, does a task on a site, or runs something on its own: kept, versioned and repaired when a site changes." },
+  { id: "automations", label: "Automations", info: "What runs on its own, on a schedule." },
+  { id: "connections", label: "Connections", info: "The folders, sites and calendars Alpha reads." },
+  { id: "knowledge", label: "Knowledge", info: "What Alpha knows about you: facts, notes and goals." },
 ];
 
 const CONNECTOR: Record<string, { icon: string; label: (c: Connection) => string; reach: string }> = {
@@ -336,11 +336,12 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
   }, [client, version]);
   return (
     <div className="page">
-      <div className="home__head">
-        <h1>Intelligence</h1>
-        <span className="muted">Everything Alpha can do, runs on its own, reaches, and knows</span>
-      </div>
-      <Tabs label="Intelligence" value={tab} onChange={onTab} items={TABS} style={{ marginTop: 16 }} />
+      <PageHeader
+        path={[{ label: "Intelligence" }]}
+        title={TABS.find((t) => t.id === tab)?.label ?? "Intelligence"}
+        info={TABS.find((t) => t.id === tab)?.info}
+        right={<Tabs className="toggle" label="Intelligence" value={tab} onChange={onTab} items={TABS.map(({ id, label }) => ({ id, label }))} />}
+      />
       {!data ? (
         error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "tools" ? (

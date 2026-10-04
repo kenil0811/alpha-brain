@@ -10,6 +10,8 @@ journaled: it changes nothing Alpha does or knows.
 
 from __future__ import annotations
 
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, loads, now
@@ -44,3 +46,19 @@ class Preferences:
     def all(self) -> dict[str, Any]:
         return {r["key"]: loads(r["value"], None)
                 for r in self.store.all("SELECT key, value FROM preferences ORDER BY key")}
+
+
+def read(world_path: Path | str | None, key: str) -> Any | None:
+    """A preference of the world at `world_path`, or None when unset or unreadable: a read of
+    its own, not the serving World's connection, for runs on other threads."""
+    if not world_path or not Path(world_path).exists():
+        return None
+    try:
+        db = sqlite3.connect(f"file:{Path(world_path)}?mode=ro", uri=True)
+        try:
+            row = db.execute("SELECT value FROM preferences WHERE key = ?", (key,)).fetchone()
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return None
+    return loads(row[0], None) if row else None

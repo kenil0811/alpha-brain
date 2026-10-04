@@ -944,3 +944,15 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .tools__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .tools__card { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
 .tools__card p { margin: 0; flex: 1; }
+
+/* The page header (ui/PageHeader): the path small, the name large, toggles on the right. */
+.pagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; min-height: 64px; margin-bottom: 16px; }
+.pagehead__left { display: flex; align-items: flex-end; gap: 12px; min-width: 0; }
+.pagehead__names { min-width: 0; }
+.pagehead__path { font-size: var(--text-sm); color: var(--text-2); min-height: 1.4em; }
+.pagehead__path .linkbtn { font-size: inherit; color: inherit; }
+.pagehead__title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pagehead__title h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pagehead__meta { margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: var(--text-sm); color: var(--text-3); }
+.pagehead__right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.pagehead__right .tabs { margin: 0; }
