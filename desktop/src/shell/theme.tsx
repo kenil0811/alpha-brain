@@ -1,5 +1,8 @@
-/** The appearance setting: follow the Mac, or force light or dark. Kept per window. */
+/** The appearance setting: follow the Mac (the default, with nothing stored), or force light or
+ *  dark. Kept per window. The rest of the appearance (accent, font, density…) is appearance.tsx. */
 import { useCallback, useEffect, useState } from "react";
+import { Segmented } from "../ui";
+import { reapplyAppearance } from "./appearance";
 
 export type Theme = "system" | "light" | "dark";
 const KEY = "alpha.theme";
@@ -20,6 +23,7 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function useTheme(): [Theme, (next: Theme) => void] {
+  useEffect(reapplyAppearance, []);
   const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "system" : readTheme()));
   useEffect(() => applyTheme(theme), [theme]);
   const setTheme = useCallback((next: Theme) => {
@@ -34,19 +38,6 @@ export function useTheme(): [Theme, (next: Theme) => void] {
   return [theme, setTheme];
 }
 
-export function ThemeControl({ theme, onChange, compact = false }: { theme: Theme; onChange: (next: Theme) => void; compact?: boolean }) {
-  const options: [Theme, string][] = compact ? [["light", "Light"], ["dark", "Dark"]] : [["system", "Match Mac"], ["light", "Light"], ["dark", "Dark"]];
-  return (
-    <div className="theme" role="group" aria-label="Appearance">
-      {options.map(([value, label]) => (
-        <button key={value} type="button" aria-pressed={theme === value || (compact && theme === "system" && value === currentSystem())} onClick={() => onChange(value)}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function currentSystem(): Theme {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+export function ThemeControl({ theme, onChange }: { theme: Theme; onChange: (next: Theme) => void }) {
+  return <Segmented label="Theme" value={theme} options={[{ value: "system", label: "Match Mac" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} onChange={onChange} />;
 }

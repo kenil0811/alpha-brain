@@ -22,8 +22,10 @@ import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
-import { ClaudeRow, Settings } from "./shell/Settings";
+import { Settings } from "./shell/Settings";
+import { ClaudeRow } from "./shell/models";
 import { useTheme } from "./shell/theme";
+import { pressed } from "./shell/shortcuts";
 import type { ClaudeStatus, ModuleCard, Thinking } from "./core/client";
 import { Button } from "./ui";
 
@@ -92,11 +94,11 @@ export function App({ client: injected }: { client?: Client } = {}) {
     // once: the listeners read the address, not this render's surface
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // ⌘K (or Ctrl+K) anywhere in the window: search everything.
+  // ⌘K (or Ctrl+K, or what Settings → Shortcuts set) anywhere in the window: search everything.
   const [commandOpen, setCommandOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (pressed(e, "command-menu")) {
         e.preventDefault();
         setCommandOpen((o) => !o);
       }
@@ -286,7 +288,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} section={surface.kind === "settings" ? surface.section : undefined} onSection={(section) => setSurface({ kind: "settings", section })} />
         ) : surface.kind === "people" ? (
           <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (

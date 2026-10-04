@@ -55,7 +55,7 @@ try {
   const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
   // "<path>:<table>" is the project page again, on that table's tab (kept in localStorage).
   // main's addresses (src/shell/address.ts); each agent adds the pages it builds.
-  const pages = ["/home", "/activity", "/people", `/people/${seed.entity}`, "/intelligence/map", "/intelligence/skills", "/intelligence/automations", `/intelligence/automations/${seed.automation}`, "/intelligence/connections", "/intelligence/knowledge", "/settings", `/m/${project}`];
+  const pages = ["/home", "/activity", "/people", `/people/${seed.entity}`, "/intelligence/map", "/intelligence/skills", "/intelligence/automations", `/intelligence/automations/${seed.automation}`, "/intelligence/connections", "/intelligence/knowledge", "/settings", ...["appearance", "companion", "look", "builds", "desktop", "permissions", "shortcuts", "data"].map((s) => `/settings/${s}`), `/m/${project}`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
     for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {

@@ -107,9 +107,6 @@ a { color: var(--primary); }
 .navbtn__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navbtn__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .navbtn--new { color: var(--primary); font-weight: 500; }
-.theme { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
-.theme button { padding: 4px 9px; border-radius: 6px; font-size: var(--text-sm); color: var(--text-2); background: none; border: 0; }
-.theme button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(26, 43, 60, 0.12); font-weight: 500; }
 .rail__status { font-size: var(--text-xs); color: var(--text-3); padding: 8px 10px; display: flex; gap: 6px; align-items: center; }
 .rail__status i { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
 .rail__status--connected i { background: var(--good); }
@@ -912,3 +909,46 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__glance .linkbtn { text-align: left; padding: 0; }
 .map__think { background: var(--primary-soft); border-radius: 8px; padding: 6px 8px; font-size: var(--text-md); }
 .map__busy { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow); }
+
+/* ---- settings and appearance ---- */
+/* ui/Segmented: a few options side by side (the theme control was the first). */
+.segmented { display: inline-flex; flex: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
+.segmented button { padding: 4px 9px; border-radius: 6px; font-size: var(--text-sm); color: var(--text-2); background: none; border: 0; white-space: nowrap; }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(26, 43, 60, 0.12); font-weight: 500; }
+.settings__layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 24px; margin-top: 18px; align-items: start; }
+.settings__nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
+.settings__navitem { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
+.settings__navitem svg { width: 16px; height: 16px; flex: none; }
+.settings__navitem:hover { background: var(--hover); color: var(--text); }
+.settings__navitem[aria-current="page"] { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
+.settings__content { display: flex; flex-direction: column; gap: 16px; min-width: 0; max-width: 860px; }
+.settings__title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.settings__swatches { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.settings__swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); padding: 0; }
+.settings__swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--text); }
+.settings__keys { min-width: 64px; justify-content: center; font-variant-numeric: tabular-nums; flex: none; }
+.models__star { color: var(--text-3); }
+.models__star--on { color: var(--warn); }
+.models__star .iconbtn__ico svg { width: 15px; height: 15px; }
+.models__nostar { width: 28px; flex: none; }
+.models__key { min-width: 0; width: 180px; flex: none; }
+/* A row's controls wrap under its title rather than run out of the card; with the panel open
+   the nav goes above the section. */
+.settings { container-type: inline-size; }
+@container (max-width: 760px) {
+  .settings__content .item { flex-wrap: wrap; }
+  .settings__content .item__body { flex: 1 1 200px; }
+  .settings__layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .settings__nav { flex-direction: row; flex-wrap: wrap; position: static; }
+}
+/* Appearance choices on the root (shell/appearance.tsx); a default leaves the root as it is. */
+:root[data-corners="sharp"] :is(.card, .btn, .iconbtn, .textfield, .segmented, .segmented button, .menu__list, .item__ico, .settings__navitem, .item--stack textarea) { border-radius: 3px; }
+:root[data-corners="round"] :is(.card, .menu__list) { border-radius: 18px; }
+:root[data-corners="round"] :is(.btn, .textfield, .segmented, .segmented button) { border-radius: 999px; }
+:root[data-corners="round"] :is(.iconbtn, .item__ico, .settings__navitem) { border-radius: 12px; }
+:root[data-contrast="high"] { --text-2: #2f3b47; --text-3: #44505c; --border: #aeb6bf; --line: #d6dbe0; }
+:root[data-contrast="high"][data-theme="dark"] { --text-2: #d3dae1; --text-3: #aab4be; --border: #4a5560; --line: #2c3742; }
+@media (prefers-color-scheme: dark) {
+  :root[data-contrast="high"]:not([data-theme="light"]) { --text-2: #d3dae1; --text-3: #aab4be; --border: #4a5560; --line: #2c3742; }
+}
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }

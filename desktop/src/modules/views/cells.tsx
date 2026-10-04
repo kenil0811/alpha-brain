@@ -7,6 +7,7 @@ import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
+import { pressed } from "../../shell/shortcuts";
 import { Badge, IconButton } from "../../ui";
 import { FolderOpen } from "../../ui/icons";
 
@@ -63,8 +64,8 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     if (commit) onCommit(text);
   }
   function key(e: KeyboardEvent) {
-    if (e.key === "Enter" && field.kind !== "long_text") finish(true);
-    if (e.key === "Escape") finish(false);
+    if (pressed(e, "cell-save") && field.kind !== "long_text") finish(true);
+    if (pressed(e, "cell-cancel")) finish(false);
   }
   const label = humanize(field.name);
   if (editing) {
