@@ -12,12 +12,13 @@ export type Surface =
   | { kind: "entity"; id: string }
   | { kind: "skill"; name: string }
   | { kind: "automation"; id: string }
+  | { kind: "tool"; id: string }
   | { kind: "module"; id: string };
 
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
-  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation")) return true; // item pages live under Intelligence
+  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "tool")) return true; // item pages live under Intelligence
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
@@ -47,7 +48,7 @@ function readFolded(): Set<string> {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "tool") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 

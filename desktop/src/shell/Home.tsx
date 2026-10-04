@@ -9,7 +9,7 @@ import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 import { Badge, Button } from "../ui";
-import { ModuleIcon, ArrowRight, Check, X, Eye } from "../ui/icons";
+import { ModuleIcon, ArrowRight, Check, X, Eye, Mic } from "../ui/icons";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -145,7 +145,14 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
     <div className="page">
       <div className="eyebrow">{date}</div>
       <h1>{greeting()}</h1>
-      <div className="today">
+      <div className="today" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        <button type="button" className="card tile tile--action" onClick={() => onGo({ kind: "tool", id: "interviewer" })}>
+          <div className="tile__lab">Interview me</div>
+          <div className="tile__big">
+            <Mic size={22} aria-hidden="true" />
+          </div>
+          <div className="tile__sub">Fill in what Alpha is missing, in the time you have</div>
+        </button>
         <div className="card tile">
           <div className="tile__lab">Needs you</div>
           <div className="tile__big num">{home.needs_you.length}</div>

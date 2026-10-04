@@ -2,7 +2,7 @@
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
  * rebuilt on main's Surface). `#/home`, `#/activity`, `#/people`, `#/people/<id>`, `#/m/<id>`,
- * `#/intelligence/<tab>`, `#/settings`. Nothing else is in the address: what is open inside a
+ * `#/intelligence/<tab>`, `#/intelligence/tools/<id>` (a voice tool), `#/settings`. Nothing else is in the address: what is open inside a
  * page stays where it was.
  */
 import { knownSurface, type Surface } from "./Rail";
@@ -25,6 +25,8 @@ export function pathFor(surface: Surface): string {
       return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
     case "automation":
       return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
+    case "tool":
+      return `/intelligence/tools/${encodeURIComponent(surface.id)}`;
     case "settings":
       return "/settings";
   }
@@ -43,6 +45,7 @@ export function surfaceFromPath(path: string): Surface | null {
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };
     if (rest === "automations" && third) return { kind: "automation", id: third };
+    if (rest === "tools" && third) return { kind: "tool", id: third };
     return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
   }
   return null;

@@ -51,7 +51,7 @@ Principles:
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Home stands for Today (Needs you, Alpha is working on, Coming up, Your modules); People & Companies with a page per person or company; Intelligence (Skills, Automations, Connections, Knowledge); Activity; Settings. |
+| Built | Home stands for Today (Needs you, Alpha is working on, Coming up, Your modules); People & Companies with a page per person or company; Intelligence (Tools, Skills, Automations, Connections, Knowledge); Interview me on Home (branch `feat/interviewer`); Activity; Settings. |
 | Differs | Skills are one table of kinds read, act and run (readers, procedures, pipelines). Entities are shown only where Alpha resolved them. |
 | Not built | Today's digest; ⌘K. |
 

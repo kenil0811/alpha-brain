@@ -17,6 +17,8 @@ import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
 import { SkillPage } from "./shell/SkillPage";
+import { Interview } from "./shell/Interview";
+import { ToolPage } from "./shell/Tools";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
@@ -295,6 +297,10 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "automation" ? (
           <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
+        ) : surface.kind === "tool" ? (
+          <ToolPage key={surface.id} client={runtime.client} id={surface.id}>
+            {(tool) => <Interview client={runtime.client} tool={tool} modules={modules} onGo={setSurface} onChanged={changed} />}
+          </ToolPage>
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} />
         ) : (

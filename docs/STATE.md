@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late night.** Last entries: replies rendered the same in the panel and
+**As of 4 October 2026.** Last entries: Interview me and Tools, UI only, on branch `feat/interviewer`
+([`log/2026-10-04-interviewer.md`](log/2026-10-04-interviewer.md)), replies rendered the same in the panel and
 the companion ([`log/2026-10-03-replies-rendered.md`](log/2026-10-03-replies-rendered.md)), a second way to think, ChatGPT through the
 Codex CLI ([`log/2026-10-03-chatgpt-route.md`](log/2026-10-03-chatgpt-route.md), Q32; built, not
 yet run for real), modules inside modules
