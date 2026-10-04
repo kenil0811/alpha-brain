@@ -19,6 +19,7 @@ import { AssistantPanel, type ChatChoice } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
 import { CommandMenu } from "./shell/CommandMenu";
 import { Home } from "./shell/Home";
+import { Onboarding, ONBOARDING_PREF, OPEN_ONBOARDING, type OnboardingState } from "./shell/OnboardingDialog";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, surfaceFromPath, surfacePath, type Surface } from "./shell/Rail";
@@ -80,6 +81,7 @@ function Workspace({ injected }: { injected?: Client }) {
   const [drawer, setDrawer] = useState(false);
   const [version, setVersion] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
+  const [onboarding, setOnboarding] = useState(false);
   const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
   // How Zazoo thinks (Claude or ChatGPT) and whether each is signed in; null until known.
@@ -221,6 +223,20 @@ function Workspace({ injected }: { injected?: Client }) {
     const timer = setInterval(check, 60_000);
     return () => clearInterval(timer);
   }, [client]);
+
+  // First steps open on their own until finished or skipped, and whenever asked for.
+  useEffect(() => {
+    if (!client) return;
+    client
+      .preference(ONBOARDING_PREF)
+      .then((p) => !(p.value as OnboardingState | null)?.done && setOnboarding(true))
+      .catch(() => undefined);
+  }, [client]);
+  useEffect(() => {
+    const open = () => setOnboarding(true);
+    window.addEventListener(OPEN_ONBOARDING, open);
+    return () => window.removeEventListener(OPEN_ONBOARDING, open);
+  }, []);
 
   // The companion hands things over through shared storage: open a project, the conversation.
   useEffect(() => {
@@ -422,6 +438,7 @@ function Workspace({ injected }: { injected?: Client }) {
           </nav>
         </>
       ) : null}
+      {client ? <Onboarding client={client} open={onboarding} onClose={() => setOnboarding(false)} onAsk={ask} /> : null}
       {client ? <CommandMenu modules={modules} onGo={setSurface} onNew={startNew} onAsk={ask} /> : null}
     </div>
   );

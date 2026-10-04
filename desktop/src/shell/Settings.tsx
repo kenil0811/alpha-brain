@@ -2,7 +2,8 @@
  * Settings, as in Alpha: a header, then a second nav column (icon, label, a dot on the current
  * section) beside the section. Models (how Alpha thinks), Appearance, Avatar (the companion's
  * animal, outfit and colours), Project look and Builds (the core's own settings), Desktop (the
- * companion window and voice), Permissions, Shortcuts, Data, and About (what leaves this Mac).
+ * companion window and voice), Permissions, Shortcuts, Data, and About (what leaves this Mac, and
+ * re-entering first steps).
  * Explanations sit behind (i). What isn't wired yet is there and says "coming soon".
  * `section` / `onSection` come from the address (#/settings/<section>); without them the last
  * section is remembered per window.
@@ -23,6 +24,7 @@ import { Segmented } from "../ui/Segmented";
 import { ACCENTS, CORNERS, DENSITIES, FONTS, SIZES, useAppearance } from "./appearance";
 import { Models } from "./models";
 import { COMPANION_PALETTES } from "./palettes";
+import { OPEN_ONBOARDING } from "./OnboardingDialog";
 import { Permissions } from "./Permissions";
 import { bindingOf, type Combo, comboLabel, problemWith, recorded, sameCombo, saveBinding, SHORTCUTS, type ShortcutId } from "./shortcuts";
 import { ThemeControl, type Theme } from "./theme";
@@ -547,7 +549,7 @@ function Shortcuts() {
 /** pr1's About: what leaves this Mac. */
 function About({ to }: { to: string }) {
   return (
-    <div className="card list" aria-label="What leaves this Mac">
+    <div className="card list" aria-label="About">
       <div className="item">
         <div className="item__body">
           <b>What leaves this Mac</b>
@@ -555,6 +557,11 @@ function About({ to }: { to: string }) {
           <div className="item__sub models__line">Your requests go to {to}.</div>
         </div>
       </div>
+      <Row title="First steps" tip="The questions from your first run: your companion's name, your work, and where Zazoo should begin. Your last answers are filled in.">
+        <Button variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event(OPEN_ONBOARDING))}>
+          Re-enter onboarding
+        </Button>
+      </Row>
     </div>
   );
 }

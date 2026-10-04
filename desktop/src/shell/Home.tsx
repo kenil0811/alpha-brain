@@ -8,7 +8,8 @@ import { Mic } from "lucide-react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { isOwnClick } from "../dataviews/cells";
-import { InfoTip, PageHeader, useComingSoon, useToast } from "../ui";
+import { InfoTip, PageHeader, useToast } from "../ui";
+import { OPEN_ONBOARDING } from "./OnboardingDialog";
 import { ActionCard } from "./ActionCard";
 import { projectIcon } from "./projectIcons";
 import type { Surface } from "./Rail";
@@ -122,8 +123,6 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
   const [home, setHome] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
-  // First steps (five questions, then where to begin) waits on the core's `/api/onboarding`.
-  const soon = useComingSoon();
   useEffect(() => {
     client
       .home()
@@ -333,10 +332,10 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           <div className="card modcard modcard--new">
             <div className="need__head">
               <b>First steps</b>
-              <InfoTip content="Five short questions, then Alpha proposes where to begin. What you say lands on your About you page." label="About first steps" />
+              <InfoTip content="A few short questions, then where Zazoo should begin. What you say lands on your About you page." label="About first steps" />
             </div>
-            <button type="button" className="linkbtn linkbtn--primary" onClick={() => soon("First steps")}>
-              Set up Alpha →
+            <button type="button" className="linkbtn linkbtn--primary" onClick={() => window.dispatchEvent(new Event(OPEN_ONBOARDING))}>
+              Set up Zazoo →
             </button>
           </div>
         </div>

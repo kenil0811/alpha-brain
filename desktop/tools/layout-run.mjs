@@ -63,11 +63,13 @@ try {
     `/intelligence/knowledge/${seed.fact}`, `/intelligence/knowledge/${seed.goal}`, `/intelligence/knowledge/${seed.permission}`, `/intelligence/knowledge/${seed.note}`, "/people", `/people/${seed.entity}`];
   const browser = await chromium.launch({ headless: true, executablePath: BROWSER, channel: BROWSER ? undefined : "chrome" });
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
-    for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {
+    // "/" again with first steps not done: the pop-up's first screen, over Home.
+    for (const [path, model, fresh] of [...pages.map((p) => [p, true]), ["/", false], ["/", true, true]]) {
       const page = await browser.newPage({ viewport: { width, height } });
       await page.route("**/api/ask", (r) => r.fulfill({ json: PREPARED }));
       // The interview's own conversation stays out of the shared core, so later pages don't show it.
       await page.route("**/api/conversations", (r) => (r.request().method() === "POST" ? r.fulfill({ json: { id: "c_layout", title: "Interview" } }) : r.fallback()));
+      if (fresh) await page.route("**/api/preferences/onboarding", (r) => (r.request().method() === "GET" ? r.fulfill({ json: { key: "onboarding", value: null } }) : r.fallback()));
       if (model) await page.route("**/api/thinking", (r) => (r.request().method() === "GET" ? r.fulfill({ json: CONNECTED }) : r.fallback()));
       // The window may only call routes the core has: a 404/405 means a page asks for one it lacks.
       const missing = [];
@@ -86,8 +88,9 @@ try {
       }
       await page.waitForTimeout(400);
       const offline = (await page.locator("text=Alpha's core isn't running").count()) ? ["the window never reached the core"] : [];
+      if (fresh && !(await page.getByRole("dialog", { name: "First steps" }).count())) offline.push("first steps didn't open");
       const found = [...(await page.evaluate(check)), ...missing, ...offline];
-      const where = `${width}x${height} #${path}${model ? "" : " (no model)"}`;
+      const where = `${width}x${height} #${path}${model ? "" : " (no model)"}${fresh ? " (first steps)" : ""}`;
       if (found.length) {
         console.log(`${gate ? "FAIL" : "note"} ${where}\n  ${found.join("\n  ")}`);
         failed ||= gate;

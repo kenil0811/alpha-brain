@@ -1071,3 +1071,19 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px soli
 .interview__drafts li > input { margin-top: 3px; }
 .interview__drafts .stack { flex: 1; gap: 4px; }
 .tools__name { max-width: 320px; }
+
+/* ---- first steps (shell/OnboardingDialog) ---- */
+.onboard { display: flex; flex-direction: column; gap: 16px; }
+.onboard__intro { display: flex; align-items: center; gap: 12px; }
+.onboard__who { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.onboard__bar { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.onboard__bar > div { height: 100%; background: var(--primary); transition: width 0.2s ease; }
+.onboard__q { display: flex; flex-direction: column; gap: 8px; }
+.onboard__prompt { display: flex; align-items: center; gap: 6px; }
+.onboard__look { font-size: var(--text-xs); }
+.onboard .chip { font-size: var(--text-sm); padding: 5px 12px; }
+.onboard .chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.onboard__begin { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.onboard__begin li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.onboard__foot { display: flex; align-items: center; gap: 8px; }
+.onboard__gap { flex: 1; }

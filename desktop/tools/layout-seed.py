@@ -50,6 +50,8 @@ reader = world.readers.save("lumen_jobs", site="lumen.example", url="https://lum
                             to_end=False, count=3)
 perm = world.permissions.grant(sentence="Draft replies to recruiters in your mail",
                                procedure="mail_draft", effect="prepare")
+# First steps are done, so their pop-up doesn't cover the pages (it's checked on its own).
+world.preferences.set("onboarding", {"done": True})
 # One line the layout run reads: the ids its item pages open.
 print("SEED " + json.dumps({"project": project["id"], "fact": fact["id"], "goal": goal["id"],
                             "note": note["id"], "automation": auto["id"],
