@@ -1,12 +1,12 @@
 /**
- * The companion's look, chosen in Settings: the animal, the fur, the suit, the shirt, the
- * neckwear and glasses. Every change is kept in the world at once (the preference
- * `companion_look`), so the companion window and any other Mac draw the same character.
+ * The companion's look, chosen in Settings: the animal, the fur, the suit, the shirt and the
+ * accessories (any mix of tie, bow tie, scarf and spectacles). Every change is kept in the world at once (the preference
+ * `companion_look`), so the companion window and any other Mac draw the same Zazoo.
  */
 import { useEffect, useState } from "react";
 import type { Client } from "../core/client";
 import { Tabs } from "../ui";
-import { ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Size, type Swatch } from "./looks";
+import { ACCESSORIES, ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Size, type Swatch } from "./looks";
 import { Rig } from "./Rig";
 
 const KEY = "companion_look";
@@ -73,18 +73,23 @@ export function LookPicker({ client }: { client: Client }) {
         <Swatches label="Fur" choices={FURS} value={look.fur} onPick={(fur) => change({ fur })} none={animal.fur === null ? "As painted" : `${animal.name}'s own`} />
         <Swatches label="Suit" choices={SUITS} value={look.suit} onPick={(suit) => suit && change({ suit })} />
         <Swatches label="Shirt" choices={SHIRTS} value={look.shirt} onPick={(shirt) => shirt && change({ shirt })} />
-        <div className="look__row" role="group" aria-label="Neckwear">
-          <span className="look__label">Neckwear</span>
-          <Tabs<Neckwear> className="toggle toggle--views" label="Neckwear" value={look.neckwear} onChange={(neckwear) => change({ neckwear })} items={[{ id: "tie", label: "Tie" }, { id: "bow", label: "Bow" }, { id: "none", label: "None" }]} />
+        <div className="look__row" role="group" aria-label="Accessories">
+          <span className="look__label">Accessories</span>
+          <div className="toggle toggle--views">
+            {ACCESSORIES.map((a) => {
+              const on = look.accessories.includes(a.id);
+              return (
+                <button key={a.id} type="button" aria-pressed={on} onClick={() => change({ accessories: ACCESSORIES.map((x) => x.id).filter((x) => (x === a.id ? !on : look.accessories.includes(x))) })}>
+                  {a.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {look.neckwear !== "none" ? <Swatches label={look.neckwear === "bow" ? "Bow" : "Tie"} choices={TIES} value={look.tie} onPick={(tie) => tie && change({ tie })} /> : null}
+        {look.accessories.some((a) => a !== "spectacles") ? <Swatches label="Tie colour" choices={TIES} value={look.tie} onPick={(tie) => tie && change({ tie })} /> : null}
         <div className="look__row" role="group" aria-label="Size">
           <span className="look__label">Size</span>
           <Tabs<Size> className="toggle toggle--views" label="Size" value={look.size} onChange={(size) => change({ size })} items={[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }]} />
-        </div>
-        <div className="look__row">
-          <span className="look__label">Glasses</span>
-          <button type="button" className={`switch${look.glasses ? "" : " switch--off"}`} role="switch" aria-checked={look.glasses} aria-label="Glasses" onClick={() => change({ glasses: !look.glasses })} />
         </div>
         {problem ? (
           <p className="notice" role="alert">

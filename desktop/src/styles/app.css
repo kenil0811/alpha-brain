@@ -492,7 +492,6 @@ body.avatar-window #root { height: 100vh; }
 .avatar__reply { align-self: flex-start; background: var(--hover); border-radius: 12px 12px 12px 4px; padding: 6px 10px; font-size: var(--text-md); max-width: 92%; }
 .avatar__ask { display: flex; align-items: center; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
 .avatar__ask input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--bg); }
-.character { display: block; }
 /* The rig (avatar/Rig.tsx). A mood is a pose (avatar/Rig.tsx POSES): the groups below carry
    its transforms inline and ease between moods here; breath, blinks and the nod are
    animations timed by the pose (--breath, --blink-every, --blink-speed); a happy arrival hops
@@ -516,9 +515,9 @@ body.avatar-window #root { height: 100vh; }
 .rig--nod .rig__head { animation: rig-nod 2.6s ease-in-out infinite; }
 .rig--still .rig__body, .rig--still .rig__eyes, .rig--still .rig__head { animation: none; }
 @keyframes rig-breath { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
-@keyframes rig-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.06); } }
+@keyframes rig-blink { 0%, 93%, 100% { transform: scale(1, 1); } 96% { transform: scale(1.03, 0.06); } }
 @keyframes rig-nod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(2.5deg); } }
-@keyframes rig-hop { 0% { transform: translateY(0); } 35% { transform: translateY(-90px) scale(0.98, 1.03); } 70% { transform: translateY(14px) scale(1.03, 0.97); } 100% { transform: translateY(0); } }
+@keyframes rig-hop { 0% { transform: translateY(0); } 14% { transform: translateY(8px) scale(1.05, 0.95); } 42% { transform: translateY(-100px) scale(0.96, 1.05); } 72% { transform: translateY(12px) scale(1.06, 0.94); } 88% { transform: translateY(-6px) scale(0.99, 1.01); } 100% { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .character *, .character { animation: none !important; } }
 
 /* ---------- derived pages ---------- */
@@ -953,3 +952,37 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__edits { display: flex; flex-direction: column; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .map__edits .kv { grid-template-columns: 1fr; }
 .ipage .kv { grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+
+/* ---- companion: compact chat, accessories, a lit and living character ---- */
+/* The compact chat (AvatarWindow): half the window wide, only the box, then one working line,
+   then only the reply; Expand shows the whole chat as before. */
+.avatar__panel--compact { flex: 0 1 auto; width: 50%; min-width: 184px; border-radius: 14px; }
+.avatar__panel--compact .avatar__ask { margin: 4px; padding: 2px 2px 2px 4px; gap: 2px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); }
+.avatar__panel--compact .avatar__ask:focus-within { border-color: var(--primary); }
+.avatar__panel--compact .avatar__ask input:focus-visible { box-shadow: none; }
+.avatar__panel--compact .avatar__ask input { border: 0; padding: 3px 2px; background: transparent; font-size: var(--text-xs); outline: none; }
+.avatar__panel--compact .iconbtn--sm { width: 22px; height: 22px; border-radius: 999px; }
+.avatar__panel--compact .iconbtn__ico svg { width: 12px; height: 12px; }
+.avatar__send:not(:disabled) { background: var(--primary); color: var(--primary-ink); }
+.avatar__send:not(:disabled):hover { background: var(--primary); color: var(--primary-ink); opacity: 0.9; }
+.avatar__last { flex: 0 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; padding: 6px 6px 0; }
+.avatar__last .avatar__reply { max-width: 100%; font-size: var(--text-xs); }
+.avatar__last .avatar__pills { border: 0; padding: 0; background: none; }
+.avatar__working { display: flex; align-items: center; gap: 6px; margin: 8px 10px 2px; font-size: var(--text-xs); color: var(--text-2); }
+.avatar__needs { align-self: flex-start; gap: 6px; margin: 4px 4px 0; font-size: var(--text-xs); }
+.avatar__head b { font-size: var(--text-md); }
+/* Accessories in the look picker: any mix, so each is pressed on its own. */
+.look .toggle { flex-wrap: wrap; }
+.look .toggle button { white-space: nowrap; }
+.toggle button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(26, 43, 60, 0.12); font-weight: 500; }
+/* The character stands on a soft shadow that shrinks and fades while it is in the air. */
+.character { display: inline-block; position: relative; line-height: 0; }
+.character__shadow { position: absolute; left: 18%; right: 18%; bottom: -5px; height: 9px; border-radius: 50%; background: radial-gradient(closest-side, rgba(10, 16, 40, 0.32), rgba(10, 16, 40, 0)); pointer-events: none; }
+.character:has(.rig__body--hop) .character__shadow { animation: rig-shadow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) 1; }
+@keyframes rig-shadow { 0%, 100% { transform: scaleX(1); opacity: 1; } 14% { transform: scaleX(1.06); } 42% { transform: scaleX(0.7); opacity: 0.45; } 72% { transform: scaleX(1.08); opacity: 1; } }
+/* Follow-through: the ears and whiskers settle a beat after the head, and trail the hop. */
+.rig__follow, .rig__whiskers { transform-box: view-box; transform-origin: 0 0; }
+.rig__ear { transition-delay: 70ms; }
+.rig__whisker { transition-delay: 110ms; }
+.rig__body--hop .rig__follow { animation: rig-follow 0.8s ease-out 60ms 1; }
+@keyframes rig-follow { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(46px); } 62% { transform: translateY(-34px); } 82% { transform: translateY(10px); } }

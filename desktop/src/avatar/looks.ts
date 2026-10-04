@@ -1,6 +1,6 @@
 /**
  * The companion's look: the animal and its wardrobe, chosen by the person in Settings and kept
- * in the world as the preference `companion_look` (design §11, Q27). The companion is Alpha
+ * in the world as the preference `companion_look` (design §11, Q27). The companion is Zazoo
  * whichever animal it is.
  *
  * Every animal is a small delta on one painted body (the panda art, `art/CREDIT.md`): the
@@ -85,7 +85,14 @@ export const TIES: Swatch[] = [
   { name: "Coral", color: "#d9705f" },
 ];
 
-export type Neckwear = "tie" | "bow" | "none";
+/** What it wears, any mix (none too). The bow tie and the scarf take the tie's colour. */
+export type Accessory = "tie" | "bowtie" | "scarf" | "spectacles";
+export const ACCESSORIES: { id: Accessory; label: string }[] = [
+  { id: "tie", label: "Tie" },
+  { id: "bowtie", label: "Bow tie" },
+  { id: "scarf", label: "Scarf" },
+  { id: "spectacles", label: "Spectacles" },
+];
 export type Size = "small" | "medium" | "large";
 /** The character's height on screen, in CSS pixels, when the companion rests. */
 export const SIZE_PX: Record<Size, number> = { small: 60, medium: 80, large: 108 };
@@ -97,12 +104,11 @@ export interface Look {
   suit: string;
   shirt: string;
   tie: string;
-  neckwear: Neckwear;
-  glasses: boolean;
+  accessories: Accessory[];
   size: Size;
 }
 
-export const DEFAULT_LOOK: Look = { animal: "panda", fur: null, suit: SUITS[0].color, shirt: SHIRTS[0].color, tie: TIES[0].color, neckwear: "tie", glasses: false, size: "medium" };
+export const DEFAULT_LOOK: Look = { animal: "panda", fur: null, suit: SUITS[0].color, shirt: SHIRTS[0].color, tie: TIES[0].color, accessories: ["tie"], size: "medium" };
 
 export function animalOf(id: AnimalId): Animal {
   return ANIMALS.find((a) => a.id === id) ?? ANIMALS[0];
@@ -113,7 +119,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 /** The look a stored value means: anything missing or malformed takes the default, so a value
  *  from an older or newer window still draws something. */
 export function normaliseLook(value: unknown): Look {
-  const v = (value && typeof value === "object" ? value : {}) as Partial<Record<keyof Look, unknown>>;
+  const v = (value && typeof value === "object" ? value : {}) as Partial<Record<keyof Look | "neckwear" | "glasses", unknown>>;
   const animal = ANIMALS.some((a) => a.id === v.animal) ? (v.animal as AnimalId) : DEFAULT_LOOK.animal;
   const color = (c: unknown, fallback: string) => (typeof c === "string" && HEX.test(c) ? c.toLowerCase() : fallback);
   return {
@@ -122,10 +128,18 @@ export function normaliseLook(value: unknown): Look {
     suit: color(v.suit, DEFAULT_LOOK.suit),
     shirt: color(v.shirt, DEFAULT_LOOK.shirt),
     tie: color(v.tie, DEFAULT_LOOK.tie),
-    neckwear: v.neckwear === "bow" || v.neckwear === "none" ? v.neckwear : "tie",
-    glasses: v.glasses === true,
+    accessories: accessoriesOf(v),
     size: v.size === "small" || v.size === "large" ? v.size : "medium",
   };
+}
+
+/** The accessories, in the picker's order. A look kept before they were a list had one
+ *  `neckwear` (tie, bow or none; a tie when missing) and a separate `glasses` switch. */
+function accessoriesOf(v: { accessories?: unknown; neckwear?: unknown; glasses?: unknown }): Accessory[] {
+  const worn = Array.isArray(v.accessories)
+    ? v.accessories
+    : [v.neckwear === "bow" ? "bowtie" : v.neckwear === "none" ? null : "tie", v.glasses === true ? "spectacles" : null];
+  return ACCESSORIES.map((a) => a.id).filter((a) => worn.includes(a));
 }
 
 /** The fur the rig draws: the chosen swatch, else the animal's own; null means as painted. */
