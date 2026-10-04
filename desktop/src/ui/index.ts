@@ -11,3 +11,4 @@ export { Trouble } from "./Trouble";
 export { Rich } from "./Rich";
 export { SoonBadge, SoonProvider, useComingSoon } from "./Soon";
 export { StarPicker, type StarOption } from "./StarPicker";
+export { Segmented } from "./Segmented";

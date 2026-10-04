@@ -5,7 +5,7 @@ describe("addresses", () => {
   it("round-trip every surface", () => {
     for (const s of [
       { kind: "home" }, { kind: "activity" }, { kind: "people" }, { kind: "entity", id: "e_1" },
-      { kind: "module", id: "m_de9c" }, { kind: "intelligence" }, { kind: "intelligence", tab: "skills" }, { kind: "settings" },
+      { kind: "module", id: "m_de9c" }, { kind: "intelligence" }, { kind: "intelligence", tab: "skills" }, { kind: "settings" }, { kind: "settings", section: "shortcuts" },
       { kind: "skill", name: "linkedin_connections" }, { kind: "automation", id: "a_1" },
       { kind: "intelligence", tab: "connections", item: "c_1" }, { kind: "intelligence", tab: "knowledge", item: "f_1" },
       { kind: "intelligence", tab: "knowledge", item: "standing-instructions" }, { kind: "intelligence", tab: "skills", item: "hand:browser" },

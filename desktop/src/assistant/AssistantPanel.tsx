@@ -10,6 +10,7 @@ import { moduleWords } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
+import { pressed } from "../shell/shortcuts";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Button, IconButton, Menu, MenuHeading, MenuItem, Trouble, Rich, useComingSoon } from "../ui";
 import { ChevronRight, ChevronDown, Check, X, PlusIcon, File as FileIcon, FolderOpen } from "../ui/icons";
@@ -384,7 +385,7 @@ export function AssistantPanel({
     setText(final || interim);
   });
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || !e.shiftKey)) {
+    if (pressed(e, "send")) {
       e.preventDefault();
       if (speech.listening) speech.stop();
       void send(text);

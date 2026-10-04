@@ -8,7 +8,7 @@ export type Surface =
   | { kind: "home" }
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string; item?: string }
-  | { kind: "settings" }
+  | { kind: "settings"; section?: string }
   | { kind: "people" }
   | { kind: "entity"; id: string }
   | { kind: "skill"; name: string }
