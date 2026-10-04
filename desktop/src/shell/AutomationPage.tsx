@@ -1,6 +1,6 @@
 /**
  * One automation's page: the sentence, when it runs, the switch and Run now, what it runs (in
- * words, never edited here: the person asks Alpha), and its runs with what each found.
+ * words; an edit to any of them is drafted for Zazoo), and its runs with what each found.
  */
 import { useEffect, useState } from "react";
 import type { AutomationDetail, Client } from "../core/client";
@@ -8,6 +8,7 @@ import { when } from "../modules/format";
 import { Badge, Button } from "../ui";
 import { ArrowLeft, Check, X } from "../ui/icons";
 import type { Surface } from "./Rail";
+import { AutomationEdits, EditField } from "./IntelItem";
 import { stepSentence } from "./steps";
 
 export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: { client: Client; id: string; version: number; onGo: (s: Surface) => void; onAsk: (text: string) => void; onChanged: () => void }) {
@@ -65,17 +66,20 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
             Run now
           </Button>
           <Button size="sm" variant="primary" onClick={() => onAsk(`Change the automation "${auto.title}": `)}>
-            Ask Alpha to change this
+            Ask Zazoo to change this
           </Button>
         </div>
       </div>
       {message ? <p className="notice notice--ok" role="status">{message}</p> : null}
       {auto.last_error ? <p className="notice">Last run didn't work: {auto.last_error}</p> : null}
+      <div className="card card--pad stack ipage">
+        <AutomationEdits auto={{ ...auto, procedure: "" }} onAsk={onAsk} />
+      </div>
 
       <div className="section">
         <div className="section__head">
           <h2>What it does</h2>
-          <span className="faint">{auto.pipeline?.length ? "a pipeline: these steps, with no model" : "Alpha follows these instructions each run"}</span>
+          <span className="faint">{auto.pipeline?.length ? "a pipeline: these steps, with no model" : "Zazoo follows these instructions each run"}</span>
         </div>
         <div className="card card--pad">
           {auto.pipeline?.length ? (
@@ -85,7 +89,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
               ))}
             </ol>
           ) : (
-            <div className="people__page">{auto.procedure}</div>
+            <EditField label="Instructions" value={auto.procedure} multiline zazoo onSave={(next) => onAsk(`Change the instructions of “${auto.title}” to: ${next}`)} />
           )}
         </div>
       </div>

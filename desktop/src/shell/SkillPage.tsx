@@ -1,14 +1,15 @@
 /**
- * One skill's page: what it is and does, in words; its body shown and never edited here (a
- * skill is Alpha's know-how, repaired by Alpha: the person asks for a change); Alpha's notes
- * page, which the person may edit; its runs.
+ * One skill's page: what it is and does, in words, each field drafted for Zazoo when edited;
+ * its body shown and never edited here (a skill is Zazoo's know-how, repaired by Zazoo: the
+ * person asks for a change); Zazoo's notes page, which the person may edit; its runs.
  */
 import { useEffect, useState } from "react";
 import type { Client, SkillDetail } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button } from "../ui";
+import { Badge, Button, useComingSoon } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 import type { Surface } from "./Rail";
+import { SkillEdits } from "./IntelItem";
 import { stepSentence } from "./steps";
 
 const KIND: Record<string, string> = { read: "Reads a list from a page", act: "Does a task on a site", run: "Runs on its own" };
@@ -18,6 +19,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState("");
+  const soon = useComingSoon();
   useEffect(() => {
     let live = true;
     client
@@ -60,17 +62,24 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
             </span>
           </div>
         </div>
-        <Button variant="primary" size="sm" onClick={() => onAsk(`Change the skill ${skill.name} (${skill.description}): `)}>
-          Ask Alpha to change this
-        </Button>
+        <div className="row">
+          <Button size="sm" onClick={() => soon("Running a skill on its own")}>
+            Run
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => onAsk(`Change the skill ${skill.name} (${skill.description}): `)}>
+            Ask Zazoo to change this
+          </Button>
+        </div>
       </div>
-      {skill.when_to_use ? <p className="muted">When: {skill.when_to_use}</p> : null}
+      <div className="card card--pad stack ipage">
+        <SkillEdits skill={skill} onAsk={onAsk} />
+      </div>
       {skill.last_problem ? <p className="notice">{skill.last_problem}</p> : null}
 
       <div className="section">
         <div className="section__head">
           <h2>How it works</h2>
-          <span className="faint">Alpha wrote this and repairs it; it is not edited by hand.</span>
+          <span className="faint">Zazoo wrote this and repairs it; it is not edited by hand.</span>
         </div>
         <div className="card card--pad">
           {skill.url ? (
@@ -95,7 +104,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
 
       <div className="section">
         <div className="section__head">
-          <h2>Alpha's notes</h2>
+          <h2>Zazoo's notes</h2>
           <span className="faint">what it learned about the site; yours to add to</span>
           <span className="section__right">
             {editing ? (
@@ -118,7 +127,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
           {editing ? (
             <textarea className="note__edit" rows={8} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Notes on ${name}`} />
           ) : skill.notes ? (
-            <div className="people__page">{skill.notes.body}</div>
+            <div className="people__page editable" title="Double-click to edit" onDoubleClick={() => setEditing(true)}>{skill.notes.body}</div>
           ) : (
             <p className="muted" style={{ fontSize: "var(--text-md)" }}>No notes yet.</p>
           )}

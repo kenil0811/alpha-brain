@@ -1,5 +1,5 @@
 /**
- * Home: what needs the person (questions Alpha asked, things it proposes, facts waiting for a
+ * Home: what needs the person (questions Zazoo asked, things it proposes, facts waiting for a
  * yes), what's coming up, and their modules. Nothing here is decoration: each card is something
  * to answer or open.
  */
@@ -8,7 +8,7 @@ import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
-import { Badge, Button } from "../ui";
+import { Badge, Button, useComingSoon } from "../ui";
 import { ModuleIcon, ArrowRight, Check, X, Eye } from "../ui/icons";
 
 function greeting(): string {
@@ -44,7 +44,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
       <article className="card need">
         <h3>{item.text}</h3>
         <p className="because">
-          <b>Alpha asked</b> {when(item.at)}, because the answer changes what it builds.
+          <b>Zazoo asked</b> {when(item.at)}, because the answer changes what it builds.
         </p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); if (answer.trim()) void act(() => client.answerAsk(item.id, answer.trim()), "Answered."); }}>
           {item.options?.length ? (
@@ -79,7 +79,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
           </p>
         ) : null}
         <div className="row">
-          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
+          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Zazoo is doing that now.")}>
             {item.plan ? "Build it" : "Yes, do it"}
           </Button>
           <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
@@ -95,7 +95,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
       <h3>Is this right? {item.text.replace(/_/g, " ")}</h3>
       {item.why ? (
         <p className="because">
-          <b>Alpha noticed</b> {item.why}
+          <b>Zazoo noticed</b> {item.why}
         </p>
       ) : null}
       <div className="row">
@@ -115,6 +115,8 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
   const [home, setHome] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // First steps (a few questions, then where to begin) waits on an onboarding route in the core.
+  const soon = useComingSoon();
   useEffect(() => {
     client
       .home()
@@ -154,7 +156,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         <div className="card tile">
           <div className="tile__lab">Done today</div>
           <div className="tile__big num">{home.ran_today}</div>
-          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work; see Activity` : "Things Alpha read, made and changed"}</div>
+          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work; see Activity` : "Things Zazoo read, made and changed"}</div>
         </div>
         <div className="card tile">
           <div className="tile__lab">Coming up</div>
@@ -167,7 +169,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         <div className="section" style={{ marginTop: 0 }}>
           <div className="section__head">
             <h2>Needs you</h2>
-            <span className="faint">Alpha never sends anything or acts for you without a yes</span>
+            <span className="faint">Zazoo never sends anything or acts for you without a yes</span>
           </div>
           <div className="needs">
             {home.needs_you.map((item) => (
@@ -180,7 +182,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       {home.threads.length ? (
         <div className="section">
           <div className="section__head">
-            <h2>Alpha is working on</h2>
+            <h2>Zazoo is working on</h2>
           </div>
           <div className="card list">
             {home.threads.map((t) => (
@@ -200,7 +202,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                     </div>
                   ) : null}
                   {t.steps?.length ? (
-                    <ul className="stages thread__live" aria-label="What Alpha did lately">
+                    <ul className="stages thread__live" aria-label="What Zazoo did lately">
                       {t.steps.map((s, i) => (
                         <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : ""}>
                           {s.kind === "failed" ? <X size={12} aria-label="failed" /> : s.kind === "saw" ? <Eye size={12} aria-label="read" /> : <Check size={12} aria-label="done" />} {s.text}
@@ -275,9 +277,17 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           <div className="card modcard modcard--new">
             <div className="eyebrow">New</div>
             <b>Describe what you want</b>
-            <p>"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Alpha sets it up and grows it as you use it.</p>
+            <p>"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Zazoo sets it up and grows it as you use it.</p>
             <button type="button" className="linkbtn" style={{ color: "var(--primary)", fontWeight: 500 }} onClick={onNew}>
               Start a new module <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="card modcard modcard--new">
+            <div className="eyebrow">First steps</div>
+            <b>Set up Alpha</b>
+            <p>A few short questions, then Zazoo proposes where to begin. What you say lands in About you.</p>
+            <button type="button" className="linkbtn" style={{ color: "var(--primary)", fontWeight: 500 }} onClick={() => soon("First steps")}>
+              Set up Alpha <ArrowRight size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -286,7 +296,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         <div className="section">
           <div className="card card--pad">
             <div className="eyebrow">First steps</div>
-            <p style={{ marginTop: 6 }}>Tell Alpha one thing you keep track of, or connect something it can read.</p>
+            <p style={{ marginTop: 6 }}>Tell Zazoo one thing you keep track of, or connect something it can read.</p>
             <div className="row" style={{ marginTop: 10 }}>
               <Button onClick={() => onAsk("I want to track what I eat")}>Track what I eat</Button>
               <Button onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</Button>
