@@ -70,8 +70,14 @@ const NOSE = { x: AXIS, y: 1118 };
 const LIP = { x: AXIS, y: 1255 };
 const BROW_L = { x: BOX.brow[0] + BOX.brow[2] / 2, y: BOX.brow[1] + BOX.brow[3] / 2 };
 const BROW_R = { x: BOX.browR[0] + BOX.browR[2] / 2, y: BOX.browR[1] + BOX.browR[3] / 2 };
-/** Head and shoulders: the bust the companion shows. */
-const VIEW = { x: 420, y: 180, w: 2700, h: 2250 };
+/**
+ * The whole figure: the arms (x 338..3199), the egg and the suit down to y 3574, and the tall
+ * ears' tips (y 35) with room above them for the hop and the breath. It was the bust (420, 180,
+ * 2700, 2250) until 4 Oct, which cut the arms at the sides and the body at the bottom at every size.
+ */
+const VIEW = { x: 300, y: -150, w: 2937, h: 3750 };
+/** The rig's width on screen for a height: what a window holding it has to leave room for. */
+export const rigWidth = (size: number) => Math.round(size * (VIEW.w / VIEW.h));
 const TALK = ["talking", "open", "default", "open"] as const;
 
 const mirror = `translate(${2 * AXIS} 0) scale(-1 1)`;
@@ -225,6 +231,20 @@ function Nose({ kind, color }: { kind: "tri" | "oval"; color: string }) {
   );
 }
 
+/**
+ * The pupil of a white eye: a dark iris in the painted eye's colour under the painted glints.
+ * `pupil.webp` is only the two white catchlights (the panda's dark is in `eye.webp`), so drawn
+ * alone on the white it was white on white and nine of the ten animals had no eyes (4 Oct).
+ */
+function WhiteEyePupil({ cx }: { cx: number }) {
+  return (
+    <>
+      <ellipse cx={cx} cy={EYE.y} rx="96" ry="106" fill="#393841" />
+      <image href={pupil} x={cx - 110} y={EYE.y - 104} width="220" height="209" />
+    </>
+  );
+}
+
 function Bow({ color }: { color: string }) {
   const x = AXIS;
   const y = 1720;
@@ -364,7 +384,7 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
   return (
     <svg
       className={`rig rig--${mood}${still ? " rig--still" : ""}${pose.nod && !still ? " rig--nod" : ""}${className ? ` ${className}` : ""}`}
-      width={Math.round(size * (VIEW.w / VIEW.h))}
+      width={rigWidth(size)}
       height={size}
       viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
       role="img"
@@ -430,10 +450,10 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
                 )}
                 <g className="rig__pupils" style={{ transform: `translate(${pose.gazeX + drift.x}px, ${pose.gazeY + drift.y}px)` }}>
                   <Pivot x={EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} />}
+                    {animal.eyes === "white" ? <WhiteEyePupil cx={EYE.x} /> : <Part href={pupil} box={BOX.pupil} />}
                   </Pivot>
                   <Pivot x={2 * AXIS - EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={2 * AXIS - EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
+                    {animal.eyes === "white" ? <WhiteEyePupil cx={2 * AXIS - EYE.x} /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
                   </Pivot>
                 </g>
               </Pivot>

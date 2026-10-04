@@ -87,8 +87,10 @@ export const TIES: Swatch[] = [
 
 export type Neckwear = "tie" | "bow" | "none";
 export type Size = "small" | "medium" | "large";
-/** The character's height on screen, in CSS pixels, when the companion rests. */
-export const SIZE_PX: Record<Size, number> = { small: 60, medium: 80, large: 108 };
+/** The character's height on screen, in CSS pixels, when the companion rests. The rig now
+ *  frames the whole figure (Rig.tsx VIEW, 3750 units tall where the bust was 2250), so Large
+ *  draws it at the scale the old Medium (80) did and Small at the old Small's (60). */
+export const SIZE_PX: Record<Size, number> = { small: 100, medium: 115, large: 133 };
 
 export interface Look {
   animal: AnimalId;

@@ -11,6 +11,7 @@ import { MicButton, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
 import { moved, press, released, type Press } from "./drag";
 import { SIZE_PX, normaliseLook } from "./looks";
+import { rigWidth } from "./Rig";
 import { hasTauri } from "../core/session";
 import { Button, IconButton, Rich } from "../ui";
 import { X, Maximize2 } from "../ui/icons";
@@ -236,7 +237,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   useEffect(() => {
     // The window covers what it shows: the character with room for its shadow, the character
     // under a bubble, or the open panel.
-    const [width, height] = mode === "open" ? [380, 560] : mode === "bubble" ? [320, 150 + px] : [px + 32, px + 44];
+    const [width, height] = mode === "open" ? [380, 560] : mode === "bubble" ? [320, 150 + px] : [rigWidth(px) + 32, px + 44];
     host?.layout(mode, width, height).catch(() => undefined);
   }, [host, mode, px]);
 
