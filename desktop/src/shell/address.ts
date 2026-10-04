@@ -2,7 +2,7 @@
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
  * rebuilt on main's Surface). `#/home`, `#/activity`, `#/people`, `#/people/<id>`, `#/m/<id>`,
- * `#/intelligence/<tab>`, `#/settings`. Nothing else is in the address: what is open inside a
+ * `#/intelligence/<tab>`, `#/intelligence/<tab>/<item>` (an item's own page), `#/settings`, `#/settings/<section>`. Nothing else is in the address: what is open inside a
  * page stays where it was.
  */
 import { knownSurface, type Surface } from "./Rail";
@@ -20,13 +20,14 @@ export function pathFor(surface: Surface): string {
     case "module":
       return `/m/${encodeURIComponent(surface.id)}`;
     case "intelligence":
-      return surface.tab ? `/intelligence/${encodeURIComponent(surface.tab)}` : "/intelligence";
+      if (!surface.tab) return "/intelligence";
+      return `/intelligence/${encodeURIComponent(surface.tab)}${surface.item ? `/${encodeURIComponent(surface.item)}` : ""}`;
     case "skill":
       return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
     case "automation":
       return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
     case "settings":
-      return "/settings";
+      return surface.section ? `/settings/${encodeURIComponent(surface.section)}` : "/settings";
   }
 }
 
@@ -35,14 +36,16 @@ export function surfaceFromPath(path: string): Surface | null {
   const parts = path.replace(/^#?\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const [head, rest, third] = [parts[0], parts[1], parts[2]];
   if (!head) return null;
-  if (head === "home" || head === "activity" || head === "people" || head === "settings") {
+  if (head === "settings") return rest ? { kind: "settings", section: rest } : { kind: "settings" };
+  if (head === "home" || head === "activity" || head === "people") {
     if (head === "people" && rest) return { kind: "entity", id: rest };
     return knownSurface({ kind: head });
   }
   if (head === "m" && rest) return { kind: "module", id: rest };
   if (head === "intelligence") {
-    if (rest === "skills" && third) return { kind: "skill", name: third };
+    if (rest === "skills" && third && !third.startsWith("hand:")) return { kind: "skill", name: third };
     if (rest === "automations" && third) return { kind: "automation", id: third };
+    if (rest && third) return { kind: "intelligence", tab: rest, item: third };
     return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
   }
   return null;

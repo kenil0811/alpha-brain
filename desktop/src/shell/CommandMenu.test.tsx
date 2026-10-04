@@ -40,7 +40,7 @@ describe("⌘K", () => {
       </TooltipProvider>,
     );
     await user.type(screen.getByRole("combobox"), "how much protein today");
-    await user.click(await screen.findByRole("option", { name: /Ask Alpha/ }));
+    await user.click(await screen.findByRole("option", { name: /Ask Zazoo/ }));
     expect(onAsk).toHaveBeenCalledWith("how much protein today");
   });
 });

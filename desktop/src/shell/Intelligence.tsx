@@ -1,16 +1,19 @@
 /**
- * Intelligence: everything Alpha can do (skills), runs on its own (automations), reaches
+ * Intelligence: everything Zazoo can do (skills), runs on its own (automations), reaches
  * (connections) and knows (knowledge: facts, notes, goals). Each is a sentence the person can
- * read, switch or correct, never a configuration form.
+ * read, switch or correct, never a configuration form; a click opens its own page
+ * (IntelItem.tsx), where every field edits.
  */
 import { WorkMap } from "./map/WorkMap";
 import { type FormEvent, useEffect, useState } from "react";
-import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
+import type { Client, Connection, ConnectionRemoval, GraphNode, Intelligence as Data, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
 import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
-import { Button, Badge, Tabs } from "../ui";
+import { Button, Badge, IconButton, Tabs, useComingSoon } from "../ui";
+import { PlusIcon, X } from "../ui/icons";
+import { findItem, INSTRUCTIONS, IntelItemPage, opener, type ItemContext } from "./IntelItem";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
@@ -39,7 +42,7 @@ function removalWords(plan: ConnectionRemoval): string {
   return `Removes ${plan.what}. ${plan.connector === "files" ? "Your files stay." : "Your tables keep their rows."}`;
 }
 
-function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
+function Connections({ client, data, onChanged, onOpen }: { client: Client; data: Data; onChanged: () => void; onOpen: (id: string) => void }) {
   const [folder, setFolder] = useState("");
   const [site, setSite] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -73,16 +76,18 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   return (
     <div className="stack">
       <div className="card list">
-        {!live.length ? <p className="empty">Nothing connected yet. Alpha can always read public web pages; connect a folder, a site you sign into, or your calendar below.</p> : null}
+        {!live.length ? <p className="empty">Nothing connected yet. Zazoo can always read public web pages; connect a folder, a site you sign into, or your calendar below.</p> : null}
         {live.map((c) => {
           const meta = CONNECTOR[c.connector] ?? { icon: "•", label: () => c.target, reach: "" };
           return (
-            <div key={c.id} className="item">
+            <div key={c.id} className="item item--open" onClick={opener(() => onOpen(c.id))}>
               <div className="item__ico" aria-hidden="true">
                 {meta.icon}
               </div>
               <div className="item__body">
-                <b>{meta.label(c)}</b>
+                <button type="button" className="linkbtn item__title" onClick={() => onOpen(c.id)}>
+                  {meta.label(c)}
+                </button>
                 <div className={`item__sub${removing?.id === c.id ? " item__sub--warn" : ""}`}>
                   {removing?.id === c.id ? (
                     removing.plan ? removalWords(removing.plan) : "…"
@@ -120,11 +125,11 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
         })}
       </div>
       <div className="intel">
-        <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Alpha is reading the folder."); }}>
+        <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Zazoo is reading the folder."); }}>
           <div className="intel__head">
             <h3>A folder</h3>
           </div>
-          <p className="muted" style={{ fontSize: "var(--text-md)" }}>Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change.</p>
+          <p className="muted" style={{ fontSize: "var(--text-md)" }}>Resumes, notes, spreadsheets, PDFs. Zazoo reads them and keeps up as they change.</p>
           <div className="row" style={{ marginTop: 10 }}>
             <input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
             <Button variant="primary" type="submit" disabled={!folder.trim() || busy !== null}>
@@ -171,10 +176,11 @@ const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", 
 
 function SkillCard({ skill, modules, onOpen }: { skill: Skill; modules: Record<string, string>; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
+  const soon = useComingSoon();
   const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a module" : "");
   const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
   return (
-    <div className="card card--pad intel__card">
+    <div className={`card card--pad intel__card${onOpen ? " intel__card--open" : ""}`} onClick={onOpen ? opener(onOpen) : undefined}>
       <div className="intel__head">
         <h3>
           {onOpen ? (
@@ -197,25 +203,33 @@ function SkillCard({ skill, modules, onOpen }: { skill: Skill; modules: Record<s
       </p>
       {skill.when_to_use ? <p className="faint">When: {skill.when_to_use}</p> : null}
       {skill.last_problem ? <p className="notice" style={{ fontSize: "var(--text-sm)" }}>{skill.last_problem}</p> : null}
-      {skill.notes ? (
-        <>
-          <Button size="sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
-            {open ? "Hide notes" : "Alpha's notes"}
+      <div className="row" style={{ marginTop: 6 }}>
+        <Button size="sm" onClick={() => soon("Running a skill on its own")}>
+          Run
+        </Button>
+        {skill.notes ? (
+          <Button size="sm" variant="ghost" onClick={() => setOpen(!open)}>
+            {open ? "Hide notes" : "Zazoo's notes"}
           </Button>
-          {open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
-        </>
-      ) : null}
+        ) : null}
+      </div>
+      {skill.notes && open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
     </div>
   );
 }
 
-function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onChanged: () => void }) {
+/** A note: its title opens its page, a double-click on its text edits it here. */
+function NoteCard({ note, client, onChanged, onOpen }: { note: Note; client: Client; onChanged: () => void; onOpen: () => void }) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(note.body);
   return (
     <div className="card card--pad intel__card">
       <div className="intel__head">
-        <h3>{note.title}</h3>
+        <h3>
+          <button type="button" className="linkbtn" onClick={onOpen}>
+            {note.title}
+          </button>
+        </h3>
         <span className="faint">{note.scope === "person" ? "about you" : note.scope.replace(/^module:/, "")}</span>
       </div>
       {editing ? (
@@ -231,7 +245,7 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
           </div>
         </>
       ) : (
-        <p className="muted editable" style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-md)" }} onClick={() => setEditing(true)} title="Click to edit">
+        <p className="muted editable" style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-md)" }} onDoubleClick={() => setEditing(true)} title="Double-click to edit">
           {note.body}
         </p>
       )}
@@ -239,8 +253,11 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
   );
 }
 
-function Knowledge({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
+function Knowledge({ client, data, onChanged, onOpen }: { client: Client; data: Data; onChanged: () => void; onOpen: (id: string) => void }) {
   const { facts, notes, goals } = data.knowledge;
+  const soon = useComingSoon();
+  const [field, setField] = useState("");
+  const [value, setValue] = useState("");
   const permissions = data.knowledge.permissions ?? [];
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
   return (
@@ -248,13 +265,18 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>About you</h3>
-          <span className="faint">what you told Alpha, and what it noticed</span>
+          <span className="faint">what you told Zazoo, and what it noticed</span>
         </div>
-        {!facts.length ? <p className="empty">Nothing yet. Tell Alpha about yourself in any conversation and it remembers.</p> : null}
+        {!facts.length ? <p className="empty">Nothing yet. Tell Zazoo about yourself in any conversation and it remembers.</p> : null}
         <dl className="intel__facts">
           {facts.map((f) => (
-            <div key={f.id}>
-              <dt>{humanize(f.predicate)}</dt>
+            <div key={f.id} className="intel__fact" onClick={opener(() => onOpen(f.id))}>
+              <dt>
+                <button type="button" className="linkbtn" onClick={() => onOpen(f.id)}>
+                  {humanize(f.predicate)}
+                </button>
+                {f.state !== "suggested" ? <IconButton size="sm" className="intel__forget" label={`Forget ${humanize(f.predicate).toLowerCase()}`} icon={<X size={13} />} onClick={() => soon("Forgetting a fact")} /> : null}
+              </dt>
               <dd>
                 {f.value}
                 <div className="faint">{factOrigin(f)}</div>
@@ -272,16 +294,25 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
             </div>
           ))}
         </dl>
+        <form className="row intel__add" onSubmit={(e: FormEvent) => { e.preventDefault(); soon("Adding a fact"); }}>
+          <input className="need__input" value={field} onChange={(e) => setField(e.target.value)} placeholder="A new fact" aria-label="What" />
+          <input className="need__input" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Its value" aria-label="Value" />
+          <Button size="sm" type="submit" icon={<PlusIcon size={14} />} disabled={!field.trim() || !value.trim()}>
+            Add
+          </Button>
+        </form>
       </div>
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Goals</h3>
         </div>
-        {!goals.length ? <p className="empty">No goals yet. Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.</p> : null}
+        {!goals.length ? <p className="empty">No goals yet. Say one ("under 2,000 kcal on weekdays") and Zazoo works towards it.</p> : null}
         <div className="stack">
           {goals.map((g) => (
-            <div key={g.id}>
-              <b style={{ fontWeight: 500 }}>{g.text}</b>
+            <div key={g.id} className="intel__open" onClick={opener(() => onOpen(g.id))}>
+              <button type="button" className="linkbtn" style={{ fontWeight: 500 }} onClick={() => onOpen(g.id)}>
+                {g.text}
+              </button>
               <div className="item__sub">
                 {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
               </div>
@@ -292,14 +323,17 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Standing permissions</h3>
-          <span className="faint">what Alpha may do without asking; anything sent asks every time</span>
+          <span className="faint">what Zazoo may do without asking; anything sent asks every time</span>
         </div>
-        {!permissions.length ? <p className="empty">None yet. When Alpha proposes a draft or a message, "Always allow" on its card makes one.</p> : null}
+        {!permissions.length ? <p className="empty">None yet. When Zazoo proposes a draft or a message, "Always allow" on its card makes one.</p> : null}
         <div className="stack">
           {permissions.map((p) => (
-            <div key={p.id} className="row" style={{ justifyContent: "space-between" }}>
+            <div key={p.id} className="row intel__open" style={{ justifyContent: "space-between" }} onClick={opener(() => onOpen(p.id))}>
               <span>
-                {p.sentence} <span className="faint">· since {when(p.granted_at)}</span>
+                <button type="button" className="linkbtn" onClick={() => onOpen(p.id)}>
+                  {p.sentence}
+                </button>{" "}
+                <span className="faint">· since {when(p.granted_at)}</span>
               </span>
               <Button size="sm" variant="ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
                 Revoke
@@ -309,16 +343,20 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
         </div>
       </div>
       {instructions ? null : (
-        <NoteCard note={{ id: "new", scope: "person", title: "Standing instructions", body: "Ask before sending anything to anyone.", updated_at: "" }} client={client} onChanged={onChanged} />
+        <NoteCard note={INSTRUCTIONS} client={client} onChanged={onChanged} onOpen={() => onOpen(INSTRUCTIONS.id)} />
       )}
       {notes.map((n) => (
-        <NoteCard key={n.id} note={n} client={client} onChanged={onChanged} />
+        <NoteCard key={n.id} note={n} client={client} onChanged={onChanged} onOpen={() => onOpen(n.id)} />
       ))}
     </div>
   );
 }
 
-export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: { client: Client; tab: IntelTab; version: number; onTab: (t: IntelTab) => void; onChanged: () => void; onGo?: (s: Surface) => void }) {
+/** The item a map node is, as (tab, id) for `findItem`: node ids are `<kind>:<id>`. */
+const NODE_TAB: Partial<Record<GraphNode["kind"], string>> = { skill: "skills", automation: "automations", connection: "connections", goal: "knowledge", page: "knowledge" };
+
+export function Intelligence({ client, tab, item, version, onTab, onChanged, onGo, onAsk }: { client: Client; tab: IntelTab; item?: string; version: number; onTab: (t: IntelTab) => void; onChanged: () => void; onGo: (s: Surface) => void; onAsk: (text: string) => void }) {
+  const soon = useComingSoon();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modules, setModules] = useState<Record<string, string>>({});
@@ -332,32 +370,52 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
       .then((list) => setModules(Object.fromEntries(list.map((m) => [m.id, m.name]))))
       .catch(() => setModules({}));
   }, [client, version]);
+  const ctx: ItemContext | null = data ? { client, data, modules, onGo, onAsk, onChanged } : null;
+  const open = (t: string) => (id: string) => onGo({ kind: "intelligence", tab: t, item: id });
+  if (item) return ctx ? <IntelItemPage tab={tab} item={item} ctx={ctx} /> : <div className="page">{error ? <p className="notice">{error}</p> : <p className="empty">Loading…</p>}</div>;
   return (
     <div className="page">
       <div className="home__head">
         <h1>Intelligence</h1>
-        <span className="muted">Everything Alpha can do, runs on its own, reaches, and knows</span>
+        <span className="muted">Everything Zazoo can do, runs on its own, reaches, and knows</span>
       </div>
       <Tabs label="Intelligence" value={tab} onChange={onTab} items={TABS} style={{ marginTop: 16 }} />
       {!data ? (
         error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "map" ? (
-        <WorkMap client={client} onGo={onGo} />
+        <WorkMap
+          client={client}
+          onGo={onGo}
+          card={(n) => {
+            const t = NODE_TAB[n.kind];
+            return t && ctx ? findItem(t, n.id.slice(n.kind.length + 1), ctx)?.body : null;
+          }}
+        />
       ) : tab === "skills" ? (
         <div className="intel">
+          <div className="intel__group intel__group--bar">
+            Learned
+            <Button size="sm" icon={<PlusIcon size={14} />} onClick={() => soon("A new skill")}>
+              New skill
+            </Button>
+          </div>
           {data.skills.length ? (
-            data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={modules} onOpen={onGo ? () => onGo({ kind: "skill", name: s.name }) : undefined} />)
+            data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={modules} onOpen={() => onGo({ kind: "skill", name: s.name })} />)
           ) : (
             <div className="card card--pad intel__card modcard--new">
-              <b>Skills Alpha learns</b>
-              <p className="muted">When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes.</p>
+              <b>Skills Zazoo learns</b>
+              <p className="muted">When Zazoo reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes.</p>
             </div>
           )}
           <div className="intel__group">Hands</div>
           {data.hands.map((s) => (
-            <div key={s.name} className="card card--pad intel__card">
+            <div key={s.name} className="card card--pad intel__card intel__card--open" onClick={opener(() => open("skills")(`hand:${s.name}`))}>
               <div className="intel__head">
-                <h3>{s.title}</h3>
+                <h3>
+                  <button type="button" className="linkbtn" onClick={() => open("skills")(`hand:${s.name}`)}>
+                    {s.title}
+                  </button>
+                </h3>
                 <Badge tone="gray">Built in</Badge>
               </div>
               <p className="muted">{s.description}</p>
@@ -373,11 +431,11 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
           ))}
         </div>
       ) : tab === "automations" ? (
-        <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "automation", id }) : undefined} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
+        <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={(id) => onGo({ kind: "automation", id })} empty="Nothing runs on its own yet. Ask Zazoo to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
       ) : tab === "connections" ? (
-        <Connections client={client} data={data} onChanged={onChanged} />
+        <Connections client={client} data={data} onChanged={onChanged} onOpen={open("connections")} />
       ) : (
-        <Knowledge client={client} data={data} onChanged={onChanged} />
+        <Knowledge client={client} data={data} onChanged={onChanged} onOpen={open("knowledge")} />
       )}
     </div>
   );

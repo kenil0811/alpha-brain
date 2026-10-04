@@ -49,7 +49,7 @@ export function AvatarBoot() {
       cancelled = true;
     };
   }, [state === null]);
-  if (!state) return <div className="avatar avatar--waiting" aria-label="Alpha is starting" />;
-  if ("reason" in state) return <div className="avatar avatar--waiting" title={state.reason} aria-label="Alpha is starting" />;
+  if (!state) return <div className="avatar avatar--waiting" aria-label="Zazoo is starting" />;
+  if ("reason" in state) return <div className="avatar avatar--waiting" title={state.reason} aria-label="Zazoo is starting" />;
   return <AvatarWindow client={state.client} host={state.host} />;
 }

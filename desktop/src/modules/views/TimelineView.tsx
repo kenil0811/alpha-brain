@@ -1,9 +1,12 @@
-/** Rows along time: months newest first, each row on its day with a few values. */
+/** Rows along time: months newest first, each row on its day with a few values. A click opens
+ *  a row; a double-click on a value edits it there. */
 import type { RecordRow } from "../../core/client";
-import { showValue, type FieldInfo } from "../fields";
+import type { FieldInfo } from "../fields";
+import { CardValue, opens } from "./cells";
 import { byMonth } from "./engine";
 
-export function TimelineView({ rows, field, titleField, fields, onOpen }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; onOpen: (id: string) => void }) {
+export function TimelineView({ rows, field, titleField, fields, onOpen, onCommit }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void }) {
+  const title = fields.find((f) => f.name === titleField);
   const months = byMonth(rows, field);
   const extras = fields.filter((f) => f.name !== titleField && f.name !== field.name && f.kind !== "long_text").slice(0, 2);
   if (!months.length) return <p className="empty">Nothing with a {field.label ?? field.name} yet.</p>;
@@ -13,11 +16,15 @@ export function TimelineView({ rows, field, titleField, fields, onOpen }: { rows
         <section key={m.month} className="timeline__month" aria-label={monthName(m.month)}>
           <h4>{monthName(m.month)}</h4>
           {m.rows.map((row) => (
-            <button key={row.id} type="button" className="timeline__row" onClick={() => onOpen(row.id)}>
+            <div key={row.id} className="timeline__row" {...opens(() => onOpen(row.id))}>
               <span className="timeline__day num">{String(row.values[field.name]).slice(8, 10)}</span>
-              <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
-              <span className="faint">{extras.map((f) => showValue(row.values[f.name], f.kind, f.unit)).filter(Boolean).join(" · ")}</span>
-            </button>
+              <b><CardValue row={row} field={title} onCommit={onCommit} /></b>
+              {extras.map((f) => (
+                <span key={f.name} className="faint">
+                  <CardValue row={row} field={f} onCommit={onCommit} beside />
+                </span>
+              ))}
+            </div>
           ))}
         </section>
       ))}

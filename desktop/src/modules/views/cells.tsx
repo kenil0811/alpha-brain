@@ -2,11 +2,12 @@
  * One cell of a record, in every view: shown as words with its provenance marks (≈ estimated,
  * ? on an assumption), or being edited in place. A file cell opens or reveals the document.
  */
-import { type KeyboardEvent, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
+import { pressed } from "../../shell/shortcuts";
 import { Badge, IconButton } from "../../ui";
 import { FolderOpen } from "../../ui/icons";
 
@@ -21,15 +22,15 @@ export function SeenCell({ row }: { row: RecordRow }) {
 
 /** A link to another table's record (its title, from the table's `relations`), or to a person
  *  or a company: a pill that opens it, with a way back (the drawer's stack). */
-export function RelationCell({ row, field, relations, onOpenRelated }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void }) {
+export function RelationCell({ row, field, relations, onOpenRelated, as: Tag = "td" }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; as?: "td" | "span" }) {
   const value = row.values[field.name];
-  if (!value) return <td><span className="faint">—</span></td>;
+  if (!value) return <Tag><span className="faint">—</span></Tag>;
   const id = String(value);
   const title = relations?.[field.name]?.[id] ?? id;
   const target = field.relation;
   const opens = Boolean(onOpenRelated && target && target !== "person" && target !== "organisation");
   return (
-    <td>
+    <Tag>
       {opens ? (
         <button type="button" className="linkbtn" onClick={(e) => { e.stopPropagation(); onOpenRelated!(target!, id); }} title={`Open ${title}`}>
           <Badge tone="info">{title}</Badge>
@@ -37,22 +38,24 @@ export function RelationCell({ row, field, relations, onOpenRelated }: { row: Re
       ) : (
         <Badge tone="info">{title}</Badge>
       )}
-    </td>
+    </Tag>
   );
 }
 
-export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void }) {
+/** `as="span"` is the same value on a card or a line (board, list, gallery, calendar, timeline):
+ *  the click still opens the record, the double-click still edits. */
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, as: Tag = "td" }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; as?: "td" | "span" }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
-  if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} />;
-  if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} />;
+  if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} as={Tag} />;
+  if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} as={Tag} />;
   const value = row.values[field.name];
   const numeric = isNumeric(field.kind);
   const estimate = Boolean(row.provenance?.estimated) && numeric;
   const assumed = row.provenance?.assumed;
   const source = row.provenance?.source;
   const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
-  const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
+  const rests = [estimate ? "Estimated by Zazoo." : lookedUp ? `From ${source}.` : "", assumed ? `Zazoo assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   function begin(e?: { stopPropagation: () => void }) {
     e?.stopPropagation();
     setText(editText(value, field.kind));
@@ -63,13 +66,13 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     if (commit) onCommit(text);
   }
   function key(e: KeyboardEvent) {
-    if (e.key === "Enter" && field.kind !== "long_text") finish(true);
-    if (e.key === "Escape") finish(false);
+    if (pressed(e, "cell-save") && field.kind !== "long_text") finish(true);
+    if (pressed(e, "cell-cancel")) finish(false);
   }
   const label = humanize(field.name);
   if (editing) {
     return (
-      <td className={numeric ? "r" : undefined} onClick={(e) => e.stopPropagation()}>
+      <Tag className={numeric ? "r" : undefined} onClick={(e) => e.stopPropagation()}>
         {field.kind === "choice" || field.kind === "status" ? (
           <select autoFocus value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label}>
             <option value="">—</option>
@@ -89,14 +92,14 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
         ) : (
           <input autoFocus type={inputType(field.kind)} step={field.kind === "number" ? "any" : undefined} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />
         )}
-      </td>
+      </Tag>
     );
   }
   const words = showValue(value, field.kind, field.unit);
   // A click opens the row (it bubbles to the row); a double-click, Enter or F2 edits the cell
   // (the convention from pull request #3: scanning by click, editing on purpose).
   return (
-    <td
+    <Tag
       className={`${numeric ? "r num" : ""} editable`.trim()}
       onDoubleClick={(e) => begin(e)}
       tabIndex={0}
@@ -118,17 +121,17 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
           ?
         </span>
       ) : null}
-    </td>
+    </Tag>
   );
 }
 
 /** A file field: the document's name, opened with the Mac's own app, or a way to add one. */
-export function FileCell({ row, field, files, onFile }: { row: RecordRow; field: FieldInfo; files: Record<string, FileInfo>; onFile?: (file: File) => void }) {
+export function FileCell({ row, field, files, onFile, as: Tag = "td" }: { row: RecordRow; field: FieldInfo; files: Record<string, FileInfo>; onFile?: (file: File) => void; as?: "td" | "span" }) {
   const id = row.values[field.name] ? String(row.values[field.name]) : "";
   const info = id ? files[id] : undefined;
   if (info) {
     return (
-      <td onClick={(e) => e.stopPropagation()}>
+      <Tag onClick={(e) => e.stopPropagation()}>
         <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
           {info.name}
         </button>
@@ -136,11 +139,11 @@ export function FileCell({ row, field, files, onFile }: { row: RecordRow; field:
         {host.available() ? (
           <IconButton label="Show in Finder" icon={<FolderOpen />} onClick={() => void host.revealPath(info.path)} />
         ) : null}
-      </td>
+      </Tag>
     );
   }
   return (
-    <td onClick={(e) => e.stopPropagation()}>
+    <Tag onClick={(e) => e.stopPropagation()}>
       {onFile ? (
         <label className="linkbtn faint">
           {id ? "File missing · " : ""}Add file
@@ -149,7 +152,7 @@ export function FileCell({ row, field, files, onFile }: { row: RecordRow; field:
       ) : (
         <span className="faint">—</span>
       )}
-    </td>
+    </Tag>
   );
 }
 
@@ -169,8 +172,35 @@ export function LongText({ value, onCommit }: { value: unknown; onCommit: (text:
     );
   }
   return (
-    <p className="editable" onClick={() => { setText(value ? String(value) : ""); setEditing(true); }} title="Click to edit">
-      {value ? String(value) : <span className="faint">Nothing yet. Click to write.</span>}
+    <p className="editable" tabIndex={0} onDoubleClick={() => { setText(value ? String(value) : ""); setEditing(true); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); setText(value ? String(value) : ""); setEditing(true); } }} title="Double-click to edit">
+      {value ? String(value) : <span className="faint">Nothing yet. Double-click to write.</span>}
     </p>
   );
+}
+
+/** A record's value on a card or a line: edited in place on a double-click, like a table cell.
+ *  The values beside a title are left out when empty, as before (the record panel fills them). */
+export function CardValue({ row, field, onCommit, beside }: { row: RecordRow; field: FieldInfo | undefined; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; beside?: boolean }) {
+  if (!field) return <>{row.id}</>;
+  const v = row.values[field.name];
+  if (beside && (v === null || v === undefined || v === "")) return null;
+  return <Cell as="span" row={row} field={field} onCommit={(text) => onCommit(row, field, text)} />;
+}
+
+/** What a card or a line does: a click opens its record (the second click of a double-click is
+ *  the value's, which edits), Enter too. */
+export function opens(open: () => void) {
+  return {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: (e: MouseEvent) => {
+      if (e.detail <= 1) open();
+    },
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.target === e.currentTarget && e.key === "Enter") {
+        e.preventDefault();
+        open();
+      }
+    },
+  };
 }

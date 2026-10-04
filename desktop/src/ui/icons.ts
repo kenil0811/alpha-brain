@@ -27,6 +27,8 @@ export {
   Mic,
   Circle,
   Maximize2,
+  Minimize2,
+  AppWindow,
   MoreHorizontal,
   Info,
   FolderOpen,
@@ -42,4 +44,26 @@ export {
   Play,
   Link2,
   File,
+  Pencil,
+  Star,
+} from "lucide-react";
+
+// Settings: its sections, Models, Permissions and Shortcuts.
+export {
+  Cpu as ModelsIcon,
+  Palette as AppearanceIcon,
+  PawPrint as CompanionIcon,
+  Shapes as LookIcon,
+  Hammer as BuildsIcon,
+  Monitor as DesktopIcon,
+  ShieldCheck as PermissionsIcon,
+  Keyboard as ShortcutsIcon,
+  HardDrive as DataIcon,
+  RotateCcw as ResetIcon,
+  ScreenShare,
+  Volume2,
+  AudioLines,
+  PersonStanding,
+  ScrollText,
+  Keyboard,
 } from "lucide-react";

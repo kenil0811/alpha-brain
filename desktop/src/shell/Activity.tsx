@@ -1,11 +1,12 @@
 /**
- * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched.
+ * Activity: first the automations whose last run didn't work, each with Run it again; then
+ * what Zazoo did, what it read, what you changed, newest first and grouped by day; search
+ * finds anything that happened. Each row opens to what it touched.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { Client, JournalEntry } from "../core/client";
+import type { Automation, Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
-import { Trouble } from "../ui";
+import { Button, Trouble } from "../ui";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
@@ -47,7 +48,26 @@ function Details({ e }: { e: JournalEntry }) {
   );
 }
 
-export function Activity({ client, version }: { client: Client; version: number; onChanged: () => void }) {
+/** Automations whose last run failed and that aren't running again now (a good run clears the error). */
+export function failedAutomations(all: Automation[]): Automation[] {
+  return all.filter((a) => a.last_error && !a.running);
+}
+
+export function Activity({ client, version, onChanged }: { client: Client; version: number; onChanged: () => void }) {
+  const [failed, setFailed] = useState<Automation[]>([]);
+  const [again, setAgain] = useState<string | null>(null);
+  useEffect(() => {
+    client.automations().then((all) => setFailed(failedAutomations(all)), () => setFailed([]));
+  }, [client, version]);
+  async function runAgain(a: Automation) {
+    try {
+      await client.runAutomation(a.id);
+      setAgain(`Running “${a.title}” again. Its steps show on its page.`);
+      onChanged();
+    } catch (e) {
+      setAgain(e instanceof Error ? e.message : String(e));
+    }
+  }
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -78,17 +98,46 @@ export function Activity({ client, version }: { client: Client; version: number;
     <div className="page">
       <div className="home__head">
         <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
+        <span className="muted">What Zazoo read, made and changed, and what you did</span>
       </div>
+      {failed.length ? (
+        <div className="section">
+          <div className="section__head">
+            <h2>Didn't work</h2>
+            <span className="faint">automations whose last run failed</span>
+          </div>
+          <div className="card list" aria-label="Automations that didn't work">
+            {failed.map((a) => (
+              <div key={a.id} className="item">
+                <div className="item__body">
+                  <b>{a.title}</b>
+                  <div className="item__sub">
+                    {a.last_run_at ? `${when(a.last_run_at)} · ` : ""}
+                    {a.last_error}
+                  </div>
+                </div>
+                <Button size="sm" onClick={() => void runAgain(a)}>
+                  Run it again
+                </Button>
+              </div>
+            ))}
+          </div>
+          {again ? (
+            <p className="notice notice--quiet" role="status">
+              {again}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div style={{ marginTop: 18 }}>
         <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
           <div className="search" style={{ maxWidth: "none" }}>
             <span aria-hidden="true">⌕</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search activity" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {f === "all" ? "All" : f === "alpha" ? "Alpha" : f === "you" ? "You" : "Failed"}
+              {f === "all" ? "All" : f === "alpha" ? "Zazoo" : f === "you" ? "You" : "Failed"}
             </button>
           ))}
         </div>

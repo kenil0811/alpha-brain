@@ -22,8 +22,10 @@ import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
-import { ClaudeRow, Settings } from "./shell/Settings";
+import { Settings } from "./shell/Settings";
+import { ClaudeRow } from "./shell/models";
 import { useTheme } from "./shell/theme";
+import { pressed } from "./shell/shortcuts";
 import type { ClaudeStatus, ModuleCard, Thinking } from "./core/client";
 import { Button } from "./ui";
 
@@ -59,7 +61,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [modules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
   const [restarted, setRestarted] = useState(false);
-  // A sentence handed to the panel: put in the composer (an "Ask Alpha…" button), or sent at
+  // A sentence handed to the panel: put in the composer (an "Ask Zazoo…" button), or sent at
   // once (quick entry on a table).
   const [draft, setDraft] = useState<{ text: string; send: boolean } | null>(null);
   const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
@@ -92,11 +94,11 @@ export function App({ client: injected }: { client?: Client } = {}) {
     // once: the listeners read the address, not this render's surface
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // ⌘K (or Ctrl+K) anywhere in the window: search everything.
+  // ⌘K (or Ctrl+K, or what Settings → Shortcuts set) anywhere in the window: search everything.
   const [commandOpen, setCommandOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (pressed(e, "command-menu")) {
         e.preventDefault();
         setCommandOpen((o) => !o);
       }
@@ -230,9 +232,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
       className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: `${panel.width}px` }}
     >
-      <Rail surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
-      {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} onPointerDown={rail.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" /> : null}
-      {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the conversation panel" /> : null}
+      <Rail client={client} surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} onChanged={changed} />
+      {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} {...rail.handle} aria-label="Resize the sidebar" /> : null}
+      {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} {...panel.handle} aria-label="Resize Zazoo's panel" /> : null}
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
@@ -248,7 +250,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : null}
         {!panelOpen && runtime.kind === "connected" ? (
           <Button variant="primary" className="assist__reopen" onClick={() => togglePanel(true)}>
-            Ask Alpha
+            Ask Zazoo
           </Button>
         ) : null}
         {runtime.kind === "connected" && chosen && !chosen.signed_in && surface.kind !== "settings" ? (
@@ -256,7 +258,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
             <div className="card firstrun__card">
               <div className="firstrun__head">
                 <h2>Connect {chosenName} to start</h2>
-                <span className="muted">Alpha thinks with your {chosenName} account. It takes a minute, once. Settings has the other way too.</span>
+                <span className="muted">Zazoo thinks with your {chosenName} account. It takes a minute, once. Settings has the other way too.</span>
               </div>
               <div className="list">
                 <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
@@ -286,7 +288,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} section={surface.kind === "settings" ? surface.section : undefined} onSection={(section) => setSurface({ kind: "settings", section })} />
         ) : surface.kind === "people" ? (
           <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (
@@ -296,7 +298,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "automation" ? (
           <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
-          <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} />
+          <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} item={surface.item} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : (
           <Activity client={runtime.client} version={versions.activity} onChanged={changed} />
         )}

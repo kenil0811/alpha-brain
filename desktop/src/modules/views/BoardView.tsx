@@ -1,12 +1,15 @@
-/** Cards in columns by a choice or status field; a drag moves a row to another value. */
+/** Cards in columns by a choice or status field; a drag moves a row to another value. A click
+ *  opens a card; a double-click on a value edits it there. */
 import { type DragEvent, useState } from "react";
 import type { RecordRow } from "../../core/client";
-import { showValue, type FieldInfo } from "../fields";
+import type { FieldInfo } from "../fields";
 import { humanize } from "../format";
+import { CardValue, opens } from "./cells";
 
-export function BoardView({ rows, field, titleField, fields, onOpen, onMove }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; onOpen: (id: string) => void; onMove: (row: RecordRow, value: string) => void }) {
+export function BoardView({ rows, field, titleField, fields, onOpen, onMove, onCommit }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; onOpen: (id: string) => void; onMove: (row: RecordRow, value: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void }) {
   const [over, setOver] = useState<string | null>(null);
   const columns = field.choices ?? [];
+  const title = fields.find((f) => f.name === titleField);
   const extras = fields.filter((f) => f.name !== titleField && f.name !== field.name).slice(0, 2);
   function drop(e: DragEvent, column: string) {
     e.preventDefault();
@@ -26,14 +29,14 @@ export function BoardView({ rows, field, titleField, fields, onOpen, onMove }: {
               {humanize(column)} <span>{cards.length}</span>
             </h4>
             {cards.map((row) => (
-              <button key={row.id} type="button" className="board__card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", row.id)} onClick={() => onOpen(row.id)}>
-                <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
+              <div key={row.id} className="board__card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", row.id)} {...opens(() => onOpen(row.id))}>
+                <b><CardValue row={row} field={title} onCommit={onCommit} /></b>
                 {extras.map((f) => (
                   <span key={f.name} className="faint">
-                    {showValue(row.values[f.name], f.kind)}
+                    <CardValue row={row} field={f} onCommit={onCommit} beside />
                   </span>
                 ))}
-              </button>
+              </div>
             ))}
             {!cards.length ? <p className="empty" style={{ padding: 12 }}>Nothing here</p> : null}
           </div>
@@ -42,4 +45,3 @@ export function BoardView({ rows, field, titleField, fields, onOpen, onMove }: {
     </div>
   );
 }
-

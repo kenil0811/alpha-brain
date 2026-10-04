@@ -1,8 +1,11 @@
 /**
- * The companion: Alpha's character in a small always-on-top window. It shows what Alpha is
+ * The companion: Zazoo's character in a small always-on-top window. It shows what Zazoo is
  * doing (here, listening, working, needs you); a bubble carries the one thing that needs the
- * person; a click opens a small panel to say or type one thing, answered at once. Anything that
- * needs the full window is handed to the workspace, which comes forward.
+ * person. A click opens the compact chat: only the box, then one working line, then only the
+ * reply (what needs the person is one line that opens the whole chat). Expand shows the whole
+ * chat, Collapse goes back; a click anywhere outside it (elsewhere in the window, in another
+ * app, or on the character) closes it. Anything that needs the full window is handed to the
+ * workspace, which comes forward.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
@@ -13,7 +16,7 @@ import { moved, press, released, type Press } from "./drag";
 import { SIZE_PX, normaliseLook } from "./looks";
 import { hasTauri } from "../core/session";
 import { Button, IconButton, Rich } from "../ui";
-import { X, Maximize2 } from "../ui/icons";
+import { AppWindow, ArrowUp, Maximize2, Minimize2, X } from "../ui/icons";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
@@ -30,6 +33,11 @@ export interface AvatarHost {
 }
 
 const HOT = ".avatar__panel, .avatar__bubble, .avatar__dock";
+const WORKING = "Working on it…";
+
+function needsText(n: number) {
+  return n === 1 ? "One thing needs you" : `${n} things need you`;
+}
 
 function handOff(value: Record<string, unknown>, host?: AvatarHost) {
   try {
@@ -42,6 +50,10 @@ function handOff(value: Record<string, unknown>, host?: AvatarHost) {
 
 export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHost }) {
   const [expanded, setExpanded] = useState(false);
+  // Compact (only the box, then only the reply) or the whole chat.
+  const [full, setFull] = useState(false);
+  const [reply, setReply] = useState<string | null>(null);
+  const [done, setDone] = useState(0);
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -71,7 +83,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
     client.home().then(setHome).catch(() => undefined);
   }, [client]);
-  // One cheap poll asks what changed (every 3 s while Alpha works, 10 s when quiet, nothing
+  // One cheap poll asks what changed (every 3 s while Zazoo works, 10 s when quiet, nothing
   // while the window is hidden) and the companion refreshes only when something did.
   const visible = useVisible();
   const since = useRef<string | null>(null);
@@ -104,11 +116,31 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight });
   }, [turns, expanded, busy]);
 
-  const toggle = useCallback(() => {
-    const next = !expanded;
-    setExpanded(next);
-    if (next) setTimeout(() => inputRef.current?.focus(), 50);
-  }, [expanded]);
+  /** Closing lets the reply go and the next open starts from the box alone. */
+  const close = useCallback(() => {
+    setExpanded(false);
+    setFull(false);
+    setReply(null);
+  }, []);
+  const toggle = useCallback(() => (expanded ? close() : setExpanded(true)), [expanded, close]);
+  // The box is focused on open and again when the view switches (it is drawn anew).
+  useEffect(() => {
+    if (expanded) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [expanded, full]);
+  // A click anywhere outside the chat closes it: elsewhere in this window, or in another app
+  // (the window loses focus). The character's own click toggles it already.
+  useEffect(() => {
+    if (!expanded) return;
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest?.(".avatar__panel, .avatar__button")) close();
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("blur", close);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("blur", close);
+    };
+  }, [expanded, close]);
 
   const talkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** A reply: the mouth moves for a moment, then the mood it came with holds while the
@@ -138,7 +170,10 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       }
       const went = turn.conversation;
       setWhereNote(went ? `${went.scope}: ${went.title}` : null);
-      say(`${went && went.id !== before ? `In ${went.scope}: ` : ""}${turn.reply ?? ""}`, turn.state === "done" ? "happy" : "concerned");
+      const answer = `${went && went.id !== before ? `In ${went.scope}: ` : ""}${turn.reply ?? ""}`;
+      setReply(answer);
+      say(answer, turn.state === "done" ? "happy" : "concerned");
+      if (turn.state === "done") setDone((n) => n + 1);
     },
     [client, say],
   );
@@ -150,12 +185,15 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       setMood("thinking");
       setText("");
       setRouting(null);
+      setReply(null);
       try {
         // No conversation named: the core routes it (structure first, the judge when there
         // is a real choice, a question when unsure).
         await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        const problem = e instanceof Error ? e.message : String(e);
+        setReply(problem);
+        say(problem, "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -172,7 +210,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setRouting(null);
         if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        const problem = e instanceof Error ? e.message : String(e);
+        setReply(problem);
+        say(problem, "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -228,7 +268,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const needs = home?.needs_you ?? [];
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = trouble ? "Core not answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const label = trouble ? "Core not answering" : { working: WORKING, listening: "Listening…", needs: needsText(needs.length), idle: focusName ?? "Here" }[state];
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
@@ -260,18 +300,69 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       watcher.disconnect();
       window.removeEventListener("resize", report);
     };
-  }, [host, mode, shownBubble]);
+  }, [host, mode, shownBubble, full]);
+
+  const composer = (
+    <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
+      <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
+      <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder={full ? "Log two eggs… what's on today…" : "Ask Zazoo…"} aria-label="What should Zazoo do" disabled={busy} />
+      {full ? null : <IconButton size="sm" label="Show the whole chat" title="Show the whole chat" icon={<Maximize2 />} onClick={() => setFull(true)} />}
+      {full ? (
+        <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
+          Do it
+        </Button>
+      ) : (
+        <IconButton size="sm" type="submit" className="avatar__send" label="Send" icon={<ArrowUp />} disabled={busy || !text.trim()} />
+      )}
+    </form>
+  );
+  const routingChoices = routing ? (
+    <div className="avatar__pills" role="group" aria-label="Which conversation">
+      <p className="panel__hint">Which is this about?</p>
+      {routing.options.map((o) => (
+        <Button size="sm" className="askcard__opt" key={o} disabled={busy} onClick={() => void choose(routing.ask, o)}>
+          {o}
+        </Button>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <div ref={rootRef} className={`avatar${expanded ? " avatar--open" : ""}`} onKeyDown={(e) => e.key === "Escape" && expanded && toggle()}>
-      {expanded ? (
-        <section className="avatar__panel" aria-label="Alpha companion">
+      {expanded && !full ? (
+        <section className="avatar__panel avatar__panel--compact" aria-label="Zazoo">
+          {needs.length ? (
+            <Button size="sm" variant="ghost" className="avatar__needs" onClick={() => setFull(true)}>
+              <span className="presence presence--needs" aria-hidden="true" />
+              {needsText(needs.length)}
+            </Button>
+          ) : null}
+          {busy ? (
+            <p className="avatar__working" role="status">
+              <span className="presence presence--working" aria-hidden="true" />
+              {WORKING}
+            </p>
+          ) : routingChoices ? (
+            <div className="avatar__last">{routingChoices}</div>
+          ) : reply ? (
+            <div className="avatar__last">
+              <div className="avatar__reply">
+                <Rich text={reply} />
+              </div>
+            </div>
+          ) : null}
+          {composer}
+        </section>
+      ) : expanded ? (
+        <section className="avatar__panel" aria-label="Zazoo">
           <header className="avatar__head" data-tauri-drag-region>
             <span className={`presence presence--${state}`} aria-hidden="true" />
+            <b data-tauri-drag-region>Zazoo</b>
             <span className="faint" data-tauri-drag-region>
               {label}
             </span>
-            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
+            <IconButton size="sm" label="Collapse the chat" title="Show only the last reply" icon={<Minimize2 />} onClick={() => setFull(false)} />
+            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<AppWindow />} onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
             <IconButton size="sm" label="Close" icon={<X />} onClick={() => toggle()} />
           </header>
           <div className="avatar__turns" ref={listRef}>
@@ -281,18 +372,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
                 {t.kind === "said" ? t.text : <Rich text={t.text} />}
               </div>
             ))}
-            {routing ? (
-              <div className="avatar__pills" role="group" aria-label="Which conversation">
-                <p className="panel__hint">Which is this about?</p>
-                {routing.options.map((o) => (
-                  <Button size="sm" className="askcard__opt" key={o} disabled={busy} onClick={() => void choose(routing.ask, o)}>
-                    {o}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
+            {routingChoices}
             {!busy && !routing && openAsk ? (
-              <div className="avatar__pills" role="group" aria-label="Alpha asks">
+              <div className="avatar__pills" role="group" aria-label="Zazoo asks">
                 <p className="panel__hint">{openAsk.text}</p>
                 {(openAsk.options ?? []).map((o) => (
                   <Button size="sm" className="askcard__opt" key={o} onClick={() => void choose(openAsk.id, o)}>
@@ -302,7 +384,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               </div>
             ) : null}
             {!busy && openAction?.action ? (
-              <div className="avatar__pills" role="group" aria-label="Alpha proposes">
+              <div className="avatar__pills" role="group" aria-label="Zazoo proposes">
                 <p className="panel__hint">
                   {openAction.action.effect === "send" ? "Send" : "Make"}: {openAction.action.title}
                 </p>
@@ -319,17 +401,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             ) : null}
             {busy ? (
               <p className="panel__hint" role="status">
-                Working on it…
+                {WORKING}
               </p>
             ) : null}
           </div>
-          <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
-            <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-            <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Log two eggs… what's on today…" aria-label="What should Alpha do" disabled={busy} />
-            <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
-              Do it
-            </Button>
-          </form>
+          {composer}
         </section>
       ) : null}
       <div className="avatar__dock">
@@ -353,11 +429,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           onPointerUp={onPointerUp}
           onPointerCancel={() => { pressed.current = null; }}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
-          aria-label={expanded ? "Hide Alpha's panel" : "Ask Alpha"}
+          aria-label={expanded ? "Hide Zazoo's chat" : "Ask Zazoo"}
           aria-expanded={expanded}
           title={`${label} · drag to move`}
         >
-          <Character mood={shownMood} size={expanded ? Math.round(px * 0.7) : px} look={look} />
+          <Character mood={shownMood} size={expanded ? Math.round(px * 0.7) : px} look={look} done={done} />
         </button>
       </div>
     </div>

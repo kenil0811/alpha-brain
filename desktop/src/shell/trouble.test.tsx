@@ -7,7 +7,7 @@ import { People } from "./People";
 describe("a page whose load failed", () => {
   it("says so and offers to try again, instead of an empty list", async () => {
     const activity = vi.fn(() => Promise.reject(new Error("Alpha's core isn't answering.")));
-    render(<Activity client={{ activity } as unknown as Client} version={0} onChanged={vi.fn()} />);
+    render(<Activity client={{ activity, automations: vi.fn(async () => []) } as unknown as Client} version={0} onChanged={vi.fn()} />);
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load Activity: Alpha's core isn't answering."));
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     screen.getByRole("button", { name: "Try again" }).click();

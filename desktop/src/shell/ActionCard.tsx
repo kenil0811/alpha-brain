@@ -90,7 +90,8 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
       ) : null}
       <div className={`action__body${compact ? " action__body--compact" : ""}`}>
         {!compact ? (
-          <div className="action__payload">
+          // A proposed action's words edit in place on a double click, like the Edit button.
+          <div className="action__payload" title={open && !editing ? "Double-click to edit" : undefined} onDoubleClick={() => { if (open && !editing) setEditing(true); }}>
             {fields.filter(([, v]) => isShort(v)).length ? (
               <p className="action__line">
                 {fields
@@ -129,7 +130,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         <b>Undo</b> {action.undo}
       </p>
       {action.state === "done" && action.result ? <p className="because">{action.result}</p> : null}
-      {action.state === "failed" && action.error ? <p className="notice">{action.error} Alpha looks at the page again and proposes it afresh.</p> : null}
+      {action.state === "failed" && action.error ? <p className="notice">{action.error} Zazoo looks at the page again and proposes it afresh.</p> : null}
       {open ? (
         <div className="row">
           {editing ? (
@@ -147,7 +148,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
                 {action.effect === "send" ? "Send it" : "Do it"}
               </Button>
               {action.effect === "prepare" ? (
-                <Button disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+                <Button disabled={busy || !action.preview} title="Zazoo may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
                   Always allow
                 </Button>
               ) : null}

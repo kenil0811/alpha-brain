@@ -59,14 +59,14 @@ export function People({ client, version, onOpen }: { client: Client; version: n
       <div className="modhead">
         <div className="modhead__title">
           <h1>People &amp; Companies</h1>
-          <span className="faint">Everyone Alpha has come across: from your connections, your mail, and what you tell it.</span>
+          <span className="faint">Everyone Zazoo has come across: from your connections, your mail, and what you tell it.</span>
         </div>
         <div className="search people__search">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
         </div>
       </div>
       {people === null ? <p className="empty">Loading…</p> : null}
-      {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Alpha."}</p> : null}
+      {people && !people.length ? <p className="empty">{q ? "Nobody by that name." : "Nobody yet. Connect your mail or LinkedIn, or mention someone to Zazoo."}</p> : null}
       {group("People", persons)}
       {group("Companies and organisations", orgs)}
     </div>
@@ -150,7 +150,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
       <div className="section">
         <div className="section__head">
           <h2>Page</h2>
-          <span className="faint">Alpha's page about {entity.name.split(" ")[0]}; yours to edit.</span>
+          <span className="faint">Zazoo's page about {entity.name.split(" ")[0]}; yours to edit (double-click it).</span>
           <div className="section__right">
             {editing ? (
               <>
@@ -172,9 +172,11 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           {editing ? (
             <textarea className="note__edit" rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${entity.name}`} placeholder={`Who ${entity.name} is to you, how you know them, what is going on.`} />
           ) : entity.page ? (
-            <div className="people__page">{entity.page.body}</div>
+            <div className="people__page" title="Double-click to edit" onDoubleClick={() => setEditing(true)}>
+              {entity.page.body}
+            </div>
           ) : (
-            <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
+            <p className="muted" style={{ fontSize: "var(--text-md)" }} onDoubleClick={() => setEditing(true)}>No page yet. Zazoo writes one as it learns about {entity.name}; you can start it.</p>
           )}
         </div>
       </div>
@@ -202,7 +204,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
             {suggested.map((f) => (
               <div key={f.id} className="card card--pad row">
                 <span>
-                  Alpha thinks <b>{f.predicate.replace(/_/g, " ")}</b> is <b>{f.value}</b>
+                  Zazoo thinks <b>{f.predicate.replace(/_/g, " ")}</b> is <b>{f.value}</b>
                   <span className="faint"> · {factOrigin(f)}</span>
                 </span>
                 <span className="section__right">
@@ -223,7 +225,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
         <div className="section">
           <div className="section__head">
             <h2>Might be the same</h2>
-            <span className="faint">Same name, no shared email or address. Alpha never merges on a name alone.</span>
+            <span className="faint">Same name, no shared email or address. Zazoo never merges on a name alone.</span>
           </div>
           <div className="card list">
             {entity.maybe_same.map((m) => (

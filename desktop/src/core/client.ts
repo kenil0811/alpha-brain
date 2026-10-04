@@ -736,6 +736,7 @@ export class Client {
   automationPage = (id: string) => this.call<AutomationDetail>("GET", `/api/automations/${encodeURIComponent(id)}`);
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
+  automations = () => this.call<Automation[]>("GET", "/api/automations");
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);

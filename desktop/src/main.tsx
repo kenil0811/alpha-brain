@@ -1,4 +1,4 @@
-import { Button, TooltipProvider } from "./ui";
+import { Button, SoonProvider, TooltipProvider } from "./ui";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -36,7 +36,9 @@ void isAvatarWindow().then((avatar) => {
   root.render(
     <React.StrictMode>
       <TooltipProvider>
-        <Guard>{avatar ? <AvatarBoot /> : <App />}</Guard>
+        <SoonProvider>
+          <Guard>{avatar ? <AvatarBoot /> : <App />}</Guard>
+        </SoonProvider>
       </TooltipProvider>
     </React.StrictMode>,
   );
