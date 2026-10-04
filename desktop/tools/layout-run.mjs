@@ -45,6 +45,8 @@ const BROWSER = [process.env.ALPHA_TEST_BROWSER, "/Applications/Google Chrome.ap
 // (that screen is checked too, on its own), and ChatGPT's model picker shows.
 const SIGNED_IN = { installed: true, signed_in: true, email: "layout@example.com", plan: "Max" };
 const CONNECTED = { route: "claude", claude: SIGNED_IN, codex: { ...SIGNED_IN, plan: "Plus", models: [{ id: "gpt-5", name: "GPT-5" }, { id: "gpt-5-codex", name: "GPT-5 Codex" }], model: "gpt-5" } };
+// No real model turn ever: the interview's preparation is answered with a fixed plan.
+const PREPARED = { id: null, state: "done", text: "", started_at: "", reply: JSON.stringify({ context: "A busy term.", gaps: ["No targets"], questions: [{ id: "q1", topic: "Work", question: "What matters most this month?", value: 9, minutes: 1.5 }, { id: "q2", topic: "Work", question: "Who is in the way?", value: 6, minutes: 2 }, { id: "q3", topic: "Health", question: "How are you sleeping?", value: 4, minutes: 1 }] }) };
 
 // ALPHA_LAYOUT_PORT lets two checkouts run it at once.
 const WEB_PORT = process.env.ALPHA_LAYOUT_PORT ?? "5199";
@@ -55,7 +57,7 @@ try {
   const port = await start("uv", ["run", "alpha", "serve", "--port", "0", "--no-background"], { cwd: join(repo, "core") }, (s) => s.match(/ALPHA_CORE_READY \{"port": (\d+)/)?.[1]);
   const vite = await start("pnpm", ["exec", "vite", "--port", WEB_PORT, "--strictPort"], { cwd: desktop, env: { ...env, ALPHA_CORE_PROXY: `http://127.0.0.1:${port}`, VITE_ALPHA_CORE_URL: `http://localhost:${WEB_PORT}` } }, (s) => s.match(new RegExp(`(http://localhost:${WEB_PORT})`))?.[1]);
   // "<path>:<table>" is the project page again, on that table's tab (kept in localStorage).
-  const pages = ["/", "/activity", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", "/settings/models", "/settings/claude", "/settings/appearance", "/settings/avatar", "/settings/look", "/settings/builds", "/settings/desktop", "/settings/permissions", "/settings/shortcuts", "/settings/data", "/settings/about", `/m/${project}`, `/m/${project}:openings`,
+  const pages = ["/", "/activity", "/intelligence/tools", "/intelligence/tools/interviewer", "/intelligence/brain", "/intelligence/skills", "/intelligence/automations", "/intelligence/connections", "/intelligence/knowledge", "/settings", "/settings/models", "/settings/claude", "/settings/appearance", "/settings/avatar", "/settings/look", "/settings/builds", "/settings/desktop", "/settings/permissions", "/settings/shortcuts", "/settings/data", "/settings/about", `/m/${project}`, `/m/${project}:openings`,
     // Each kind of Intelligence item's own page.
     "/intelligence/skills/hand%3Afiles", `/intelligence/skills/${seed.reader}`, `/intelligence/automations/${seed.automation}`, `/intelligence/connections/${seed.connection}`,
     `/intelligence/knowledge/${seed.fact}`, `/intelligence/knowledge/${seed.goal}`, `/intelligence/knowledge/${seed.permission}`, `/intelligence/knowledge/${seed.note}`, "/people", `/people/${seed.entity}`];
@@ -63,6 +65,9 @@ try {
   for (const [width, height, gate] of [[1100, 760, true], [1440, 900, true], [768, 560, false]]) {
     for (const [path, model] of [...pages.map((p) => [p, true]), ["/", false]]) {
       const page = await browser.newPage({ viewport: { width, height } });
+      await page.route("**/api/ask", (r) => r.fulfill({ json: PREPARED }));
+      // The interview's own conversation stays out of the shared core, so later pages don't show it.
+      await page.route("**/api/conversations", (r) => (r.request().method() === "POST" ? r.fulfill({ json: { id: "c_layout", title: "Interview" } }) : r.fallback()));
       if (model) await page.route("**/api/thinking", (r) => (r.request().method() === "GET" ? r.fulfill({ json: CONNECTED }) : r.fallback()));
       // The window may only call routes the core has: a 404/405 means a page asks for one it lacks.
       const missing = [];

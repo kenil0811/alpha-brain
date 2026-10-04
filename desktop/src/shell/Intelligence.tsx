@@ -1,8 +1,9 @@
 /**
  * Intelligence: everything Alpha can do (skills), runs on its own (automations), reaches
- * (connections) and knows (knowledge: facts, notes, goals). Each is a sentence the person can
- * read, switch or correct, never a configuration form. Each item opens its own page
- * (`./IntelItem.tsx`); the second brain is its own place to look and edit.
+ * (connections) and knows (knowledge: facts, notes, goals), and the voice tools it runs with the
+ * person (./Tools). Each is a sentence the person can read, switch or correct, never a
+ * configuration form. Each item opens its own page (`./IntelItem.tsx`); the second brain is its
+ * own place to look and edit.
  */
 import { type FormEvent, useEffect, useState } from "react";
 import { CalendarDays, Folder, Globe, Link, Puzzle } from "lucide-react";
@@ -15,11 +16,14 @@ import { AutomationTable } from "./Automations";
 import { INSTRUCTIONS, IntelItemPage, OpenRow, OpenTitle, SKILL_HEALTH, SKILL_KIND, type ItemContext } from "./IntelItem";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
+import { Interview } from "./Interview";
+import { ToolPage, Tools } from "./Tools";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 
-export type IntelTab = "brain" | "skills" | "automations" | "connections" | "knowledge";
+export type IntelTab = "tools" | "brain" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string; hint: string }[] = [
+  { id: "tools", label: "Tools", hint: "Voice tools Zazoo runs with you, like Interview me." },
   { id: "brain", label: "Second brain", hint: "Every project and every fact Alpha holds, and how they connect." },
   { id: "skills", label: "Skills", hint: "What Alpha has learned to read, do and run, and what it can reach." },
   { id: "automations", label: "Automations", hint: "Every schedule across your projects, switchable in place." },
@@ -264,6 +268,14 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
   }, [client, version]);
   const open = (id: string) => onGo({ kind: "intelligence", tab, item: id });
   const ctx: ItemContext | null = data ? { client, data, modules, onGo, onAsk, onChanged } : null;
+  // A voice tool's page is the interview itself, Zazoo across the table.
+  if (tab === "tools" && item) {
+    return (
+      <ToolPage key={item} client={client} id={item}>
+        {(tool) => <Interview client={client} tool={tool} modules={modules} onBack={() => onTab("tools")} onChanged={onChanged} />}
+      </ToolPage>
+    );
+  }
   if (item) {
     if (ctx) return <IntelItemPage tab={tab} item={item} ctx={ctx} />;
     return <div className="page">{error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>}</div>;
@@ -274,6 +286,8 @@ export function Intelligence({ client, modules, tab, item, version, onTab, onGo,
       <Tabs className="page__tabs" aria-label="Intelligence" items={TABS.map((t) => ({ value: t.id, label: <span title={t.hint}>{t.label}</span> }))} value={tab} onChange={(v) => onTab(v as IntelTab)} />
       {!data ? (
         error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>
+      ) : tab === "tools" ? (
+        <Tools client={client} notes={data.knowledge.notes} onOpen={open} onChanged={onChanged} />
       ) : tab === "brain" ? (
         <SecondBrain ctx={ctx!} onOpenKnowledge={() => onTab("knowledge")} />
       ) : tab === "skills" ? (
