@@ -9,8 +9,9 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
-import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
-import { ModuleIcon } from "../ui/icons";
+import { Button, IconButton, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
+import { ModuleIcon, MoreHorizontal } from "../ui/icons";
+import { ProjectMenu } from "./ProjectMenu";
 
 type Section = "app" | "activity" | "settings";
 
@@ -28,7 +29,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     if (!files.length) return;
     try {
       const out = await client.addFiles(files, { module: moduleId });
-      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
+      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Zazoo is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
       onChanged();
     } catch (err) {
       setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
@@ -122,7 +123,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
   const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
   return (
     <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
-      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
+      {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Zazoo reads them into its tables.</div> : null}
       {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
       <div className="modhead">
         <div className="modhead__title">
@@ -147,9 +148,10 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
           </div>
         </div>
         <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void added(files); }} />
-        <Button size="sm" title="Add files to this module from your Mac; Alpha reads them into its tables" onClick={() => picker.current?.click()}>
+        <Button size="sm" title="Add files to this module from your Mac; Zazoo reads them into its tables" onClick={() => picker.current?.click()}>
           Add files
         </Button>
+        <ProjectMenu client={client} module={detail} onGo={onGo} onChanged={onChanged} trigger={<IconButton label={`${detail.name} options`} icon={<MoreHorizontal />} />} />
         <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />
       </div>
 
@@ -344,9 +346,9 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
-              <span className="faint">Switch any off; Alpha says so if something needs it</span>
+              <span className="faint">Switch any off; Zazoo says so if something needs it</span>
             </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Zazoo to keep something here current and it shows up with a switch." />
           </div>
         </>
       ) : null}
@@ -380,11 +382,11 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
   const label = (e: ModuleDetail["activity"][number]) =>
     e.kind === "failed" ? { cls: "badge--failed", words: "Failed" }
     : e.kind === "said" ? { cls: "", words: "You said" }
-    : e.kind === "replied" ? { cls: "badge--running", words: "Alpha said" }
+    : e.kind === "replied" ? { cls: "badge--running", words: "Zazoo said" }
     : e.kind === "asked" || e.kind === "proposed" ? { cls: "badge--waiting", words: "Asked" }
     : e.actor === "person" ? { cls: "", words: "You" }
     : e.kind === "saw" ? { cls: "badge--running", words: "Read" }
-    : { cls: "badge--succeeded", words: "Alpha" };
+    : { cls: "badge--succeeded", words: "Zazoo" };
   return (
     <div className="stack">
       <div className="card list" aria-label="Everything that happened here">
@@ -437,7 +439,7 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   return (
     <div className="card card--pad" style={{ marginBottom: 14 }}>
       <div className="section__head" style={{ marginBottom: 8 }}>
-        <h2 style={{ fontSize: "var(--text-lg)" }}>Alpha's page</h2>
+        <h2 style={{ fontSize: "var(--text-lg)" }}>Zazoo's page</h2>
         <span className="faint">what this is for, what it holds, what is open</span>
         <span className="section__right">
           {editing ? (
@@ -461,7 +463,7 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
       ) : page.page ? (
         <div className="people__page">{page.page.body}</div>
       ) : (
-        <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
+        <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Zazoo writes one as it builds and learns here; you can start it.</p>
       )}
     </div>
   );

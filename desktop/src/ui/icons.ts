@@ -45,4 +45,5 @@ export {
   Link2,
   File,
   Pencil,
+  Star,
 } from "lucide-react";

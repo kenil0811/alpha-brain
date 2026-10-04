@@ -1,12 +1,13 @@
 /** One record, opened beside the view: every field editable in place, the long texts under,
  *  when it was added and last changed, Remove. A relation in it opens the related record in
- *  the same drawer, on a stack: Back returns to where the person came from. The fields alone
+ *  the same drawer, on a stack: Back returns to where the person came from. History (every
+ *  change to this record, by whom) waits for the core's record history. The fields alone
  *  (`RecordFields`) are also the form view's body. */
 import type { RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { humanize } from "../format";
 import { useState } from "react";
-import { Button, Confirm, IconButton } from "../../ui";
+import { Button, Confirm, IconButton, useComingSoon } from "../../ui";
 import { ArrowLeft, X } from "../../ui/icons";
 import { Cell, LongText } from "./cells";
 
@@ -51,6 +52,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
 export function RecordPanel({ row, fields, titleField, relations, tableTitle, onClose, onCommit, onRemove, onOpenRelated, back }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; tableTitle?: string; onClose: () => void; onCommit: (field: FieldInfo, text: string) => void; onRemove?: () => void; onOpenRelated?: (collection: string, id: string) => void; back?: { to: string; onBack: () => void } }) {
   const title = titleField ? String(row.values[titleField] ?? "") : "";
   const [asking, setAsking] = useState(false);
+  const soon = useComingSoon();
   return (
     <section className="drawer" aria-label={title || "Details"}>
       <Confirm open={asking} title={`Remove ${title || "this row"}?`} action="Remove it" onConfirm={() => { setAsking(false); onRemove?.(); }} onCancel={() => setAsking(false)}>
@@ -63,6 +65,9 @@ export function RecordPanel({ row, fields, titleField, relations, tableTitle, on
           {tableTitle ? <span className="faint">{tableTitle}</span> : null}
         </div>
         <span className="spacer" />
+        <Button size="sm" variant="ghost" onClick={() => soon("A record's full history")}>
+          History
+        </Button>
         {onRemove ? (
           <Button size="sm" variant="danger" onClick={() => setAsking(true)}>
             Remove

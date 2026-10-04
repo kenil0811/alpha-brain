@@ -2,14 +2,15 @@
  * A table's page: Alpha draws one for every table it keeps, so nothing has to be designed. The
  * table comes first with the person's own edits in place; board, list, calendar and chart are a
  * click away; a saved list is a filter plus the columns shown. Edits here are the person's own
- * and are journaled as theirs.
+ * and are journaled as theirs. A star in the view, list, group and date pickers makes that option
+ * the one the table opens on: the list's star is kept in the world, the others on this Mac.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
-import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
+import { Button, Confirm, IconButton, Popover, StarPicker, useComingSoon } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { applyQuery, ofKinds, pageOf, provenanceCounts, type Sort } from "./views/engine";
 import { GalleryView } from "./views/GalleryView";
@@ -68,6 +69,12 @@ function remember(key: string, value: unknown) {
   }
 }
 
+/** The view a table opens on: its starred view when the table can show it, else the one it was
+ *  left on, else the table. */
+export function startingView(starred: PageView | null, last: PageView | null, can: (v: PageView) => boolean): PageView {
+  return [starred, last].find((v): v is PageView => v !== null && can(v)) ?? "table";
+}
+
 /** What Back returns to: the record under the top of the stack, else the opened row, else the table. */
 function backTo(stack: { table: TableDesc; row: RecordRow }[], openRow: RecordRow | null, titleField: string | undefined, tableTitle: string): string {
   const under = stack.length > 1 ? stack[stack.length - 2] : null;
@@ -86,13 +93,31 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   // field: the first of each by default, the person's pick when there are several.
   const choiceFields = useMemo(() => ofKinds(fields, new Set(["status", "choice"])).sort((a, b) => (a.kind === "status" ? -1 : b.kind === "status" ? 1 : 0)), [fields]);
   const dateFields = useMemo(() => ofKinds(fields, DATE_KINDS), [fields]);
-  const [groupBy, setGroupBy] = useState<string | null>(null);
-  const [dateBy, setDateBy] = useState<string | null>(null);
+  // Starred (kept on this Mac): the view, the grouping and the date field the table opens on.
+  const [starredView, setStarredView] = useState<PageView | null>(() => remembered<PageView | null>(`${key}.star.view`, null));
+  const [starredGroup, setStarredGroup] = useState<string | null>(() => remembered<string | null>(`${key}.star.group`, null));
+  const [starredDate, setStarredDate] = useState<string | null>(() => remembered<string | null>(`${key}.star.date`, null));
+  const [groupBy, setGroupBy] = useState<string | null>(starredGroup);
+  const [dateBy, setDateBy] = useState<string | null>(starredDate);
   const groupField = useMemo(() => choiceFields.find((f) => f.name === groupBy) ?? choiceFields[0], [choiceFields, groupBy]);
   const dateField = useMemo(() => dateFields.find((f) => f.name === dateBy) ?? dateFields[0], [dateFields, dateBy]);
   const numericField = useMemo(() => firstOfKind(fields, new Set(["number"])), [fields]);
 
-  const [view, setView] = useState<PageView>(() => remembered<PageView>(`${key}.view`, "table"));
+  const viewItems = VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField));
+  const [view, setView] = useState<PageView>(() => startingView(starredView, remembered<PageView | null>(`${key}.view`, null), (v) => viewItems.some((i) => i.id === v)));
+  const soon = useComingSoon();
+  // Undo needs the core's edit journal; ⌘Z outside a field says so.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== "z" || e.shiftKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
+      e.preventDefault();
+      soon("Undo");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [soon]);
   const [files, setFiles] = useState<Record<string, FileInfo>>({});
   async function exportAs(format: "csv" | "xlsx") {
     try {
@@ -157,6 +182,9 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   useEffect(() => remember(`${key}.order`, order), [key, order]);
   useEffect(() => remember(`${key}.widths`, widths), [key, widths]);
   useEffect(() => remember(PAGE_SIZE_KEY, pageSize), [pageSize]);
+  useEffect(() => remember(`${key}.star.view`, starredView), [key, starredView]);
+  useEffect(() => remember(`${key}.star.group`, starredGroup), [key, starredGroup]);
+  useEffect(() => remember(`${key}.star.date`, starredDate), [key, starredDate]);
   const moveColumn = (name: string, by: -1 | 1) =>
     setOrder(() => {
       const current = [...columns];
@@ -205,7 +233,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters, hideDone, statusField, showGone, sort }) : null), [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
   useEffect(() => setPageAt(0), [search, filters, hideDone, showGone, sort]);
   // A table with a file field says how files get in: the button above, or a drop on the page.
-  const emptyWords = fields.some((f) => f.kind === "file") ? "Nothing here yet. Add files with the button above, or drop them on the page; Alpha keeps each as a row here." : "Nothing here yet.";
+  const emptyWords = fields.some((f) => f.kind === "file") ? "Nothing here yet. Add files with the button above, or drop them on the page; Zazoo keeps each as a row here." : "Nothing here yet.";
   // A table fed by readers: the platform knows when each row was first seen, last seen, gone.
   const tracked = useMemo(() => Boolean(all?.some((r) => r.seen_at || r.gone_at)), [all]);
   const goneCount = useMemo(() => (all ?? []).filter((r) => r.gone_at).length, [all]);
@@ -349,7 +377,17 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
       setLists((existing) => existing.map((l) => (l.id === changed.id ? changed : l)));
     }, "Couldn't change the list");
   }
-  function starList(id: string) {
+  /** Star a list (the table opens on it), or clear the star (it opens on All). */
+  function starList(id: string | null) {
+    const current = lists.find((l) => l.is_default);
+    if (id === null || id === "all") {
+      if (!current) return;
+      void run(async () => {
+        await client.updateList(current.id, { default: false });
+        setLists((existing) => existing.map((l) => ({ ...l, is_default: false })));
+      }, "Couldn't clear the default");
+      return;
+    }
     void run(async () => {
       const changed = await client.updateList(id, { default: true });
       setLists((existing) => existing.map((l) => ({ ...l, is_default: l.id === changed.id })));
@@ -390,34 +428,15 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${table.title.toLowerCase()}`} aria-label="Search" />
             </div>
           ) : null}
-          <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
+          <StarPicker label="View" value={view} onChange={setView} options={viewItems} starred={starredView} onStar={setStarredView} />
           {view === "board" && choiceFields.length > 1 ? (
-            <select className="btn btn--sm" value={groupField?.name ?? ""} onChange={(e) => setGroupBy(e.target.value)} aria-label="Group by">
-              {choiceFields.map((f) => (
-                <option key={f.name} value={f.name}>
-                  By {humanize(f.name).toLowerCase()}
-                </option>
-              ))}
-            </select>
+            <StarPicker label="Group by" value={groupField?.name ?? ""} onChange={setGroupBy} options={choiceFields.map((f) => ({ id: f.name, label: `By ${humanize(f.name).toLowerCase()}` }))} starred={starredGroup} onStar={setStarredGroup} />
           ) : null}
           {(view === "calendar" || view === "timeline" || view === "chart") && dateFields.length > 1 ? (
-            <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
-              {dateFields.map((f) => (
-                <option key={f.name} value={f.name}>
-                  By {humanize(f.name).toLowerCase()}
-                </option>
-              ))}
-            </select>
+            <StarPicker label="Date field" value={dateField?.name ?? ""} onChange={setDateBy} options={dateFields.map((f) => ({ id: f.name, label: `By ${humanize(f.name).toLowerCase()}` }))} starred={starredDate} onStar={setStarredDate} />
           ) : null}
           {lists.length ? (
-            <select className="btn btn--sm" value={listId} onChange={(e) => applyList(e.target.value)} aria-label="Saved list">
-              <option value="all">All</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.is_default ? "★ " : ""}{l.title}
-                </option>
-              ))}
-            </select>
+            <StarPicker label="Saved list" value={listId} onChange={(id) => applyList(id)} options={[{ id: "all", label: "All" }, ...lists.map((l) => ({ id: l.id, label: l.title }))]} starred={lists.find((l) => l.is_default)?.id ?? "all"} onStar={starList} />
           ) : null}
           {facets.map((field) => (
             <select key={field.name} className="btn btn--sm" value={filters[field.name] ?? ""} onChange={(e) => setFilters((p) => ({ ...p, [field.name]: e.target.value }))} aria-label={`Filter by ${humanize(field.name).toLowerCase()}`}>
@@ -445,6 +464,9 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
           </Button>
           <Popover label="Table options" trigger={<IconButton label="More" icon={<MoreHorizontal />} />}>
             <div>
+                <button type="button" className="menu__item" onClick={() => soon("Undo")}>
+                  Undo <span className="faint">⌘Z</span>
+                </button>
                 <div className="menu__head">Download</div>
                 <button type="button" className="menu__item" onClick={() => void exportAs("csv")}>
                   As CSV
@@ -540,7 +562,8 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
               sort={sort}
               onSort={setSort}
               openId={openId}
-              onOpen={(id) => setOpenId((current) => (current === id ? null : id))}
+              onOpen={setOpenId}
+              onHide={(name) => setHidden((h) => [...h, name])}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}
               files={files}
@@ -553,11 +576,11 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
             />
           ) : null}
           {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={openRelated} empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
-          {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
-          {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
-          {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={setOpenId} /> : null}
-          {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={setOpenId} /> : null}
-          {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={setOpenId} /> : null}
+          {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} onCommit={commit} /> : null}
+          {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} onCommit={commit} /> : null}
+          {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={setOpenId} onCommit={commit} /> : null}
+          {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={setOpenId} onCommit={commit} /> : null}
+          {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} month={month} onMonth={setMonth} onOpen={setOpenId} onCommit={commit} /> : null}
           {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
         </div>
         {related.length ? (
@@ -581,7 +604,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
           <span className="num">
             {counted}
             {resting ? (
-              <span className="faint" title="Numbers Alpha estimated or assumed something for. Double-click a cell to correct it.">
+              <span className="faint" title="Numbers Zazoo estimated or assumed something for. Double-click a cell to correct it.">
                 {resting}
               </span>
             ) : null}

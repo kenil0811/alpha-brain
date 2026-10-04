@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Client, ModuleCard } from "../core/client";
-import { IconButton, Menu, MenuItem } from "../ui";
-import { HomeIcon, ActivityIcon, PeopleIcon, ModuleIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight } from "../ui/icons";
+import { ProjectMenu } from "../modules/ProjectMenu";
+import { IconButton, Menu, MenuItem, useComingSoon } from "../ui";
+import { HomeIcon, ActivityIcon, PeopleIcon, ModuleIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight, MoreHorizontal } from "../ui/icons";
 
 export type Surface =
   | { kind: "home" }
@@ -145,6 +146,7 @@ export function Rail({
   onNew,
   collapsed,
   onToggleCollapsed,
+  onChanged,
 }: {
   client?: Client | null;
   surface: Surface;
@@ -155,7 +157,11 @@ export function Rail({
   onNew: () => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** For a project's menu (its ⋯ or a right-click on its row). */
+  onChanged?: () => void;
 }) {
+  const soon = useComingSoon();
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [folded, setFolded] = useState<Set<string>>(readFolded);
   const toggleFold = (id: string) =>
     setFolded((f) => {
@@ -169,11 +175,11 @@ export function Rail({
       }
       return next;
     });
-  const item = (target: Surface, icon: ReactNode, label: string, count?: number, depth = 0, fold?: { open: boolean; onToggle: () => void }) => {
+  const item = (target: Surface, icon: ReactNode, label: string, count?: number, depth = 0, fold?: { open: boolean; onToggle: () => void }, project?: ModuleCard) => {
     const current = sameSurface(surface, target);
     const key = target.kind === "module" || target.kind === "entity" || target.kind === "automation" ? `${target.kind}:${target.id}` : target.kind === "skill" ? `skill:${target.name}` : target.kind;
     return (
-      <div key={key} className="navrow" style={depth ? { paddingLeft: depth * 14 } : undefined}>
+      <div key={key} className="navrow" style={depth ? { paddingLeft: depth * 14 } : undefined} onContextMenu={project && client && !collapsed ? (e) => { e.preventDefault(); setMenuFor(project.id); } : undefined}>
         <button type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
           <span className="navbtn__ico" aria-hidden="true">
             {icon}
@@ -186,13 +192,16 @@ export function Rail({
             {fold.open ? "▾" : "▸"}
           </button>
         ) : null}
+        {project && client && !collapsed ? (
+          <ProjectMenu client={client} module={project} open={menuFor === project.id} onOpenChange={(open) => setMenuFor(open ? project.id : null)} onGo={onGo} onChanged={onChanged ?? (() => undefined)} trigger={<IconButton size="sm" className="navrow__menu" label={`${label} options`} icon={<MoreHorizontal />} />} />
+        ) : null}
       </div>
     );
   };
   const branches = (list: ModuleBranch[], depth: number): ReactNode[] =>
     list.flatMap((b) => {
       const open = !folded.has(b.module.id);
-      const row = item({ kind: "module", id: b.module.id }, <ModuleIcon />, b.module.name, undefined, depth, b.inside.length ? { open, onToggle: () => toggleFold(b.module.id) } : undefined);
+      const row = item({ kind: "module", id: b.module.id }, <ModuleIcon />, b.module.name, undefined, depth, b.inside.length ? { open, onToggle: () => toggleFold(b.module.id) } : undefined, b.module);
       return open ? [row, ...branches(b.inside, depth + 1)] : [row];
     });
   const status = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : runtime === "lost" ? "Core not answering" : "Core not running";
@@ -209,12 +218,20 @@ export function Rail({
         <div className="rail__group">Your modules</div>
         {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}
         {branches(treeOf(modules), 0)}
-        <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined}>
-          <span className="navbtn__ico" aria-hidden="true" style={{ color: "var(--primary)" }}>
-            <PlusIcon />
-          </span>
-          <span className="navbtn__text">New</span>
-        </button>
+        <div className="navrow">
+          {/* A project file dropped here would be added from it (the core's import route). */}
+          <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) soon("Adding a project from a file"); }}>
+            <span className="navbtn__ico" aria-hidden="true" style={{ color: "var(--primary)" }}>
+              <PlusIcon />
+            </span>
+            <span className="navbtn__text">New</span>
+          </button>
+          {!collapsed ? (
+            <Menu align="start" trigger={<IconButton size="sm" className="navrow__menu" label="More ways to add a project" icon={<MoreHorizontal />} />}>
+              <MenuItem onSelect={() => soon("Adding a project from a file")}>Add from a file…</MenuItem>
+            </Menu>
+          ) : null}
+        </div>
       </div>
       {item({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence")}
       {item({ kind: "settings" }, <SettingsIcon />, "Settings")}

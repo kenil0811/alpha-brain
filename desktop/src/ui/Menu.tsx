@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 /** A menu on a trigger, with focus, Escape, outside-click and arrow keys handled (Radix).
  *  `open`/`onOpenChange` hand the opening to the caller (a name that opens its menu on a
- *  single click only after a beat, so a double click can rename instead). */
+ *  single click only after a beat, so a double click can rename instead, or a right-click opens it). */
 export function Menu({ trigger, children, align = "end", open, onOpenChange }: { trigger: ReactNode; children: ReactNode; align?: "start" | "end"; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   return (
     <DropdownMenu.Root modal={false} open={open} onOpenChange={onOpenChange}>

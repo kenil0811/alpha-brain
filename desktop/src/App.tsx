@@ -230,7 +230,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: `${panel.width}px` }}
     >
-      <Rail client={client} surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
+      <Rail client={client} surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} onChanged={changed} />
       {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} {...rail.handle} aria-label="Resize the sidebar" /> : null}
       {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} {...panel.handle} aria-label="Resize Zazoo's panel" /> : null}
       <main className="main">
