@@ -1,16 +1,76 @@
 /**
- * The conversation beside the workspace: one stream, scoped by the page (a message sent from a
- * module's page is about that module), with Alpha's threads as cards that open into their own
- * view. The companion is the same stream.
+ * Zazoo, the conversation beside the workspace: one stream, scoped by the page (a message sent
+ * from a module's page is about that module), with Zazoo's threads as cards that open into their
+ * own view. The companion is the same stream. Files added by the composer's + (or dropped or
+ * pasted on it) go to the core's /api/files for the page's module; a model or access per chat
+ * is not something the core keeps yet, so those say they are coming soon.
  */
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type ClipboardEvent, type DragEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Button, IconButton, Trouble, Rich } from "../ui";
-import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
+import { Button, IconButton, Menu, MenuHeading, MenuItem, Trouble, Rich, useComingSoon } from "../ui";
+import { ChevronRight, ChevronDown, Check, X, PlusIcon, File as FileIcon, FolderOpen } from "../ui/icons";
+
+/** The composer's +: add files, images, a folder (its files) or audio to the page's module, and
+ *  Advanced (a model and access per chat: coming soon, the core runs every chat the same way). */
+function AttachMenu({ onFiles }: { onFiles: (files: File[]) => void }) {
+  const soon = useComingSoon();
+  const pickers = useRef<Record<string, HTMLInputElement | null>>({});
+  const pick = (kind: string) => pickers.current[kind]?.click();
+  const input = (kind: string, accept?: string, folder?: boolean) => (
+    <input
+      key={kind}
+      ref={(el) => {
+        pickers.current[kind] = el;
+        // A folder picker is a file input that takes a directory (all its files come with it).
+        if (el && folder) el.setAttribute("webkitdirectory", "");
+      }}
+      type="file"
+      multiple
+      hidden
+      accept={accept}
+      aria-hidden="true"
+      tabIndex={-1}
+      onChange={(e) => {
+        onFiles(Array.from(e.target.files ?? []));
+        e.target.value = "";
+      }}
+    />
+  );
+  return (
+    <>
+      {input("files")}
+      {input("images", "image/*")}
+      {input("folder", undefined, true)}
+      {input("audio", "audio/*")}
+      <Menu align="start" trigger={<IconButton size="sm" className="composer__plus" label="Add files, images, a folder or audio" icon={<PlusIcon />} />}>
+        <MenuItem onSelect={() => pick("files")}>
+          <FileIcon size={14} aria-hidden="true" /> Add files
+        </MenuItem>
+        <MenuItem onSelect={() => pick("images")}>
+          <FileIcon size={14} aria-hidden="true" /> Add images
+        </MenuItem>
+        <MenuItem onSelect={() => pick("folder")}>
+          <FolderOpen size={14} aria-hidden="true" /> Add a folder
+        </MenuItem>
+        <MenuItem onSelect={() => pick("audio")}>
+          <FileIcon size={14} aria-hidden="true" /> Add audio
+        </MenuItem>
+        <MenuHeading>Advanced</MenuHeading>
+        <MenuItem onSelect={() => soon("Choosing a model for this chat")}>Model: as in Settings</MenuItem>
+        <MenuItem onSelect={() => soon("Choosing access for this chat")}>Access: ask for approval</MenuItem>
+      </Menu>
+    </>
+  );
+}
+
+/** Whether a drop or paste carries files (not just text). */
+export function carriesFiles(data: DataTransfer | null): boolean {
+  return Boolean(data && (data.files?.length || Array.from(data.types ?? []).includes("Files")));
+}
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
@@ -67,7 +127,7 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
     }
   };
   return (
-    <div className="askcard" role="group" aria-label="Alpha asks">
+    <div className="askcard" role="group" aria-label="Zazoo asks">
       <p className="askcard__q">{ask.text}</p>
       {ask.options.length ? (
         <div className="askcard__options">
@@ -272,6 +332,54 @@ export function AssistantPanel({
     [client, load, onChanged],
   );
 
+  // Files from the +, a drop or a paste: kept by the core for the page's module, which Zazoo
+  // then reads in a turn the panel follows; on a page with no module they are kept in Alpha's
+  // files and the panel says so.
+  const [fileNote, setFileNote] = useState<string | null>(null);
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return;
+      setError(null);
+      try {
+        const out = await client.addFiles(files, { module: module?.id ?? null });
+        const names = out.documents.map((d) => d.title).join(", ");
+        setFileNote(out.turn ? `Added ${names}. Zazoo is reading ${files.length === 1 ? "it" : "them"}.` : `Kept ${names} in Alpha's files. Open a module to have Zazoo read ${files.length === 1 ? "it" : "them"} into it.`);
+        onChanged();
+        void follow(out.turn);
+      } catch (e) {
+        setError(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+    [client, module?.id, onChanged, follow],
+  );
+  useEffect(() => {
+    if (!fileNote) return;
+    const t = setTimeout(() => setFileNote(null), 6000);
+    return () => clearTimeout(t);
+  }, [fileNote]);
+  const onDragOver = (e: DragEvent) => {
+    if (carriesFiles(e.dataTransfer)) e.preventDefault();
+  };
+  const onDrop = (e: DragEvent) => {
+    if (!carriesFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    void addFiles(Array.from(e.dataTransfer.files));
+  };
+  const onPaste = (e: ClipboardEvent) => {
+    if (!e.clipboardData.files.length) return;
+    e.preventDefault();
+    void addFiles(Array.from(e.clipboardData.files));
+  };
+  const newChat = () =>
+    void client
+      .newConversation(module?.id ?? null, "New conversation")
+      .then((c) => {
+        setThreadView(null);
+        setActive(c.id);
+        load();
+      })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
   });
@@ -328,7 +436,7 @@ export function AssistantPanel({
   const activeConvo = chats.find((c) => c.id === active) ?? null;
 
   return (
-    <aside className="assist" aria-label="Assistant">
+    <aside className="assist" aria-label="Zazoo">
       {threadView ? (
         <div className="assist__head">
           <button type="button" className="assist__back" onClick={() => setThreadView(null)}>
@@ -342,11 +450,11 @@ export function AssistantPanel({
       ) : (
         <div className="assist__head">
           <div className="assist__mark" aria-hidden="true">
-            A
+            Z
           </div>
           <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>{activeConvo ? activeConvo.title : "Assistant"}</b>
-            <div className="assist__ctx">{activeConvo ? `${activeConvo.scope} · ${CONVO_STATE[activeConvo.state] ?? activeConvo.state}` : scopeName}</div>
+            <b style={{ fontWeight: 500 }}>Zazoo</b>
+            <div className="assist__ctx">{activeConvo ? `${activeConvo.title} · ${activeConvo.scope} · ${CONVO_STATE[activeConvo.state] ?? activeConvo.state}` : scopeName}</div>
           </div>
           <span style={{ marginLeft: "auto" }} />
           {activeConvo && activeConvo.state !== "working" ? (
@@ -354,7 +462,8 @@ export function AssistantPanel({
               Done
             </Button>
           ) : null}
-          <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onOpen(false)} />
+          <IconButton label="New chat" title="A new conversation here" icon={<PlusIcon />} onClick={newChat} />
+          <IconButton label="Close Zazoo" icon={<ChevronRight />} onClick={() => onOpen(false)} />
         </div>
       )}
       {!threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
@@ -366,7 +475,7 @@ export function AssistantPanel({
               <span className="convchip__title">{c.title}</span>
             </button>
           ))}
-          <button type="button" className="convchip convchip--new" title="A new conversation here" onClick={() => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); })}>
+          <button type="button" className="convchip convchip--new" title="A new conversation here" onClick={newChat}>
             +
           </button>
         </div>
@@ -402,7 +511,7 @@ export function AssistantPanel({
                       {t.title}
                       <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
                     </h3>
-                    <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                    <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Zazoo is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
                     {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
                   {build ? (
@@ -449,9 +558,15 @@ export function AssistantPanel({
           </p>
         ) : null}
       </div>
-      <div className="composer">
+      <div className="composer" onDragOver={onDragOver} onDrop={onDrop}>
+        {fileNote ? (
+          <p className="faint" role="status">
+            {fileNote}
+          </p>
+        ) : null}
         <div className="composer__box">
-          <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
+          <AttachMenu onFiles={(files) => void addFiles(files)} />
+          <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} onPaste={onPaste} placeholder={threadView ? "Reply…" : "Ask Zazoo…"} aria-label="Message Zazoo" />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
           <Button size="sm" variant="primary" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
             Send

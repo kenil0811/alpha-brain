@@ -1,7 +1,7 @@
 /**
  * ⌘K: search everything and go there. Pages and modules match as you type; from two
  * characters the core's search adds people, records, documents and journal entries; a sentence
- * that matches nothing goes to Alpha as a question. Arrow keys move, Enter goes, Escape closes.
+ * that matches nothing goes to Zazoo as a question. Arrow keys move, Enter goes, Escape closes.
  * (An idea from pull request #3, rebuilt on main's search route.)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -86,7 +86,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
       for (const d of hits.documents.slice(0, 4)) out.push({ key: `doc:${d.id}`, kind: "document", label: d.title, hint: "Document", go: () => { if (host.available()) void host.openPath(d.path); close(); } });
       for (const j of hits.journal.slice(0, 4)) out.push({ key: `journal:${j.id}`, kind: "journal", label: j.text.slice(0, 90), hint: "In Activity", go: () => { onGo({ kind: "activity" }); close(); } });
     }
-    if (q.length >= 3) out.push({ key: "ask", kind: "ask", label: `Ask Alpha: “${query.trim()}”`, go: () => { onAsk(query.trim()); close(); } });
+    if (q.length >= 3) out.push({ key: "ask", kind: "ask", label: `Ask Zazoo: “${query.trim()}”`, go: () => { onAsk(query.trim()); close(); } });
     return out;
   }, [q, query, modules, hits, onGo, onAsk, onOpenChange]);
 
@@ -100,7 +100,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
         className="command__input"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="A page, a module, a person, a row, a document, or a question for Alpha"
+        placeholder="A page, a module, a person, a row, a document, or a question for Zazoo"
         aria-label="Search everything"
         role="combobox"
         aria-expanded={items.length > 0}

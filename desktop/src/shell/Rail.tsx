@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from "react";
-import type { ModuleCard } from "../core/client";
-import { IconButton } from "../ui";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { Client, ModuleCard } from "../core/client";
+import { IconButton, Menu, MenuItem } from "../ui";
 import { HomeIcon, ActivityIcon, PeopleIcon, ModuleIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight } from "../ui/icons";
 
 export type Surface =
@@ -51,7 +51,92 @@ export function knownSurface(value: unknown): Surface {
   return { kind: "home" };
 }
 
+/** The workspace's name, kept in the core's preferences (so the companion and every window
+ *  share it); "Alpha" until the person names it. */
+const WORKSPACE_PREF = "workspace_name";
+// A single click waits this long for a second one before it opens the menu.
+export const DOUBLE_CLICK_MS = 220;
+
+function WorkspaceName({ client, onGo }: { client: Client | null; onGo: (surface: Surface) => void }) {
+  const [name, setName] = useState("Alpha");
+  const [renaming, setRenaming] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (!client) return;
+    client
+      .preference(WORKSPACE_PREF)
+      .then((p) => {
+        if (typeof p.value === "string" && p.value) setName(p.value);
+      })
+      .catch(() => undefined);
+  }, [client]);
+  const save = (value: string) => {
+    setRenaming(false);
+    const next = value.trim();
+    if (!next || next === name) return;
+    const was = name;
+    setName(next);
+    client?.setPreference(WORKSPACE_PREF, next).catch(() => setName(was));
+  };
+  if (renaming)
+    return (
+      <input
+        className="brand__input"
+        aria-label="Workspace name"
+        defaultValue={name}
+        maxLength={40}
+        autoFocus
+        onFocus={(e) => e.target.select()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setRenaming(false);
+        }}
+        onBlur={(e) => save(e.target.value)}
+      />
+    );
+  return (
+    <Menu
+      align="start"
+      open={menu}
+      onOpenChange={setMenu}
+      trigger={
+        <button
+          type="button"
+          className="brand__name"
+          aria-label={`Workspace: ${name}`}
+          title="Double-click to rename"
+          // The menu opens on a click after a beat, so a double click renames instead.
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            clearTimeout(timer.current);
+            if (e.detail <= 1) timer.current = setTimeout(() => setMenu(true), DOUBLE_CLICK_MS);
+          }}
+          onDoubleClick={() => {
+            clearTimeout(timer.current);
+            setRenaming(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "F2") {
+              e.preventDefault();
+              setRenaming(true);
+            }
+          }}
+        >
+          {name}
+        </button>
+      }
+    >
+      <MenuItem onSelect={() => setRenaming(true)}>Rename workspace</MenuItem>
+      <MenuItem onSelect={() => onGo({ kind: "intelligence", tab: "knowledge" })}>About you</MenuItem>
+      <MenuItem onSelect={() => onGo({ kind: "settings" })}>Settings</MenuItem>
+    </Menu>
+  );
+}
+
 export function Rail({
+  client = null,
   surface,
   modules,
   needs,
@@ -61,6 +146,7 @@ export function Rail({
   collapsed,
   onToggleCollapsed,
 }: {
+  client?: Client | null;
   surface: Surface;
   modules: ModuleCard[];
   needs: number;
@@ -113,10 +199,7 @@ export function Rail({
   return (
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha">
       <div className="brand">
-        <div className="brand__mark" aria-hidden="true">
-          A
-        </div>
-        <b>Alpha</b>
+        {!collapsed ? <WorkspaceName client={client} onGo={onGo} /> : null}
         <IconButton className="rail__fold" label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"} aria-expanded={!collapsed} icon={collapsed ? <ChevronsRight /> : <ChevronsLeft />} onClick={onToggleCollapsed} />
       </div>
       {item({ kind: "home" }, <HomeIcon />, "Home", needs)}

@@ -912,3 +912,18 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__glance .linkbtn { text-align: left; padding: 0; }
 .map__think { background: var(--primary-soft); border-radius: 8px; padding: 6px 8px; font-size: var(--text-md); }
 .map__busy { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow); }
+
+/* ---- shell: resize handles, workspace name, Zazoo's composer ---- */
+/* A two-sided arrow on the border, kept for the whole drag (useDragWidth sets it on the body). */
+.resizer, .app--resizing { cursor: ew-resize; }
+.resizer:focus-visible { outline: none; background: var(--primary-soft); box-shadow: inset 0 0 0 2px var(--primary); }
+.brand__name { flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 6px; border-radius: 6px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.brand__name:hover { background: var(--hover); }
+.brand__input { flex: 1 1 auto; min-width: 0; font: inherit; font-weight: 600; padding: 3px 5px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); color: var(--text); }
+.brand .rail__fold { margin-left: auto; }
+.composer__box textarea { min-width: 0; }
+.composer__plus { flex: none; }
+/* A Radix menu sits in its own positioned wrapper: absolute inside it the wrapper measured 0x0,
+   so a start-aligned menu opened off the window's left edge and none flipped up at the bottom
+   (the composer's +). In the flow, Radix places and flips it. */
+[data-radix-popper-content-wrapper] > .menu__list { position: static; }

@@ -59,7 +59,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [modules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
   const [restarted, setRestarted] = useState(false);
-  // A sentence handed to the panel: put in the composer (an "Ask Alpha…" button), or sent at
+  // A sentence handed to the panel: put in the composer (an "Ask Zazoo…" button), or sent at
   // once (quick entry on a table).
   const [draft, setDraft] = useState<{ text: string; send: boolean } | null>(null);
   const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
@@ -230,9 +230,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
       className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: `${panel.width}px` }}
     >
-      <Rail surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
-      {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} onPointerDown={rail.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" /> : null}
-      {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the conversation panel" /> : null}
+      <Rail client={client} surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
+      {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} {...rail.handle} aria-label="Resize the sidebar" /> : null}
+      {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} {...panel.handle} aria-label="Resize Zazoo's panel" /> : null}
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
@@ -248,7 +248,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : null}
         {!panelOpen && runtime.kind === "connected" ? (
           <Button variant="primary" className="assist__reopen" onClick={() => togglePanel(true)}>
-            Ask Alpha
+            Ask Zazoo
           </Button>
         ) : null}
         {runtime.kind === "connected" && chosen && !chosen.signed_in && surface.kind !== "settings" ? (
@@ -256,7 +256,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
             <div className="card firstrun__card">
               <div className="firstrun__head">
                 <h2>Connect {chosenName} to start</h2>
-                <span className="muted">Alpha thinks with your {chosenName} account. It takes a minute, once. Settings has the other way too.</span>
+                <span className="muted">Zazoo thinks with your {chosenName} account. It takes a minute, once. Settings has the other way too.</span>
               </div>
               <div className="list">
                 <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
