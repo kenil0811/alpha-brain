@@ -11,6 +11,8 @@
 //! failing, and the windows are told (`core-restarted`) so they look again. Found at the 3 Oct
 //! checkpoint: a crash left the window on a dead port saying "Alpha is running".
 
+mod speech;
+
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -577,6 +579,7 @@ fn stop_all(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .manage(HostState::default())
+        .manage(speech::SpeechState::default())
         .invoke_handler(tauri::generate_handler![
             core_session,
             avatar_layout,
@@ -586,7 +589,11 @@ pub fn run() {
             show_main,
             reveal_data,
             reveal_path,
-            open_path
+            open_path,
+            speech::stt_start,
+            speech::stt_stop,
+            speech::tts_speak,
+            speech::tts_stop
         ])
         .setup(|app| {
             let handle = app.handle().clone();

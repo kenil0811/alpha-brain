@@ -1,12 +1,13 @@
 /**
  * Speaking instead of typing: one button that starts listening on a click, shows that it is
- * listening, puts words into the field as they come, and stops on the next click. Uses the
- * browser's own recognition when the window offers it; otherwise it points at the Mac's
- * dictation, which works in any text field.
+ * listening, puts words into the field as they come, and stops on the next click. In the app it
+ * uses the Mac's own listening through the host (one utterance at a time); in a browser, the
+ * window's own recognition; failing both, it points at the Mac's dictation key.
  */
 import { Mic, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconButton } from "../ui/IconButton";
+import { nativeSpeech } from "./nativeSpeech";
 
 interface RecognitionResultEvent {
   resultIndex: number;
@@ -31,8 +32,10 @@ function recognitionClass(): RecognitionCtor | null {
 }
 
 export function speechSupported(): boolean {
-  return recognitionClass() !== null;
+  return nativeSpeech() !== null || recognitionClass() !== null;
 }
+
+const NO_MIC = "Zazoo needs permission to use the microphone.";
 
 /**
  * `onText(final, interim)` is called as words arrive: `final` is everything settled since
@@ -41,25 +44,73 @@ export function speechSupported(): boolean {
 export function useSpeech(onText: (final: string, interim: string) => void) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const active = useRef<Recognition | null>(null);
+  // Stops whatever is listening now; also its identity, so a late end from an old session is ignored.
+  const active = useRef<(() => void) | null>(null);
   const settled = useRef("");
   const latest = useRef(onText);
   latest.current = onText;
 
   const stop = useCallback(() => {
-    active.current?.stop();
+    active.current?.();
     active.current = null;
     setListening(false);
   }, []);
 
   const start = useCallback(() => {
+    settled.current = "";
+    setError(null);
+    setListening(true);
+    const native = nativeSpeech();
+    if (native) {
+      let stopNative: (() => void) | null = null;
+      const session = () => (stopNative ? stopNative() : undefined);
+      const ended = () => {
+        if (active.current === session) {
+          active.current = null;
+          setListening(false);
+        }
+      };
+      // Words still arrive after a stop (the host hands over what it heard), unless a newer
+      // session has started since.
+      const superseded = () => active.current !== null && active.current !== session;
+      active.current = session;
+      native
+        .listen(
+          (partial) => {
+            if (!superseded()) latest.current(settled.current, partial);
+          },
+          (final) => {
+            if (superseded()) return;
+            settled.current = final;
+            latest.current(final, "");
+            ended();
+          },
+          (message) => {
+            if (active.current === session) setError(message.startsWith("permission_denied") ? NO_MIC : message);
+            ended();
+          },
+        )
+        .then((stopFn) => {
+          stopNative = stopFn;
+          // Stopped while the host was still starting: stop it now.
+          if (active.current !== session) stopFn();
+        })
+        .catch(() => {
+          if (active.current === session) setError("Listening stopped.");
+          ended();
+        });
+      return;
+    }
     const Ctor = recognitionClass();
-    if (!Ctor) return;
+    if (!Ctor) {
+      setListening(false);
+      return;
+    }
     const r = new Ctor();
     r.continuous = true;
     r.interimResults = true;
     r.lang = navigator.language || "en-GB";
-    settled.current = "";
+    const session = () => r.stop();
     r.onresult = (e) => {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i += 1) {
@@ -70,23 +121,21 @@ export function useSpeech(onText: (final: string, interim: string) => void) {
       latest.current(settled.current, interim.trim());
     };
     r.onerror = (e) => {
-      setError(e.error === "not-allowed" ? "Alpha needs permission to use the microphone." : "Listening stopped.");
+      setError(e.error === "not-allowed" ? NO_MIC : "Listening stopped.");
       setListening(false);
       active.current = null;
     };
     r.onend = () => {
-      if (active.current === r) {
+      if (active.current === session) {
         active.current = null;
         setListening(false);
       }
     };
-    setError(null);
-    active.current = r;
-    setListening(true);
+    active.current = session;
     r.start();
   }, []);
 
-  useEffect(() => () => active.current?.stop(), []);
+  useEffect(() => () => active.current?.(), []);
   const toggle = useCallback(() => (listening ? stop() : start()), [listening, start, stop]);
   return { supported: speechSupported(), listening, error, start, stop, toggle };
 }
