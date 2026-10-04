@@ -59,7 +59,6 @@ export {
   ShieldCheck as PermissionsIcon,
   Keyboard as ShortcutsIcon,
   HardDrive as DataIcon,
-  Star,
   RotateCcw as ResetIcon,
   ScreenShare,
   Volume2,
