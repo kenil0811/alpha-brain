@@ -16,6 +16,6 @@ describe("adding files to a module", () => {
     const file = new File(["x"], "RestoPros P&L.xlsx");
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() => expect(addFiles).toHaveBeenCalledWith([file], { module: "m_1" }));
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Added RestoPros P&L.xlsx. Alpha is reading it into the tables."));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Added RestoPros P&L.xlsx. Zazoo is reading it into the tables."));
   });
 });

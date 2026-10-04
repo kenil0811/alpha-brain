@@ -21,7 +21,7 @@ export function QuickEntry({ table, onSay }: { table: { name: string; title: str
   return (
     <form className="quick quick--table" onSubmit={submit} aria-label={`Add to ${table.title} in a sentence`}>
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Add to ${table.title.toLowerCase()} in a sentence…`} aria-label={`Add to ${table.title} in a sentence`} />
-      <InfoTip text="Say it in words. Alpha fills the fields, keeps your sentence as the row's source, and says what it assumed or asks." />
+      <InfoTip text="Say it in words. Zazoo fills the fields, keeps your sentence as the row's source, and says what it assumed or asks." />
       <Button type="submit" size="sm" disabled={!text.trim()}>
         Add
       </Button>

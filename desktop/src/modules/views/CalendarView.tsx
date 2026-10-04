@@ -1,11 +1,14 @@
-/** A month of a date field, rows as chips on their days. */
+/** A month of a date field, rows as chips on their days. A click opens a chip; a double-click
+ *  on its title edits it there. */
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
+import { CardValue, opens } from "./cells";
 import { IconButton } from "../../ui";
 import { ChevronLeft, ChevronRight } from "../../ui/icons";
 import { byDay } from "./engine";
 
-export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; month: { y: number; m: number }; onMonth: (m: { y: number; m: number }) => void; onOpen: (id: string) => void }) {
+export function CalendarView({ rows, field, titleField, fields, month, onMonth, onOpen, onCommit }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; month: { y: number; m: number }; onMonth: (m: { y: number; m: number }) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void }) {
+  const title = fields.find((f) => f.name === titleField);
   const first = new Date(month.y, month.m, 1);
   const start = (first.getDay() + 6) % 7; // Monday first
   const days = new Date(month.y, month.m + 1, 0).getDate();
@@ -33,9 +36,9 @@ export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }
             <div key={i} className={`calendar__day${day ? "" : " calendar__day--pad"}`}>
               {day ? <span className="calendar__num">{day}</span> : null}
               {items.slice(0, 3).map((row) => (
-                <button key={row.id} type="button" className="calendar__chip" onClick={() => onOpen(row.id)}>
-                  {titleField ? String(row.values[titleField] ?? "Untitled") : row.id}
-                </button>
+                <div key={row.id} className="calendar__chip" {...opens(() => onOpen(row.id))}>
+                  <CardValue row={row} field={title} onCommit={onCommit} />
+                </div>
               ))}
               {items.length > 3 ? <span className="faint">+{items.length - 3}</span> : null}
             </div>

@@ -912,3 +912,23 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__glance .linkbtn { text-align: left; padding: 0; }
 .map__think { background: var(--primary-soft); border-radius: 8px; padding: 6px 8px; font-size: var(--text-md); }
 .map__busy { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow); }
+
+/* ---- projects and tables (stars, column menu, project menu, cards) ---- */
+/* Radix places the menu's wrapper; the older absolute .menu__list inside it would shift a
+   start-aligned menu left by its own width. */
+[data-radix-popper-content-wrapper] > .menu__list { position: static; }
+.starpick { display: inline-flex; align-items: center; gap: 6px; }
+.starpick__row { display: flex; align-items: center; gap: 2px; }
+.starpick__pick { flex: 1; min-width: 0; }
+.starpick__mark { display: inline-flex; width: 14px; flex: none; }
+.starpick__star { color: var(--text-3); }
+.starpick__star--on { color: var(--warn); }
+.navrow__menu { flex: none; opacity: 0; }
+.navrow:hover .navrow__menu, .navrow:focus-within .navrow__menu, .navrow__menu[data-state="open"] { opacity: 1; }
+/* Over the header's right end, so it takes no width from the columns. */
+.table th .th__menu { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: var(--surface-2); opacity: 0; }
+.table th:hover .th__menu, .table th .th__menu:focus-visible, .table th .th__menu[data-state="open"] { opacity: 1; }
+.list__row, .gallery__card, .timeline__row, .calendar__chip { cursor: pointer; }
+.list__row .editable, .gallery__card .editable, .timeline__row .editable, .calendar__chip .editable, .board__card .editable { cursor: inherit; }
+.list__row input, .gallery__card input, .timeline__row input, .calendar__chip input, .board__card input,
+.list__row select, .gallery__card select, .timeline__row select, .calendar__chip select, .board__card select { font: inherit; max-width: 100%; }

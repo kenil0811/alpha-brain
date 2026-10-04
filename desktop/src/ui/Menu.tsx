@@ -1,10 +1,11 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { ReactNode } from "react";
 
-/** A menu on a trigger, with focus, Escape, outside-click and arrow keys handled (Radix). */
-export function Menu({ trigger, children, align = "end" }: { trigger: ReactNode; children: ReactNode; align?: "start" | "end" }) {
+/** A menu on a trigger, with focus, Escape, outside-click and arrow keys handled (Radix).
+ *  `open`/`onOpenChange` let a right-click open it too. */
+export function Menu({ trigger, children, align = "end", open, onOpenChange }: { trigger: ReactNode; children: ReactNode; align?: "start" | "end"; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   return (
-    <DropdownMenu.Root modal={false}>
+    <DropdownMenu.Root modal={false} open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="menu__list" align={align} sideOffset={4}>

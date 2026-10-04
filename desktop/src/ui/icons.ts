@@ -42,4 +42,5 @@ export {
   Play,
   Link2,
   File,
+  Star,
 } from "lucide-react";

@@ -1,14 +1,19 @@
 /** The table: columns the person chose, sized by hand, sorted by a header, totals under the
- *  numeric ones, a row that opens its record. */
+ *  numeric ones, a row that opens its record. A column's menu (its ⌄ or a right-click on the
+ *  header) sorts and hides it; renaming, changing the type and adding one wait for the core. */
+import { useState } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, type FieldInfo } from "../fields";
 import { formatNumber, humanize } from "../format";
-import { ArrowDown, ArrowUp, ChevronRight } from "../../ui/icons";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "../../ui/icons";
+import { IconButton, Menu, MenuHeading, MenuItem, useComingSoon } from "../../ui";
 import { nextSort, totalsFor, type Sort } from "./engine";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, openId, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, relations, onOpenRelated, onHide }: { onHide?: (name: string) => void; files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; openId: string | null; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = totalsFor(totalOf, columns, byName);
+  const soon = useComingSoon();
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   return (
     <div className="tablewrap">
       <table className="table" aria-label={undefined}>
@@ -22,11 +27,20 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
             {columns.map((c) => {
               const kind = byName.get(c)?.kind ?? "text";
               return (
-                <th key={c} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
+                <th key={c} onContextMenu={(e) => { e.preventDefault(); setMenuFor(c); }} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
                   <button type="button" onClick={() => onSort(nextSort(sort, c))}>
                     {byName.get(c)?.label ?? humanize(c)}
                     {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : ""}
                   </button>
+                  <Menu align="start" open={menuFor === c} onOpenChange={(open) => setMenuFor(open ? c : null)} trigger={<IconButton size="sm" className="th__menu" label={`${byName.get(c)?.label ?? humanize(c)} options`} icon={<ChevronDown />} />}>
+                    <MenuItem onSelect={() => onSort({ field: c, direction: "asc" })}>Sort ascending</MenuItem>
+                    <MenuItem onSelect={() => onSort({ field: c, direction: "desc" })}>Sort descending</MenuItem>
+                    {onHide ? <MenuItem onSelect={() => onHide(c)}>Hide column</MenuItem> : null}
+                    <MenuHeading>Column</MenuHeading>
+                    <MenuItem onSelect={() => soon("Renaming a column")}>Rename column</MenuItem>
+                    <MenuItem onSelect={() => soon("Changing a column's type")}>Change type</MenuItem>
+                    <MenuItem onSelect={() => soon("Adding a column")}>Add column</MenuItem>
+                  </Menu>
                   <span
                     className="th__grip"
                     role="separator"
@@ -60,7 +74,8 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
             <tr
               key={row.id}
               className={`row--open${openId === row.id ? " row--current" : ""}${selected?.has(row.id) ? " row--selected" : ""}`}
-              onClick={() => onOpen(row.id)}
+              // The second click of a double-click is the cell's (it edits), not another open.
+              onClick={(e) => e.detail <= 1 && onOpen(row.id)}
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
