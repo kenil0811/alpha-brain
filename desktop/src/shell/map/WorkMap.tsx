@@ -1,18 +1,18 @@
 /**
  * The map (Intelligence › Map), in two views. **World** is the person's brain: themselves at
  * the centre, their areas sized by what happened there, the tables, documents, pages and goals
- * in each, the people and organisations Alpha knows, and the links between them, with the
- * ones Alpha proposed drawn dashed until the person decides. What is concentrated shows as a
+ * in each, the people and organisations Zazoo knows, and the links between them, with the
+ * ones Zazoo proposed drawn dashed until the person decides. What is concentrated shows as a
  * dense, big cluster; what is quiet as a small one; what nothing connects wears a dotted ring,
- * and the glance at the corner counts it. **Work** is Alpha's own plumbing: skills, automations,
+ * and the glance at the corner counts it. **Work** is Zazoo's own plumbing: skills, automations,
  * sources, connections. Both are drawn the same way: a force layout in a worker, pan, zoom,
  * find, pins, focus on one area, a card for anything with its links in words and Open.
  *
  * The map asks the core only when the person opens it for the first time and when they press
  * Refresh (Q30: never on a clock); it says as of when. Refresh on the World view also has
- * Alpha look over the map for links (a cheap model run) before redrawing.
+ * Zazoo look over the map for links (a cheap model run) before redrawing.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Client, GraphEdge, GraphKind, GraphNode, WorkGraph } from "../../core/client";
 import type { Surface } from "../Rail";
 import { Button, IconButton } from "../../ui";
@@ -55,22 +55,23 @@ export function addressOf(node: GraphNode): Surface | null {
   switch (node.kind) {
     case "module":
       return node.module ? { kind: "module", id: node.module } : null;
+    case "goal":
+      return { kind: "intelligence", tab: "knowledge", item: node.id.slice("goal:".length) };
     case "table":
     case "source":
     case "document":
-    case "goal":
       return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
     case "skill":
       return { kind: "skill", name: node.name ?? node.id.slice("skill:".length) };
     case "automation":
       return { kind: "automation", id: node.id.slice("automation:".length) };
     case "connection":
-      return { kind: "intelligence", tab: "connections" };
+      return { kind: "intelligence", tab: "connections", item: node.id.slice("connection:".length) };
     case "person":
     case "organisation":
       return node.entity ? { kind: "entity", id: node.entity } : { kind: "people" };
     case "page":
-      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
+      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge", item: node.id.slice("page:".length) };
     case "you":
       return { kind: "intelligence", tab: "knowledge" };
   }
@@ -168,7 +169,8 @@ function curve(a: { x: number; y: number }, b: { x: number; y: number }): string
 
 const timeOf = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
-export function WorkMap({ client, onGo, initialKind = "world" }: { client: Client; onGo?: (s: Surface) => void; initialKind?: GraphKind }) {
+/** `card` gives a node's own edits (Intelligence's item fields) for its card, or nothing. */
+export function WorkMap({ client, onGo, initialKind = "world", card }: { client: Client; onGo?: (s: Surface) => void; initialKind?: GraphKind; card?: (node: GraphNode) => ReactNode }) {
   const [kind, setKind] = useState<GraphKind>(initialKind);
   const cache = cacheFor(client);
   const [graph, setGraph] = useState<WorkGraph | null>(() => cache.get(initialKind)?.graph ?? null);
@@ -213,7 +215,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
     if (!cacheFor(client).has(kind)) void fetchGraph(kind);
   }, [client, fetchGraph, kind]);
   const refresh = async () => {
-    setBusy(kind === "world" ? "Alpha is looking for links…" : "Refreshing…");
+    setBusy(kind === "world" ? "Zazoo is looking for links…" : "Refreshing…");
     try {
       if (kind === "world") await client.connectGraph();
       await fetchGraph(kind);
@@ -441,7 +443,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
   const suggested = shown.edges.filter((e) => e.kind === "related" && e.state === "suggested").length;
 
   return (
-    <div className="map" ref={box} aria-label={kind === "world" ? "The map of your world" : "The map of Alpha's work"}>
+    <div className="map" ref={box} aria-label={kind === "world" ? "The map of your world" : "The map of Zazoo's work"}>
       {!graph.nodes.length ? (
         <p className="empty" style={{ padding: 24 }}>Nothing to map yet. A module, a table or a skill is the first dot.</p>
       ) : (
@@ -463,7 +465,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
                 const to = byId.get(e.to);
                 return (
                   <path key={i} className={`map__edge map__edge--${e.kind.replace(/ /g, "-")}${e.state === "suggested" ? " map__edge--suggested" : ""}${dim ? " map__edge--dim" : ""}`} d={curve(a, b)} markerEnd={e.kind === "related" ? undefined : "url(#map-arrow)"}>
-                    <title>{`${from?.title ?? e.from} ${edgeWords(e, to?.title ?? e.to)}${e.state === "suggested" ? " (Alpha thinks)" : ""}${e.source ? ` — ${e.source}` : ""}`}</title>
+                    <title>{`${from?.title ?? e.from} ${edgeWords(e, to?.title ?? e.to)}${e.state === "suggested" ? " (Zazoo thinks)" : ""}${e.source ? ` — ${e.source}` : ""}`}</title>
                   </path>
                 );
               })}
@@ -517,7 +519,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
         <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(0.77)} />
         <Button size="sm" onClick={() => fit()}>Fit</Button>
         <Button size="sm" onClick={shake} disabled={!worker.current} title="Let every pinned node go and settle again">Shake</Button>
-        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Ask the core again and have Alpha look for links" : "Ask the core again"}>Refresh</Button>
+        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Ask the core again and have Zazoo look for links" : "Ask the core again"}>Refresh</Button>
         {asOf ? <span className="map__asof">as of {timeOf(asOf)}</span> : null}
       </div>
       {busy ? <div className="map__busy" role="status">{busy}</div> : null}
@@ -553,8 +555,8 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
               "nothing; everything connects to something"
             )}
           </div>
-          {suggested ? <div><b>Alpha thinks:</b> {suggested} link{suggested === 1 ? " waits" : "s wait"} for your yes</div> : null}
-          <div className="faint">Refresh asks Alpha to look for links; dashed lines are its guesses.</div>
+          {suggested ? <div><b>Zazoo thinks:</b> {suggested} link{suggested === 1 ? " waits" : "s wait"} for your yes</div> : null}
+          <div className="faint">Refresh asks Zazoo to look for links; dashed lines are its guesses.</div>
         </aside>
       ) : null}
       {selectedNode ? (
@@ -566,6 +568,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
             <IconButton size="sm" label="Close" icon={<X />} onClick={() => setSelected(null)} />
           </div>
           {selectedNode.subtitle ? <p className="muted map__addr">{selectedNode.subtitle}</p> : null}
+          {card?.(selectedNode) ? <div key={selectedNode.id} className="map__edits">{card(selectedNode)}</div> : null}
           {selectedNode.description ? <p className="map__desc">{selectedNode.description}</p> : null}
           {selectedNode.facts?.length ? (
             <ul className="map__links">
@@ -600,7 +603,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
                       <button type="button" className="linkbtn" onClick={() => other && goTo(other.id)}>{words}</button>
                       {e.kind === "related" && e.state === "suggested" ? (
                         <div className="map__think">
-                          Alpha thinks: {e.why?.split(":").slice(1).join(":").trim() || e.why}
+                          Zazoo thinks: {e.why?.split(":").slice(1).join(":").trim() || e.why}
                           {e.source ? <span className="faint"> — {e.source.replace(/^map:/, "")}</span> : null}
                           <div className="row" style={{ marginTop: 6 }}>
                             <Button size="sm" variant="primary" onClick={() => void decide(e.fact!, true)}>Yes, keep it</Button>
@@ -616,7 +619,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
           ) : null}
           <div className="row" style={{ marginTop: 8 }}>
             {addressOf(selectedNode) && onGo ? (
-              <Button size="sm" variant="primary" onClick={() => onGo(addressOf(selectedNode)!)}>Open</Button>
+              <Button size="sm" variant="primary" onClick={() => onGo(addressOf(selectedNode)!)}>Open page</Button>
             ) : null}
             {selectedNode.kind === "module" && selectedNode.module && focusHome !== selectedNode.module ? (
               <Button size="sm" onClick={() => focusOn(selectedNode.module!)}>Just this area</Button>

@@ -66,7 +66,7 @@ describe("the map", () => {
     expect(within(card).getByText("4 runs in 30 days, 1 failed")).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "reads into Deal listings" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "brokers.com signed in at this" })).toBeInTheDocument();
-    await user.click(within(card).getByRole("button", { name: "Open" }));
+    await user.click(within(card).getByRole("button", { name: "Open page" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "skill", name: "brokers" });
   });
 
@@ -116,7 +116,7 @@ describe("the map", () => {
     expect(addressOf(graph.nodes[2])).toEqual({ kind: "module", id: "m1" });
     expect(addressOf(graph.nodes[4])).toEqual({ kind: "skill", name: "brokers" });
     expect(addressOf(graph.nodes[6])).toEqual({ kind: "automation", id: "a1" });
-    expect(addressOf(graph.nodes[7])).toEqual({ kind: "intelligence", tab: "connections" });
+    expect(addressOf(graph.nodes[7])).toEqual({ kind: "intelligence", tab: "connections", item: graph.nodes[7].id.slice("connection:".length) });
     expect(edgeWords(graph.edges[3], "brokers")).toBe("runs brokers (step 1)");
     expect(edgeWords({ from: "a", to: "b", kind: "feeds", count: 7 }, "Advisory")).toBe("feeds Advisory (7)");
   });
@@ -162,7 +162,7 @@ describe("the map of the world", () => {
     expect(screen.getByRole("button", { name: "Vikas Badami, person, v@x.com" })).not.toHaveClass("map__node--lonely");
     const glance = screen.getByRole("complementary", { name: "At a glance" });
     expect(glance).toHaveTextContent("Most going on: Advisory (40), Notes (2)");
-    expect(glance).toHaveTextContent("Alpha thinks: 1 link waits for your yes");
+    expect(glance).toHaveTextContent("Zazoo thinks: 1 link waits for your yes");
     await user.click(within(glance).getByRole("button", { name: "1 thing nothing connects" }));
     expect(screen.getByRole("button", { name: "Advisory, area" })).toHaveClass("map__node--dim");
     expect(ada).not.toHaveClass("map__node--dim");
@@ -179,7 +179,7 @@ describe("the map of the world", () => {
     await user.click(await screen.findByRole("button", { name: "Vikas Badami, person, v@x.com" }));
     const card = screen.getByRole("complementary", { name: "Vikas Badami" });
     expect(within(card).getByRole("button", { name: "sent RestoPros P&L" })).toBeInTheDocument();
-    expect(card).toHaveTextContent("Alpha thinks: Vikas sent the exports the document holds.");
+    expect(card).toHaveTextContent("Zazoo thinks: Vikas sent the exports the document holds.");
     await user.click(within(card).getByRole("button", { name: "Yes, keep it" }));
     expect(c.decideFact).toHaveBeenCalledWith("f_1", true);
   });

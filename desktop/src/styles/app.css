@@ -927,3 +927,29 @@ h3 .linkbtn { font: inherit; color: inherit; }
    so a start-aligned menu opened off the window's left edge and none flipped up at the bottom
    (the composer's +). In the flow, Radix places and flips it. */
 [data-radix-popper-content-wrapper] > .menu__list { position: static; }
+
+/* ---- Intelligence items: own pages, editable fields, rows that open ---- */
+.ifield { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ifield__label { font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.ifield__label .faint { text-transform: none; letter-spacing: 0; }
+.ifield__value { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.ifield__value .editable { flex: 1; min-width: 0; padding: 2px 0; border-radius: 4px; overflow-wrap: anywhere; font-size: var(--text-md); }
+.ifield__value .editable:hover, .ifield__value .editable:focus-visible { box-shadow: inset 0 0 0 1px var(--border); outline: none; }
+.ifield__value .iconbtn { opacity: 0.5; flex: none; }
+.ifield:hover .iconbtn, .ifield .iconbtn:focus-visible { opacity: 1; }
+.ifield__long { white-space: pre-wrap; }
+.ifield__input { width: 100%; }
+.ipage { margin-top: 16px; gap: 16px; }
+.item--open, .intel__card--open, .intel__open, .intel__fact { cursor: pointer; }
+.item--open:hover, .intel__card--open:hover { background: var(--hover); }
+.item__title { color: inherit; text-decoration: none; font-weight: 600; }
+.intel__facts dt .linkbtn { color: inherit; text-decoration: none; text-transform: inherit; letter-spacing: inherit; }
+.intel__fact dt { display: flex; align-items: center; gap: 4px; min-height: 22px; }
+.intel__forget { margin-left: auto; opacity: 0; width: 22px; height: 22px; }
+.intel__fact:hover .intel__forget, .intel__forget:focus-visible { opacity: 1; }
+.intel__add { margin-top: 12px; }
+.intel__add .need__input { min-width: 120px; }
+.intel__group--bar { display: flex; align-items: center; justify-content: space-between; }
+.map__edits { display: flex; flex-direction: column; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.map__edits .kv { grid-template-columns: 1fr; }
+.ipage .kv { grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }

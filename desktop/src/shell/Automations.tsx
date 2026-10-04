@@ -7,6 +7,7 @@ import type { Automation, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Button } from "../ui";
 import { Check, X } from "../ui/icons";
+import { opener } from "./IntelItem";
 
 export function AutomationList({ client, items, onChanged, empty, onOpen }: { client: Client; items: Automation[]; onChanged: () => void; empty: string; onOpen?: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen }: { cl
     <>
       <div className="card list">
         {items.map((a) => (
-          <div key={a.id} className="item item--top">
+          <div key={a.id} className={`item item--top${onOpen ? " item--open" : ""}`} onClick={onOpen ? opener(() => onOpen(a.id)) : undefined}>
             <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
             <div className="item__body">
               {onOpen ? (
