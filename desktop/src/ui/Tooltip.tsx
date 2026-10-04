@@ -1,20 +1,33 @@
-import * as RTooltip from "@radix-ui/react-tooltip";
+import * as RadixTooltip from "@radix-ui/react-tooltip";
 import type { ReactNode } from "react";
-import "./Tooltip.css";
+import { Info } from "./icons";
 
-export const TooltipProvider = RTooltip.Provider;
+/** Wrap the app once so tooltips share one delay. */
+export function TooltipProvider({ children }: { children: ReactNode }) {
+  return <RadixTooltip.Provider delayDuration={300}>{children}</RadixTooltip.Provider>;
+}
 
-/** Wraps a single child with a hover/focus tooltip. Use instead of a title= attribute. */
-export function Tooltip({ content, children, side = "top" }: { content: ReactNode; children: ReactNode; side?: "top" | "right" | "bottom" | "left" }) {
+export function Tooltip({ text, children }: { text: string; children: ReactNode }) {
   return (
-    <RTooltip.Root delayDuration={300}>
-      <RTooltip.Trigger asChild>{children}</RTooltip.Trigger>
-      <RTooltip.Portal>
-        <RTooltip.Content className="ui-tooltip" side={side} sideOffset={6}>
-          {content}
-          <RTooltip.Arrow className="ui-tooltip__arrow" />
-        </RTooltip.Content>
-      </RTooltip.Portal>
-    </RTooltip.Root>
+    <RadixTooltip.Root>
+      <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
+      <RadixTooltip.Portal>
+        <RadixTooltip.Content className="tooltip" sideOffset={6}>
+          {text}
+        </RadixTooltip.Content>
+      </RadixTooltip.Portal>
+    </RadixTooltip.Root>
+  );
+}
+
+/** The explanation beside a title, as a small mark that says it on hover or focus: the title
+ *  stays short and the page quiet (an idea from pull request #3). */
+export function InfoTip({ text }: { text: string }) {
+  return (
+    <Tooltip text={text}>
+      <button type="button" className="infotip" aria-label={text}>
+        <Info size={14} aria-hidden="true" />
+      </button>
+    </Tooltip>
   );
 }

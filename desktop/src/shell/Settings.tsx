@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Cpu, Hammer, HardDrive, Info, type LucideIcon, Monitor, Palette, Settings as SettingsIcon, Shapes, ShieldCheck } from "lucide-react";
+import { LookPicker } from "../avatar/LookPicker";
 import type { Client, DataInfo, HealthInfo, ModelProvider, SettingField } from "../core/client";
 import { host } from "../core/host";
 import { hasTauri } from "../core/session";
@@ -115,7 +116,7 @@ function ConfigurableSettings({ client, groups, titles }: { client: Client; grou
             <div className="item">
               <div className="item__body">
                 <b>{titles[group]?.title ?? group}</b>
-                {titles[group] ? <InfoTip content={titles[group].tip} label={`About ${titles[group].title.toLowerCase()}`} /> : null}
+                {titles[group] ? <InfoTip text={titles[group].tip} /> : null}
               </div>
             </div>
             {shown.map((f) => (
@@ -124,7 +125,7 @@ function ConfigurableSettings({ client, groups, titles }: { client: Client; grou
                   <b>
                     <label htmlFor={`setting-${f.id}`}>{f.title}</label>
                   </b>
-                  {f.description ? <InfoTip content={f.description} label={`About ${f.title.toLowerCase()}`} /> : null}
+                  {f.description ? <InfoTip text={f.description} /> : null}
                 </div>
                 {f.kind === "text" ? (
                   <div className="settings__text">
@@ -178,7 +179,7 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
       <div className="item">
         <div className="item__body">
           <b>Theme</b>
-          <InfoTip content="Match Mac follows the Mac's setting. Ambient is light from 7:00 to 19:00 and dark otherwise." label="About theme" />
+          <InfoTip text="Match Mac follows the Mac's setting. Ambient is light from 7:00 to 19:00 and dark otherwise." />
         </div>
         <ThemeControl theme={theme} onChange={onTheme} />
       </div>
@@ -221,7 +222,7 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
       <div className="item">
         <div className="item__body">
           <b>Density</b>
-          <InfoTip content="How much room forms, tables and cards take. Compact fits more on screen." label="About density" />
+          <InfoTip text="How much room forms, tables and cards take. Compact fits more on screen." />
         </div>
         <div className="theme" role="group" aria-label="Density">
           {DENSITIES.map((d) => (
@@ -236,7 +237,7 @@ function Appearance({ theme, onTheme }: { theme: Theme; onTheme: (t: Theme) => v
           <b>
             <label htmlFor="rows-per-page">Rows per page</label>
           </b>
-          <InfoTip content="How many rows a table shows at once." label="About rows per page" />
+          <InfoTip text="How many rows a table shows at once." />
         </div>
         <select id="rows-per-page" className="btn btn--sm settings__select" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
           <option value="fit">Fit to window</option>
@@ -357,7 +358,7 @@ function AvatarSetting() {
       <div className="item">
         <div className="item__body">
           <b>Alpha on your desktop</b>
-          <InfoTip content="A small Alpha stays above your other windows. Click it or speak to log something, ask a question, open a project or start something new." label="About the desktop assistant" />
+          <InfoTip text="A small Alpha stays above your other windows. Click it or speak to log something, ask a question, open a project or start something new." />
           {shown === null ? <div className="item__sub">Desktop app only.</div> : null}
         </div>
         {shown !== null ? <Toggle label="Desktop assistant" on={shown} onChange={set} labels={["Shown", "Hidden"]} /> : null}
@@ -373,7 +374,7 @@ function SpeakRepliesSetting() {
       <div className="item">
         <div className="item__body">
           <b>Speak replies</b>
-          <InfoTip content="Alpha says its replies aloud, in the desktop assistant." label="About speak replies" />
+          <InfoTip text="Alpha says its replies aloud, in the desktop assistant." />
         </div>
         <Toggle
           label="Speak replies"
@@ -445,7 +446,7 @@ function PushToTalkSetting() {
       <div className="item">
         <div className="item__body">
           <b>Push to talk</b>
-          <InfoTip content="Hold this key anywhere to speak to Alpha instead of typing. Release to stop." label="About push to talk" />
+          <InfoTip text="Hold this key anywhere to speak to Alpha instead of typing. Release to stop." />
           {!desktop ? <div className="item__sub">Desktop app only.</div> : null}
           {desktop && permission === false ? (
             <div className="item__sub">
@@ -487,7 +488,7 @@ function TranscriptionSetting() {
           <b>
             <label htmlFor="transcription">Transcription</label>
           </b>
-          <InfoTip content="Automatic uses Groq or OpenAI when a key is saved in Settings → Models, otherwise this Mac's own speech recognition." label="About transcription" />
+          <InfoTip text="Automatic uses Groq or OpenAI when a key is saved in Settings → Models, otherwise this Mac's own speech recognition." />
         </div>
         <select
           id="transcription"
@@ -532,7 +533,7 @@ function About({ client }: { client: Client }) {
         <div className="item">
           <div className="item__body">
             <b>What leaves this Mac</b>
-            <InfoTip content="Your requests, and what Chief of Staff needs to answer them, go to the model you chose, through your own sign-in or key. Projects read the web only when they were made to, and sites you signed into only through Alpha's browser. Records, files and settings stay in the folder under Data & runtime." label="About what leaves this Mac" />
+            <InfoTip text="Your requests, and what Chief of Staff needs to answer them, go to the model you chose, through your own sign-in or key. Projects read the web only when they were made to, and sites you signed into only through Alpha's browser. Records, files and settings stay in the folder under Data & runtime." />
             <div className="item__sub models__line">{star ? `Your requests go to ${star}.` : "…"}</div>
           </div>
         </div>
@@ -573,7 +574,7 @@ export function Settings({ client, theme, onTheme, section: requested, onSection
           <SettingsIcon size={16} />
         </span>
         <h2 id="settings-heading">Settings</h2>
-        <InfoTip content="How Alpha works on this Mac." label="About Settings" />
+        <InfoTip text="How Alpha works on this Mac." />
       </header>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label="Settings sections">
@@ -607,6 +608,15 @@ export function Settings({ client, theme, onTheme, section: requested, onSection
           {section === "desktop" ? (
             <>
               <AvatarSetting />
+              <div className="card list" aria-label="The companion's look">
+                <div className="item item--stack">
+                  <div className="item__body">
+                    <b>The companion's look</b>
+                    <div className="item__sub">The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.</div>
+                  </div>
+                  <LookPicker client={client} />
+                </div>
+              </div>
               <SpeakRepliesSetting />
               <PushToTalkSetting />
               <TranscriptionSetting />
@@ -614,7 +624,7 @@ export function Settings({ client, theme, onTheme, section: requested, onSection
                 <div className="item">
                   <div className="item__body">
                     <b>Runs while Alpha is open</b>
-                    <InfoTip content="Closing the window keeps Alpha running from the menu bar. Quit stops everything." label="About running in the background" />
+                    <InfoTip text="Closing the window keeps Alpha running from the menu bar. Quit stops everything." />
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-"""Saved views, a field changing kind, bulk edits, undo and a record's history."""
+"""A field changing kind, bulk edits, undo and a record's history."""
 
 from __future__ import annotations
 
@@ -36,53 +36,6 @@ def client(world: World) -> TestClient:
 
 def rows(world: World) -> dict[str, dict[str, Any]]:
     return {r["title"]: r for r in world.collections.query("books", limit=None)}
-
-
-# ---- saved views ----
-
-def test_views_are_saved_checked_and_journaled_through_the_api(world: World) -> None:
-    table(world)
-    c = client(world)
-    config = {"kind": "board", "groupBy": "genre", "sorts": [{"id": "title", "dir": "asc"}],
-              "rowFilters": [{"field": "done", "op": "is_checked", "value": ""}]}
-    view = c.post("/api/tables/books/views", json={"title": "Read", "config": config}).json()
-    assert view["config"]["groupBy"] == "genre" and view["created_by"] == "person"
-    assert c.get("/api/tables/books").json()["views"][0]["title"] == "Read"
-    bad = c.post("/api/tables/books/views",
-                 json={"title": "X", "config": {"rowFilters": [{"field": "nope", "op": "is"}]}})
-    assert bad.status_code == 400 and "no field ['nope']" in bad.json()["error"]
-    dup = c.post("/api/tables/books/views", json={"title": "Read", "config": {}})
-    assert "already" in dup.json()["error"]
-    renamed = c.patch(f"/api/views/{view['id']}", json={"title": "Finished", "is_default": True})
-    assert renamed.json()["title"] == "Finished" and renamed.json()["is_default"]
-    assert c.delete(f"/api/views/{view['id']}").json() == {"deleted": view["id"]}
-    assert c.get("/api/tables/books/views").json() == []
-    texts = [e["text"] for e in world.journal.recent(10) if e["actor"] == "person"]
-    assert "You saved the view Read on Books." in texts
-    assert "You deleted the view Finished." in texts
-
-
-def test_alpha_saves_a_view_when_asked_and_a_second_save_replaces_it(world: World) -> None:
-    t = table(world)
-    v = t.view_save("books", "Novels", kind="table",
-                    filters=[{"field": "genre", "op": "is", "value": "novel"}],
-                    sorts=[{"field": "title", "dir": "desc"}])
-    assert v["created_by"] == "alpha" and v["config"]["sorts"] == [{"id": "title", "dir": "desc"}]
-    again = t.view_save("books", "Novels", kind="calendar", date_field="read_on", default=True)
-    assert again["id"] == v["id"] and again["config"]["dateBy"] == "read_on"
-    assert [x["title"] for x in t.views_list("books")] == ["Novels"]
-    assert "error" in t.view_save("books", "Bad", kind="pie")
-
-
-def test_a_view_keeps_a_relative_day_and_hide_done(world: World) -> None:
-    t = table(world)
-    v = t.view_save("books", "This week", filters=[
-        {"field": "read_on", "op": "on_or_after", "value": {"$today": -6}}], hide_done=True)
-    assert v["config"]["rowFilters"][0]["value"] == {"$today": -6}
-    assert v["config"]["hideDone"] is True
-    bad = t.view_save("books", "Odd", filters=[
-        {"field": "read_on", "op": "after", "value": {"$yesterday": 1}}])
-    assert "relative to today" in bad["error"]
 
 
 # ---- a field changes kind ----

@@ -1,11 +1,11 @@
-"""Saved views: a named way of looking at one table (its filters, sorts, grouping, columns and
-which of the eleven views draws it). The person saves them from a table's List menu; Alpha saves
-them when asked ("show me open roles by company"). A view is data, never a page of its own, so
-the table's page draws every one the same way.
+"""Saved lists: a named way of looking at a table, kept in the world.
 
-The config is the window's `ViewConfig` as JSON. Only what the core can check is checked: the
-kind, and that every field it names belongs to the table, so a view never silently filters on a
-field that is not there.
+A saved list is the search, the filters, the columns shown, the sort and the kind of view
+(table, board, …) under a title the person gave it ("Open deals in Missouri"). It belongs to
+the world, not to one window: it follows the person to another Mac, Alpha can make one when
+asked ("keep a list of the sold ones"), and removing the table removes its lists. One list per
+table may be the default the table opens on. The config is the page's own shape, kept as JSON;
+the core only checks that the table exists and that the fields a list names are its fields.
 """
 
 from __future__ import annotations
@@ -13,126 +13,94 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from alpha.world.collections import Collections
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-VIEW_KINDS = {"table", "board", "list", "timeline", "chart", "gallery", "form", "calendar",
-              "map", "graph", "tree"}
-FILTER_OPS = {"contains", "does_not_contain", "is", "is_not", "is_empty", "is_not_empty",
-              "starts_with", "ends_with", "gt", "gte", "lt", "lte", "before", "after",
-              "on_or_before", "on_or_after", "is_any_of", "is_none_of", "is_checked",
-              "is_not_checked"}
-SYSTEM = {"id", "created_at", "updated_at"}
-# Config keys that name one field of the table.
-FIELD_KEYS = ("groupBy", "subGroupBy", "dateBy", "endDateBy", "locationBy", "relationBy",
-              "parentBy", "chartValueField", "frozenColumnId")
+CONFIG_KEYS = {"search", "filters", "hide_done", "hidden", "sort", "view", "group_by", "date_by",
+               "measure"}
 
 
-def view_of(row: sqlite3.Row) -> dict[str, Any]:
-    return {
-        "id": row["id"],
-        "collection": row["collection"],
-        "title": row["title"],
-        "config": loads(row["config"], {}),
-        "is_default": bool(row["is_default"]),
-        "created_by": row["created_by"],
-        "created_at": row["created_at"],
-        "updated_at": row["updated_at"],
-    }
+def _view(row: sqlite3.Row) -> dict[str, Any]:
+    out = {k: row[k] for k in row.keys()}
+    out["config"] = loads(row["config"], {})
+    out["is_default"] = bool(row["is_default"])
+    return out
 
 
 class Views:
-    def __init__(self, store: Store, collections: Collections) -> None:
+    def __init__(self, store: Store) -> None:
         self.store = store
-        self.collections = collections
 
     def _check(self, collection: str, config: dict[str, Any]) -> dict[str, Any]:
-        if not isinstance(config, dict):
-            raise Problem("A view's config is an object (kind, filters, sorts, …).")
-        names = {f["name"] for f in self.collections.describe(collection)["fields"]} | SYSTEM
-        kind = config.get("kind", "table")
-        if kind not in VIEW_KINDS:
-            raise Problem(f"'{kind}' is not a view; use one of {sorted(VIEW_KINDS)}.")
-        unknown: list[str] = []
-        for f in config.get("rowFilters") or []:
-            if f.get("field") not in names:
-                unknown.append(str(f.get("field")))
-            if f.get("op") not in FILTER_OPS:
-                raise Problem(f"'{f.get('op')}' is not a filter; use one of {sorted(FILTER_OPS)}.")
-            value = f.get("value")
-            # A relative day keeps a saved "this week" current: {"$today": -7} is a week ago.
-            if isinstance(value, dict) and (set(value) != {"$today"} or not isinstance(
-                    value["$today"], int) or isinstance(value["$today"], bool)):
-                raise Problem('A filter value is words, or a day relative to today as'
-                              ' {"$today": <days>}, e.g. {"$today": -7}.')
-        unknown += [str(s.get("id")) for s in config.get("sorts") or [] if s.get("id") not in names]
-        unknown += [str(config[k]) for k in FIELD_KEYS if config.get(k) and config[k] not in names]
-        unknown += [str(h) for h in config.get("hidden") or [] if h not in names]
-        if unknown:
-            raise Problem(f"'{collection}' has no field {sorted(set(unknown))}; its fields are"
-                          f" {sorted(names - SYSTEM)}.")
-        return {**config, "kind": kind}
+        row = self.store.one("SELECT schema FROM collections WHERE name = ?", (collection,))
+        if row is None:
+            raise Problem(f"There is no table '{collection}' to keep a list on.")
+        fields = {f["name"] for f in loads(row["schema"], {}).get("fields", [])}
+        clean: dict[str, Any] = {}
+        for key, value in (config or {}).items():
+            if key not in CONFIG_KEYS:
+                raise Problem(f"A list's config holds {sorted(CONFIG_KEYS)}; not '{key}'.")
+            clean[key] = value
+        for name in (clean.get("filters") or {}):
+            if name not in fields:
+                raise Problem(f"'{collection}' has no field '{name}' to filter on.")
+        sort = clean.get("sort")
+        if sort and sort.get("field") not in fields:
+            raise Problem(f"'{collection}' has no field '{sort.get('field')}' to sort by.")
+        for key in ("group_by", "date_by", "measure"):
+            if clean.get(key) and clean[key] not in fields:
+                raise Problem(f"'{collection}' has no field '{clean[key]}' ({key}).")
+        clean["hidden"] = [h for h in clean.get("hidden") or [] if h in fields]
+        return clean
 
-    def all(self, collection: str) -> list[dict[str, Any]]:
-        rows = self.store.all(
-            "SELECT * FROM views WHERE collection = ? ORDER BY created_at, rowid", (collection,))
-        return [view_of(r) for r in rows]
+    def save(self, collection: str, title: str, config: dict[str, Any], *,
+             source: str | None = None, default: bool = False) -> dict[str, Any]:
+        if not title.strip():
+            raise Problem("A list needs a title.")
+        clean = self._check(collection, config)
+        stamp = now()
+        vid = new_id("v")
+        with self.store.tx() as db:
+            if default:
+                db.execute("UPDATE views SET is_default = 0 WHERE collection = ?", (collection,))
+            db.execute(
+                "INSERT INTO views (id, collection, title, config, is_default, source, created_at,"
+                " updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                (vid, collection, title.strip(), dumps(clean), int(default), source, stamp, stamp))
+        return self.get(vid)
 
     def get(self, vid: str) -> dict[str, Any]:
         row = self.store.one("SELECT * FROM views WHERE id = ?", (vid,))
         if row is None:
-            raise Problem(f"There is no saved view {vid}.")
-        return view_of(row)
+            raise Problem(f"There is no saved list {vid}.")
+        return _view(row)
 
-    def find(self, collection: str, title: str) -> dict[str, Any] | None:
-        row = self.store.one("SELECT * FROM views WHERE collection = ? AND title = ?",
-                             (collection, title))
-        return view_of(row) if row else None
+    def for_table(self, collection: str) -> list[dict[str, Any]]:
+        return [_view(r) for r in self.store.all(
+            "SELECT * FROM views WHERE collection = ? ORDER BY created_at", (collection,))]
 
-    def create(self, collection: str, title: str, config: dict[str, Any], *, by: str,
-               is_default: bool = False) -> dict[str, Any]:
-        title = title.strip()
-        if not title:
-            raise Problem("A saved view needs a name.")
-        if self.find(collection, title):
-            raise Problem(f"'{collection}' has a view called {title} already; pick another name.")
-        clean = self._check(collection, config)
-        vid, stamp = new_id("v"), now()
+    def update(self, vid: str, *, title: str | None = None,
+               config: dict[str, Any] | None = None,
+               default: bool | None = None) -> dict[str, Any]:
+        current = self.get(vid)
+        clean = self._check(current["collection"], config) if config is not None else None
         with self.store.tx() as db:
-            if is_default:
-                db.execute("UPDATE views SET is_default = 0 WHERE collection = ?", (collection,))
-            db.execute(
-                "INSERT INTO views (id, collection, title, config, is_default, created_by,"
-                " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-                (vid, collection, title, dumps(clean), int(is_default), by, stamp, stamp),
-            )
-        return self.get(vid)
-
-    def update(self, vid: str, *, title: str | None = None, config: dict[str, Any] | None = None,
-               is_default: bool | None = None) -> dict[str, Any]:
-        view = self.get(vid)
-        if title is not None:
-            title = title.strip()
-            if not title:
-                raise Problem("A saved view needs a name.")
-            other = self.find(view["collection"], title)
-            if other and other["id"] != vid:
-                raise Problem(f"There is a view called {title} already; pick another name.")
-        clean = self._check(view["collection"], config) if config is not None else None
-        with self.store.tx() as db:
-            if is_default:
+            if default:
                 db.execute("UPDATE views SET is_default = 0 WHERE collection = ?",
-                           (view["collection"],))
+                           (current["collection"],))
             db.execute(
                 "UPDATE views SET title = ?, config = ?, is_default = ?, updated_at = ?"
                 " WHERE id = ?",
-                (title or view["title"], dumps(clean if clean is not None else view["config"]),
-                 int(view["is_default"] if is_default is None else is_default), now(), vid),
-            )
+                ((title or current["title"]).strip(), dumps(clean if clean is not None
+                                                             else current["config"]),
+                 int(current["is_default"] if default is None else default), now(), vid))
         return self.get(vid)
 
     def delete(self, vid: str) -> dict[str, Any]:
-        view = self.get(vid)
+        current = self.get(vid)
         with self.store.tx() as db:
             db.execute("DELETE FROM views WHERE id = ?", (vid,))
-        return view
+        return current
+
+    @staticmethod
+    def remove_table(db: sqlite3.Connection, collection: str) -> int:
+        return db.execute("DELETE FROM views WHERE collection = ?", (collection,)).rowcount

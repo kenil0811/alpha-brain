@@ -6,11 +6,12 @@
 import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem, PendingAction } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { InfoTip, PageHeader, useToast } from "../ui";
+import { Button, InfoTip, PageHeader, useToast } from "../ui";
 import { ActionCard } from "./ActionCard";
 import { FirstSteps } from "./FirstSteps";
 import { projectIcon } from "./projectIcons";
 import type { Surface } from "./Rail";
+import { Check, X, Eye } from "../ui/icons";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -67,7 +68,7 @@ function Pending({ action, client, onDone }: { action: PendingAction; client: Cl
     <article className="card need" aria-label={action.summary}>
       <div className="need__head">
         <h3>{action.summary}</h3>
-        <InfoTip content={evidence(action)} label="Why Alpha is asking" />
+        <InfoTip text={evidence(action)} />
       </div>
       {decided ? (
         <p className={decided.state === "approved" && !decided.result?.error ? "notice notice--ok" : "notice notice--quiet"} role="status">
@@ -115,21 +116,21 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
         <form className="row" onSubmit={(e) => { e.preventDefault(); if (answer.trim()) void act(() => client.answerAsk(item.id, answer.trim()), "Answered."); }}>
           {item.options?.length ? (
             item.options.map((o) => (
-              <button key={o} type="button" className="btn" disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
+              <Button key={o} disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
                 {o}
-              </button>
+              </Button>
             ))
           ) : (
             <>
               <input className="need__input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" aria-label="Your answer" />
-              <button type="submit" className="btn btn--primary" disabled={busy || !answer.trim()}>
+              <Button variant="primary" type="submit" disabled={busy || !answer.trim()}>
                 Answer
-              </button>
+              </Button>
             </>
           )}
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.dismissAsk(item.id), "Dismissed.")}>
+          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.dismissAsk(item.id), "Dismissed.")}>
             Dismiss
-          </button>
+          </Button>
         </form>
         {error ? <p className="notice" role="alert">{error}</p> : null}
       </article>
@@ -140,15 +141,15 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
       <article className="card need">
         <div className="need__head">
           <h3>{item.text}</h3>
-          {item.why ? <InfoTip content={item.why} label="Why Alpha suggests this" /> : null}
+          {item.why ? <InfoTip text={item.why} /> : null}
         </div>
         <div className="row">
-          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
+          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
             {item.plan ? "Build it" : "Yes, do it"}
-          </button>
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
             Not now
-          </button>
+          </Button>
         </div>
         {error ? <p className="notice">{error}</p> : null}
       </article>
@@ -158,15 +159,15 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
     <article className="card need">
       <div className="need__head">
         <h3>Is this right? {item.text.replace(/_/g, " ")}</h3>
-        {item.why ? <InfoTip content={item.why} label="What Alpha noticed" /> : null}
+        {item.why ? <InfoTip text={item.why} /> : null}
       </div>
       <div className="row">
-        <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, true), "Remembered.")}>
+        <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, true), "Remembered.")}>
           Yes, remember it
-        </button>
-        <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, false), "Forgotten.")}>
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, false), "Forgotten.")}>
           No
-        </button>
+        </Button>
       </div>
       {error ? <p className="notice">{error}</p> : null}
     </article>
@@ -198,7 +199,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
     <PageHeader
       title={
         <>
-          {greeting()} <InfoTip content="Open a project to work with its records, or describe a new one." label="About this page" />
+          {greeting()} <InfoTip text="Open a project to work with its records, or describe a new one." />
         </>
       }
       right={<span className="muted">{date}</span>}
@@ -235,7 +236,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         </div>
         <div className="card tile">
           <div className="tile__lab">
-            Ran today <InfoTip content="Things Alpha read, made and changed today." label="About ran today" />
+            Ran today <InfoTip text="Things Alpha read, made and changed today." />
           </div>
           <div className="tile__big num">{home.ran_today}</div>
           <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work` : home.ran_today ? `${home.ran_today} finished fine` : "Nothing has run yet today"}</div>
@@ -264,7 +265,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         <div className="section section--first" id="needs-you">
           <div className="section__head">
             <h2>Needs you</h2>
-            <InfoTip content="Alpha never sends anything or acts for you without a yes." label="About needs you" />
+            <InfoTip text="Alpha never sends anything or acts for you without a yes." />
           </div>
           <div className="needs">
             {pending.map((a) => (
@@ -303,7 +304,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                     <ul className="stages thread__live" aria-label="What Alpha did lately">
                       {t.steps.map((s, i) => (
                         <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : ""}>
-                          {s.kind === "failed" ? "✗" : s.kind === "saw" ? "👁" : "✓"} {s.text}
+                          {s.kind === "failed" ? <X size={12} aria-label="failed" /> : s.kind === "saw" ? <Eye size={12} aria-label="read" /> : <Check size={12} aria-label="done" />} {s.text}
                         </li>
                       ))}
                     </ul>
@@ -311,9 +312,9 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                     <div className="item__sub">Starting…</div>
                   ) : null}
                 </div>
-                <button type="button" className="btn btn--sm" onClick={() => onOpenThread(t.id)}>
+                <Button size="sm" onClick={() => onOpenThread(t.id)}>
                   Open
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -342,7 +343,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       <div className="section">
         <div className="section__head">
           <h2>Your projects</h2>
-          <InfoTip content="Made from what you asked for; each grows as you use it." label="About projects" />
+          <InfoTip text="Made from what you asked for; each grows as you use it." />
           <div className="section__right">
             <button type="button" className="linkbtn linkbtn--primary" onClick={() => onGo({ kind: "activity" })}>
               See all activity
@@ -361,7 +362,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
                 <div className="modcard__name">
                   <h3>
                     {m.name}
-                    {m.goal ? <> <InfoTip content={m.goal} label={`About ${m.name}`} /></> : null}
+                    {m.goal ? <> <InfoTip text={m.goal} /></> : null}
                   </h3>
                   <div className="faint">
                     {m.tables.length} {m.tables.length === 1 ? "table" : "tables"} · {m.records} {m.records === 1 ? "row" : "rows"}
@@ -381,7 +382,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           <div className="card modcard modcard--new">
             <div className="need__head">
               <b>New project</b>
-              <InfoTip content={'"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Alpha sets it up and grows it as you use it.'} label="Examples" />
+              <InfoTip text={'"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Alpha sets it up and grows it as you use it.'} />
             </div>
             <button type="button" className="linkbtn linkbtn--primary" onClick={onNew}>
               Start a new project →
@@ -394,8 +395,8 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           <div className="card card--pad stack">
             <p className="page__line">Tell Alpha one thing you keep track of, or connect something it can read.</p>
             <div className="row">
-              <button type="button" className="btn" onClick={() => onAsk("I want to track what I eat")}>Track what I eat</button>
-              <button type="button" className="btn" onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</button>
+              <Button onClick={() => onAsk("I want to track what I eat")}>Track what I eat</Button>
+              <Button onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</Button>
             </div>
           </div>
         </div>

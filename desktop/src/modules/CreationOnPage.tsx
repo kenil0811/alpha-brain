@@ -90,7 +90,7 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
           <Button disabled={busy} onClick={() => void answer({ retry: true })}>
             Try again
           </Button>
-          <Button variant="outline" disabled={busy} onClick={() => void answer({ start_over: true })}>
+          <Button disabled={busy} onClick={() => void answer({ start_over: true })}>
             Start over
           </Button>
         </div>
@@ -119,7 +119,7 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
           <Button disabled={busy} onClick={() => void answer({ build: true })}>
             Create it
           </Button>
-          <InfoTip content="When the plan looks right, Alpha builds it, checks it and switches it on for you." label="What Create it does" />
+          <InfoTip text="When the plan looks right, Alpha builds it, checks it and switches it on for you." />
         </div>
       </div>
     );
@@ -134,7 +134,7 @@ export function CreationOnPage({ client, detail, onChanged, onDescribe, onImport
         {step && !failed ? (
           <div className="convo__step">
             <span className="convo__steptext">{step}</span>
-            {stage === "planned" ? <InfoTip content="To change or add something before it is made, just say so in the chat." label="How to change it" /> : null}
+            {stage === "planned" ? <InfoTip text="To change or add something before it is made, just say so in the chat." /> : null}
           </div>
         ) : null}
         {body}
@@ -172,7 +172,7 @@ function Describe({ busy, onStart, onImport }: { busy: boolean; onStart: (text: 
         }}
       />
       <div className="row newproject__actions">
-        <Button variant="outline" size="sm" onClick={() => file.current?.click()}>
+        <Button size="sm" onClick={() => file.current?.click()}>
           <FileUp size={14} strokeWidth={1.75} aria-hidden="true" /> Import a project…
         </Button>
         <input
@@ -218,7 +218,7 @@ function useAnswers(questions: CreationQuestion[]) {
     <fieldset key={q.id} className="question">
       <legend>
         {q.question}
-        {q.why_it_matters ? <InfoTip content={q.why_it_matters} label="Why this matters" /> : null}
+        {q.why_it_matters ? <InfoTip text={q.why_it_matters} /> : null}
       </legend>
       {q.options.map((option) => (
         <label key={option} className="question__option">
@@ -250,7 +250,7 @@ function QuestionsForm({ questions, busy, onAnswer, onDefaults }: { questions: C
         <Button type="submit" disabled={busy}>
           Continue
         </Button>
-        <Button type="button" variant="outline" disabled={busy} onClick={onDefaults}>
+        <Button type="button" disabled={busy} onClick={onDefaults}>
           Use these defaults for now
         </Button>
       </div>
@@ -290,7 +290,7 @@ function ProposalCard({ proposal, busy, onChoose }: { proposal: Proposal; busy: 
               </b>
               {option.summary ? <p>{option.summary}</p> : null}
               {option.why ? <p className="faint">{option.why}</p> : null}
-              <Button size="sm" variant={pick ? "default" : "outline"} className="proposal__go" disabled={busy} onClick={() => onChoose(option, decisions.answers())}>
+              <Button size="sm" variant={pick ? "default" : "default"} className="proposal__go" disabled={busy} onClick={() => onChoose(option, decisions.answers())}>
                 {pick ? "Go with this" : "Go with this instead"}
               </Button>
             </div>
@@ -358,10 +358,10 @@ function Building({ detail, running, busy, onStop, onCarryOn }: { detail: Module
         {steps.length > 1 ? ` · ${steps.length} steps so far` : ""}
       </p>
       <div className="row">
-        <Button variant="outline" size="sm" onClick={onStop}>
+        <Button size="sm" onClick={onStop}>
           Stop
         </Button>
-        <InfoTip content="Usually a few minutes. Keep using Alpha; it carries on while you do." label="How long it takes" />
+        <InfoTip text="Usually a few minutes. Keep using Alpha; it carries on while you do." />
       </div>
     </div>
   );
@@ -385,7 +385,7 @@ function Thinking({ since, onStop, label }: { since: string; onStop?: () => void
       {seconds >= 90 ? <div className="faint">Longer than usual. A large request or a busy model service can take a few minutes; you can stop and try again.</div> : null}
       {onStop ? (
         <div className="row">
-          <Button size="sm" variant="outline" onClick={onStop}>
+          <Button size="sm" onClick={onStop}>
             Stop
           </Button>
         </div>

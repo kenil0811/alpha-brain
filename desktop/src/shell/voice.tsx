@@ -12,7 +12,7 @@
  *  - "Automatic" (default): cloud when a Groq or OpenAI key is saved, otherwise on-this-Mac.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic } from "lucide-react";
+import { Mic, Circle } from "../ui/icons";
 import { hasTauri, resolveSession } from "../core/session";
 import { permissionOn } from "./Permissions";
 
@@ -316,7 +316,7 @@ export function MicButton({ listening, supported, onToggle, small = false }: { l
   const title = supported ? (listening ? "Stop listening" : "Speak instead of typing") : "Speaking isn't available in this window; press your Mac's dictation key instead";
   return (
     <button type="button" className={`iconbtn${small ? " iconbtn--sm" : ""}${listening ? " iconbtn--live" : ""}`} title={title} aria-label={listening ? "Stop listening" : "Speak"} aria-pressed={listening} onClick={onToggle} disabled={!supported}>
-      {listening ? <span aria-hidden="true">●</span> : <Mic size={14} />}
+      <span aria-hidden="true" className="iconbtn__ico">{listening ? <Circle size={12} fill="currentColor" /> : <Mic size={16} />}</span>
       {listening ? <span className="live__word">Listening</span> : null}
     </button>
   );

@@ -76,7 +76,7 @@ def stage_runner(log: list[TurnRequest] | None = None, *, building_s: float = 0,
                     {"name": "student", "kind": "text"}, {"name": "score", "kind": "number"},
                     {"name": "due", "kind": "date"}], module=req.module_id)
                 time.sleep(building_s)
-                t.view_save("grades", "By due date", sorts=[{"field": "due", "dir": "asc"}])
+                t.list_save("grades", "By due date", sort_by="due")
                 t.creation_show("done")
                 reply = "Grade Tracker is ready."
             return RunResult(reply=reply, ok=True, session_id=f"s-{req.thread_id}")

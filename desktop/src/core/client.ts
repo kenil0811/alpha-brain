@@ -32,6 +32,53 @@ export interface TableDesc {
   created_at?: string;
 }
 
+/** The map of Alpha's own work (`/api/graph`): what Intelligence lists, as nodes, and how
+ * each feeds the other, as edges with their source in the world. */
+export type GraphKind = "work" | "world";
+export interface GraphNode {
+  id: string;
+  kind: "module" | "table" | "skill" | "automation" | "source" | "connection" | "you" | "person" | "organisation" | "document" | "page" | "goal";
+  title: string;
+  subtitle?: string;
+  /** A skill's role: read, act or run. */
+  role?: "read" | "act" | "run";
+  /** ok, broken, untried (skills); on, off, problem (automations); a source's status; a connection's. */
+  state?: string;
+  detail?: string;
+  module?: string | null;
+  name?: string;
+  description?: string;
+  rows?: number;
+  runs?: number;
+  failed?: number;
+  /** A source's site (its subtitle is its address). */
+  site?: string;
+  /** The brain's map: how much happened here in 30 days; what Alpha knows about the person. */
+  activity?: number;
+  facts?: { predicate: string; value: string }[];
+  entity?: string;
+}
+export interface GraphEdge {
+  from: string;
+  to: string;
+  kind: "in" | "runs" | "reads into" | "tells" | "read by" | "signed in at" | "feeds" | "about" | "row in" | "named in" | "related" | "of";
+  order?: number;
+  count?: number;
+  source?: string;
+  /** A `related` edge is a fact: suggested by Alpha until the person decides, then accepted. */
+  state?: "suggested" | "accepted";
+  fact?: string;
+  why?: string;
+}
+export interface WorkGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  at: string;
+}
+
+/** For each relation field into another table, the titles of the records the rows point at, by id. */
+export type Relations = Record<string, Record<string, string>>;
+
 export interface TableSummary {
   name: string;
   title: string;
@@ -48,6 +95,18 @@ export interface Provenance {
   estimated?: boolean | string[];
   source?: string;
   assumed?: string;
+}
+
+/** A saved list: a named way of looking at a table, kept in the world (the person's or Alpha's). */
+export interface SavedList {
+  id: string;
+  collection: string;
+  title: string;
+  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; hidden?: string[]; sort?: { field: string; direction: "asc" | "desc" } | null; view?: string; group_by?: string; date_by?: string; measure?: string };
+  is_default: boolean;
+  source: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface RecordRow {
@@ -434,6 +493,23 @@ export interface Skill {
   notes: string | null;
 }
 
+export interface SkillDetail extends Omit<Skill, "notes"> {
+  script?: string | null;
+  steps?: Record<string, unknown>[];
+  verify?: Record<string, unknown>[];
+  to_end?: boolean;
+  whole?: boolean;
+  notes: Note | null;
+  runs: { at: string; kind: string; text: string }[];
+}
+
+export interface AutomationDetail extends Automation {
+  skill?: string | null;
+  /** A pipeline's saved steps (its run skill's), or none for a procedure. */
+  pipeline?: Record<string, unknown>[] | null;
+  runs: { at: string; outcome: string | null; lines: { at: string; kind: string; text: string }[] }[];
+}
+
 export interface Intelligence {
   hands: Hand[];
   skills: Skill[];
@@ -537,6 +613,8 @@ export interface Companion {
   focus: Convo | null;
   conversations: Convo[];
   needs_you: NeedItem[];
+  /** The look the person chose for the companion (`avatar/looks.ts` reads it), or null. */
+  look?: unknown;
 }
 
 export interface SearchResult {
@@ -605,10 +683,17 @@ export class Client {
   exportModule = (ref: string, rows = false) => this.call<Record<string, unknown>>("GET", `/api/modules/${encodeURIComponent(ref)}/export${rows ? "?rows=true" : ""}`);
   importModule = (bundle: unknown) => this.call<ModuleCard>("POST", "/api/modules/import", bundle);
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
+  /** The module's page of Alpha's wiki, or none yet. */
+  modulePage = (ref: string) => this.call<{ name: string; scope: string; page: Note | null }>("GET", `/api/modules/${encodeURIComponent(ref)}/page`);
 
-  async table(name: string): Promise<TableData> {
-    const data = await this.call<Omit<TableData, "records" | "files"> & { records: Raw[]; files?: Record<string, FileInfo> }>("GET", `/api/tables/${encodeURIComponent(name)}`);
-    return { ...data, views: data.views ?? [], last_edit: data.last_edit ?? null, records: data.records.map(toRow), files: data.files ?? {} };
+  async table(name: string): Promise<{ table: TableDesc; records: RecordRow[]; files: Record<string, FileInfo>; lists: SavedList[]; relations: Relations }> {
+    const data = await this.call<{ table: TableDesc; records: Raw[]; files?: Record<string, FileInfo>; lists?: SavedList[]; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(name)}`);
+    return { table: data.table, records: data.records.map(toRow), files: data.files ?? {}, lists: data.lists ?? [], relations: data.relations ?? {} };
+  }
+  /** One record of a table, for a relation followed into another table. */
+  async record(table: string, id: string): Promise<{ table: TableDesc; record: RecordRow; relations: Relations }> {
+    const data = await this.call<{ table: TableDesc; record: Raw; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}`);
+    return { table: data.table, record: toRow(data.record), relations: data.relations ?? {} };
   }
   bulkRecords = (table: string, action: "set" | "delete", items: { id: string; revision: number }[], values?: Record<string, unknown>) =>
     this.call<{ done: number; skipped: string[] }>("POST", `/api/tables/${encodeURIComponent(table)}/records/bulk`, { action, items, values });
@@ -632,6 +717,9 @@ export class Client {
   merge = (keep: string, other: string) => this.call<Entity>("POST", `/api/entities/${keep}/merge/${other}`);
 
   intelligence = () => this.call<Intelligence>("GET", "/api/intelligence");
+  graph = (kind: GraphKind = "work") => this.call<WorkGraph>("GET", `/api/graph?kind=${kind}`);
+  /** Alpha looks over the map of the brain for links and keeps the grounded ones as suggestions. */
+  connectGraph = () => this.call<{ proposed: { fact: string; from: string; to: string; relation: string; why: string }[]; why: string | null }>("POST", "/api/graph/connect");
   writeNote = (scope: string, title: string, body: string, summary?: string) => this.call<Note>("POST", "/api/notes", { scope, title, body, summary });
   connectFolder = (path: string) => this.call<Connection>("POST", "/api/connections/folder", { path });
   connectSite = (site: string) => this.call<Connection>("POST", "/api/connections/site", { site });
@@ -673,6 +761,9 @@ export class Client {
   closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
   focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
   companion = () => this.call<Companion>("GET", "/api/companion");
+  /** A choice of look the person made, kept in the world; the window owns its shape. */
+  preference = (key: string) => this.call<{ key: string; value: unknown }>("GET", `/api/preferences/${encodeURIComponent(key)}`);
+  setPreference = (key: string, value: unknown) => this.call<{ key: string; value: unknown }>("PUT", `/api/preferences/${encodeURIComponent(key)}`, { value });
   moveTurn = (key: string, conversation: string) => this.call<Turn>("POST", `/api/turns/${key}/move`, { conversation });
   ask = (text: string, opts: AskOptions = {}) => this.call<Turn>("POST", "/api/ask", { text, module: opts.module ?? null, thread: opts.thread ?? null, conversation: opts.conversation ?? null, attachments: opts.attachments ?? [] });
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
@@ -693,6 +784,11 @@ export class Client {
     return current;
   }
 
+  saveList = (table: string, title: string, config: SavedList["config"], isDefault = false) => this.call<SavedList>("POST", `/api/tables/${encodeURIComponent(table)}/lists`, { title, config, default: isDefault });
+  updateList = (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => this.call<SavedList>("PATCH", `/api/lists/${id}`, change);
+  deleteList = (id: string) => this.call<SavedList>("DELETE", `/api/lists/${id}`);
+  skillPage = (name: string) => this.call<SkillDetail>("GET", `/api/skills/${encodeURIComponent(name)}`);
+  automationPage = (id: string) => this.call<AutomationDetail>("GET", `/api/automations/${encodeURIComponent(id)}`);
   switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 

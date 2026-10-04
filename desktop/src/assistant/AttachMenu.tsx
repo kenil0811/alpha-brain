@@ -125,9 +125,7 @@ export function AttachMenu({ client, thread, onAdd }: { client: Client; thread: 
     <DropdownMenu onOpenChange={onOpen}>
       <DropdownMenuTrigger asChild>
         <span className="attach-trigger composer__plus">
-          <IconButton aria-label="Add files, folders, images or audio" size="sm">
-            <Plus size={14} aria-hidden="true" />
-          </IconButton>
+          <IconButton label="Add files, folders, images or audio" size="sm" icon={<Plus aria-hidden="true" />} />
           {chip ? <span className={`attach-trigger__chip${access.mode === "full" ? " attach-trigger__chip--full" : ""}`}>{chip}</span> : null}
         </span>
       </DropdownMenuTrigger>

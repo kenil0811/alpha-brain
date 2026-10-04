@@ -13,6 +13,7 @@ from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
 from alpha.world.modules import Modules
 from alpha.world.plans import Plans
+from alpha.world.preferences import Preferences
 from alpha.world.readers import Readers
 from alpha.world.skills import Skills
 from alpha.world.sources import Sources
@@ -44,8 +45,9 @@ class World:
         self.modules = Modules(self.store)
         self.automations = Automations(self.store)
         self.skills = Skills(self.store)
+        self.views = Views(self.store)
+        self.preferences = Preferences(self.store)
         self.readers = Readers(self.store)
-        self.views = Views(self.store, self.collections)
         self.sources = Sources(self.store)
         self.plans = Plans(self.store)
         self.procedures = Procedures(self.store)

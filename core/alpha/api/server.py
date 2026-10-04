@@ -40,6 +40,7 @@ from alpha.connectors.base import Connections, manifests
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.context.graph import work_graph, world_graph
 from alpha.context.summary import module_summary
 from alpha.models import settings
 from alpha.models.accounts import Accounts
@@ -49,6 +50,7 @@ from alpha.runtime import (
     build,
     check,
     claude_cli,
+    connecting,
     conversations,
     noticing,
     transcription,
@@ -118,12 +120,6 @@ class RecordBody(BaseModel):
     revision: int | None = None
 
 
-class ViewBody(BaseModel):
-    title: str | None = None
-    config: dict[str, Any] | None = None
-    is_default: bool | None = None
-
-
 class FieldChangeBody(BaseModel):
     kind: str | None = None
     label: str | None = None
@@ -141,6 +137,12 @@ class BulkBody(BaseModel):
     values: dict[str, Any] | None = None
 class ExportBody(BaseModel):
     format: str = "csv"
+
+
+class ListBody(BaseModel):
+    title: str | None = None
+    config: dict[str, Any] | None = None
+    default: bool | None = None
 
 
 class ActionEditBody(BaseModel):
@@ -210,6 +212,10 @@ class ThreadBody(BaseModel):
 class ThreadPatch(BaseModel):
     state: str | None = None
     title: str | None = Field(default=None, max_length=400)
+
+
+class PreferenceBody(BaseModel):
+    value: Any
 
 
 class NoteBody(BaseModel):
@@ -539,6 +545,34 @@ def thread_views(world: World) -> list[dict[str, Any]]:
     return out
 
 
+def relation_titles(world: World, desc: dict[str, Any],
+                    records: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    """For each relation field into another table, the titles of the records the rows point
+    at, by id: the page shows the client's name, not its id, and opens it."""
+    out: dict[str, dict[str, str]] = {}
+    for field in desc["fields"]:
+        target = field.get("relation") if field.get("kind") == "relation" else None
+        if not target or target in ("person", "organisation"):
+            continue
+        ids = {str(r[field["name"]]) for r in records if r.get(field["name"])}
+        if not ids:
+            continue
+        try:
+            title_field = world.collections.describe(target).get("title_field")
+        except Problem:
+            continue
+        titles: dict[str, str] = {}
+        for rid in ids:
+            row = world.store.one(
+                'SELECT "values" FROM records WHERE collection = ? AND id = ? AND deleted_at'
+                " IS NULL", (target, rid))
+            if row is not None:
+                values = loads(row["values"], {})
+                titles[rid] = str(values.get(title_field) or rid) if title_field else rid
+        out[field["name"]] = titles
+    return out
+
+
 def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
     tables = world.collections.overview(m["id"])
     last = world.store.one(
@@ -862,6 +896,14 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             bundle = read_project_file(str(bundle["path"]))
         return module_card(world, import_module(world, bundle))
 
+    @app.get("/api/modules/{ref}/page", dependencies=[api])
+    def module_page(ref: str) -> dict[str, Any]:
+        """The module's page of the wiki (what it is for, what it holds, what is open), or
+        none yet; the person edits it through POST /api/notes with scope module:<name>."""
+        name = world.modules.get(ref)["name"]
+        return {"name": name, "scope": f"module:{name}",
+                "page": world.knowledge.find_note(f"module:{name}", name)}
+
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
     def summary(ref: str) -> dict[str, Any]:
         return module_summary(world, world.modules.get(ref)["id"])
@@ -887,9 +929,51 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
                                   "size": row["size"], "kind": row["kind"]}
         last = edits.last_edit(world, name)
         return {"table": desc, "records": records, "files": files,
-                "views": world.views.all(name),
+                "lists": world.views.for_table(name),
+                "relations": relation_titles(world, desc, records),
                 "last_edit": {"text": last["text"], "at": last["at"], "actor": last["actor"]}
                 if last else None}
+
+    @app.get("/api/tables/{name}/records/{rid}", dependencies=[api])
+    def record(name: str, rid: str) -> dict[str, Any]:
+        """One record with its table: what the page shows when a relation is followed into
+        another table (a client from a financials row), with a way back."""
+        desc = world.collections.describe(name)
+        row = world.collections.get(name, rid)
+        return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row])}
+
+    # ---- saved lists: a named way of looking at a table, kept in the world ----
+
+    @app.get("/api/tables/{name}/lists", dependencies=[api])
+    def lists(name: str) -> list[dict[str, Any]]:
+        world.collections.describe(name)
+        return world.views.for_table(name)
+
+    @app.post("/api/tables/{name}/lists", dependencies=[api])
+    def save_list(name: str, body: ListBody) -> dict[str, Any]:
+        saved = world.views.save(name, body.title or "", body.config or {},
+                                 default=bool(body.default))
+        world.journal.append("changed", f"You saved the list \"{saved['title']}\" on"
+                             f" {world.collections.describe(name)['title']}.", actor="person",
+                             data={"list": saved["id"], "table": name})
+        return saved
+
+    @app.patch("/api/lists/{vid}", dependencies=[api])
+    def change_list(vid: str, body: ListBody) -> dict[str, Any]:
+        changed = world.views.update(vid, title=body.title, config=body.config,
+                                     default=body.default)
+        what = ("made it the default" if body.default else "renamed it" if body.title
+                else "changed it")
+        world.journal.append("changed", f"You {what}: the list \"{changed['title']}\".",
+                             actor="person", data={"list": vid, "table": changed["collection"]})
+        return changed
+
+    @app.delete("/api/lists/{vid}", dependencies=[api])
+    def drop_list(vid: str) -> dict[str, Any]:
+        gone = world.views.delete(vid)
+        world.journal.append("changed", f"You removed the list \"{gone['title']}\".",
+                             actor="person", data={"list": vid, "table": gone["collection"]})
+        return gone
 
     @app.post("/api/tables/{name}/export", dependencies=[api])
     def export_table(name: str, body: ExportBody) -> dict[str, Any]:
@@ -1027,36 +1111,6 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         return edits.change_field(world, name, field, actor="person",
                                   **body.model_dump(exclude_none=True))
 
-    # ---- saved views ----
-
-    @app.get("/api/tables/{name}/views", dependencies=[api])
-    def views(name: str) -> list[dict[str, Any]]:
-        world.collections.describe(name)
-        return world.views.all(name)
-
-    @app.post("/api/tables/{name}/views", dependencies=[api])
-    def save_view(name: str, body: ViewBody) -> dict[str, Any]:
-        view = world.views.create(name, body.title or "", body.config or {}, by="person",
-                                  is_default=bool(body.is_default))
-        person_did("made", f"You saved the view {view['title']} on "
-                   f"{world.collections.describe(name)['title']}.", name, {"view": view["id"]})
-        return view
-
-    @app.patch("/api/views/{vid}", dependencies=[api])
-    def update_view(vid: str, body: ViewBody) -> dict[str, Any]:
-        view = world.views.update(vid, title=body.title, config=body.config,
-                                  is_default=body.is_default)
-        person_did("changed", f"You updated the view {view['title']}.", view["collection"],
-                   {"view": vid})
-        return view
-
-    @app.delete("/api/views/{vid}", dependencies=[api])
-    def delete_view(vid: str) -> dict[str, Any]:
-        view = world.views.delete(vid)
-        person_did("changed", f"You deleted the view {view['title']}.", view["collection"],
-                   {"view": vid, "view_config": view["config"]})
-        return {"deleted": vid}
-
     # ---- people and companies ----
 
     @app.get("/api/people", dependencies=[api])
@@ -1119,6 +1173,42 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
             },
             "procedures": world.procedures.all(),
         }
+
+    @app.get("/api/skills/{name}", dependencies=[api])
+    def skill_page(name: str) -> dict[str, Any]:
+        """One skill in full for its page: what it is, its body (read-only in the window: the
+        model repairs skills, the person asks it to), Alpha's notes page, and its runs."""
+        skill = world.skills.get(name)
+        page = world.knowledge.find_note(f"skill:{name}", name)
+        runs = [e for e in world.journal.recent(300)
+                if name in {e["data"].get("reader"), e["data"].get("procedure"),
+                            e["data"].get("skill")}]
+        return {**skill, "notes": page, "runs": [
+            {"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in runs[-20:]]}
+
+    @app.get("/api/automations/{aid}", dependencies=[api])
+    def automation_page(aid: str) -> dict[str, Any]:
+        """One automation for its page, with its runs: the entries of its thread, grouped by
+        each run's start, newest run first."""
+        auto = next((a for a in automation_views(world, scheduler) if a["id"] == aid), None)
+        if auto is None:
+            raise Problem(f"There is no automation {aid}.")
+        runs: list[dict[str, Any]] = []
+        if auto["thread"]:
+            for e in world.journal.recent(400, thread=auto["thread"]):
+                if e["kind"] == "did" and e["text"].startswith("Run the automation"):
+                    runs.append({"at": e["at"], "lines": [], "outcome": None})
+                    continue
+                if not runs:
+                    continue
+                if e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed", "asked"}:
+                    runs[-1]["lines"].append({"at": e["at"], "kind": e["kind"],
+                                              "text": e["text"][:300]})
+                if e["kind"] in {"replied", "failed", "noticed"}:
+                    runs[-1]["outcome"] = e["text"][:400]
+        skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
+        return {**auto, "runs": list(reversed(runs))[:12],
+                "pipeline": skill["steps"] if skill else None}
 
     @app.post("/api/permissions/{pid}/revoke", dependencies=[api])
     def revoke_permission(pid: str) -> dict[str, Any]:
@@ -1395,7 +1485,34 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         return {"focus": conversation_view(world, current) if current else None,
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
-                "needs_you": needs_you(world)}
+                "needs_you": needs_you(world),
+                "look": world.preferences.get("companion_look")}
+
+    @app.get("/api/graph", dependencies=[api])
+    def graph(kind: str = "work") -> dict[str, Any]:
+        """Two maps computed from the world on each ask (context/graph.py): `work`, Alpha's own
+        plumbing; `world`, the person's brain: what it holds, how it connects, what does not."""
+        if kind == "work":
+            return work_graph(world, automation_views(world, scheduler))
+        if kind == "world":
+            return world_graph(world)
+        raise Problem("A map is of kind work or world.")
+
+    @app.post("/api/graph/connect", dependencies=[api])
+    def graph_connect() -> dict[str, Any]:
+        """On the person's ask, Alpha looks over the map of their brain for links between things
+        that are not connected and keeps the grounded ones as suggested facts, with reasons."""
+        return connecting.connect(world)
+
+    @app.get("/api/preferences/{key}", dependencies=[api])
+    def preference(key: str) -> dict[str, Any]:
+        """A choice of look the person made (the companion's look), or null: the window
+        fills in its own defaults."""
+        return {"key": key, "value": world.preferences.get(key)}
+
+    @app.put("/api/preferences/{key}", dependencies=[api])
+    def set_preference(key: str, body: PreferenceBody) -> dict[str, Any]:
+        return world.preferences.set(key, body.value)
 
     @app.post("/api/turns/{key}/move", dependencies=[api])
     def move_turn(key: str, body: MoveBody) -> dict[str, Any]:

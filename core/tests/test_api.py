@@ -194,7 +194,7 @@ def test_a_project_is_renamed_given_an_icon_exported_imported_and_deleted(world:
     assert note and note["body"] == "Roles I want."
     assert api.patch("/api/modules/Jobs", json={"icon": "nope"}).status_code == 400
 
-    world.views.create("openings", "Applied", {"filters": []}, by="person")
+    world.views.save("openings", "Applied", {"filters": {}})
     # Structure only by default: never the records (Alpha's export), with views and the version.
     shape = api.get("/api/modules/Jobs/export").json()
     assert shape["format"] == "alpha.project" and shape["alpha_version"]
@@ -205,7 +205,7 @@ def test_a_project_is_renamed_given_an_icon_exported_imported_and_deleted(world:
                                             "fit": 88, "status": "new"}]
     made = api.post("/api/modules/import", json=bundle).json()
     assert made["name"] == "Jobs 2" and made["icon"] == "briefcase" and made["records"] == 1
-    assert [v["title"] for v in api.get("/api/tables/openings_2").json()["views"]] == ["Applied"]
+    assert [v["title"] for v in api.get("/api/tables/openings_2").json()["lists"]] == ["Applied"]
     copy = api.get(f"/api/modules/{made['id']}").json()
     assert copy["note"]["body"] == "Roles I want."
     assert [a["enabled"] for a in copy["automations"]] == [False]
@@ -284,3 +284,65 @@ def test_a_refused_decline_leaves_no_answer_and_starts_nothing(world: World) -> 
     assert not [e for e in world.journal.recent(10, kinds=["answered"])
                 if e["data"].get("proposal") == plan["proposal"]]
     assert world.plans.get(pid)["state"] == "building"
+
+
+def test_a_modules_page_is_read_and_written_from_its_own_route(world: World) -> None:
+    world.modules.create("Deals", goal="find a firm")
+    c = TestClient(create_app(world, live=False))
+    assert c.get("/api/modules/Deals/page").json() == {"name": "Deals", "scope": "module:Deals",
+                                                       "page": None}
+    c.post("/api/notes", json={"scope": "module:Deals", "title": "Deals",
+                               "body": "# Deals\n\nWhat this is for: a firm to buy.",
+                               "summary": "A firm to buy"})
+    page = c.get("/api/modules/Deals/page").json()["page"]
+    assert page["summary"] == "A firm to buy" and page["body"].startswith("# Deals")
+
+
+def test_a_skill_and_an_automation_have_pages(world: World) -> None:
+    from alpha.runtime import automation as automation_runtime
+
+    building(world).collection_create("deals", "Deals", [{"name": "title", "kind": "text"}])
+    world.readers.save("brokers", site="b.com", url="https://b.com", script="return []",
+                       description="Reads brokers", to_end=False, count=3,
+                       when_to_use="Every broker listing")
+    Tools(world).note_write("skill:brokers", "brokers", "The list paginates by 50.")
+    t = building(world)
+    pipe = t.automation_create("Daily brokers", "daily 07:00",
+                               steps=[{"read": "brokers", "into": "deals", "key": "title"}])
+    judged = t.automation_create("Weekly look", "weekly mon 09:00", procedure="look and say")
+    c = TestClient(create_app(world, live=False))
+    page = c.get("/api/skills/brokers").json()
+    assert page["kind"] == "read" and page["script"] == "return []"
+    assert page["notes"]["body"] == "The list paginates by 50." and page["when_to_use"]
+    assert c.get("/api/skills/nothing").status_code == 400
+    a = c.get(f"/api/automations/{pipe['id']}").json()
+    assert a["title"] == "Daily brokers" and a["pipeline"][0]["read"] == "brokers"
+    assert a["runs"] == []
+    # A run of the judged one, then its page shows the run with its outcome.
+    automation_runtime.run(world, judged["id"],
+                           runner=lambda req: RunResult(ok=True, reply="Nothing new."))
+    j = c.get(f"/api/automations/{judged['id']}").json()
+    assert j["pipeline"] is None and len(j["runs"]) == 1
+    assert j["runs"][0]["outcome"] == "Nothing new."
+
+
+def test_a_relation_shows_the_related_records_title_and_opens_it(world: World) -> None:
+    t = building(world)
+    t.collection_create("clients", "Clients", [{"name": "name", "kind": "text"}],
+                        title_field="name")
+    t.collection_create("invoices", "Invoices", [
+        {"name": "number", "kind": "text"},
+        {"name": "client", "kind": "relation", "relation": "clients"},
+    ])
+    stated = {"source": "stated"}
+    client = world.collections.add("clients", {"name": "RestoPros"}, stated)
+    world.collections.add("invoices", {"number": "INV-1", "client": client["id"]}, stated)
+    world.collections.add("invoices", {"number": "INV-2", "client": "r_gone"}, stated)
+    c = TestClient(create_app(world, live=False))
+    data = c.get("/api/tables/invoices").json()
+    assert data["relations"] == {"client": {client["id"]: "RestoPros"}}
+    one = c.get(f"/api/tables/clients/records/{client['id']}").json()
+    assert one["table"]["name"] == "clients"
+    assert one["record"]["name"] == "RestoPros"
+    assert one["relations"] == {}
+    assert c.get("/api/tables/clients/records/r_missing").status_code == 400

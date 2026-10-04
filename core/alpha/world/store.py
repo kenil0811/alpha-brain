@@ -103,18 +103,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     collection UNINDEXED, record_id UNINDEXED, text, tokenize='porter unicode61'
 );
 
-CREATE TABLE IF NOT EXISTS views (
-    id TEXT PRIMARY KEY,
-    collection TEXT NOT NULL REFERENCES collections(name),
-    title TEXT NOT NULL,
-    config TEXT NOT NULL,
-    is_default INTEGER NOT NULL DEFAULT 0,
-    created_by TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    UNIQUE (collection, title)
-);
-
 CREATE TABLE IF NOT EXISTS notes (
     id TEXT PRIMARY KEY,
     scope TEXT NOT NULL,
@@ -406,6 +394,30 @@ CREATE TABLE IF NOT EXISTS skills (
     allow_posts TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
+
+-- Saved lists (3 Oct 2026): a named way of looking at a table (the search, the filters, the
+-- columns, the sort, the view) that follows the person and that Alpha can make when asked.
+-- One per table may be the default it opens on.
+CREATE TABLE IF NOT EXISTS views (
+    id TEXT PRIMARY KEY,
+    collection TEXT NOT NULL,
+    title TEXT NOT NULL,
+    config TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS views_collection ON views(collection, title);
+
+-- Preferences (3 Oct 2026): what the person chose about how Alpha appears to them (the
+-- companion's look), kept in the world so it follows them. One JSON value per key; the window
+-- owns the shape. Choices of look, never settings of behaviour.
+CREATE TABLE IF NOT EXISTS preferences (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -450,7 +462,17 @@ def _add_columns(db: sqlite3.Connection) -> None:
 # Upgrades in order; a store at version n has had the first n. New tables and triggers come from
 # SCHEMA's IF NOT EXISTS; anything else (a column, a rename, a backfill) is a new step at the
 # end, never an edit to an old one. Version 1 is every store made before versions were kept.
-STEPS: list[Callable[[sqlite3.Connection], None]] = [_add_columns]
+def _views_as_lists(db: sqlite3.Connection) -> None:
+    """Saved views kept by the bridge-parity window (a `created_by` column, the window's own
+    config) give way to main's saved lists: the old rows don't fit the new config, so the
+    table is made again in the new shape."""
+    have = {r[1] for r in db.execute("PRAGMA table_info(views)")}
+    if "created_by" in have:
+        db.execute("DROP TABLE views")
+        db.executescript(SCHEMA)
+
+
+STEPS: list[Callable[[sqlite3.Connection], None]] = [_add_columns, _views_as_lists]
 VERSION = len(STEPS)
 
 

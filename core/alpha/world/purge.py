@@ -32,6 +32,7 @@ from typing import Any
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites, site_of
 from alpha.world.store import Problem, now
+from alpha.world.views import Views
 from alpha.world.world import World, alpha_home
 
 CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
@@ -97,9 +98,9 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         for table in tables:
             records += db.execute("DELETE FROM records WHERE collection = ?", (table,)).rowcount
             db.execute("DELETE FROM records_fts WHERE collection = ?", (table,))
-            db.execute("DELETE FROM views WHERE collection = ?", (table,))
             db.execute("DELETE FROM record_versions WHERE collection = ?", (table,))
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
+            counts["lists"] = counts.get("lists", 0) + Views.remove_table(db, table)
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
             db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (reader,))

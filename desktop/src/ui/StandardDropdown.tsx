@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "./Popover";
+import * as RPopover from "@radix-ui/react-popover";
+import "./Popover.css";
 import { Input } from "./Input";
 import "./StandardDropdown.css";
 
@@ -40,13 +41,14 @@ export function StandardDropdown({
   const current = options.find((o) => o.value === value);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <RPopover.Root open={open} onOpenChange={setOpen}>
+      <RPopover.Trigger asChild>
         <button type="button" className="ui-select-trigger ui-std-dropdown__trigger" aria-label={ariaLabel} title={current?.label}>
           <span>{current ? current.label : placeholder}</span>
         </button>
-      </PopoverTrigger>
-      <PopoverContent align="start">
+      </RPopover.Trigger>
+      <RPopover.Portal>
+        <RPopover.Content className="ui-popover" align="start" sideOffset={6}>
         <div className="ui-std-dropdown">
           {showSearch ? (
             <Input autoFocus placeholder="Search…" value={query} onChange={(e) => setQuery(e.target.value)} className="ui-std-dropdown__search" />
@@ -85,7 +87,8 @@ export function StandardDropdown({
             </button>
           ) : null}
         </div>
-      </PopoverContent>
-    </Popover>
+        </RPopover.Content>
+      </RPopover.Portal>
+    </RPopover.Root>
   );
 }

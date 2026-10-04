@@ -60,7 +60,7 @@ export function AboutYou({ client, facts, modules, onChanged }: { client: Client
         <div className="section section--first">
           <div className="section__head">
             <h2>
-              Waiting for your yes <InfoTip content="Projects and the assistant proposed these; nothing uses them until you accept." label="About suggested facts" />
+              Waiting for your yes <InfoTip text="Projects and the assistant proposed these; nothing uses them until you accept." />
             </h2>
           </div>
           <div className="card list" aria-label="Suggested facts">
@@ -91,7 +91,7 @@ export function AboutYou({ client, facts, modules, onChanged }: { client: Client
       <div className={`section${suggestions.length ? "" : " section--first"}`}>
         <div className="section__head">
           <h2>
-            About you <InfoTip content="What Alpha knows and uses across your projects. Every line says where it came from; correct or forget any of it." label="About this" />
+            About you <InfoTip text="What Alpha knows and uses across your projects. Every line says where it came from; correct or forget any of it." />
           </h2>
           <span className="faint">{known.length ? `${known.length} known` : null}</span>
         </div>
@@ -111,9 +111,7 @@ export function AboutYou({ client, facts, modules, onChanged }: { client: Client
                 {known.map((f) => (
                   <tr key={f.id}>
                     <td className="about__gutter">
-                      <IconButton aria-label={`Forget ${humanize(f.predicate)}`} size="sm" className="rowbtn" onClick={() => void act(() => client.forgetFact(f.id))}>
-                        <X size={13} strokeWidth={1.75} />
-                      </IconButton>
+                      <IconButton label={`Forget ${humanize(f.predicate)}`} size="sm" className="rowbtn" onClick={() => void act(() => client.forgetFact(f.id))} icon={<X strokeWidth={1.75} />} />
                     </td>
                     <td>{humanize(f.predicate)}</td>
                     <td

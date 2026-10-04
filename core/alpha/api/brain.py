@@ -76,28 +76,28 @@ def mount(app: FastAPI, world: World, api: Any, runner: Runner) -> None:
 
     # ---- skills ----
 
-    @app.get("/api/skills", dependencies=[api])
+    @app.get("/api/my-skills", dependencies=[api])
     def list_skills() -> list[dict[str, Any]]:
         return skills.all_skills(world.store)
 
-    @app.post("/api/skills", dependencies=[api])
+    @app.post("/api/my-skills", dependencies=[api])
     def create_skill(body: SkillBody) -> dict[str, Any]:
         skill = skills.create_skill(world.store, body.model_dump())
         world.journal.append("made", f"You made the skill {skill['title']}.", actor="person")
         return skill
 
-    @app.get("/api/skills/{sid}", dependencies=[api])
+    @app.get("/api/my-skills/{sid}", dependencies=[api])
     def get_skill(sid: str) -> dict[str, Any]:
         return {"skill": skills.get_skill(world.store, sid), "runs": skills.runs(world, sid)}
 
-    @app.delete("/api/skills/{sid}", dependencies=[api])
+    @app.delete("/api/my-skills/{sid}", dependencies=[api])
     def retire_skill(sid: str) -> dict[str, Any]:
         skill = skills.retire_skill(world.store, sid)
         world.journal.append("changed", f"You retired the skill {skill['title']}.",
                              actor="person")
         return {"retired": sid}
 
-    @app.post("/api/skills/{sid}/run", dependencies=[api])
+    @app.post("/api/my-skills/{sid}/run", dependencies=[api])
     def run_skill(sid: str, body: RunBody) -> dict[str, Any]:
         return skills.run_skill(world, sid, body.inputs, runner)
 

@@ -24,7 +24,7 @@ async function tauriHost(): Promise<AvatarHost | undefined> {
   if (!hasTauri()) return undefined;
   const { invoke } = await import("@tauri-apps/api/core");
   return {
-    layout: (mode) => invoke("avatar_layout", { mode }),
+    layout: (mode, width, height) => invoke("avatar_layout", { mode, width, height }),
     showMain: () => invoke("show_main"),
     hotAreas: (areas) => invoke("avatar_hot_areas", { areas }),
   };

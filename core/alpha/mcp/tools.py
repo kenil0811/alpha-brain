@@ -544,74 +544,36 @@ class Tools:
                           provenance={"by": "alpha", "turn": self.turn},
                           extra={"turn": self.turn, "thread": self.thread})
 
-    @tool
-    def views_list(self, collection: str) -> list[dict[str, Any]]:
-        """The saved views of a table (the lists the person picks from its List menu)."""
-        self.world.collections.describe(collection)
-        return self.world.views.all(collection)
-
-    @tool
-    def view_save(
-        self,
-        collection: str,
-        title: str,
-        kind: str = "table",
-        filters: list[dict[str, Any]] | None = None,
-        match: str = "all",
-        sorts: list[dict[str, Any]] | None = None,
-        group_by: str | None = None,
-        hidden: list[str] | None = None,
-        date_field: str | None = None,
-        default: bool = False,
-        hide_done: bool = False,
-    ) -> dict[str, Any]:
-        """Save a named view of a table, which the person then picks from the table's List
-        menu ("Open roles by company"). kind: table, list, board, gallery, calendar, timeline,
-        chart, form, map, graph or tree. filters: [{"field", "op", "value"}] with op one of
-        contains, does_not_contain, is, is_not, starts_with, ends_with, is_empty, is_not_empty,
-        gt, gte, lt, lte (numbers), before, after, on_or_before, on_or_after (dates), is_any_of,
-        is_none_of (choices; value comma-separated), is_checked, is_not_checked; match: all or
-        any. A date value may be relative so the view stays current: {"$today": 0} is today,
-        {"$today": -7} a week ago ("this week": on_or_after {"$today": -6}). sorts: [{"field",
-        "dir": "asc"|"desc"}], first wins. group_by: a field to group rows (the board's
-        columns, the chart's axis; a date field charts it over time, per day). hidden: fields
-        not shown. date_field: the date a calendar or timeline uses. hide_done: leave out rows
-        whose status is a done choice. When you build a table, save its page default with
-        default=true and the group_by and date_field that suit it. A view with the same title
-        is replaced."""
-        if match not in {"all", "any"}:
-            raise Problem("match is all or any.")
-        config: dict[str, Any] = {
-            "kind": kind,
-            "rowFilters": [{"field": f.get("field"), "op": f.get("op", "is"),
-                            "value": f["value"] if isinstance(f.get("value"), dict)
-                            else "" if f.get("value") is None else str(f.get("value"))}
-                           for f in filters or []],
-            "filterMatch": match,
-            "sorts": [{"id": x.get("field") or x.get("id"),
-                       "dir": "desc" if x.get("dir") == "desc" else "asc"} for x in sorts or []],
-            "groupBy": group_by,
-            "hidden": hidden or [],
-        }
-        if date_field:
-            config["dateBy"] = date_field
-        if hide_done:
-            config["hideDone"] = True
-        existing = self.world.views.find(collection, title.strip())
-        if existing:
-            view = self.world.views.update(existing["id"], config=config,
-                                           is_default=default or None)
-        else:
-            view = self.world.views.create(collection, title, config, by="alpha",
-                                           is_default=default)
-        desc = self.world.collections.describe(collection)
-        self._did("changed" if existing else "made",
-                  f"{'Updated' if existing else 'Saved'} the view {view['title']} on"
-                  f" {desc['title']}.", {"collection": collection, "view": view["id"]},
-                  desc["module"])
-        return view
-
     # ---- notes, goals, facts ----
+
+    @tool
+    def list_save(self, table: str, title: str, filters: dict[str, str] | None = None,
+                  search: str | None = None, hide_done: bool = False,
+                  columns: list[str] | None = None, sort_by: str | None = None,
+                  descending: bool = False, default: bool = False) -> dict[str, Any]:
+        """Keep a saved list on a table: a named way of looking at it the person asked for
+        ("keep a list of the Missouri deals under 500k", "show me only open ones by default").
+        filters: {field: the one value it must have}; search: words to match; columns: the
+        fields to show (others hidden); sort_by with descending; default: the table opens on
+        this list. The person sees it in the table's Lists menu and can change or remove it."""
+        desc = self.world.collections.describe(table)
+        fields = [f["name"] for f in desc["fields"]]
+        config: dict[str, Any] = {"search": search or "", "filters": filters or {},
+                                  "hide_done": hide_done, "hidden": [], "sort": None,
+                                  "view": "table"}
+        if columns:
+            missing = [c for c in columns if c not in fields]
+            if missing:
+                raise Problem(f"'{table}' has no field {missing[0]}.")
+            config["hidden"] = [f for f in fields if f not in columns]
+        if sort_by:
+            config["sort"] = {"field": sort_by, "direction": "desc" if descending else "asc"}
+        saved = self.world.views.save(table, title, config, default=default,
+                                      source=f"turn:{self.turn}" if self.turn else None)
+        self._did("made", f"Kept the list \"{saved['title']}\" on {desc['title']}"
+                  f"{' as its default' if default else ''}.", {"list": saved["id"],
+                                                               "table": table})
+        return saved
 
     @tool
     def notes_list(self, scope: str | None = None) -> list[dict[str, Any]]:

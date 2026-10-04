@@ -7,7 +7,10 @@
 import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
-import { InfoTip, PageHeader } from "../ui";
+import { factOrigin } from "./facts";
+import { Badge, Button, InfoTip } from "../ui";
+import { PageHeader } from "../ui/PageHeader";
+import { ArrowLeft } from "../ui/icons";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
@@ -48,7 +51,7 @@ export function People({ client, version, onOpen }: { client: Client; version: n
   return (
     <div className="page">
       <PageHeader
-        title={<>People &amp; Companies <InfoTip content="Everyone Alpha has come across: from your connections, your mail, and what you tell it." label="About People & Companies" /></>}
+        title={<>People &amp; Companies <InfoTip text="Everyone Alpha has come across: from your connections, your mail, and what you tell it." /></>}
         right={
           <div className="search people__search">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
@@ -104,25 +107,27 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
   const suggested = entity.facts.filter((f) => f.state === "suggested");
   return (
     <div className="page">
-      <button type="button" className="btn btn--sm" onClick={onBack}>
-        ← People &amp; Companies
-      </button>
+      <Button size="sm" onClick={onBack}>
+        <ArrowLeft size={14} aria-hidden="true" /> People &amp; Companies
+      </Button>
       <div className="modhead" style={{ marginTop: 12 }}>
         <span className="people__avatar people__avatar--big" aria-hidden="true">
           {initials(entity.name)}
         </span>
         <div className="modhead__title">
-          <h1>{entity.name}</h1>
-          <span className="faint">
-            {entity.kind === "person" ? "Person" : "Organisation"}
-            {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
-          </span>
-          <div className="row" style={{ marginTop: 6 }}>
-            {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
-              <span key={`${k}:${v}`} className="pill pill--gray" title={k}>
-                {v}
-              </span>
-            )))}
+          <div style={{ minWidth: 0 }}>
+            <h1>{entity.name}</h1>
+            <div className="faint">
+              {entity.kind === "person" ? "Person" : "Organisation"}
+              {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
+            </div>
+            <div className="row" style={{ marginTop: 6 }}>
+              {Object.entries(entity.keys ?? {}).flatMap(([k, values]) => values.map((v) => (
+                <Badge key={`${k}:${v}`} tone="gray" title={k}>
+                  {v}
+                </Badge>
+              )))}
+            </div>
           </div>
         </div>
       </div>
@@ -134,17 +139,17 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           <div className="section__right">
             {editing ? (
               <>
-                <button type="button" className="btn btn--sm btn--primary" onClick={save}>
+                <Button size="sm" variant="primary" onClick={save}>
                   Save
-                </button>
-                <button type="button" className="btn btn--sm" onClick={() => { setEditing(false); setBody(entity.page?.body ?? ""); }}>
+                </Button>
+                <Button size="sm" onClick={() => { setEditing(false); setBody(entity.page?.body ?? ""); }}>
                   Cancel
-                </button>
+                </Button>
               </>
             ) : (
-              <button type="button" className="btn btn--sm" onClick={() => setEditing(true)}>
+              <Button size="sm" onClick={() => setEditing(true)}>
                 {entity.page ? "Edit" : "Write"}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -154,7 +159,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           ) : entity.page ? (
             <div className="people__page">{entity.page.body}</div>
           ) : (
-            <p className="muted" style={{ fontSize: 13 }}>No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
+            <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
           )}
         </div>
       </div>
@@ -169,7 +174,10 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
             {accepted.map((f) => (
               <div key={f.id}>
                 <dt>{f.predicate.replace(/_/g, " ")}</dt>
-                <dd>{f.value}</dd>
+                <dd>
+                  {f.value}
+                  <div className="faint">{factOrigin(f)}</div>
+                </dd>
               </div>
             ))}
           </dl>
@@ -180,15 +188,15 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
               <div key={f.id} className="card card--pad row">
                 <span>
                   Alpha thinks <b>{f.predicate.replace(/_/g, " ")}</b> is <b>{f.value}</b>
-                  {f.why ? <span className="faint"> — from “{f.why}”</span> : null}
+                  <span className="faint"> · {factOrigin(f)}</span>
                 </span>
                 <span className="section__right">
-                  <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.decideFact(f.id, true).then(refresh)}>
+                  <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(refresh)}>
                     Yes
-                  </button>
-                  <button type="button" className="btn btn--sm" onClick={() => void client.decideFact(f.id, false).then(refresh)}>
+                  </Button>
+                  <Button size="sm" onClick={() => void client.decideFact(f.id, false).then(refresh)}>
                     No
-                  </button>
+                  </Button>
                 </span>
               </div>
             ))}
@@ -210,9 +218,9 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
                 </button>
                 <span className="muted">{keysLine(m) || m.last_text || ""}</span>
                 <span className="section__right">
-                  <button type="button" className="btn btn--sm" onClick={() => void client.merge(entity.id, m.id).then(refresh)}>
+                  <Button size="sm" onClick={() => void client.merge(entity.id, m.id).then(refresh)}>
                     Same person
-                  </button>
+                  </Button>
                 </span>
               </div>
             ))}
@@ -230,7 +238,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           {entity.timeline.map((e) => (
             <div key={e.id} className="list__row">
               <span className="faint people__when">{when(e.at)}</span>
-              <span className={`pill pill--${e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray"}`}>{e.kind}</span>
+              <Badge tone={e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray"}>{e.kind}</Badge>
               <span className="people__line">{e.text}</span>
             </div>
           ))}

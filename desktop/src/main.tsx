@@ -1,3 +1,4 @@
+import { Button, TooltipProvider } from "./ui";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -18,10 +19,11 @@ class Guard extends React.Component<{ children: React.ReactNode }, { error: stri
       return (
         <section className="page page--crash stack" role="alert">
           <h2>Alpha's window hit a problem</h2>
-          <p className="notice">{this.state.error}</p>
-          <button type="button" className="btn btn--primary" onClick={() => window.location.reload()}>
+          <p className="muted">Reload to carry on; nothing you saved is affected.</p>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-sm)", userSelect: "text" }}>{this.state.error}</pre>
+          <Button variant="primary" onClick={() => window.location.reload()}>
             Reload
-          </button>
+          </Button>
         </section>
       );
     }
@@ -35,7 +37,9 @@ const root = createRoot(container);
 void isAvatarWindow().then((avatar) => {
   root.render(
     <React.StrictMode>
-      <Guard>{avatar ? <AvatarBoot /> : <App />}</Guard>
+      <TooltipProvider>
+        <Guard>{avatar ? <AvatarBoot /> : <App />}</Guard>
+      </TooltipProvider>
     </React.StrictMode>,
   );
 });

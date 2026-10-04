@@ -187,8 +187,40 @@ threads (a state move, an upsert) is written as in §3.2.
 - TypeScript strict, React function components, no state library; `core/client.ts` is the
   only module that talks to the core, with typed calls and the API's own shapes. A component
   reads the world through props or its own `client` call, never through a global.
+- **The kit first** (`src/ui/`): `Button`, `IconButton` (a label is required), `Badge`,
+  `Tabs`, `Menu`, `Popover`, `Dialog`, `Tooltip`, `InfoTip`, and the icons in `ui/icons.ts`
+  (lucide, named by what they mean here). No raw `<button className="btn">`, no hand-rolled
+  menus or dialogs, no glyph or emoji characters as icons. A new primitive goes in the kit
+  with a test, not in a page.
 - CSS lives in `src/styles/app.css` with `block__element` class names and `--tokens` for
-  colours and type; inline styles are for one-off geometry only. Light and dark both work.
+  colours and type; inline styles are for one-off geometry only. Light and dark both work;
+  contrast stays at 4.5:1 or better; the Mac's reduced-motion and contrast settings are
+  honoured by CSS, never by a setting of ours.
+- **Type comes from the scale**: seven steps, `--text-xs` (11px, meta and badges), `-sm`
+  (12, secondary), `-md` (13, the working size), `-base` (14, reading text and inputs), `-lg`
+  (16, small headings), `-xl` (20, section and page-level headings), `-2xl` (26, the page
+  title and big numbers). A raw pixel size in the stylesheet or in an inline style fails
+  `styles/typescale.test.ts`.
+- **Nothing overflows, nothing is cut off, nothing is covered**, at the window's smallest size
+  (1100×560, `tauri.conf.json`) as at its default, light and dark. `just check-desktop` opens
+  every page at those sizes on a copy of the world and fails on a page that scrolls sideways,
+  an element past the right edge, text clipped without an ellipsis or spilling past its box,
+  an element cut off by a clipping ancestor, text covered by another element, a request that
+  fails, a console error, a problem notice or an empty page; the report lands in
+  `docs/checks/`, a screenshot of every page and size in `desktop/.check/`. A change to a
+  page or the stylesheet runs it; a problem it finds is fixed, not excused in the rules, unless
+  the rule is wrong (then the rule is fixed and the log says why).
+- Copy is short and specific: a title is a few words, an explanation goes in an `InfoTip`
+  beside it, an empty state is one line, nothing says "coming soon", nothing shows a command
+  or a stack trace. Labels are sentence case. (Adopted from pull request #3's UI rules.)
+- Pages have addresses (`shell/address.ts`); a new surface gets one. What is open inside a
+  page is not in the address.
+- **The app is WebKit; the browser pane is Chromium.** Anything drawn with SVG and CSS
+  transforms is proven only in the app or in Safari: write the companion's rig to a page with
+  `RIG_PAGE_OUT=/tmp/rig.html pnpm vitest run src/avatar/rig-page.test.tsx` and open it in
+  Safari, or screenshot the running app's companion window. Pivot a moving part inside the SVG
+  (`Pivot` in `avatar/Rig.tsx`), never with `transform-origin`; keep a group that animates
+  separate from one that carries an inline transform (WebKit replaces, it does not compose).
 - Every button has a label; every list that updates has a role; keyboard paths exist for
   what a mouse can do (the review of 3 Oct lists the gaps; new code does not add to them).
 - A failed request shows an error state with a way to retry; a poll stops when its window is
@@ -218,8 +250,14 @@ is inside the data folder. The CSP allows only the loopback core and Google Font
   `docs/journeys/`. A change to how Alpha behaves adds or reruns one; a journey that fails
   after a change is a regression until shown otherwise. Journeys cost subscription time: run
   the ones the change touches, and the memory set when context or memory changed.
+- **The desktop check** (`just check-desktop [address prefixes]`) proves the window's pages:
+  every address at the window's sizes, in headless Chromium, against a check core on a copy of
+  the world (no model). It takes about two minutes; `just check-desktop intelligence settings`
+  takes the pages under those addresses only. The report in `docs/checks/` is cited in the log
+  like a journey report.
 - **Acceptance** is a real run in the person's own app or world. Tests and API calls do not
-  count as "it works" in any document.
+  count as "it works" in any document; the desktop check comes closest for a page's look, and
+  still is not a person using the app.
 
 ## 5. Documentation
 

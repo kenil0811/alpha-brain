@@ -1,0 +1,186 @@
+{
+ "began": "2026-10-03T15:51:57.827Z",
+ "ended": "2026-10-03T15:52:12.402Z",
+ "pages": [
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "m-m_dec1df0d2794@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 775,
+   "shot": "m-m_de9cef440abc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 762,
+   "shot": "m-m_862947c1edc7@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 753,
+   "shot": "m-m_023d69129b7e@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_0b5f10ad06d1",
+   "title": "Module: Notes",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "m-m_0b5f10ad06d1@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 774,
+   "shot": "m-m_3b1d7964b2df@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "m-m_dec1df0d2794@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 777,
+   "shot": "m-m_de9cef440abc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 771,
+   "shot": "m-m_862947c1edc7@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 760,
+   "shot": "m-m_023d69129b7e@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_0b5f10ad06d1",
+   "title": "Module: Notes",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 765,
+   "shot": "m-m_0b5f10ad06d1@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 758,
+   "shot": "m-m_3b1d7964b2df@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 839,
+   "shot": "m-m_dec1df0d2794@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 793,
+   "shot": "m-m_de9cef440abc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 790,
+   "shot": "m-m_862947c1edc7@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 774,
+   "shot": "m-m_023d69129b7e@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_0b5f10ad06d1",
+   "title": "Module: Notes",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 769,
+   "shot": "m-m_0b5f10ad06d1@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 772,
+   "shot": "m-m_3b1d7964b2df@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

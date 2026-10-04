@@ -56,28 +56,28 @@ def test_a_skill_is_made_run_and_retired(world: World) -> None:
              ' "why": "Runs ops"}, {"name": "Lee"}], "evidence": [{"title": "Site",'
              ' "url": "https://example.com"}]}')
     c, seen = client(world, reply)
-    skill = c.post("/api/skills", json={
+    skill = c.post("/api/my-skills", json={
         "title": "Find people to cold call", "description": "Finds people worth calling",
         "instructions": "Search.\nRead.", "inputs": [{"name": "Industry"},
                                                     {"name": "city", "required": False}],
         "sources": ["LinkedIn"], "produces": "a list"}).json()
     assert [i["name"] for i in skill["inputs"]] == ["industry", "city"]
-    assert c.post(f"/api/skills/{skill['id']}/run", json={"inputs": {}}).status_code == 400
-    run = c.post(f"/api/skills/{skill['id']}/run", json={"inputs": {"industry": "HVAC"}}).json()
+    assert c.post(f"/api/my-skills/{skill['id']}/run", json={"inputs": {}}).status_code == 400
+    run = c.post(f"/api/my-skills/{skill['id']}/run", json={"inputs": {"industry": "HVAC"}}).json()
     assert run["summary"] == "Two people worth calling." and len(run["items"]) == 2
     assert "propose_action" in seen[0].sentence and "HVAC" in seen[0].sentence
     assert seen[0].thread_id and world.modules.thread(seen[0].thread_id)["kind"] == "job"
-    page = c.get(f"/api/skills/{skill['id']}").json()
+    page = c.get(f"/api/my-skills/{skill['id']}").json()
     assert page["runs"][0]["evidence"][0]["url"] == "https://example.com"
     assert [s["id"] for s in Tools(world).skills_list()] == [skill["id"]]
-    c.delete(f"/api/skills/{skill['id']}")
-    assert c.get("/api/skills").json() == []
+    c.delete(f"/api/my-skills/{skill['id']}")
+    assert c.get("/api/my-skills").json() == []
 
 
 def test_a_reply_without_json_is_its_own_summary(world: World) -> None:
     c, _ = client(world, "Nothing found today.")
-    sid = c.post("/api/skills", json={"title": "Look", "instructions": "Look."}).json()["id"]
-    run = c.post(f"/api/skills/{sid}/run", json={}).json()
+    sid = c.post("/api/my-skills", json={"title": "Look", "instructions": "Look."}).json()["id"]
+    run = c.post(f"/api/my-skills/{sid}/run", json={}).json()
     assert run["summary"] == "Nothing found today." and run["items"] == []
 
 
@@ -93,7 +93,7 @@ def test_a_row_action_runs_a_skill_on_one_row(world: World) -> None:
     t = building(world, turn="j_seed")
     t.collection_create("companies", "Companies", [{"name": "name", "kind": "text"}])
     row = t.records_add("companies", {"name": "Lumen"}, source="stated")
-    sid = c.post("/api/skills", json={"title": "Research", "instructions": "Look."}).json()["id"]
+    sid = c.post("/api/my-skills", json={"title": "Research", "instructions": "Look."}).json()["id"]
     t.table_row_action("companies", sid)
     actions = c.get("/api/tables/companies/row-actions").json()
     assert actions == [{"skill": sid, "title": "Research"}]

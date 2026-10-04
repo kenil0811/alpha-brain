@@ -80,7 +80,7 @@ export function Activity({ client, version, onChanged }: { client: Client; versi
   let lastDay = "";
   return (
     <div className="page">
-      <PageHeader title={<>Activity <InfoTip content="What Alpha read, made and changed, and what you did." label="About Activity" /></>} />
+      <PageHeader title={<>Activity <InfoTip text="What Alpha read, made and changed, and what you did." /></>} />
       {attention?.count ? (
         <div className="section section--first">
           <div className="section__head">
@@ -92,7 +92,7 @@ export function Activity({ client, version, onChanged }: { client: Client; versi
               <article key={f.id} className="card need">
                 <div className="need__head">
                   <h3>{f.title}</h3>
-                  {f.error ? <InfoTip content={f.error} label="What went wrong" /> : null}
+                  {f.error ? <InfoTip text={f.error} /> : null}
                 </div>
                 <p className="because">Failed last time{f.at ? `, ${when(f.at)}` : ""}</p>
                 <div className="row">

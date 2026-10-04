@@ -7,7 +7,6 @@
  * where the questions, options, plan and build show. The companion is the same conversation.
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, ChevronLeft, Plus } from "lucide-react";
 import type { Action, Ask, AttachmentWire, Client, JournalEntry, ModuleCard, Plan, Session, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
@@ -16,7 +15,8 @@ import { usePushToTalk } from "../shell/ptt";
 import { MicButton, useSpeech } from "../shell/voice";
 import { AttachMenu, AttachmentChips, sentAttachments, useAttachments } from "./AttachMenu";
 import { useComposerDrop, usePasteAttachments } from "./attachments";
-import { Button, CollapseToggleButton, IconButton } from "../ui";
+import { Button, IconButton } from "../ui";
+import { ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsRight, PlusIcon, X } from "../ui/icons";
 import { ZazooIcon } from "../ui/ZazooIcon";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
@@ -95,20 +95,20 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
       {ask.options.length ? (
         <div className="askcard__options">
           {ask.options.map((o) => (
-            <button key={o} type="button" className="btn askcard__opt" disabled={busy} onClick={() => void answer(o)}>
+            <Button className="askcard__opt" key={o} disabled={busy} onClick={() => void answer(o)}>
               {o}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
       <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
-        <button type="submit" className="btn btn--sm btn--primary" disabled={busy || !text.trim()}>
+        <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
           Answer
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
           Skip
-        </button>
+        </Button>
       </form>
       {error ? <p className="notice">{error}</p> : null}
     </div>
@@ -187,7 +187,7 @@ export function AssistantPanel({
   module: ModuleCard | null;
   version: number;
   onChanged: () => void;
-  draft: string | null;
+  draft: { text: string; send: boolean } | null;
   onDraftTaken: () => void;
   /** The chat shown in this place, chosen outside the panel so it survives navigation. */
   thread?: ChatChoice;
@@ -283,17 +283,6 @@ export function AssistantPanel({
   useEffect(() => {
     body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
-  useEffect(() => {
-    if (draft === null) return;
-    setText(draft);
-    onDraftTaken();
-    setTimeout(() => {
-      input.current?.focus();
-      autoGrow(input.current);
-      const end = input.current?.value.length ?? 0;
-      input.current?.setSelectionRange(end, end);
-    }, 30);
-  }, [draft, onDraftTaken]);
   const pendingId = pending?.id ?? null;
   useEffect(() => {
     // Keyed on the turn's id, not the polled object: the clock must not restart every second.
@@ -365,6 +354,24 @@ export function AssistantPanel({
     useCallback(() => speech.stop(), [speech]),
   );
 
+  // A sentence from the window: sent at once (quick entry), unless a turn is already running,
+  // in which case it waits in the composer where the person can see it; or put in the composer
+  // to finish ("Ask Alpha to change this").
+  useEffect(() => {
+    if (draft === null) return;
+    onDraftTaken();
+    if (draft.send && !pending) {
+      void send(draft.text);
+      return;
+    }
+    setText(draft.text);
+    setTimeout(() => {
+      input.current?.focus();
+      const end = input.current?.value.length ?? 0;
+      input.current?.setSelectionRange(end, end);
+    }, 30);
+  }, [draft, onDraftTaken, pending, send]);
+
   const follow = useCallback(
     async (turn: Turn | null) => {
       if (!turn) return;
@@ -414,7 +421,7 @@ export function AssistantPanel({
       {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
         <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-          {showSteps ? "▾" : "▸"} {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {showSteps ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
           {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
         </button>
       ) : null}
@@ -422,7 +429,7 @@ export function AssistantPanel({
         <ul className="stages">
           {steps.slice(-12).map((s, i) => (
             <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
-              {s.kind === "failed" ? "✗" : "✓"} {s.text}
+              {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
             </li>
           ))}
         </ul>
@@ -440,11 +447,9 @@ export function AssistantPanel({
     <aside className="assist__panel" aria-label="Chief of Staff">
       <div className="assist__head">
         {threadView && threadView.kind !== "topic" && !isCreation ? (
-          <IconButton aria-label="Back to the conversation" title="Back" size="sm" onClick={() => choose(moduleId ? null : undefined)}>
-            <ChevronLeft size={16} />
-          </IconButton>
+          <IconButton label="Back to the conversation" title="Back" size="sm" icon={<ChevronLeft />} onClick={() => choose(moduleId ? null : undefined)} />
         ) : (
-          <CollapseToggleButton side="right" collapsed={false} controls="panel-right" onClick={onCollapse} />
+          <IconButton label="Collapse Chief of Staff" aria-controls="panel-right" aria-expanded size="sm" icon={<ChevronsRight />} onClick={onCollapse} />
         )}
         <div className="assist__title">
           <ZazooIcon size={32} />
@@ -457,9 +462,7 @@ export function AssistantPanel({
         </div>
         <div className="assist__headend">
           {!fresh && !isCreation ? (
-            <IconButton aria-label="New chat" title="New chat" size="sm" onClick={() => choose(null)}>
-              <Plus size={16} />
-            </IconButton>
+            <IconButton label="New chat" size="sm" icon={<PlusIcon />} onClick={() => choose(null)} />
           ) : null}
           {headerEnd}
         </div>
@@ -502,7 +505,7 @@ export function AssistantPanel({
                 {EXAMPLES.map((example) => (
                   <Button
                     key={example}
-                    variant="outline"
+                   
                     className="assist-empty__chip"
                     onClick={() => {
                       setText(example);
@@ -659,9 +662,7 @@ export function AssistantPanel({
             aria-label="Message Alpha"
           />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={toggleMic} small />
-          <IconButton aria-label="Send" title="Replies use the model chosen in Settings → Models · Enter to send, Shift+Enter for a new line" type="submit" className="composer__send" disabled={!text.trim() || Boolean(pending)}>
-            <ArrowUp size={16} />
-          </IconButton>
+          <IconButton label="Send" title="Replies use the model chosen in Settings → Models · Enter to send, Shift+Enter for a new line" type="submit" className="composer__send" disabled={!text.trim() || Boolean(pending)} icon={<ArrowUp />} />
         </div>
         {speech.error ? (
           <div className="composer__row">

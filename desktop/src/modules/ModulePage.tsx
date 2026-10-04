@@ -5,10 +5,10 @@
  * with its sub projects. The App · Activity · Settings toggle and the subtabs are the shell's
  * own structure; the section lives in the address (`#/m/<id>/<section>`).
  */
-import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Archive, Folder, MoreHorizontal, Plus, X } from "lucide-react";
-import type { Client, ModuleCard, ModuleDetail, ModuleSummary, Source } from "../core/client";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, Tooltip, useToast } from "../ui";
+import type { Client, ModuleCard, ModuleDetail, ModuleSummary, Note, Source } from "../core/client";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, InfoTip, Tabs, Tooltip, useToast } from "../ui";
 import { exportProject, importProject, ProjectEditDialog, ProjectMenuItems, type ProjectEdit } from "../shell/ProjectMenu";
 import { projectIcon } from "../shell/projectIcons";
 import { CreationOnPage, PlanSection } from "./CreationOnPage";
@@ -16,7 +16,6 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
-import { MicButton, useSpeech } from "../shell/voice";
 
 type Section = "app" | "activity" | "settings";
 /** While it is still being worked out and holds nothing, only the creation shows. */
@@ -153,9 +152,7 @@ export function ModulePage({
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <IconButton aria-label="Project options" title="Project options" size="sm">
-                <MoreHorizontal size={16} />
-              </IconButton>
+              <IconButton label="Project options" title="Project options" size="sm" icon={<MoreHorizontal />} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <ProjectMenuItems
@@ -169,15 +166,7 @@ export function ModulePage({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {early ? null : (
-          <div className="toggle" role="tablist" aria-label="Section">
-            {(["app", "activity", "settings"] as Section[]).map((s) => (
-              <button key={s} type="button" role="tab" aria-selected={section === s} onClick={() => setSection(s)}>
-                {s === "app" ? "App" : s === "activity" ? "Activity" : "Settings"}
-              </button>
-            ))}
-          </div>
-        )}
+        {early ? null : <Tabs className="toggle" label="Section" value={section} onChange={setSection} items={[{ id: "app", label: "App" }, { id: "activity", label: "Activity" }, { id: "settings", label: "Settings" }]} />}
       </div>
       {inline === "goal" ? (
         <input autoFocus aria-label="Project goal" className="modhead__desc projpage__goalinput" value={draft} placeholder="What this project is for" onChange={(e) => setDraft(e.target.value)} onBlur={() => void saveEdit()} onKeyDown={onEnterBlur} />
@@ -217,24 +206,27 @@ export function ModulePage({
 
       {early ? null : section === "app" ? (
         <>
-          <div className="subtabs" role="tablist">
-            <button type="button" role="tab" aria-selected={!table} onClick={() => setTab("summary")}>
-              Summary
-            </button>
-            {detail.tables.map((t) => (
-              <button key={t.name} type="button" role="tab" aria-selected={tab === t.name} onClick={() => setTab(t.name)}>
-                {t.title} <span className="faint num">{t.records}</span>
-              </button>
-            ))}
-          </div>
+          <Tabs
+            label="Tables"
+            value={table ? tab : "summary"}
+            onChange={setTab}
+            items={[
+              { id: "summary", label: "Summary" },
+              ...detail.tables.map((t) => ({
+                id: t.name,
+                label: (
+                  <>
+                    {t.title} <span className="faint num">{t.records}</span>
+                  </>
+                ),
+              })),
+            ]}
+          />
           {table ? (
-            <>
-              {onQuickEntry ? <QuickEntry key={`quick-${table.name}`} title={table.title} onSend={onQuickEntry} /> : null}
-              <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} />
-            </>
+            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onQuickEntry} />
           ) : (
             <>
-              <ProjectNotes client={client} detail={detail} onChanged={onChanged} />
+              <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />
               <ProjectFacts client={client} detail={detail} onChanged={onChanged} />
               <Summary client={client} moduleId={detail.id} version={version} onOpen={setTab} />
             </>
@@ -307,7 +299,7 @@ export function ModulePage({
           <div className="section">
             <div className="section__head">
               <h2>What runs on its own</h2>
-              <InfoTip content="Switch any off; Alpha says so if something needs it. Ask Alpha to keep something here current and it shows up with a switch." label="About automations" />
+              <InfoTip text="Switch any off; Alpha says so if something needs it. Ask Alpha to keep something here current and it shows up with a switch." />
             </div>
             <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here." />
           </div>
@@ -376,10 +368,69 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
         })}
       </div>
       {rows.length > shown ? (
-        <button type="button" className="btn btn--sm btn--start" onClick={() => setShown((n) => n + PAGE)}>
+        <Button size="sm" style={{ alignSelf: "flex-start" }} onClick={() => setShown((n) => n + PAGE)}>
           Show more ({rows.length - shown} earlier)
-        </button>
+        </Button>
       ) : null}
+    </div>
+  );
+}
+
+/** The module's page of Alpha's wiki, on the module itself: what it is for, what it holds,
+ *  what was tried, what is open; Alpha writes it and the person may edit it. */
+function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Client; moduleRef: string; version: number; onChanged: () => void }) {
+  const [page, setPage] = useState<{ name: string; scope: string; page: Note | null } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState("");
+  useEffect(() => {
+    let live = true;
+    client
+      .modulePage(moduleRef)
+      .then((p) => {
+        if (!live) return;
+        setPage(p);
+        if (!editing) setBody(p.page?.body ?? "");
+      })
+      .catch(() => live && setPage(null));
+    return () => {
+      live = false;
+    };
+  }, [client, moduleRef, version, editing]);
+  if (!page) return null;
+  const save = () =>
+    void client.writeNote(page.scope, page.name, body, page.page?.summary ?? undefined).then(() => {
+      setEditing(false);
+      onChanged();
+    });
+  return (
+    <div className="card card--pad" style={{ marginBottom: 14 }}>
+      <div className="section__head" style={{ marginBottom: 8 }}>
+        <h2 style={{ fontSize: "var(--text-lg)" }}>Alpha's page</h2>
+        <span className="faint">what this is for, what it holds, what is open</span>
+        <span className="section__right">
+          {editing ? (
+            <>
+              <Button size="sm" variant="primary" onClick={save}>
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBody(page.page?.body ?? ""); }}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => setEditing(true)}>
+              {page.page ? "Edit" : "Write"}
+            </Button>
+          )}
+        </span>
+      </div>
+      {editing ? (
+        <textarea className="note__edit" rows={10} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit the page about ${page.name}`} />
+      ) : page.page ? (
+        <div className="people__page">{page.page.body}</div>
+      ) : (
+        <p className="muted" style={{ fontSize: "var(--text-md)" }}>No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
+      )}
     </div>
   );
 }
@@ -413,9 +464,9 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
               {t.added_this_week ? ` · ${t.added_this_week} added this week` : ""}
             </span>
             <span className="section__right">
-              <button type="button" className="btn btn--sm" onClick={() => onOpen(t.name)}>
+              <Button size="sm" onClick={() => onOpen(t.name)}>
                 Open
-              </button>
+              </Button>
             </span>
           </div>
           {t.amounts?.length ? (
@@ -472,60 +523,11 @@ function Ready({ detail }: { detail: ModuleDetail }) {
   return (
     <p className="row creation__ready">
       <span className="truncate">{detail.name} is ready.</span>
-      <InfoTip content="It's in the sidebar. To change it later, open it and describe the change here." label="How to change it later" />
+      <InfoTip text="It's in the sidebar. To change it later, open it and describe the change here." />
     </p>
   );
 }
 
-/** Alpha's notes on this project (the project's note): click to edit, yours to clear. */
-function ProjectNotes({ client, detail, onChanged }: { client: Client; detail: ModuleDetail; onChanged: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const body = detail.note?.body.trim() ?? "";
-  const save = async () => {
-    setEditing(false);
-    if (draft.trim() === body) return;
-    try {
-      await client.writeNote(`module:${detail.name}`, detail.name, draft.trim());
-      onChanged();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const start = () => {
-    setDraft(body);
-    setEditing(true);
-  };
-  return (
-    <div className="section section--first">
-      <div className="section__head">
-        <h2>
-          Alpha's notes
-          <InfoTip content="What Alpha keeps in mind about this project, from your sessions. Yours to edit or clear." label="About Alpha's notes" />
-        </h2>
-      </div>
-      {editing ? (
-        <textarea autoFocus aria-label="Alpha's notes" className="projpage__notesinput" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => void save()} onKeyDown={(e) => e.key === "Escape" && setEditing(false)} />
-      ) : body ? (
-        <div className="card card--pad">
-          <p className="editable projpage__notes" onClick={start}>
-            {body}
-          </p>
-        </div>
-      ) : (
-        <p className="projempty editable" onClick={start}>
-          Nothing yet
-        </p>
-      )}
-      {error ? (
-        <p className="notice" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 /** Facts that hold only inside this project: those waiting for a yes, and the accepted ones. */
 function ProjectFacts({ client, detail, onChanged }: { client: Client; detail: ModuleDetail; onChanged: () => void }) {
@@ -540,7 +542,7 @@ function ProjectFacts({ client, detail, onChanged }: { client: Client; detail: M
           <div className="section__head">
             <h2>
               Waiting for your yes
-              <InfoTip content="Things Alpha thinks hold for this project; nothing uses them until you accept." label="About suggested project facts" />
+              <InfoTip text="Things Alpha thinks hold for this project; nothing uses them until you accept." />
             </h2>
           </div>
           <div className="card list" aria-label="Suggested project facts">
@@ -570,7 +572,7 @@ function ProjectFacts({ client, detail, onChanged }: { client: Client; detail: M
           <div className="section__head">
             <h2>
               Facts for this project
-              <InfoTip content="Hold here only; About you keeps what holds everywhere." label="About project facts" />
+              <InfoTip text="Hold here only; About you keeps what holds everywhere." />
             </h2>
           </div>
           <div className="card list" aria-label="Project facts">
@@ -581,9 +583,7 @@ function ProjectFacts({ client, detail, onChanged }: { client: Client; detail: M
                     {humanize(f.predicate)}: {f.value}
                   </b>
                 </div>
-                <IconButton size="sm" aria-label={`Forget ${humanize(f.predicate)}`} onClick={() => void client.forgetProjectFact(f.id).then(onChanged, () => undefined)}>
-                  <X size={14} strokeWidth={1.75} />
-                </IconButton>
+                <IconButton size="sm" label={`Forget ${humanize(f.predicate)}`} onClick={() => void client.forgetProjectFact(f.id).then(onChanged, () => undefined)} icon={<X strokeWidth={1.75} />} />
               </div>
             ))}
           </div>
@@ -617,10 +617,8 @@ function Sessions({ client, detail, onChanged, onOpen }: { client: Client; detai
                     {s.state === "working" ? " · working" : ""}
                   </div>
                 </div>
-                <Tooltip content="Archive session">
-                  <IconButton size="sm" className="projrow__action" aria-label={`Archive ${title}`} onClick={() => void client.updateSession(s.id, { state: "done" }).then(onChanged, () => undefined)}>
-                    <Archive size={14} strokeWidth={1.75} />
-                  </IconButton>
+                <Tooltip text="Archive session">
+                  <IconButton size="sm" className="projrow__action" label={`Archive ${title}`} onClick={() => void client.updateSession(s.id, { state: "done" }).then(onChanged, () => undefined)} icon={<Archive strokeWidth={1.75} />} />
                 </Tooltip>
               </div>
             );
@@ -642,7 +640,7 @@ function WentWrong({ detail }: { detail: ModuleDetail }) {
       <div className="section__head">
         <h2>
           What went wrong
-          <InfoTip content="Recent failures in plain words, and what Alpha did about them." label="About what went wrong" />
+          <InfoTip text="Recent failures in plain words, and what Alpha did about them." />
         </h2>
       </div>
       <div className="card list" aria-label="What went wrong">
@@ -672,7 +670,7 @@ function SubProjects({ client, detail, modules, onChanged, onGo }: { client: Cli
           <span className="section__right">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button size="sm">
                   <Plus size={14} strokeWidth={1.75} aria-hidden="true" /> Add sub project
                 </Button>
               </DropdownMenuTrigger>
@@ -700,7 +698,7 @@ function SubProjects({ client, detail, modules, onChanged, onGo }: { client: Cli
                   <button type="button" className="linkbtn projrow__title" onClick={() => onGo({ kind: "module", id: m.id })}>
                     <b>{m.name}</b>
                   </button>
-                  {m.goal ? <InfoTip content={m.goal} label={`About ${m.name}`} /> : null}
+                  {m.goal ? <InfoTip text={m.goal} /> : null}
                 </div>
                 <Button variant="ghost" size="sm" className="projrow__action" onClick={() => file(m.id, null)} aria-label={`Take ${m.name} out of this project`}>
                   Take out
@@ -716,45 +714,3 @@ function SubProjects({ client, detail, modules, onChanged, onGo }: { client: Cli
   );
 }
 
-/** Alpha's quick entry above a table: type or say one line and Chief of Staff adds it. */
-function QuickEntry({ title, onSend }: { title: string; onSend: (text: string) => void }) {
-  const [text, setText] = useState("");
-  const [sent, setSent] = useState(false);
-  const typedBefore = useRef("");
-  const speech = useSpeech((final, interim) => setText(`${typedBefore.current} ${final} ${interim}`.replace(/\s+/g, " ").trim()));
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    const value = text.trim();
-    if (!value) return;
-    onSend(`Add to ${title}: ${value}`);
-    setText("");
-    setSent(true);
-  }
-  return (
-    <form className="card quick quick--table" onSubmit={submit} aria-label={`Quick entry for ${title}`}>
-      <Plus size={16} strokeWidth={1.75} aria-hidden="true" className="quick__plus" />
-      <input
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setSent(false);
-        }}
-        placeholder={`Add to ${title}…`}
-        aria-label={`Add to ${title}`}
-      />
-      {sent ? <span className="faint quick__status">Sent to Chief of Staff</span> : null}
-      <MicButton
-        listening={speech.listening}
-        supported={speech.supported}
-        onToggle={() => {
-          if (!speech.listening) typedBefore.current = text;
-          speech.toggle();
-        }}
-        small
-      />
-      <Button type="submit" size="sm" disabled={!text.trim()}>
-        Add
-      </Button>
-    </form>
-  );
-}

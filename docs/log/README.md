@@ -33,3 +33,13 @@ One file per dated entry, verbatim from where it was written; newest last. The c
 - [`2026-10-03-docs-restructure.md`](2026-10-03-docs-restructure.md) — The docs take their shape: STATE, the log, the design as intent
 - [`2026-10-03-hardening.md`](2026-10-03-hardening.md) — The hardening day: a silent run is ended, routing off the request, upsert one transaction, indexes, backoff
 - [`2026-10-03-contributing.md`](2026-10-03-contributing.md) — The contributor's guide: CONTRIBUTING.md and the short form in CLAUDE.md
+- [`2026-10-03-review-pr3.md`](2026-10-03-review-pr3.md) — Review of pull request #3 (the desktop UI from Vikas's fork): tables in with fixes, companion and Zazoo declined, shell redone on main
+- [`2026-10-03-desktop-foundations.md`](2026-10-03-desktop-foundations.md) — Desktop foundations: fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable panes, the UI kit on Radix and lucide
+- [`2026-10-03-table-views-1.md`](2026-10-03-table-views-1.md) — The table views, stages one and two: the views package with a tested engine; saved lists in the world
+- [`2026-10-03-desktop-check.md`](2026-10-03-desktop-check.md) — The desktop check (`just check-desktop`) and the type scale: four runs, the overlay bug, the rail and the long-string overflows fixed, 1100 minimum width
+- [`2026-10-03-quick-entry.md`](2026-10-03-quick-entry.md) — Quick entry on a table: a sentence becomes a row through the module's conversation; a real trial on a copy of the world
+- [`2026-10-03-companion-characters.md`](2026-10-03-companion-characters.md) — The companion's characters: Bridge's art as assets, our own rig, ten animals and a wardrobe chosen in Settings, kept in the world as a preference
+- [`2026-10-03-table-views-2.md`](2026-10-03-table-views-2.md) — The table views, stage three: a relation shows its title and opens the record in the drawer with a way back; the form view
+- [`2026-10-03-companion-moods.md`](2026-10-03-companion-moods.md) — The companion: three sizes, drag from anywhere, and Bridge's eleven moods as a pose table
+- [`2026-10-03-work-map.md`](2026-10-03-work-map.md) — The map of Alpha's work: Intelligence › Map, a force layout in a worker over modules, tables, skills, automations, sources and connections, every edge with its source
+- [`2026-10-03-brain-map.md`](2026-10-03-brain-map.md) — The map of the brain: the person's world as the default view, Alpha's links as suggested facts with reasons (Refresh runs the pass), refresh only on demand; the discussion and Q30

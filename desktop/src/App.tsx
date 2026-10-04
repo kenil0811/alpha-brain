@@ -3,12 +3,12 @@
  * gets its core session from the host (or Vite env in a browser), then everything is one
  * client. Pages reload when the core reports a change (a turn finished, a row was edited).
  *
- * The rail and Chief of Staff are side panels that collapse, expand and resize (ui/panel);
- * neither ever covers the page at full width. Chief of Staff is open on Home and closed on a
+ * The rail and Chief of Staff are side panels that fold away and resize by their borders
+ * (shell/useDragWidth); neither ever covers the page at full width. Chief of Staff is open on Home and closed on a
  * project page unless opened there (`alpha.assistant.open`); its header holds the Activity
  * bell. Below 1024px the rail shows icons and the panel opens over the page; below 640px a
  * bottom tab bar replaces the rail. The page lives in the address (`#/m/<id>/<section>`), so
- * back and forward work. Each place reopens its last chat (`alpha.sessions`). New project
+ * back and forward work (shell/address). Each place reopens its last chat (`alpha.sessions`). New project
  * makes a blank "Untitled project" at once and opens its page with Chief of Staff beside it.
  */
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
@@ -17,16 +17,20 @@ import { Client } from "./core/client";
 import { driftNotice, resolveSession } from "./core/session";
 import { AssistantPanel, type ChatChoice } from "./assistant/AssistantPanel";
 import { Activity } from "./shell/Activity";
-import { CommandMenu } from "./shell/CommandMenu";
 import { Home } from "./shell/Home";
 import { Intelligence, type IntelTab } from "./shell/Intelligence";
+import { AutomationPage } from "./shell/AutomationPage";
+import { CommandMenu } from "./shell/CommandMenu";
+import { SkillPage } from "./shell/SkillPage";
 import { EntityPage, People } from "./shell/People";
-import { Rail, knownSurface, surfaceFromPath, surfacePath, type Surface } from "./shell/Rail";
+import { Rail, knownSurface, type Surface } from "./shell/Rail";
+import { currentHashSurface, pushAddress } from "./shell/address";
+import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
 import { Settings } from "./shell/Settings";
 import { ProviderAccounts } from "./shell/models";
 import { useTheme } from "./shell/theme";
-import { InfoTip, PageHeader, ResizeHandle, ToastProvider, TooltipProvider, usePanelControl, useToast } from "./ui";
+import { InfoTip, PageHeader, ToastProvider, TooltipProvider, useToast } from "./ui";
 import { ZazooIcon } from "./ui/ZazooIcon";
 import type { ModuleCard } from "./core/client";
 
@@ -68,7 +72,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
 function Workspace({ injected }: { injected?: Client }) {
   const [runtime, setRuntime] = useState<Runtime>(injected ? { kind: "connected", client: injected } : { kind: "connecting" });
   const [attempt, setAttempt] = useState(0);
-  const [surface, setSurfaceState] = useState<Surface>(() => surfaceFromPath(window.location.hash) ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  // The address wins when it names a page; otherwise the remembered place.
+  const [surface, setSurfaceState] = useState<Surface>(() => currentHashSurface() ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>("alpha.rail.collapsed", false));
   const [modules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
   // The chat open in each place ("global" or "module:<id>"), remembered on this Mac.
@@ -79,7 +85,7 @@ function Workspace({ injected }: { injected?: Client }) {
   const [drawer, setDrawer] = useState(false);
   const toast = useToast();
   const [version, setVersion] = useState(0);
-  const [draft, setDraft] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ text: string; send: boolean } | null>(null);
   const [theme, setTheme] = useTheme();
   // Whether any model is connected (Settings -> Models); null until known.
   const [canThink, setCanThink] = useState<boolean | null>(null);
@@ -89,8 +95,16 @@ function Workspace({ injected }: { injected?: Client }) {
   const railRef = useRef<HTMLDivElement>(null);
   const assistRef = useRef<HTMLDivElement>(null);
 
-  const railPanel = usePanelControl({ defaultWidth: 220, minWidth: 76, maxWidth: 360, storageKeyWidth: "alpha.rail.width", storageKeyCollapsed: "alpha.rail.collapsed", snap: true, snapMidpoint: 148 });
-  const assistantPanel = usePanelControl({ defaultWidth: 286, minWidth: 260, maxWidth: 520, storageKeyWidth: "alpha.assistant.width", storageKeyCollapsed: "alpha.assistant.collapsed" });
+  const rail = useDragWidth("alpha.rail.width", 224, 160, 360, "right");
+  const panel = useDragWidth("alpha.panel.width", 380, 280, 560, "left");
+  const toggleRail = useCallback(
+    () =>
+      setRailCollapsed((c) => {
+        remember("alpha.rail.collapsed", !c);
+        return !c;
+      }),
+    [],
+  );
   const narrow = viewport < NARROW_BELOW;
   const compact = !narrow && viewport < COMPACT_BELOW;
   const panelKind = surface.kind === "module" ? "module" : "home";
@@ -103,22 +117,49 @@ function Workspace({ injected }: { injected?: Client }) {
       }),
     [panelKind],
   );
-  const assistOpen = compact || narrow ? assistPeek : !assistantPanel.collapsed && openByKind[panelKind];
+  const assistOpen = compact || narrow ? assistPeek : openByKind[panelKind];
 
   const setSurface = useCallback((next: Surface) => {
     setSurfaceState(next);
     remember(SURFACE_KEY, next);
-    const path = `#${surfacePath(next)}`;
-    if (window.location.hash !== path) window.history.pushState(null, "", path);
+    pushAddress(next);
+  }, []);
+  // Back and forward move between pages; a typed address opens one.
+  useEffect(() => {
+    const onPop = () => {
+      const named = currentHashSurface();
+      if (named) {
+        setSurfaceState(named);
+        remember(SURFACE_KEY, named);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onPop);
+    pushAddress(surface);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onPop);
+    };
+    // once: the listeners read the address, not this render's surface
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ⌘K (or Ctrl+K) anywhere in the window: search everything.
+  const [commandOpen, setCommandOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
   const changed = useCallback(() => setVersion((v) => v + 1), []);
   const openAssistant = useCallback(() => {
     if (compact || narrow) setAssistPeek(true);
-    else {
-      assistantPanel.setCollapsed(false);
-      setOpenHere(true);
-    }
-  }, [compact, narrow, assistantPanel, setOpenHere]);
+    else setOpenHere(true);
+  }, [compact, narrow, setOpenHere]);
   const closeAssistant = () => {
     if (compact || narrow) setAssistPeek(false);
     else setOpenHere(false);
@@ -135,29 +176,26 @@ function Workspace({ injected }: { injected?: Client }) {
 
   useEffect(() => {
     const onResize = () => setViewport(window.innerWidth);
-    const onPop = () => setSurfaceState(surfaceFromPath(window.location.hash) ?? { kind: "home" });
     window.addEventListener("resize", onResize);
-    window.addEventListener("popstate", onPop);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("popstate", onPop);
-    };
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Escape steps the panel that has focus down one level (unless a menu or dialog is open).
+  // Escape folds the panel that has focus (unless a menu or dialog is open).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
       const active = document.activeElement;
-      if (railRef.current?.contains(active)) railPanel.handleEscape();
-      else if (assistRef.current?.contains(active)) {
-        if (compact) setAssistPeek(false);
-        else assistantPanel.handleEscape();
+      if (railRef.current?.contains(active)) {
+        if (compact) setRailPeek(false);
+        else if (!railCollapsed) toggleRail();
+      } else if (assistRef.current?.contains(active)) {
+        if (compact || narrow) setAssistPeek(false);
+        else setOpenHere(false);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [railPanel, assistantPanel, compact]);
+  }, [compact, narrow, railCollapsed, toggleRail, setOpenHere]);
 
   useEffect(() => {
     if (injected) return;
@@ -250,7 +288,7 @@ function Workspace({ injected }: { injected?: Client }) {
 
   const ask = useCallback(
     (text: string) => {
-      setDraft(text);
+      setDraft({ text, send: false });
       openAssistant();
     },
     [openAssistant],
@@ -266,18 +304,16 @@ function Workspace({ injected }: { injected?: Client }) {
         if (made.creation?.thread) rememberSession(`module:${made.id}`, made.creation.thread);
         setSurface({ kind: "module", id: made.id });
         if (compact || narrow) setAssistPeek(true);
-        else {
-          assistantPanel.setCollapsed(false);
+        else
           setOpenByKind((current) => {
             const next = { ...current, module: true };
             remember(OPEN_KEY, next);
             return next;
           });
-        }
         changed();
       })
       .catch((e: unknown) => toast.show(e instanceof Error ? e.message : "Couldn't make a new project."));
-  }, [client, rememberSession, setSurface, compact, narrow, assistantPanel, changed, toast]);
+  }, [client, rememberSession, setSurface, compact, narrow, changed, toast]);
 
   // A blank project left before anything was said is removed (nothing of it would be kept).
   const lastModule = useRef<string | null>(null);
@@ -312,23 +348,19 @@ function Workspace({ injected }: { injected?: Client }) {
   const scopeName =
     surface.kind === "module" ? (scopeModule?.name ?? "Project") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
-  const railWidth = railPanel.collapsed ? 76 : railPanel.displayWidth;
-  const assistantWidth = assistantPanel.displayWidth;
+  // Folded, the rail is icons only; in a compact window it is icons until peeked open.
+  const railFolded = compact ? !railPeek : railCollapsed;
+  const railWidth = railFolded ? 76 : rail.width;
+  const assistantWidth = panel.width;
+  const docked = !compact && !narrow;
 
   return (
-    <div className={narrow ? "app app--narrow" : "app"}>
+    <div className={`app${narrow ? " app--narrow" : ""}${rail.active || panel.active ? " app--resizing" : ""}`} style={{ ["--rail-w" as string]: `${railWidth}px`, ["--panel-w" as string]: `${assistantWidth}px` }}>
       <div ref={railRef} className="app__rail" hidden={narrow}>
-        <Rail
-          surface={surface}
-          modules={modules}
-          runtime={runtime.kind}
-          onGo={setSurface}
-          onNew={startNew}
-          client={client}
-          onChanged={changed}
-          panel={compact ? { ...railPanel, collapsed: !railPeek, displayWidth: railPeek ? railPanel.width : 76, toggleCollapsed: () => setRailPeek((v) => !v) } : { ...railPanel, displayWidth: railWidth }}
-        />
+        <Rail surface={surface} modules={modules} runtime={runtime.kind} onGo={setSurface} onNew={startNew} client={client} onChanged={changed} collapsed={railFolded} onToggleCollapsed={compact ? () => setRailPeek((v) => !v) : toggleRail} width={railWidth} />
       </div>
+      {docked && !railFolded ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} onPointerDown={rail.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" /> : null}
+      {docked && client && assistOpen ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize Chief of Staff" /> : null}
       <main className="main">
         {runtime.kind !== "connected" ? (
           <div className="page">
@@ -360,7 +392,7 @@ function Workspace({ injected }: { injected?: Client }) {
                   <div className="firstrun__head">
                     <h2>
                       Connect a model to start
-                      <InfoTip content="Alpha thinks with a model you connect: your Claude or ChatGPT account, an API key, or Ollama on this Mac." label="About connecting a model" />
+                      <InfoTip text="Alpha thinks with a model you connect: your Claude or ChatGPT account, an API key, or Ollama on this Mac." />
                     </h2>
                     <button type="button" className="btn btn--sm" onClick={() => setCanThink(null)}>
                       Done
@@ -406,6 +438,10 @@ function Workspace({ injected }: { injected?: Client }) {
               <People client={runtime.client} version={version} onOpen={(id) => setSurface({ kind: "entity", id })} />
             ) : surface.kind === "entity" ? (
               <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={version} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
+            ) : surface.kind === "skill" ? (
+              <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={version} onGo={setSurface} onAsk={ask} onChanged={changed} />
+            ) : surface.kind === "automation" ? (
+              <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={version} onGo={setSurface} onAsk={ask} onChanged={changed} />
             ) : surface.kind === "intelligence" ? (
               <Intelligence client={runtime.client} modules={modules} tab={(surface.tab ?? "brain") as IntelTab} version={version} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onGo={setSurface} onChanged={changed} />
             ) : (
@@ -415,8 +451,7 @@ function Workspace({ injected }: { injected?: Client }) {
         )}
       </main>
       {client && assistOpen ? (
-        <div ref={assistRef} id="panel-right" className={narrow ? "assist assist--overlay" : "assist"} style={compact || narrow ? undefined : { width: assistantWidth }}>
-          {!compact && !narrow ? <ResizeHandle side="right" onMouseDown={assistantPanel.startDrag} onStep={assistantPanel.resizeBy} label="Resize Chief of Staff" value={assistantWidth} min={260} max={520} isDragging={assistantPanel.isDragging} /> : null}
+        <div ref={assistRef} id="panel-right" className={narrow ? "assist assist--overlay" : "assist"} style={docked ? { width: assistantWidth } : undefined}>
           <AssistantPanel
             client={client}
             onCollapse={closeAssistant}
@@ -460,7 +495,9 @@ function Workspace({ injected }: { injected?: Client }) {
                   }}
                   client={client}
                   onChanged={changed}
-                  panel={{ ...railPanel, collapsed: false, displayWidth: 280 }}
+                  collapsed={false}
+                  onToggleCollapsed={() => setDrawer(false)}
+                  width={280}
                 />
               </div>
             </div>
@@ -485,7 +522,7 @@ function Workspace({ injected }: { injected?: Client }) {
           </nav>
         </>
       ) : null}
-      {client ? <CommandMenu modules={modules} onGo={setSurface} onNew={startNew} onAsk={ask} /> : null}
+      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={ask} /> : null}
     </div>
   );
 }

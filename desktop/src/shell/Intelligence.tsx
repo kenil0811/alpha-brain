@@ -7,7 +7,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { CalendarDays, Folder, Globe, Link } from "lucide-react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data, ModuleCard, Note, Skill } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { InfoTip, PageHeader, Tabs } from "../ui";
+import { Badge, Button, InfoTip, PageHeader, Tabs } from "../ui";
 import { AboutYou } from "./AboutYou";
 import { AutomationTable } from "./Automations";
 import { ProjectLinks } from "./ProjectLinks";
@@ -77,7 +77,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
     <div className="stack">
       <div className="section__head section__head--tight">
         <h2>
-          Connections <InfoTip content="Accounts and services your projects may use. Alpha never shows or stores raw passwords here." label="About Connections" />
+          Connections <InfoTip text="Accounts and services your projects may use. Alpha never shows or stores raw passwords here." />
         </h2>
       </div>
       <div className="card list">
@@ -107,21 +107,21 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
               <span className={`pill ${STATUS[c.status].pill}`}>{STATUS[c.status].words}</span>
               {removing?.id === c.id ? (
                 <>
-                  <button type="button" className="btn btn--sm" onClick={() => setRemoving(null)}>
+                  <Button size="sm" onClick={() => setRemoving(null)}>
                     Keep it
-                  </button>
-                  <button type="button" className="btn btn--sm btn--danger" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
+                  </Button>
+                  <Button size="sm" variant="danger" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
                     Remove
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="btn btn--sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
+                  <Button size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
                     {c.connector === "browser" ? "Check" : "Read now"}
-                  </button>
-                  <button type="button" className="btn btn--sm btn--ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
                     Remove
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -132,37 +132,37 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Alpha is reading the folder."); }}>
           <div className="intel__head">
             <h3>A folder</h3>
-            <InfoTip content="Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change." label="About folders" />
+            <InfoTip text="Resumes, notes, spreadsheets, PDFs. Alpha reads them and keeps up as they change." />
           </div>
           <div className="row">
             <input className="need__input" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
-            <button type="submit" className="btn btn--primary" disabled={!folder.trim() || busy !== null}>
+            <Button variant="primary" type="submit" disabled={!folder.trim() || busy !== null}>
               Read it
-            </button>
+            </Button>
           </div>
         </form>
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("site", () => client.connectSite(site.trim()), "A window is open: sign in there, then close it."); }}>
           <div className="intel__head">
             <h3>A site you sign into</h3>
-            <InfoTip content="LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it." label="About sites" />
+            <InfoTip text="LinkedIn, a job board, a dashboard. A window opens; you sign in yourself and close it." />
           </div>
           <div className="row">
             <input className="need__input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
-            <button type="submit" className="btn btn--primary" disabled={!site.trim() || busy !== null}>
+            <Button variant="primary" type="submit" disabled={!site.trim() || busy !== null}>
               Sign in
-            </button>
+            </Button>
           </div>
         </form>
         {!hasCalendar ? (
           <div className="card card--pad">
             <div className="intel__head">
               <h3>Your calendar</h3>
-              <InfoTip content="Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once." label="About calendars" />
+              <InfoTip text="Every calendar in macOS Calendar (Google, iCloud, Exchange). macOS asks you once." />
             </div>
             <div className="row">
-              <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
+              <Button variant="primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
                 Connect calendars
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -178,31 +178,39 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
 
 const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", run: "Runs" };
 
-function SkillCard({ skill, modules }: { skill: Skill; modules: Record<string, string> }) {
+function SkillCard({ skill, modules, onOpen }: { skill: Skill; modules: Record<string, string>; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a project" : "");
   const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
   return (
     <div className="card card--pad intel__card">
       <div className="intel__head">
-        <h3>{skill.description}</h3>
-        <span className={`pill ${skill.health === "ok" ? "pill--good" : skill.health === "broken" ? "pill--bad" : "pill--gray"}`}>{health}</span>
+        <h3>
+          {onOpen ? (
+            <button type="button" className="linkbtn" onClick={onOpen}>
+              {skill.description}
+            </button>
+          ) : (
+            skill.description
+          )}
+        </h3>
+        <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
       </div>
       <p className="muted">
-        <span className="pill pill--info" style={{ marginRight: 8 }}>
+        <Badge tone="info" style={{ marginRight: 8 }}>
           {KIND_LABEL[skill.kind]}
-        </span>
+        </Badge>
         {where ? `${where} · ` : ""}version {skill.version}
         {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
         {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
       </p>
       {skill.when_to_use ? <p className="faint">When: {skill.when_to_use}</p> : null}
-      {skill.last_problem ? <p className="notice" style={{ fontSize: 12 }}>{skill.last_problem}</p> : null}
+      {skill.last_problem ? <p className="notice" style={{ fontSize: "var(--text-sm)" }}>{skill.last_problem}</p> : null}
       {skill.notes ? (
         <>
-          <button type="button" className="btn btn--sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
+          <Button size="sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
             {open ? "Hide notes" : "Alpha's notes"}
-          </button>
+          </Button>
           {open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
         </>
       ) : null}
@@ -223,12 +231,12 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
         <>
           <textarea className="note__edit" rows={6} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Edit ${note.title}`} />
           <div className="row" style={{ marginTop: 8 }}>
-            <button type="button" className="btn btn--sm btn--primary" onClick={() => void client.writeNote(note.scope, note.title, body).then(() => { setEditing(false); onChanged(); })}>
+            <Button size="sm" variant="primary" onClick={() => void client.writeNote(note.scope, note.title, body).then(() => { setEditing(false); onChanged(); })}>
               Save
-            </button>
-            <button type="button" className="btn btn--sm btn--ghost" onClick={() => setEditing(false)}>
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -251,7 +259,7 @@ function Knowledge({ client, data, modules, onChanged }: { client: Client; data:
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Goals</h3>
-          <InfoTip content={'Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.'} label="About goals" />
+          <InfoTip text={'Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.'} />
         </div>
         {!goals.length ? <p className="empty">No goals yet.</p> : null}
         <div className="stack">
@@ -277,9 +285,9 @@ function Knowledge({ client, data, modules, onChanged }: { client: Client; data:
               <span>
                 {p.sentence} <span className="faint">· since {when(p.granted_at)}</span>
               </span>
-              <button type="button" className="btn btn--sm btn--ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
+              <Button size="sm" variant="ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
                 Revoke
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -311,8 +319,8 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
   }, [client, version]);
   return (
     <div className="page">
-      <PageHeader title={<>Intelligence <InfoTip content="What Alpha knows and can do across your projects." label="About Intelligence" /></>} />
-      <Tabs className="page__tabs" aria-label="Intelligence" items={TABS.map((t) => ({ value: t.id, label: <span title={t.hint}>{t.label}</span> }))} value={tab} onChange={(v) => onTab(v as IntelTab)} />
+      <PageHeader title={<>Intelligence <InfoTip text="What Alpha knows and can do across your projects." /></>} />
+      <Tabs className="subtabs page__tabs" label="Intelligence" items={TABS.map((t) => ({ id: t.id, label: <span title={t.hint}>{t.label}</span> }))} value={tab} onChange={onTab} />
       {!data ? (
         error ? <p className="notice" role="alert">{error}</p> : <p className="muted">Loading…</p>
       ) : tab === "brain" ? (
@@ -322,15 +330,15 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
           <Skills client={client} />
           <div className="section__head section__head--tight">
             <h2>
-              Skills Alpha learns <InfoTip content="When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes." label="About skills Alpha learns" />
+              Skills Alpha learns <InfoTip text="When Alpha reads a list, does a task on a site, or runs something on its own, it keeps how it did it here, versioned and repaired when a site changes." />
             </h2>
           </div>
           <div className="intel">
-            {data.skills.length ? data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={moduleNames} />) : <p className="muted">None yet.</p>}
+            {data.skills.length ? data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={moduleNames} onOpen={() => onGo({ kind: "skill", name: s.name })} />) : <p className="muted">None yet.</p>}
           </div>
           <div className="section__head section__head--tight">
             <h2>
-              Built in <InfoTip content="What Alpha can reach without being taught." label="About built-in abilities" />
+              Built in <InfoTip text="What Alpha can reach without being taught." />
             </h2>
           </div>
           <div className="intel">
@@ -338,7 +346,7 @@ export function Intelligence({ client, modules, tab, version, onTab, onGo, onCha
               <div key={s.name} className="card card--pad intel__card">
                 <div className="intel__head">
                   <h3>{s.title}</h3>
-                  <InfoTip content={s.description ?? ""} label={`About ${s.title}`} />
+                  <InfoTip text={s.description ?? ""} />
                   <span className="pill pill--gray">Built in</span>
                 </div>
                 <div className="skill__meta">

@@ -255,9 +255,7 @@ export function ProviderRow({
     <div className={`item models__row${p.default ? " models__row--default" : ""}`}>
       {onStar && p.transcribe_only ? <span className="models__nostar" aria-hidden="true" /> : null}
       {onStar && !p.transcribe_only ? (
-        <IconButton size="sm" aria-label={p.default ? `${p.label} is the default` : `Make ${p.label} the default`} aria-pressed={p.default} title={p.default ? "Default" : "Make default"} onClick={() => !p.default && onStar()}>
-          <Star size={14} aria-hidden="true" className={p.default ? "models__star models__star--on" : "models__star"} fill={p.default ? "currentColor" : "none"} />
-        </IconButton>
+        <IconButton size="sm" label={p.default ? `${p.label} is the default` : `Make ${p.label} the default`} aria-pressed={p.default} title={p.default ? "Default" : "Make default"} onClick={() => !p.default && onStar()} icon={<Star aria-hidden="true" className={p.default ? "models__star models__star--on" : "models__star"} fill={p.default ? "currentColor" : "none"} />} />
       ) : null}
       <span className={`models__dot models__dot--${p.dot.color}`} role="img" aria-label={p.dot.tooltip} title={p.dot.tooltip} />
       <div className="item__body models__body">
@@ -265,8 +263,8 @@ export function ProviderRow({
           <b className="models__label" title={p.who ? `${p.label} · ${p.who}` : p.label}>
             {p.label}
           </b>
-          {HOW[p.id] ? <InfoTip content={HOW[p.id]} label={`About ${p.label}`} /> : null}
-          {p.default ? <Badge variant="warning">Default</Badge> : null}
+          {HOW[p.id] ? <InfoTip text={HOW[p.id]} /> : null}
+          {p.default ? <Badge tone="warn">Default</Badge> : null}
         </span>
         {line ? (
           <div className={isError ? "notice models__line" : "item__sub models__line"} role={isError ? "alert" : "status"} title={line}>
@@ -311,9 +309,7 @@ export function ProviderRow({
         ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <IconButton size="sm" aria-label={`${p.label} options`} disabled={busy}>
-              <MoreVertical size={14} aria-hidden="true" />
-            </IconButton>
+            <IconButton size="sm" label={`${p.label} options`} disabled={busy} icon={<MoreVertical aria-hidden="true" />} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => void check()}>Check again</DropdownMenuItem>

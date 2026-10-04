@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { TooltipProvider } from "../ui";
 import { describe, expect, it, vi } from "vitest";
 import type { Client, ModelProvider, SettingField } from "../core/client";
 import { avatarView } from "../avatar/AvatarWindow";
@@ -25,7 +26,7 @@ function fake(): Client {
 describe("Settings", () => {
   it("has Alpha's sections in a side nav and opens the one the address names", async () => {
     const onSection = vi.fn();
-    render(<Settings client={fake()} theme="light" onTheme={() => undefined} section="data" onSection={onSection} />);
+    render(<Settings client={fake()} theme="light" onTheme={() => undefined} section="data" onSection={onSection} />, { wrapper: TooltipProvider });
     const nav = screen.getByRole("navigation", { name: "Settings sections" });
     expect([...nav.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Models", "Appearance", "Project look", "Builds", "Desktop", "Permissions", "Data & runtime", "About"]);
     expect(screen.getByRole("button", { name: "Data & runtime" })).toHaveAttribute("aria-current", "page");
@@ -36,7 +37,7 @@ describe("Settings", () => {
 
   it("saves the access default in Builds", async () => {
     const client = fake();
-    render(<Settings client={client} theme="light" onTheme={() => undefined} section="builds" onSection={() => undefined} />);
+    render(<Settings client={client} theme="light" onTheme={() => undefined} section="builds" onSection={() => undefined} />, { wrapper: TooltipProvider });
     fireEvent.change(await screen.findByLabelText("When Alpha needs your OK"), { target: { value: "full" } });
     await waitFor(() => expect(client.updateSettings).toHaveBeenCalledWith({ "access.mode": "full" }));
   });
@@ -47,7 +48,7 @@ describe("Settings", () => {
     (client.dataInfo as ReturnType<typeof vi.fn>).mockResolvedValue({ folder: "/tmp/alpha", size: 2048, backups });
     (client as unknown as { restoreBackup: unknown }).restoreBackup = vi.fn().mockResolvedValue({ folder: "/tmp/alpha", size: 2048, backups });
     const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
-    render(<Settings client={client} theme="light" onTheme={() => undefined} section="data" onSection={() => undefined} />);
+    render(<Settings client={client} theme="light" onTheme={() => undefined} section="data" onSection={() => undefined} />, { wrapper: TooltipProvider });
     const goBack = await screen.findByRole("button", { name: "Go back" });
     fireEvent.click(goBack);
     expect(client.restoreBackup).not.toHaveBeenCalled();
@@ -57,7 +58,7 @@ describe("Settings", () => {
   });
 
   it("badges the default, says who is signed in, and gives Groq no star", async () => {
-    render(<ProviderAccounts client={fake()} />);
+    render(<ProviderAccounts client={fake()} />, { wrapper: TooltipProvider });
     expect(await screen.findByText("Default")).toBeInTheDocument();
     expect(screen.getByText("Signed in as k@example.com")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Make groq the default" })).toBeNull();

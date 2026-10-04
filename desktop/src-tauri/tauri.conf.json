@@ -17,13 +17,13 @@
         "title": "Alpha",
         "width": 1240,
         "height": 820,
-        "minWidth": 860,
+        "minWidth": 1100,
         "minHeight": 560,
         "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:* ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; object-src 'none'"
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:* ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; object-src 'none'"
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",

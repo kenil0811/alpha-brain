@@ -1,0 +1,1146 @@
+{
+ "began": "2026-10-03T17:23:07.267Z",
+ "ended": "2026-10-03T17:24:35.716Z",
+ "pages": [
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 858,
+   "shot": "intelligence@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 780,
+   "shot": "intelligence-skills@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 762,
+   "shot": "intelligence-automations@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 796,
+   "shot": "intelligence-connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 769,
+   "shot": "intelligence-knowledge@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 758,
+   "shot": "intelligence-skills-gmail_draft@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-gmail_send_draft@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 774,
+   "shot": "intelligence-skills-linkedin_message@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 760,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-accounting_practice_exchange@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 774,
+   "shot": "intelligence-skills-atb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-capstone_ma@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-fusion_advantage@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 775,
+   "shot": "intelligence-skills-grand_business_brokers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 757,
+   "shot": "intelligence-skills-kendall_capital@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-linkedin_connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 773,
+   "shot": "intelligence-skills-poe_advisors@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 758,
+   "shot": "intelligence-skills-premier_business_brokers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-quiet_light@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-saint_louis_group@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-innovative_business_advisors@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 758,
+   "shot": "intelligence-skills-vr_gateway_stl@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-website_closers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 759,
+   "shot": "intelligence-skills-yc_founding_engineer@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 758,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 756,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 763,
+   "shot": "intelligence-automations-a_03ce90642adb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 764,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-automations-a_616417b6a351@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 838,
+   "shot": "intelligence@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 784,
+   "shot": "intelligence-skills@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 765,
+   "shot": "intelligence-automations@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 765,
+   "shot": "intelligence-connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 769,
+   "shot": "intelligence-knowledge@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 780,
+   "shot": "intelligence-skills-gmail_draft@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 757,
+   "shot": "intelligence-skills-gmail_send_draft@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 771,
+   "shot": "intelligence-skills-linkedin_message@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 771,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 768,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 774,
+   "shot": "intelligence-skills-accounting_practice_exchange@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 773,
+   "shot": "intelligence-skills-atb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 777,
+   "shot": "intelligence-skills-capstone_ma@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-fusion_advantage@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 769,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 774,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 773,
+   "shot": "intelligence-skills-grand_business_brokers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 773,
+   "shot": "intelligence-skills-kendall_capital@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 769,
+   "shot": "intelligence-skills-linkedin_connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 775,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 776,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 777,
+   "shot": "intelligence-skills-poe_advisors@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 769,
+   "shot": "intelligence-skills-premier_business_brokers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 768,
+   "shot": "intelligence-skills-quiet_light@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-saint_louis_group@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 769,
+   "shot": "intelligence-skills-innovative_business_advisors@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-vr_gateway_stl@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 767,
+   "shot": "intelligence-skills-website_closers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 776,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 775,
+   "shot": "intelligence-skills-yc_founding_engineer@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 775,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 766,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 773,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 768,
+   "shot": "intelligence-automations-a_03ce90642adb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 777,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 772,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 758,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 765,
+   "shot": "intelligence-automations-a_616417b6a351@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 836,
+   "shot": "intelligence@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 775,
+   "shot": "intelligence-skills@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 764,
+   "shot": "intelligence-automations@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 766,
+   "shot": "intelligence-connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 777,
+   "shot": "intelligence-knowledge@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 764,
+   "shot": "intelligence-skills-gmail_draft@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 766,
+   "shot": "intelligence-skills-gmail_send_draft@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 761,
+   "shot": "intelligence-skills-linkedin_message@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 781,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 775,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 767,
+   "shot": "intelligence-skills-accounting_practice_exchange@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 772,
+   "shot": "intelligence-skills-atb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 777,
+   "shot": "intelligence-skills-capstone_ma@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 776,
+   "shot": "intelligence-skills-fusion_advantage@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 776,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 774,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 773,
+   "shot": "intelligence-skills-grand_business_brokers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 774,
+   "shot": "intelligence-skills-kendall_capital@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 768,
+   "shot": "intelligence-skills-linkedin_connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 773,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 777,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 775,
+   "shot": "intelligence-skills-poe_advisors@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 762,
+   "shot": "intelligence-skills-premier_business_brokers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 770,
+   "shot": "intelligence-skills-quiet_light@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 773,
+   "shot": "intelligence-skills-saint_louis_group@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 778,
+   "shot": "intelligence-skills-innovative_business_advisors@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 775,
+   "shot": "intelligence-skills-vr_gateway_stl@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 773,
+   "shot": "intelligence-skills-website_closers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 768,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 768,
+   "shot": "intelligence-skills-yc_founding_engineer@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 774,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 767,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 765,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 770,
+   "shot": "intelligence-automations-a_03ce90642adb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 775,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 771,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 775,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 766,
+   "shot": "intelligence-automations-a_616417b6a351@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

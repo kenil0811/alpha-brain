@@ -96,7 +96,7 @@ export function Permissions() {
       <div className="item">
         <div className="item__body">
           <b>Permissions</b>
-          <InfoTip content="The switch is Alpha's own: off, Alpha doesn't use it even if macOS allows it. To take a grant back from macOS, use System Settings → Privacy & Security." label="About permissions" />
+          <InfoTip text="The switch is Alpha's own: off, Alpha doesn't use it even if macOS allows it. To take a grant back from macOS, use System Settings → Privacy & Security." />
           {!desktop ? <div className="item__sub">macOS grants are shown in the desktop app only.</div> : null}
           {problem ? (
             <div className="notice models__line" role="alert">
@@ -114,7 +114,7 @@ export function Permissions() {
             </span>
             <div className="item__body">
               <b>{label}</b>
-              <InfoTip content={tip} label={`About ${label.toLowerCase()}`} />
+              <InfoTip text={tip} />
             </div>
             {s ? <span className={PILL[s][0]}>{PILL[s][1]}</span> : null}
             {desktop && on[kind] && s && s !== "granted" ? (

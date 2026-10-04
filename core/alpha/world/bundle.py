@@ -38,7 +38,7 @@ def export_module(world: World, ref: str, *, rows: bool = False) -> dict[str, An
             "name": desc["name"], "title": desc["title"], "title_field": desc["title_field"],
             "fields": desc["fields"],
             "views": [{"title": v["title"], "config": v["config"], "is_default": v["is_default"]}
-                      for v in world.views.all(t["name"])],
+                      for v in world.views.for_table(t["name"])],
         }
         if rows:
             table["rows"] = [{k: v for k, v in r.items() if k not in SYSTEM_FIELDS}
@@ -91,8 +91,8 @@ def import_module(world: World, bundle: dict[str, Any]) -> dict[str, Any]:
         for values in t.get("rows", []):
             world.collections.add(table, values, provenance)
         for v in t.get("views", []):
-            world.views.create(table, v["title"], v.get("config") or {}, by="import",
-                               is_default=bool(v.get("is_default")))
+            world.views.save(table, v["title"], v.get("config") or {}, source="import",
+                             default=bool(v.get("is_default")))
     have = set(world.readers.names())
     for r in bundle.get("readers", []):
         if r["name"] not in have:  # a reader of the same name already reads that site here

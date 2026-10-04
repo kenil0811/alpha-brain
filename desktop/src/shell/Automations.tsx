@@ -8,8 +8,10 @@ import { when } from "../modules/format";
 import { ModuleIcon } from "../ui/ModuleIcon";
 import { projectIcon } from "./projectIcons";
 import "../dataviews/dataviews.css";
+import { Button } from "../ui";
+import { Check, X } from "../ui/icons";
 
-export function AutomationList({ client, items, onChanged, empty }: { client: Client; items: Automation[]; onChanged: () => void; empty: string }) {
+export function AutomationList({ client, items, onChanged, empty, onOpen }: { client: Client; items: Automation[]; onChanged: () => void; empty: string; onOpen?: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // While one runs, look again every few seconds so its steps and result show up here.
@@ -46,7 +48,13 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
           <div key={a.id} className="item item--top">
             <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
             <div className="item__body">
-              {a.title}
+              {onOpen ? (
+                <button type="button" className="linkbtn" onClick={() => onOpen(a.id)}>
+                  {a.title}
+                </button>
+              ) : (
+                a.title
+              )}
               <div className="item__sub">
                 {a.enabled ? `${a.when}${a.next_run_at ? ` · next ${when(a.next_run_at)}` : ""}` : `Off · ${a.when} when on`}
                 {a.last_run_at ? ` · last ran ${when(a.last_run_at)}` : " · hasn't run on its own yet"}
@@ -58,7 +66,7 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                     <ul className="stages">
                       {a.steps.map((s, i) => (
                         <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
-                          {s.kind === "failed" ? "✗" : "✓"} {s.text}
+                          {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
                         </li>
                       ))}
                     </ul>
@@ -70,9 +78,9 @@ export function AutomationList({ client, items, onChanged, empty }: { client: Cl
                 <div className="notice notice--sm">Last run didn't work: {a.last_error}</div>
               ) : null}
             </div>
-            <button type="button" className="btn btn--sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
+            <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
               {a.running ? "Running…" : "Run now"}
-            </button>
+            </Button>
           </div>
         ))}
       </div>

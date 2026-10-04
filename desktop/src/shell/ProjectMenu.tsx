@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { Database, EyeOff, FileDown, FolderOpen, Pencil, Shapes, Trash2 } from "lucide-react";
 import type { Client, ModuleCard } from "../core/client";
 import { hasTauri } from "../core/session";
-import { Button, Dialog, DialogContent, DropdownMenuItem, DropdownMenuSeparator, Input } from "../ui";
+import { Button, Dialog, DropdownMenuItem, DropdownMenuSeparator, Input } from "../ui";
 import { PROJECT_ICONS } from "./projectIcons";
 
 export type ProjectEdit = "rename" | "icon" | "delete";
@@ -111,9 +111,9 @@ export function ProjectEditDialog({ client, project, edit, onClose, onChanged, o
   const title = edit === "rename" ? "Rename project" : edit === "icon" ? "Change icon" : `Delete ${project?.name ?? "project"}?`;
   const tables = project?.tables.length ?? 0;
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()} title={title}>
       {open ? (
-        <DialogContent title={title}>
+        <>
           {edit === "rename" ? (
             <form
               className="projedit"
@@ -126,7 +126,7 @@ export function ProjectEditDialog({ client, project, edit, onClose, onChanged, o
             >
               <Input autoFocus aria-label="Project name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.target.select()} />
               <div className="projedit__actions">
-                <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
+                <Button size="sm" onClick={onClose} disabled={busy}>
                   Cancel
                 </Button>
                 <Button type="submit" size="sm" disabled={busy || !name.trim()}>
@@ -156,10 +156,10 @@ export function ProjectEditDialog({ client, project, edit, onClose, onChanged, o
                 Removes {tables} {tables === 1 ? "table" : "tables"} ({project.records} {project.records === 1 ? "row" : "rows"}), its automations, note and goals. Activity keeps the history.{subProjects ? " Its sub projects move back to the top level." : ""} This cannot be undone.
               </p>
               <div className="projedit__actions">
-                <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
+                <Button size="sm" onClick={onClose} disabled={busy}>
                   Cancel
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => void run(() => client.removeModule(project.id), () => onDeleted(project.id))} disabled={busy}>
+                <Button variant="danger" size="sm" onClick={() => void run(() => client.removeModule(project.id), () => onDeleted(project.id))} disabled={busy}>
                   Delete
                 </Button>
               </div>
@@ -170,7 +170,7 @@ export function ProjectEditDialog({ client, project, edit, onClose, onChanged, o
               {error}
             </p>
           ) : null}
-        </DialogContent>
+        </>
       ) : null}
     </Dialog>
   );

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { TooltipProvider } from "../ui";
 import { describe, expect, it, vi } from "vitest";
 import { CoreError, type Client, type ModelProvider } from "../core/client";
 import { ProviderAccounts, byStatus } from "./models";
@@ -30,7 +31,7 @@ describe("Settings -> Models", () => {
 
   it("moves the star, and says in one line why a key was refused", async () => {
     const client = fake();
-    render(<ProviderAccounts client={client} />);
+    render(<ProviderAccounts client={client} />, { wrapper: TooltipProvider });
     expect(await screen.findByRole("button", { name: "claude is the default" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("alert")).toHaveTextContent("The provider said 402: no credits");
 

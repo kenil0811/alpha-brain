@@ -1,10 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { toRow } from "../core/client";
-import { ToastProvider, TooltipProvider, type PanelControl } from "../ui";
-import { Rail, knownSurface, sameSurface, surfaceFromPath, surfacePath } from "./Rail";
-
-const panel: PanelControl = { collapsed: false, mode: "expanded", width: 224, displayWidth: 224, isDragging: false, setCollapsed: vi.fn(), toggleCollapsed: vi.fn(), resizeBy: vi.fn(), startDrag: vi.fn(), handleEscape: () => false };
+import { ToastProvider, TooltipProvider } from "../ui";
+import { Rail, knownSurface, sameSurface } from "./Rail";
+import { pathFor as surfacePath, surfaceFromPath } from "./address";
 
 describe("the rail", () => {
   it("marks the right item current", () => {
@@ -31,7 +30,7 @@ describe("the rail", () => {
     const { container } = render(
       <TooltipProvider>
         <ToastProvider>
-          <Rail surface={{ kind: "home" }} modules={[card("m_1", "School"), card("m_2", "Grades", "m_1"), card("m_3", "Food")]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} panel={panel} />
+          <Rail surface={{ kind: "home" }} modules={[card("m_1", "School"), card("m_2", "Grades", "m_1"), card("m_3", "Food")]} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />
         </ToastProvider>
       </TooltipProvider>,
     );
