@@ -43,6 +43,11 @@ def routes(app: FastAPI, s: Served) -> None:
     def set_thinking(body: ThinkingBody) -> dict[str, Any]:
         if body.route not in route.ROUTES:
             raise Problem("Alpha thinks with Claude or with ChatGPT.")
+        if body.route != route.chosen(world.path):
+            # A session belongs to the runtime that made it: Claude can't resume a Codex one.
+            # Each chat carries on from its journaled turns instead.
+            with world.store.tx() as db:
+                db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL")
         world.preferences.set(route.PREFERENCE, body.route)
         world.journal.append("changed", f"You chose to think with {route.WORDS[body.route]}.",
                              actor="person", data={"thinks_with": body.route})

@@ -116,8 +116,11 @@ def test_the_thinking_routes(world: World, monkeypatch: Any) -> None:
     c = TestClient(create_app(world, live=False))
     now = c.get("/api/thinking").json()
     assert now["route"] == "claude" and now["codex"]["signed_in"] is False
+    chat = world.modules.open_thread("A chat", kind="chat")["id"]
+    world.modules.set_session(chat, "claude-session")
     after = c.put("/api/thinking", json={"route": "codex"}).json()
     assert after["route"] == "codex"
+    assert world.modules.thread(chat)["session_ref"] is None  # Codex can't resume Claude's
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == \
         "You chose to think with ChatGPT."
     assert c.put("/api/thinking", json={"route": "gemini"}).status_code == 400
