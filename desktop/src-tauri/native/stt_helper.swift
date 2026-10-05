@@ -30,6 +30,11 @@ func emit(_ kind: String, _ text: String) {
     print("{\"type\":\"\(kind)\",\"text\":\"\(escaped)\"}")
 }
 
+/// A line for the host's log (stderr), never the words heard.
+func diag(_ message: String) {
+    FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
+}
+
 func fail(_ message: String) -> Never {
     emit("error", message)
     exit(1)
@@ -40,13 +45,22 @@ guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeId)),
     fail("Speech recognition isn't available for this language on this Mac.")
 }
 
-let sem = DispatchSemaphore(value: 0)
+// Asking only when undecided: a decided status answers at once, and every answer starts with
+// this helper, so it has to be quick or the first words are lost.
 var speechDenied = false
-SFSpeechRecognizer.requestAuthorization { status in
-    speechDenied = status != .authorized
-    sem.signal()
+switch SFSpeechRecognizer.authorizationStatus() {
+case .authorized:
+    break
+case .notDetermined:
+    let sem = DispatchSemaphore(value: 0)
+    SFSpeechRecognizer.requestAuthorization { status in
+        speechDenied = status != .authorized
+        sem.signal()
+    }
+    sem.wait()
+default:
+    speechDenied = true
 }
-sem.wait()
 if speechDenied {
     fail("permission_denied: speech recognition")
 }
@@ -66,6 +80,7 @@ default:
     micSem.signal()
 }
 micSem.wait()
+diag("speech authorized \(!speechDenied), microphone authorized \(!micDenied)")
 if micDenied {
     fail("permission_denied: microphone")
 }
@@ -75,9 +90,36 @@ let request = SFSpeechAudioBufferRecognitionRequest()
 request.shouldReportPartialResults = true
 
 let inputNode = audioEngine.inputNode
+// A MacBook's built-in mic arrives as a raw 3-channel array, quiet on each channel, and the
+// recognizer hears "no speech" in it. The Mac's own voice processing (as in FaceTime) cleans it
+// up and evens the level; the loudest channel of each buffer then goes on as mono.
+let processed = (try? inputNode.setVoiceProcessingEnabled(true)) != nil
 let format = inputNode.outputFormat(forBus: 0)
+guard let mono = AVAudioFormat(standardFormatWithSampleRate: format.sampleRate, channels: 1) else {
+    fail("Could not prepare the microphone's audio.")
+}
+diag("input \(format.channelCount) ch at \(Int(format.sampleRate)) Hz; voice processing \(processed); on-device \(recognizer.supportsOnDeviceRecognition)")
+var buffers = 0
+var peak: Float = 0
 inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-    request.append(buffer)
+    guard let data = buffer.floatChannelData,
+          let out = AVAudioPCMBuffer(pcmFormat: mono, frameCapacity: buffer.frameLength) else { return }
+    let frames = Int(buffer.frameLength)
+    var best = 0
+    var bestEnergy: Float = -1
+    for ch in 0..<Int(buffer.format.channelCount) {
+        var energy: Float = 0
+        for i in 0..<frames { energy += data[ch][i] * data[ch][i] }
+        if energy > bestEnergy { (best, bestEnergy) = (ch, energy) }
+    }
+    out.frameLength = buffer.frameLength
+    let target = out.floatChannelData![0]
+    for i in 0..<frames {
+        target[i] = data[best][i]
+        peak = max(peak, abs(target[i]))
+    }
+    request.append(out)
+    buffers += 1
 }
 audioEngine.prepare()
 do {
@@ -95,6 +137,7 @@ func stopEngine() {
 
 let sigSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
 sigSource.setEventHandler {
+    diag("stopped after \(buffers) buffers, peak \(peak)")
     stopEngine()
     request.endAudio()
 }
@@ -118,6 +161,8 @@ recognizer.recognitionTask(with: request) { result, error in
         }
     }
     if let error = error {
+        let ns = error as NSError
+        diag("recognition error \(ns.domain) \(ns.code) after \(buffers) buffers, peak \(peak)")
         // `endAudio()` on a deliberate stop also surfaces as an error here once no speech was
         // captured yet; that is a normal "stopped before anything was said", not a failure.
         let message = error.localizedDescription

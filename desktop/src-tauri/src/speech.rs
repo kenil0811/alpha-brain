@@ -55,11 +55,20 @@ pub fn stt_start(app: AppHandle, state: tauri::State<SpeechState>) -> Result<(),
     let mut child = Command::new(helper)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("spawn stt helper: {e}"))?;
     let stdout = child.stdout.take().ok_or("stt helper stdout unavailable")?;
     let pid = child.id();
+    crate::note(&format!("stt: helper {pid} started"));
+    if let Some(stderr) = child.stderr.take() {
+        std::thread::spawn(move || {
+            use std::io::{BufRead, BufReader};
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                crate::note(&format!("stt: helper {pid} says {line}"));
+            }
+        });
+    }
     *guard = Some(pid);
     drop(guard);
 
@@ -76,9 +85,13 @@ pub fn stt_start(app: AppHandle, state: tauri::State<SpeechState>) -> Result<(),
                 _ => continue,
             };
             ended |= event != "stt://partial";
+            // What came back, never the words themselves: how many, so a silent recognizer shows.
+            let words = text.split_whitespace().count();
+            crate::note(&format!("stt: helper {pid} {event} ({words} words){}", if event == "stt://error" { format!(": {text}") } else { String::new() }));
             let _ = app.emit(event, SttEvent { text });
         }
-        let _ = child.wait();
+        let status = child.wait();
+        crate::note(&format!("stt: helper {pid} ended {status:?}"));
         // The helper died without a word (macOS kills it when the app asking has no usage
         // description, e.g. a dev build started from a terminal): say so, or the page waits forever.
         if !ended {

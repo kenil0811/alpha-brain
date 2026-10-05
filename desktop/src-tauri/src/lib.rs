@@ -46,7 +46,7 @@ static QUITTING: AtomicBool = AtomicBool::new(false);
 static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
 static HOST_LOG: OnceLock<PathBuf> = OnceLock::new();
 
-fn note(message: &str) {
+pub(crate) fn note(message: &str) {
     eprintln!("[host] {message}");
     if let Some(path) = HOST_LOG.get() {
         use std::io::Write;

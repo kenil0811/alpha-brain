@@ -126,6 +126,9 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
   };
   const [heard, setHeard] = useState("");
   const [typed, setTyped] = useState("");
+  // Answers that came back without a word in a row: after two, the typed answer shows too.
+  const [missed, setMissed] = useState(0);
+  const missedRef = useRef(0);
   const [level, setLevel] = useState(0);
   const [, setNow] = useState(Date.now()); // the clock's tick
   const clockRef = useRef({ startedAt: 0, pausedAt: 0, paused: 0, extra: 0, budget: 0 });
@@ -249,9 +252,14 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
         return;
       }
       if (!cmd && !answer.trim()) {
-        listen(); // nothing came through: keep listening
+        // Nothing came through: say so at once and ask again, rather than waiting in silence.
+        missedRef.current += 1;
+        setMissed(missedRef.current);
+        void speak(missedRef.current < 2 ? "Sorry, I didn't catch that. Could you say it again?" : "I'm having trouble hearing you. Say it once more, or type it below.");
         return;
       }
+      missedRef.current = 0;
+      setMissed(0);
       const said = cmd ? "" : answer.trim();
       answeredRef.current = [...answeredRef.current, { question: q, answer: said, skipped: cmd === "skip" }];
       setAnswered(answeredRef.current);
@@ -261,7 +269,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
       leftRef.current = next.left;
       askNext(next.moveOn ? undefined : q.topic, next.moveOn);
     },
-    [askNext, current, finish, listen],
+    [askNext, current, finish, speak],
   );
   const settleRef = useRef(settle);
   settleRef.current = settle;
@@ -306,7 +314,13 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
           setStage("settling");
         }
       }
-      if (s === "settling" && !speechRef.current.listening && ((e.text && t - e.lastText > 700) || t - e.stoppedAt > 10_000)) {
+      // The host listens one utterance at a time: if it ended before the person started, listen again.
+      if (s === "listening" && !e.heardAny && !speechRef.current.listening && t - e.lastHeard > 1000) {
+        e.lastHeard = t;
+        speechRef.current.start();
+      }
+      // Settle as soon as the words are in (or clearly aren't coming), never a long silent wait.
+      if (s === "settling" && !speechRef.current.listening && ((e.text && t - e.lastText > 700) || (!e.text && t - e.stoppedAt > 1500))) {
         setStage("listening"); // guards against settling twice before the next question starts
         settleRef.current(e.text);
       }
@@ -320,6 +334,8 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
   const start = () => {
     clockRef.current = { startedAt: Date.now(), pausedAt: 0, paused: 0, extra: 0, budget: minutes };
     setKept(0);
+    missedRef.current = 0;
+    setMissed(0);
     answeredRef.current = [];
     setAnswered([]);
     leftRef.current = saved?.prepared.questions ?? [];
@@ -404,7 +420,7 @@ export function Interview({ client, tool, modules, onBack, onChanged }: { client
   const least = Math.min(full, half(Math.min(...questions.filter((q) => !q.parent).map((q) => fullMinutes([q])))));
   const minutes = Math.min(Math.max(budget, least), full);
   const preview = useMemo(() => plan(questions, minutes), [questions, minutes]);
-  const canListen = speech.supported && !speech.error;
+  const canListen = speech.supported && !speech.error && missed < 2;
   const small = phase === "review" || phase === "done";
 
   const status =

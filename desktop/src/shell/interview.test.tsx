@@ -108,4 +108,40 @@ describe("Interview", () => {
     expect(client.writeNote).toHaveBeenCalledWith("module:alpha", expect.stringMatching(/^Done means \(Interview me, /), "A beta");
     expect(asked).toHaveLength(2); // the unticked fact never reaches Zazoo
   });
+
+  it("says at once when it didn't catch an answer, asks again, and offers typing after two misses", { timeout: 20_000 }, async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    localStorage.clear();
+    fake.spoken = [];
+    const client = {
+      newConversation: vi.fn(async () => ({ id: "c_1" })),
+      askAndWait: vi.fn(async (text: string) => ({ id: "t", state: "done", text, reply: PLAN })),
+      writeNote: vi.fn(async () => ({})),
+    } as unknown as Client;
+    render(
+      <TooltipProvider>
+        <Interview client={client} tool={INTERVIEWER} modules={[]} onBack={vi.fn()} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Start the interview/ }));
+    await act(async () => fake.done());
+
+    // Something was heard, but no words came back: within a few seconds, not ten, Zazoo says so.
+    act(() => fake.hear("", "um"));
+    act(() => fake.hear("", ""));
+    await wait(4000);
+    expect(fake.spoken[1]).toBe("Sorry, I didn't catch that. Could you say it again?");
+    expect(screen.queryByLabelText("Your answer")).toBeNull();
+
+    // A second miss: the typed answer appears, and a typed answer moves the interview on.
+    await act(async () => fake.done());
+    act(() => fake.hear("", "um"));
+    act(() => fake.hear("", ""));
+    await wait(4000);
+    expect(fake.spoken[2]).toMatch(/type it below/);
+    fireEvent.change(screen.getByLabelText("Your answer"), { target: { value: "I run a fund" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(fake.spoken[3]).toMatch(/What are you working on\?$/);
+  });
 });
