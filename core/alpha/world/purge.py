@@ -111,6 +111,10 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         for a in autos:
             if a["skill"]:
                 db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
+        db.execute("DELETE FROM runs WHERE automation IN (SELECT id FROM automations WHERE"
+                   " module = ?)", (mid,))
+        for a in autos:
+            db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
         counts["automations"] = db.execute(
             "DELETE FROM automations WHERE module = ?", (mid,)).rowcount
         _retire_threads(db, sorted(threads))
@@ -245,6 +249,8 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         for a in autos:
             if a.get("skill"):
                 db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
+            db.execute("DELETE FROM runs WHERE automation = ?", (a["id"],))
+            db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
             db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
 
         if documents:

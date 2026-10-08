@@ -1,0 +1,41 @@
+[
+ {
+  "name": "agent_verdict",
+  "title": "A run of an agent ends with a verdict judged by code, and the run is kept",
+  "steps": [
+   {
+    "automation": "Daily deal tracker — read all broker sources, flag new listings",
+    "ok": true,
+    "result": "Read 15 of 15 sources. Deal Listings: 7 new, 1 changed, 7 gone. New: SBA Pre-Qualified Pet Health & Wellness Brand | Patented Technology | 4.8-Star Reviews | Huge Multi-Channel Potential, 7-Year-Old Home Fragrance Brand | $1.55M 2024 Revenue | 450+ Subscribers | $173K SDE with $0 Ad Spend | 1.7x Multiple, SBA Pre-Qualified Expert Witness Platform | Education, Marketing & Referrals for Physicians & Attorneys | 4,000 Active Subscribers | Semi-Absentee, DTC Wellness eCommerce Brand | Sleep & Relaxation Sectors | Semi-Absentee Ownership with Full Team | 510,000+ Monthly Visits | Loyal Customer Base, Collectible Trading Card eCommerce Platform | 1,022 Active Customers | 54.2% Repeat Order Rate and 2 more; Changed: AI Agent Automation & Enterprise Transformation Firm | 350+ Clients | 42 AI Agents | Remote Team | 7 Year Operating History; Gone: Well Known Restaurant - Busy Location! Great Rent!, Tech-Enabled Audio Guest Book Company | 5,600+ Bookings to Date | $390 AOV | 285 5-Star Reviews | 9,000+ Monthly Visitors, Lender Pre-Qualified Industrial Distribution Company | 50% Repeat Order Rate | 42% Net Margin | Zero Ad Spend | Semi-Absentee, DTC Personal Wellness eCommerce Brand | Stress, Emotional Support & Sleep | YOY Growth | 510K Monthly Visits | 500+ Shipments Daily | Semi-Absentee, SBA Pre-Qualified eCommerce Apparel & Consumer Products Brand | 43% Repeat Order Rate | 27-Year Brand | 750K Social Media Followers | Strong YOY Growth and 2 more.",
+    "problem": null,
+    "seconds": 104.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "run_verdict",
+    "arg": {
+     "one_of": [
+      "succeeded",
+      "partial"
+     ]
+    },
+    "ok": true,
+    "why": "succeeded: Read 15 of 15 sources. Deal Listings: 7 new, 1 changed, 7 gone. New: SBA Pre-Qualified Pet Health & Wellness Brand | Patented Technology | 4.8-Star Reviews | Huge Multi-Channel Potential, 7-Year-Old Home Fragrance Brand | $1.55M 2024 Revenue | 450+ Subscribers | $173K SDE with $0 Ad Spend | 1.7x Multiple, SBA Pre-Qualified Expert Witness Platform | Education, Marketing & Referrals for Physicians & Attorneys | 4,000 Active Subscribers | Semi-Absentee, DTC Wellness eCommerce Brand | Sleep & Relaxation Sectors | Semi-Absentee Ownership with Full Team | 510,000+ Monthly Visits | Loyal Customer Base, Collectible Trading Card eCommerce Platform | 1,022 Active Customers | 54.2% Repeat Order Rate and 2 more; Changed: AI Agent Automation & Enterprise Transformation Firm | 350+ Clients | 42 AI Agents | Remote Team | 7 Year Operating History; Gone: Well Known Restaurant - Busy Location! Great Rent!, Tech-Enabled Audio Guest Book Company | 5,600+ Bookings to Date | $390 AOV | 285 5-Star Reviews | 9,000+ Monthly Visitors, Lender Pre-Qualified Industrial Distribution Company | 50% Repeat Order Rate | 42% Net Margin | Zero Ad Spend | Semi-Absentee, DTC Personal Wellness eCommerce Brand | Stress, Emotional Support & Sleep | YOY Growth | 510K Monthly Visits | 500+ Shipments Daily | Semi-Absentee, SBA Pre-Qualified eCommerce Apparel & Consumer Products Brand | 43% Repeat Order Rate | 27-Year Brand | 750K Social Media Followers | Strong YOY Growth and 2 more. (model 0 s, 0 repairs)",
+    "seconds": 0.0
+   },
+   {
+    "check": "automation",
+    "arg": {
+     "result_matches": "Read 1[0-5] of 15 sources",
+     "problem_allowed": "couldn't be (reached|repaired)|sign-in"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources. Deal Listings: 7 new, 1 changed, 7 gone. New: SBA Pre-Qualified Pet Health & Wellness Brand | Patented Technology | 4.8-Star Reviews | Hu",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 104.2,
+  "error": null
+ }
+]

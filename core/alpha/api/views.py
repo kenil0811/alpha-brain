@@ -94,7 +94,10 @@ def automation_views(world: World, scheduler: Scheduler,
             current = entries[starts[-1] + 1:] if starts else entries
             steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in current
                      if e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
-        out.append({**a, "running": running, "steps": steps[-8:]})
+        last = world.runs.last(a["id"])
+        out.append({**a, "running": running, "steps": steps[-8:],
+                    "last_verdict": last["verdict"] if last else None,
+                    "last_why": last["why"] if last else None})
     return out
 
 

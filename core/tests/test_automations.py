@@ -322,9 +322,9 @@ def test_an_automation_that_reads_by_procedure_converts_itself_to_steps(world: W
                                 "key": "linkedin_url", "keep": ["tags"]}, {"tell": "connections"}])
         return RunResult(reply="Converted to steps.", ok=True)
 
-    def fake_pipeline(w: World, a: dict[str, Any], **kw: Any) -> tuple[str, str | None]:
+    def fake_pipeline(w: World, a: dict[str, Any], **kw: Any) -> pipeline.PipelineResult:
         ran.append(a["id"])
-        return "Read 1 of 1 sources.", None
+        return pipeline.PipelineResult("Read 1 of 1 sources.", None, read=1, sources=1)
 
     with pytest.MonkeyPatch.context() as m:
         m.setattr(pipeline, "run_pipeline", fake_pipeline)
@@ -333,3 +333,114 @@ def test_an_automation_that_reads_by_procedure_converts_itself_to_steps(world: W
     assert world.automations.get(auto["id"])["steps"]
     assert any(e["text"].endswith("now runs as steps, with no model; running them now.")
                for e in world.journal.recent(10))
+
+
+def test_a_run_is_kept_with_a_verdict_judged_by_code(world: World) -> None:
+    """Q33: succeeded when everything was read, partial when something was not, failed when
+    nothing was; the model's own time and the repairs counted; a failed run says so."""
+    from alpha.runtime import pipeline
+
+    connections_table(world)
+    t = building(world, turn="j_1")
+    for name in ("brokers", "walled"):
+        world.readers.save(name, site=f"{name}.com", url=f"https://{name}.com", script="x",
+                           description="d", to_end=False, count=2)
+    auto = t.automation_create("Daily brokers", "daily 07:00", module="Network", goal="deals",
+                               steps=[{"read": "brokers", "into": "connections",
+                                       "key": "linkedin_url"},
+                                      {"read": "walled", "into": "connections",
+                                       "key": "linkedin_url"}, {"tell": "connections"}])
+    assert world.automations.get(auto["id"])["goal"] == "deals"
+
+    class Browser:
+        def __init__(self, down: set[str]) -> None:
+            self.down = down
+
+        def script(self, url: str, *a: Any, **k: Any) -> dict[str, Any]:
+            if any(d in url for d in self.down):
+                raise Problem("The browser couldn't do that: page.goto: Timeout 30000ms exceeded.")
+            return {"result": [{"name": "A", "linkedin_url": f"https://{url}/1"}],
+                    "signed_in": True, "title": "T", "more_pages": False}
+
+    def run_with(down: set[str]) -> dict[str, Any]:
+        real = pipeline.run_pipeline
+
+        def patched(w: World, a: dict[str, Any], **kw: Any) -> pipeline.PipelineResult:
+            return real(w, a, browser=Browser(down), pause=lambda s: None, **kw)  # type: ignore[arg-type]
+
+        with pytest.MonkeyPatch.context() as m:
+            m.setattr(pipeline, "run_pipeline", patched)
+            return automation.run(world, auto["id"])
+
+    run_with(set())
+    last = world.runs.last(auto["id"])
+    assert last and last["verdict"] == "succeeded" and last["read"] == 2 and last["sources"] == 2
+    assert last["why"] is None and last["line"].startswith("Read 2 of 2 sources")
+    run_with({"walled"})
+    last = world.runs.last(auto["id"])
+    assert last and last["verdict"] == "partial" and last["why"] == "walled couldn't be reached."
+    run_with({"brokers", "walled"})
+    last = world.runs.last(auto["id"])
+    assert last and last["verdict"] == "failed" and last["read"] == 0
+    assert world.journal.recent(1, kinds=["failed"])[-1]["text"].startswith(
+        'Run of "Daily brokers" failed: brokers, walled couldn\'t be reached.')
+    assert len(world.runs.of(auto["id"])) == 3 and world.runs.of(auto["id"])[0]["id"] == last["id"]
+    listed = next(a for a in Tools(world).automations_list() if a["id"] == auto["id"])
+    assert listed["last_verdict"] == "failed" and listed["last_why"].startswith("brokers")
+
+
+def test_a_procedure_run_has_its_page_in_front_of_it_and_a_verdict(world: World) -> None:
+    connections_table(world)
+    t = building(world, turn="j_1")
+    auto = t.automation_create(
+        "Sunday summary", "weekly sun 18:00", "Compare the week to the targets.",
+        module="Network", goal="know how the week went",
+        guidelines="## What it is for\nA short honest summary.\n## A good run\nOne line.")
+    page = world.knowledge.find_note(f"agent:{auto['id']}", "Sunday summary")
+    assert page and page["body"].startswith("## What it is for")
+    seen: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        seen.append(req.sentence)
+        return RunResult(reply="Worth telling: protein ran 20 g under.", ok=True,
+                         duration_ms=4000)
+
+    automation.run(world, auto["id"], runner=runner)
+    assert "Its page (what it is for, how to judge, what to tell):" in seen[0]
+    assert "A short honest summary." in seen[0]
+    last = world.runs.last(auto["id"])
+    assert last and last["verdict"] == "succeeded" and last["model_ms"] == 4000
+    assert last["line"].startswith("Worth telling")
+
+    def failing(req: TurnRequest) -> RunResult:
+        return RunResult(reply="Approved.", ok=False,
+                         error="Alpha's tools didn't answer in this run (1 of 1 call failed: x)")
+
+    automation.run(world, auto["id"], runner=failing)
+    last = world.runs.last(auto["id"])
+    assert last and last["verdict"] == "failed" and "tools didn't answer" in last["why"]
+    Tools(world, turn="j_2").automation_update(auto["id"], guidelines="Replaced.")
+    page = world.knowledge.find_note(f"agent:{auto['id']}", "Sunday summary")
+    assert page and page["body"] == "Replaced."
+
+
+def test_a_broken_reader_is_repaired_at_most_twice_in_a_run(world: World) -> None:
+    from alpha.runtime import pipeline
+
+    connections_table(world)
+    t = building(world, turn="j_1")
+    world.readers.save("brokers", site="brokers.com", url="https://brokers.com", script="x",
+                       description="d", to_end=False, count=5)
+    auto = t.automation_create("Daily brokers", "daily 07:00", module="Network",
+                               steps=[{"read": "brokers", "into": "connections",
+                                       "key": "linkedin_url"}, {"tell": "connections"}])
+
+    class Empty:
+        def script(self, *a: Any, **k: Any) -> dict[str, Any]:
+            return {"result": [], "signed_in": True, "title": "T", "more_pages": False}
+
+    repairs: list[str] = []
+    out = pipeline.run_pipeline(world, world.automations.get(auto["id"]), browser=Empty(),  # type: ignore[arg-type]
+                                repair=lambda w, a, n, p, r: repairs.append(n))
+    assert repairs == ["brokers", "brokers"] and out.repairs == 2
+    assert out.verdict() == ("failed", "brokers couldn't be repaired.")

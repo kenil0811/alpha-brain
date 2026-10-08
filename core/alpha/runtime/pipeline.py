@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from typing import Any
 
 from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
@@ -216,12 +217,47 @@ def _short(problem: str) -> str:
     return " ".join(words.split())[:90]
 
 
+# A broken reader is repaired at most this many times in one run, then the run says it
+# couldn't be (a judgement of failure, not a cap on work: the next run tries afresh).
+REPAIRS_PER_RUN = 2
+
+
+@dataclass
+class PipelineResult:
+    """What a run did, for its line, its problem and its verdict. Unpacks to (line, problem)
+    for the callers that only want those."""
+
+    line: str
+    problem: str | None
+    read: int = 0
+    sources: int = 0
+    repairs: int = 0
+    model_ms: int = 0
+    unreachable: list[str] = field(default_factory=list)
+    broken: list[str] = field(default_factory=list)
+    needs: list[str] = field(default_factory=list)
+    blocked: list[str] = field(default_factory=list)
+
+    def __iter__(self) -> Iterator[Any]:
+        yield self.line
+        yield self.problem
+
+    def verdict(self) -> tuple[str, str | None]:
+        """Judged by code: everything read and nothing wrong is succeeded; something read with
+        something wrong is partial; nothing read of what there was to read is failed."""
+        if self.sources and self.read == 0:
+            return "failed", self.problem or "nothing was read"
+        if self.problem:
+            return "partial", self.problem
+        return "succeeded", None
+
+
 def run_pipeline(world: World, auto: dict[str, Any], *,
                  runner: turn.Runner = route.run,
                  browser: Browser | None = None,
                  repair: Callable[..., Any] | None = None,
-                 pause: Callable[[float], None] = time.sleep) -> tuple[str, str | None]:
-    """Run an automation's steps. Returns (one line for its log, a problem or None)."""
+                 pause: Callable[[float], None] = time.sleep) -> PipelineResult:
+    """Run an automation's steps. Returns what it did, with its line and its problem."""
     # What changed is measured from the last run. A first run sets the baseline: rows made
     # while the module was built are not "new" to the person who watched it built.
     since = auto["last_run_at"]
@@ -230,6 +266,7 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                          actor="alpha", thread=thread, module=auto["module"])
     read, needs, blocked, broken, told = 0, [], [], [], []
     unreachable: list[str] = []
+    repairs, model_ms = 0, 0
     first_run = False
     for step in _flatten(world, auto["steps"]):
         if "read" in step:
@@ -257,8 +294,12 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                         module=auto["module"], data={"automation": auto["id"], "reader": name})
                     unreachable.append(name)
                     continue
-            if out["health"] == "broken":
-                (repair or _repair)(world, auto, name, out["problem"], runner)
+            tries = 0
+            while out["health"] == "broken" and tries < REPAIRS_PER_RUN:
+                tries += 1
+                fixed = (repair or _repair)(world, auto, name, out["problem"], runner)
+                repairs += 1
+                model_ms += int(getattr(getattr(fixed, "result", None), "duration_ms", 0) or 0)
                 out = run_reader(world, name, step["into"], step["key"], **args)
             if out["health"] == "ok":
                 read += 1
@@ -296,7 +337,9 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
         problems.append(f"{', '.join(broken)} couldn't be repaired")
     if unreachable:
         problems.append(f"{', '.join(unreachable)} couldn't be reached")
-    return line, ("; ".join(problems) + ".") if problems else None
+    return PipelineResult(line=line, problem=("; ".join(problems) + ".") if problems else None,
+                          read=read, sources=reads, repairs=repairs, model_ms=model_ms,
+                          unreachable=unreachable, broken=broken, needs=needs, blocked=blocked)
 
 
 def _flatten(world: World, steps: list[dict[str, Any]], depth: int = 0) -> list[dict[str, Any]]:
@@ -314,8 +357,11 @@ def _flatten(world: World, steps: list[dict[str, Any]], depth: int = 0) -> list[
 
 
 def _repair(world: World, auto: dict[str, Any], reader: str, problem: str,
-            runner: turn.Runner) -> None:
-    turn.ask(world, f"The reader {reader} of the automation \"{auto['title']}\" is broken:"
-             f" {problem}. Repair it and save it under the same name ({reader}).",
-             thread=auto["thread"], runner=runner, rules=REPAIR_RULES, actor="alpha")
+            runner: turn.Runner) -> turn.TurnOutcome:
+    page = world.knowledge.find_note(f"agent:{auto['id']}", auto["title"])
+    guidance = (f"\n\nThe automation's page (what it is for, what to do when a source changes):\n"
+                f"{page['body'][:2000]}") if page and page["body"].strip() else ""
+    return turn.ask(world, f"The reader {reader} of the automation \"{auto['title']}\" is broken:"
+                    f" {problem}. Repair it and save it under the same name ({reader}).{guidance}",
+                    thread=auto["thread"], runner=runner, rules=REPAIR_RULES, actor="alpha")
 

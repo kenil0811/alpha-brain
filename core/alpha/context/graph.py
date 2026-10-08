@@ -225,6 +225,7 @@ def world_graph(world: World) -> dict[str, Any]:
              module=d["module"], entity=d["entity_id"])
         if d["module"]:
             edge(f"document:{d['id']}", f"module:{d['module']}", "in")
+    agent_modules = {a["id"]: a.get("module") for a in world.automations.all()}
     for n in world.knowledge.notes():
         scope, _, name = n["scope"].partition(":")
         if scope == "skill":
@@ -239,6 +240,9 @@ def world_graph(world: World) -> dict[str, Any]:
                 edge(f"page:{n['id']}", target, "about")
         elif scope == "person":
             edge(f"page:{n['id']}", "you", "about")
+        elif scope == "agent" and agent_modules.get(name):
+            # An agent's page sits in its automation's area (Q33).
+            edge(f"page:{n['id']}", f"module:{agent_modules[name]}", "about")
 
     # The rows that are a person or an organisation, and the days that named them.
     for row in world.store.all(

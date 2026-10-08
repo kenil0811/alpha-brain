@@ -78,6 +78,10 @@ def worth_telling(reply: str) -> str | None:
 
 def run(world: World, automation_id: str, *,
         runner: turn.Runner = route.run) -> dict[str, Any]:
+    """One run of an automation (an agent's process, Q33): a row in `runs` from start to its
+    verdict, judged by code. Steps run with no model; a procedure is a model turn with the
+    automation's page in front of it; a procedure that converts itself to steps runs them at
+    once."""
     auto = world.automations.get(automation_id)
     thread = auto["thread"]
     if not thread:
@@ -85,49 +89,66 @@ def run(world: World, automation_id: str, *,
         world.automations.set_thread(automation_id, thread)
         auto = world.automations.get(automation_id)
     world.modules.update_thread(thread, state="working")
+    run_id = world.runs.start(automation_id)
     if auto["steps"]:
-        # A pipeline: saved steps, no model unless a step breaks.
-        try:
-            line, problem = pipeline.run_pipeline(world, auto, runner=runner)
-        except Exception as e:
-            log.exception("pipeline %s failed", automation_id)
-            line, problem = "", str(e)
-        world.modules.update_thread(thread, state="done")
-        return world.automations.finished(automation_id, result=line or None, error=problem)
+        return _steps(world, auto, run_id, runner)
     prompt = (f"Run the automation \"{auto['title']}\" now ({auto['when']}). "
               f"Procedure:\n{auto['procedure']}")
+    page = world.knowledge.find_note(f"agent:{automation_id}", auto["title"])
+    if page and page["body"].strip():
+        prompt += (f"\n\nIts page (what it is for, how to judge, what to tell):\n"
+                   f"{page['body'][:3000]}")
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner, rules=AUTOMATION_RULES,
                            actor="alpha")
     except Exception as e:
         log.exception("automation %s failed", automation_id)
-        world.modules.update_thread(thread, state="done")
-        return world.automations.finished(automation_id, result=None, error=str(e))
-    world.modules.update_thread(thread, state="done")
+        return _ended(world, auto, run_id, "failed", str(e), None, 0)
     after = world.automations.get(automation_id)
     if outcome.ok and after["steps"]:
         # The run converted the automation to steps: they run now, not tomorrow.
         world.journal.append("did", f"\"{auto['title']}\" now runs as steps, with no model;"
                              " running them now.", actor="alpha", thread=thread,
                              module=auto["module"], data={"automation": automation_id})
-        world.modules.update_thread(thread, state="working")
-        try:
-            line, problem = pipeline.run_pipeline(world, after, runner=runner)
-        except Exception as e:
-            log.exception("pipeline %s failed", automation_id)
-            line, problem = "", str(e)
-        world.modules.update_thread(thread, state="done")
-        return world.automations.finished(automation_id, result=line or None, error=problem)
+        return _steps(world, after, run_id, runner, model_ms=outcome.result.duration_ms or 0)
+    model_ms = int(outcome.result.duration_ms or 0)
     if outcome.ok:
         worth = worth_telling(outcome.reply)
         if worth:
             world.journal.append("noticed", worth, data={"automation": automation_id},
                                  module=auto["module"])
-        return world.automations.finished(automation_id, result=outcome.reply[:2000], error=None)
-    world.journal.append("failed", f"{auto['title']}: {outcome.result.error or outcome.reply}",
-                         data={"automation": automation_id}, module=auto["module"])
-    return world.automations.finished(automation_id, result=None,
-                                      error=outcome.result.error or outcome.reply)
+        return _ended(world, auto, run_id, "succeeded", None, outcome.reply[:2000], model_ms)
+    return _ended(world, auto, run_id, "failed", outcome.result.error or outcome.reply, None,
+                  model_ms)
+
+
+def _steps(world: World, auto: dict[str, Any], run_id: str, runner: turn.Runner, *,
+           model_ms: int = 0) -> dict[str, Any]:
+    """The steps, with no model unless one breaks; the verdict from what was read."""
+    try:
+        result = pipeline.run_pipeline(world, auto, runner=runner)
+    except Exception as e:
+        log.exception("pipeline %s failed", auto["id"])
+        return _ended(world, auto, run_id, "failed", str(e), None, model_ms)
+    verdict, why = result.verdict()
+    return _ended(world, auto, run_id, verdict, why, result.line or None,
+                  model_ms + result.model_ms, repairs=result.repairs, read=result.read,
+                  sources=result.sources)
+
+
+def _ended(world: World, auto: dict[str, Any], run_id: str, verdict: str, why: str | None,
+           line: str | None, model_ms: int, *, repairs: int = 0, read: int | None = None,
+           sources: int | None = None) -> dict[str, Any]:
+    """The run's row, its line in the journal when it went wrong, the thread back to done."""
+    if verdict == "failed":
+        world.journal.append("failed", f"Run of \"{auto['title']}\" failed: {why}",
+                             data={"automation": auto["id"], "run": run_id},
+                             thread=auto["thread"], module=auto["module"])
+    world.runs.finish(run_id, verdict=verdict, why=why, line=line, model_ms=model_ms,
+                      repairs=repairs, read=read, sources=sources)
+    if auto["thread"]:
+        world.modules.update_thread(auto["thread"], state="done")
+    return world.automations.finished(auto["id"], result=line, error=why)
 
 
 def backoff_s(crashes: int) -> float:

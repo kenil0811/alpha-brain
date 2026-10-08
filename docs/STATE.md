@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 9 October 2026.** Last entries: reliability first
+**As of 9 October 2026.** Last entries: agents, schedule first
+([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md), Q33 built in part), reliability first
 ([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)), what went wrong 4–8 October and the agents
 decision ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md), Q33;
 no code changed), replies rendered the same in the panel and
@@ -51,7 +52,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) kept only after a real run, health-checked, repaired by Alpha; files in and out (§4.17); calendar read-only. Reading LinkedIn's whole list daily is still the slowest thing (read only what is new: open). |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an automation's "worth telling". |
 | 4. Entities and bi-temporal facts across sources | **Partial.** Facts bi-temporal; entities with hard keys; a page per person (§4.23); noticing after every turn; entity cards in context. But no table in Kenil's world declares its rows as people, so 1,551 connections are rows, not people (20 entities, 6 facts). |
-| 5. Standing things, promotion from verified runs | **Partial.** Plan → yes → build by mechanism (§4.7); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). No ladder, no promotion from repetition. |
+| 5. Standing things, promotion from verified runs | **Partial.** Plan → yes → build by mechanism (§4.7); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). Since 9 Oct every automation is an agent's process (Q33): a goal, a page Alpha writes and the person edits (read by the model when it steps in), a row per run with a verdict judged by code, repair at most twice a run, failures in the journal and the companion, the Agents tab and page. No ladder, no promotion from repetition; no event triggers, no digest. |
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
@@ -63,9 +64,11 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 ChatGPT through the Codex CLI on his subscription, chosen in Settings › Thinks with; the ChatGPT
 way is proven by tests only until he signs in again (his Codex sign-in lapsed on 16 June).
 
-**Runs for real, daily, on Kenil's Mac:** four automations (LinkedIn connections; 15 deal
-sites; 4 job boards; Gmail from one sender), questions over the tables, drafts and sends with
-previews, files in and out, builds in the background. **Proven by tests only:** the calendar
+**Runs for real, daily, on Kenil's Mac:** four agents (LinkedIn connections; 15 deal
+sites; 4 job boards; Gmail from one sender), each run now a row with a verdict (the deal
+tracker's proven 9 Oct: 15 of 15, succeeded, no model), questions over the tables, drafts and
+sends with previews, files in and out, builds in the background. The four have no goal or page
+yet: Alpha writes one when asked from the agent's page, or when it next builds one. **Proven by tests only:** the calendar
 connect, Install and Sign in on a fresh Mac, the first-run experience as a whole. **Proven by
 the desktop check:** every page opens clean at 1100×560 and 1240×820, light and dark, on a
 copy of Kenil's world (see the numbers). **Proven in the real app** (3 Oct night): the core
@@ -134,14 +137,19 @@ pending item 6, people for real, and noticing over what Alpha reads.
    with the reason; a route is tried before it is switched to; a transient failure at wake is
    retried; the schedule's words say the truth; failed runs reach the companion; reading in a run
    is refused and an old automation converts itself to steps.
-7. **Agents (Q33), schedule first:** the shell around each recurring process (goal, guidelines
-   page, declared success, a verdict per run, a runs table, the failure policy, reporting), the
-   loop that calls the model only on breakage, novelty, judgement or the ask, the window, the
-   build making agents, the five automations migrated; the digest lands here.
-8. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
+7. ~~Agents (Q33), schedule first~~ — done 9 Oct
+   ([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md)): goal, page, runs with verdicts by
+   code, repair at most twice a run, the window; the build writes each agent's page. Left of
+   Q33: event triggers, escalation as a question, the digest, a brief per agent; the four
+   agents' pages written for real.
+8. **Alpha self-sufficient on a fresh Mac** (Kenil, 9 Oct: he shared the app with a friend and
+   it didn't work for him; "all permission request, access, etc should be handled within
+   Alpha, so anyone using it can start working on it"). To discuss first: what the friend saw;
+   then every permission, install and sign-in asked for and handled inside Alpha on first run.
+9. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
-9. People for real: readers declare their rows as people; a pass links existing rows.
-10. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
+10. People for real: readers declare their rows as people; a pass links existing rows.
+11. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
    first-run experience on a clean Mac, the smaller

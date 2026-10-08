@@ -1,5 +1,5 @@
 /**
- * What runs on its own: each automation as the sentence the person reads, when it runs next,
+ * Agents (Q33): each automation as the sentence the person reads, what it is for, when it runs next, its last run's verdict,
  * how its last run went, an on/off switch and Run now.
  */
 import { useState } from "react";
@@ -7,6 +7,12 @@ import type { Automation, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Button } from "../ui";
 import { Check, X } from "../ui/icons";
+
+export const VERDICT: Record<"succeeded" | "partial" | "failed", { cls: string; words: string }> = {
+  succeeded: { cls: "badge--succeeded", words: "Succeeded" },
+  partial: { cls: "badge--waiting", words: "Partial" },
+  failed: { cls: "badge--failed", words: "Failed" },
+};
 
 export function AutomationList({ client, items, onChanged, empty, onOpen }: { client: Client; items: Automation[]; onChanged: () => void; empty: string; onOpen?: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -47,10 +53,17 @@ export function AutomationList({ client, items, onChanged, empty, onOpen }: { cl
               ) : (
                 a.title
               )}
+              {a.goal ? <div className="faint">{a.goal}</div> : null}
               <div className="item__sub">
                 {a.enabled ? `${a.when}${a.next_run_at ? ` · next ${when(a.next_run_at)}` : ""}` : `Off · ${a.when} when on`}
                 {a.last_run_at ? ` · last ran ${when(a.last_run_at)}` : " · hasn't run on its own yet"}
               </div>
+              {a.last_verdict ? (
+                <div className="row" style={{ marginTop: 4, gap: 8 }}>
+                  <span className={`badge ${VERDICT[a.last_verdict].cls}`}>{VERDICT[a.last_verdict].words}</span>
+                  {a.last_why ? <span className="faint">{a.last_why}</span> : null}
+                </div>
+              ) : null}
               {a.running ? (
                 <div className="run__live" role="status">
                   <span className="badge badge--running">Running now</span>
@@ -66,7 +79,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen }: { cl
                     <span className="faint"> Starting…</span>
                   )}
                 </div>
-              ) : a.last_error ? (
+              ) : a.last_error && !a.last_verdict ? (
                 <div className="notice" style={{ fontSize: "var(--text-sm)" }}>Last run didn't work: {a.last_error}</div>
               ) : null}
             </div>

@@ -31,8 +31,12 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
                        description="d", to_end=False, count=1)
     world.collections.upsert("connections", "url", [{"name": "Sam", "url": "https://x.com/in/s/"}],
                              {"by": "alpha", "reader": "people_feed"}, seen_by="people_feed")
+    world.runs.finish(world.runs.start(auto["id"]), verdict="succeeded", line="Read 1 of 1.")
+    world.knowledge.write_note(f"agent:{auto['id']}", "Sync", "Its page.")
     out = remove_module(world, "Network")
     assert out["tables"] == 1 and out["rows"] == 2 and out["readers"] == 2
+    assert world.runs.of(auto["id"]) == []
+    assert world.knowledge.find_note(f"agent:{auto['id']}", "Sync") is None
     assert out["automations"] == 1 and out["threads"] == 1 and out["goals"] == 1
     assert world.collections.names() == ["food_log"]
     assert world.readers.all() == [] and world.automations.all() == []

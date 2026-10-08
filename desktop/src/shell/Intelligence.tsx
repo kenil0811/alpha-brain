@@ -1,5 +1,5 @@
 /**
- * Intelligence: everything Alpha can do (skills), runs on its own (automations), reaches
+ * Intelligence: everything Alpha can do (skills), its agents (automations: one per recurring process), reaches
  * (connections) and knows (knowledge: facts, notes, goals). Each is a sentence the person can
  * read, switch or correct, never a configuration form.
  */
@@ -16,7 +16,7 @@ export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowl
 const TABS: { id: IntelTab; label: string }[] = [
   { id: "map", label: "Map" },
   { id: "skills", label: "Skills" },
-  { id: "automations", label: "Automations" },
+  { id: "automations", label: "Agents" },
   { id: "connections", label: "Connections" },
   { id: "knowledge", label: "Knowledge" },
 ];
@@ -373,7 +373,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
           ))}
         </div>
       ) : tab === "automations" ? (
-        <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "automation", id }) : undefined} empty="Nothing runs on its own yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch." />
+        <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "automation", id }) : undefined} empty="No agents yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch, a verdict per run and a page you can edit." />
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />
       ) : (

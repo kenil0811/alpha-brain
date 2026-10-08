@@ -343,10 +343,10 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
           ) : null}
           <div className="section">
             <div className="section__head">
-              <h2>What runs on its own</h2>
+              <h2>Agents</h2>
               <span className="faint">Switch any off; Alpha says so if something needs it</span>
             </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
+            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="No agents here yet. Ask Alpha to keep something here current and it shows up with a switch and a verdict per run." />
           </div>
         </>
       ) : null}

@@ -222,6 +222,21 @@ CREATE TABLE IF NOT EXISTS automations (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+-- one row per run of an automation, its verdict judged by code (Q33, 9 Oct 2026)
+CREATE TABLE IF NOT EXISTS runs (
+    id TEXT PRIMARY KEY,
+    automation TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    verdict TEXT,
+    why TEXT,
+    line TEXT,
+    model_ms INTEGER NOT NULL DEFAULT 0,
+    repairs INTEGER NOT NULL DEFAULT 0,
+    read INTEGER,
+    sources INTEGER
+);
+CREATE INDEX IF NOT EXISTS runs_automation ON runs(automation, started_at);
 
 
 -- what Alpha proposed to set up, and its way from the person's yes to a finished build
@@ -375,6 +390,7 @@ CREATE TABLE IF NOT EXISTS preferences (
 # Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
     ("modules", "parent", "TEXT"),  # a module inside a module (3 Oct night, Q31)
+    ("automations", "goal", "TEXT"),  # the person's words for what the agent is for (Q33)
     ("records", "entity_id", "TEXT"),
     ("notes", "source", "TEXT"),
     ("entities", "source", "TEXT"),

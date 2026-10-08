@@ -55,3 +55,15 @@ describe("modules as a tree", () => {
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
   });
 });
+
+
+describe("an agent's last run", () => {
+  it("shows its verdict and why on the list", async () => {
+    const { AutomationList } = await import("./Automations");
+    const a = { id: "a_1", title: "Daily brokers", module: null, thread: null, schedule: "daily 07:00", when: "every day at 07:00, or when your Mac next wakes", procedure: "", enabled: true, next_run_at: null, last_run_at: "2026-10-09T06:00:00+00:00", last_result: "Read 1 of 2 sources.", last_error: "walled couldn't be reached.", last_verdict: "partial" as const, last_why: "walled couldn't be reached.", goal: "deals" };
+    render(<AutomationList client={{} as never} items={[a]} onChanged={vi.fn()} empty="none" />);
+    expect(screen.getByText("Partial")).toBeInTheDocument();
+    expect(screen.getByText("walled couldn't be reached.")).toBeInTheDocument();
+    expect(screen.getByText("deals")).toBeInTheDocument();
+  });
+});

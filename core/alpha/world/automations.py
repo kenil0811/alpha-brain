@@ -124,8 +124,8 @@ class Automations:
         return name
 
     def create(self, title: str, schedule: str, procedure: str, *, module: str | None = None,
-               thread: str | None = None,
-               steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+               thread: str | None = None, steps: list[dict[str, Any]] | None = None,
+               goal: str | None = None) -> dict[str, Any]:
         if not title.strip() or not (procedure.strip() or steps):
             raise Problem("An automation needs a sentence saying what it does, and steps or a"
                           " procedure.")
@@ -137,9 +137,10 @@ class Automations:
         with self.store.tx() as db:
             db.execute(
                 "INSERT INTO automations (id, title, module, thread, schedule, procedure, skill,"
-                " enabled, next_run_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,1,?,?,?)",
+                " enabled, next_run_at, created_at, updated_at, goal)"
+                " VALUES (?,?,?,?,?,?,?,1,?,?,?,?)",
                 (aid, title.strip(), module, thread, clean, procedure.strip(), skill, first,
-                 stamp, stamp),
+                 stamp, stamp, (goal or "").strip() or None),
             )
         return self.get(aid)
 
@@ -159,7 +160,8 @@ class Automations:
 
     def update(self, aid: str, *, enabled: bool | None = None, schedule: str | None = None,
                procedure: str | None = None, title: str | None = None,
-               steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+               steps: list[dict[str, Any]] | None = None,
+               goal: str | None = None) -> dict[str, Any]:
         current = self.get(aid)
         clean = check_schedule(schedule) if schedule else current["schedule"]
         on = current["enabled"] if enabled is None else enabled
@@ -171,9 +173,9 @@ class Automations:
         with self.store.tx() as db:
             db.execute(
                 "UPDATE automations SET enabled = ?, schedule = ?, procedure = ?, title = ?,"
-                " skill = ?, next_run_at = ?, updated_at = ? WHERE id = ?",
+                " skill = ?, next_run_at = ?, updated_at = ?, goal = ? WHERE id = ?",
                 (int(on), clean, procedure or current["procedure"], title or current["title"],
-                 skill, upcoming, now(), aid),
+                 skill, upcoming, now(), (goal or "").strip() or current.get("goal"), aid),
             )
         return self.get(aid)
 

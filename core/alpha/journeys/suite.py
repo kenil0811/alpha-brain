@@ -424,6 +424,17 @@ class Run:
             f"{reader['name']}: {reader['health']}, {reader.get('last_count')} rows"
             + (f"; {reader['last_problem']}" if reader.get("last_problem") else "") + ".")
 
+    def check_run_verdict(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The last run's verdict, judged by code, is one of the allowed."""
+        auto = self.last_automation or self._automation(arg["title"])
+        last = self.world.runs.last(auto["id"])
+        if last is None:
+            return False, "No run ended."
+        allowed = arg.get("one_of") or [arg.get("verdict", "succeeded")]
+        words = f"{last['verdict']}: {last['why'] or last['line']}" + (
+            f" (model {last['model_ms'] // 1000} s, {last['repairs']} repairs)")
+        return last["verdict"] in allowed, words
+
     def check_automation_is_pipeline(self, arg: Any) -> tuple[bool, str]:
         """The automation runs as steps now (no model), not as a procedure."""
         auto = self.last_automation or self._automation(arg if isinstance(arg, str)

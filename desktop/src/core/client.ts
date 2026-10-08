@@ -445,7 +445,11 @@ export interface AutomationDetail extends Automation {
   skill?: string | null;
   /** A pipeline's saved steps (its run skill's), or none for a procedure. */
   pipeline?: Record<string, unknown>[] | null;
-  runs: { at: string; outcome: string | null; lines: { at: string; kind: string; text: string }[] }[];
+  runs: Run[];
+  /** The agent's page: what it is for, what a good run looks like, what to do; Alpha writes it, the person edits it. */
+  guidelines?: Note | null;
+  /** What counts as a good run, in words, judged by code. */
+  good_run?: string;
 }
 
 export interface Intelligence {
@@ -472,6 +476,28 @@ export interface Automation {
   last_error: string | null;
   running?: boolean;
   steps?: { at: string; kind: string; text: string }[];
+  /** What it is for, in the person's words (Q33). */
+  goal?: string | null;
+  /** The last run's verdict, judged by code, and why. */
+  last_verdict?: Verdict | null;
+  last_why?: string | null;
+}
+
+export type Verdict = "succeeded" | "partial" | "failed";
+
+/** One run of an agent, as the runs table keeps it. */
+export interface Run {
+  id: string;
+  started_at: string;
+  ended_at: string | null;
+  verdict: Verdict | null;
+  why: string | null;
+  line: string | null;
+  model_ms: number;
+  repairs: number;
+  read: number | null;
+  sources: number | null;
+  lines: { at: string; kind: string; text: string }[];
 }
 
 export interface Reader {
