@@ -33,15 +33,15 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 210, in about 15 s; ruff and mypy strict clean |
+| Core tests | 217, in about 15 s; ruff and mypy strict clean |
 | Desktop tests | 77, in twenty-one files; typecheck and `cargo check` clean |
 | Tools the model sees | 72 |
-| Journeys | 19 defined; latest full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 (the four read in the fast-turns log: none the change's doing); since then `nested_modules` `docs/journeys/2026-10-03-2211.md` 1 of 1, and the two memory ones re-run `docs/journeys/2026-10-03-2048.md`, 1 of 2 |
+| Journeys | 20 defined; latest `docs/journeys/2026-10-09-0008.md`, 1 of 1 (an automation converts itself to steps); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; after nesting, Home and Settings `docs/checks/2026-10-03-2212.md`, 2 of 2 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 132 total; 132 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 13,418 Python; tests 4,710; desktop 9,962 TS/TSX |
+| Commits | 135 total; 135 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 13,584 Python; tests 4,892; desktop 10,019 TS/TSX |
 
 ## What is built, against the design's order of work
 
