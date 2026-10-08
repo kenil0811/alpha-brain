@@ -4,7 +4,9 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late night.** Last entries: replies rendered the same in the panel and
+**As of 8 October 2026, evening.** Last entries: what went wrong 4–8 October and the agents
+decision ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md), Q33;
+no code changed), replies rendered the same in the panel and
 the companion ([`log/2026-10-03-replies-rendered.md`](log/2026-10-03-replies-rendered.md)), a second way to think, ChatGPT through the
 Codex CLI ([`log/2026-10-03-chatgpt-route.md`](log/2026-10-03-chatgpt-route.md), Q32; built, not
 yet run for real), modules inside modules
@@ -85,9 +87,14 @@ killed by hand twice came back on the same port within two seconds and the windo
   remain where nothing is shown anyway (a screenshot that didn't load, a module-name lookup).
 - The window's minimum is 1100×560 since the desktop check: below 1100 wide the panel used to
   float over the page.
-- The ChatGPT route has not run a real turn: Kenil's Codex sign-in lapsed; `codex login status`
-  still says signed in while a run says the token cannot be refreshed, so Settings shows
-  "Connected" until a turn fails. After he signs in: `just journeys` on that route.
+- **4–8 Oct, measured:** the daily automations ran only when the laptop fully woke (4 Oct at
+  18:20, never on 5–6 Oct, 7 Oct 21:32, 8 Oct 12:31), by the 3 Oct sleep rule, and the window
+  never says so. The ChatGPT route (Q32), in use from 3 Oct 22:41 to 8 Oct, was refused every
+  call to Alpha's tools by Codex's own approval gate, and the model claimed a build was approved
+  that never was; the LinkedIn connections run, the Sunday summary and the LinkedIn readers'
+  repair all failed with it. A run that fails on a network error at wake is not retried. Failed
+  runs reach nobody but Activity. The LinkedIn connections automation is a procedure (made
+  before pipelines) and pays a model turn a day for a read. Kenil is back on Claude.
 - Alpha cannot rename a module (seen in the nested-modules journey: a part kept its old name
   under the new path); a small missing tool.
 - Noticing keeps session state as suggested facts about the person ("using_module =
@@ -121,9 +128,19 @@ pending item 6, people for real, and noticing over what Alpha reads.
    left are Kenil's to choose (above).
 5. ~~The desktop's four~~ — done 3 Oct night
    ([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)).
-6. People for real: readers declare their rows as people; a pass links existing rows.
-7. Proactivity, the smallest honest version: a digest at two fixed times, as cards on Home.
-8. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
+6. **Reliability first (8 Oct):** a turn whose tool calls all failed is a failed turn with the
+   reason shown; switching routes runs a real tool call first; a run that fails on a network error
+   at wake retries after a minute; the schedule's line says the truth ("07:00, or when your Mac
+   next wakes; last ran 12:31"); failed runs reach the person through the companion; an automation
+   that only reads is steps, never a procedure; LinkedIn connections converted by asking Alpha.
+7. **Agents (Q33), schedule first:** the shell around each recurring process (goal, guidelines
+   page, declared success, a verdict per run, a runs table, the failure policy, reporting), the
+   loop that calls the model only on breakage, novelty, judgement or the ask, the window, the
+   build making agents, the five automations migrated; the digest lands here.
+8. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
+   setting, or not at all).
+9. People for real: readers declare their rows as people; a pass links existing rows.
+10. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
    first-run experience on a clean Mac, the smaller
