@@ -30,19 +30,19 @@ fact origins, the module's page and the item pages
 of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
 contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
 
-## Numbers (`just stats`, 3 Oct late night)
+## Numbers (`just stats`, 9 Oct after midnight)
 
 | | |
 |---|---|
-| Core tests | 217, in about 15 s; ruff and mypy strict clean |
-| Desktop tests | 77, in twenty-one files; typecheck and `cargo check` clean |
+| Core tests | 221, in about 16 s; ruff and mypy strict clean |
+| Desktop tests | 78, in twenty-one files; typecheck and `cargo check` clean |
 | Tools the model sees | 72 |
-| Journeys | 20 defined; latest `docs/journeys/2026-10-09-0008.md`, 1 of 1 (an automation converts itself to steps); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
+| Journeys | 21 defined; latest `docs/journeys/2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); before it `2026-10-09-0008.md`, 1 of 1 (an automation converts itself to steps); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; after nesting, Home and Settings `docs/checks/2026-10-03-2212.md`, 2 of 2 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 135 total; 135 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 13,584 Python; tests 4,892; desktop 10,019 TS/TSX |
+| Commits | 137 total; 137 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 13,781 Python; tests 5,029; desktop 10,121 TS/TSX |
 
 ## What is built, against the design's order of work
 
