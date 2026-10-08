@@ -43,6 +43,12 @@ def routes(app: FastAPI, s: Served) -> None:
     def set_thinking(body: ThinkingBody) -> dict[str, Any]:
         if body.route not in route.ROUTES:
             raise Problem("Alpha thinks with Claude or with ChatGPT.")
+        if body.route != route.chosen(world.path):
+            # One real tool call first: a way of thinking that cannot reach Alpha's tools is
+            # never switched to (8 Oct).
+            ok, words = route.trial(world.path, body.route)
+            if not ok:
+                raise Problem(f"{route.WORDS[body.route]} can't reach Alpha's tools yet: {words}")
         world.preferences.set(route.PREFERENCE, body.route)
         world.journal.append("changed", f"You chose to think with {route.WORDS[body.route]}.",
                              actor="person", data={"thinks_with": body.route})

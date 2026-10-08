@@ -164,6 +164,14 @@ class Reading(Base):
         reader_save, run once more); never rerun a broken reader unchanged. needs_signin: offer
         browser_signin. blocked: the site stops automated reading; say so plainly, never try to
         get past it."""
+        if self._in_automation():
+            # Reading is code, never a model turn a day (8 Oct): the automation converts itself.
+            raise Problem(
+                "An automation reads through its steps, with no model. Turn this automation into"
+                " steps with automation_update(id, steps=[{\"read\": \"<reader>\", \"into\":"
+                " \"<table>\", \"key\": \"<field>\", \"keep\": [<the person's fields>]},"
+                " {\"tell\": \"<table>\"}]) and finish; the steps run as soon as you have"
+                " saved them, in this run, and on every run after without you.")
         return pipeline.run_reader(self.world, name, collection, key_field,
                                    keep=keep_person_fields, mapping=value_map,
                                    turn_id=self.turn, module=self.module)

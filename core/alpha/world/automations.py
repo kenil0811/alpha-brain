@@ -79,12 +79,14 @@ def describe(schedule: str) -> str:
     if kind == "every":
         n, unit = int(rest[:-1]), {"m": "minute", "h": "hour", "d": "day"}[rest[-1]]
         return f"every {unit}" if n == 1 else f"every {n} {unit}s"
+    # A clock time is kept only while the Mac is awake: a run due while it sleeps happens at
+    # its next full wake (the scheduler's sleep rule, 3 Oct), and the words say so (8 Oct).
     if kind == "daily":
-        return f"every day at {rest}"
+        return f"every day at {rest}, or when your Mac next wakes"
     day, clock = rest.split(" ")
     names = dict(zip(DAYS, ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
                             "Sunday"], strict=True))
-    return f"every {names[day]} at {clock}"
+    return f"every {names[day]} at {clock}, or when your Mac next wakes"
 
 
 def _view(row: sqlite3.Row, steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:

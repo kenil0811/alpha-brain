@@ -383,7 +383,7 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 |---|---|
 | Built | `plan_propose` with a trial, `plan_approve` on the person's words or the card, `plan_resume`, `plan_decline`; the gate (`Tools._gate`) refuses making modules, tables, readers and automations outside a building plan; builds in the background from the brief with no limit, a stop, a resume, a trial and a coverage line; sources with statuses; pipelines. |
 | Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap; the only counter is two trial send-backs. |
-| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, deepen-in-background, the junk rules; agents (Q33): the shell around a process (goal, guidelines, declared success, verdicts, a failure policy, reporting), the read-only-is-steps rule, retry on a transient failure, the schedule's truth on a laptop. |
+| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, deepen-in-background, the junk rules; agents (Q33): the shell around a process (goal, guidelines, declared success, verdicts, a failure policy, reporting). (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
 
 ### 6.1 Acting outward (decided and built 2 October 2026, evening; Q24)
 
@@ -555,7 +555,7 @@ The workspace is where the person *works* — their tables, their flows, their c
 |---|---|
 | Built | `claude -p` with the rules and the pre-pack appended, the world as a strict MCP server, Alpha's tools plus web search and fetch, the file and shell tools denied; Sonnet by default; independent and judge runs on the same route, Haiku for the System One seam; a live conversation's session resumed, nothing else. |
 | Differs | Claude in Chrome and Anthropic's connectors are not used, so nothing of theirs breaks on a switch; the CLI, not the SDK (its flag support unverified). |
-| Not built | The API route; Jev or Laya at the seam; a third-party login for other people (needs Anthropic's approval); a timeout on a run. The ChatGPT route exists (Q32) but is off until Codex lets Alpha's tool calls through; a failed-tools turn is not yet a failed turn. |
+| Not built | The API route; Jev or Laya at the seam; a third-party login for other people (needs Anthropic's approval); a timeout on a run. The ChatGPT route exists (Q32) but is off until Codex lets Alpha's tool calls through. (Since 9 Oct: a run whose tool calls all failed is a failed run on both routes; switching routes runs one real tool call first.) |
 
 ---
 

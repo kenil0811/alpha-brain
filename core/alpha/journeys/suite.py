@@ -424,6 +424,16 @@ class Run:
             f"{reader['name']}: {reader['health']}, {reader.get('last_count')} rows"
             + (f"; {reader['last_problem']}" if reader.get("last_problem") else "") + ".")
 
+    def check_automation_is_pipeline(self, arg: Any) -> tuple[bool, str]:
+        """The automation runs as steps now (no model), not as a procedure."""
+        auto = self.last_automation or self._automation(arg if isinstance(arg, str)
+                                                        else arg["title"])
+        auto = self.world.automations.get(auto["id"])
+        steps = auto.get("steps") or []
+        reads = [s["read"] for s in steps if "read" in s]
+        return bool(steps), (f"Steps: {', '.join(reads)} then tell." if steps
+                             else "Still a procedure the model follows.")
+
     def check_automation(self, arg: dict[str, Any]) -> tuple[bool, str]:
         auto = self.last_automation or self._automation(arg["title"])
         result, problem = auto.get("last_result") or "", auto.get("last_error") or ""

@@ -113,6 +113,7 @@ def test_the_thinking_routes(world: World, monkeypatch: Any) -> None:
                         lambda: {"installed": True, "signed_in": True, "email": "k@x.com"})
     monkeypatch.setattr(codex_account, "status",
                         lambda: {"installed": True, "signed_in": False})
+    monkeypatch.setattr(route, "trial", lambda path, which: (True, "1 tool call answered"))
     c = TestClient(create_app(world, live=False))
     now = c.get("/api/thinking").json()
     assert now["route"] == "claude" and now["codex"]["signed_in"] is False
@@ -122,3 +123,62 @@ def test_the_thinking_routes(world: World, monkeypatch: Any) -> None:
         "You chose to think with ChatGPT."
     assert c.put("/api/thinking", json={"route": "gemini"}).status_code == 400
     assert json.loads(json.dumps(c.get("/api/thinking").json()))["route"] == "codex"
+
+
+def test_codex_refusing_every_tool_call_is_a_failed_run() -> None:
+    events: list[dict[str, Any]] = [
+        {"type": "thread.started", "thread_id": "thr_3"},
+        {"type": "item.completed", "item": {"type": "mcp_tool_call", "tool": "plan_approve",
+                                            "status": "failed",
+                                            "error": {"message": "user cancelled MCP tool call"}}},
+        {"type": "item.completed", "item": {"type": "agent_message",
+                                            "text": "Approved. The build will run."}},
+        {"type": "turn.completed", "usage": {}},
+    ]
+    out = codex_cli.parse_events(events, "", "", 0, 10)
+    assert not out.ok and codex_cli.REFUSED in (out.error or "")
+    assert out.tools_called == 1 and out.tools_failed == 1
+    answered: dict[str, Any] = {"type": "item.completed", "item": {
+        "type": "mcp_tool_call", "tool": "x", "status": "completed"}}
+    mixed = events[:1] + [answered] + events[1:]
+    assert codex_cli.parse_events(mixed, "", "", 0, 10).ok
+
+
+def test_switching_the_way_of_thinking_runs_a_tool_call_first(world: World,
+                                                              monkeypatch: Any) -> None:
+    monkeypatch.setattr(claude_account, "status", lambda: {"installed": True, "signed_in": True})
+    monkeypatch.setattr(codex_account, "status", lambda: {"installed": True, "signed_in": True})
+    trials: list[str] = []
+
+    def failing(path: Any, which: str) -> tuple[bool, str]:
+        trials.append(which)
+        return False, codex_cli.REFUSED
+
+    monkeypatch.setattr(route, "trial", failing)
+    c = TestClient(create_app(world, live=False))
+    refused = c.put("/api/thinking", json={"route": "codex"})
+    assert refused.status_code == 400
+    assert refused.json()["error"].startswith(
+        "ChatGPT can't reach Alpha's tools yet: Codex refused")
+    assert route.chosen(world.path) == "claude" and trials == ["codex"]
+
+    def passing(path: Any, which: str) -> tuple[bool, str]:
+        trials.append(which)
+        return True, "1 tool call answered"
+
+    monkeypatch.setattr(route, "trial", passing)
+    assert c.put("/api/thinking", json={"route": "codex"}).json()["route"] == "codex"
+    # the same route again is no trial
+    c.put("/api/thinking", json={"route": "codex"})
+    assert trials == ["codex", "codex"]
+
+
+def test_the_trial_itself(world: World, monkeypatch: Any) -> None:
+    from alpha.runtime import claude_cli as cc
+
+    monkeypatch.setattr(cc, "run", lambda req: RunResult(reply="ok", ok=True, tools_called=1))
+    assert route.trial(world.path, "claude") == (True, "1 tool call answered")
+    monkeypatch.setattr(cc, "run", lambda req: RunResult(reply="ok", ok=True))
+    assert route.trial(world.path, "claude") == (False, "the model answered without calling a tool")
+    monkeypatch.setattr(codex_cli, "run", lambda req: RunResult(reply="", ok=False, error="down"))
+    assert route.trial(world.path, "codex") == (False, "down")

@@ -45,6 +45,9 @@ STOPPED = "You stopped it."
 SILENCE_S = 600
 STALLED = "No answer came back: the model's run went silent and was ended."
 NO_ANSWER = "No answer came back from the model."
+# Found 8 Oct: a route that refused every tool call still produced text, and the text claimed a
+# build was approved. A run whose tool calls all failed is not an answer, whatever it says.
+TOOLS_DOWN = "Alpha's tools didn't answer in this run"
 
 
 class Live:
@@ -137,6 +140,42 @@ class RunResult:
     cut_off: bool = False
     # The person stopped it.
     stopped: bool = False
+    # How many tool calls the run made, and how many of them failed at the transport (the tool
+    # server not there, the call refused), as against a tool answering with a plain problem.
+    tools_called: int = 0
+    tools_failed: int = 0
+
+
+def tools_verdict(result: RunResult, called: int, failed: int, first: str) -> RunResult:
+    """The result with its tool counts; when every call failed, a failed result whose error
+    says so, and the model's words are not an answer."""
+    result.tools_called, result.tools_failed = called, failed
+    if called and failed >= called:
+        result.ok = False
+        result.error = (f"{TOOLS_DOWN} ({failed} of {called} call{'s' if called != 1 else ''}"
+                        f" failed: {first or 'no reason given'}); nothing it said counts.")
+    return result
+
+
+def count_tools(event: dict[str, Any], tools: dict[str, Any]) -> None:
+    """Keep count of the tool calls a stream made and the results that came back as errors."""
+    message = event.get("message") or {}
+    content = message.get("content")
+    if not isinstance(content, list):
+        return
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if event.get("type") == "assistant" and block.get("type") == "tool_use":
+            tools["called"] += 1
+        elif event.get("type") == "user" and block.get("type") == "tool_result" \
+                and block.get("is_error"):
+            tools["failed"] += 1
+            if not tools["first"]:
+                body = block.get("content")
+                if isinstance(body, list):
+                    body = " ".join(str(b.get("text", "")) for b in body if isinstance(b, dict))
+                tools["first"] = " ".join(str(body or "").split())[:160]
 
 
 @dataclass
@@ -259,6 +298,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
         reader.start()
         final: dict[str, Any] = {}
         tail: list[str] = []
+        tools: dict[str, Any] = {"called": 0, "failed": 0, "first": ""}
         last_seen = [time.monotonic()]
         done = threading.Event()
         stalled = threading.Event()
@@ -285,6 +325,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                 if event.get("type") == "result" or "result" in event and "is_error" in event:
                     final = event
                 else:
+                    count_tools(event, tools)
                     _watch(keys, event)
             proc.wait()
         finally:
@@ -296,7 +337,8 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     if stalled.is_set() and not final:
         log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
         return RunResult(reply="", ok=False, error=STALLED)
-    return parse_result(final, "".join(errors) or "".join(tail), proc.returncode)
+    return tools_verdict(parse_result(final, "".join(errors) or "".join(tail), proc.returncode),
+                         tools["called"], tools["failed"], tools["first"])
 
 
 def _event(line: str) -> dict[str, Any] | None:

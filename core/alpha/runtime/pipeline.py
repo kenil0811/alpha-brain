@@ -18,6 +18,8 @@ marks the source blocked. Nothing fails silently: every source's status says wha
 
 from __future__ import annotations
 
+import re
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -198,10 +200,27 @@ def _ask_once(world: World, text: str, reader: str, module: str | None) -> None:
     world.journal.append("asked", text, data={"reader": reader}, module=module)
 
 
+# A page that doesn't answer in the moment the Mac wakes (Wi-Fi reconnecting) is not a broken
+# reader: the step is tried once more after a minute (found 7 Oct: one such failure lost a day).
+TRANSIENT = re.compile(r"net::ERR_|Timeout \d+ms exceeded|ERR_NETWORK|ERR_INTERNET"
+                       r"|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|ERR_TIMED_OUT", re.I)
+RETRY_AFTER_S = 60
+
+
+def transient(problem: str) -> bool:
+    return TRANSIENT.search(problem) is not None
+
+
+def _short(problem: str) -> str:
+    words = problem.split("page.goto: ", 1)[-1].split("\n", 1)[0]
+    return " ".join(words.split())[:90]
+
+
 def run_pipeline(world: World, auto: dict[str, Any], *,
                  runner: turn.Runner = route.run,
                  browser: Browser | None = None,
-                 repair: Callable[..., Any] | None = None) -> tuple[str, str | None]:
+                 repair: Callable[..., Any] | None = None,
+                 pause: Callable[[float], None] = time.sleep) -> tuple[str, str | None]:
     """Run an automation's steps. Returns (one line for its log, a problem or None)."""
     # What changed is measured from the last run. A first run sets the baseline: rows made
     # while the module was built are not "new" to the person who watched it built.
@@ -210,13 +229,34 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
     world.journal.append("did", f"Run the automation \"{auto['title']}\" ({auto['when']}).",
                          actor="alpha", thread=thread, module=auto["module"])
     read, needs, blocked, broken, told = 0, [], [], [], []
+    unreachable: list[str] = []
     first_run = False
     for step in _flatten(world, auto["steps"]):
         if "read" in step:
             name = step["read"]
             args = {"keep": step.get("keep"), "mapping": step.get("map"),
                     "module": auto["module"], "browser": browser, "thread": thread}
-            out = run_reader(world, name, step["into"], step["key"], **args)
+            try:
+                out = run_reader(world, name, step["into"], step["key"], **args)
+            except Problem as e:
+                if not transient(str(e)):
+                    raise
+                world.journal.append(
+                    "did", f"{name} couldn't reach its page ({_short(str(e))}); trying again"
+                    " in a minute.", thread=thread, module=auto["module"],
+                    data={"automation": auto["id"], "reader": name})
+                pause(RETRY_AFTER_S)
+                try:
+                    out = run_reader(world, name, step["into"], step["key"], **args)
+                except Problem as again:
+                    if not transient(str(again)):
+                        raise
+                    world.journal.append(
+                        "failed", f"{name} couldn't reach its page twice"
+                        f" ({_short(str(again))}); skipped this run.", thread=thread,
+                        module=auto["module"], data={"automation": auto["id"], "reader": name})
+                    unreachable.append(name)
+                    continue
             if out["health"] == "broken":
                 (repair or _repair)(world, auto, name, out["problem"], runner)
                 out = run_reader(world, name, step["into"], step["key"], **args)
@@ -254,6 +294,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                         " reading")
     if broken:
         problems.append(f"{', '.join(broken)} couldn't be repaired")
+    if unreachable:
+        problems.append(f"{', '.join(unreachable)} couldn't be reached")
     return line, ("; ".join(problems) + ".") if problems else None
 
 

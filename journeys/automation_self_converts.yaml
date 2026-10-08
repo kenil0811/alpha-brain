@@ -1,0 +1,10 @@
+name: automation_self_converts
+title: An automation that reads by procedure converts itself to steps and reads with no model
+why: "The LinkedIn connections automation was made before pipelines (1 Oct) and paid a model turn
+  a day for a read; it failed for four days when the model route lost its tools (8 Oct). Reading
+  in a run is refused; Alpha converts the automation; the steps run in the same run."
+steps:
+  - automation: "Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections"
+checks:
+  - automation_is_pipeline: "Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections"
+  - automation: {result_matches: "Read 1 of 1 sources"}

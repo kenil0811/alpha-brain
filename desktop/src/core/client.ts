@@ -559,10 +559,20 @@ export interface Changed {
   working: boolean;
 }
 
+/** A run that went wrong in the last day: the companion says so (8 Oct). */
+export interface Trouble {
+  id: string;
+  title: string;
+  at: string;
+  words: string;
+  module: string | null;
+}
+
 export interface Companion {
   focus: Convo | null;
   conversations: Convo[];
   needs_you: NeedItem[];
+  troubles?: Trouble[];
   /** The look the person chose for the companion (`avatar/looks.ts` reads it), or null. */
   look?: unknown;
 }

@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 8 October 2026, evening.** Last entries: what went wrong 4–8 October and the agents
+**As of 9 October 2026.** Last entries: reliability first
+([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)), what went wrong 4–8 October and the agents
 decision ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md), Q33;
 no code changed), replies rendered the same in the panel and
 the companion ([`log/2026-10-03-replies-rendered.md`](log/2026-10-03-replies-rendered.md)), a second way to think, ChatGPT through the
@@ -128,11 +129,11 @@ pending item 6, people for real, and noticing over what Alpha reads.
    left are Kenil's to choose (above).
 5. ~~The desktop's four~~ — done 3 Oct night
    ([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)).
-6. **Reliability first (8 Oct):** a turn whose tool calls all failed is a failed turn with the
-   reason shown; switching routes runs a real tool call first; a run that fails on a network error
-   at wake retries after a minute; the schedule's line says the truth ("07:00, or when your Mac
-   next wakes; last ran 12:31"); failed runs reach the person through the companion; an automation
-   that only reads is steps, never a procedure; LinkedIn connections converted by asking Alpha.
+6. ~~Reliability first~~ — done 9 Oct
+   ([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)): a failed-tools turn fails
+   with the reason; a route is tried before it is switched to; a transient failure at wake is
+   retried; the schedule's words say the truth; failed runs reach the companion; reading in a run
+   is refused and an old automation converts itself to steps.
 7. **Agents (Q33), schedule first:** the shell around each recurring process (goal, guidelines
    page, declared success, a verdict per run, a runs table, the failure policy, reporting), the
    loop that calls the model only on breakage, novelty, judgement or the ask, the window, the

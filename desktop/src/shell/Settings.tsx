@@ -31,11 +31,26 @@ function readPageSize(): PageSize {
 
 /** One way to think, connected or not, and the one step that gets there: Claude through Claude
  *  Code, or ChatGPT through the Codex CLI (Q32). Also used on first run for the chosen one. */
-export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { which: ThinkRoute; client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void; inUse?: boolean; onUse?: () => void }) {
+export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { which: ThinkRoute; client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void; inUse?: boolean; onUse?: () => Promise<unknown> }) {
   const [waiting, setWaiting] = useState<"install" | "signin" | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trying, setTrying] = useState(false);
   const name = which === "claude" ? "Claude" : "ChatGPT";
+  // Use this runs one real tool call through the new way first; a way that cannot reach
+  // Alpha's tools is never switched to, and the reason shows here.
+  async function use() {
+    if (!onUse) return;
+    setTrying(true);
+    setError(null);
+    try {
+      await onUse();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTrying(false);
+    }
+  }
   const tool = which === "claude" ? "Claude Code" : "the Codex CLI";
   const calls = which === "claude"
     ? { status: () => client.claude(), install: () => client.installClaude(), signIn: () => client.signInClaude(), signOut: () => client.signOutClaude() }
@@ -96,8 +111,8 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
         {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
       </div>
       {inUse ? <span className="pill pill--good">In use</span> : onUse && connected ? (
-        <Button size="sm" onClick={onUse}>
-          Use this
+        <Button size="sm" disabled={trying} onClick={() => void use()}>
+          {trying ? "Trying it…" : "Use this"}
         </Button>
       ) : null}
       {status ? <span className={`pill ${connected ? "pill--good" : "pill--warn"}`}>{connected ? "Connected" : "Not connected"}</span> : null}
@@ -178,8 +193,8 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
           <span className="faint">Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription</span>
         </div>
         <div className="card list">
-          <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => void client.setThinking("claude").then((t) => onThinking?.(t))} />
-          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => void client.setThinking("codex").then((t) => onThinking?.(t))} />
+          <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
+          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
         </div>
       </div>
 

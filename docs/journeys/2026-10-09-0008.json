@@ -1,0 +1,35 @@
+[
+ {
+  "name": "automation_self_converts",
+  "title": "An automation that reads by procedure converts itself to steps and reads with no model",
+  "steps": [
+   {
+    "automation": "Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+    "ok": true,
+    "result": "Read 1 of 1 sources. LinkedIn Connections: 2 new, 50 changed, 1 gone. New: Gaurav G, Meenal Sharma; Changed: Dhruv Garg, Yuri Antonelli, Arvind Puri, Shreya Nair, Vivek Pandey and 45 more; Gone: Meenal Sharma.",
+    "problem": null,
+    "seconds": 208.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "automation_is_pipeline",
+    "arg": "Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+    "ok": true,
+    "why": "Steps: linkedin_connections then tell.",
+    "seconds": 0.0
+   },
+   {
+    "check": "automation",
+    "arg": {
+     "result_matches": "Read 1 of 1 sources"
+    },
+    "ok": true,
+    "why": "Read 1 of 1 sources. LinkedIn Connections: 2 new, 50 changed, 1 gone. New: Gaurav G, Meenal Sharma; Changed: Dhruv Garg, Yuri Antonelli, Arvind Puri, Shreya Nai",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 208.2,
+  "error": null
+ }
+]

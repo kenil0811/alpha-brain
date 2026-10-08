@@ -297,3 +297,17 @@ def test_changes_say_what_moved_since_a_stamp(world: World) -> None:
     assert after["at"] >= since
     again = c.get("/api/changes", params={"since": after["at"]}).json()
     assert again["journal"] == 0 and again["threads"] is False
+
+
+def test_the_companion_hears_about_runs_that_went_wrong(world: World) -> None:
+    t = building(world, turn="j_1")
+    t.module_create("Network", "x")
+    auto = t.automation_create("Daily brokers", "daily 07:00", "read the brokers",
+                               module="Network")
+    world.automations.finished(auto["id"], result=None, error="brokers couldn't be reached.")
+    c = client(world)
+    troubles = c.get("/api/companion").json()["troubles"]
+    assert [tr["words"] for tr in troubles] == ["brokers couldn't be reached."]
+    assert troubles[0]["title"] == "Daily brokers" and troubles[0]["id"] == auto["id"]
+    world.automations.finished(auto["id"], result="Read 1 of 1 sources.", error=None)
+    assert c.get("/api/companion").json()["troubles"] == []

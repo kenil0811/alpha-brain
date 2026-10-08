@@ -41,18 +41,17 @@ SETTLED_S = 60  # awake this long without a break before a run starts
 
 AUTOMATION_RULES = """You are Alpha, the person's second brain, running one of their \
 automations on your own: nobody is watching this run. Follow the procedure, with the tools it \
-names. Keep what you read in Alpha's tables (reader_run or records_upsert, so repeat runs \
-update instead of duplicating). Never send, post, message, apply or submit anything.
+names. Never send, post, message, apply or submit anything.
 
-If reader_run says a reader is broken, repair it in this run: look at the page as it is now \
-(page_script returning the HTML of one item, or page_read), rewrite the reader's script, try it \
-with page_script, save it with reader_save under the same name, then reader_run again. If the \
+Reading pages into tables is never your work in a run: it is the automation's steps, which run \
+with no model. If this procedure reads a page or runs a reader, convert the automation now with \
+automation_update(id, steps=[{"read": "<reader>", "into": "<table>", "key": "<field>", "keep": \
+[<the person's own fields>]}, {"tell": "<table>"}]) and finish: the steps run as soon as you have \
+saved them, in this run, and on every run after. A procedure is for judgement over what the \
+tables hold (compare, summarise, flag), with records_query and records_aggregate. If the \
 procedure itself is what's wrong (it relies on something that isn't true, or a step that \
 cannot scale), fix it with automation_update so the next run is right. Never update rows one \
-by one after a sync: anything a new row should start with (a status, a tag) goes into the \
-reader's rows, protected with keep_person_fields so it is only filled where empty. Never \
-conclude that a site has a limit from one failed attempt: check it with page_script first, \
-and correct any note or procedure that says otherwise.
+by one; never conclude that a site has a limit from one failed attempt.
 
 If a site asks for a sign-in or the run cannot be done, don't retry in a loop: say so in one \
 line, and call ask_person once with what the person needs to do (for example "sign in to \
@@ -62,10 +61,6 @@ This run starts fresh: what earlier runs learned is in THIS THREAD below (the br
 thread's own history), not in your memory. Before you finish, if this run taught you something \
 the next run needs (a decision, something that didn't work and why, the next step), rewrite the \
 brief with thread_brief: short, current, and only what you verified.
-
-If this automation only runs readers into tables (and tells the person what changed), turn \
-it into a pipeline with automation_update(steps=…): from then on the scheduler runs it with no \
-model, and you are called only when a step breaks.
 
 Your final answer is one or two lines for the automation's log: what changed (counts, names \
 that matter). If something is worth the person's attention (a change they would want to know \
@@ -109,6 +104,20 @@ def run(world: World, automation_id: str, *,
         world.modules.update_thread(thread, state="done")
         return world.automations.finished(automation_id, result=None, error=str(e))
     world.modules.update_thread(thread, state="done")
+    after = world.automations.get(automation_id)
+    if outcome.ok and after["steps"]:
+        # The run converted the automation to steps: they run now, not tomorrow.
+        world.journal.append("did", f"\"{auto['title']}\" now runs as steps, with no model;"
+                             " running them now.", actor="alpha", thread=thread,
+                             module=auto["module"], data={"automation": automation_id})
+        world.modules.update_thread(thread, state="working")
+        try:
+            line, problem = pipeline.run_pipeline(world, after, runner=runner)
+        except Exception as e:
+            log.exception("pipeline %s failed", automation_id)
+            line, problem = "", str(e)
+        world.modules.update_thread(thread, state="done")
+        return world.automations.finished(automation_id, result=line or None, error=problem)
     if outcome.ok:
         worth = worth_telling(outcome.reply)
         if worth:

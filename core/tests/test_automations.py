@@ -26,7 +26,7 @@ def test_schedules_parse_and_describe() -> None:
     assert check_schedule("every 6 hours") == "every 6h"
     assert check_schedule("Daily 8:05") == "daily 08:05"
     assert check_schedule("weekly monday 09:00") == "weekly mon 09:00"
-    assert describe("daily 08:05") == "every day at 08:05"
+    assert describe("daily 08:05") == "every day at 08:05, or when your Mac next wakes"
     assert describe("every 1h") == "every hour"
     with pytest.raises(Problem, match="30 minutes"):
         check_schedule("every 20m")
@@ -113,7 +113,7 @@ def test_an_automation_runs_in_its_own_thread_and_reports(world: World) -> None:
     t = building(world, turn="j_1")
     auto = t.automation_create("Every morning, sync LinkedIn connections", "daily 08:00",
                                "page_to_table … into connections", module="Network")
-    assert auto["when"] == "every day at 08:00" and auto["thread"]
+    assert auto["when"].startswith("every day at 08:00") and auto["thread"]
     seen: list[TurnRequest] = []
 
     def runner(req: TurnRequest) -> RunResult:
@@ -250,3 +250,86 @@ def test_turn_progress_steps_are_visible_while_it_runs(world: World) -> None:
         time.sleep(0.05)
     assert steps and steps[0]["text"] == "Suggested remembering network = LinkedIn."
     gate["go"] = True
+
+
+def test_a_page_that_does_not_answer_at_wake_is_tried_again_in_a_minute(world: World) -> None:
+    """7 Oct: one network error in the moment the Mac woke lost the day's run."""
+    from alpha.runtime import pipeline
+
+    connections_table(world)
+    t = building(world, turn="j_1")
+    world.readers.save("brokers", site="brokers.com", url="https://brokers.com", script="x",
+                       description="d", to_end=False, count=2)
+    auto = t.automation_create("Daily brokers", "daily 07:00", module="Network",
+                               steps=[{"read": "brokers", "into": "connections",
+                                       "key": "linkedin_url"}, {"tell": "connections"}])
+    calls: list[int] = []
+    pauses: list[float] = []
+
+    class Browser:
+        def script(self, *a: Any, **k: Any) -> dict[str, Any]:
+            calls.append(1)
+            if len(calls) == 1:
+                raise Problem("The browser couldn't do that: page.goto: net::ERR_NETWORK_CHANGED"
+                              " at https://brokers.com\nCall log:")
+            return {"result": [{"name": "A", "linkedin_url": "https://x/1"}], "signed_in": True,
+                    "title": "Brokers", "more_pages": False}
+
+    line, problem = pipeline.run_pipeline(world, world.automations.get(auto["id"]),
+                                          browser=Browser(), pause=pauses.append)  # type: ignore[arg-type]
+    assert pauses == [pipeline.RETRY_AFTER_S] and len(calls) == 2
+    assert line.startswith("Read 1 of 1 sources") and problem is None
+    texts = [e["text"] for e in world.journal.recent(10)]
+    assert any(t.startswith("brokers couldn't reach its page (net::ERR_NETWORK_CHANGED")
+               for t in texts)
+
+    class Down:
+        def script(self, *a: Any, **k: Any) -> dict[str, Any]:
+            raise Problem("The browser couldn't do that: page.goto: Timeout 30000ms exceeded.")
+
+    pauses.clear()
+    line, problem = pipeline.run_pipeline(world, world.automations.get(auto["id"]),
+                                          browser=Down(), pause=pauses.append)  # type: ignore[arg-type]
+    assert pauses == [pipeline.RETRY_AFTER_S]
+    assert line.startswith("Read 0 of 1 sources") and problem == "brokers couldn't be reached."
+    assert world.journal.recent(1, kinds=["failed"])[-1]["text"].startswith(
+        "brokers couldn't reach its page twice")
+
+
+def test_an_automation_that_reads_by_procedure_converts_itself_to_steps(world: World) -> None:
+    """8 Oct: the LinkedIn connections automation, made before pipelines, paid a model turn a
+    day for a read and failed with the route. Reading in a run is refused; the model converts
+    the automation; the steps run in the same run."""
+    from alpha.runtime import pipeline
+
+    connections_table(world)
+    t = building(world, turn="j_1")
+    world.readers.save("linkedin_connections", site="linkedin.com", url="https://linkedin.com/x",
+                       script="x", description="d", to_end=True, count=5)
+    auto = t.automation_create("Daily at 07:00, read your LinkedIn connections", "daily 07:00",
+                               "Run reader_run(linkedin_connections into connections).",
+                               module="Network")
+    refused = Tools(world, thread=auto["thread"]).reader_run("linkedin_connections",
+                                                             "connections", "linkedin_url")
+    assert "error" in refused and "automation_update" in refused["error"]
+    ran: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        # The model, told so by the wall, converts the automation and finishes.
+        assert "never your work in a run" in req.system
+        Tools(world, thread=auto["thread"]).automation_update(
+            auto["id"], steps=[{"read": "linkedin_connections", "into": "connections",
+                                "key": "linkedin_url", "keep": ["tags"]}, {"tell": "connections"}])
+        return RunResult(reply="Converted to steps.", ok=True)
+
+    def fake_pipeline(w: World, a: dict[str, Any], **kw: Any) -> tuple[str, str | None]:
+        ran.append(a["id"])
+        return "Read 1 of 1 sources.", None
+
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(pipeline, "run_pipeline", fake_pipeline)
+        done = automation.run(world, auto["id"], runner=runner)
+    assert ran == [auto["id"]] and done["last_result"] == "Read 1 of 1 sources."
+    assert world.automations.get(auto["id"])["steps"]
+    assert any(e["text"].endswith("now runs as steps, with no model; running them now.")
+               for e in world.journal.recent(10))
