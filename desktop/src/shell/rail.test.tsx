@@ -82,13 +82,27 @@ describe("the sidebar's order", () => {
     await waitFor(() => expect(labels()).toEqual(["Home", "Network", "Job", "Food", "Alpha plans", "Notes", "New project", "Intelligence", "Settings"]));
   });
 
-  it("draws Network like a module row, whose menu is just Open", async () => {
+  it("draws Network as a project: a project's menu, Rename and Delete disabled with the reason", async () => {
     const user = userEvent.setup();
     const { onGo } = setup([]);
     await user.click(screen.getByRole("button", { name: "More for Network" }));
-    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open"]);
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "Hide", "Delete", "View options"]);
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveAttribute("aria-disabled", "true");
     await user.click(screen.getByRole("menuitem", { name: "Open" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "people" });
+  });
+
+  it("reorders Network among the projects, and never nests it", async () => {
+    const user = userEvent.setup();
+    const { labels, moveModule, setPreference } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    screen.getByRole("button", { name: "Network" }).focus();
+    await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_f", "network", "m_j"]));
+    await waitFor(() => expect(labels().slice(1, 4)).toEqual(["Food", "Network", "Job"]));
+    screen.getByRole("button", { name: "Network" }).focus();
+    await user.keyboard("{Alt>}{ArrowRight}{/Alt}");
+    expect(moveModule).not.toHaveBeenCalled();
   });
 
   it("folds each parent behind a chevron and remembers it", () => {
@@ -236,7 +250,7 @@ describe("reordering", () => {
     const { setPreference, labels } = setup([card("m_f", "Food"), card("m_j", "Job")]);
     screen.getByRole("button", { name: "Food" }).focus();
     await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
-    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_j", "m_f"]));
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["network", "m_j", "m_f"]));
     await waitFor(() => expect(labels().slice(2, 4)).toEqual(["Job", "Food"]));
     expect(screen.getByRole("status")).toHaveTextContent("Moved Food below Job.");
     expect(screen.getByRole("button", { name: "Food" })).toHaveFocus();
@@ -248,7 +262,7 @@ describe("reordering", () => {
     screen.getByRole("button", { name: "Job" }).focus();
     await user.keyboard("{Alt>}{ArrowRight}{/Alt}");
     await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_j", "m_f"));
-    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_j"]));
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["network", "m_j"]));
     expect(screen.getByRole("status")).toHaveTextContent("Moved Job inside Food.");
   });
 
@@ -279,7 +293,7 @@ describe("reordering", () => {
   it("dropping on the top of another module reorders without a move, and saves the order", async () => {
     const { moveModule, setPreference } = setup([card("m_f", "Food"), card("m_j", "Job")]);
     drag("Job", "Food", 2);
-    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_j", "m_f"]));
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["network", "m_j", "m_f"]));
     expect(moveModule).not.toHaveBeenCalled();
   });
 

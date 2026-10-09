@@ -41,7 +41,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
     };
   }, [client, id, version, tick]);
   // While it runs, its steps arrive through the window's one poll (`version` moves).
-  const back = <BackLink to="Agents" onClick={() => onGo({ kind: "intelligence", tab: "agents" })} />;
+  const back = <BackLink to="Agents and automations" onClick={() => onGo({ kind: "intelligence", tab: "agents" })} />;
   if (!auto) {
     return (
       <>

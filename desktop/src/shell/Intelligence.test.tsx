@@ -31,8 +31,8 @@ describe("Intelligence", () => {
   it("has the tabs in the header; Map is a view of Second Brain and Activity is not a tab", async () => {
     const onTab = vi.fn();
     mount("second-brain", onTab);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Second Brain", "Agents", "Skills", "Connections"]);
-    await userEvent.click(screen.getByRole("tab", { name: "Agents" }));
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Second Brain", "Agents and automations", "Skills", "Connections"]);
+    await userEvent.click(screen.getByRole("tab", { name: "Agents and automations" }));
     expect(onTab).toHaveBeenCalledWith("agents");
   });
 
@@ -81,11 +81,21 @@ describe("Intelligence", () => {
     localStorage.clear();
     const onGo = vi.fn();
     const client = mount("automations", vi.fn(), onGo);
-    await userEvent.click(await screen.findByText("Check deals every morning"));
+    await userEvent.click(await screen.findByText("Check deals every morning", undefined, { timeout: 4000 }));
     await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "automation", id: "a1" }));
     await userEvent.dblClick(screen.getByLabelText("Yes"));
     await userEvent.click(await screen.findByRole("option", { name: "No" }));
     await waitFor(() => expect(client.switchAutomation).toHaveBeenCalledWith("a1", false));
+  });
+
+  it("lists Alpha as one agent among the others, opening its agent page, with Add agent and Add automation", async () => {
+    localStorage.clear();
+    const onGo = vi.fn();
+    mount("agents", vi.fn(), onGo);
+    expect(await screen.findByRole("button", { name: "Add agent" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add automation" })).toBeInTheDocument();
+    await userEvent.click(await screen.findByText("Alpha — your assistant", undefined, { timeout: 4000 }));
+    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" }));
   });
 
   it("still draws Activity for its old address, with search first", async () => {

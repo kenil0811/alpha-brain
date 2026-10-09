@@ -1,12 +1,12 @@
 /** A record's fields, each editable in place, the long texts under, when it was added and last
  *  changed: the form view's body. (Records open as pages of their own now, 9 Oct, the UI
  *  rulebook §7; the side drawer that lived here is gone.) */
-import type { RecordRow, Relations } from "../../core/client";
+import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { humanize, when } from "../format";
 import { Cell, LongText } from "./cells";
 
-export function RecordFields({ row, fields, titleField, relations, onCommit, onOpenRelated }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void }) {
+export function RecordFields({ row, fields, titleField, relations, files, onCommit, onOpenRelated }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; files?: Record<string, FileInfo>; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void }) {
   const long = fields.filter((f) => f.kind === "long_text");
   const shown = fields.filter((f) => f.name !== titleField && f.kind !== "long_text");
   return (
@@ -16,7 +16,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
           {shown.map((f) => (
             <tr key={f.name}>
               <th scope="row">{humanize(f.name)}</th>
-              <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} />
+              <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} />
             </tr>
           ))}
           {row.created_at ? (

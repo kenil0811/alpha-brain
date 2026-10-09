@@ -19,12 +19,14 @@ import { useChanges } from "./core/changes";
 import { host } from "./core/host";
 import { resolveSession } from "./core/session";
 import { AssistantPanel } from "./assistant/AssistantPanel";
+import { ActivityPage } from "./shell/ActivityPage";
 import { AgentPage } from "./shell/AgentPage";
 import { Home } from "./shell/Home";
 import { Intelligence } from "./shell/Intelligence";
 import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
-import { SkillPage } from "./shell/SkillPage";
+import { HandPage, SkillPage } from "./shell/SkillPage";
+import { BUILT_IN } from "./shell/intel/sources";
 import { ConnectionPage } from "./shell/Connections";
 import { FactPage } from "./shell/SecondBrain";
 import { NewProjectPage } from "./modules/NewProjectPage";
@@ -34,7 +36,7 @@ import { currentHashSurface, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
 import { useStepBack } from "./shell/stepBack";
 import { ModulePage } from "./modules/ModulePage";
-import { RecordPage, type LeaveGuard } from "./modules/RecordPage";
+import { RecordPage } from "./modules/RecordPage";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
@@ -86,16 +88,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
   const [thinking, setThinking] = useState<Thinking | null>(null);
 
-  // A page with unsaved changes (a record's) holds the window's leaving until the person says
-  // Save, Discard or Stay: it registers a guard here, and every way out asks it first (9 Oct,
-  // the UI rulebook §7).
-  const guard = useRef<LeaveGuard | null>(null);
-  const onGuard = useCallback((g: LeaveGuard | null) => {
-    guard.current = g;
-  }, []);
   const surfaceRef = useRef(surface);
   surfaceRef.current = surface;
-  const commitSurface = useCallback((next: Surface) => {
+  const setSurface = useCallback((next: Surface) => {
     const place = knownSurface(next);
     if (place.kind === "activity") {
       setActivityAt(Date.now());
@@ -106,21 +101,12 @@ export function App({ client: injected }: { client?: Client } = {}) {
     remember(SURFACE_KEY, place);
     pushAddress(place);
   }, []);
-  const setSurface = useCallback((next: Surface) => {
-    if (knownSurface(next).kind === "activity") return commitSurface(next); // the bell leaves the page as it is
-    if (guard.current?.(() => commitSurface(next))) return;
-    commitSurface(next);
-  }, [commitSurface]);
   // Back and forward move between pages; a typed address opens one.
   useEffect(() => {
     const onPop = () => {
       const named = currentHashSurface();
       if (!named) return;
-      if (named.kind === "activity") return commitSurface(named);
-      if (guard.current?.(() => commitSurface(named))) {
-        pushAddress(surfaceRef.current); // Back was held: the address goes back to the page that stays
-        return;
-      }
+      if (named.kind === "activity") return setSurface(named);
       setSurfaceState(named);
       remember(SURFACE_KEY, named);
       pushAddress(named, true); // an old address (`#/people`) shows its new name
@@ -296,7 +282,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const scopeId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : null;
   const scopeModule = scopeId ? (modules.find((m) => m.id === scopeId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? "Network" : "Intelligence";
+    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? "Network" : surface.kind === "entry" ? "Activity" : "Intelligence";
 
   return (
     <AssistantProvider say={say}>
@@ -356,7 +342,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={say} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onOpenRecord={(table, id) => setSurface({ kind: "record", module: surface.id, table, id })} modules={modules} />
         ) : surface.kind === "record" ? (
-          <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} module={surface.module} table={surface.table} id={surface.id} version={(versions.modules[surface.module] ?? 0) + versions.all} modules={modules} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onGuard={onGuard} />
+          <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} module={surface.module} table={surface.table} id={surface.id} version={(versions.modules[surface.module] ?? 0) + versions.all} modules={modules} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "new-project" ? (
@@ -369,19 +355,23 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (
           <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
+        ) : surface.kind === "skill" && surface.name.startsWith(BUILT_IN) ? (
+          <HandPage key={surface.name} client={runtime.client} name={surface.name.slice(BUILT_IN.length)} version={versions.intelligence} onGo={setSurface} />
         ) : surface.kind === "skill" ? (
           <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "automation" ? (
           <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "agent" ? (
           <AgentPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
+        ) : surface.kind === "entry" ? (
+          <ActivityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={surface.tab ?? "second-brain"} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : null}
       </main>
       {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} insert={inserting} surface={surface} onNewModule={startNew} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (
-        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} openActivity={activityAt} activityVersion={versions.intelligence} />
+        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} openActivity={activityAt} activityVersion={versions.intelligence} onOpenEntry={(id) => setSurface({ kind: "entry", id })} />
       ) : null}
     </div>
     </AssistantProvider>

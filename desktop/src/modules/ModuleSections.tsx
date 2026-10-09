@@ -1,19 +1,21 @@
 /**
  * The sections below a project's data, in the rulebook's order (9 Oct, the UI rulebook §5;
  * "module" in the code): Files, then Intelligence (what happened here, its agents and automations,
- * its goals, Alpha's page about it, the projects inside it, each a tab), then Governance (where
- * its data lives and is read from, where it sits, what Alpha should always and never do here).
+ * its goals, Alpha's page about it, its sub-projects, each a tab), then Governance (what Alpha
+ * may and may not do here as Allowed and Denied tabs, then where its data lives and is read
+ * from, and where it sits).
  * Each is a section card.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { UploadIcon as Upload } from "../ui/icons";
 import { moduleWords } from "../core/client";
 import type { Client, DocumentInfo, ModuleCard, ModuleDetail, Note, Source } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { AutomationList } from "../shell/Automations";
 import { NewAboveDialog } from "../shell/ModuleDialogs";
-import { Badge, Button, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Tabs, type Tone } from "../ui";
-import { FileText, ICON, ICON_SM, ModuleIcon, PermissionIcon, Table2, X } from "../ui/icons";
+import type { Surface } from "../shell/Rail";
+import { Badge, Button, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Tabs, useAssistant, type Tone } from "../ui";
+import { AgentIcon, Ban, Check, FileText, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
 import { downloadText, parseCsv, toCsv } from "./csv";
 import { humanize, when } from "./format";
 
@@ -207,35 +209,89 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   );
 }
 
+/** Add a goal, an agent or an automation: no route makes one, so it goes to Alpha as a sentence
+ *  ("In Deals, add a goal: …") and Alpha asks the person to approve it (9 Oct, Vikas). */
+function AskAlpha({ project, thing }: { project: string; thing: "goal" | "agent" | "automation" }) {
+  const assistant = useAssistant();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const send = () => {
+    if (!assistant || !text.trim()) return;
+    assistant.say(`In ${project}, add ${thing === "automation" ? "an" : "a"} ${thing}: ${text.trim()}`);
+    setText("");
+    setOpen(false);
+    setSent(true);
+  };
+  if (!open) {
+    return (
+      <span className="askalpha">
+        <Button size="sm" icon={<PlusIcon size={ICON_SM} />} disabledReason={assistant ? undefined : "The assistant isn't reachable here."} onClick={() => { setSent(false); setOpen(true); }}>
+          Add {thing}
+        </Button>
+        {sent ? <span className="faint">Sent to Alpha — it will ask you to approve.</span> : null}
+      </span>
+    );
+  }
+  return (
+    <div className="askbox">
+      <textarea className="note__edit" rows={3} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={`Describe the ${thing} you want`} aria-label={`Describe the ${thing} you want`} />
+      <div className="askbox__bar">
+        <Button size="sm" variant="primary" disabledReason={text.trim() ? undefined : `Say what ${thing} you want first.`} onClick={send}>
+          Send
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 type IntelTab = "activity" | "agents" | "goals" | "page" | "inside";
 
-export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (id: string) => void }) {
+export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [tab, setTab] = useState<IntelTab>("activity");
   const inside = detail.inside ?? [];
   const tabs: { id: IntelTab; label: string }[] = [
     { id: "activity", label: "Activity" },
-    { id: "agents", label: `Agents and automations${detail.automations.length ? ` · ${detail.automations.length}` : ""}` },
+    // Alpha, the assistant that works here, is the first agent
+    { id: "agents", label: `Agents and automations · ${detail.automations.length + 1}` },
     { id: "goals", label: `Goals${detail.goals.length ? ` · ${detail.goals.length}` : ""}` },
     { id: "page", label: "Alpha's page" },
-    ...(inside.length ? [{ id: "inside" as const, label: `Inside · ${inside.length}` }] : []),
+    ...(inside.length ? [{ id: "inside" as const, label: `Sub-projects · ${inside.length}` }] : []),
   ];
   return (
     <SectionCard title="Intelligence">
       <Tabs label="Intelligence" items={tabs} value={tab} onChange={setTab} />
       {tab === "page" ? <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} /> : null}
       {tab === "goals" ? (
-        detail.goals.length ? (
-          <ul className="goals">
-            {detail.goals.map((g) => (
-              <li key={g.id}>{g.text}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No goals yet.</p>
-        )
+        <div className="stack">
+          {detail.goals.length ? (
+            <ul className="goals">
+              {detail.goals.map((g) => (
+                <li key={g.id}>{g.text}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="faint">No goals yet.</p>
+          )}
+          <AskAlpha project={detail.name} thing="goal" />
+        </div>
       ) : null}
       {tab === "activity" ? <ModuleActivity detail={detail} /> : null}
-      {tab === "agents" ? <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="No agents or automations work here yet." /> : null}
+      {tab === "agents" ? (
+        <div className="stack">
+          <div className="lrows">
+            <ListRow icon={<AgentIcon size={ICON} />} title="Alpha" description={`The assistant that works in ${detail.name}`} onOpen={() => onGo({ kind: "agent", id: "alpha" })} />
+          </div>
+          {detail.automations.length ? <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="" /> : null}
+          <div className="row">
+            <AskAlpha project={detail.name} thing="agent" />
+            <AskAlpha project={detail.name} thing="automation" />
+          </div>
+        </div>
+      ) : null}
       {tab === "inside" ? (
         <div className="subsec">
           <div className="subsec__head">
@@ -249,7 +305,7 @@ export function IntelligenceSection({ client, detail, version, onChanged, onGo }
                 title={m.name}
                 description={`${m.goal ?? m.last_text ?? "Nothing in it yet."} · ${m.tables.length} ${word(m.tables.length, "collection", "collections")}${m.children?.length ? ` · holds ${m.children.length}` : ""}`}
                 controls={
-                  <Button size="sm" onClick={() => onGo(m.id)}>
+                  <Button size="sm" onClick={() => onGo({ kind: "module", id: m.id })}>
                     Open
                   </Button>
                 }
@@ -262,26 +318,49 @@ export function IntelligenceSection({ client, detail, version, onChanged, onGo }
   );
 }
 
-/** What Alpha should always and never do in this project, as rules the person writes: Enter adds
- *  one, a click edits it, its × deletes it. Kept per project in `PREF.governance`; the runtime does
- *  not read them yet, and the (i) says so. */
-export function GovernanceRules({ client, moduleId }: { client: Client; moduleId: string }) {
+/** Governance's card (9 Oct, Vikas's design): a shield-check title, then what Alpha may and may
+ *  not do here as two tabs, Allowed and Denied, each a list of sentences the person writes (a
+ *  click edits one, its × removes it, the dashed button adds one). The rest of the section (what
+ *  it keeps, where it reads from, where it sits) follows below as `children`. Kept per project in
+ *  `PREF.governance` as `always` (Allowed) and `never` (Denied); the runtime does not read them yet. */
+export function GovernanceCard({ client, moduleId, children }: { client: Client; moduleId: string; children?: ReactNode }) {
   const [all, setAll] = usePreference<Record<string, { always: string[]; never: string[] }>>(client, PREF.governance, {});
   const [problem, setProblem] = useState<string | null>(null);
+  const [side, setSide] = useState<"always" | "never">("always");
   const mine = { always: all[moduleId]?.always ?? [], never: all[moduleId]?.never ?? [] };
-  const save = async (side: "always" | "never", next: string[]) => setProblem(await setAll({ ...all, [moduleId]: { ...mine, [side]: next } }));
+  const save = async (next: string[]) => setProblem(await setAll({ ...all, [moduleId]: { ...mine, [side]: next } }));
+  const tab = (id: "always" | "never", icon: ReactNode, label: string) => ({
+    id,
+    label: (
+      <>
+        {icon}
+        {label}{" "}
+        <span className="govtabs__count">{mine[id].length}</span>
+      </>
+    ),
+  });
   return (
-    <div className="subsec">
-      <div className="govrules">
-        <RuleList title="Always" rules={mine.always} onChange={(next) => void save("always", next)} />
-        <RuleList title="Never" rules={mine.never} onChange={(next) => void save("never", next)} />
+    <section className="card scard" aria-label="Governance">
+      <header className="scard__head">
+        <div className="scard__titles">
+          <div className="scard__titleline">
+            <PermissionIcon size={ICON} aria-hidden="true" />
+            <h3 className="scard__title">Governance</h3>
+          </div>
+        </div>
+      </header>
+      <div className="scard__body">
+        <Tabs label="What Alpha may do here" className="subtabs govtabs" items={[tab("always", <Check size={ICON_SM} aria-hidden="true" />, "Allowed"), tab("never", <Ban size={ICON_SM} aria-hidden="true" />, "Denied")]} value={side} onChange={setSide} />
+        <RuleList key={side} noun={side === "always" ? "allowed" : "denied"} rules={mine[side]} onChange={(next) => void save(next)} />
+        {problem ? <Notice tone="bad">Couldn't save the rules: {problem}</Notice> : null}
+        {children}
       </div>
-      {problem ? <Notice tone="bad">Couldn't save the rules: {problem}</Notice> : null}
-    </div>
+    </section>
   );
 }
 
-function RuleList({ title, rules, onChange }: { title: string; rules: string[]; onChange: (next: string[]) => void }) {
+function RuleList({ noun, rules, onChange }: { noun: string; rules: string[]; onChange: (next: string[]) => void }) {
+  const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<number | null>(null);
   const [text, setText] = useState("");
@@ -291,52 +370,64 @@ function RuleList({ title, rules, onChange }: { title: string; rules: string[]; 
     if (keep) onChange(clean ? rules.map((r, i) => (i === editing ? clean : r)) : rules.filter((_, i) => i !== editing));
     setEditing(null);
   };
+  const add = (keep: boolean) => {
+    if (keep && draft.trim()) onChange([...rules, draft.trim()]);
+    setDraft("");
+    setAdding(false);
+  };
   return (
-    <div className="govrules__block" role="group" aria-label={title}>
-      <div className="subsec__head">
-        <h4 className="subsec__title">{title}</h4>
-        <InfoTip text="Saved here; Alpha follows them once its core reads them." />
-      </div>
-      <ul className="govrules__list">
-        {rules.map((r, i) => (
-          <li key={i} className="govrules__rule">
-            {editing === i ? (
-              <input
-                className="govrules__input"
-                autoFocus
-                aria-label={`Edit rule: ${r}`}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onBlur={() => finish(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") finish(true);
-                  if (e.key === "Escape") finish(false);
-                }}
-              />
-            ) : (
-              <>
-                <button type="button" className="linkbtn govrules__text" onClick={() => { setText(r); setEditing(i); }}>
-                  {r}
-                </button>
-                <IconButton size="sm" className="govrules__del" label={`Delete rule: ${r}`} icon={<X size={ICON_SM} />} onClick={() => onChange(rules.filter((_, j) => j !== i))} />
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      <input
-        className="govrules__input"
-        aria-label={`Add a rule: ${title.toLowerCase()}`}
-        placeholder="Add a rule…"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && draft.trim()) {
-            onChange([...rules, draft.trim()]);
-            setDraft("");
-          }
-        }}
-      />
+    <div className="govrules__block" role="group" aria-label={noun === "allowed" ? "Allowed" : "Denied"}>
+      {rules.length ? (
+        <ul className="govrules__list">
+          {rules.map((r, i) => (
+            <li key={i} className="govrules__rule">
+              {editing === i ? (
+                <input
+                  className="govrules__input"
+                  autoFocus
+                  aria-label={`Edit rule: ${r}`}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onBlur={() => finish(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") finish(true);
+                    if (e.key === "Escape") finish(false);
+                  }}
+                />
+              ) : (
+                <>
+                  <button type="button" className="linkbtn govrules__text" onClick={() => { setText(r); setEditing(i); }}>
+                    {r}
+                  </button>
+                  <IconButton size="sm" className="govrules__del" label={`Delete rule: ${r}`} icon={<X size={ICON_SM} />} onClick={() => onChange(rules.filter((_, j) => j !== i))} />
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="faint">Nothing {noun}.</p>
+      )}
+      {adding ? (
+        <input
+          className="govrules__input"
+          autoFocus
+          aria-label={`Add ${noun} action`}
+          placeholder="Say it as a sentence, and press Enter"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => add(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") add(true);
+            if (e.key === "Escape") add(false);
+          }}
+        />
+      ) : (
+        <button type="button" className="govadd" onClick={() => setAdding(true)}>
+          <PlusIcon size={ICON_SM} aria-hidden="true" />
+          Add {noun} action
+        </button>
+      )}
     </div>
   );
 }
@@ -397,7 +488,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
     }
   }
   return (
-    <SectionCard title="Governance">
+    <GovernanceCard client={client} moduleId={detail.id}>
       {naming ? <NewAboveDialog module={asCard} onMake={(name) => void makeParent(name)} onClose={() => setNaming(false)} /> : null}
       <div className="subsecs">
         <div className="subsec">
@@ -474,7 +565,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
             />
             <ListRow
               icon={<ModuleIcon size={ICON} />}
-              title="Inside it"
+              title="Sub-projects"
               description={detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet"}
               controls={
                 canMoveIn.length ? (
@@ -497,8 +588,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
           </div>
           {moveNote ? <Notice tone={moveNote.startsWith("Couldn") ? "bad" : "ok"}>{moveNote}</Notice> : null}
         </div>
-        <GovernanceRules client={client} moduleId={detail.id} />
       </div>
-    </SectionCard>
+    </GovernanceCard>
   );
 }

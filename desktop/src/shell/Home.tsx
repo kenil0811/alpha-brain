@@ -125,8 +125,9 @@ export function failedToday(entries: JournalEntry[], now = new Date()): JournalE
   return entries.filter((e) => e.kind === "failed" && new Date(e.at).getTime() >= midnight);
 }
 
-/** One failure: what it was, when, why in plain words, and Open and Try again where the entry says
- *  what it touched (an agent's run reruns; a conversation or a project opens). */
+/** One failure: what it was (its title opens the entry's own page), when, why in plain words, and
+ *  Open and Try again where the entry says what it touched (an agent's run reruns; a conversation
+ *  or a project opens). */
 function Failure({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDone: (words: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,6 +151,7 @@ function Failure({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; c
     <ListRow
       icon={<X size={ICON} aria-label="failed" />}
       title={e.text}
+      onOpen={() => onGo({ kind: "entry", id: e.id })}
       description={[timeText(new Date(e.at)), reason].filter(Boolean).join(" · ")}
       controls={
         <>

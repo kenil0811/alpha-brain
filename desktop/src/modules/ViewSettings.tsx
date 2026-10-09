@@ -9,7 +9,7 @@
  */
 import { useState } from "react";
 import type { FieldInfo } from "./fields";
-import { Button, Dropdown, IconButton, InfoTip, type ContextItem } from "../ui";
+import { Button, Dropdown, IconButton, InfoTip, useContextMenu, type ContextItem } from "../ui";
 import { MultiDropdown } from "../ui/Dropdown";
 import { ArrowLeft, ChevronRight, DownloadIcon, Eye, GripIcon, HideIcon, ICON_SM, PlusIcon, UploadIcon } from "../ui/icons";
 import { VIEWS, PropertyPicker, type PageView } from "./DataToolbar";
@@ -285,22 +285,7 @@ export function ViewSettings(p: SettingsProps) {
       </div>
       <div className="menu__sep" />
       <div className="more__stack">
-        <div className="vset__sub">
-          <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} aria-haspopup="menu" disabledReason={p.onDownload ? undefined : p.downloadReason}>
-            Download
-            <ChevronRight size={ICON_SM} aria-hidden="true" className="vset__subchev" />
-          </Button>
-          {p.onDownload ? (
-            <div className="vset__subpop menu" role="menu" aria-label="Download as">
-              <button type="button" role="menuitem" className="menu__item" onClick={() => p.onDownload?.("csv")}>
-                CSV
-              </button>
-              <button type="button" role="menuitem" className="menu__item" onClick={() => p.onDownload?.("xlsx")}>
-                Excel
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <Download onDownload={p.onDownload} reason={p.downloadReason} />
         {p.uploadHere ? (
           <Button size="sm" variant="ghost" icon={<UploadIcon size={ICON_SM} />} disabledReason={p.onUpload ? undefined : p.uploadReason} onClick={p.onUpload}>
             Upload
@@ -311,6 +296,22 @@ export function ViewSettings(p: SettingsProps) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/** "Download ›": CSV and Excel in a side menu, opened by hover, a click or ArrowRight, drawn
+ *  outside ⋮ (in a portal) so the panel's scrolling never cuts it off. */
+function Download({ onDownload, reason }: { onDownload?: (format: "csv" | "xlsx") => void; reason?: string }) {
+  const side = useContextMenu(onDownload ? [{ label: "CSV", onSelect: () => onDownload("csv") }, { label: "Excel", onSelect: () => onDownload("xlsx") }] : []);
+  const show = (el: HTMLElement) => onDownload && side.openFrom(undefined, el, "right");
+  return (
+    <>
+      <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} aria-haspopup="menu" disabledReason={onDownload ? undefined : reason} onPointerEnter={(e) => show(e.currentTarget)} onClick={(e) => show(e.currentTarget)} onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); show(e.currentTarget); } }}>
+        Download
+        <ChevronRight size={ICON_SM} aria-hidden="true" className="vset__subchev" />
+      </Button>
+      {side.menu}
+    </>
   );
 }
 

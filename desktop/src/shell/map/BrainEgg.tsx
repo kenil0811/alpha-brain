@@ -7,13 +7,17 @@
  * buttons zoom; deeper layers get their names as it zooms in (`LABEL_AT`), and a big
  * collection's records past its sample appear. A drag on the background pans, a double-click
  * puts it back; all of it inside the shell.
+ *
+ * The keyboard (9 Oct, the owner): Tab enters the egg on one node (the person first); the arrow
+ * keys move to the neighbouring node that way (`stepToward`), zooming in when it is a record not
+ * drawn yet; Enter opens it; its name is announced. On a touchscreen two fingers pinch to zoom.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Client } from "../../core/client";
 import { AgentAvatar } from "../AgentAvatar";
 import type { Surface } from "../Rail";
 import { Button, IconButton } from "../../ui";
-import { EGG, EGG_PATH, LABEL_AT, layEgg, RECORDS_ALL_AT, type Brain, type BrainKind, type BrainNode, type Placed, type TableRecords, withRecords } from "./egg";
+import { EGG, EGG_PATH, LABEL_AT, layEgg, RECORDS_ALL_AT, stepToward, type Arrow, type Brain, type BrainKind, type BrainNode, type Placed, type TableRecords, withRecords } from "./egg";
 
 const KIND_WORD: Record<BrainKind, string> = { you: "you", module: "project", collection: "collection", record: "record", agent: "agent", skill: "skill", person: "person", organisation: "organisation", goal: "goal", fact: "fact" };
 const LEGEND: { kind: BrainKind; label: string }[] = [
@@ -65,6 +69,13 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
   }, []);
   const pan = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null);
   const panned = useRef(false);
+  // Touch: every finger down, and a pinch's start (the fingers' distance, the view, their middle).
+  const fingers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; view: typeof view; p: { x: number; y: number } } | null>(null);
+  // The keyboard's place in the egg: the one node Tab reaches; the arrows move it.
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [said, setSaid] = useState("");
+  const moved = useRef(false);
 
   const neighbours = useMemo(() => {
     const out = new Map<string, Set<string>>();
@@ -77,6 +88,12 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
   const focus = hover ?? selected;
   const lit = focus ? new Set([focus, ...(neighbours.get(focus) ?? [])]) : null;
   const shows = (id: string) => (at[id]?.zoom ?? 1) <= view.k;
+  const current = cursor && shows(cursor) && brain.nodes.some((n) => n.id === cursor) ? cursor : (brain.nodes.find((n) => n.kind === "you") ?? brain.nodes[0])?.id;
+  useEffect(() => {
+    if (!moved.current || !current) return;
+    moved.current = false;
+    [...(svg.current?.querySelectorAll<SVGGElement>("[data-node]") ?? [])].find((g) => g.dataset.node === current)?.focus();
+  });
 
   /** A point on screen in the drawing's units. */
   const units = (clientX: number, clientY: number) => {
@@ -104,10 +121,29 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
     return () => el.removeEventListener("wheel", wheel);
   }, []);
 
+  /** An arrow on node `n`: to the neighbour that way, shown (zoomed to, centred) if it is not yet. */
+  const step = (n: BrainNode, key: Arrow) => {
+    const next = stepToward(n.id, [...(neighbours.get(n.id) ?? [])], brain.nodes.map((m) => m.id), at, key);
+    const node = next ? brain.nodes.find((m) => m.id === next) : undefined;
+    if (!next || !node) return;
+    const p = at[next];
+    if (!shows(next) && p) {
+      const k = Math.min(MAX_ZOOM, Math.max(view.k, p.zoom ?? 1));
+      setView({ k, x: EGG.width / 2 - p.x * k, y: EGG.height / 2 - p.y * k });
+    }
+    moved.current = true;
+    setCursor(next);
+    setSaid(`${node.title}, ${node.detail ?? KIND_WORD[node.kind]}`);
+  };
   const open = (node: BrainNode) => {
     if (panned.current) return;
     if (node.open && onGo) onGo(node.open);
     else onSelect(node.id);
+  };
+  const lift = (id: number) => {
+    fingers.current.delete(id);
+    if (fingers.current.size < 2) pinch.current = null;
+    if (!fingers.current.size) pan.current = null;
   };
   const counts = new Map<BrainKind, number>();
   for (const n of brain.nodes) counts.set(n.kind, (counts.get(n.kind) ?? 0) + 1);
@@ -123,10 +159,26 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
         aria-label={`${brain.nodes.length} things and ${brain.edges.length} links`}
         onPointerDown={(e) => {
           if (e.button !== 0) return;
+          fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (fingers.current.size === 2) {
+            const [a, b] = [...fingers.current.values()];
+            pan.current = null;
+            panned.current = true; // a pinch opens nothing
+            pinch.current = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, view, p: units((a.x + b.x) / 2, (a.y + b.y) / 2) };
+            return;
+          }
           panned.current = false;
           pan.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false };
         }}
         onPointerMove={(e) => {
+          if (fingers.current.has(e.pointerId)) fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          const z = pinch.current;
+          if (z && fingers.current.size >= 2) {
+            const [a, b] = [...fingers.current.values()];
+            const k = Math.min(MAX_ZOOM, Math.max(1, (z.view.k * Math.hypot(a.x - b.x, a.y - b.y)) / z.dist));
+            setView(k === 1 ? { x: 0, y: 0, k } : { k, x: z.p.x - ((z.p.x - z.view.x) * k) / z.view.k, y: z.p.y - ((z.p.y - z.view.y) * k) / z.view.k });
+            return;
+          }
           const d = pan.current;
           if (!d || view.k === 1) return;
           if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return;
@@ -134,8 +186,9 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
           const per = units(0, 0).per;
           setView((v) => ({ ...v, x: d.vx + (e.clientX - d.x) * per, y: d.vy + (e.clientY - d.y) * per }));
         }}
-        onPointerUp={() => (pan.current = null)}
-        onPointerLeave={() => (pan.current = null)}
+        onPointerUp={(e) => lift(e.pointerId)}
+        onPointerCancel={(e) => lift(e.pointerId)}
+        onPointerLeave={(e) => lift(e.pointerId)}
         onDoubleClick={(e) => e.target === e.currentTarget || (e.target as Element).classList.contains("brain__shell") ? setView({ x: 0, y: 0, k: 1 }) : undefined}
       >
         <defs>
@@ -168,11 +221,15 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
                   className={`brain__node brain__node--${n.kind}${n.waiting ? " brain__node--waiting" : ""}${dim ? " brain__node--dim" : ""}${selected === n.id ? " brain__node--on" : ""}`}
                   transform={`translate(${p.x} ${p.y})`}
                   role="button"
-                  tabIndex={n.kind === "record" ? -1 : 0}
+                  data-node={n.id}
+                  tabIndex={n.id === current ? 0 : -1}
                   aria-label={`${n.title}, ${n.detail ?? KIND_WORD[n.kind]}`}
                   onClick={() => open(n)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
+                    if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                      e.preventDefault();
+                      step(n, e.key);
+                    } else if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       panned.current = false;
                       open(n);
@@ -180,7 +237,10 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
                   }}
                   onPointerEnter={() => setHover(n.id)}
                   onPointerLeave={() => setHover((h) => (h === n.id ? null : h))}
-                  onFocus={() => setHover(n.id)}
+                  onFocus={() => {
+                    setHover(n.id);
+                    setCursor(n.id);
+                  }}
                   onBlur={() => setHover((h) => (h === n.id ? null : h))}
                 >
                   <circle r={p.r} />
@@ -209,6 +269,9 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
         </g>
         <path className="brain__rim" d={EGG_PATH} />
       </svg>
+      <div className="sr-only" role="status" aria-live="polite">
+        {said}
+      </div>
       <div className="brain__zoom">
         <IconButton size="sm" label="Zoom in" icon={<span aria-hidden="true">+</span>} onClick={() => zoomBy(1.5)} disabledReason={view.k >= MAX_ZOOM ? "As close as it goes" : undefined} />
         <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(1 / 1.5)} disabledReason={view.k <= 1 ? "The whole egg is in view" : undefined} />

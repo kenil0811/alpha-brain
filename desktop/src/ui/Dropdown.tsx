@@ -32,6 +32,9 @@ interface DropdownBase<T extends string> {
   /** An icon before the value in the trigger (the data view's view picker, which shows only
    *  this when the toolbar is narrow). */
   icon?: ReactNode;
+  /** What the trigger shows instead of the chosen labels, drawn bare (only `className`): the
+   *  table footer's calculation shows its result, and opens the calculations. */
+  display?: ReactNode;
   /** The person's default option, when the caller keeps it (with `onSetDefault`). */
   defaultValue?: string;
   /** Makes an option the default (the star); it does not choose the option. Without it the
@@ -88,6 +91,7 @@ function DropdownCore<T extends string>({
   defaultOpen,
   onOpenChange,
   icon,
+  display,
   defaultValue,
   onSetDefault,
   defaultKey,
@@ -164,18 +168,24 @@ function DropdownCore<T extends string>({
   return (
     <RadixPopover.Root open={open} onOpenChange={setOpen}>
       <RadixPopover.Trigger asChild>
-        <button type="button" id={id} role="combobox" aria-haspopup="listbox" aria-label={label} aria-describedby={valueId} className={["btn", size === "sm" ? "btn--sm" : "", "dropdown__trigger", className ?? ""].filter(Boolean).join(" ")} onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setOpen(true); } }}>
-          {icon ? (
-            <span className="dropdown__tico" aria-hidden="true">
-              {icon}
-            </span>
-          ) : null}
-          <span id={valueId} className={`dropdown__value${chosen.length ? "" : " dropdown__value--placeholder"}`}>
-            {shownValue || placeholder}
-          </span>
-          <span className="dropdown__chev" aria-hidden="true">
-            <ChevronDown />
-          </span>
+        <button type="button" id={id} role="combobox" aria-haspopup="listbox" aria-label={label} aria-describedby={valueId} className={(display !== undefined ? [className] : ["btn", size === "sm" ? "btn--sm" : "", "dropdown__trigger", className]).filter(Boolean).join(" ")} onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setOpen(true); } }}>
+          {display !== undefined ? (
+            <span id={valueId}>{display}</span>
+          ) : (
+            <>
+              {icon ? (
+                <span className="dropdown__tico" aria-hidden="true">
+                  {icon}
+                </span>
+              ) : null}
+              <span id={valueId} className={`dropdown__value${chosen.length ? "" : " dropdown__value--placeholder"}`}>
+                {shownValue || placeholder}
+              </span>
+              <span className="dropdown__chev" aria-hidden="true">
+                <ChevronDown />
+              </span>
+            </>
+          )}
         </button>
       </RadixPopover.Trigger>
       <RadixPopover.Portal>

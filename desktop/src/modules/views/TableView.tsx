@@ -19,8 +19,8 @@ import { GripIcon as GripVertical, WrapIcon as WrapText } from "../../ui/icons";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { editText, isNumeric, showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { Link2, ChevronRight, GroupIcon, Check, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClearIcon, CopyIcon, DeleteIcon, EditIcon, FilterIcon, FreezeIcon, HideIcon, HistoryIcon, ICON_SM, OpenIcon, PinIcon, PlusIcon, SortAscIcon, SortDescIcon, TotalIcon, UnpinIcon } from "../../ui/icons";
-import { Badge, Button, IconButton, useContextMenu, type ContextItem } from "../../ui";
+import { Link2, ChevronRight, GroupIcon, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClearIcon, CopyIcon, DeleteIcon, EditIcon, FilterIcon, FreezeIcon, HideIcon, HistoryIcon, ICON_SM, OpenIcon, PinIcon, PlusIcon, SortAscIcon, SortDescIcon, TotalIcon, UnpinIcon } from "../../ui/icons";
+import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../../ui";
 import { ADD_COLUMN_REASON } from "../DataToolbar";
 import { nextSort, summarize, summaryOpsFor, SUMMARY_LABEL, type ColorTone, type Group, type Sort, type SummaryOp } from "./engine";
 import { Cell, SeenCell, cellEditable } from "./cells";
@@ -60,7 +60,7 @@ export interface ColumnActions {
   wrap: (column: string) => void;
 }
 
-export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, addReason, editRequest, blank, groups, collapsed = [], onCollapse, lines, wrapAll, rowHeight, colorOf, rowIcon, titleField, lockedFor, onSay }: {
+export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, calcDefaults, onCalcDefault, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, addReason, editRequest, blank, groups, collapsed = [], onCollapse, lines, wrapAll, rowHeight, colorOf, rowIcon, titleField, lockedFor, onSay }: {
   rows: RecordRow[];
   /** The records the footer works over: everything the view shows, not only this page. */
   summaryRows: RecordRow[];
@@ -85,6 +85,9 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   onSelectAll: (on: boolean) => void;
   summaries: Record<string, SummaryOp>;
   onSummary: (field: string, op: SummaryOp) => void;
+  /** The calculation each type of column starts on (the footer dropdown's ★), and setting it. */
+  calcDefaults?: Partial<Record<string, SummaryOp>>;
+  onCalcDefault?: (kind: string, op: SummaryOp) => void;
   onOpen?: (id: string) => void;
   onCommit: (row: RecordRow, field: FieldInfo, text: string) => void;
   /** Why cells can't be edited here, if they can't. */
@@ -137,7 +140,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   // The columns that stay put while the rest scroll sideways: where each sticks is the width of
   // the ones before it, so it is measured after the table is drawn.
   const heads = useRef<Record<string, HTMLTableCellElement | null>>({});
-  const feet = useRef<Record<string, HTMLButtonElement | null>>({});
+  const feet = useRef<Record<string, HTMLTableCellElement | null>>({});
   const [lefts, setLefts] = useState<Record<string, number>>({});
   useLayoutEffect(() => {
     const next: Record<string, number> = {};
@@ -153,21 +156,14 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
     return { className: [extra, frozenHere ? "col--frozen" : "", wrapped.has(c) ? "col--wrap" : ""].filter(Boolean).join(" ") || undefined, style: frozenHere ? { left: lefts[c] ?? 0 } : undefined };
   };
 
-  // the footer's calculation menu, also opened from a heading's Calculate…: once the heading's menu
-  // has closed and handed the focus back to the heading (sooner, the hand-back would close it)
+  // the footer's calculation dropdown, also opened from a heading's Calculate…: once the heading's
+  // menu has closed and handed the focus back to the heading (sooner, the hand-back would close it)
   const calcNext = useRef<string | null>(null);
   const calcAfterFocus = (c: string) => {
     if (calcNext.current !== c) return;
     calcNext.current = null;
-    window.setTimeout(() => {
-      const el = feet.current[c];
-      if (el) footMenu.openFrom(c, el);
-    });
+    window.setTimeout(() => feet.current[c]?.querySelector("button")?.click());
   };
-  const footMenu = useContextMenu<string>((c) => {
-    const current = summaries[c] ?? "none";
-    return summaryOpsFor(byName.get(c)?.kind ?? "text").map((op, i) => ({ label: SUMMARY_LABEL[op], icon: op === current ? <Check size={ICON_SM} /> : undefined, separatorBefore: i === 1, onSelect: () => onSummary(c, op) }));
-  });
   const columnMenu = useContextMenu<string>((c) => {
     const at = columns.indexOf(c);
     const cannot = "Needs Alpha's core; ask Alpha in the panel.";
@@ -182,7 +178,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
       { label: "Calculate…", icon: <TotalIcon size={ICON_SM} />, onSelect: () => { calcNext.current = c; } },
       { label: "Hide", icon: <HideIcon size={ICON_SM} />, separatorBefore: true, onSelect: () => columnActions.hide(c), disabled: columns.length <= 1 ? "A table keeps at least one column." : undefined },
       { label: at < frozen ? "Unfreeze columns" : "Freeze up to here", icon: <FreezeIcon size={ICON_SM} />, onSelect: () => columnActions.freeze(c) },
-      { label: "Wrap text", icon: wrapped.has(c) ? <Check size={ICON_SM} /> : <WrapText size={ICON_SM} />, onSelect: () => columnActions.wrap(c), disabled: wrapAll ? "Wrap all columns is on in Layout." : undefined },
+      { label: "Wrap text", icon: <WrapText size={ICON_SM} />, on: wrapped.has(c), onSelect: () => columnActions.wrap(c), disabled: wrapAll ? "Wrap all columns is on in Layout." : undefined },
       { label: "Move left", icon: <ArrowLeft size={ICON_SM} />, onSelect: () => columnActions.move(c, -1), disabled: at <= 0 ? "It is already the first column." : undefined },
       { label: "Move right", icon: <ArrowRight size={ICON_SM} />, onSelect: () => columnActions.move(c, 1), disabled: at >= columns.length - 1 ? "It is already the last column." : undefined },
       { label: "Insert left", icon: <ArrowLeft size={ICON_SM} />, separatorBefore: true, onSelect: () => undefined, disabled: ADD_COLUMN_REASON },
@@ -369,22 +365,27 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   const footCells = (over: RecordRow[], group?: string) =>
     columns.map((c) => {
       const field = byName.get(c);
-      const out = field ? summarize(over, field, summaries[c] ?? "none") : null;
+      const op = summaries[c] ?? "none";
+      const out = field ? summarize(over, field, op) : null;
       const at = place(c, isNumeric(field?.kind ?? "") ? "r num" : "num");
+      const name = field?.label ?? humanize(c);
+      const kind = field?.kind ?? "text";
       return (
-        <td key={c} className={at.className} style={at.style}>
+        <td key={c} className={at.className} style={at.style} ref={group ? undefined : (el) => { feet.current[c] = el; }}>
           {group ? (
-            out ? <span className="foot__calc" title={`${out.label} of ${field?.label ?? humanize(c)} in ${group}`}><span className="foot__lab">{out.label}</span> {out.value}</span> : null
+            out ? <span className="foot__calc" title={`${out.label} of ${name} in ${group}`}><span className="foot__lab">{out.label}</span> {out.value}</span> : null
           ) : (
-            <button type="button" ref={(el) => { feet.current[c] = el; }} className={`foot__calc${out ? "" : " foot__calc--none"}`} title={out ? `${out.label} of ${field?.label ?? humanize(c)}` : undefined} onClick={(e) => footMenu.openFrom(c, e.currentTarget)}>
-              {out ? (
-                <>
-                  <span className="foot__lab">{out.label}</span> {out.value}
-                </>
-              ) : (
-                "Calculate"
-              )}
-            </button>
+            <Dropdown
+              label={`Calculate ${name}`}
+              className={`foot__calc${out ? "" : " foot__calc--none"}`}
+              display={out ? <><span className="foot__lab">{out.label}</span> {out.value}</> : "Calculate"}
+              value={op}
+              onChange={(next) => onSummary(c, next)}
+              options={summaryOpsFor(kind).map((o) => ({ value: o, label: SUMMARY_LABEL[o] }))}
+              defaultValue={calcDefaults?.[kind]}
+              onSetDefault={onCalcDefault ? (o) => onCalcDefault(kind, o) : undefined}
+              defaultKey={`calculate.${kind}`}
+            />
           )}
         </td>
       );
@@ -512,7 +513,6 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
       {columnMenu.menu}
       {cellMenu.menu}
       {rowMenu.menu}
-      {footMenu.menu}
     </div>
   );
 }

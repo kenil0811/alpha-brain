@@ -39,7 +39,7 @@ describe("an agent's page", () => {
     expect(onGo).toHaveBeenCalledWith({ kind: "skill", name: "read_deals" });
     await userEvent.click(screen.getByRole("button", { name: "Ask Alpha to change this" }));
     expect(onAsk).toHaveBeenCalledWith('Change the agent "Deals runner": ');
-    await userEvent.click(screen.getByRole("button", { name: "Agents" }));
+    await userEvent.click(screen.getByRole("button", { name: "Agents and automations" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "intelligence", tab: "agents" });
   });
 

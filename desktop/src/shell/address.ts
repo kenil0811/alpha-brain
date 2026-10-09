@@ -3,8 +3,8 @@
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
  * rebuilt on main's Surface). `#/home`, `#/network`, `#/network/<id>`, `#/m/<id>`, `#/m/<id>/<table>/<record>` (a record's page; `new` for one not made yet),
  * `#/intelligence/<tab>`, `#/intelligence/agents/<id>`, `#/intelligence/connections/<id>`,
- * `#/intelligence/facts/<id>`, `#/new-project`, `#/settings`, and `#/activity`, which opens the
- * assistant panel's bell over the page that is open. Old addresses still work: `#/people…`
+ * `#/intelligence/facts/<id>`, `#/new-project`, `#/settings`, `#/activity/<id>` (one entry's
+ * page), and `#/activity`, which opens the assistant panel's bell over the page that is open. Old addresses still work: `#/people…`
  * is Network, `#/intelligence/activity` the bell, `#/intelligence/map` Second Brain (9 Oct).
  * Nothing else is in the address: what is open inside a page stays where it was.
  */
@@ -16,6 +16,8 @@ export function pathFor(surface: Surface): string {
       return "/home";
     case "activity":
       return "/activity";
+    case "entry":
+      return `/activity/${encodeURIComponent(surface.id)}`;
     case "people":
       return "/network";
     case "entity":
@@ -49,6 +51,7 @@ export function surfaceFromPath(path: string): Surface | null {
   const [head, rest, third] = [parts[0], parts[1], parts[2]];
   if (!head) return null;
   if (head === "people" || head === "network") return rest ? { kind: "entity", id: rest } : { kind: "people" };
+  if (head === "activity" && rest) return { kind: "entry", id: rest };
   if (head === "home" || head === "activity" || head === "settings" || head === "new-project") return knownSurface({ kind: head });
   if (head === "m" && rest && third && parts[3]) return { kind: "record", module: rest, table: third, id: parts[3] };
   if (head === "m" && rest) return { kind: "module", id: rest };

@@ -6,7 +6,7 @@
  * journal that involves them. Both pages open with the shared page header (the UI rulebook §5):
  * the serif title, and a back link on a person's page; sections are cards (9 Oct, the pages phase).
  * Each side is a table even when empty (header row, blank rows, "+ New"), never a blank screen,
- * with Intelligence (the latest with each) and Governance (what it keeps, Always and Never) below
+ * with Intelligence (the latest with each) and Governance (Allowed and Denied, then what it keeps) below
  * (9 Oct, Vikas). No Files: no route ties a file to Network.
  */
 import { useEffect, useState } from "react";
@@ -14,7 +14,7 @@ import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
 import { BackLink } from "./BackLink";
 import { FactRow } from "./FactRow";
-import { GovernanceRules } from "../modules/ModuleSections";
+import { GovernanceCard } from "../modules/ModuleSections";
 import { SimpleTable } from "../modules/NewProjectPage";
 import { Button, Badge, HeaderSwitch, PageHeader, SectionCard, Trouble } from "../ui";
 import { BuildingIcon, ICON_SM, PeopleIcon } from "../ui/icons";
@@ -92,7 +92,7 @@ export function Network({ client, version, onOpen }: { client: Client; version: 
                   </div>
                 </SectionCard>
               ) : null}
-              <SectionCard title="Governance">
+              <GovernanceCard client={client} moduleId="network">
                 <div className="subsecs">
                   <div className="subsec">
                     <div className="subsec__head">
@@ -102,9 +102,8 @@ export function Network({ client, version, onOpen }: { client: Client; version: 
                       {people.filter((e) => e.kind === "person").length} people and {people.filter((e) => e.kind !== "person").length} organizations{q ? " by that name" : ""}, in Alpha's world on this Mac.
                     </p>
                   </div>
-                  <GovernanceRules client={client} moduleId="network" />
                 </div>
-              </SectionCard>
+              </GovernanceCard>
             </>
           ) : null}
         </div>

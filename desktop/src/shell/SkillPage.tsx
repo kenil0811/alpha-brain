@@ -5,9 +5,11 @@
  * shared page header carries a back link to Skills and the serif title (9 Oct, §5).
  */
 import { useEffect, useId, useState } from "react";
-import type { Client, SkillDetail } from "../core/client";
-import { when } from "../modules/format";
-import { Badge, Button, PageHeader, SectionCard, Trouble } from "../ui";
+import type { Client, Intelligence, JournalEntry, SkillDetail } from "../core/client";
+import { humanize, when } from "../modules/format";
+import { Badge, Button, EmptyCard, ListRow, PageHeader, SectionCard, Trouble } from "../ui";
+import { AgentIcon, ICON, SkillIcon } from "../ui/icons";
+import { ALPHA_AGENT } from "./agents";
 import { BackLink } from "./BackLink";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
@@ -158,6 +160,86 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
               </div>
             ) : (
               <p className="faint">None yet.</p>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** A built-in skill's page (files, browser, calendar: the core's hands, 9 Oct, the owner: every
+ *  row has a page): what it does in plain words, the agents that use it (Alpha, who holds every
+ *  hand), and its runs, the recent Activity entries that came through it. */
+export function HandPage({ client, name, version, onGo }: { client: Client; name: string; version: number; onGo: (s: Surface) => void }) {
+  const [data, setData] = useState<Intelligence | null>(null);
+  const [runs, setRuns] = useState<JournalEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    Promise.all([client.intelligence(), client.activity({ limit: 300 }).catch(() => [])])
+      .then(([d, rows]) => {
+        if (!live) return;
+        setData(d);
+        setRuns(rows.filter((e) => e.source === `connector:${name}`).slice(0, 20));
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, name, version, tick]);
+  const hand = data?.hands.find((h) => h.name === name);
+  const back = <BackLink to="Skills" onClick={() => onGo({ kind: "intelligence", tab: "skills" })} />;
+  if (!hand) {
+    return (
+      <>
+        <PageHeader left={back} title="Built-in skill" />
+        <div className="page page--column">
+          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this skill: {error}</Trouble> : data ? <EmptyCard icon={<SkillIcon size={ICON} />} title="No such built-in skill" /> : <p className="faint">Loading…</p>}
+        </div>
+      </>
+    );
+  }
+  return (
+    <>
+      <PageHeader left={back} title={hand.title} />
+      <div className="page page--column">
+        <div className="stack stack--wide">
+          <div className="row">
+            <Badge tone="info">Built in</Badge>
+            <Badge tone="good">Working</Badge>
+          </div>
+          <SectionCard title="What it does">
+            <p>{hand.description ?? `${hand.title}, built into Alpha.`}</p>
+            {hand.tools.length ? (
+              <ul className="check">
+                {hand.tools.map((t) => (
+                  <li key={t.name}>
+                    <span className="m m--y">·</span>
+                    <span>{t.description ?? humanize(t.name)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </SectionCard>
+          <SectionCard title="Used by">
+            <ListRow icon={<AgentIcon size={ICON} />} title="Alpha — your assistant" description="Every agent works through Alpha's built-in skills" onOpen={() => onGo({ kind: "agent", id: ALPHA_AGENT })} />
+          </SectionCard>
+          <SectionCard title="Runs">
+            {runs.length ? (
+              <div className="list">
+                {runs.map((e) => (
+                  <button key={e.id} type="button" className="list__row" onClick={() => onGo({ kind: "entry", id: e.id })}>
+                    <span className="faint people__when">{when(e.at)}</span>
+                    <Badge tone={e.kind === "failed" ? "bad" : "gray"}>{humanize(e.kind)}</Badge>
+                    <span className="people__line">{e.text}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="faint">None recently.</p>
             )}
           </SectionCard>
         </div>

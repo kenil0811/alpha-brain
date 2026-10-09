@@ -23,7 +23,10 @@ describe("Network", () => {
     expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Name", "About", "Last heard"]);
     expect(within(table).getByRole("button", { name: "New" })).toBeDisabled();
     expect(table.querySelectorAll("tr.row--blank").length).toBeGreaterThan(0);
-    expect(screen.getByRole("region", { name: "Governance" })).toBeInTheDocument();
+    const governance = screen.getByRole("region", { name: "Governance" });
+    expect(within(governance).getByRole("tab", { name: "Allowed 0", selected: true })).toBeInTheDocument();
+    expect(within(governance).getByRole("tab", { name: "Denied 0" })).toBeInTheDocument();
+    expect(within(governance).getByRole("button", { name: "Add allowed action" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Intelligence" })).toBeNull(); // nothing to show yet
   });
 

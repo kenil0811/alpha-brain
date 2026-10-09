@@ -21,19 +21,19 @@ export function SeenCell({ row }: { row: RecordRow }) {
   return <td className="faint">Since {day(row.created_at)}</td>;
 }
 
-/** A link to another table's record (its title, from the table's `relations`), or to a person
- *  or a company: a pill that opens it, with a way back (the drawer's stack). */
 /** What every kind of cell takes from the table around it: a frozen column's place, the menu
  *  that opens on a right-click or a menu key, and so on. Spread onto the `<td>`. */
 export type TdProps = TdHTMLAttributes<HTMLTableCellElement>;
 
+/** A link to another table's record (its title, from the table's `relations`), or to a person
+ *  or a company: a pill that opens its page. */
 export function RelationCell({ row, field, relations, onOpenRelated, tdProps, adornment }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; tdProps?: TdProps; adornment?: ReactNode }) {
   const value = row.values[field.name];
   if (!value) return <td {...tdProps}>{adornment}<span className="faint">—</span></td>;
   const id = String(value);
   const title = relations?.[field.name]?.[id] ?? id;
   const target = field.relation;
-  const opens = Boolean(onOpenRelated && target && target !== "person" && target !== "organisation");
+  const opens = Boolean(onOpenRelated && target);
   return (
     <td {...tdProps}>
       {adornment}
@@ -161,23 +161,23 @@ export function FileCell({ row, field, files, onFile, tdProps, adornment }: { ro
   const info = id ? files[id] : undefined;
   if (info) {
     return (
-      <td {...tdProps} onClick={(e) => e.stopPropagation()}>
+      <td {...tdProps}>
         {adornment}
-        <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
+        <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={(e) => { e.stopPropagation(); void host.openPath(info.path); }}>
           {info.name}
         </button>
         <span className="faint"> · {formatBytes(info.size)}</span>
         {host.available() ? (
-          <IconButton label="Show in Finder" icon={<FolderOpen />} onClick={() => void host.revealPath(info.path)} />
+          <IconButton label="Show in Finder" icon={<FolderOpen />} onClick={(e) => { e.stopPropagation(); void host.revealPath(info.path); }} />
         ) : null}
       </td>
     );
   }
   return (
-    <td {...tdProps} onClick={(e) => e.stopPropagation()}>
+    <td {...tdProps}>
       {adornment}
       {onFile ? (
-        <label className="linkbtn faint">
+        <label className="linkbtn faint" onClick={(e) => e.stopPropagation()}>
           {id ? "File missing · " : ""}Upload
           <input type="file" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
         </label>

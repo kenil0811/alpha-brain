@@ -14,6 +14,10 @@
  * Alt+↑/↓ reorder from the keyboard, Alt+→ moves it inside the one above, Alt+← out. The order
  * is `PREF.moduleOrder`; a move into another module is the core's `moveModule`. Right-click a
  * module (or its ⋯) for its menu. Folded, each item is its icon with a tiny label under it.
+ *
+ * Network is shipped pre-built but sits among the projects like one (9 Oct, the owner): it is
+ * reordered with them (its place is the id `network` in the same order, first until moved), and
+ * its menu has a project's items; Rename and Delete stay disabled, and it never nests.
  */
 import * as RadixPopover from "@radix-ui/react-popover";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
@@ -53,6 +57,8 @@ export type Surface =
   | { kind: "home" }
   /** Activity: not a page; asking for it opens the assistant panel's bell over the page that is open. */
   | { kind: "activity" }
+  /** One Activity entry's own page (9 Oct, the owner: every element has a page). */
+  | { kind: "entry"; id: string }
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings" }
   | { kind: "people" }
@@ -99,7 +105,7 @@ export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
   if (s && s.kind === "intelligence" && s.tab === "activity") return { kind: "activity" };
   if (s && s.kind === "intelligence" && s.tab === "map") return { kind: "intelligence", tab: "second-brain" };
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "new-project" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent" || s.kind === "connection" || s.kind === "fact") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "new-project" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "entry" || s.kind === "automation" || s.kind === "agent" || s.kind === "connection" || s.kind === "fact") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -107,7 +113,12 @@ const NO_IDS: string[] = [];
 const NO_ICONS: Record<string, string> = {};
 const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : NO_IDS);
 
-type Row = { kind: "module"; module: ModuleCard } | { kind: "people" };
+/** Network's place among the projects: its id in `PREF.moduleOrder` and the hidden list. */
+export const NETWORK = "network";
+const NETWORK_FIXED = "Network is pre-built; renaming or deleting it needs Alpha's core";
+const NETWORK_CARD: ModuleCard = { id: NETWORK, name: "Network", goal: null, parent: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" };
+
+type Row = { kind: "module"; module: ModuleCard };
 
 export function Rail({
   client,
@@ -139,7 +150,9 @@ export function Rail({
   const [hiddenPref, setHidden] = usePreference<string[]>(client, PREF.hiddenModules, NO_IDS);
   const [iconsPref, setIcons] = usePreference<Record<string, string>>(client, PREF.moduleIcons, NO_ICONS);
   const name = typeof workspace === "string" && workspace.trim() ? workspace.trim() : DEFAULT_WORKSPACE;
-  const order = ids(orderPref);
+  const stored = ids(orderPref);
+  const order = stored.includes(NETWORK) ? stored : [NETWORK, ...stored]; // Network first until moved
+  const all = [...modules, NETWORK_CARD];
   const hidden = ids(hiddenPref);
   const icons = iconsPref && typeof iconsPref === "object" ? iconsPref : NO_ICONS;
 
@@ -154,7 +167,7 @@ export function Rail({
   const clickTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(clickTimer.current), []);
 
-  const byId = (id: string) => modules.find((m) => m.id === id);
+  const byId = (id: string) => all.find((m) => m.id === id);
   const fail = (what: string, e: unknown) => setTrouble(`Couldn't ${what}: ${e instanceof Error ? e.message : String(e)}`);
   useEffect(() => {
     if (!trouble) return;
@@ -189,6 +202,7 @@ export function Rail({
   async function place(id: string, parent: string | null, target: string | null, after = false) {
     const m = byId(id);
     if (!m || !client) return;
+    if ((id === NETWORK || parent === NETWORK) && parent !== null) return; // Network never nests
     const now = m.parent && byId(m.parent) ? m.parent : null;
     try {
       if (parent !== now) {
@@ -199,7 +213,7 @@ export function Rail({
       fail(`move ${m.name}`, e);
       return;
     }
-    const err = await setOrder(withPlace(order, siblingsOf(modules, order, parent).map((s) => s.id), id, target, after));
+    const err = await setOrder(withPlace(order, siblingsOf(all, order, parent).map((s) => s.id), id, target, after));
     if (err) return fail(`save the order of ${m.name}`, err);
     refocus.current = id;
     setSaid(`Moved ${m.name} ${target ? `${after ? "below" : "above"} ${byId(target)?.name ?? "it"}` : parent ? `inside ${byId(parent)?.name ?? "it"}` : "to the top level"}.`);
@@ -232,6 +246,15 @@ export function Rail({
     await place(m.id, parent, null);
   }
 
+  const networkItems = (m: ModuleCard): ContextItem[] => [
+    { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "people" }) },
+    { label: "Rename", icon: <RenameIcon />, onSelect: () => undefined, disabled: NETWORK_FIXED },
+    { label: "Change icon", icon: <ChangeIconIcon />, onSelect: () => setDialog({ kind: "icon", module: m }) },
+    { label: "Move…", icon: <MoveIcon />, onSelect: () => undefined, disabled: "Network stays at the top level; drag it, or Alt+↑/↓, to reorder it.", separatorBefore: true },
+    { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
+    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: NETWORK_FIXED },
+    { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }), separatorBefore: true },
+  ];
   const moduleItems = (m: ModuleCard): ContextItem[] => [
     { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "module", id: m.id }) },
     { label: "Rename", icon: <RenameIcon />, onSelect: () => undefined, disabled: "Renaming a project isn't something this window can do yet." },
@@ -242,7 +265,7 @@ export function Rail({
     { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "The core can't delete a project from this window yet. Hide it to take it off the sidebar." },
     { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }), separatorBefore: true },
   ];
-  const rowMenu = useContextMenu<Row>((r) => (r.kind === "people" ? [{ label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "people" }) }] : moduleItems(r.module)));
+  const rowMenu = useContextMenu<Row>((r) => (r.module.id === NETWORK ? networkItems(r.module) : moduleItems(r.module)));
   const workspaceMenu = useContextMenu<void>([
     { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenaming(true), disabled: collapsed ? "Unfold the sidebar to rename the workspace." : undefined },
     { label: "Change logo…", icon: <ChangeIconIcon />, onSelect: () => setLogoOpen(true) },
@@ -258,11 +281,12 @@ export function Rail({
     if (!e.altKey || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
     e.preventDefault();
     const parent = m.parent && byId(m.parent) ? m.parent : null;
-    const near = siblingsOf(modules, order, parent).filter((s) => !hidden.includes(s.id));
+    const near = siblingsOf(all, order, parent).filter((s) => !hidden.includes(s.id));
     const at = near.findIndex((s) => s.id === m.id);
+    const nests = m.id !== NETWORK && at > 0 && near[at - 1].id !== NETWORK;
     if (e.key === "ArrowUp" && at > 0) void place(m.id, parent, near[at - 1].id, false);
     else if (e.key === "ArrowDown" && at >= 0 && at < near.length - 1) void place(m.id, parent, near[at + 1].id, true);
-    else if (e.key === "ArrowRight" && at > 0) void place(m.id, near[at - 1].id, null);
+    else if (e.key === "ArrowRight" && nests) void place(m.id, near[at - 1].id, null);
     else if (e.key === "ArrowLeft" && parent) {
       const up = byId(parent)?.parent;
       void place(m.id, up && byId(up) ? up : null, parent, true);
@@ -270,7 +294,14 @@ export function Rail({
   }
 
   // dragging a module over another: top and bottom quarters reorder, the middle moves it inside
-  const mayDrop = (target: string) => Boolean(drag) && drag !== target && !isInside(modules, target, drag!);
+  const mayDrop = (target: string) => Boolean(drag) && drag !== target && !isInside(modules, target, drag!) && !(drag === NETWORK && byId(target)?.parent);
+  /** Where a drop on `m` lands; Network neither takes a project inside nor goes inside one. */
+  const zoneOn = (m: ModuleCard, e: DragEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const zone = dropZone(e.clientY - r.top, r.height);
+    if (zone !== "inside" || (m.id !== NETWORK && drag !== NETWORK)) return zone;
+    return e.clientY - r.top < r.height / 2 ? "before" : "after";
+  };
   const dragProps = (m: ModuleCard) => ({
     draggable: true,
     onDragStart: (e: DragEvent<HTMLElement>) => {
@@ -291,8 +322,7 @@ export function Rail({
       if (!mayDrop(m.id)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      const r = e.currentTarget.getBoundingClientRect();
-      const zone = dropZone(e.clientY - r.top, r.height);
+      const zone = zoneOn(m, e);
       setDrop((d) => (d && d.id === m.id && d.zone === zone ? d : { id: m.id, zone }));
     },
     onDragLeave: (e: DragEvent<HTMLElement>) => {
@@ -301,8 +331,7 @@ export function Rail({
     onDrop: (e: DragEvent<HTMLElement>) => {
       if (!drag || !mayDrop(m.id)) return;
       e.preventDefault();
-      const r = e.currentTarget.getBoundingClientRect();
-      const zone = dropZone(e.clientY - r.top, r.height);
+      const zone = zoneOn(m, e);
       const moved = drag;
       setDrag(null);
       setDrop(null);
@@ -353,6 +382,10 @@ export function Rail({
   const branches = (list: ModuleBranch[], depth: number): ReactNode[] =>
     list.flatMap((b) => {
       const m = b.module;
+      if (m.id === NETWORK) {
+        const icon = icons[NETWORK] ? iconNamed(icons[NETWORK], ICON) : <PeopleIcon />;
+        return [item({ key: "people", icon, label: m.name, depth, current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "module", module: m }, module: m })];
+      }
       const open = !folded.has(m.id);
       const row = item({
         key: `module:${m.id}`,
@@ -367,7 +400,7 @@ export function Rail({
       });
       return open ? [row, ...branches(b.inside, depth + 1)] : [row];
     });
-  const tree = treeOf(modules, order, hidden);
+  const tree = treeOf(all, order, hidden);
 
   // One click opens the menu, a moment later so a double-click can edit instead; a keyboard
   // click (no pointer, `detail` 0) opens it at once.
@@ -422,10 +455,10 @@ export function Rail({
       </RadixPopover.Root>
       <div className="rail__main">
         {go({ kind: "home" }, <HomeIcon />, "Home", needs)}
-        {item({ key: "people", icon: <PeopleIcon />, label: "Network", current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "people" } })}
         <div className="rail__scroll">
-          {modules.length === 0 ? <p className="faint rail__none">No projects yet. Ask for one.</p> : tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
+          {tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
           {branches(tree, 0)}
+          {modules.length === 0 ? <p className="faint rail__none">No projects yet. Ask for one.</p> : null}
           <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New project" title={collapsed ? "New project" : undefined}>
             <span className="navbtn__ico" aria-hidden="true">
               <PlusIcon />

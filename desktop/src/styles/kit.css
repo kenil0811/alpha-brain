@@ -33,3 +33,5 @@
 /* a submenu in the menu (ui/ContextMenu) */
 .menu__chev { margin-left: auto; }
 .menu__item--sub[data-state="open"] { background: var(--hover); }
+/* an on/off item in the menu ("Wrap text"): its switch at the end */
+.menu__switch { margin-left: auto; }

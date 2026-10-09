@@ -50,3 +50,6 @@
 .home__modules .modcard p:empty { display: none; }
 .setgrid .lrow { flex-wrap: wrap; padding: var(--space-2) 0; }
 .setgrid .lrow__body { flex: 1 1 160px; }
+
+/* ---------- An Activity entry's own page (`ActivityPage`) ---------- */
+.actpage__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-4); align-items: baseline; }

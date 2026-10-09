@@ -4,8 +4,8 @@
  */
 /** The two icon sizes (the UI rulebook §1): small, inside chips, switches and dropdown rows, and
  *  regular everywhere else. The same two are `--icon-sm` and `--icon` in the stylesheet. */
-export const ICON_SM = 14;
-export const ICON = 16;
+export const ICON_SM = 18;
+export const ICON = 21;
 
 export {
   Home as HomeIcon,
@@ -13,6 +13,7 @@ export {
   Users as PeopleIcon,
   Table2 as ModuleIcon,
   Table2,
+  Ban,
   Sparkles as IntelligenceIcon,
   Settings as SettingsIcon,
   Plus as PlusIcon,

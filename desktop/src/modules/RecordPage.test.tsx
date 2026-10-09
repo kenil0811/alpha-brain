@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Client, JournalEntry, RecordRow, TableDesc } from "../core/client";
 import { forgetPreferences } from "../core/preferences";
 import { TooltipProvider } from "../ui";
-import { RecordPage, type LeaveGuard } from "./RecordPage";
+import { RecordPage } from "./RecordPage";
 
 const desc = {
   name: "deals",
@@ -39,13 +39,12 @@ function setup({ id = "r1", sections, entries = [edit, other] }: { id?: string; 
   };
   const client = fake as unknown as Client;
   const onGo = vi.fn();
-  let guard: LeaveGuard | null = null;
   render(
     <TooltipProvider>
-      <RecordPage client={client} module="m_1" table="deals" id={id} version={0} modules={[{ id: "m_1", name: "Sales", tables: [{ name: "deals", title: "Deals", module: "m_1", records: 1 }] } as never]} onGo={onGo} onChanged={vi.fn()} onGuard={(g) => { guard = g; }} />
+      <RecordPage client={client} module="m_1" table="deals" id={id} version={0} modules={[{ id: "m_1", name: "Sales", tables: [{ name: "deals", title: "Deals", module: "m_1", records: 1 }] } as never]} onGo={onGo} onChanged={vi.fn()} />
     </TooltipProvider>,
   );
-  return { client: fake, onGo, guard: () => guard };
+  return { client: fake, onGo };
 }
 
 beforeEach(() => forgetPreferences());
@@ -68,7 +67,7 @@ describe("a record's page", () => {
 
   it("saves a changed field once when it is left, with the revision, and says Saved beside it", async () => {
     const user = userEvent.setup();
-    const { client, guard } = setup();
+    const { client } = setup();
     const price = await screen.findByLabelText(/^Price/);
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
@@ -82,7 +81,6 @@ describe("a record's page", () => {
     await user.click(price);
     await user.tab(); // left again, unchanged since the save
     expect(client.editRecord).toHaveBeenCalledTimes(1);
-    expect(guard()).toBeNull(); // nothing is held, so leaving the page asks nothing
   });
 
   it("does not save a field left unchanged", async () => {

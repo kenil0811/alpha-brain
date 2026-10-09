@@ -88,6 +88,7 @@ export function AssistantPanel({
   focusConversation,
   openActivity = 0,
   activityVersion = 0,
+  onOpenEntry,
 }: {
   client: Client;
   open: boolean;
@@ -104,13 +105,15 @@ export function AssistantPanel({
   openActivity?: number;
   /** When Activity has something new to show. */
   activityVersion?: number;
+  /** Open one Activity entry's own page (`#/activity/<id>`); the bell closes. */
+  onOpenEntry?: (id: string) => void;
 }) {
   const [bellOpen, setBellOpen] = useState(false);
   useEffect(() => setBellOpen(openActivity > 0), [openActivity]);
   const bell = (
     <Popover open={bellOpen} onOpenChange={setBellOpen} align="end" label="Activity" trigger={<IconButton className="assist__bell" size="sm" label="Activity" aria-expanded={bellOpen} icon={<NotificationIcon size={ICON_SM} />} />}>
       <div className="bellpop">
-        <Activity client={client} version={activityVersion} />
+        <Activity client={client} version={activityVersion} onOpen={onOpenEntry ? (id) => { setBellOpen(false); onOpenEntry(id); } : undefined} />
       </div>
     </Popover>
   );

@@ -436,9 +436,19 @@ describe("the column and cell menus and the footer", () => {
     expect(foot().getByText("420")).toBeInTheDocument(); // numbers add up until told otherwise
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     await user.click(await screen.findByRole("menuitem", { name: "Calculate…" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Average" }));
+    await user.click(await screen.findByRole("option", { name: /^Average/ })); // the standard dropdown, the current one highlighted
     await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("footer_summaries", { deals: { price: "average" } }));
     expect(await foot().findByText("210")).toBeInTheDocument();
+  });
+
+  it("the footer's ★ makes a calculation the default for every column of that type", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("combobox", { name: "Calculate Price" }));
+    await user.click(screen.getByRole("button", { name: "Make Max the default" })); // the star does not choose
+    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("footer_summaries", { "*": { number: "max" } }));
+    expect(await within(document.querySelector("tfoot") as HTMLElement).findByText("300")).toBeInTheDocument();
   });
 
   it("every column has a footer: 'Calculate' where none is set, and a status counts per group", async () => {
@@ -447,8 +457,9 @@ describe("the column and cell menus and the footer", () => {
     await screen.findByText("Bakery");
     const cells = [...(document.querySelector("tfoot tr") as HTMLElement).querySelectorAll("td")].slice(0, 3);
     expect(cells.map((c) => c.textContent)).toEqual(["Calculate", "Sum 420", "Calculate"]);
-    await user.click(within(cells[2]).getByRole("button", { name: "Calculate" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Count per group" }));
+    await user.click(within(cells[2]).getByRole("combobox", { name: "Calculate Status" }));
+    expect(screen.getByRole("option", { name: /^None/ })).toHaveAttribute("aria-selected", "true");
+    await user.click(await screen.findByRole("option", { name: /^Count per group/ }));
     expect(await within(document.querySelector("tfoot") as HTMLElement).findByText("Active 1 · Sold 1")).toBeInTheDocument();
   });
 
@@ -465,7 +476,8 @@ describe("the column and cell menus and the footer", () => {
     expect(document.querySelectorAll("th.col--frozen").length).toBe(2); // Title and Price; no checkbox column
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     expect(await screen.findByRole("menuitem", { name: "Insert left" })).toHaveAttribute("aria-disabled", "true");
-    await user.click(screen.getByRole("menuitem", { name: "Wrap text" }));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Wrap text" })).toHaveAttribute("aria-checked", "false"); // a switch, not a tick
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Wrap text" }));
     expect(document.querySelector("td.col--wrap")).not.toBeNull();
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     expect(await screen.findByRole("menuitem", { name: "Rename field…" })).toHaveAttribute("aria-disabled", "true");
@@ -581,6 +593,21 @@ describe("relations and the form view", () => {
     void clients;
   });
 
+  it("a person in a relation opens the person's page in Network", async () => {
+    const user = userEvent.setup();
+    const withOwner: TableDesc = { ...desc, fields: [...desc.fields, { name: "owner", kind: "relation", relation: "person" }] };
+    const sold = row("r1", "Bakery", 300, { values: { title: "Bakery", price: 300, status: "Active", owner: "e1" } });
+    const client = fakeClient([sold]);
+    client.table = vi.fn(async () => ({ table: withOwner, records: [sold], files: {}, lists: [], relations: { owner: { e1: "Ana" } } }));
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={withOwner} version={0} onChanged={vi.fn()} onOpenRecord={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Ana" }));
+    expect(window.location.hash).toBe("#/network/e1");
+  });
+
   it("the form view shows one record at a time with next and previous", async () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
@@ -592,6 +619,17 @@ describe("relations and the form view", () => {
     await user.click(screen.getByRole("button", { name: "Next record" }));
     expect(screen.getByRole("region", { name: "Record 2 of 2" })).toHaveTextContent("Cafe");
     expect(screen.getByRole("button", { name: "Next record" })).toBeDisabled();
+  });
+
+  it("the form view's record opens its own page", async () => {
+    const user = userEvent.setup();
+    const onOpenRecord = vi.fn();
+    page([row("r1", "Bakery", 300)], { onOpenRecord });
+    await screen.findByText("Bakery");
+    await pickLayout(user, "Form");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Open Bakery" }));
+    expect(onOpenRecord).toHaveBeenCalledWith("deals", "r1");
   });
 });
 

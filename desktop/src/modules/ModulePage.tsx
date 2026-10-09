@@ -3,8 +3,8 @@
  * breadcrumb on the left and, when it has several collections, a switch of them in the centre
  * (its name in serif when it has one). It lands on the first collection's data, never on a
  * description; its numbers sit above it as the metrics strip. Below the data, as the page
- * scrolls: Files, Intelligence (activity, agents and automations), then Governance (where its
- * data lives, settings, Always and Never). A project with no collection yet shows one empty table,
+ * scrolls: Files, Intelligence (activity, agents and automations), then Governance (Allowed and
+ * Denied, where its data lives and where it sits). A project with no collection yet shows one empty table,
  * never an empty screen. Files can be dropped anywhere on the page. (Vikas, 9 Oct: this undoes
  * the header tabs for Files, Intelligence and Governance; a remembered "@…" tab falls back to the
  * first collection.)
@@ -115,12 +115,12 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
         {dragging ? <div className="dropnote">Drop to upload to {detail.name}</div> : null}
         {dropNote ? <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"}>{dropNote}</Notice> : null}
         {table ? (
-          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={onOpenRecord} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id, onGuard) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} onGuard={onGuard} />} />
+          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={onOpenRecord} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} />} />
         ) : (
           <SimpleTable label={`${detail.name}'s first table`} columns={["Name"]} addReason="There's no table here yet to add to." note="Alpha fills this in as the project is built: ask in the panel, or upload files." />
         )}
         <FilesSection added={added} onPick={() => picker.current?.click()} />
-        <IntelligenceSection client={client} detail={detail} version={version} onChanged={onChanged} onGo={(id) => onGo({ kind: "module", id })} />
+        <IntelligenceSection client={client} detail={detail} version={version} onChanged={onChanged} onGo={onGo} />
         <GovernanceSection client={client} detail={detail} modules={modules} onChanged={onChanged} />
       </div>
     </div>

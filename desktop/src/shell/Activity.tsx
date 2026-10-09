@@ -2,8 +2,11 @@
  * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
  * search finds anything that happened. Each row opens to what it touched. It opens from the bell
  * beside the workspace name, in a small panel over the page, so it is compact and draws no header
- * of its own (9 Oct, Vikas: it left Intelligence). Search comes first.
+ * of its own (9 Oct, Vikas: it left Intelligence). Search comes first. With `onOpen` (the bell,
+ * Intelligence) an entry opens its own page, `#/activity/<id>` (`ActivityPage`, 9 Oct, the owner:
+ * every element has a page); without it, it unfolds in place.
  */
+import { humanize } from "../modules/format";
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
@@ -12,7 +15,7 @@ import { ICON_SM, SearchIcon } from "../ui/icons";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
-function badge(e: JournalEntry): { tone: Tone; words: string } {
+export function badge(e: JournalEntry): { tone: Tone; words: string } {
   if (e.kind === "failed") return { tone: "bad", words: "Failed" };
   if (e.kind === "asked" || e.kind === "proposed") return { tone: "warn", words: "Waiting" };
   if (e.actor === "person") return { tone: "gray", words: "You" };
@@ -21,16 +24,26 @@ function badge(e: JournalEntry): { tone: Tone; words: string } {
   return { tone: "good", words: "Done" };
 }
 
-function Details({ e }: { e: JournalEntry }) {
+/** What an entry recorded beyond its sentence, one plain line each. */
+export function detailLines(e: JournalEntry): string[] {
   const data = e.data as Record<string, unknown>;
   const lines: string[] = [];
   if (typeof data.url === "string") lines.push(`Page: ${data.url}${data.signed_in ? " (signed in)" : ""}`);
   if (typeof data.path === "string") lines.push(`File: ${data.path}`);
   if (data.values && typeof data.values === "object") lines.push(`Values: ${Object.entries(data.values as Record<string, unknown>).map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(", ")}`);
-  if (data.before && data.after) lines.push(`Before ${JSON.stringify(data.before)} → after ${JSON.stringify(data.after)}`);
+  if (data.before && data.after) {
+    const said = (v: unknown) => (v === null || v === undefined || v === "" ? "empty" : typeof v === "object" ? JSON.stringify(v) : String(v));
+    const before = data.before as Record<string, unknown>, after = data.after as Record<string, unknown>;
+    for (const k of Object.keys({ ...before, ...after })) lines.push(`${humanize(k)}: ${said(before[k])} → ${said(after[k])}`);
+  }
   if (typeof data.why === "string") lines.push(`Because: ${data.why}`);
   if (typeof data.error === "string") lines.push(`What went wrong: ${data.error}`);
   if (e.source) lines.push(`Source: ${e.source.replace("connector:", "")}`);
+  return lines;
+}
+
+function Details({ e }: { e: JournalEntry }) {
+  const lines = detailLines(e);
   return (
     <div className="detail">
       {lines.length ? (
@@ -50,7 +63,7 @@ function Details({ e }: { e: JournalEntry }) {
   );
 }
 
-export function Activity({ client, version }: { client: Client; version: number; onChanged?: () => void }) {
+export function Activity({ client, version, onOpen }: { client: Client; version: number; onChanged?: () => void; onOpen?: (id: string) => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -107,7 +120,7 @@ export function Activity({ client, version }: { client: Client; version: number;
             return (
               <div key={e.id}>
                 {head}
-                <button type="button" className="item item--btn" aria-expanded={open === e.id} onClick={() => setOpen((o) => (o === e.id ? null : e.id))}>
+                <button type="button" className="item item--btn" aria-expanded={onOpen ? undefined : open === e.id} onClick={() => (onOpen ? onOpen(e.id) : setOpen((o) => (o === e.id ? null : e.id)))}>
                   <span className="item__when num">{when(e.at)}</span>
                   <Badge tone={b.tone}>{b.words}</Badge>
                   <span className="item__body">

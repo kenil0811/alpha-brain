@@ -16,6 +16,8 @@ export interface ContextItem {
   disabled?: string;
   danger?: boolean;
   separatorBefore?: boolean;
+  /** An on/off setting ("Wrap text"): a switch at the item's end shows it, never a tick. */
+  on?: boolean;
 }
 
 /** One menu for a right-click and for a ⋮ button (the UI rulebook §6 and §14). It opens at a
@@ -35,9 +37,11 @@ export function useContextMenu<T = void>(items: ContextItem[] | ((target: T) => 
     opener.current = from;
     setAt({ x, y, target });
   };
-  const openFrom = (target: T, element: HTMLElement) => {
+  /** Under the element (a ⋮ button), or beside it (`"right"`, a side submenu such as Download ›). */
+  const openFrom = (target: T, element: HTMLElement, side: "below" | "right" = "below") => {
     const r = element.getBoundingClientRect();
-    openAt(target, r.left, r.bottom, element);
+    if (side === "right") openAt(target, r.right, r.top, element);
+    else openAt(target, r.left, r.bottom, element);
   };
   const bind = (target: T) => ({
     onContextMenu: (e: MouseEvent<HTMLElement>) => {
@@ -122,16 +126,28 @@ function ContextRow({ item }: { item: ContextItem }) {
       </>
     );
   }
-  const row = (
-    <DropdownMenu.Item className={`menu__item${item.danger ? " menu__item--danger" : ""}`} disabled={Boolean(item.disabled)} onSelect={item.onSelect}>
+  const inner = (
+    <>
       {item.icon ? (
         <span className="menu__ico" aria-hidden="true">
           {item.icon}
         </span>
       ) : null}
       {item.label}
-    </DropdownMenu.Item>
+    </>
   );
+  const className = `menu__item${item.danger ? " menu__item--danger" : ""}`;
+  const row =
+    item.on === undefined ? (
+      <DropdownMenu.Item className={className} disabled={Boolean(item.disabled)} onSelect={item.onSelect}>
+        {inner}
+      </DropdownMenu.Item>
+    ) : (
+      <DropdownMenu.CheckboxItem className={className} disabled={Boolean(item.disabled)} checked={item.on} onSelect={item.onSelect}>
+        {inner}
+        <span className={`switch menu__switch${item.on ? "" : " switch--off"}`} aria-hidden="true" />
+      </DropdownMenu.CheckboxItem>
+    );
   return (
     <>
       {item.separatorBefore ? <DropdownMenu.Separator className="menu__sep" /> : null}

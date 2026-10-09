@@ -6,7 +6,7 @@
  * Alpha's work (`map/WorkMap`); **Facts** is every fact as the one data view (`intel/sources.ts`);
  * a fact's click opens its own page (`#/intelligence/facts/<id>`, 9 Oct, the owner: a page, not a
  * dialog). A note is an editable sentence (`writeNote`); a goal is read-only because the core has
- * no call that edits one.
+ * no call that edits one; Add goal hands Alpha a description to propose (`DescribeAdd`).
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
@@ -15,6 +15,7 @@ import { DataPage } from "../modules/DataPage";
 import { Badge, Button, EmptyCard, IconButton, ListRow, Notice, PageHeader, SectionCard, Tabs, Trouble } from "../ui";
 import { BrainIcon, ICON, ICON_SM, PermissionIcon, X } from "../ui/icons";
 import { BackLink } from "./BackLink";
+import { DescribeAdd } from "./DescribeAdd";
 import { FactRow } from "./FactRow";
 import { factsSource } from "./intel/sources";
 import { BrainEgg } from "./map/BrainEgg";
@@ -179,13 +180,9 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
             </SectionCard>
           )}
 
-          {goals.length ? (
-            <SectionCard title="Goals">
-              {goals.map((g) => (
-                <ListRow key={g.id} title={g.text} description={`${g.state === "active" ? "Active" : humanize(g.state)} · since ${when(g.since)}`} />
-              ))}
-            </SectionCard>
-          ) : null}
+          <SectionCard title="Goals" actions={<DescribeAdd thing="goal" />}>
+            {goals.length ? goals.map((g) => <ListRow key={g.id} title={g.text} onOpen={() => setPicked(`goal:${g.id}`)} description={`${g.state === "active" ? "Active" : humanize(g.state)} · since ${when(g.since)}`} />) : <p className="faint">None yet.</p>}
+          </SectionCard>
 
           <SectionCard title="Standing instructions">
             <NoteEditor client={client} scope="person" title="Standing instructions" body={instructions?.body ?? ""} summary={instructions?.summary} onChanged={onChanged} label="Standing instructions" emptyText="None yet." />

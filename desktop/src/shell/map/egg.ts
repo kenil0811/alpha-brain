@@ -325,3 +325,32 @@ export function layEgg(brain: Brain, from: Placed = {}): Placed {
   }
   return out;
 }
+
+export type Arrow = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
+const ARROW: Record<Arrow, { x: number; y: number }> = { ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 } };
+
+/** The node an arrow key moves to from `from` (the keyboard in the egg, 9 Oct): of `near` (its
+ *  neighbours first, every other node when no neighbour lies that way), the one most in the
+ *  arrow's direction and closest, within 60° of it; null when nothing lies that way. */
+export function stepToward(from: string, near: string[], all: string[], at: Placed, key: Arrow): string | null {
+  const a = at[from];
+  if (!a) return null;
+  const d = ARROW[key];
+  const best = (ids: string[]) => {
+    let pick: string | null = null;
+    let score = Infinity;
+    for (const id of ids) {
+      const b = at[id];
+      if (!b || id === from) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const cos = (dx * d.x + dy * d.y) / len;
+      if (cos < 0.5) continue; // more than 60° off the arrow
+      const s = len * (2 - cos); // near and straight ahead wins
+      if (s < score) [pick, score] = [id, s];
+    }
+    return pick;
+  };
+  return best(near) ?? best(all);
+}

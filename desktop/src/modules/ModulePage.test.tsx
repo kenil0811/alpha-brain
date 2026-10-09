@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Client, ModuleDetail, TableDesc } from "../core/client";
 import { forgetPreferences } from "../core/preferences";
-import { TooltipProvider } from "../ui";
+import { AssistantProvider, TooltipProvider } from "../ui";
 import { dedupeCrumbs } from "./crumbs";
 import { ModulePage } from "./ModulePage";
 
@@ -117,8 +117,9 @@ describe("a module's page", () => {
     await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
     expect(within(intelligence).getByText("Close three deals")).toBeInTheDocument();
     // agents and automations live in Intelligence, not Governance
-    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations · 1" }));
+    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations · 2" }));
     expect(within(intelligence).getByText("Chase late invoices")).toBeInTheDocument();
+    expect(within(intelligence).getAllByRole("button")[0]).toHaveTextContent(/^Alpha/); // Alpha is the first agent
     const governance = screen.getByRole("region", { name: "Governance" });
     expect(within(governance).queryByText("Chase late invoices")).toBeNull();
     expect(within(governance).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
@@ -143,7 +144,7 @@ describe("a module's page", () => {
     expect(screen.getByRole("tab", { name: "Deals", selected: true })).toBeInTheDocument();
   });
 
-  it("Governance keeps Always and Never rules per module: Enter adds, a click edits, × deletes", async () => {
+  it("Governance keeps Allowed and Denied rules per module: the dashed button adds, a click edits, × deletes", async () => {
     const user = userEvent.setup();
     const setPreference = vi.fn(async (key: string, value: unknown) => ({ key, value }));
     render(
@@ -152,17 +153,48 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
-    const never = screen.getByRole("group", { name: "Never" });
-    await user.type(within(never).getByRole("textbox", { name: "Add a rule: never" }), "Email a client{Enter}");
+    const governance = screen.getByRole("region", { name: "Governance" });
+    expect(within(governance).getByRole("tab", { name: "Allowed 0", selected: true })).toBeInTheDocument();
+    expect(within(governance).getByText("Nothing allowed.")).toBeInTheDocument();
+    await user.click(within(governance).getByRole("tab", { name: "Denied 0" }));
+    const denied = within(governance).getByRole("group", { name: "Denied" });
+    expect(within(denied).getByText("Nothing denied.")).toBeInTheDocument();
+    await user.click(within(denied).getByRole("button", { name: "Add denied action" }));
+    await user.type(within(denied).getByRole("textbox", { name: "Add denied action" }), "Email a client{Enter}");
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email a client"] } }));
-    await user.click(within(never).getByRole("button", { name: "Email a client" }));
-    const edit = within(never).getByRole("textbox", { name: "Edit rule: Email a client" });
+    await user.click(within(denied).getByRole("button", { name: "Email a client" }));
+    const edit = within(denied).getByRole("textbox", { name: "Edit rule: Email a client" });
     await user.clear(edit);
     await user.type(edit, "Email anyone{Enter}");
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email anyone"] } }));
-    await user.click(within(never).getByRole("button", { name: "Delete rule: Email anyone" }));
+    await user.click(within(denied).getByRole("button", { name: "Delete rule: Email anyone" }));
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: [] } }));
-    expect(screen.getByRole("group", { name: "Always" })).toBeInTheDocument();
+    // the rest of Governance sits below the tabs
+    expect(within(governance).getByText("What it keeps")).toBeInTheDocument();
+  });
+
+  it("Alpha opens its agent page; Add goal sends the request to Alpha with the project's name", async () => {
+    const user = userEvent.setup();
+    const say = vi.fn();
+    const onGo = vi.fn();
+    render(
+      <TooltipProvider>
+        <AssistantProvider say={say}>
+          <ModulePage client={fakeClient(two)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={onGo} />
+        </AssistantProvider>
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    const intelligence = screen.getByRole("region", { name: "Intelligence" });
+    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations · 1" }));
+    await user.click(within(intelligence).getByRole("button", { name: /^Alpha/ }));
+    expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" });
+    await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
+    await user.click(within(intelligence).getByRole("button", { name: "Add goal" }));
+    await user.type(within(intelligence).getByRole("textbox", { name: "Describe the goal you want" }), "Close five deals");
+    await user.click(within(intelligence).getByRole("button", { name: "Send" }));
+    expect(say).toHaveBeenCalledWith("In Advisory, add a goal: Close five deals");
+    expect(within(intelligence).getByText("Sent to Alpha — it will ask you to approve.")).toBeInTheDocument();
   });
 
   it("a project with one collection has no switch: its name is the title", async () => {
@@ -202,7 +234,7 @@ describe("a module's page", () => {
     await screen.findByText("Bakery");
     await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("button", { name: "Avilo" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_0" });
-    await user.click(screen.getByRole("tab", { name: "Inside · 1" }));
+    await user.click(screen.getByRole("tab", { name: "Sub-projects · 1" }));
     expect(screen.getByLabelText("What you ask here reaches them all.")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Leads")).toBeInTheDocument();
   });

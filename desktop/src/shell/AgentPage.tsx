@@ -47,7 +47,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
       live = false;
     };
   }, [client, id, module, version, tick]);
-  const back = <BackLink to="Agents" onClick={() => onGo({ kind: "intelligence", tab: "agents" })} />;
+  const back = <BackLink to="Agents and automations" onClick={() => onGo({ kind: "intelligence", tab: "agents" })} />;
   if (!data) {
     return (
       <>

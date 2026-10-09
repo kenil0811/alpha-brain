@@ -52,7 +52,7 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
   4. large metric numbers.
 - Section titles are small, semibold sans-serif.
 - Labels, eyebrows, table headers and metric labels are small, sentence case and stone grey. No tiny letter-spaced capitals.
-- Body text is comfortably large; when in doubt, choose the larger step.
+- Body text is comfortably large: type and spacing are 30% above the 9 Oct sizes (body 18px, table 17px, labels 16px; spacing on a 5px step). When in doubt, choose the larger step.
 - Weights stay between regular and semibold.
 - Digits use tabular figures wherever they line up in a column.
 - Every size comes from one type scale of about seven steps.
@@ -160,7 +160,7 @@ Every screen lives inside the same three-part frame:
 
 1. **Workspace button:** a coloured initial tile and the workspace name (by default the owner's, "Kenil's workspace", never the assistant's name). Its menu holds the workspaces, **Manage Workspace** and **Sign out**.
 2. **Home**, with a small count of what needs the person.
-3. **Task manager**, always the first module.
+3. **The pre-built projects**, Task manager and Network, shipped on install; ordinary projects in every other way (renamed, moved, hidden, edited or deleted like any other).
 4. **The person's other projects,** in their own order. Child projects fold out beneath their parent, indented, behind a chevron.
 5. **New project**, always the last item in the list. It opens a New project page (a name, what it is for, one empty table); **Create project** asks the assistant to build it.
 6. Pinned to the bottom: **Intelligence**, then **Settings**. Settings is always the very last item.
@@ -170,7 +170,7 @@ Every screen lives inside the same three-part frame:
 - Only the project list scrolls. The pinned bottom items never move.
 - **Current item:** a soft accent wash, steel text and icon, and a short accent bar on its left edge.
 - **Folded:** each item shows its icon with its name beneath it. Every icon in the window has a visible label.
-- **Reorder:** drag projects up, down, or into another module.
+- **Reorder:** drag projects up, down, or into another project.
 - **Right-click a project** (or use its ⋮ on hover) for:
   - Open
   - Rename (edits the name in place)
@@ -205,14 +205,15 @@ Every screen lives inside the same three-part frame:
 **Body**
 
 - On data pages, the collection fills the first screen.
-- Opening a project lands on its data, never on a description of the module.
-- By default, the first tab is the first collection; for the Task manager, it is the task list.
+- Opening a project lands on its data, never on a description of the project.
+- By default, the first tab is the first collection; for Task manager, it is the Queue.
 
 **Below the table** (the owner, 9 Oct: replaces the header tabs of Q36)
 
 - The data comes first. As the person keeps scrolling: **Files**, then **Intelligence**, then **Governance**.
-  - Intelligence holds what Alpha does here, its activity, its agents and automations, and Alpha's editable page about the module.
+  - Intelligence holds what Alpha does here: its activity, its agents and automations (Alpha first among them — Alpha is an agent), its goals (with Add goal, Add agent, Add automation), Alpha's editable page about the project, and **Sub-projects** (the projects inside this one).
   - Governance holds where things are kept, where they are read from, what runs on its own, and what Alpha may and may not do here, each rule with a one-sentence reason.
+  - Its rules sit under two tabs, **✓ Allowed n** and **⊘ Denied n** (icon, word, count; the active tab accent-underlined). Under each: the rules as editable sentences, "Nothing allowed." / "Nothing denied." when empty, and a dashed **+ Add allowed action** / **+ Add denied action** button.
 - The scroll is never trapped inside the table.
 
 **Never blank**
@@ -227,8 +228,8 @@ Every screen lives inside the same three-part frame:
 
 - Different slices of one collection are Lists or Views of that collection, not new pages.
 - Linked collections in one project become sibling tabs in the header.
-- Closely related but unlinked areas become sub-modules.
-- Unrelated areas become separate modules.
+- Closely related but unlinked areas become sub-projects.
+- Unrelated areas become separate projects.
 - Every record has its own page (§7).
 
 ---
@@ -405,7 +406,7 @@ Every record opens as a full page of its own.
 - Field sizes match the expected answer: short inputs for short values, a text area for long text, date and number inputs for dates and numbers.
 - **Changes save as you go,** the same as a table cell: a field saves when you leave it. ⌘Z undoes, and History keeps every change.
 - **And the person always sees it and can act on it.** A new or edited record shows a small bar at the top with **Save** (writes anything still being typed) and, for a record made in this visit, **Cancel** (deletes that new record after a one-line confirm). After a save, "Saved" shows for a moment, then the bar reads "Last saved 14:32". Assist and inform; never leave the person guessing whether it worked.
-- **New records always open their own page,** in every module.
+- **New records always open their own page,** in every project.
 - A field that can't be saved keeps the person's input and says why beside it.
 
 **Forced edits**
@@ -448,15 +449,19 @@ A forced edit is allowed. It carries a quiet **Overridden** chip in a neutral to
 - a name;
 - a one-line description (used on its Home card).
 
+**Pre-built projects**
+
+Task manager and Network are shipped on install. That is all "pre-built" means: they are ordinary projects, renamed, moved, hidden, edited or deleted like any other.
+
 **Task manager**
 
-- Always the first project, and always present.
+- The one to-do list for the workspace: a Queue of tasks shaped like a tree (a goal is a task with Goal ticked), with exit tests before starting and evidence before done; assistants propose, the person approves. The full specification is section T of `core-changes-for-the-window.md`.
 - It holds the person's and Alpha's tasks.
 - Its due items feed Home's Today card.
 
 **Network** (People and Organizations as two tabs; was People & Companies)
 
-- A built-in project by default.
+- A pre-built project.
 - Each person or company record page has:
   - Alpha's editable page about them;
   - their facts;
@@ -590,14 +595,14 @@ A single centred column with room to breathe, and no page header bar.
    - Each card shows the project's icon, name, one-line description and **Open →**.
    - The last card is **New**.
 4. **First steps** (a new workspace only)
-   - A few one-click starts, such as connecting a folder or a calendar, or making a first module.
+   - A few one-click starts, such as connecting a folder or a calendar, or making a first project.
    - Each says what will happen.
 
 ---
 
 ## 12. Intelligence
 
-The one place for everything Alpha knows and can do across modules. Its header tabs are:
+The one place for everything Alpha knows and can do across projects. Its header tabs are:
 
 - **Second Brain**
   - The brain view: every project, collection and record as a dot, with the links between them drawn; two or three layers at once, deeper layers and labels on zoom.
@@ -716,6 +721,7 @@ And:
 **Clickability**
 
 - Anything that looks clickable does something. Otherwise it is plain text.
+- **Everything listed has a page.** Any item in a table or list — a record, an activity entry, an agent, an automation, a skill, a connection, a fact — opens a page of its own when clicked.
 
 **Feedback**
 
@@ -777,7 +783,7 @@ And:
 Everything elsewhere in this rulebook is a default. These are not.
 
 1. Every screen sits in the three-part frame with one shared header line.
-2. Task manager is always the first project; Settings is always the last sidebar item; New is always the last item in the project list.
+2. Settings is always the last sidebar item; New is always the last item in the project list.
 3. Never in the sidebar: group headings, a theme switch, status lines, or extra destinations.
 4. Section switches live in the header and never wrap.
 5. The toolbar is one row that never wraps, in the standard order, ending at ⋮.
@@ -830,7 +836,7 @@ These are how people see, think and act. They are not style choices, and the rul
 | Principle | In Alpha |
 |---|---|
 | **Proximity:** things close together read as one group. | Related controls sit together; space separates unrelated ones. Save sits next to what it saves. A label sits closer to its own field than to the next. |
-| **Similarity:** things that look alike are assumed to act alike. | Every button, chip and table looks and behaves the same in every module. Two things that look the same but act differently are a defect. |
+| **Similarity:** things that look alike are assumed to act alike. | Every button, chip and table looks and behaves the same in every project. Two things that look the same but act differently are a defect. |
 | **Common region:** things inside one boundary belong together. | A card is one topic. A record's fields share one card. |
 | **Alignment and continuity:** the eye follows edges. | Shared edges and one header line; columns line up; numbers align right. |
 | **Figure and ground:** one thing in front, the rest background. | One section fills the screen. Menus and dialogs float above it and dim what is behind. |

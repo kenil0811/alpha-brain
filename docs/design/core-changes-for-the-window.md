@@ -72,6 +72,22 @@ Each item: **Now** (what the window does today) · **Should** (exact behaviour) 
   opens its settings; Sign out signs out of this Mac's Alpha.
 - **Core needs:** the notion of more than one workspace, switching, and signing out.
 
+### A6. Pre-built projects: Task manager and Network
+- **Now:** Network is a special destination (people and organisations as entities, not a
+  project); there is no Task manager. A sidebar entry for Network has a project's menu, but
+  Rename and Delete are disabled.
+- **Should:** a new workspace is **shipped** with two projects already made: **Task manager**
+  (section T) and **Network** (People and Organizations). "Pre-built" means only that they exist
+  on install: they are ordinary projects in every other way, so the person can rename, move,
+  hide, edit (add collections, fields, views, automations) and delete them like any other
+  project, and they use the standard page, data views, record pages and the sections below the
+  table. Deleting one asks the usual three-way question (A3). They are not pinned first and
+  nothing in the platform depends on their names.
+- **Core needs:** seeding both projects (with their collections and fields) when a workspace is
+  created; Network's people and organisations exposed as collections of that project (records
+  that are also the entities the brain links), so the standard data view, + New (B10), Files
+  (B11) and Governance all work on them; rename and delete (A1, A3) working on them too.
+
 ---
 
 ## B. Collections, fields and records
@@ -299,6 +315,180 @@ Each item: **Now** (what the window does today) · **Should** (exact behaviour) 
 - **Core needs:** a formula field type in the schema, evaluation (on write or on read) with
   recomputation when the inputs change, and validation that returns plain errors.
 
+### D11. Add a goal, an agent or an automation directly
+- **Now:** Intelligence and each project's Intelligence section have **Add goal**, **Add agent**
+  and **Add automation**; each opens a small box where the person describes it, which is sent to
+  Alpha ("Add a goal: …"), and Alpha proposes it for approval.
+- **Should:** keep the describe box (it suits agents and automations), and also allow a goal to
+  be typed and saved directly as a sentence, and an automation to be made from a short form
+  (trigger, what it does, schedule), each landing at once in its list with its own page.
+- **Core needs:** routes to create a goal, an agent and an automation.
+
+### D12. A page for every item, everywhere
+- **Now:** every record, activity entry (`#/activity/<id>`), agent, automation, skill and
+  connection opens its own page. Three gaps remain: an activity entry older than the latest
+  1,000 can't be found; a goal opens a card beside the brain view, not a page; a relation to a
+  record in another project opens it under the current project.
+- **Should:** each opens its own page, however old, wherever it lives.
+- **Core needs:** looking up one activity entry by id; a goal by id (with its progress and what
+  serves it); a record's owning project returned with relations.
+
+---
+
+## T. Task manager, as a pre-built project
+
+Task manager is the one to-do list for the whole workspace, shipped pre-built (A6). Assistants
+suggest, plan and pick up work; changes that matter wait for the person's yes. Below is what it
+must do, written in this app's structure and words. (Vikas's specification, 9 Oct, aligned to the
+rulebook: proposals are **Approve / Decline**, statuses map to the five chip tones, every task has
+its own page, and nothing is shown that the core can't back.)
+
+### T1. Structure: one project, one collection, a tree
+- **Project:** "Task manager" (renamable, deletable, A6). **Collection:** "Queue" — the single
+  list for the whole workspace. Each record is a **Task**; the record word for this collection
+  is "Task".
+- **A tree in one list:** every task may have a **Parent** (a relation to another task), so
+  tasks have child tasks to any depth. A **goal** is an ordinary task with the **Goal** checkbox
+  ticked, not a separate kind.
+- **Path** (read-only, computed): the task's address in the tree, e.g. `2.3.5` (the 5th child of
+  the 3rd child of task 2), recalculated for a whole branch whenever the tree changes.
+
+### T2. Fields
+| Field | Type | Rule |
+|---|---|---|
+| Title | text | required |
+| Goal | checkbox | goals are reviewed on a schedule (weekly by default when made from the main page) and need not reach one final "done" |
+| Status | status | see T3; default as in T4 |
+| Priority | choice P0–P4 | P0 most urgent; new tasks default to P2 |
+| Parent | relation to a task | makes the tree |
+| Path | computed text | read-only |
+| Outcome | group of three: title, measure, target | e.g. "Signups / per week / 50"; all three or none (a partial outcome is refused with the reason, never silently dropped) |
+| Exit test | long text | how you'll know it's finished; required before a non-goal task can start |
+| Evidence | text or file or link, several | proof it's done; required before "done" |
+| Depends on | relation to tasks | "this can't move until that is finished"; loops refused |
+| Required skill | choice of the workspace's skills | used to find an agent that can do it |
+| Owner | person or agent | defaults to the person who made it |
+| Scheduled | date | |
+| Verified by / at | computed | who confirmed the evidence, and when |
+
+### T3. Statuses (both directions allowed: done, parked and archived can be reopened)
+| Status | Meaning | Chip tone |
+|---|---|---|
+| Candidate | worth keeping, nobody has committed | grey |
+| Committed | agreed to do | blue |
+| Pending | ready, waiting to start | blue |
+| In progress | being worked on (needs an exit test unless a goal) | yellow |
+| Blocked | stuck on something | red |
+| Done | finished (needs evidence first) | green |
+| Parked | deliberately set aside | grey |
+| Abandoned | decided not to do it | grey |
+| Archived | old finished work moved out of the way | grey |
+
+### T4. The life of a task
+1. **Create** from the Queue's "+ New" (opens the task's page, as every record does) or the
+   form view. Title required; Goal, Priority, Outcome, Exit test, Parent and Scheduled optional.
+2. **Lands as Candidate** when the queue already has tasks, whatever status was picked (the
+   first task in an empty queue keeps the chosen status). The page says so: "Starts as a
+   candidate until it's placed."
+3. **Placement check:** for every task added to a non-empty queue, the planning agent ("Internal
+   Strategist") looks for likely duplicates and suggests where it belongs and whether the order
+   should change. A proposal card appears on the task's page and in Needs you: **Approve
+   placement / Decline**.
+4. **Plan it (optional):** on the task's page, choose a planning method (T7); the draft comes back
+   as a proposal to review, edit, Approve or Decline. Approved child tasks appear as Candidates
+   owned by the person.
+5. **Start:** set Status to In progress. A non-goal task with no exit test is refused beside the
+   field: "Add an exit test first — how will you know it's done?"
+6. **Finish:** on the task's page, under Exit test and evidence, add evidence and **Complete**.
+   The app records who verified it and when, then sets Done. Setting Done from the table without
+   evidence is refused with the same reason and a link to the page.
+7. **Clean up:** only the 10 most recent completed tasks from the last 7 days stay in view; a
+   cleanup proposal suggests archiving the rest (**Approve / Decline**), on a schedule (T9).
+
+### T5. The Queue's page (standard data view)
+- Views: **Table** (default), **Tree** (indented by Path, fold/unfold branches), Board (by
+  Status), Calendar and Timeline (by Scheduled), Form, Dashboard; Graph where dependencies exist.
+- Metrics strip: **Active**, **In progress**, **Goals**.
+- Filter by Status, Priority, Goal, Owner; saved lists ("This week", "Goals", "Blocked").
+- Every task row opens the task's page. **Every field is editable in the table and on the page**
+  (title, priority, outcome, exit test, dates, parent, owner, required skill), with the same
+  save-as-you-go + Save/Cancel/"Last saved" as any record — fixing today's limit where only
+  status saved and the page couldn't edit anything but the outcome target.
+- **Waiting for your yes:** proposals not tied to one task (cleanup, imports, file sync) appear
+  on Home's Needs you and above the Queue.
+
+### T6. The task's page (standard record page) — sections
+- **Details:** all fields of T2.
+- **Outcomes:** the outcome with its target; changing the target on a finished task proposes
+  reopening it (Approve / Decline).
+- **Exit test and evidence:** the exit test; evidence entries (link, file, note); **Complete**.
+- **Tree:** parent and children (each opens its page); **Promote to top**, **Move under…**,
+  **Insert a parent** — each makes a proposal; approving recalculates the Paths of the whole
+  branch in one step.
+- **Depends on:** blockers with **Add blocker** and **Remove**; a loop is refused with the reason
+  ("A waits on B, which waits on A").
+- **Agent assignment:** **Route to an eligible agent** — the coordinating agent ("Chief of
+  Staff") looks for the one agent with the task's required skill. One match: "Assign to <agent>?"
+  with how risky the change looks and how often similar changes were approved or declined;
+  **Approve / Decline**. None or several: "A person needs to be assigned" and an owner picker — it
+  never guesses and there is no default agent. Approving an assignment does not start the task.
+  Disabled with its reason when the task has no required skill (and the skill can be set right
+  there).
+- **Planning methods** (T7), **Notes**, **Intelligence** (what acted on it), **Governance**,
+  **History** (every change, with Undo).
+
+### T7. Planning methods (skills)
+| Method | Gives |
+|---|---|
+| Task decomposition | child tasks |
+| Goal–outcome framing | measurable outcomes |
+| Candidate task generation | related tasks worth considering |
+| Exit test authoring | an exit test |
+| Pre-mortem | how the task could fail (read-only; approving writes nothing) |
+Each returns a draft proposal: review, edit, Approve or Decline. They run on the person's chosen
+model route (Settings › Thinks with); if a local model is required and missing, the page says so
+and shows the method's guiding questions instead of a draft.
+
+### T8. Automatic vs needs you
+| Happens on its own | Needs Approve |
+|---|---|
+| Duplicate, placement and order check on add | accepting placement or reorder |
+| Recalculating Paths after an approved restructure | promote, move, insert |
+| Refusing start without exit test, done without evidence, dependency loops | any assistant-drafted plan or new tasks |
+| Suggesting reopen when an outcome target changes | the reopen itself; assigning to an agent; archiving old done tasks; syncing tasks.md edits back |
+Small, clear-cut assignment or reschedule changes may apply without asking once the person's past
+approvals show a steady pattern (the standing-permission mechanism, revocable in Settings ›
+Permissions); large or unclear changes always ask. Reports never change tasks.
+
+### T9. Scheduled reports and checks (automations of the project)
+Stand-up summary; stale-task review (14 days without movement); work-in-progress limit (1 in
+progress by default, a sentence the person can edit); "done without evidence"; opportunity scan;
+archive cleanup; unblock notices. Each is an **automation** of Task manager with its schedule,
+Run now, and its runs — fixing today's limit where nothing triggers them.
+
+### T10. The text copy (tasks.md)
+- The queue can be written out as `tasks.md` for coding assistants; edits to that file come back
+  as a proposal (**Approve / Decline**, editable first). The store stays the main copy.
+- **Import** reads tasks from the workspace's `docs/TASKS.md`; safe to run more than once.
+
+### T11. Fixes to today's limits (must be true when shipped)
+1. Every field edits in the table and on the page (not only status and outcome target).
+2. Required skill can be set on the page (so Route to an eligible agent works for tasks made in
+   the window).
+3. Owner can be a person or an agent, chosen from the page.
+4. Scheduled checks run on their schedules and have Run now.
+5. Tasks can be deleted (asks first; Abandoned and Archived remain for keeping history).
+6. Placement, restructure and cleanup proposals can be edited before approving, like planning
+   drafts.
+
+### Core needs (Task manager)
+The seeded project and collection (A6); tree and computed Path with branch recalculation; the
+outcome group with all-or-none validation; the start and done gates (exit test, evidence) in
+code; dependency loop refusal; the placement agent and the coordinating agent with
+skill-matching routing; the five planning skills returning drafts as proposals; editable
+proposals; the reports as scheduled automations; tasks.md export, import and sync proposals;
+task delete.
+
 ---
 
 ## E. The Mac app's native code (`desktop/src-tauri`, Rust)
@@ -337,20 +527,18 @@ These need the host, which this branch doesn't change.
 
 ## F. Left in the window (no core needed), for completeness
 
-- The table footer's **Calculate** menu and the column menu's **Wrap text** still use their old
-  menus rather than the standard dropdown (search, star, highlighted choice).
-- **Download** shows CSV and Excel beneath it inside ⋮ rather than as a side submenu (the ⋮ list
-  scrolls, so a side submenu would be cut off).
-- In the brain view, individual record dots can't be reached by keyboard; touchscreen pinch-zoom
-  isn't supported (trackpad pinch and the +, − and Fit buttons are).
+Fixed on 9 Oct (third pass): Calculate and Wrap text now use the standard dropdown and a switch;
+Download opens CSV and Excel in a real side submenu; record dots in the brain view are reachable
+by keyboard (arrows, Enter) and pinch works on touch; the leave-guard props are gone. Still open:
+
 - The sidebar's drag-to-nest fix is for the Mac app's WebKit; it is unit-tested but not yet tried
   in the Mac app.
-- The record page's leave-guard props (`onGuard`, `PeekGuard`) are no longer used and can be
-  removed from `App.tsx`, `DataPage.tsx` and `ModulePage.tsx`.
+- Collections that aren't a project's own tables (lists the window builds itself) show cards in
+  List, Board and Gallery that look clickable but have no page to open.
 
 ---
 
 ## Not adopted, by decision (no work needed)
 
-- "Task manager is always the first project" (the platform knows no domain).
+- "Task manager is always the first project": it is pre-built (A6, T) but ordinary — not pinned, renamable, deletable (the platform knows no domain).
 - The sidebar's top row as the Mac title bar (the host is not changed on this branch).

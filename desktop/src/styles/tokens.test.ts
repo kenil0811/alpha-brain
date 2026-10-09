@@ -29,7 +29,7 @@ describe("the named values", () => {
     for (const name of ["--space-1", "--space-2", "--radius-control", "--radius-card", "--radius-pill", "--radius-composer", "--shadow-card", "--shadow-float", "--shadow-seam", "--ease-out", "--dur-quick", "--dur-state", "--header-h", "--header-line"]) {
       expect(css).toContain(`${name}:`);
     }
-    expect(css).toMatch(/--space-1: 4px/);
+    expect(css).toMatch(/--space-1: 5px/); // the 4px unit × 1.3 (owner, 9 Oct)
   });
 
   it("writes no colour outside the token block, in the stylesheet", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fact, Intelligence, RecordRow, TableDesc, WorkGraph } from "../../core/client";
-import { brainOf, insideEgg, layEgg, RECORD_SAMPLE, RECORDS_ALL_AT, YOLK, type Brain } from "./egg";
+import { brainOf, insideEgg, layEgg, RECORD_SAMPLE, RECORDS_ALL_AT, stepToward, YOLK, type Brain } from "./egg";
 
 const fact = (id: string, over: Partial<Fact> = {}): Fact => ({ id, subject: "person", predicate: "home_city", value: id, valid_from: "", valid_to: null, recorded_at: "", source: "stated", why: null, confidence: 1, state: "accepted", ...over });
 
@@ -84,5 +84,15 @@ describe("the egg", () => {
     expect(shown).toBeLessThanOrEqual(RECORD_SAMPLE);
     expect(recs.every((p) => !p.zoom || p.zoom === RECORDS_ALL_AT)).toBe(true);
     expect(at["table:deals"].more).toBe(1000 - shown);
+  });
+});
+
+describe("the arrow keys in the egg", () => {
+  const at = { a: { x: 0, y: 0, r: 1 }, right: { x: 10, y: 1, r: 1 }, far: { x: 40, y: 0, r: 1 }, up: { x: 0, y: -10, r: 1 } };
+  it("moves to the neighbour that way, then to anything that way, else nowhere", () => {
+    expect(stepToward("a", ["far", "up"], Object.keys(at), at, "ArrowRight")).toBe("far");
+    expect(stepToward("a", ["up"], Object.keys(at), at, "ArrowRight")).toBe("right");
+    expect(stepToward("a", [], Object.keys(at), at, "ArrowUp")).toBe("up");
+    expect(stepToward("a", [], Object.keys(at), at, "ArrowLeft")).toBeNull();
   });
 });

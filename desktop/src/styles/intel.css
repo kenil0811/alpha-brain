@@ -62,3 +62,7 @@
 .intel__code { font-family: var(--font-mono); font-size: var(--text-sm); }
 .intel__hands { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3); }
 .intel__sub { margin-bottom: var(--space-3); }
+
+/* ---------- Add goal / agent / automation: the describe box (`DescribeAdd`) ---------- */
+.describe__sent { max-width: 260px; padding: var(--space-2); color: var(--text-2); }
+.intel__adds { display: flex; gap: var(--space-2); justify-content: flex-end; }

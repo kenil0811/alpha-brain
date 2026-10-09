@@ -10,20 +10,27 @@ import { memorySource, type DataSource } from "../../modules/source";
 import { sourceWords } from "../FactRow";
 import { AgentAvatar } from "../AgentAvatar";
 import { VERDICT } from "../Automations";
+import { ALPHA_AGENT, agentsFrom } from "../agents";
 
 const NEEDS_CORE = "needs Alpha's core";
 const rec = (id: string, values: Record<string, unknown>, at = ""): RecordRow => ({ id, revision: 1, values, created_at: at, updated_at: at, provenance: {} });
 
-/** Agents (Q33): every automation is an agent's process, with a goal and a verdict per run judged
- *  by code; each row wears the companion chosen for that agent. */
+/** An agent's row id in Agents and automations; the rest are automations' ids. */
+export const AGENT_ROW = "agent:";
+
+/** Agents and automations, one list (9 Oct, the owner): the agents first, Alpha among them ("Alpha —
+ *  your assistant") and each project's runner, each opening its agent page; then every automation
+ *  (Q33: an agent's process, with a goal and a verdict per run judged by code). Each row wears
+ *  the companion chosen for it. */
 export function automationsSource(client: Client, modules: Record<string, string>): DataSource {
   return memorySource({
     client,
     key: "intel.automations",
-    title: "Agents",
+    title: "Agents and automations",
     titleField: "title",
     fields: [
-      { name: "title", kind: "text", label: "Agent" },
+      { name: "title", kind: "text", label: "Name" },
+      { name: "kind", kind: "choice", label: "Kind", choices: ["Agent", "Automation"] },
       { name: "goal", kind: "text", label: "Goal" },
       { name: "verdict", kind: "status", label: "Last verdict", choices: ["Succeeded", "Partial", "Failed", "Not judged yet"], done_choices: ["Succeeded"] },
       { name: "when", kind: "text", label: "When" },
@@ -33,25 +40,35 @@ export function automationsSource(client: Client, modules: Record<string, string
       { name: "result", kind: "status", label: "Last result", choices: ["Running", "Worked", "Didn't work", "Not run yet"], done_choices: ["Worked"] },
       { name: "module", kind: "text", label: "Project" },
     ],
-    rows: async () =>
-      (await client.intelligence()).automations.map((a) =>
-        rec(a.id, { title: a.title, goal: a.goal ?? "", verdict: a.last_verdict ? VERDICT[a.last_verdict].words : "Not judged yet", when: a.when, on: a.enabled, last_run: a.last_run_at, next_run: a.next_run_at, result: a.running ? "Running" : a.last_error ? "Didn't work" : a.last_run_at ? "Worked" : "Not run yet", module: a.module ? (modules[a.module] ?? a.module) : "" }),
-      ),
+    rows: async () => {
+      const d = await client.intelligence();
+      const agents = agentsFrom(d, modules).map((g) =>
+        rec(`${AGENT_ROW}${g.id}`, { title: g.id === ALPHA_AGENT ? "Alpha — your assistant" : g.name, kind: "Agent", goal: g.id === ALPHA_AGENT ? "Answers you, keeps your projects and asks before acting" : g.description, verdict: null, when: `Runs ${g.automations.length} automation${g.automations.length === 1 ? "" : "s"}`, on: null, last_run: null, next_run: null, result: null, module: g.module ? (modules[g.module] ?? g.module) : "" }),
+      );
+      return [
+        ...agents,
+        ...d.automations.map((a) =>
+          rec(a.id, { title: a.title, kind: "Automation", goal: a.goal ?? "", verdict: a.last_verdict ? VERDICT[a.last_verdict].words : "Not judged yet", when: a.when, on: a.enabled, last_run: a.last_run_at, next_run: a.next_run_at, result: a.running ? "Running" : a.last_error ? "Didn't work" : a.last_run_at ? "Worked" : "Not run yet", module: a.module ? (modules[a.module] ?? a.module) : "" }),
+        ),
+      ];
+    },
     edit: async (row, values) => {
       const keys = Object.keys(values);
+      if (row.id.startsWith(AGENT_ROW)) throw new Error(`Changing an agent ${NEEDS_CORE}; open it and ask Alpha.`);
       if (keys.length !== 1 || keys[0] !== "on") throw new Error(`Only On can change here; changing the rest ${NEEDS_CORE}. Ask Alpha in the panel.`);
       await client.switchAutomation(row.id, values.on === true || values.on === "true");
       return { ...row, values: { ...row.values, on: values.on === true || values.on === "true" }, revision: row.revision + 1 };
     },
-    rowIcon: (row) => <AgentAvatar client={client} agent={row.id} size={20} label={String(row.values.title)} />,
-    editable: (_row, field) => (field.name === "on" ? null : `Only On changes here; the rest ${NEEDS_CORE}.`),
-    reasons: { add: "Ask Alpha to keep something current.", remove: `Deleting an automation ${NEEDS_CORE}.` },
+    rowIcon: (row) => <AgentAvatar client={client} agent={row.id.startsWith(AGENT_ROW) ? row.id.slice(AGENT_ROW.length) : row.id} size={20} label={String(row.values.title)} />,
+    editable: (row, field) => (row.id.startsWith(AGENT_ROW) ? `Changing an agent ${NEEDS_CORE}; open it and ask Alpha.` : field.name === "on" ? null : `Only On changes here; the rest ${NEEDS_CORE}.`),
+    reasons: { add: "Use Add agent or Add automation above; Alpha asks you to approve.", remove: `Deleting an agent or automation ${NEEDS_CORE}.` },
   });
 }
 
 const SKILL_KIND = { read: "Reads", act: "Does", run: "Runs" } as const;
 const SKILL_HEALTH = { ok: "Working", broken: "Being repaired", untried: "Not tried yet" } as const;
-/** Built-in hands (files, browser, calendar) ride along as rows of kind "Built in"; they have no page. */
+/** Built-in hands (files, browser, calendar) ride along as rows of kind "Built in"; each opens a
+ *  simple page of its own (`HandPage`). */
 export const BUILT_IN = "hand:";
 export function skillsSource(client: Client, modules: Record<string, string>): DataSource {
   return memorySource({

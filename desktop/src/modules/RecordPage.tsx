@@ -11,8 +11,8 @@
  * A refusal shows in red beside the field it names (or the field just left) and the typed value
  * stays. Writes go one after another, so each carries the revision the last one returned. ⌘Z and
  * ⇧⌘Z (outside a text input, which keeps its own undo of typing) step through History, saving the
- * old or new values. Nothing is ever held unsaved past a field, so leaving the page asks nothing;
- * `onGuard` is still taken from the callers and no longer used. A new record is this same page
+ * old or new values. Nothing is ever held unsaved past a field, so leaving the page asks nothing.
+ * A new record is this same page
  * with id "new": empty but for sensible defaults (today for a required date, the first status or
  * choice); the first field left with a value adds it (with the defaults and anything else typed),
  * and the address becomes the new record's. (9 Oct, the UI rulebook, record pages.)
@@ -36,10 +36,6 @@ import { timeText, when } from "./format";
 import { isEmpty, RecordField } from "./record/RecordField";
 import { changesFrom, entriesAbout, HistoryDialog, type Change } from "./record/RecordHistory";
 import { GovernanceSection, IntelligenceSection, NotesSection } from "./record/RecordSections";
-
-/** What the App asks before the window leaves this page: true when it is holding the leaving.
- *  The page saves as you go and no longer holds a leaving; the type stays for the callers. */
-export type LeaveGuard = (proceed: () => void) => boolean;
 
 type Section = "notes" | "intelligence" | "governance";
 const ALL_SECTIONS: Section[] = ["notes", "intelligence", "governance"];
@@ -81,7 +77,7 @@ const same = (a: unknown, b: unknown) => (isEmpty(a) && isEmpty(b)) || JSON.stri
 
 type Loaded = { desc: TableDesc; row: RecordRow | null; relations: Relations };
 
-export function RecordPage({ client, module, table, id, version, modules, onGo, onChanged, onAsk }: { client: Client; module: string; table: string; id: string; version: number; modules: ModuleCard[]; onGo: (s: Surface) => void; onChanged: () => void; onAsk?: (text: string) => void; onGuard?: (guard: LeaveGuard | null) => void }) {
+export function RecordPage({ client, module, table, id, version, modules, onGo, onChanged, onAsk }: { client: Client; module: string; table: string; id: string; version: number; modules: ModuleCard[]; onGo: (s: Surface) => void; onChanged: () => void; onAsk?: (text: string) => void }) {
   const isNew = id === "new";
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
