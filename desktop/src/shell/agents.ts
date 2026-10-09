@@ -18,14 +18,12 @@ export interface Agent {
   automations: Automation[];
 }
 
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 export function agentsFrom(data: Pick<Intelligence, "skills" | "automations" | "hands">, modules: Record<string, string>): Agent[] {
   const runners = [...new Set(data.automations.map((a) => a.module).filter((m): m is string => Boolean(m)))].sort((a, b) => (modules[a] ?? a).localeCompare(modules[b] ?? b));
   const alpha: Agent = {
     id: ALPHA_AGENT,
     name: "Alpha",
-    description: `The assistant: answers you, reads and does what you ask, with ${count(data.hands.length, "built-in hand", "built-in hands")} and the skills it has learned.`,
+    description: "Your assistant",
     module: null,
     skills: data.skills.filter((s) => !s.module || !runners.includes(s.module)),
     automations: data.automations.filter((a) => !a.module),
@@ -36,7 +34,7 @@ export function agentsFrom(data: Pick<Intelligence, "skills" | "automations" | "
     return {
       id: m,
       name: `${name} runner`,
-      description: `Runs ${name}'s ${count(automations.length, "automation", "automations")} on its own, with the skills that module uses.`,
+      description: `Runs ${name}`,
       module: m,
       skills: data.skills.filter((s) => s.module === m),
       automations,

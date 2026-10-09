@@ -1,15 +1,17 @@
 /**
- * The data view's toolbar (9 Oct, the UI rulebook §6): one row that never wraps, in the standard
- * order: Saved list · View · Search · Filter · page actions · ⋮ More. Views the data cannot
- * support stay in the View menu, disabled, with the reason on hover. Filter holds every filtering
- * choice, and what is active shows as small removable pills under the bar. ⋮ More holds the rest
- * (sort, columns, frozen columns, footers, record page sections, the list's own commands).
- * When the window is narrow the labels become icons first, then Filter moves inside More.
+ * The data view's toolbar (9 Oct, the UI rulebook §6): one row that never wraps. On the left,
+ * always: Saved list · View · Search · Filter. On the right: at most one primary action, then
+ * ⋯ More. Views the data cannot support stay in the View menu, disabled, with the reason on hover.
+ * Filter holds every filtering choice, and what is active shows as small removable pills under
+ * the bar. ⋯ More holds Download, Upload (unless files are what the collection is about, when
+ * Upload is the primary action), sort, columns, frozen columns, footers, record page sections and
+ * the list's own commands. When the window is narrow the labels become icons.
  */
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import type { SavedList } from "../core/client";
-import { Badge, Button, Dropdown, IconButton, Menu, MenuItem, Popover, type DropdownOption } from "../ui";
-import { ArrowLeft, ArrowRight, AttachIcon, BoardIcon, Calendar, ChartIcon, DashboardIcon, DownloadIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, ListIcon, MoreHorizontal, SearchIcon, Star, Table2, TimelineIcon, X } from "../ui/icons";
+import { UploadIcon as Upload } from "../ui/icons";
+import { Badge, Button, Dropdown, IconButton, Popover, type DropdownOption } from "../ui";
+import { ArrowLeft, ArrowRight, BoardIcon, Calendar, ChartIcon, DashboardIcon, DownloadIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, ListIcon, MoreHorizontal, SearchIcon, Star, Table2, TimelineIcon, X } from "../ui/icons";
 import type { FieldInfo } from "./fields";
 import { humanize } from "./format";
 import { summaryOpsFor, SUMMARY_LABEL, type Sort, type SummaryOp } from "./views/engine";
@@ -29,26 +31,25 @@ export const VIEWS: { id: PageView; label: string; icon: ReactNode }[] = [
   { id: "dashboard", label: "Dashboard", icon: <DashboardIcon size={ICON_SM} /> },
 ];
 
-/** Where the toolbar gives up its labels (and then Filter), in the toolbar's own width in px. A
- *  calibration, not a rule: the row has to stay one line. */
+/** Where the toolbar gives up its labels, in the toolbar's own width in px. A calibration, not a
+ *  rule: the row has to stay one line. */
 const LABELS_BELOW = 860;
-const FILTER_IN_MORE_BELOW = 600;
 
-function useToolbarStage(bar: { current: HTMLDivElement | null }): 0 | 1 | 2 {
-  const [stage, setStage] = useState<0 | 1 | 2>(0);
+function useNarrow(bar: { current: HTMLDivElement | null }): boolean {
+  const [narrow, setNarrow] = useState(false);
   useLayoutEffect(() => {
     const el = bar.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const fit = () => {
       const w = el.clientWidth;
-      if (w) setStage(w >= LABELS_BELOW ? 0 : w >= FILTER_IN_MORE_BELOW ? 1 : 2);
+      if (w) setNarrow(w < LABELS_BELOW);
     };
     fit();
     const watch = new ResizeObserver(fit);
     watch.observe(el);
     return () => watch.disconnect();
   }, [bar]);
-  return stage;
+  return narrow;
 }
 
 /** The Filter popover's content: every facet, Hide done, Show gone. */
@@ -88,13 +89,21 @@ function FilterPanel({ f }: { f: FilterState }) {
           <input type="checkbox" checked={f.showGone} onChange={(e) => f.onShowGone(e.target.checked)} /> Show gone ({f.goneCount})
         </label>
       ) : null}
-      {!any ? <p className="faint">Nothing to filter by here yet. A status or choice field adds a filter.</p> : null}
+      {!any ? <p className="faint">Nothing to filter by. A status or choice field adds a filter.</p> : null}
     </div>
   );
 }
 
 /** What the ⋮ More menu works on. */
 export interface MoreState {
+  /** Download as CSV or Excel; absent, the items stay disabled with `downloadReason`. */
+  onDownload?: (format: "csv" | "xlsx") => void;
+  downloadReason?: string;
+  /** Upload in this menu (when it is not the toolbar's primary action). */
+  onUpload?: () => void;
+  uploadReason?: string;
+  /** Why lists can't be kept here, if they can't. */
+  listsReason?: string;
   fields: FieldInfo[];
   sort: Sort | null;
   onSort: (s: Sort | null) => void;
@@ -120,30 +129,40 @@ export interface MoreState {
   onReset: () => void;
 }
 
+/** Adding a field is the core's (no route for it yet); Alpha can do it from the panel. */
+export const ADD_COLUMN_REASON = "Adding a column needs Alpha's core; ask Alpha in the panel to add a field.";
+
 const SECTIONS: { id: string; label: string }[] = [
   { id: "notes", label: "Notes" },
   { id: "intelligence", label: "Intelligence" },
   { id: "governance", label: "Governance" },
 ];
 
-function MoreMenu({ m, filter }: { m: MoreState; filter?: FilterState }) {
+function MoreMenu({ m, uploadHere }: { m: MoreState; uploadHere: boolean }) {
   const hiddenToo = m.fields.map((f) => f.name).filter((n) => !m.shownColumns.includes(n));
   const noList = m.listId === "all";
   return (
     <div className="more">
-      {filter ? (
-        <>
-          <div className="menu__head">Filter</div>
-          <FilterPanel f={filter} />
-        </>
-      ) : null}
+      <div className="more__stack">
+        <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} disabledReason={m.onDownload ? undefined : m.downloadReason} onClick={() => m.onDownload?.("csv")}>
+          Download as CSV
+        </Button>
+        <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} disabledReason={m.onDownload ? undefined : m.downloadReason} onClick={() => m.onDownload?.("xlsx")}>
+          Download as Excel
+        </Button>
+        {uploadHere ? (
+          <Button size="sm" variant="ghost" icon={<Upload size={ICON_SM} />} disabledReason={m.onUpload ? undefined : m.uploadReason} onClick={m.onUpload}>
+            Upload
+          </Button>
+        ) : null}
+      </div>
       <div className="menu__head">Sort</div>
       <div className="more__row">
         <Dropdown size="sm" label="Sort by" value={m.sort?.field ?? ""} onChange={(v) => m.onSort(v ? { field: v, direction: m.sort?.direction ?? "asc" } : null)} options={[{ value: "", label: "No sort" }, ...m.fields.map((f) => ({ value: f.name, label: f.label ?? humanize(f.name) }))]} />
         {m.sort ? <Dropdown size="sm" label="Sort direction" value={m.sort.direction} onChange={(v) => m.onSort({ field: m.sort!.field, direction: v })} options={[{ value: "asc", label: "Ascending" }, { value: "desc", label: "Descending" }]} /> : null}
       </div>
       <div className="menu__head">Columns</div>
-      <Button size="sm" disabledReason="Ask Alpha in the panel to add a field.">
+      <Button size="sm" disabledReason={ADD_COLUMN_REASON}>
         Add column
       </Button>
       {[...m.shownColumns, ...hiddenToo].map((name) => {
@@ -190,16 +209,16 @@ function MoreMenu({ m, filter }: { m: MoreState; filter?: FilterState }) {
       ))}
       <div className="menu__head">This list</div>
       <div className="more__stack">
-        <Button size="sm" onClick={m.onSaveToList} disabledReason={noList ? "Choose a saved list first, or add one." : undefined}>
+        <Button size="sm" onClick={m.onSaveToList} disabledReason={m.listsReason ?? (noList ? "Choose a saved list first, or add one." : undefined)}>
           Save filters to this list
         </Button>
-        <Button size="sm" onClick={m.onSaveAsList}>
+        <Button size="sm" onClick={m.onSaveAsList} disabledReason={m.listsReason}>
           Save filters as a new list…
         </Button>
-        <Button size="sm" onClick={m.onStar} disabledReason={noList ? "Choose a saved list first." : m.listIsDefault ? "This table already opens on this list." : undefined}>
-          Open this table on this list
+        <Button size="sm" onClick={m.onStar} disabledReason={m.listsReason ?? (noList ? "Choose a saved list first." : m.listIsDefault ? "It already opens on this list." : undefined)}>
+          Open on this list
         </Button>
-        <Button size="sm" variant="danger" onClick={m.onDeleteList} disabledReason={noList ? "All is not a list; there is nothing to delete." : undefined}>
+        <Button size="sm" variant="danger" onClick={m.onDeleteList} disabledReason={m.listsReason ?? (noList ? "All is not a list." : undefined)}>
           Delete this list
         </Button>
         <Button size="sm" variant="ghost" onClick={m.onReset}>
@@ -210,7 +229,7 @@ function MoreMenu({ m, filter }: { m: MoreState; filter?: FilterState }) {
   );
 }
 
-export function DataToolbar({ lists, listId, onList, onAddList, view, onView, viewReasons, groupFields, groupBy, onGroup, dateFields, dateBy, onDate, search, onSearch, searchable, tableTitle, filter, onAddFiles, onExport, more }: {
+export function DataToolbar({ lists, listId, onList, onAddList, view, onView, viewReasons, groupFields, groupBy, onGroup, dateFields, dateBy, onDate, search, onSearch, searchable, tableTitle, filter, uploadFirst, more }: {
   lists: SavedList[];
   listId: string;
   onList: (id: string) => void;
@@ -230,13 +249,13 @@ export function DataToolbar({ lists, listId, onList, onAddList, view, onView, vi
   searchable: boolean;
   tableTitle: string;
   filter: FilterState;
-  onAddFiles?: () => void;
-  onExport: (format: "csv" | "xlsx") => void;
+  /** Files are what this collection is about (it has a file field): Upload is the primary action
+   *  beside ⋯ rather than inside it. */
+  uploadFirst: boolean;
   more: MoreState;
 }) {
   const bar = useRef<HTMLDivElement>(null);
-  const stage = useToolbarStage(bar);
-  const icons = stage >= 1;
+  const icons = useNarrow(bar);
   const current = VIEWS.find((v) => v.id === view) ?? VIEWS[0];
   return (
     <div className={`toolbar toolbar--page${icons ? " toolbar--icons" : ""}`} ref={bar}>
@@ -250,32 +269,22 @@ export function DataToolbar({ lists, listId, onList, onAddList, view, onView, vi
           <input value={search} onChange={(e) => onSearch(e.target.value)} placeholder={`Search ${tableTitle.toLowerCase()}`} aria-label="Search" />
         </div>
       ) : null}
-      {stage < 2 ? (
-        <Popover label="Filter" align="start" open={filter.open} onOpenChange={filter.onOpenChange} trigger={
-          <Button size="sm" icon={<FilterIcon size={ICON_SM} />} aria-label="Filter">
-            <span className="tb__label">Filter</span>
-            {filter.active ? <Badge tone="info">{filter.active}</Badge> : null}
-          </Button>
-        }>
-          <FilterPanel f={filter} />
-        </Popover>
-      ) : null}
-      <span className="spacer" />
-      {onAddFiles ? (
-        <Button size="sm" icon={<AttachIcon size={ICON_SM} />} aria-label="Add files" title="Add files to this module from your Mac; Alpha reads them into its collections" onClick={onAddFiles}>
-          <span className="tb__label">Add files</span>
-        </Button>
-      ) : null}
-      <Menu trigger={
-        <Button size="sm" icon={<DownloadIcon size={ICON_SM} />} aria-label="Export">
-          <span className="tb__label">Export</span>
+      <Popover label="Filter" align="start" open={filter.open} onOpenChange={filter.onOpenChange} trigger={
+        <Button size="sm" icon={<FilterIcon size={ICON_SM} />} aria-label="Filter">
+          <span className="tb__label">Filter</span>
+          {filter.active ? <Badge tone="info">{filter.active}</Badge> : null}
         </Button>
       }>
-        <MenuItem onSelect={() => onExport("csv")}>Export as CSV</MenuItem>
-        <MenuItem onSelect={() => onExport("xlsx")}>Export as Excel</MenuItem>
-      </Menu>
+        <FilterPanel f={filter} />
+      </Popover>
+      <span className="spacer" />
+      {uploadFirst ? (
+        <Button size="sm" variant="primary" icon={<Upload size={ICON_SM} />} aria-label="Upload" disabledReason={more.onUpload ? undefined : more.uploadReason} onClick={more.onUpload}>
+          <span className="tb__label">Upload</span>
+        </Button>
+      ) : null}
       <Popover label="More" trigger={<IconButton label="More" icon={<MoreHorizontal />} />}>
-        <MoreMenu m={more} filter={stage >= 2 ? filter : undefined} />
+        <MoreMenu m={more} uploadHere={!uploadFirst} />
       </Popover>
     </div>
   );

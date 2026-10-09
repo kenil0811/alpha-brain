@@ -1,17 +1,22 @@
 /**
- * The table (9 Oct, the UI rulebook §6): a rounded bordered container, a quiet header, columns
- * the person can size, drag into order, freeze and sort, a checkbox column, a row that opens its
- * record page, cells edited in place, right-click menus on the heading, the cell and the row
- * (each also reached by the keyboard, and the row's by its ⋯), an add row that is always there,
- * and a footer where each column picks its own summary. An empty table keeps its whole
- * structure. The page scrolls; the table never traps the scroll.
+ * The table (9 Oct, the UI rulebook §6): as wide as the page's section, a quiet header, columns
+ * the person can size, drag into order, freeze, wrap and sort, a row that opens its record page,
+ * cells edited in place, right-click menus on the heading, the cell and the row (each also reached
+ * by the keyboard). As in Notion, a row's handle (⋮⋮, its menu) and checkbox appear over its left
+ * edge on hover, and stay for every row once one is selected, so no column is kept empty for
+ * them; the header's select-all does the same. A "+ New" row at the bottom adds a record, a "+"
+ * after the last heading would add a column (the core's, so disabled with the reason), and the
+ * footer has a calculation under every column, "Calculate" showing on hover where none is set.
+ * An empty table keeps its whole structure. The page scrolls; the table never traps the scroll.
  */
-import { type MouseEvent as ReactMouseEvent, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { GripIcon as GripVertical, WrapIcon as WrapText } from "../../ui/icons";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { Check, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClearIcon, CopyIcon, DeleteIcon, EditIcon, FilterIcon, FreezeIcon, HideIcon, HistoryIcon, ICON_SM, MoreHorizontal, OpenIcon, PinIcon, SortAscIcon, SortDescIcon, UnpinIcon } from "../../ui/icons";
-import { IconButton, useContextMenu, type ContextItem } from "../../ui";
+import { Check, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClearIcon, CopyIcon, DeleteIcon, EditIcon, FilterIcon, FreezeIcon, HideIcon, HistoryIcon, ICON_SM, OpenIcon, PinIcon, PlusIcon, SortAscIcon, SortDescIcon, TotalIcon, UnpinIcon } from "../../ui/icons";
+import { Button, IconButton, useContextMenu, type ContextItem } from "../../ui";
+import { ADD_COLUMN_REASON } from "../DataToolbar";
 import { nextSort, summarize, summaryOpsFor, SUMMARY_LABEL, type Sort, type SummaryOp } from "./engine";
 import { Cell, SeenCell, cellEditable } from "./cells";
 
@@ -24,8 +29,11 @@ const BLANK_ROWS = 3;
 export interface RowActions {
   open?: (row: RecordRow) => void;
   duplicate: (row: RecordRow) => void;
+  /** Why rows can't be duplicated or deleted here, if they can't. */
+  duplicateReason?: string;
   pin: (row: RecordRow) => void;
   remove: (row: RecordRow) => void;
+  removeReason?: string;
   copy: (row: RecordRow, field: FieldInfo) => void;
   history?: (row: RecordRow) => void;
 }
@@ -37,9 +45,12 @@ export interface ColumnActions {
   filter: (column: string) => void;
   /** Which columns have a filter to open (status and choice fields). */
   filterable: Set<string>;
+  /** Which columns wrap their text, and the switch. */
+  wrapped: string[];
+  wrap: (column: string) => void;
 }
 
-export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, onOpen, onCommit, rowActions, columnActions, add, blank }: {
+export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, addReason, editRequest, blank }: {
   rows: RecordRow[];
   /** The records the footer works over: everything the view shows, not only this page. */
   summaryRows: RecordRow[];
@@ -66,51 +77,78 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   onSummary: (field: string, op: SummaryOp) => void;
   onOpen?: (id: string) => void;
   onCommit: (row: RecordRow, field: FieldInfo, text: string) => void;
+  /** Why cells can't be edited here, if they can't. */
+  editReason?: string;
   rowActions: RowActions;
   columnActions: ColumnActions;
-  /** The add row, always at the bottom. */
-  add: ReactNode;
+  /** The "+ New" row; without it the row stays, disabled, with `addReason`. */
+  onAdd?: () => void;
+  addReason?: string;
+  /** Start editing this cell when it is drawn (a row just added: its title). */
+  editRequest?: { id: string; field: string } | null;
   /** Draw a few blank rows (an empty table keeps its structure). */
   blank: boolean;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: string } | null>(null);
+  useEffect(() => {
+    if (editRequest) setEditing(editRequest);
+  }, [editRequest]);
   const openTimer = useRef<number | undefined>(undefined);
   const pinnedSet = new Set(pinned);
   const titleOf = (row: RecordRow) => String(row.values[fields[0]?.name] ?? row.id);
-  const wide = columns.length + (seen ? 1 : 0) + 2;
+  const wide = columns.length + (seen ? 1 : 0) + 1;
+  const canEdit = (f: FieldInfo) => !editReason && cellEditable(f);
+  const wrapped = new Set(columnActions.wrapped);
 
   // The columns that stay put while the rest scroll sideways: where each sticks is the width of
   // the ones before it, so it is measured after the table is drawn.
   const heads = useRef<Record<string, HTMLTableCellElement | null>>({});
-  const selHead = useRef<HTMLTableCellElement | null>(null);
+  const feet = useRef<Record<string, HTMLButtonElement | null>>({});
   const [lefts, setLefts] = useState<Record<string, number>>({});
   useLayoutEffect(() => {
     const next: Record<string, number> = {};
-    let x = selHead.current?.offsetWidth ?? 0;
+    let x = 0;
     for (const c of columns.slice(0, frozen)) {
       next[c] = x;
       x += heads.current[c]?.offsetWidth ?? 0;
     }
     setLefts((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));
   });
-  const frozenAt = (c: string) => (columns.indexOf(c) < frozen ? { className: "col--frozen", style: { left: lefts[c] ?? 0 } } : {});
+  const place = (c: string, extra = "") => {
+    const frozenHere = columns.indexOf(c) < frozen;
+    return { className: [extra, frozenHere ? "col--frozen" : "", wrapped.has(c) ? "col--wrap" : ""].filter(Boolean).join(" ") || undefined, style: frozenHere ? { left: lefts[c] ?? 0 } : undefined };
+  };
 
-  // the three menus
-  const columnMenu = useContextMenu<string>((c) => {
-    const field = byName.get(c);
-    const at = columns.indexOf(c);
-    const kind = field?.kind ?? "text";
+  // the footer's calculation menu, also opened from a heading's Calculate…: once the heading's menu
+  // has closed and handed the focus back to the heading (sooner, the hand-back would close it)
+  const calcNext = useRef<string | null>(null);
+  const calcAfterFocus = (c: string) => {
+    if (calcNext.current !== c) return;
+    calcNext.current = null;
+    window.setTimeout(() => {
+      const el = feet.current[c];
+      if (el) footMenu.openFrom(c, el);
+    });
+  };
+  const footMenu = useContextMenu<string>((c) => {
     const current = summaries[c] ?? "none";
+    return summaryOpsFor(byName.get(c)?.kind ?? "text").map((op, i) => ({ label: SUMMARY_LABEL[op], icon: op === current ? <Check size={ICON_SM} /> : undefined, separatorBefore: i === 1, onSelect: () => onSummary(c, op) }));
+  });
+  const columnMenu = useContextMenu<string>((c) => {
+    const at = columns.indexOf(c);
     const items: ContextItem[] = [
       { label: "Sort ascending", icon: <SortAscIcon size={ICON_SM} />, onSelect: () => onSort({ field: c, direction: "asc" }) },
       { label: "Sort descending", icon: <SortDescIcon size={ICON_SM} />, onSelect: () => onSort({ field: c, direction: "desc" }) },
       ...(sort?.field === c ? [{ label: "Clear sort", onSelect: () => onSort(null) }] : []),
-      { label: "Filter by this column", icon: <FilterIcon size={ICON_SM} />, separatorBefore: true, onSelect: () => columnActions.filter(c), disabled: columnActions.filterable.has(c) ? undefined : "Only status and choice fields have a filter. Use Search to narrow by words." },
+      { label: "Filter", icon: <FilterIcon size={ICON_SM} />, separatorBefore: true, onSelect: () => columnActions.filter(c), disabled: columnActions.filterable.has(c) ? undefined : "Only status and choice fields have a filter. Use Search to narrow by words." },
+      { label: "Calculate…", icon: <TotalIcon size={ICON_SM} />, onSelect: () => { calcNext.current = c; } },
       { label: "Hide", icon: <HideIcon size={ICON_SM} />, onSelect: () => columnActions.hide(c), disabled: columns.length <= 1 ? "A table keeps at least one column." : undefined },
       { label: at < frozen ? "Unfreeze columns" : "Freeze up to here", icon: <FreezeIcon size={ICON_SM} />, onSelect: () => columnActions.freeze(c) },
+      { label: "Wrap text", icon: wrapped.has(c) ? <Check size={ICON_SM} /> : <WrapText size={ICON_SM} />, onSelect: () => columnActions.wrap(c) },
+      { label: "Insert left", icon: <ArrowLeft size={ICON_SM} />, separatorBefore: true, onSelect: () => undefined, disabled: ADD_COLUMN_REASON },
+      { label: "Insert right", icon: <ArrowRight size={ICON_SM} />, onSelect: () => undefined, disabled: ADD_COLUMN_REASON },
       { label: "Move left", icon: <ArrowLeft size={ICON_SM} />, onSelect: () => columnActions.move(c, -1), disabled: at <= 0 ? "It is already the first column." : undefined },
       { label: "Move right", icon: <ArrowRight size={ICON_SM} />, onSelect: () => columnActions.move(c, 1), disabled: at >= columns.length - 1 ? "It is already the last column." : undefined },
-      ...summaryOpsFor(kind).map((op, i) => ({ label: `Footer summary: ${SUMMARY_LABEL[op].toLowerCase()}`, icon: op === current ? <Check size={ICON_SM} /> : undefined, separatorBefore: i === 0, onSelect: () => onSummary(c, op) })),
       { label: "Rename field…", icon: <EditIcon size={ICON_SM} />, separatorBefore: true, onSelect: () => undefined, disabled: "Ask Alpha in the panel to rename a field." },
     ];
     return items;
@@ -118,19 +156,20 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   const cellMenu = useContextMenu<{ row: RecordRow; field: FieldInfo }>(({ row, field }) => {
     const value = row.values[field.name];
     const empty = value === null || value === undefined || value === "";
+    const cannot = editReason ?? (cellEditable(field) ? undefined : "Ask Alpha in the panel to change this one.");
     return [
-      { label: "Edit", icon: <EditIcon size={ICON_SM} />, onSelect: () => setEditing({ id: row.id, field: field.name }), disabled: cellEditable(field) ? undefined : "Ask Alpha in the panel to change this one." },
+      { label: "Edit", icon: <EditIcon size={ICON_SM} />, onSelect: () => setEditing({ id: row.id, field: field.name }), disabled: cannot },
       { label: "Copy", icon: <CopyIcon size={ICON_SM} />, onSelect: () => rowActions.copy(row, field), disabled: empty ? "There is nothing in it to copy." : undefined },
-      { label: "Clear", icon: <ClearIcon size={ICON_SM} />, onSelect: () => onCommit(row, field, ""), disabled: !cellEditable(field) ? "Ask Alpha in the panel to change this one." : empty ? "It is already empty." : field.required ? "This field is required." : undefined },
+      { label: "Clear", icon: <ClearIcon size={ICON_SM} />, onSelect: () => onCommit(row, field, ""), disabled: cannot ?? (empty ? "It is already empty." : field.required ? "This field is required." : undefined) },
       { label: "Show history", icon: <HistoryIcon size={ICON_SM} />, separatorBefore: true, onSelect: () => rowActions.history?.(row), disabled: rowActions.history ? undefined : "Record pages are not open from here." },
     ];
   });
   const rowMenu = useContextMenu<RecordRow>((row) => [
     { label: "Open", icon: <OpenIcon size={ICON_SM} />, onSelect: () => rowActions.open?.(row), disabled: rowActions.open ? undefined : "Record pages are not open from here." },
-    { label: "Edit", icon: <EditIcon size={ICON_SM} />, onSelect: () => { const first = columns.map((c) => byName.get(c)).find((f) => f && cellEditable(f)); if (first) setEditing({ id: row.id, field: first.name }); }, disabled: columns.some((c) => { const f = byName.get(c); return f && cellEditable(f); }) ? undefined : "No column here can be edited in place." },
-    { label: "Duplicate", icon: <CopyIcon size={ICON_SM} />, onSelect: () => rowActions.duplicate(row) },
+    { label: "Edit", icon: <EditIcon size={ICON_SM} />, onSelect: () => { const first = columns.map((c) => byName.get(c)).find((f) => f && canEdit(f)); if (first) setEditing({ id: row.id, field: first.name }); }, disabled: editReason ?? (columns.some((c) => { const f = byName.get(c); return f && cellEditable(f); }) ? undefined : "No column here can be edited in place.") },
+    { label: "Duplicate", icon: <CopyIcon size={ICON_SM} />, onSelect: () => rowActions.duplicate(row), disabled: rowActions.duplicateReason },
     { label: pinnedSet.has(row.id) ? "Unpin" : "Pin", icon: pinnedSet.has(row.id) ? <UnpinIcon size={ICON_SM} /> : <PinIcon size={ICON_SM} />, onSelect: () => rowActions.pin(row) },
-    { label: "Delete", icon: <DeleteIcon size={ICON_SM} />, danger: true, separatorBefore: true, onSelect: () => rowActions.remove(row) },
+    { label: "Delete", icon: <DeleteIcon size={ICON_SM} />, danger: true, separatorBefore: true, onSelect: () => rowActions.remove(row), disabled: rowActions.removeReason },
   ]);
 
   function clickRow(e: ReactMouseEvent, id: string) {
@@ -138,26 +177,32 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
     window.clearTimeout(openTimer.current);
     openTimer.current = window.setTimeout(() => onOpen(id), OPEN_DELAY_MS);
   }
+  // The row's handle and checkbox, over the left edge of its first cell; a click on them is theirs
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  const handle = (row: RecordRow): ReactNode => (
+    <span className="rowctl" onClick={stop} onDoubleClick={stop}>
+      <IconButton size="sm" className="rowctl__grip" label={`Actions for ${titleOf(row)}`} icon={<GripVertical size={ICON_SM} />} onClick={(e) => rowMenu.openFrom(row, e.currentTarget)} />
+      <input type="checkbox" aria-label={`Select ${titleOf(row)}`} checked={selected.has(row.id)} onChange={(e) => onSelect(row.id, e.target.checked)} />
+    </span>
+  );
 
   const dragging = useRef<string | null>(null);
   return (
-    <div className={`tablewrap${tall ? " tablewrap--tall" : ""}`}>
-      <table className="table" aria-label={undefined}>
+    <div className={`tablewrap${tall ? " tablewrap--tall" : ""}${selected.size ? " tablewrap--selecting" : ""}`}>
+      <table className="table">
         <thead>
           <tr>
-            <th className={`sel${frozen ? " col--frozen" : ""}`} ref={selHead} style={{ left: 0 }}>
-              <input type="checkbox" aria-label="Select every record on this page" checked={rows.length > 0 && rows.every((r) => selected.has(r.id))} disabled={!rows.length} onChange={(e) => onSelectAll(e.target.checked)} />
-            </th>
-            {columns.map((c) => {
+            {columns.map((c, i) => {
               const field = byName.get(c);
               const kind = field?.kind ?? "text";
               const label = field?.label ?? humanize(c);
+              const at = place(c, [isNumeric(kind) ? "r" : "", "th--sizable", i === 0 ? "col--first" : ""].filter(Boolean).join(" "));
               return (
                 <th
                   key={c}
                   ref={(el) => { heads.current[c] = el; }}
-                  className={[isNumeric(kind) ? "r" : "", "th--sizable", columns.indexOf(c) < frozen ? "col--frozen" : ""].filter(Boolean).join(" ")}
-                  style={{ ...(widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : {}), ...(columns.indexOf(c) < frozen ? { left: lefts[c] ?? 0 } : {}) }}
+                  className={at.className}
+                  style={{ ...(widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : {}), ...at.style }}
                   aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}
                   draggable
                   onDragStart={(e) => { dragging.current = c; e.dataTransfer.setData("text/plain", c); e.dataTransfer.effectAllowed = "move"; }}
@@ -165,7 +210,13 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                   onDrop={(e) => { e.preventDefault(); const from = dragging.current; dragging.current = null; if (from && from !== c) columnActions.reorder(from, c); }}
                   onDragEnd={() => { dragging.current = null; }}
                   {...columnMenu.bind(c)}
+                  onFocus={() => calcAfterFocus(c)}
                 >
+                  {i === 0 ? (
+                    <span className="rowctl rowctl--head">
+                      <input type="checkbox" aria-label="Select every record on this page" checked={rows.length > 0 && rows.every((r) => selected.has(r.id))} disabled={!rows.length} onChange={(e) => onSelectAll(e.target.checked)} />
+                    </span>
+                  ) : null}
                   <button type="button" className="th__label" title="Sort by this column; drag to move it" onClick={() => onSort(nextSort(sort, c))}>
                     {label}
                     {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : null}
@@ -197,7 +248,9 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
               );
             })}
             {seen ? <th>Seen</th> : null}
-            <th aria-label="Record actions" className="th--end" />
+            <th className="th--add">
+              <IconButton size="sm" label="Add a column" icon={<PlusIcon size={ICON_SM} />} disabledReason={ADD_COLUMN_REASON} />
+            </th>
           </tr>
         </thead>
         <tbody ref={(el) => { bodyRef.current = el; }}>
@@ -218,11 +271,9 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
               aria-label={onOpen ? `Open ${titleOf(row)}` : titleOf(row)}
               {...rowMenu.bind(row)}
             >
-              <td className={`sel${frozen ? " col--frozen" : ""}`} style={{ left: 0 }} onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" aria-label={`Select ${titleOf(row)}`} checked={selected.has(row.id)} onChange={(e) => onSelect(row.id, e.target.checked)} />
-              </td>
               {columns.map((c, i) => {
                 const field = byName.get(c)!;
+                const at = place(c, i === 0 ? "col--first" : "");
                 return (
                   <Cell
                     key={c}
@@ -230,26 +281,28 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                     field={field}
                     onCommit={(text) => onCommit(row, field, text)}
                     editing={editing?.id === row.id && editing.field === c}
-                    onEditing={(on) => setEditing(on ? { id: row.id, field: c } : null)}
+                    onEditing={(on) => setEditing(on && canEdit(field) ? { id: row.id, field: c } : null)}
                     relations={relations}
                     onOpenRelated={onOpenRelated}
                     files={files}
                     onFile={onFile ? (file) => onFile(row, field, file) : undefined}
-                    tdProps={{ ...frozenAt(c), ...cellMenu.bind({ row, field }) }}
-                    adornment={i === 0 && pinnedSet.has(row.id) ? <PinIcon className="pinmark" size={ICON_SM} aria-label="Pinned" /> : undefined}
+                    tdProps={{ ...at, ...cellMenu.bind({ row, field }) }}
+                    adornment={i === 0 ? (
+                      <>
+                        {handle(row)}
+                        {pinnedSet.has(row.id) ? <PinIcon className="pinmark" size={ICON_SM} aria-label="Pinned" /> : null}
+                      </>
+                    ) : undefined}
                   />
                 );
               })}
               {seen ? <SeenCell row={row} /> : null}
-              <td className="r td--end" onClick={(e) => e.stopPropagation()}>
-                <IconButton size="sm" className="rowbtn" label={`Actions for ${titleOf(row)}`} icon={<MoreHorizontal size={ICON_SM} />} onClick={(e) => rowMenu.openFrom(row, e.currentTarget)} />
-              </td>
+              <td className="td--add" />
             </tr>
           ))}
           {blank
             ? Array.from({ length: BLANK_ROWS }, (_, i) => (
                 <tr key={`blank-${i}`} className="row--blank" aria-hidden="true">
-                  <td className="sel" />
                   {columns.map((c) => <td key={c} />)}
                   {seen ? <td /> : null}
                   <td />
@@ -258,23 +311,29 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
             : null}
           <tr className="row--add">
             <td colSpan={wide} className="addcell">
-              {add}
+              <Button size="sm" variant="ghost" className="addrow" icon={<PlusIcon size={ICON_SM} />} disabledReason={onAdd ? undefined : addReason} onClick={onAdd}>
+                New
+              </Button>
             </td>
           </tr>
         </tbody>
         <tfoot>
           <tr>
-            <td className={`sel${frozen ? " col--frozen" : ""}`} style={{ left: 0 }} />
             {columns.map((c) => {
               const field = byName.get(c);
               const out = field ? summarize(summaryRows, field, summaries[c] ?? "none") : null;
+              const at = place(c, isNumeric(field?.kind ?? "") ? "r num" : "num");
               return (
-                <td key={c} className={`${isNumeric(field?.kind ?? "") ? "r num" : "num"}${columns.indexOf(c) < frozen ? " col--frozen" : ""}`} style={columns.indexOf(c) < frozen ? { left: lefts[c] ?? 0 } : undefined}>
-                  {out ? (
-                    <span title={`${out.label} of ${field?.label ?? humanize(c)}`}>
-                      <span className="foot__lab">{out.label}</span> {out.value}
-                    </span>
-                  ) : null}
+                <td key={c} className={at.className} style={at.style}>
+                  <button type="button" ref={(el) => { feet.current[c] = el; }} className={`foot__calc${out ? "" : " foot__calc--none"}`} title={out ? `${out.label} of ${field?.label ?? humanize(c)}` : undefined} onClick={(e) => footMenu.openFrom(c, e.currentTarget)}>
+                    {out ? (
+                      <>
+                        <span className="foot__lab">{out.label}</span> {out.value}
+                      </>
+                    ) : (
+                      "Calculate"
+                    )}
+                  </button>
                 </td>
               );
             })}
@@ -286,6 +345,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
       {columnMenu.menu}
       {cellMenu.menu}
       {rowMenu.menu}
+      {footMenu.menu}
     </div>
   );
 }

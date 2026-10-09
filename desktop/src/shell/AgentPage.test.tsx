@@ -17,12 +17,14 @@ function mount(id: string) {
   const client = {
     intelligence: vi.fn(async () => data),
     modules: vi.fn(async () => [{ id: "m1", name: "Deals" }]),
+    preference: vi.fn(async () => ({ value: null })),
+    setPreference: vi.fn(async (key: string, value: unknown) => ({ key, value })),
     activity: vi.fn(async () => [{ id: "j1", at: "2026-10-08T07:00:00+00:00", kind: "did", actor: "alpha", text: "Read 12 listings", data: {}, module: "m1", thread: null, entity_ids: [], source: null }]),
   } as unknown as Client;
   const onGo = vi.fn();
   const onAsk = vi.fn();
   render(<AgentPage client={client} id={id} version={0} onGo={onGo} onAsk={onAsk} onChanged={vi.fn()} />);
-  return { onGo, onAsk };
+  return { onGo, onAsk, client };
 }
 
 describe("an agent's page", () => {
@@ -39,6 +41,16 @@ describe("an agent's page", () => {
     expect(onAsk).toHaveBeenCalledWith('Change the agent "Deals runner": ');
     await userEvent.click(screen.getByRole("button", { name: "Agents" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "intelligence", tab: "agents" });
+  });
+
+  it("presents its name as a field, Save disabled with the reason, and keeps the companion picked for it", async () => {
+    const { client } = mount("m1");
+    expect(await screen.findByLabelText("Name")).toHaveValue("Deals runner");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByText("Editing an agent needs Alpha's core")).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Deals runner" }).length).toBeGreaterThan(0); // its face in the header
+    await userEvent.click(screen.getByRole("button", { name: "Fox" }));
+    expect(client.setPreference).toHaveBeenCalledWith("agent_looks", { m1: expect.objectContaining({ animal: "fox" }) });
   });
 
   it("says so when there is no such agent", async () => {

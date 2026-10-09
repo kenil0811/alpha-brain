@@ -1,6 +1,7 @@
 /**
- * People & Companies: everyone and everything Alpha keeps as an entity, and a page for each
- * (design §3.7, point 2). The page is Alpha's wiki page about them (editable), their facts
+ * Network: everyone and every organisation Alpha keeps as an entity, and a page for each
+ * (design §3.7, point 2). A switch in the header shows People or Organizations, one at a time
+ * (9 Oct, Vikas: it was "People & Companies"). The page is Alpha's wiki page about them (editable), their facts
  * (accepted, or suggested with a yes or no), who else might be the same, and everything in the
  * journal that involves them. Both pages open with the shared page header (the UI rulebook §5):
  * the serif title, and a back link on a person's page; sections are cards (9 Oct, the pages phase).
@@ -10,14 +11,21 @@ import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
 import { BackLink } from "./BackLink";
 import { FactRow } from "./FactRow";
-import { Button, Badge, EmptyCard, PageHeader, SectionCard, Trouble } from "../ui";
-import { ICON, PeopleIcon } from "../ui/icons";
+import { Button, Badge, EmptyCard, HeaderSwitch, PageHeader, SectionCard, Trouble } from "../ui";
+import { BuildingIcon, ICON, ICON_SM, PeopleIcon } from "../ui/icons";
 
-export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
+type Side = "people" | "orgs";
+const SIDES = [
+  { id: "people" as const, label: "People", icon: <PeopleIcon size={ICON_SM} /> },
+  { id: "orgs" as const, label: "Organizations", icon: <BuildingIcon size={ICON_SM} /> },
+];
+
+export function Network({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
+  const [side, setSide] = useState<Side>("people");
   useEffect(() => {
     let live = true;
     client
@@ -32,46 +40,39 @@ export function People({ client, version, onOpen }: { client: Client; version: n
       live = false;
     };
   }, [client, q, version, tick]);
-  const persons = (people ?? []).filter((e) => e.kind === "person");
-  const orgs = (people ?? []).filter((e) => e.kind !== "person");
-  const group = (title: string, rows: Entity[]) =>
-    rows.length ? (
-      <SectionCard title={title} subtitle={`${rows.length}`}>
-        <div className="list">
-          {rows.map((e) => (
-            <button key={e.id} type="button" className="list__row people__row" onClick={() => onOpen(e.id)}>
-              <span className="people__avatar" aria-hidden="true">
-                {initials(e.name)}
-              </span>
-              <span className="people__name">{e.name}</span>
-              <span className="people__line muted">{e.summary || e.last_text || keysLine(e) || "Nothing known yet."}</span>
-              <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-    ) : null;
+  const rows = (people ?? []).filter((e) => (side === "people") === (e.kind === "person"));
+  const noun = side === "people" ? "people" : "organizations";
   return (
     <>
       <PageHeader
-        title="People & Companies"
+        centre={<HeaderSwitch label="Network" items={SIDES} value={side} onChange={setSide} />}
         right={
           <div className="search people__search">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find someone…" aria-label="Find a person or company" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find…" aria-label={`Find ${noun}`} />
           </div>
         }
       />
       <div className="page page--column">
         <div className="stack stack--wide">
-          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load People & Companies: {error}</Trouble> : null}
-          {people === null && !error ? <p className="faint">Loading People &amp; Companies…</p> : null}
-          {people && !people.length ? (
-            <EmptyCard icon={<PeopleIcon size={ICON} />} title={q ? "Nobody by that name" : "Nobody yet"}>
-              {q ? "Try another spelling, or part of the name." : "Connect your mail or LinkedIn, or mention someone to Alpha; the people and companies it comes across appear here."}
-            </EmptyCard>
+          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Network: {error}</Trouble> : null}
+          {people === null && !error ? <p className="faint">Loading Network…</p> : null}
+          {people && !rows.length ? (
+            <EmptyCard icon={side === "people" ? <PeopleIcon size={ICON} /> : <BuildingIcon size={ICON} />} title={q ? "Nothing by that name" : `No ${noun} yet`} />
           ) : null}
-          {group("People", persons)}
-          {group("Companies and organisations", orgs)}
+          {rows.length ? (
+            <div className="card list">
+              {rows.map((e) => (
+                <button key={e.id} type="button" className="list__row people__row" onClick={() => onOpen(e.id)}>
+                  <span className="people__avatar" aria-hidden="true">
+                    {initials(e.name)}
+                  </span>
+                  <span className="people__name">{e.name}</span>
+                  <span className="people__line muted">{e.summary || e.last_text || keysLine(e)}</span>
+                  <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </>
@@ -107,7 +108,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
       live = false;
     };
   }, [client, id, version, tick, editing]);
-  const back = <BackLink to="People & Companies" onClick={onBack} />;
+  const back = <BackLink to="Network" onClick={onBack} />;
   if (!entity) {
     return (
       <>
@@ -148,7 +149,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
             </span>
             <div>
               <div className="faint">
-                {entity.kind === "person" ? "Person" : "Organisation"}
+                {entity.kind === "person" ? "Person" : "Organization"}
                 {entity.aliases.length ? ` · also ${entity.aliases.join(", ")}` : ""}
               </div>
               <div className="row">
@@ -164,7 +165,6 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
 
           <SectionCard
             title="Page"
-            subtitle={`Alpha's page about ${first}; yours to edit.`}
             actions={
               editing ? (
                 <>
@@ -187,19 +187,19 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
             ) : entity.page ? (
               <div className="people__page">{entity.page.body}</div>
             ) : (
-              <p className="muted">No page yet. Alpha writes one as it learns about {entity.name}; you can start it.</p>
+              <p className="faint">No page yet.</p>
             )}
           </SectionCard>
 
-          <SectionCard title="Facts" subtitle={entity.facts.length ? undefined : "Nothing recorded yet"}>
+          <SectionCard title="Facts">
             {[...suggested, ...accepted].map((f) => (
               <FactRow key={f.id} fact={f} client={client} onChanged={refresh} onAsk={onAsk} />
             ))}
-            {!entity.facts.length ? <EmptyCard title="Nothing recorded yet">Facts appear here when you tell Alpha about {first} or it reads them in your connections.</EmptyCard> : null}
+            {!entity.facts.length ? <p className="faint">None yet.</p> : null}
           </SectionCard>
 
           {entity.maybe_same.length ? (
-            <SectionCard title="Might be the same" subtitle="Same name, no shared email or address. Alpha never merges on a name alone.">
+            <SectionCard title="Might be the same" subtitle="Same name, nothing else shared; never merged on a name alone.">
               <div className="list">
                 {entity.maybe_same.map((m) => (
                   <div key={m.id} className="list__row">
@@ -218,7 +218,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
             </SectionCard>
           ) : null}
 
-          <SectionCard title={`Everything with ${first}`} subtitle={entity.timeline.length ? `${entity.timeline.length} in the journal` : "Nothing in the journal names them yet"}>
+          <SectionCard title={`Everything with ${first}`} subtitle={entity.timeline.length ? String(entity.timeline.length) : "None yet"}>
             <div className="list">
               {entity.timeline.map((e) => (
                 <div key={e.id} className="list__row">

@@ -31,7 +31,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen, bare }
   if (!items.length) {
     return (
       <EmptyCard icon={<Zap size={ICON} />} title="Nothing runs on its own yet">
-        {empty}
+        {empty || undefined}
       </EmptyCard>
     );
   }
@@ -46,13 +46,13 @@ export function AutomationList({ client, items, onChanged, empty, onOpen, bare }
             onOpen={onOpen ? () => onOpen(a.id) : undefined}
             description={
               <>
-                {a.enabled ? `${a.when}${a.next_run_at ? ` · next ${when(a.next_run_at)}` : ""}` : `Off · ${a.when} when on`}
-                {a.last_run_at ? ` · last ran ${when(a.last_run_at)}` : " · hasn't run on its own yet"}
+                {a.enabled ? `${a.when}${a.next_run_at ? ` · next ${when(a.next_run_at)}` : ""}` : `Off · ${a.when}`}
+                {a.last_run_at ? ` · last ran ${when(a.last_run_at)}` : ""}
               </>
             }
             controls={
               <>
-                <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show here as it goes.")}>
+                <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started.")}>
                   {a.running ? "Running…" : "Run now"}
                 </Button>
                 <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />

@@ -85,7 +85,7 @@ function FileField({ client, id }: { client: Client; id: string }) {
       live = false;
     };
   }, [client, id]);
-  if (!id) return <Button size="sm" disabledReason="A page writes only on Save, and attaching a file writes at once. Drop the file on the collection, or ask Alpha to attach it.">Add file</Button>;
+  if (!id) return <Button size="sm" disabledReason="Uploading writes at once and this page writes only on Save. Drop the file on the table instead.">Upload</Button>;
   if (!doc) return <span className="faint">{id}</span>;
   return (
     <span className="row">

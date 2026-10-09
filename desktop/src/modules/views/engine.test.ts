@@ -73,7 +73,10 @@ describe("footer summaries", () => {
   it("offers each kind its own choices, and numbers add up by default", () => {
     expect(summaryOpsFor("number")).toContain("sum");
     expect(summaryOpsFor("date")).toContain("earliest");
-    expect(summaryOpsFor("text")).toEqual(["none", "count", "filled"]);
+    expect(summaryOpsFor("text")).toEqual(["none", "count_all", "count", "unique", "empty", "not_empty", "percent_empty", "filled"]);
+    expect(summaryOpsFor("bool")).toContain("percent_checked");
+    expect(summaryOpsFor("status")).toContain("per_group");
+    expect(summaryOpsFor("text")).not.toContain("sum");
     expect(defaultSummary("number")).toBe("sum");
     expect(defaultSummary("text")).toBe("none");
   });
@@ -88,5 +91,20 @@ describe("footer summaries", () => {
     expect(summarize(rows, when, "latest")?.value).toBe("5 Oct");
     expect(summarize([], price, "sum")?.value).toBe("—");
     expect(summarize(rows, price, "none")).toBeNull();
+  });
+  it("has Notion's whole set: counts, percents, median, range, date range, checks, per group", () => {
+    expect(summarize(rows, price, "count_all")?.value).toBe("4");
+    expect(summarize(rows, price, "empty")?.value).toBe("1");
+    expect(summarize(rows, price, "percent_empty")?.value).toBe("25%");
+    expect(summarize(rows, status, "unique")?.value).toBe("3");
+    expect(summarize(rows, price, "median")?.value).toBe("120 £");
+    expect(summarize(rows, price, "range")?.value).toBe("250 £");
+    expect(summarize(rows, when, "date_range")?.value).toBe("3 days");
+    expect(summarize(rows, status, "per_group")?.value).toBe("Active 2 · Pending 1 · Sold 1");
+    const done = { name: "done", kind: "bool" };
+    const ticks = [row("x", { done: true }), row("y", { done: false }), row("z", { done: null })];
+    expect(summarize(ticks, done, "checked")?.value).toBe("1");
+    expect(summarize(ticks, done, "unchecked")?.value).toBe("2");
+    expect(summarize(ticks, done, "percent_checked")?.value).toBe("33%");
   });
 });

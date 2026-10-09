@@ -48,21 +48,24 @@ describe("the sidebar's places", () => {
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
   });
 
-  it("sends the old Activity place to Intelligence › Activity", () => {
-    expect(knownSurface({ kind: "activity" })).toEqual({ kind: "intelligence", tab: "activity" });
+  it("turns Intelligence's old Activity tab into the bell, and its old Map tab into Second Brain", () => {
+    expect(knownSurface({ kind: "activity" })).toEqual({ kind: "activity" });
+    expect(knownSurface({ kind: "intelligence", tab: "activity" })).toEqual({ kind: "activity" });
+    expect(knownSurface({ kind: "intelligence", tab: "map" })).toEqual({ kind: "intelligence", tab: "second-brain" });
   });
 });
 
 describe("the sidebar's order", () => {
-  it("is Home, People & Companies, the modules, New, then Intelligence and Settings last; nothing else", () => {
+  it("is Home, Network, the modules, New, then Intelligence and Settings last; nothing else", () => {
     const { labels, container } = setup([card("m_j", "Job"), card("m_f", "Food")], { needs: 2 });
-    expect(labels()).toEqual(["Home", "People & Companies", "Food", "Job", "New", "Intelligence", "Settings"]);
+    expect(labels()).toEqual(["Home", "Network", "Food", "Job", "New", "Intelligence", "Settings"]);
     expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
     // New is the last item of the module list, which is the only part that scrolls
     const scroll = container.querySelector(".rail__scroll")!;
     expect(scroll.lastElementChild).toBe(screen.getByRole("button", { name: "New" }));
     expect(scroll.contains(screen.getByRole("button", { name: "Settings" }))).toBe(false);
-    expect(screen.queryByRole("button", { name: "Activity" })).toBeNull();
+    // Activity is the bell on the top row, not a place in the list
+    expect(container.querySelector(".rail__top")!.contains(screen.getByRole("button", { name: "Activity" }))).toBe(true);
     expect(screen.queryByText("Your modules")).toBeNull();
     expect(screen.queryByText(/Alpha is running|Starting|Core not/)).toBeNull();
     expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
@@ -76,13 +79,13 @@ describe("the sidebar's order", () => {
 
   it("follows the person's own order, ignores ids that are gone, and appends new modules by name", async () => {
     const { labels } = setup([card("m_a", "Alpha plans"), card("m_j", "Job"), card("m_f", "Food"), card("m_n", "Notes")], { stored: { [PREF.moduleOrder]: ["m_j", "m_gone", "m_f"] } });
-    await waitFor(() => expect(labels()).toEqual(["Home", "People & Companies", "Job", "Food", "Alpha plans", "Notes", "New", "Intelligence", "Settings"]));
+    await waitFor(() => expect(labels()).toEqual(["Home", "Network", "Job", "Food", "Alpha plans", "Notes", "New", "Intelligence", "Settings"]));
   });
 
-  it("draws People & Companies like a module row, whose menu is just Open", async () => {
+  it("draws Network like a module row, whose menu is just Open", async () => {
     const user = userEvent.setup();
     const { onGo } = setup([]);
-    await user.click(screen.getByRole("button", { name: "More for People & Companies" }));
+    await user.click(screen.getByRole("button", { name: "More for Network" }));
     expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open"]);
     await user.click(screen.getByRole("menuitem", { name: "Open" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "people" });
@@ -117,6 +120,50 @@ describe("the workspace button", () => {
     await user.click(screen.getByRole("button", { name: "Alpha" }));
     await user.click(await screen.findByRole("menuitem", { name: "View options" }));
     expect(await screen.findByText("Nothing is hidden.")).toBeInTheDocument();
+  });
+});
+
+describe("editing the workspace in place", () => {
+  it("renames it on a double-click on the name: Enter saves, Escape cancels", async () => {
+    const user = userEvent.setup();
+    const { setPreference } = setup([]);
+    await user.dblClick(screen.getByText("Alpha"));
+    const input = screen.getByRole("textbox", { name: "Workspace name" });
+    await user.clear(input);
+    await user.type(input, "Studio{Enter}");
+    expect(setPreference).toHaveBeenCalledWith(PREF.workspaceName, "Studio");
+    expect(await screen.findByRole("button", { name: "Studio" })).toBeInTheDocument();
+    await user.dblClick(screen.getByText("Studio"));
+    await user.type(screen.getByRole("textbox", { name: "Workspace name" }), "x{Escape}");
+    expect(setPreference).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Studio" })).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).toBeNull(); // the double-click did not also open the menu
+  });
+
+  it("changes the logo on a double-click on the tile: a letter or emoji, then Remove", async () => {
+    const user = userEvent.setup();
+    const { setPreference, container } = setup([]);
+    await user.dblClick(container.querySelector(".wsbtn__tile")!);
+    await user.type(await screen.findByRole("textbox", { name: "Letter or emoji" }), "🚀{Enter}");
+    expect(setPreference).toHaveBeenCalledWith(PREF.workspaceLogo, "🚀");
+    await waitFor(() => expect(container.querySelector(".wsbtn__tile")).toHaveTextContent("🚀"));
+    await user.dblClick(container.querySelector(".wsbtn__tile")!);
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+    expect(setPreference).toHaveBeenLastCalledWith(PREF.workspaceLogo, null);
+  });
+});
+
+describe("the bell", () => {
+  it("opens Activity beside the workspace name, and opens when asked from elsewhere", async () => {
+    const core = fakeCore();
+    const activity = vi.fn(async () => []);
+    Object.assign(core.client, { activity });
+    const props = { onGo: vi.fn(), onNew: vi.fn(), onChanged: vi.fn(), onToggleCollapsed: vi.fn() };
+    const { rerender } = render(<Rail client={core.client} surface={{ kind: "home" }} modules={[]} needs={0} collapsed={false} {...props} />);
+    expect(screen.queryByRole("textbox", { name: "Search activity" })).toBeNull();
+    rerender(<Rail client={core.client} surface={{ kind: "home" }} modules={[]} needs={0} collapsed={false} {...props} openActivity={1} />);
+    expect(await screen.findByRole("textbox", { name: "Search activity" })).toBeInTheDocument();
+    await waitFor(() => expect(activity).toHaveBeenCalled());
   });
 });
 
@@ -260,7 +307,7 @@ describe("reordering", () => {
 describe("the folded sidebar", () => {
   it("keeps every item, each with its label (drawn tiny under the icon by CSS)", () => {
     const { labels, container } = setup([card("m_f", "Food")], { collapsed: true });
-    expect(labels()).toEqual(["Home", "People & Companies", "Food", "New", "Intelligence", "Settings"]);
+    expect(labels()).toEqual(["Home", "Network", "Food", "New", "Intelligence", "Settings"]);
     expect(container.querySelector(".rail--collapsed")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Unfold the sidebar" })).toBeInTheDocument();
   });

@@ -1,25 +1,42 @@
 /**
- * One skill's page: what it is and does, in words; its body shown and never edited here (a
- * skill is Alpha's know-how, repaired by Alpha: the person asks for a change); Alpha's notes
- * page, which the person may edit; its runs. The shared page header carries a back link to
- * Intelligence and the serif title; sections are cards (9 Oct, the UI rulebook §5).
+ * One skill's page: everything about it as fields the person can edit (name, description, when
+ * to use it, its instructions), Alpha's notes on it, and its runs. The core has no call that
+ * edits a skill, so Save stays disabled with the reason; the notes save (`writeNote`). The
+ * shared page header carries a back link to Skills and the serif title (9 Oct, §5).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { Client, SkillDetail } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button, EmptyCard, PageHeader, SectionCard, Trouble } from "../ui";
+import { Badge, Button, PageHeader, SectionCard, Trouble } from "../ui";
 import { BackLink } from "./BackLink";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
 
 const KIND: Record<string, string> = { read: "Reads a list from a page", act: "Does a task on a site", run: "Runs on its own" };
 
+/** A labelled field: a line, or a box for longer text. Shared by the agent, skill and automation pages. */
+export function Field({ label, value, onChange, rows, mono }: { label: string; value: string; onChange: (v: string) => void; rows?: number; mono?: boolean }) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      {rows ? <textarea id={id} className={mono ? "intel__code" : undefined} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} /> : <input id={id} value={value} onChange={(e) => onChange(e.target.value)} />}
+    </div>
+  );
+}
+
+/** A skill's instructions as one text: a reader's script, else its steps, one per line. */
+function instructionsOf(s: SkillDetail): string {
+  if (s.kind === "read" && s.script) return s.script;
+  return (s.steps ?? []).map((st, i) => `${i + 1}. ${stepSentence(st)}`).join("\n");
+}
+
 export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { client: Client; name: string; version: number; onGo: (s: Surface) => void; onAsk: (text: string) => void; onChanged: () => void }) {
   const [skill, setSkill] = useState<SkillDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
-  const [editing, setEditing] = useState(false);
-  const [body, setBody] = useState("");
+  const [draft, setDraft] = useState<Record<"name" | "description" | "when" | "url" | "instructions" | "fields" | "checks", string> | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
@@ -29,13 +46,12 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
         if (!live) return;
         setSkill(s);
         setError(null);
-        if (!editing) setBody(s.notes?.body ?? "");
       })
       .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       live = false;
     };
-  }, [client, name, version, tick, editing]);
+  }, [client, name, version, tick]);
   const back = <BackLink to="Skills" onClick={() => onGo({ kind: "intelligence", tab: "skills" })} />;
   if (!skill) {
     return (
@@ -46,12 +62,15 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
     );
   }
   const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
+  const fields = draft ?? { name: skill.name, description: skill.description, when: skill.when_to_use ?? "", url: skill.url ?? "", instructions: instructionsOf(skill), fields: (skill.fields ?? []).join(", "), checks: (skill.verify ?? []).map((v) => stepSentence(v)).join("\n") };
+  const edit = (patch: Partial<typeof fields>) => setDraft({ ...fields, ...patch });
+  const noteText = notes ?? skill.notes?.body ?? "";
   const saveNotes = () => {
     setProblem(null);
     void client
-      .writeNote(`skill:${name}`, name, body, skill.notes?.summary ?? undefined)
+      .writeNote(`skill:${name}`, name, noteText, skill.notes?.summary ?? undefined)
       .then(() => {
-        setEditing(false);
+        setNotes(null);
         onChanged();
       })
       .catch((e: unknown) => setProblem(e instanceof Error ? e.message : String(e)));
@@ -72,75 +91,74 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
           <div className="row">
             <Badge tone="info">{KIND[skill.kind] ?? skill.kind}</Badge>
             <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
+            {skill.effect ? <Badge tone={skill.effect === "send" ? "warn" : "gray"}>{skill.effect === "send" ? "Sends; asks every time" : "Prepares only"}</Badge> : null}
             <span className="faint">
-              {skill.name} · version {skill.version}
+              version {skill.version}
               {skill.site ? ` · ${skill.site}` : ""}
-              {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
-              {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} records` : "run"} ${when(skill.last_run_at)}` : ""}
+              {skill.last_run_at ? ` · ${when(skill.last_run_at)}` : ""}
             </span>
           </div>
-          {skill.when_to_use ? <p className="muted">When: {skill.when_to_use}</p> : null}
           {skill.last_problem ? <Trouble>{skill.last_problem}</Trouble> : null}
 
-          <SectionCard title="How it works" subtitle="Alpha wrote this and repairs it; it is not edited by hand.">
-            {skill.url ? (
-              <p className="muted">
-                Starts at <a href={skill.url} target="_blank" rel="noreferrer">{skill.url}</a>
-              </p>
-            ) : null}
-            {skill.kind === "read" && skill.script ? <pre className="code" aria-label="The reader's script">{skill.script}</pre> : null}
-            {skill.kind !== "read" && skill.steps?.length ? (
-              <ol className="steps">
-                {skill.steps.map((st, i) => (
-                  <li key={i}>{stepSentence(st)}</li>
-                ))}
-              </ol>
-            ) : null}
-            {skill.kind === "act" && skill.fields?.length ? <p className="faint">Fields the person's request fills: {skill.fields.join(", ")}</p> : null}
-            {skill.kind === "act" && skill.verify?.length ? <p className="faint">Checked afterwards: {skill.verify.map((v) => stepSentence(v)).join("; ")}</p> : null}
+          <SectionCard
+            title="Skill"
+            actions={
+              <>
+                {draft ? (
+                  <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
+                    Discard
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="primary" disabledReason="Editing a skill needs Alpha's core">
+                  Save
+                </Button>
+              </>
+            }
+          >
+            <div className="intel__fields">
+              <Field label="Name" value={fields.name} onChange={(v) => edit({ name: v })} />
+              <Field label="Description" value={fields.description} onChange={(v) => edit({ description: v })} />
+              <Field label="When to use" value={fields.when} onChange={(v) => edit({ when: v })} />
+              {skill.kind !== "run" ? <Field label="Starts at" value={fields.url} onChange={(v) => edit({ url: v })} /> : null}
+              <Field label="Instructions" value={fields.instructions} onChange={(v) => edit({ instructions: v })} rows={10} mono={skill.kind === "read"} />
+              {skill.kind === "act" ? <Field label="Fields your request fills" value={fields.fields} onChange={(v) => edit({ fields: v })} /> : null}
+              {skill.kind === "act" ? <Field label="Checked afterwards" value={fields.checks} onChange={(v) => edit({ checks: v })} rows={3} /> : null}
+            </div>
           </SectionCard>
 
           <SectionCard
             title="Alpha's notes"
-            subtitle="What it learned about the site; yours to add to"
             actions={
-              editing ? (
+              notes !== null ? (
                 <>
+                  <Button size="sm" variant="ghost" onClick={() => setNotes(null)}>
+                    Discard
+                  </Button>
                   <Button size="sm" variant="primary" onClick={saveNotes}>
                     Save
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBody(skill.notes?.body ?? ""); }}>
-                    Cancel
-                  </Button>
                 </>
-              ) : (
-                <Button size="sm" onClick={() => setEditing(true)}>
-                  {skill.notes ? "Edit" : "Write"}
-                </Button>
-              )
+              ) : null
             }
           >
             {problem ? <Trouble>Couldn't save the notes: {problem}</Trouble> : null}
-            {editing ? (
-              <textarea className="note__edit" rows={8} value={body} onChange={(e) => setBody(e.target.value)} aria-label={`Notes on ${name}`} />
-            ) : skill.notes ? (
-              <div className="people__page">{skill.notes.body}</div>
-            ) : (
-              <p className="muted">No notes yet.</p>
-            )}
+            <textarea className="note__edit" rows={6} value={noteText} onChange={(e) => setNotes(e.target.value)} aria-label={`Notes on ${name}`} />
           </SectionCard>
 
-          <SectionCard title="Runs" subtitle={skill.runs.length ? undefined : "Nothing in the journal names it yet"}>
-            {!skill.runs.length ? <EmptyCard title="No runs yet">Each time it reads or runs, the journal records it and it appears here.</EmptyCard> : null}
-            <div className="list">
-              {[...skill.runs].reverse().map((r, i) => (
-                <div key={`${r.at}-${i}`} className="list__row">
-                  <span className="faint people__when">{when(r.at)}</span>
-                  <Badge tone={r.kind === "failed" ? "bad" : r.kind === "made" ? "info" : "gray"}>{r.kind}</Badge>
-                  <span className="people__line">{r.text}</span>
-                </div>
-              ))}
-            </div>
+          <SectionCard title="Runs">
+            {skill.runs.length ? (
+              <div className="list">
+                {[...skill.runs].reverse().map((r, i) => (
+                  <div key={`${r.at}-${i}`} className="list__row">
+                    <span className="faint people__when">{when(r.at)}</span>
+                    <Badge tone={r.kind === "failed" ? "bad" : r.kind === "made" ? "info" : "gray"}>{r.kind}</Badge>
+                    <span className="people__line">{r.text}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="faint">None yet.</p>
+            )}
           </SectionCard>
         </div>
       </div>

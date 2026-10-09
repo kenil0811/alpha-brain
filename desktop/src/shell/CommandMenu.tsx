@@ -23,7 +23,7 @@ interface Item {
 const PAGES: { label: string; surface: Surface; icon: React.ReactNode }[] = [
   { label: "Home", surface: { kind: "home" }, icon: <HomeIcon size={14} /> },
   { label: "Activity", surface: { kind: "activity" }, icon: <ActivityIcon size={14} /> },
-  { label: "People & Companies", surface: { kind: "people" }, icon: <PeopleIcon size={14} /> },
+  { label: "Network", surface: { kind: "people" }, icon: <PeopleIcon size={14} /> },
   { label: "Intelligence", surface: { kind: "intelligence" }, icon: <IntelligenceIcon size={14} /> },
   { label: "Settings", surface: { kind: "settings" }, icon: <SettingsIcon size={14} /> },
 ];

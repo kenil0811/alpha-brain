@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
+import { InfoTip } from "./Tooltip";
 
-/** A white bordered card for one section (the UI rulebook §14): a small semibold sans title, a
- *  one-line grey subtitle, actions on the right, then the content. */
-export function SectionCard({ title, subtitle, actions, children }: { title: string; subtitle?: string; actions?: ReactNode; children?: ReactNode }) {
+/** A white bordered card for one section (the UI rulebook §14): a small semibold sans title, an
+ *  optional (i) beside it that explains on hover (`info`, preferred to a subtitle when the
+ *  explanation is not needed at a glance), a one-line grey subtitle, actions on the right, then
+ *  the content. */
+export function SectionCard({ title, subtitle, info, actions, children }: { title: string; subtitle?: string; info?: string; actions?: ReactNode; children?: ReactNode }) {
   return (
     <section className="card scard" aria-label={title}>
       <header className="scard__head">
         <div className="scard__titles">
-          <h3 className="scard__title">{title}</h3>
+          <div className="scard__titleline">
+            <h3 className="scard__title">{title}</h3>
+            {info ? <InfoTip text={info} /> : null}
+          </div>
           {subtitle ? <p className="scard__sub">{subtitle}</p> : null}
         </div>
         {actions ? <div className="scard__actions">{actions}</div> : null}

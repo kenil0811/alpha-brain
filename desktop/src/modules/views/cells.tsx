@@ -26,15 +26,16 @@ export function SeenCell({ row }: { row: RecordRow }) {
  *  that opens on a right-click or a menu key, and so on. Spread onto the `<td>`. */
 export type TdProps = TdHTMLAttributes<HTMLTableCellElement>;
 
-export function RelationCell({ row, field, relations, onOpenRelated, tdProps }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; tdProps?: TdProps }) {
+export function RelationCell({ row, field, relations, onOpenRelated, tdProps, adornment }: { row: RecordRow; field: FieldInfo; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; tdProps?: TdProps; adornment?: ReactNode }) {
   const value = row.values[field.name];
-  if (!value) return <td {...tdProps}><span className="faint">—</span></td>;
+  if (!value) return <td {...tdProps}>{adornment}<span className="faint">—</span></td>;
   const id = String(value);
   const title = relations?.[field.name]?.[id] ?? id;
   const target = field.relation;
   const opens = Boolean(onOpenRelated && target && target !== "person" && target !== "organisation");
   return (
     <td {...tdProps}>
+      {adornment}
       {opens ? (
         <button type="button" className="linkbtn" onClick={(e) => { e.stopPropagation(); onOpenRelated!(target!, id); }} title={`Open ${title}`}>
           <Badge tone="info">{title}</Badge>
@@ -91,8 +92,8 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   const [own, setOwn] = useState(false);
   const editing = editingProp ?? own;
   const setEditing = onEditing ?? setOwn;
-  if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} tdProps={tdProps} />;
-  if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} tdProps={tdProps} />;
+  if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} tdProps={tdProps} adornment={adornment} />;
+  if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} tdProps={tdProps} adornment={adornment} />;
   const value = row.values[field.name];
   const numeric = isNumeric(field.kind);
   const estimate = Boolean(row.provenance?.estimated) && numeric;
@@ -154,12 +155,13 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
 }
 
 /** A file field: the document's name, opened with the Mac's own app, or a way to add one. */
-export function FileCell({ row, field, files, onFile, tdProps }: { row: RecordRow; field: FieldInfo; files: Record<string, FileInfo>; onFile?: (file: File) => void; tdProps?: TdProps }) {
+export function FileCell({ row, field, files, onFile, tdProps, adornment }: { row: RecordRow; field: FieldInfo; files: Record<string, FileInfo>; onFile?: (file: File) => void; tdProps?: TdProps; adornment?: ReactNode }) {
   const id = row.values[field.name] ? String(row.values[field.name]) : "";
   const info = id ? files[id] : undefined;
   if (info) {
     return (
       <td {...tdProps} onClick={(e) => e.stopPropagation()}>
+        {adornment}
         <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
           {info.name}
         </button>
@@ -172,9 +174,10 @@ export function FileCell({ row, field, files, onFile, tdProps }: { row: RecordRo
   }
   return (
     <td {...tdProps} onClick={(e) => e.stopPropagation()}>
+      {adornment}
       {onFile ? (
         <label className="linkbtn faint">
-          {id ? "File missing · " : ""}Add file
+          {id ? "File missing · " : ""}Upload
           <input type="file" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
         </label>
       ) : (

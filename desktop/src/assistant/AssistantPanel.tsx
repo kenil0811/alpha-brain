@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
+import { AgentAvatar } from "../shell/AgentAvatar";
 import { useSpeech } from "../shell/voice";
 import { Badge, Button, Dropdown, IconButton, PageHeader, Rich, Trouble } from "../ui";
 import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronsRight, DeleteIcon, PlusIcon, RetryIcon, X } from "../ui/icons";
@@ -22,11 +23,11 @@ import { Composer } from "./Composer";
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
 
-/** Alpha's mark: the one avatar, a letter on ink. */
-function Mark() {
+/** Alpha's mark: its companion face, the same one Intelligence › Agents shows for it. */
+function Mark({ client, size = 28 }: { client: Client; size?: number }) {
   return (
     <span className="assist__mark" aria-hidden="true">
-      A
+      <AgentAvatar client={client} agent="alpha" size={size} />
     </span>
   );
 }
@@ -244,7 +245,7 @@ export function AssistantPanel({
   if (!open) {
     return (
       <aside className="assist assist--folded" aria-label="Assistant, folded">
-        <IconButton className="assist__strip" label="Open the assistant" icon={<Mark />} onClick={() => onOpen(true)} />
+        <IconButton className="assist__strip" label="Open the assistant" icon={<Mark client={client} />} onClick={() => onOpen(true)} />
       </aside>
     );
   }
@@ -321,7 +322,7 @@ export function AssistantPanel({
         left={<IconButton label="Fold the assistant" icon={<ChevronsRight />} onClick={() => onOpen(false)} />}
         centre={
           <div className="assist__who">
-            <Mark />
+            <Mark client={client} />
             <div className="assist__name">
               <b>Alpha</b>
               <span className="assist__ctx">{activeConvo ? `${activeConvo.scope} · ${CONVO_STATE[activeConvo.state] ?? activeConvo.state}` : scopeName}</span>
@@ -430,7 +431,7 @@ export function AssistantPanel({
         onText={setText}
         onSend={() => { if (speech.listening) speech.stop(); void send(text); }}
         busy={Boolean(pending)}
-        placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"}
+        placeholder={threadView ? "Reply in this thread" : "Ask or tell Alpha…"}
         speech={speech}
         inputRef={input}
         onFollow={(turn) => { load(); void follow(turn); }}

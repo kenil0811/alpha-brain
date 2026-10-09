@@ -9,7 +9,7 @@
 import { useState } from "react";
 import type { Client, Fact } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { Badge, Button, ListRow, Notice } from "../ui";
+import { Button, ListRow, Notice } from "../ui";
 import { ChevronDown, ChevronRight, ICON_SM } from "../ui/icons";
 
 /** Where a fact came from, in words a person can check. */
@@ -80,12 +80,7 @@ export function FactRow({ fact, client, onChanged, onAsk }: { fact: Fact; client
   return (
     <ListRow
       title={fact.value}
-      description={
-        <>
-          {label}
-          {suggested ? <Badge tone="warn" style={{ marginLeft: 8 }}>Waiting for your confirmation</Badge> : null}
-        </>
-      }
+      description={label}
       controls={
         suggested ? (
           <>
@@ -98,10 +93,10 @@ export function FactRow({ fact, client, onChanged, onAsk }: { fact: Fact; client
           </>
         ) : (
           <>
-            <Button size="sm" disabledReason={onAsk ? undefined : "Tell Alpha in the conversation what is right; it replaces this."} onClick={() => onAsk?.(`Correct this fact: ${label.toLowerCase()} is “${fact.value}”, but it should be `)}>
+            <Button size="sm" disabledReason={onAsk ? undefined : "Tell Alpha in a conversation"} onClick={() => onAsk?.(`Correct this fact: ${label.toLowerCase()} is “${fact.value}”, but it should be `)}>
               Correct
             </Button>
-            <Button size="sm" variant="ghost" disabledReason="Alpha can forget only what is waiting for your confirmation. Ask Alpha to correct it and the old value is replaced.">
+            <Button size="sm" variant="ghost" disabledReason="Forgetting a confirmed fact needs Alpha's core">
               Forget
             </Button>
           </>

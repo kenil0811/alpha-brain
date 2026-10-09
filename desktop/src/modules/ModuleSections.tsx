@@ -1,45 +1,112 @@
 /**
  * What a module page keeps below its data, in the rulebook's order (9 Oct, the UI rulebook §5):
  * Files, then Intelligence (Alpha's page about the module, its goals, what happened here, the
- * modules inside it), then Governance (where it sits, what it keeps, where it reads from, what
- * runs on its own). Each is a section card; the page keeps scrolling into them from the table.
- * These are what the Summary, Activity and Settings tabs held before; the tabs are gone.
+ * modules inside it, each a tab), then Governance (what Alpha should always and never do here,
+ * where it sits, what it keeps, where it reads from, what runs on its own). Each is a section
+ * card; the page keeps scrolling into them from the table.
  */
 import { useEffect, useMemo, useState } from "react";
+import { UploadIcon as Upload } from "../ui/icons";
 import { moduleWords } from "../core/client";
 import type { Client, DocumentInfo, ModuleCard, ModuleDetail, Note, Source } from "../core/client";
+import { PREF, usePreference } from "../core/preferences";
 import { AutomationList } from "../shell/Automations";
 import { NewAboveDialog } from "../shell/ModuleDialogs";
-import { Badge, Button, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, type Tone } from "../ui";
-import { AttachIcon, FileText, ICON, ModuleIcon, PermissionIcon, Table2 } from "../ui/icons";
+import { Badge, Button, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Tabs, type Tone } from "../ui";
+import { FileText, ICON, ICON_SM, ModuleIcon, PermissionIcon, Table2, X } from "../ui/icons";
+import { downloadText, parseCsv, toCsv } from "./csv";
 import { humanize, when } from "./format";
 
 const word = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-/** Files: Add files (the Mac's picker; a drop anywhere on the page does the same) and what was
- *  added in this visit. The module's data does not list its documents, so a visit that has added
- *  none says so in one line. */
-export function FilesSection({ added, onPick }: { added: DocumentInfo[]; onPick: () => void }) {
+/** A file added in this visit: the document the core made, and the file itself (the core has no
+ *  route that gives a document's content back, so a preview reads the file the person chose). */
+export interface AddedFile {
+  doc: DocumentInfo;
+  file?: File;
+}
+
+/** Files, always its own section: what was added in this visit, a CSV as a grid that can be
+ *  edited and downloaded, or an empty space to drop files on. A drop anywhere on the page, or
+ *  Upload (the Mac's picker), adds them. */
+export function FilesSection({ added, onPick }: { added: AddedFile[]; onPick: () => void }) {
   return (
     <SectionCard
       title="Files"
-      subtitle="Alpha reads what you add into this module's collections"
+      info="Alpha reads what you upload into this module's collections."
       actions={
-        <Button size="sm" icon={<AttachIcon size={ICON} />} onClick={onPick} title="Add files to this module from your Mac; Alpha reads them into its collections">
-          Add files
-        </Button>
+        added.length ? (
+          <Button size="sm" icon={<Upload size={ICON} />} onClick={onPick}>
+            Upload
+          </Button>
+        ) : undefined
       }
     >
       {added.length ? (
         <div className="lrows">
-          {added.map((d) => (
-            <ListRow key={d.id} icon={<FileText size={ICON} />} title={d.title} description="Added just now" />
+          {added.map(({ doc, file }) => (
+            <ListRow key={doc.id} icon={<FileText size={ICON} />} title={doc.title} description="Added just now">
+              {file && /\.csv$/i.test(file.name) ? <CsvGrid file={file} /> : null}
+            </ListRow>
           ))}
         </div>
       ) : (
-        <p className="faint">No files are attached yet. Add them with the button, or drop them anywhere on this page.</p>
+        <div className="dropzone">
+          Drop files here or{" "}
+          <button type="button" className="linkbtn dropzone__pick" onClick={onPick}>
+            Upload
+          </button>
+        </div>
       )}
     </SectionCard>
+  );
+}
+
+/** A CSV file as a grid of cells the person can change; Download hands back the edited file.
+ *  Saving into the world needs the core (no route takes a document's new content). */
+function CsvGrid({ file }: { file: File }) {
+  const [grid, setGrid] = useState<string[][] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    file.text().then(
+      (text) => live && setGrid(parseCsv(text)),
+      (e: unknown) => live && setProblem(e instanceof Error ? e.message : String(e)),
+    );
+    return () => {
+      live = false;
+    };
+  }, [file]);
+  if (problem) return <p className="faint">Couldn't read it: {problem}</p>;
+  if (!grid) return null;
+  const set = (r: number, c: number, v: string) => setGrid((g) => g!.map((row, i) => (i === r ? row.map((x, j) => (j === c ? v : x)) : row)));
+  // ponytail: every row is drawn; a very large CSV is slow here, page it if that bites
+  return (
+    <div className="csvgrid">
+      <div className="csvgrid__scroll">
+        <table className="table csvgrid__table">
+          <tbody>
+            {grid.map((row, r) => (
+              <tr key={r} className={r === 0 ? "csvgrid__head" : undefined}>
+                {row.map((cell, c) => (
+                  <td key={c}>
+                    <input value={cell} aria-label={`Row ${r + 1}, column ${c + 1}`} onChange={(e) => set(r, c, e.target.value)} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="csvgrid__bar">
+        <Button size="sm" onClick={() => downloadText(file.name, toCsv(grid))}>
+          Download
+        </Button>
+        <Button size="sm" disabledReason="Saving back needs Alpha's core; Download keeps your edits.">
+          Save
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -111,8 +178,7 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   return (
     <div className="subsec">
       <div className="subsec__head">
-        <h4 className="subsec__title">Alpha's page</h4>
-        <span className="faint">what this is for, what it holds, what is open</span>
+        <InfoTip text="What this module is for, what it holds, what is open. Alpha writes it; you can edit it." />
         <span className="section__right">
           {editing ? (
             <>
@@ -135,65 +201,141 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
       ) : page.page ? (
         <div className="people__page">{page.page.body}</div>
       ) : (
-        <p className="faint">No page yet. Alpha writes one as it builds and learns here; you can start it.</p>
+        <p className="faint">No page yet.</p>
       )}
     </div>
   );
 }
 
+type IntelTab = "page" | "goals" | "activity" | "inside";
+
 export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (id: string) => void }) {
+  const [tab, setTab] = useState<IntelTab>("page");
+  const inside = detail.inside ?? [];
+  const tabs: { id: IntelTab; label: string }[] = [
+    { id: "page", label: "Alpha's page" },
+    { id: "goals", label: `Goals${detail.goals.length ? ` · ${detail.goals.length}` : ""}` },
+    { id: "activity", label: "Activity" },
+    ...(inside.length ? [{ id: "inside" as const, label: `Inside · ${inside.length}` }] : []),
+  ];
   return (
-    <SectionCard title="Intelligence" subtitle="What Alpha knows and has done in this module">
-      <div className="subsecs">
-        <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} />
+    <SectionCard title="Intelligence">
+      <Tabs label="Intelligence" items={tabs} value={tab} onChange={setTab} />
+      {tab === "page" ? <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} /> : null}
+      {tab === "goals" ? (
+        detail.goals.length ? (
+          <ul className="goals">
+            {detail.goals.map((g) => (
+              <li key={g.id}>{g.text}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="faint">No goals yet.</p>
+        )
+      ) : null}
+      {tab === "activity" ? <ModuleActivity detail={detail} /> : null}
+      {tab === "inside" ? (
         <div className="subsec">
           <div className="subsec__head">
-            <h4 className="subsec__title">{detail.goals.length === 1 ? "Goal" : "Goals"}</h4>
+            <InfoTip text="What you ask here reaches them all." />
           </div>
-          {detail.goals.length ? (
-            <ul className="goals">
-              {detail.goals.map((g) => (
-                <li key={g.id}>{g.text}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="faint">No goals for this module yet. Tell Alpha what you are aiming for here.</p>
-          )}
+          <div className="lrows">
+            {inside.map((m) => (
+              <ListRow
+                key={m.id}
+                icon={<ModuleIcon size={ICON} />}
+                title={m.name}
+                description={`${m.goal ?? m.last_text ?? "Nothing in it yet."} · ${m.tables.length} ${word(m.tables.length, "collection", "collections")}${m.children?.length ? ` · holds ${m.children.length}` : ""}`}
+                controls={
+                  <Button size="sm" onClick={() => onGo(m.id)}>
+                    Open
+                  </Button>
+                }
+              />
+            ))}
+          </div>
         </div>
-        <div className="subsec">
-          <div className="subsec__head">
-            <h4 className="subsec__title">Activity</h4>
-            <span className="faint">newest first</span>
-          </div>
-          <ModuleActivity detail={detail} />
-        </div>
-        {detail.inside?.length ? (
-          <div className="subsec">
-            <div className="subsec__head">
-              <h4 className="subsec__title">Inside {detail.name}</h4>
-              <span className="faint">
-                {detail.inside.length} {word(detail.inside.length, "module", "modules")}; what you ask here reaches them all
-              </span>
-            </div>
-            <div className="lrows">
-              {detail.inside.map((m) => (
-                <ListRow
-                  key={m.id}
-                  icon={<ModuleIcon size={ICON} />}
-                  title={m.name}
-                  description={`${m.goal ?? m.last_text ?? "Nothing in it yet."} · ${m.tables.length} ${word(m.tables.length, "collection", "collections")}${m.children?.length ? ` · holds ${m.children.length}` : ""}`}
-                  controls={
-                    <Button size="sm" onClick={() => onGo(m.id)}>
-                      Open
-                    </Button>
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
+      ) : null}
     </SectionCard>
+  );
+}
+
+/** What Alpha should always and never do in this module, as rules the person writes: Enter adds
+ *  one, a click edits it, its × deletes it. Kept per module in `PREF.governance`; the runtime does
+ *  not read them yet, and the (i) says so. */
+function GovernanceRules({ client, moduleId }: { client: Client; moduleId: string }) {
+  const [all, setAll] = usePreference<Record<string, { always: string[]; never: string[] }>>(client, PREF.governance, {});
+  const [problem, setProblem] = useState<string | null>(null);
+  const mine = { always: all[moduleId]?.always ?? [], never: all[moduleId]?.never ?? [] };
+  const save = async (side: "always" | "never", next: string[]) => setProblem(await setAll({ ...all, [moduleId]: { ...mine, [side]: next } }));
+  return (
+    <div className="subsec">
+      <div className="govrules">
+        <RuleList title="Always" rules={mine.always} onChange={(next) => void save("always", next)} />
+        <RuleList title="Never" rules={mine.never} onChange={(next) => void save("never", next)} />
+      </div>
+      {problem ? <Notice tone="bad">Couldn't save the rules: {problem}</Notice> : null}
+    </div>
+  );
+}
+
+function RuleList({ title, rules, onChange }: { title: string; rules: string[]; onChange: (next: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  const [editing, setEditing] = useState<number | null>(null);
+  const [text, setText] = useState("");
+  const finish = (keep: boolean) => {
+    if (editing === null) return;
+    const clean = text.trim();
+    if (keep) onChange(clean ? rules.map((r, i) => (i === editing ? clean : r)) : rules.filter((_, i) => i !== editing));
+    setEditing(null);
+  };
+  return (
+    <div className="govrules__block" role="group" aria-label={title}>
+      <div className="subsec__head">
+        <h4 className="subsec__title">{title}</h4>
+        <InfoTip text="Saved here; Alpha follows them once its core reads them." />
+      </div>
+      <ul className="govrules__list">
+        {rules.map((r, i) => (
+          <li key={i} className="govrules__rule">
+            {editing === i ? (
+              <input
+                className="govrules__input"
+                autoFocus
+                aria-label={`Edit rule: ${r}`}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onBlur={() => finish(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") finish(true);
+                  if (e.key === "Escape") finish(false);
+                }}
+              />
+            ) : (
+              <>
+                <button type="button" className="linkbtn govrules__text" onClick={() => { setText(r); setEditing(i); }}>
+                  {r}
+                </button>
+                <IconButton size="sm" className="govrules__del" label={`Delete rule: ${r}`} icon={<X size={ICON_SM} />} onClick={() => onChange(rules.filter((_, j) => j !== i))} />
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <input
+        className="govrules__input"
+        aria-label={`Add a rule: ${title.toLowerCase()}`}
+        placeholder="Add a rule…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && draft.trim()) {
+            onChange([...rules, draft.trim()]);
+            setDraft("");
+          }
+        }}
+      />
+    </div>
   );
 }
 
@@ -253,13 +395,14 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
     }
   }
   return (
-    <SectionCard title="Governance" subtitle="Where it sits, what it keeps and reads, what runs on its own">
+    <SectionCard title="Governance">
       {naming ? <NewAboveDialog module={asCard} onMake={(name) => void makeParent(name)} onClose={() => setNaming(false)} /> : null}
       <div className="subsecs">
+        <GovernanceRules client={client} moduleId={detail.id} />
         <div className="subsec">
           <div className="subsec__head">
             <h4 className="subsec__title">Where it sits</h4>
-            <span className="faint">A module can live inside another; everything in it moves with it</span>
+            <InfoTip text="Everything in a module moves with it." />
           </div>
           <div className="lrows">
             <ListRow
@@ -288,7 +431,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
             <ListRow
               icon={<ModuleIcon size={ICON} />}
               title="Inside it"
-              description={detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet. Other modules can move in here."}
+              description={detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet"}
               controls={
                 canMoveIn.length ? (
                   <Menu
@@ -327,7 +470,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
               ))}
             </div>
           ) : (
-            <p className="faint">Nothing is kept here yet. Ask Alpha to set up a collection.</p>
+            <p className="faint">Nothing yet.</p>
           )}
         </div>
         {detail.sources.length ? (
@@ -356,9 +499,8 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
         <div className="subsec">
           <div className="subsec__head">
             <h4 className="subsec__title">What runs on its own</h4>
-            <span className="faint">Switch any off; Alpha says so if something needs it</span>
           </div>
-          <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="Nothing runs on its own here. Ask Alpha to keep something here current and it shows up with a switch." />
+          <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="" />
         </div>
       </div>
     </SectionCard>

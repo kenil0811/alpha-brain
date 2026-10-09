@@ -7,7 +7,7 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button, Confirm, EmptyCard, IconButton, ListRow, Menu, MenuItem, Notice, SectionCard, type Tone } from "../ui";
+import { Badge, Button, Confirm, EmptyCard, IconButton, InfoTip, ListRow, Menu, MenuItem, Notice, SectionCard, type Tone } from "../ui";
 import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON, MoreHorizontal } from "../ui/icons";
 
 const CONNECTOR: Record<string, { icon: ReactNode; label: (c: Connection) => string; reach: string }> = {
@@ -71,15 +71,10 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
                 key={c.id}
                 icon={meta.icon}
                 title={meta.label(c)}
-                description={
-                  <>
-                    {meta.reach}
-                    {c.last_sync ? ` · last read ${when(c.last_sync)}` : ""}
-                    {c.last_error ? ` · ${c.last_error}` : ""}
-                  </>
-                }
+                description={[c.last_sync ? `Last read ${when(c.last_sync)}` : "", c.last_error ?? ""].filter(Boolean).join(" · ") || undefined}
                 controls={
                   <>
+                    {meta.reach ? <InfoTip text={meta.reach} /> : null}
                     <Badge tone={STATUS[c.status].tone}>{STATUS[c.status].words}</Badge>
                     <Button size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
                       {c.connector === "browser" ? "Check" : "Read now"}
@@ -96,7 +91,7 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
           })}
         </div>
       ) : (
-        <EmptyCard icon={<ConnectionIcon size={ICON} />} title="Nothing connected yet">Alpha can always read public web pages; connect a folder, a site you sign into, or your calendar below.</EmptyCard>
+        <EmptyCard icon={<ConnectionIcon size={ICON} />} title="Nothing connected yet" />
       )}
       {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
       <Confirm
@@ -114,7 +109,7 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
         <p>{removing?.plan ? removalWords(removing.plan) : "Checking what goes with it…"}</p>
       </Confirm>
       <div className="addgrid">
-        <SectionCard title="A folder" subtitle="Alpha reads what is in it and keeps up.">
+        <SectionCard title="A folder">
           <form className="row" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Alpha is reading the folder."); }}>
             <input className="textfield" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
             <Button variant="primary" type="submit" disabled={!folder.trim() || busy !== null}>
@@ -122,7 +117,7 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
             </Button>
           </form>
         </SectionCard>
-        <SectionCard title="A site you sign into" subtitle="A window opens; you sign in yourself.">
+        <SectionCard title="A site you sign into" actions={<InfoTip text="A window opens; you sign in yourself" />}>
           <form className="row" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("site", () => client.connectSite(site.trim()), "A window is open: sign in there, then close it."); }}>
             <input className="textfield" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
             <Button variant="primary" type="submit" disabled={!site.trim() || busy !== null}>
@@ -131,7 +126,7 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
           </form>
         </SectionCard>
         {!hasCalendar ? (
-          <SectionCard title="Your calendar" subtitle="Every calendar in macOS Calendar.">
+          <SectionCard title="Your calendar">
             <Button variant="primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
               Connect calendars
             </Button>

@@ -22,16 +22,12 @@ function mount(c: ReturnType<typeof client>, onChanged = vi.fn()) {
 }
 
 describe("Settings", () => {
-  it("lists its sections and switches between them", async () => {
+  it("shows every section at once, as cards, with no section list to click through", () => {
     mount(client());
-    const names = screen.getAllByRole("tab").map((t) => t.textContent);
-    expect(names).toEqual(["Workspace", "Thinks with", "Appearance", "Companion", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed modules", "Help"]);
-    expect(screen.getByRole("tab", { name: "Workspace", selected: true })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Appearance" }));
-    expect(screen.getByRole("tab", { name: "Appearance", selected: true })).toBeInTheDocument();
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    for (const name of ["Workspace", "Thinks with", "Appearance", "Companion", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed modules", "Help"]) expect(screen.getByRole("region", { name })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Match Mac" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Notifications" }));
-    expect(screen.getByText("Nothing configured yet")).toBeInTheDocument();
+    expect(screen.getAllByText(/Nothing configured yet/)).toHaveLength(3);
   });
 
   it("saves the workspace's name through the preference route, then says something changed", async () => {
@@ -52,7 +48,6 @@ describe("Settings", () => {
     mount(c);
     expect(screen.getByRole("button", { name: "Manage Workspace" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("tab", { name: "Permissions" }));
     expect(await screen.findByText("Save drafts in my mail")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Revoke" }));
     expect(c.revokePermission).toHaveBeenCalledWith("perm1");

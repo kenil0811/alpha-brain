@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Client } from "../core/client";
 import { Activity } from "./Activity";
-import { People } from "./People";
+import { Network } from "./Network";
 
 describe("a page whose load failed", () => {
   it("says so and offers to try again, instead of an empty list", async () => {
@@ -14,9 +14,9 @@ describe("a page whose load failed", () => {
     await waitFor(() => expect(activity).toHaveBeenCalledTimes(2));
   });
 
-  it("does the same for People & Companies", async () => {
+  it("does the same for Network", async () => {
     const people = vi.fn(() => Promise.reject(new Error("gone")));
-    render(<People client={{ people } as unknown as Client} version={0} onOpen={vi.fn()} />);
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load People & Companies: gone"));
+    render(<Network client={{ people } as unknown as Client} version={0} onOpen={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load Network: gone"));
   });
 });

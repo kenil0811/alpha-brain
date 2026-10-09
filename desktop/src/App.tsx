@@ -22,7 +22,7 @@ import { Intelligence } from "./shell/Intelligence";
 import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
 import { SkillPage } from "./shell/SkillPage";
-import { EntityPage, People } from "./shell/People";
+import { EntityPage, Network } from "./shell/Network";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
@@ -60,8 +60,11 @@ type Runtime = { kind: "connecting" } | { kind: "connected"; client: Client } | 
 export function App({ client: injected }: { client?: Client } = {}) {
   const [runtime, setRuntime] = useState<Runtime>(injected ? { kind: "connected", client: injected } : { kind: "connecting" });
   const [attempt, setAttempt] = useState(0);
-  // The address wins when it names a page; otherwise the remembered place.
-  const [surface, setSurfaceState] = useState<Surface>(() => currentHashSurface() ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  // The address wins when it names a page; otherwise the remembered place. Activity is no page:
+  // asked for, it opens the sidebar's bell over the page that is open (Home at the start).
+  const [start] = useState<Surface>(() => currentHashSurface() ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  const [surface, setSurfaceState] = useState<Surface>(start.kind === "activity" ? { kind: "home" } : start);
+  const [activityAt, setActivityAt] = useState(start.kind === "activity" ? Date.now() : 0);
   // `panelOpen` false is the assistant panel folded to its strip, never gone.
   const [panelOpen, setPanelOpen] = useState<boolean>(() => remembered<boolean>(PANEL_KEY, true));
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>(RAIL_KEY, false));
@@ -87,12 +90,18 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const surfaceRef = useRef(surface);
   surfaceRef.current = surface;
   const commitSurface = useCallback((next: Surface) => {
-    const place = knownSurface(next); // Activity now lives in Intelligence, wherever it is asked for from
+    const place = knownSurface(next);
+    if (place.kind === "activity") {
+      setActivityAt(Date.now());
+      pushAddress(surfaceRef.current, true); // the address names the page, not the bell
+      return;
+    }
     setSurfaceState(place);
     remember(SURFACE_KEY, place);
     pushAddress(place);
   }, []);
   const setSurface = useCallback((next: Surface) => {
+    if (knownSurface(next).kind === "activity") return commitSurface(next); // the bell leaves the page as it is
     if (guard.current?.(() => commitSurface(next))) return;
     commitSurface(next);
   }, [commitSurface]);
@@ -101,12 +110,14 @@ export function App({ client: injected }: { client?: Client } = {}) {
     const onPop = () => {
       const named = currentHashSurface();
       if (!named) return;
+      if (named.kind === "activity") return commitSurface(named);
       if (guard.current?.(() => commitSurface(named))) {
         pushAddress(surfaceRef.current); // Back was held: the address goes back to the page that stays
         return;
       }
       setSurfaceState(named);
       remember(SURFACE_KEY, named);
+      pushAddress(named, true); // an old address (`#/people`) shows its new name
     };
     window.addEventListener("popstate", onPop);
     window.addEventListener("hashchange", onPop);
@@ -254,14 +265,14 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const scopeId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : null;
   const scopeModule = scopeId ? (modules.find((m) => m.id === scopeId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "Network" : "Intelligence";
 
   return (
     <div
       className={`app${panelOpen ? "" : " app--assistant-folded"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: panelOpen ? `${panel.width}px` : undefined }}
     >
-      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} />
+      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} openActivity={activityAt} activityVersion={versions.intelligence} />
       {!railCollapsed ? <Resizer side="rail" label="Resize the sidebar" drag={rail} /> : null}
       {panelOpen && client ? <Resizer side="panel" label="Resize the assistant panel" drag={panel} /> : null}
       <main className="main">
@@ -316,7 +327,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} />
         ) : surface.kind === "people" ? (
-          <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
+          <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (
           <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "skill" ? (
@@ -327,10 +338,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <AgentPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={surface.tab ?? "second-brain"} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
-        ) : (
-          // an old Activity address that got past `knownSurface` still lands on its tab
-          <Intelligence client={runtime.client} tab="activity" version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
-        )}
+        ) : null}
       </main>
       {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (

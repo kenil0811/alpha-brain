@@ -1,6 +1,7 @@
 /**
  * The Dashboard view (9 Oct, the UI rulebook §6): a page of visuals where every visual is
- * actionable. Each tile pairs a number, a bar or a list with one call to action that opens exactly
+ * actionable. Each tile is a number with its label and basis beside it (a chart under them where
+ * there is a split or a trend), or a list, with one call to action that opens exactly
  * those records (`onShowRecords`) or one record (`onOpenRecord`); a tile with nothing to act on says
  * so in a line and keeps its button, disabled, with the reason on hover. What each tile shows is
  * worked out in `modules/dashboard.ts` from the rows the toolbar's list, search and filters leave.
@@ -16,13 +17,12 @@ import type { KeyboardEvent, ReactNode } from "react";
 import type { Client, RecordRow, TableDesc } from "../../core/client";
 import { PREF, usePreference } from "../../core/preferences";
 import { Button, Dropdown, IconButton, InfoTip, MetricTile, SectionCard, useWidth } from "../../ui";
-import { ArrowDown, ArrowUp, AverageIcon, CountIcon, Flag, Maximize2, Minimize2, Pencil, TotalIcon, X } from "../../ui/icons";
+import { ArrowDown, ArrowUp, Maximize2, Minimize2, Pencil, X } from "../../ui/icons";
 import { availableTiles, computeTile, defaultTiles, type Cta, type Segment, type Tile, type TileData } from "../dashboard";
 import type { FieldInfo } from "../fields";
 
 export { dashboardAvailable } from "../dashboard";
 
-const METRIC_ICON = { count: <CountIcon />, sum: <TotalIcon />, avg: <AverageIcon />, flag: <Flag /> };
 const PALETTE = ["var(--chart)", "var(--chart-2)", "var(--chart-3)"];
 /** Past the third colour the same three come back paler; the label is what tells segments apart. */
 const fillOf = (s: Segment) => (s.muted ? { fill: "var(--text-3)", opacity: 0.45 } : { fill: PALETTE[s.index % 3], opacity: s.index < 3 ? 1 : s.index < 6 ? 0.6 : 0.35 });
@@ -33,7 +33,7 @@ const pressed = (act: () => void) => (e: KeyboardEvent) => {
   }
 };
 
-export function DashboardView({ client, table, fields, rows, listKey, onShowRecords, onOpenRecord, onAsk }: { client: Client; table: TableDesc; fields: FieldInfo[]; rows: RecordRow[]; listKey: string; onShowRecords: (ids: string[], label: string) => void; onOpenRecord: (id: string) => void; onAsk: (text: string) => void }) {
+export function DashboardView({ client, table, fields, rows, listKey, onShowRecords, onOpenRecord, onAsk }: { client: Client; table: Pick<TableDesc, "title" | "title_field">; fields: FieldInfo[]; rows: RecordRow[]; listKey: string; onShowRecords: (ids: string[], label: string) => void; onOpenRecord: (id: string) => void; onAsk: (text: string) => void }) {
   const [saved, setSaved] = usePreference<Record<string, Tile[]>>(client, PREF.dashboards, {});
   const [editing, setEditing] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -69,41 +69,38 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
       {c.text}
     </Button>
   );
-  const cta = (c: Cta, title: string) => <div className="dash__cta">{button(c, title)}</div>;
 
   function body(d: TileData) {
-    if (d.type === "metric") return <MetricTile icon={METRIC_ICON[d.icon]} label={d.title} value={d.value} basis={d.basis} cta={button(d.cta, d.title)} />;
+    if (d.type === "metric") return <MetricTile label={d.title} value={d.value} basis={d.basis} cta={button(d.cta, d.title)} />;
+    // a chart tile: its total with the label and basis beside it, the chart under them
+    if (d.type === "breakdown" || d.type === "overtime") {
+      const total = d.type === "breakdown" ? d.total : d.buckets.reduce((a, b) => a + b.ids.length, 0);
+      return <MetricTile label={d.title} value={total.toLocaleString()} basis={d.basis} chart={d.type === "breakdown" ? <Breakdown d={d} onShow={onShowRecords} /> : <OverTime d={d} onShow={onShowRecords} />} cta={button(d.cta, d.title)} />;
+    }
     return (
-      <SectionCard title={d.title}>
-        {d.type === "breakdown" ? <Breakdown d={d} onShow={onShowRecords} /> : null}
-        {d.type === "overtime" ? <OverTime d={d} onShow={onShowRecords} /> : null}
-        {d.type === "attention" ? (
-          <>
-            {d.empty ? <p className="dash__none">{d.empty}</p> : null}
-            <ul className="dash__att">
-              {d.items.map((item) => (
-                <li key={item.id} className="dash__att-row">
-                  <span className="dash__att-text">
-                    <b>{item.title}</b>
-                    <span className="dash__why">{item.reasons.join(" · ")}</span>
-                  </span>
-                  <Button size="sm" variant="ghost" aria-label={`Open ${item.title}`} onClick={() => onOpenRecord(item.id)}>
-                    Open
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-        <p className="dash__basis">{d.basis}</p>
-        {cta(d.cta, d.title)}
-        {d.type === "attention" && d.total > 0 ? (
-          <div className="dash__cta">
+      <SectionCard title={d.title} info={d.basis}>
+        {d.empty ? <p className="dash__none">{d.empty}</p> : null}
+        <ul className="dash__att">
+          {d.items.map((item) => (
+            <li key={item.id} className="dash__att-row">
+              <span className="dash__att-text">
+                <b>{item.title}</b>
+                <span className="dash__why">{item.reasons.join(" · ")}</span>
+              </span>
+              <Button size="sm" variant="ghost" aria-label={`Open ${item.title}`} onClick={() => onOpenRecord(item.id)}>
+                Open
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <div className="dash__cta">
+          {button(d.cta, d.title)}
+          {d.total > 0 ? (
             <Button size="sm" variant="ghost" onClick={() => onAsk(`What should I do about the ${d.total} ${table.title} that need attention?`)}>
               Ask Alpha what to do
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </SectionCard>
     );
   }
@@ -111,10 +108,7 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   return (
     <section className="dash" aria-label="Dashboard">
       <div className="dash__top">
-        <span className="dash__lead">
-          Every tile shows what it is based on
-          <InfoTip text="The list, search and filters above apply to every tile." />
-        </span>
+        <InfoTip text="The list, search and filters above apply to every tile." />
         <div className="dash__tools">
           {editing ? (
             <>
@@ -143,7 +137,7 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
       {shown.length ? (
         <div className="dash__grid">
           {shown.map(({ tile, data }, i) => (
-            <div key={tile.id} className={`dash__cell${tile.size === "wide" ? " dash__cell--wide" : ""}`}>
+            <div key={tile.id} className={`dash__cell dash__cell--${data.type}${tile.size === "wide" ? " dash__cell--wide" : ""}`}>
               {body(data)}
               {editing ? (
                 <div className="dash__edit" role="group" aria-label={`Edit ${data.title}`}>

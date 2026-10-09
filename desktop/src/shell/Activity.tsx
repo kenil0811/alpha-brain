@@ -1,8 +1,8 @@
 /**
  * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched. It is a tab of
- * Intelligence now, so it draws no header of its own (9 Oct, the UI rulebook §12; the sidebar
- * entry is gone). Search comes first.
+ * search finds anything that happened. Each row opens to what it touched. It opens from the bell
+ * beside the workspace name, in a small panel over the page, so it is compact and draws no header
+ * of its own (9 Oct, Vikas: it left Intelligence). Search comes first.
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
@@ -50,7 +50,7 @@ function Details({ e }: { e: JournalEntry }) {
   );
 }
 
-export function Activity({ client, version }: { client: Client; version: number; onChanged: () => void }) {
+export function Activity({ client, version }: { client: Client; version: number; onChanged?: () => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -80,10 +80,10 @@ export function Activity({ client, version }: { client: Client; version: number;
   return (
     <div className="activity">
       <div>
-        <div className="card toolbar toolbar--page activity__bar">
+        <div className="activity__bar">
           <div className="search activity__search">
             <SearchIcon size={ICON_SM} aria-hidden="true" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>

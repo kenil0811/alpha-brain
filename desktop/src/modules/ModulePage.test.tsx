@@ -32,15 +32,36 @@ describe("adding files to a module", () => {
     const addFiles = vi.fn(() => Promise.resolve({ documents: [{ id: "d_1", title: "RestoPros P&L.xlsx" }], turn: null }));
     const client = fakeClient(detail, { addFiles });
     render(<ModulePage client={client} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />);
-    const button = await screen.findByRole("button", { name: "Add files" });
-    expect(button).toBeInTheDocument();
+    const files = await screen.findByRole("region", { name: "Files" });
+    expect(within(files).getByText(/Drop files here or/)).toBeInTheDocument(); // an empty space to drop on
+    expect(within(files).getByRole("button", { name: "Upload" })).toBeInTheDocument();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["x"], "RestoPros P&L.xlsx");
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() => expect(addFiles).toHaveBeenCalledWith([file], { module: "m_1" }));
-    await waitFor(() => expect(screen.getByText("Added RestoPros P&L.xlsx. Alpha is reading it into the collections.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Uploaded RestoPros P&L.xlsx. Alpha is reading it.")).toBeInTheDocument());
     // and the Files section lists what was added
     expect(within(screen.getByRole("region", { name: "Files" })).getByText("RestoPros P&L.xlsx")).toBeInTheDocument();
+  });
+
+  it("shows a CSV added in this visit as a grid that can be edited and downloaded; Save needs the core", async () => {
+    const user = userEvent.setup();
+    const addFiles = vi.fn(() => Promise.resolve({ documents: [{ id: "d_2", title: "leads.csv" }], turn: null }));
+    render(
+      <TooltipProvider>
+        <ModulePage client={fakeClient(detail, { addFiles })} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByRole("region", { name: "Files" });
+    const file = new File(["name,stage\nBakery,Lead\n"], "leads.csv", { type: "text/csv" });
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } });
+    const cell = await screen.findByRole("textbox", { name: "Row 2, column 2" });
+    expect(cell).toHaveValue("Lead");
+    await user.clear(cell);
+    await user.type(cell, "Won");
+    expect(cell).toHaveValue("Won");
+    expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 });
 
@@ -60,7 +81,8 @@ describe("a module's page", () => {
     expect(screen.queryByRole("tab", { name: "Summary" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Settings" })).toBeNull();
     // the numbers sit above the table, each with what it is based on
-    expect(await screen.findByText("1 added this week; deals in all")).toBeInTheDocument();
+    expect(await screen.findByText("1 added this week")).toBeInTheDocument();
+    expect(screen.queryByText("At a glance")).toBeNull();
     await user.click(within(switcher).getByRole("tab", { name: "Clients" }));
     expect(await screen.findByText("No records yet.")).toBeInTheDocument();
   });
@@ -79,9 +101,33 @@ describe("a module's page", () => {
       expect(previous.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       previous = s;
     }
-    expect(within(sections[1]).getByText("Close three deals")).toBeInTheDocument(); // goals moved here
+    // Intelligence is in tabs; the goals are one of them
+    await userEvent.setup().click(within(sections[1]).getByRole("tab", { name: "Goals · 1" }));
+    expect(within(sections[1]).getByText("Close three deals")).toBeInTheDocument();
     expect(within(sections[2]).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
-    expect(within(sections[0]).getByText(/No files are attached yet/)).toBeInTheDocument();
+    expect(within(sections[0]).getByText(/Drop files here/)).toBeInTheDocument();
+  });
+
+  it("Governance keeps Always and Never rules per module: Enter adds, a click edits, × deletes", async () => {
+    const user = userEvent.setup();
+    const setPreference = vi.fn(async (key: string, value: unknown) => ({ key, value }));
+    render(
+      <TooltipProvider>
+        <ModulePage client={fakeClient(two, { setPreference })} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    const never = screen.getByRole("group", { name: "Never" });
+    await user.type(within(never).getByRole("textbox", { name: "Add a rule: never" }), "Email a client{Enter}");
+    await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email a client"] } }));
+    await user.click(within(never).getByRole("button", { name: "Email a client" }));
+    const edit = within(never).getByRole("textbox", { name: "Edit rule: Email a client" });
+    await user.clear(edit);
+    await user.type(edit, "Email anyone{Enter}");
+    await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email anyone"] } }));
+    await user.click(within(never).getByRole("button", { name: "Delete rule: Email anyone" }));
+    await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: [] } }));
+    expect(screen.getByRole("group", { name: "Always" })).toBeInTheDocument();
   });
 
   it("a module with one collection shows its name as the title, not a switch", async () => {
@@ -108,6 +154,8 @@ describe("a module's page", () => {
     await screen.findByText("Bakery");
     await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("button", { name: "Avilo" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_0" });
-    expect(screen.getByText(/what you ask here reaches them all/)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Inside · 1" }));
+    expect(screen.getByLabelText("What you ask here reaches them all.")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Leads")).toBeInTheDocument();
   });
 });

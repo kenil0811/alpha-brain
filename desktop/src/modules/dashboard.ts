@@ -167,7 +167,7 @@ function metric(t: Tile, { fields, rows }: Ctx): TileData {
     const ids = rows.filter((r) => r.provenance?.estimated || r.provenance?.assumed).map((r) => r.id);
     return { id: t.id, type: "metric", title: "Estimated by Alpha", icon: "flag", value: formatNumber(ids.length), basis: `of ${records(rows.length)} rest on a value Alpha estimated or assumed`, cta: ids.length ? { text: `Show these ${ids.length}`, ids, label: `Estimated · ${ids.length}` } : disabled("Show these", "", rows.length ? "No record rests on an estimate or an assumption." : noRecords) };
   }
-  if (!f || !isNumeric(f.kind)) return { id: t.id, type: "metric", title: "Records", icon: "count", value: formatNumber(rows.length), basis: "Records in this view, after the list, search and filters", cta: all.length ? { text: `Show these ${all.length}`, ids: all, label: `Records · ${all.length}` } : disabled("Show these", "", noRecords) };
+  if (!f || !isNumeric(f.kind)) return { id: t.id, type: "metric", title: "Records", icon: "count", value: formatNumber(rows.length), basis: "In this view", cta: all.length ? { text: `Show these ${all.length}`, ids: all, label: `Records · ${all.length}` } : disabled("Show these", "", noRecords) };
   const withValue = rows.filter((r) => typeof r.values[f.name] === "number");
   const sum = withValue.reduce((s, r) => s + (r.values[f.name] as number), 0);
   const avg = t.measure === "avg";

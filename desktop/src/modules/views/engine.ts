@@ -6,7 +6,7 @@
  */
 import type { RecordRow } from "../../core/client";
 import { isNumeric, openChoices, type FieldInfo } from "../fields";
-import { formatDay, formatNumber, when } from "../format";
+import { formatDay, formatNumber, humanize, when } from "../format";
 
 export interface Sort {
   field: string;
@@ -136,16 +136,34 @@ export function pinnedFirst<T extends { id: string }>(rows: T[], pinned: string[
   return [...rows.filter((r) => set.has(r.id)), ...rows.filter((r) => !set.has(r.id))];
 }
 
-/** What a column's footer can say about the records under it (9 Oct, the UI rulebook §6). */
-export type SummaryOp = "none" | "count" | "sum" | "average" | "min" | "max" | "earliest" | "latest" | "filled";
-export const SUMMARY_LABEL: Record<SummaryOp, string> = { none: "None", count: "Count", sum: "Sum", average: "Average", min: "Minimum", max: "Maximum", earliest: "Earliest", latest: "Latest", filled: "Percent filled" };
+/** What a column's footer can say about the records under it: Notion's calculations (9 Oct, the
+ *  UI rulebook §6). "count" (count values) and "filled" (percent not empty) keep the ids they had
+ *  before the full set, so choices already saved keep their meaning. */
+export type SummaryOp =
+  | "none" | "count_all" | "count" | "unique" | "empty" | "not_empty" | "percent_empty" | "filled"
+  | "sum" | "average" | "median" | "min" | "max" | "range"
+  | "earliest" | "latest" | "date_range"
+  | "checked" | "unchecked" | "percent_checked" | "percent_unchecked"
+  | "per_group";
+export const SUMMARY_LABEL: Record<SummaryOp, string> = {
+  none: "None", count_all: "Count all", count: "Count values", unique: "Count unique values", empty: "Count empty", not_empty: "Count not empty", percent_empty: "Percent empty", filled: "Percent not empty",
+  sum: "Sum", average: "Average", median: "Median", min: "Min", max: "Max", range: "Range",
+  earliest: "Earliest date", latest: "Latest date", date_range: "Date range",
+  checked: "Checked", unchecked: "Unchecked", percent_checked: "Percent checked", percent_unchecked: "Percent unchecked",
+  per_group: "Count per group",
+};
 
-/** The choices for a kind of field: every kind can count and say how much is filled, numbers can
- *  add up, dates have a first and a last. */
+const EVERY_KIND: SummaryOp[] = ["none", "count_all", "count", "unique", "empty", "not_empty", "percent_empty", "filled"];
+const isCheck = (kind: string) => kind === "bool" || kind === "checkbox";
+
+/** The choices for a kind of field: every kind counts, numbers add up, dates have a first and a
+ *  last, checkboxes count ticks, a choice or status counts each of its options. */
 export function summaryOpsFor(kind: string): SummaryOp[] {
-  if (isNumeric(kind)) return ["none", "count", "sum", "average", "min", "max", "filled"];
-  if (kind === "date" || kind === "datetime") return ["none", "count", "earliest", "latest", "filled"];
-  return ["none", "count", "filled"];
+  if (isNumeric(kind)) return [...EVERY_KIND, "sum", "average", "median", "min", "max", "range"];
+  if (kind === "date" || kind === "datetime") return [...EVERY_KIND, "earliest", "latest", "date_range"];
+  if (isCheck(kind)) return [...EVERY_KIND, "checked", "unchecked", "percent_checked", "percent_unchecked"];
+  if (kind === "choice" || kind === "status") return [...EVERY_KIND, "per_group"];
+  return EVERY_KIND;
 }
 
 /** A number column adds up until the person says otherwise (as the table always has); the rest say nothing. */
@@ -153,24 +171,59 @@ export function defaultSummary(kind: string): SummaryOp {
   return isNumeric(kind) ? "sum" : "none";
 }
 
-const present = (v: unknown) => v !== null && v !== undefined && v !== "";
+const present = (v: unknown) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length);
+const DAY_MS = 86_400_000;
 
 /** The footer's words for one column over the records the view shows (not only the page), or
  *  null for none. Nothing to work out reads "—", never a made-up zero. */
 export function summarize(rows: RecordRow[], field: FieldInfo, op: SummaryOp): { label: string; value: string } | null {
   if (op === "none") return null;
   const label = SUMMARY_LABEL[op];
-  const values = rows.map((r) => r.values[field.name]).filter(present);
-  if (op === "count") return { label, value: values.length.toLocaleString() };
-  if (op === "filled") return { label, value: rows.length ? `${Math.round((values.length / rows.length) * 100)}%` : "—" };
-  if (op === "earliest" || op === "latest") {
-    const days = values.map(String).sort();
-    const pick = days.length ? (op === "earliest" ? days[0] : days[days.length - 1]) : "";
-    return { label, value: pick ? (field.kind === "datetime" ? when(pick) : formatDay(pick.slice(0, 10))) : "—" };
+  const out = (value: string) => ({ label, value });
+  const all = rows.map((r) => r.values[field.name]);
+  const values = all.filter(present);
+  const n = rows.length;
+  const pct = (part: number) => (n ? `${Math.round((part / n) * 100)}%` : "—");
+  switch (op) {
+    case "count_all": return out(n.toLocaleString());
+    case "count": return out(values.length.toLocaleString());
+    case "unique": return out(new Set(values.map((v) => JSON.stringify(v))).size.toLocaleString());
+    case "empty": return out((n - values.length).toLocaleString());
+    case "not_empty": return out(values.length.toLocaleString());
+    case "percent_empty": return out(pct(n - values.length));
+    case "filled": return out(pct(values.length));
+    case "checked": return out(all.filter((v) => v === true).length.toLocaleString());
+    case "unchecked": return out(all.filter((v) => v !== true).length.toLocaleString());
+    case "percent_checked": return out(pct(all.filter((v) => v === true).length));
+    case "percent_unchecked": return out(pct(all.filter((v) => v !== true).length));
+    case "per_group": {
+      const counts = new Map<string, number>((field.choices ?? []).map((c) => [c, 0]));
+      for (const v of values) counts.set(String(v), (counts.get(String(v)) ?? 0) + 1);
+      const parts = [...counts].filter(([, c]) => c).map(([k, c]) => `${humanize(k)} ${c.toLocaleString()}`);
+      return out(parts.length ? parts.join(" · ") : "—");
+    }
+    case "earliest":
+    case "latest":
+    case "date_range": {
+      const days = values.map(String).sort();
+      if (!days.length) return out("—");
+      const show = (d: string) => (field.kind === "datetime" ? when(d) : formatDay(d.slice(0, 10)));
+      if (op === "earliest") return out(show(days[0]));
+      if (op === "latest") return out(show(days[days.length - 1]));
+      const span = Math.round((Date.parse(days[days.length - 1].slice(0, 10)) - Date.parse(days[0].slice(0, 10))) / DAY_MS);
+      return out(`${span.toLocaleString()} ${span === 1 ? "day" : "days"}`);
+    }
   }
-  const nums = values.filter((v): v is number => typeof v === "number");
-  if (!nums.length) return { label, value: "—" };
+  const nums = values.filter((v): v is number => typeof v === "number").sort((a, b) => a - b);
+  if (!nums.length) return out("—");
   const total = nums.reduce((a, b) => a + b, 0);
-  const n = op === "sum" ? total : op === "average" ? total / nums.length : op === "min" ? Math.min(...nums) : Math.max(...nums);
-  return { label, value: formatNumber(n, field.unit) };
+  const mid = nums.length >> 1;
+  const result =
+    op === "sum" ? total
+    : op === "average" ? total / nums.length
+    : op === "median" ? (nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2)
+    : op === "min" ? nums[0]
+    : op === "max" ? nums[nums.length - 1]
+    : nums[nums.length - 1] - nums[0];
+  return out(formatNumber(result, field.unit));
 }

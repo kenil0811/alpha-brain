@@ -1,20 +1,24 @@
 /**
- * The sidebar (the UI rulebook §4), left of the frame. Top to bottom: the workspace button (the
- * top row, at the shared header height), Home with what needs the person, People & Companies,
- * the person's modules as a tree in their own order, New, and pinned at the bottom Intelligence
- * and Settings. Only the module list scrolls. It holds nothing else: no headings, no status
- * lines, no agents, automations or records (9 Oct, the UI rulebook phase 2; the old "Your modules"
- * heading, Activity and "Alpha is running" went).
+ * The sidebar (the UI rulebook §4), left of the frame. Top to bottom: the workspace button and
+ * the Activity bell (the top row, at the shared header height), Home with what needs the person,
+ * Network, the person's modules as a tree in their own order, New, and pinned at the bottom
+ * Intelligence and Settings. Only the module list scrolls. It holds nothing else: no headings,
+ * no status lines, no agents, automations or records (9 Oct, the UI rulebook phase 2; the old
+ * "Your modules" heading and "Alpha is running" went).
+ *
+ * The workspace button: a click opens its menu; a double-click on the name renames the workspace
+ * in place, on the tile changes its logo (9 Oct, Vikas). The bell opens Activity over the page.
  *
  * A module is dragged to reorder it or dropped on the middle of another to move it inside;
  * Alt+↑/↓ reorder from the keyboard, Alt+→ moves it inside the one above, Alt+← out. The order
  * is `PREF.moduleOrder`; a move into another module is the core's `moveModule`. Right-click a
  * module (or its ⋯) for its menu. Folded, each item is its icon with a tiny label under it.
  */
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
+import * as RadixPopover from "@radix-ui/react-popover";
+import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import type { Client, ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
-import { IconButton, useContextMenu, type ContextItem } from "../ui";
+import { Button, IconButton, Popover, useContextMenu, type ContextItem } from "../ui";
 import {
   AboveIcon,
   ChangeIconIcon,
@@ -30,6 +34,7 @@ import {
   IntelligenceIcon,
   MoreHorizontal,
   MoveIcon,
+  NotificationIcon,
   OpenIcon,
   PeopleIcon,
   PlusIcon,
@@ -39,13 +44,14 @@ import {
   ViewOptionsIcon,
   BuildingIcon,
 } from "../ui/icons";
+import { Activity } from "./Activity";
 import { IconDialog, MoveDialog, NewAboveDialog, ViewOptionsDialog } from "./ModuleDialogs";
 import { iconNamed } from "./moduleIcons";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
 
 export type Surface =
   | { kind: "home" }
-  /** Old: Activity is now Intelligence › Activity; `knownSurface` turns it into that. */
+  /** Activity: not a page; asking for it opens the sidebar's bell over the page that is open. */
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings" }
@@ -60,7 +66,7 @@ export type Surface =
 
 /** Whether sidebar item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
-  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
+  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside Network
   if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent")) return true; // item pages live under Intelligence
   if (b.kind === "module" && a.kind === "record") return a.module === b.id; // a record's page is inside its module
   if (a.kind !== b.kind) return false;
@@ -79,12 +85,13 @@ function readFolded(): Set<string> {
   }
 }
 
-/** A remembered place that no longer exists (an older build's) becomes Home; Activity, which
- *  moved into Intelligence, goes there (the UI rulebook, contract 2). */
+/** A remembered place that no longer exists (an older build's) becomes Home. Intelligence's old
+ *  Activity tab is the bell now, and its old Map tab lives in Second Brain (9 Oct). */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && s.kind === "activity") return { kind: "intelligence", tab: "activity" };
-  if (s && (s.kind === "home" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && s.kind === "intelligence" && s.tab === "activity") return { kind: "activity" };
+  if (s && s.kind === "intelligence" && s.tab === "map") return { kind: "intelligence", tab: "second-brain" };
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -104,6 +111,8 @@ export function Rail({
   collapsed,
   onToggleCollapsed,
   onChanged,
+  openActivity = 0,
+  activityVersion = 0,
 }: {
   client: Client | null;
   surface: Surface;
@@ -115,9 +124,15 @@ export function Rail({
   onToggleCollapsed: () => void;
   /** After the core changed (a module moved or made): reload what the window shows. */
   onChanged: () => void;
+  /** Set (to a new time) to open the bell's Activity from elsewhere: an old address, ⌘K. */
+  openActivity?: number;
+  /** When Activity has something new to show. */
+  activityVersion?: number;
 }) {
   const [folded, setFolded] = useState<Set<string>>(readFolded);
-  const [workspace] = usePreference<string>(client, PREF.workspaceName, "Alpha");
+  const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, "Alpha");
+  const [logoPref, setLogo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
+  const logo = typeof logoPref === "string" ? logoPref : "";
   const [orderPref, setOrder] = usePreference<string[]>(client, PREF.moduleOrder, NO_IDS);
   const [hiddenPref, setHidden] = usePreference<string[]>(client, PREF.hiddenModules, NO_IDS);
   const [iconsPref, setIcons] = usePreference<Record<string, string>>(client, PREF.moduleIcons, NO_ICONS);
@@ -132,6 +147,12 @@ export function Rail({
   const [drag, setDrag] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; zone: "before" | "inside" | "after" } | null>(null);
   const refocus = useRef<string | null>(null);
+  const [bell, setBell] = useState(false);
+  useEffect(() => setBell(openActivity > 0), [openActivity]);
+  const [renaming, setRenaming] = useState(false);
+  const [logoOpen, setLogoOpen] = useState(false);
+  const clickTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(clickTimer.current), []);
 
   const byId = (id: string) => modules.find((m) => m.id === id);
   const fail = (what: string, e: unknown) => setTrouble(`Couldn't ${what}: ${e instanceof Error ? e.message : String(e)}`);
@@ -223,7 +244,9 @@ export function Rail({
   ];
   const rowMenu = useContextMenu<Row>((r) => (r.kind === "people" ? [{ label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "people" }) }] : moduleItems(r.module)));
   const workspaceMenu = useContextMenu<void>([
-    { label: "Manage Workspace", icon: <BuildingIcon />, onSelect: () => undefined, disabled: "Alpha keeps one workspace for you today. Settings is where you rename it." },
+    { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenaming(true), disabled: collapsed ? "Unfold the sidebar to rename the workspace." : undefined },
+    { label: "Change logo…", icon: <ChangeIconIcon />, onSelect: () => setLogoOpen(true) },
+    { label: "Manage Workspace", icon: <BuildingIcon />, onSelect: () => undefined, disabled: "Alpha keeps one workspace for you today.", separatorBefore: true },
     { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }) },
     { label: collapsed ? "Unfold the sidebar" : "Fold the sidebar", icon: collapsed ? <ChevronsRight /> : <ChevronsLeft />, onSelect: onToggleCollapsed },
     { label: "Sign out", icon: <SignOutIcon />, onSelect: () => undefined, disabled: "There is no account to sign out of: your workspace lives on this Mac.", separatorBefore: true },
@@ -337,22 +360,68 @@ export function Rail({
       return open ? [row, ...branches(b.inside, depth + 1)] : [row];
     });
   const tree = treeOf(modules, order, hidden);
-  const initial = [...name][0]?.toUpperCase() ?? "A";
+
+  // One click opens the menu, a moment later so a double-click can edit instead; a keyboard
+  // click (no pointer, `detail` 0) opens it at once.
+  const wsClick = (e: MouseEvent<HTMLButtonElement>) => {
+    const at = e.currentTarget;
+    window.clearTimeout(clickTimer.current);
+    if (e.detail === 0) workspaceMenu.openFrom(undefined, at);
+    else if (e.detail === 1) clickTimer.current = window.setTimeout(() => workspaceMenu.openFrom(undefined, at), 220);
+  };
+  const wsDouble = (e: MouseEvent<HTMLButtonElement>) => {
+    window.clearTimeout(clickTimer.current);
+    if ((e.target as Element).closest(".wsbtn__tile")) setLogoOpen(true);
+    else if (!collapsed) setRenaming(true);
+  };
+  async function rename(next: string) {
+    setRenaming(false);
+    const clean = next.trim();
+    if (!clean || clean === name) return;
+    const err = await setWorkspace(clean);
+    if (err) fail("rename the workspace", err);
+  }
+  async function saveLogo(next: string | null) {
+    setLogoOpen(false);
+    const err = await setLogo(next);
+    if (err) fail("change the logo", err);
+  }
   return (
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha">
-      <div className="rail__top">
-        <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" title={collapsed ? name : undefined} onClick={(e) => workspaceMenu.openFrom(undefined, e.currentTarget)} onContextMenu={workspaceMenu.bind().onContextMenu}>
-          <span className="wsbtn__tile" aria-hidden="true">
-            {initial}
-          </span>
-          <span className="wsbtn__name">{name}</span>
-          <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
-        </button>
-        <IconButton className="rail__fold" size="sm" label={collapsed ? "Unfold the sidebar" : "Fold the sidebar"} aria-expanded={!collapsed} icon={collapsed ? <ChevronsRight size={ICON_SM} /> : <ChevronsLeft size={ICON_SM} />} onClick={onToggleCollapsed} />
-      </div>
+      <RadixPopover.Root open={logoOpen} onOpenChange={setLogoOpen}>
+        <RadixPopover.Anchor asChild>
+          <div className="rail__top">
+            {renaming ? (
+              <div className="wsbtn wsbtn--edit">
+                <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
+                <NameInput name={name} onDone={(v) => void rename(v)} onCancel={() => setRenaming(false)} />
+              </div>
+            ) : (
+              <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" title={collapsed ? name : undefined} onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
+                <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
+                <span className="wsbtn__name">{name}</span>
+                <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
+              </button>
+            )}
+            {client && !collapsed ? (
+              <Popover open={bell} onOpenChange={setBell} align="start" label="Activity" trigger={<IconButton className="rail__bell" size="sm" label="Activity" aria-expanded={bell} icon={<NotificationIcon size={ICON_SM} />} />}>
+                <div className="bellpop">
+                  <Activity client={client} version={activityVersion} />
+                </div>
+              </Popover>
+            ) : null}
+            <IconButton className="rail__fold" size="sm" label={collapsed ? "Unfold the sidebar" : "Fold the sidebar"} aria-expanded={!collapsed} icon={collapsed ? <ChevronsRight size={ICON_SM} /> : <ChevronsLeft size={ICON_SM} />} onClick={onToggleCollapsed} />
+          </div>
+        </RadixPopover.Anchor>
+        <RadixPopover.Portal>
+          <RadixPopover.Content className="menu__list wslogo" align="start" sideOffset={4} aria-label="Workspace logo">
+            <LogoPicker hasLogo={Boolean(logo)} onPick={(v) => void saveLogo(v)} onTrouble={(e) => fail("use that image", e)} />
+          </RadixPopover.Content>
+        </RadixPopover.Portal>
+      </RadixPopover.Root>
       <div className="rail__main">
         {go({ kind: "home" }, <HomeIcon />, "Home", needs)}
-        {item({ key: "people", icon: <PeopleIcon />, label: "People & Companies", current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "people" } })}
+        {item({ key: "people", icon: <PeopleIcon />, label: "Network", current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "people" } })}
         <div className="rail__scroll">
           {modules.length === 0 ? <p className="faint rail__none">None yet. Ask for one.</p> : tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
           {branches(tree, 0)}
@@ -394,5 +463,95 @@ export function Rail({
       ) : null}
       {dialog?.kind === "options" ? <ViewOptionsDialog hidden={hidden.map(byId).filter((m): m is ModuleCard => Boolean(m))} onShow={(id) => void show(id)} onClose={() => setDialog(null)} /> : null}
     </nav>
+  );
+}
+
+/** The workspace's tile: its logo (an image, or a letter or emoji the person chose), else the
+ *  first letter of its name. Settings shows the same tile. */
+export function WorkspaceTile({ logo, name, className }: { logo: string; name: string; className: string }) {
+  return (
+    <span className={className} aria-hidden="true">
+      {logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || ([...name][0]?.toUpperCase() ?? "A")}
+    </span>
+  );
+}
+
+/** The workspace's name, edited in place: Enter or clicking away saves, Escape cancels. */
+function NameInput({ name, onDone, onCancel }: { name: string; onDone: (v: string) => void; onCancel: () => void }) {
+  const cancelled = useRef(false);
+  return (
+    <input
+      className="wsbtn__input"
+      aria-label="Workspace name"
+      defaultValue={name}
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          e.preventDefault(); // the sidebar does not fold on this Escape
+          cancelled.current = true;
+          onCancel();
+        }
+      }}
+      onBlur={(e) => {
+        if (!cancelled.current) onDone(e.currentTarget.value);
+      }}
+    />
+  );
+}
+
+/** An image file as a PNG data URL no larger than 128px a side, so it is small enough to keep
+ *  as a preference. */
+async function smallImage(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const k = Math.min(1, 128 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * k));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * k));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("this window can't draw images");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** The workspace logo's choices: an image, a letter or emoji, or none (the name's first letter). */
+function LogoPicker({ hasLogo, onPick, onTrouble }: { hasLogo: boolean; onPick: (logo: string | null) => void; onTrouble: (e: unknown) => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  const [mark, setMark] = useState("");
+  const short = [...mark.trim()].slice(0, 2).join("");
+  return (
+    <div className="wslogo__body">
+      <Button size="sm" onClick={() => file.current?.click()}>
+        Upload image
+      </Button>
+      <input
+        ref={file}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Logo image"
+        onChange={(e) => {
+          const f = e.currentTarget.files?.[0];
+          if (f) smallImage(f).then(onPick, onTrouble);
+        }}
+      />
+      <form className="row" onSubmit={(e) => { e.preventDefault(); if (short) onPick(short); }}>
+        <input className="textfield wslogo__mark" value={mark} onChange={(e) => setMark(e.target.value)} placeholder="A or 🚀" aria-label="Letter or emoji" />
+        <Button size="sm" type="submit" disabledReason={short ? undefined : "Type a letter or an emoji first."}>
+          Use
+        </Button>
+      </form>
+      <Button size="sm" variant="ghost" disabledReason={hasLogo ? undefined : "There is no logo to remove."} onClick={() => onPick(null)}>
+        Remove
+      </Button>
+    </div>
   );
 }

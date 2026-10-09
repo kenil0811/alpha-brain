@@ -25,6 +25,7 @@ function setup(opts: { turns?: JournalEntry[]; plans?: Plan[]; actions?: Action[
     actionShot: vi.fn(async () => { throw new Error("no shot"); }),
     stopTurn: vi.fn(),
     addFiles: vi.fn(),
+    preference: vi.fn(async (key: string) => ({ key, value: null })),
   } as unknown as Client;
   const onOpen = vi.fn();
   render(

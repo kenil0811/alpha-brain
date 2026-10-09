@@ -7,9 +7,9 @@
  * toggle, are gone). Files can be dropped anywhere on the page.
  */
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { Client, DocumentInfo, ModuleCard, ModuleDetail, TableSummaryData } from "../core/client";
+import type { Client, ModuleCard, ModuleDetail, TableSummaryData } from "../core/client";
 import { DataPage } from "./DataPage";
-import { FilesSection, GovernanceSection, IntelligenceSection } from "./ModuleSections";
+import { FilesSection, GovernanceSection, IntelligenceSection, type AddedFile } from "./ModuleSections";
 import type { Surface } from "../shell/Rail";
 import { Breadcrumb, EmptyCard, HeaderSwitch, Notice, PageHeader, Trouble, type Crumb } from "../ui";
 import { ICON, ICON_SM, Table2 } from "../ui/icons";
@@ -20,8 +20,8 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
   const [summary, setSummary] = useState<TableSummaryData[]>([]);
   const [dragging, setDragging] = useState(false);
   const [dropNote, setDropNote] = useState<string | null>(null);
-  const [added, setAdded] = useState<DocumentInfo[]>([]);
-  // Files come in by the Add files button (the Mac's picker) or by dropping them anywhere on
+  const [added, setAdded] = useState<AddedFile[]>([]);
+  // Files come in by Upload (the Mac's picker) or by dropping them anywhere on
   // the page; both take the same route (3 Oct: with only the drop, an empty attachments table
   // had no visible way in).
   const picker = useRef<HTMLInputElement>(null);
@@ -29,11 +29,12 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     if (!files.length) return;
     try {
       const out = await client.addFiles(files, { module: moduleId });
-      setAdded((now) => [...out.documents, ...now]);
-      setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the collections.`);
+      // the core answers with one document per file, in order
+      setAdded((now) => [...out.documents.map((doc, i) => ({ doc, file: files[i] })), ...now]);
+      setDropNote(`Uploaded ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"}.`);
       onChanged();
     } catch (err) {
-      setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
+      setDropNote(`Couldn't upload ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
     }
     window.setTimeout(() => setDropNote(null), 6000);
   }
@@ -104,13 +105,13 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
       />
       <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void addFiles(files); }} />
       <div className="page page--wide modpage__body">
-        {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its collections.</div> : null}
+        {dragging ? <div className="dropnote">Drop to upload to {detail.name}</div> : null}
         {dropNote ? <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"}>{dropNote}</Notice> : null}
         {table ? (
           <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={onOpenRecord} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} />
         ) : (
           <EmptyCard icon={<Table2 size={ICON} />} title="Nothing is kept here yet">
-            Ask Alpha in the panel to set up a collection for this module, or add files and it will read them in.
+            Ask Alpha in the panel to set one up, or upload files.
           </EmptyCard>
         )}
         <div className="modpage__below">
