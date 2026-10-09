@@ -1,7 +1,9 @@
 /**
  * An outward action Alpha proposed (a draft, a message, something to send): the exact text
- * that would be typed, a screenshot of the dry run, what cannot be undone, and the decision.
- * Nothing leaves until the person says yes here or in words.
+ * that would be typed, a screenshot of the dry run, what it reaches, how to undo it, and the
+ * decision: Approve or Veto (9 Oct, the UI rulebook §9 and §2; it was Do it / Send it and Not
+ * now). Nothing leaves until the person approves here or in words. The card carries no expected
+ * outcome or success criteria of its own (the core does not produce them), so none is shown.
  */
 import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
@@ -63,9 +65,9 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
       setBusy(false);
     }
   };
-  const save = () => act(() => client.editAction(action.id, draft).then(() => setEditing(false)), "Changed. The preview is redone when you approve.");
+  const save = () => act(() => client.editAction(action.id, draft).then(() => setEditing(false)), "Edited. The preview is redone when you approve.");
   const open = action.state === "proposed";
-  const badge = open ? (action.effect === "send" ? "Send?" : "Make?") : action.state === "done" ? (action.effect === "send" ? "Sent" : "Made") : action.state === "running" ? "Doing it" : action.state === "failed" ? "Didn't happen" : action.state === "declined" ? "Not now" : "Approved";
+  const badge = open ? "Needs approval" : action.state === "done" ? (action.effect === "send" ? "Sent" : "Made") : action.state === "running" ? "Doing it" : action.state === "failed" ? "Didn't happen" : action.state === "declined" ? "Vetoed" : "Approved";
 
   return (
     <article className={`card need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`}>
@@ -143,19 +145,19 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
             </>
           ) : (
             <>
-              <Button variant="primary" disabled={busy || !action.preview} title={!action.preview ? "Wait for the preview" : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Sending it now." : "Doing it now.")}>
-                {action.effect === "send" ? "Send it" : "Do it"}
+              <Button variant="primary" disabled={busy} disabledReason={!action.preview ? "Wait for the preview: Approve is offered once Alpha has shown how it will look." : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Approved. Sending it now." : "Approved. Doing it now.")}>
+                Approve
               </Button>
               {action.effect === "prepare" ? (
-                <Button disabled={busy || !action.preview} title="Alpha may do this kind of thing without asking; you can revoke it in Intelligence › Knowledge" onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+                <Button disabled={busy} disabledReason={!action.preview ? "Wait for the preview first." : undefined} title="Approve, and create a standing permission: Alpha may do this kind of thing without asking. It is listed in Second Brain, where you can revoke it." onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
                   Always allow
                 </Button>
               ) : null}
-              <Button disabled={busy} onClick={() => setEditing(true)}>
-                Change
+              <Button disabled={busy} title="Change the text before approving" onClick={() => setEditing(true)}>
+                Edit
               </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Left it.")}>
-                Not now
+              <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Vetoed.")}>
+                Veto
               </Button>
             </>
           )}
