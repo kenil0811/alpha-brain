@@ -17,3 +17,4 @@ export { MetricTile } from "./MetricTile";
 export { SectionCard, EmptyCard } from "./SectionCard";
 export { Rich } from "./Rich";
 export { ListRow } from "./ListRow";
+export { useWidth } from "./useWidth";

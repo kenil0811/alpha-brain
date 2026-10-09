@@ -366,7 +366,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
           <SectionCard title="Your data" subtitle="Where your world is kept, and copies of it">
             <ListRow
               title="Kept on this Mac"
-              description={data ? `${data.folder} · ${bytes(data.size)}` : trouble ? "Unknown" : "Loading…"}
+              description={data ? `${data.folder} · ${bytes(data.size)}` : trouble ? "Unknown" : "Loading the data folder…"}
               controls={
                 host.available() ? (
                   <Button size="sm" onClick={() => void host.revealData()}>
@@ -381,7 +381,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
             />
             <ListRow
               title="Backups"
-              description={!data ? (trouble ? "Unknown" : "Loading…") : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}
+              description={!data ? (trouble ? "Unknown" : "Loading backups…") : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}
               controls={
                 <Button size="sm" disabled={busy || !data} onClick={() => { setBusy(true); client.backUp().then(setData).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e))).finally(() => setBusy(false)); }}>
                   {busy ? "Backing up…" : "Back up now"}

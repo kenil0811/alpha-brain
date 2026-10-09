@@ -166,7 +166,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
       <>
         <PageHeader left={<BackLink to={collection} onClick={() => toCollection()} />} />
         <div className="page page--record">
-          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this record: {error}</Trouble> : <p className="faint">Loading this record…</p>}
+          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this record: {error}</Trouble> : <p className="faint">Loading the {collection} record…</p>}
         </div>
       </>
     );

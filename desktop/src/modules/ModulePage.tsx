@@ -86,7 +86,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     return (
       <>
         <PageHeader />
-        <div className="page">{error ? <Trouble onRetry={() => void load()}>Couldn't load this module: {error}</Trouble> : <p className="muted">Loading…</p>}</div>
+        <div className="page">{error ? <Trouble onRetry={() => void load()}>Couldn't load this module: {error}</Trouble> : <p className="muted">Loading {modules.find((m) => m.id === moduleId)?.name ?? "this module"}…</p>}</div>
       </>
     );
   }

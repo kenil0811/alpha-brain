@@ -26,7 +26,7 @@ describe("the named values", () => {
   });
 
   it("names the spacing, radii, shadows, motion and header height", () => {
-    for (const name of ["--space-1", "--space-2", "--radius-control", "--radius-card", "--radius-pill", "--radius-composer", "--shadow-card", "--shadow-float", "--shadow-seam", "--ease-out", "--dur-quick", "--dur-state", "--header-h"]) {
+    for (const name of ["--space-1", "--space-2", "--radius-control", "--radius-card", "--radius-pill", "--radius-composer", "--shadow-card", "--shadow-float", "--shadow-seam", "--ease-out", "--dur-quick", "--dur-state", "--header-h", "--header-line"]) {
       expect(css).toContain(`${name}:`);
     }
     expect(css).toMatch(/--space-1: 4px/);

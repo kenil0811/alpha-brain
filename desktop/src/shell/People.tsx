@@ -112,7 +112,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
     return (
       <>
         <PageHeader left={back} />
-        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this page: {error}</Trouble> : <p className="faint">Loading this page…</p>}</div>
+        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this page: {error}</Trouble> : <p className="faint">Loading this person or company…</p>}</div>
       </>
     );
   }

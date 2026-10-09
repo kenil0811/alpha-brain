@@ -194,7 +194,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
 
       <section className="card today" aria-label="Today">
         {homeError ? <Trouble onRetry={() => setHomeTick((n) => n + 1)}>Couldn't load today's summary: {homeError}</Trouble> : null}
-        {!home && !homeError ? <p className="faint">Loading today…</p> : null}
+        {!home && !homeError ? <p className="faint">Loading today's summary…</p> : null}
         {home ? (
           <>
             <div className="today__tiles">

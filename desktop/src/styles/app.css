@@ -42,6 +42,8 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1); --dur-quick: 120ms; --dur-state: 200ms;
   /* the one header height: the sidebar's top row, every page's header and the assistant's */
   --header-h: 52px;
+  /* and the one line under it, border included in that height (everything is border-box), so the three lines meet */
+  --header-line: 1px solid var(--border);
   /* icons come in two sizes (ui/icons.ts: ICON_SM, ICON) */
   --icon-sm: 14px; --icon: 16px;
   /* the map of work's kinds (shell/map) */
@@ -132,7 +134,7 @@ a { color: var(--primary); }
 .rail { background: var(--surface); box-shadow: var(--shadow-seam); display: flex; flex-direction: column; padding: 0 10px 10px; position: sticky; top: 0; height: 100vh; overflow: hidden; z-index: 2; min-width: 0; }
 .app > .assist { border-left: 0; box-shadow: var(--shadow-seam); z-index: 2; }
 /* the top row is the one header height, its bottom on the same line as every page's header */
-.rail__top { display: flex; align-items: center; gap: var(--space-1); flex: none; height: var(--header-h); margin: 0 -10px var(--space-2); padding: 0 var(--space-3); border-bottom: 1px solid var(--border); }
+.rail__top { display: flex; align-items: center; gap: var(--space-1); flex: none; height: var(--header-h); margin: 0 -10px var(--space-2); padding: 0 var(--space-3); border-bottom: var(--header-line); }
 .wsbtn { display: flex; align-items: center; gap: var(--space-2); flex: 1 1 auto; min-width: 0; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border: 0; border-radius: var(--radius-control); background: none; color: var(--text); font-weight: 600; text-align: left; }
 .wsbtn:hover { background: var(--hover); }
 .wsbtn__tile { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--radius-control); background: var(--primary); color: var(--primary-ink); font-size: var(--text-md); font-weight: 600; }
@@ -288,16 +290,16 @@ a { color: var(--primary); }
 .toolbar__hint { margin-left: auto; font-size: var(--text-sm); color: var(--text-3); }
 .tablewrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
-.table th { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+.table th { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; text-align: left; padding: 0 12px; height: 33px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
 .table th button { background: none; border: 0; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; }
-.table td { padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.table td { padding: 6px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .table tbody tr:hover td { background: var(--hover); }
 .table .r { text-align: right; }
 .table td.editable { cursor: text; }
 .table td.editable:hover { box-shadow: inset 0 0 0 1px var(--border); border-radius: 4px; }
 .table td input, .table td select { width: 100%; min-width: 80px; border: 1px solid var(--primary); border-radius: 4px; padding: 3px 6px; background: var(--surface); font-size: var(--text-md); }
 .table tfoot td { background: var(--surface-2); font-weight: 500; border-bottom: 0; }
-.table .rowbtn { opacity: 0; }
+.table .rowbtn { opacity: 0; width: 22px; height: 22px; vertical-align: middle; margin: -3px 0; }
 .table tbody tr:hover .rowbtn, .table .rowbtn:focus-visible { opacity: 1; }
 /* An estimated value carries a small mark, not a badge: the number stays the thing you read */
 .est { font-size: var(--text-xs); color: var(--warn); margin-left: 3px; cursor: help; vertical-align: super; line-height: 1; }
@@ -1000,7 +1002,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .dropdown__add svg { width: var(--icon); height: var(--icon); }
 
 /* the header: one height, a centred switch, a left and a right slot (ui/PageHeader, ui/HeaderSwitch) */
-.pagehead { position: sticky; top: 0; z-index: 4; height: var(--header-h); display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-6); background: var(--bg); border-bottom: 1px solid var(--border); }
+.pagehead { position: sticky; top: 0; z-index: 4; flex: none; height: var(--header-h); display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-6); background: var(--bg); border-bottom: var(--header-line); }
 /* the sides share what the centre leaves and never shrink below their content; the centre shrinks, and its switch drops its labels */
 .pagehead__left, .pagehead__right { flex: 1 1 0; min-width: min-content; display: flex; align-items: center; gap: var(--space-2); }
 .pagehead__right { justify-content: flex-end; }
@@ -1132,7 +1134,8 @@ button.dash__seg:hover { background: var(--hover); }
 .dash__att-text { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: var(--text-md); }
 .dash__att-text b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash__why { color: var(--text-3); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dchart { display: block; width: 100%; height: auto; }
+.dchart__box { width: 100%; min-width: 0; }
+.dchart { display: block; max-width: 100%; }
 .dchart text { font-family: var(--font-ui); font-size: var(--text-xs); fill: var(--text-3); }
 .dchart--stack { margin-top: var(--space-1); }
 .dchart__grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -1220,8 +1223,10 @@ button.dash__seg:hover { background: var(--hover); }
 .table td.sel, .table th.sel { width: 36px; padding-left: var(--space-3); padding-right: 0; }
 .table th + th, .table td + td { border-left: 1px solid var(--line); }
 .table th .th__label { display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer; }
-.table th .th__menu { opacity: 0; width: 20px; height: 20px; vertical-align: middle; margin-left: var(--space-1); }
+/* compact rows (§6): the heading's menu sits over the heading's end, on hover and focus, so it never makes the row taller */
+.table th .th__menu { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); opacity: 0; width: 22px; height: 22px; background: var(--surface-2); }
 .table th:hover .th__menu, .table th:focus-within .th__menu { opacity: 1; }
+.table th .th__menu:hover { background: var(--hover); }
 .table th.r { text-align: right; }
 .th__grip { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; }
 .th__grip:hover { background: var(--primary-soft); }
@@ -1230,16 +1235,18 @@ button.dash__seg:hover { background: var(--hover); }
 .table tbody tr.row--selected td { background: var(--primary-soft); }
 .table .row--blank td { height: 34px; }
 .table .row--blank:hover td { background: none; }
-.tablewrap--tall .table td { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+.tablewrap--tall .table td { height: 43px; }
 .table tr.row--add:hover td { background: none; }
 .table td.addcell { padding: 0; max-width: none; white-space: normal; overflow: visible; border-left: 0; }
 .table tfoot td { white-space: nowrap; color: var(--text-2); }
 .foot__lab { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin-right: var(--space-1); }
 .pinmark { vertical-align: -2px; margin-right: var(--space-1); color: var(--primary); }
 /* the add row, in a table and under the other views */
+.tablewrap { container-type: inline-size; }
+.table td.addcell .addbar { position: sticky; left: 0; width: 100cqw; box-sizing: border-box; }
 .addbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
 .addbar__ico { display: inline-grid; color: var(--text-3); }
-.addbar__input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: var(--text-md); }
+.addbar__input { flex: 1; min-width: 0; text-overflow: ellipsis; border: 0; background: transparent; font-size: var(--text-md); }
 .addbar__input::placeholder { color: var(--text-3); }
 .addbar__input:disabled { cursor: not-allowed; }
 .addbar-wrap { border-top: 1px solid var(--border); }

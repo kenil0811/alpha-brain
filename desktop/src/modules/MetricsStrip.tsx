@@ -4,7 +4,9 @@
  * saying what it is based on. A tile that needs the person gets the attention tone: here, the
  * records resting on an estimate or an assumption. A small chevron hides the strip, and the page
  * remembers it. The numbers come from the module's summary (the core works them out) and from
- * the records on the page; nothing is invented, and a collection with nothing yet says "0".
+ * the records on the page; nothing is invented, and a collection with nothing yet says "0". A tile
+ * never shows a bare dash as its number (§2): an amount shows today's if there is one, else this
+ * week's (its basis saying so), else "Unknown".
  */
 import { useEffect, useState } from "react";
 import type { RecordRow, TableDesc, TableSummaryData } from "../core/client";
@@ -32,7 +34,13 @@ export function MetricsStrip({ table, rows, summary }: { table: Pick<TableDesc, 
     }
   }, [key, open]);
   if (!rows) return null;
-  const amount = (v: number | null, unit?: string | null) => (v === null ? "—" : formatNumber(v, unit));
+  const amount = (v: number | null, unit?: string | null) => (v === null ? "none" : formatNumber(v, unit));
+  const headline = (a: NonNullable<TableSummaryData["amounts"]>[number]) =>
+    a.today !== null
+      ? { value: amount(a.today, a.unit), basis: `${today} · ${amount(a.this_week, a.unit)} this week` }
+      : a.this_week !== null
+        ? { value: amount(a.this_week, a.unit), basis: "this week · none today" }
+        : { value: "Unknown", basis: "nothing recorded today or this week" };
   const today = dayText(new Date());
   const { estimated, assumed } = provenanceCounts(rows);
   const check = estimated + assumed;
@@ -48,9 +56,10 @@ export function MetricsStrip({ table, rows, summary }: { table: Pick<TableDesc, 
       {open ? (
         <div className="mstrip__tiles">
           <MetricTile icon={<CountIcon size={ICON} />} label="Records" value={rows.length.toLocaleString()} basis={summary ? `${summary.added_this_week.toLocaleString()} added this week; ${table.title.toLowerCase()} in all` : `${table.title.toLowerCase()}, as of ${today}`} />
-          {(summary?.amounts ?? []).map((a) => (
-            <MetricTile key={a.field} icon={<TotalIcon size={ICON} />} label={`${a.label}${a.how === "average" ? " · average" : ""}`} value={amount(a.today, a.unit)} basis={`${today} · ${amount(a.this_week, a.unit)} this week`} />
-          ))}
+          {(summary?.amounts ?? []).map((a) => {
+            const { value, basis } = headline(a);
+            return <MetricTile key={a.field} icon={<TotalIcon size={ICON} />} label={`${a.label}${a.how === "average" ? " · average" : ""}`} value={value} basis={basis} />;
+          })}
           {split ? <MetricTile icon={<ChecklistIcon size={ICON} />} label={`${humanize(split.label)} · open`} value={openCount.toLocaleString()} basis={`${doneCount.toLocaleString()} done of ${(openCount + doneCount).toLocaleString()} records`} /> : null}
           <MetricTile icon={<AlertIcon size={ICON} />} label="To check" value={check.toLocaleString()} attention={check > 0} basis={check ? "records resting on an estimate or an assumption" : "no record rests on an estimate or an assumption"} />
         </div>

@@ -5,7 +5,9 @@
  * so in a line and keeps its button, disabled, with the reason on hover. What each tile shows is
  * worked out in `modules/dashboard.ts` from the rows the toolbar's list, search and filters leave.
  * Charts are plain SVG in the `--chart` colours with a legend always; every bar and segment is a
- * button with a label, and its count is written beside it so colour never stands alone. "Edit
+ * button with a label, and its count is written beside it so colour never stands alone. A chart
+ * is drawn at the tile's real pixel width (`useWidth`; viewBox = pixels) so its text stays at the
+ * type scale whatever the tile's width, and drops labels that would collide. "Edit
  * dashboard" adds, removes, moves and resizes tiles; the layout is kept per list in
  * `PREF.dashboards`.
  */
@@ -13,7 +15,7 @@ import { useMemo, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import type { Client, RecordRow, TableDesc } from "../../core/client";
 import { PREF, usePreference } from "../../core/preferences";
-import { Button, Dropdown, IconButton, InfoTip, MetricTile, SectionCard } from "../../ui";
+import { Button, Dropdown, IconButton, InfoTip, MetricTile, SectionCard, useWidth } from "../../ui";
 import { ArrowDown, ArrowUp, AverageIcon, CountIcon, Flag, Maximize2, Minimize2, Pencil, TotalIcon, X } from "../../ui/icons";
 import { availableTiles, computeTile, defaultTiles, type Cta, type Segment, type Tile, type TileData } from "../dashboard";
 import type { FieldInfo } from "../fields";
@@ -168,20 +170,23 @@ function Legend({ children }: { children: ReactNode }) {
 /** One stacked bar and a legend of buttons: each choice with its count, and a click shows its records. */
 function Breakdown({ d, onShow }: { d: Extract<TileData, { type: "breakdown" }>; onShow: (ids: string[], label: string) => void }) {
   const sum = d.segments.reduce((s, x) => s + x.count, 0);
+  const [box, W] = useWidth<HTMLDivElement>(300);
   let at = 0;
   return (
     <>
       {d.empty ? <p className="dash__none">{d.empty}</p> : null}
+      <div className="dchart__box" ref={box}>
       {sum ? (
-        <svg className="dchart dchart--stack" viewBox="0 0 300 20" role="group" aria-label={d.title}>
+        <svg className="dchart dchart--stack" width={W} height={20} viewBox={`0 0 ${W} 20`} role="group" aria-label={d.title}>
           {d.segments.map((s) => {
-            const w = (s.count / sum) * 300;
+            const w = (s.count / sum) * W;
             const x = at;
             at += w;
             return w ? <rect key={s.key} x={x} width={w} height={20} {...fillOf(s)} stroke="var(--surface)" strokeWidth={2} aria-hidden="true" className="dchart__seg" onClick={() => onShow(s.ids, s.showLabel)} /> : null;
           })}
         </svg>
       ) : null}
+      </div>
       <Legend>
         {d.segments.map((s) => (
           <li key={s.key}>
@@ -206,18 +211,24 @@ function Breakdown({ d, onShow }: { d: Extract<TileData, { type: "breakdown" }>;
 /** Bars per week or month: faint grid, the value above each bar, a label every few bars, and each
  *  bar with records a button. */
 function OverTime({ d, onShow }: { d: Extract<TileData, { type: "overtime" }>; onShow: (ids: string[], label: string) => void }) {
-  const W = 300;
+  const [box, W] = useWidth<HTMLDivElement>(300);
   const top = 16;
   const base = 120;
   const n = d.buckets.length;
   const max = Math.max(1, ...d.buckets.map((b) => b.value));
   const slot = W / Math.max(n, 1);
-  const step = Math.ceil(n / 5);
+  // text is drawn at its real size, so what would collide is left out: the value above a bar
+  // when the slot is narrower than the widest value, an axis label when the labels would touch
+  // (every bar still says its value in its name and on hover)
+  const GLYPH = 6.5;
+  const showValues = slot >= Math.max(...d.buckets.map((b) => b.valueText.length), 1) * GLYPH + 4;
+  const step = Math.max(1, Math.ceil((n * (Math.max(...d.buckets.map((b) => b.short.length), 1) * GLYPH + 12)) / W));
   return (
     <>
       {d.empty ? <p className="dash__none">{d.empty}</p> : null}
+      <div className="dchart__box" ref={box}>
       {n ? (
-        <svg className="dchart" viewBox={`0 0 ${W} 140`} role="group" aria-label={d.title}>
+        <svg className="dchart" width={W} height={140} viewBox={`0 0 ${W} 140`} role="group" aria-label={d.title}>
           {[0, 0.5, 1].map((f) => (
             <line key={f} x1={0} x2={W} y1={base - f * (base - top)} y2={base - f * (base - top)} className="dchart__grid" />
           ))}
@@ -229,7 +240,8 @@ function OverTime({ d, onShow }: { d: Extract<TileData, { type: "overtime" }>; o
               <g key={b.key} className={live ? "dchart__bar" : undefined} role={live ? "button" : undefined} tabIndex={live ? 0 : undefined} aria-label={live ? `${b.label}: ${b.valueText}. Show these ${b.ids.length}` : undefined} onClick={live ? act : undefined} onKeyDown={live ? pressed(act) : undefined}>
                 <rect x={i * slot} y={0} width={slot} height={base} fill="transparent" />
                 <rect x={i * slot + slot * 0.15} y={base - h} width={slot * 0.7} height={h} rx={2} fill="var(--chart)" />
-                {live ? (
+                {live ? <title>{`${b.label}: ${b.valueText}`}</title> : null}
+                {live && showValues ? (
                   <text x={i * slot + slot / 2} y={base - h - 4} textAnchor="middle">
                     {b.valueText}
                   </text>
@@ -244,6 +256,7 @@ function OverTime({ d, onShow }: { d: Extract<TileData, { type: "overtime" }>; o
           })}
         </svg>
       ) : null}
+      </div>
       <Legend>
         <li>
           <span className="dash__seg dash__seg--plain">

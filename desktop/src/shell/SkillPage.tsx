@@ -41,7 +41,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
     return (
       <>
         <PageHeader left={back} />
-        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this skill: {error}</Trouble> : <p className="faint">Loading this skill…</p>}</div>
+        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this skill: {error}</Trouble> : <p className="faint">Loading the {name} skill…</p>}</div>
       </>
     );
   }

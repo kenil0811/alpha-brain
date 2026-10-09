@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Client, RecordRow, TableDesc } from "../../core/client";
 import { forgetPreferences } from "../../core/preferences";
 import { TooltipProvider } from "../../ui";
@@ -28,6 +28,10 @@ function setup(data: RecordRow[] = rows) {
   return { client, ...on };
 }
 beforeEach(() => forgetPreferences());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+});
 
 describe("the dashboard", () => {
   it("is available when a field can be counted, added up or dated", () => {
@@ -100,5 +104,19 @@ describe("the dashboard", () => {
     await user.click(screen.getByRole("button", { name: "Reset to default" }));
     await waitFor(() => expect(client.setPreference).toHaveBeenLastCalledWith("dashboards", {}));
     expect(document.querySelectorAll(".dash__cell--wide")).toHaveLength(0);
+  });
+
+  it("draws a chart at its tile's real width, so its text keeps the type scale", () => {
+    vi.stubGlobal("ResizeObserver", class {
+      cb: () => void;
+      constructor(cb: () => void) { this.cb = cb; }
+      observe() { this.cb(); }
+      disconnect() {}
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return this.classList.contains("dchart__box") ? 620 : 0; } });
+    setup();
+    const charts = [...document.querySelectorAll("svg.dchart")];
+    expect(charts.length).toBeGreaterThan(0);
+    for (const c of charts) expect(c.getAttribute("viewBox")).toMatch(/^0 0 620 /);
   });
 });
