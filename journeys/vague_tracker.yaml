@@ -1,11 +1,14 @@
 name: vague_tracker
-title: A vague tracker ask is understood and proposed, and nothing is built
+title: A vague tracker ask is asked about, looked into and proposed, and nothing is built
 why: On 2 Oct Alpha built nine tables and eight readers blind for "a live daily tracker" and
-  ran out of time. Nothing lasting is made before the person's yes.
+  ran out of time. Since 9 Oct (Q37) a vague ask gets the job's questions first, then a research
+  pass, then a plan of pieces. Nothing lasting is made before the person's yes.
 steps:
   - say: "i want to keep track of all the ai conferences happening in london this year"
+  - say: "It's for me; I want to decide which ones to go to; today I search by hand now and
+      then; nothing exists yet. Go ahead and look into it."
 checks:
+  - research: {state: done, looks_min: 1}
+  - plan: {state: proposed, pieces_min: 2, kinds: [kept]}
   - no_new_tables: {}
   - no_new_modules: {}
-  - plan: proposed
-  - reply: {matches: "(^|\\n)\\s*1[.)]"}

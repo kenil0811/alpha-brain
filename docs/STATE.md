@@ -4,7 +4,9 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 9 October 2026.** Last entries: a plan's questions with their choices
+**As of 9 October 2026, afternoon.** Last entries: the research pass before a build
+([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md), Q37; run for real on a
+copy of Kenil's world), a plan's questions with their choices
 ([`log/2026-10-09-plan-questions.md`](log/2026-10-09-plan-questions.md), Q36), the conversation, closer to Claude
 ([`log/2026-10-09-chat.md`](log/2026-10-09-chat.md), Q35), Alpha on another Mac
 ([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34), agents, schedule first
@@ -33,19 +35,19 @@ fact origins, the module's page and the item pages
 of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
 contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
 
-## Numbers (`just stats`, 9 Oct, 12:00)
+## Numbers (`just stats`, 9 Oct, 14:15)
 
 | | |
 |---|---|
-| Core tests | 233, in about 18 s; ruff and mypy strict clean |
-| Desktop tests | 84, in twenty-five files; typecheck and `cargo check` clean |
-| Tools the model sees | 72 |
-| Journeys | 23 defined; latest `docs/journeys/2026-10-09-1157.md`, 1 of 1 (a plan's questions with choices, the model's own); `2026-10-09-1155.md`, question card passed, the plan journey's first shape failed and was corrected; `2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
+| Core tests | 247, in about 19 s; ruff and mypy strict clean |
+| Desktop tests | 85, in twenty-five files; typecheck clean |
+| Tools the model sees | 74 |
+| Journeys | 24 defined; latest `docs/journeys/2026-10-09-1349.md`, 1 of 1 (the research pass on the car wash ask, 896 s: 3 looks, 58 findings from 37 pages, a plan of 13 pieces, nothing built); `2026-10-09-1347.md` failed rightly (the copy still had the module); `2026-10-09-1157.md`, 1 of 1 (a plan's questions with choices); `2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 146 total; 146 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 14,354 Python; tests 5,356; desktop 10,538 TS/TSX |
+| Commits | 147 total; 147 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 15,340 Python; tests 5,792; desktop 10,705 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -55,7 +57,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) kept only after a real run, health-checked, repaired by Alpha; files in and out (§4.17); calendar read-only. Reading LinkedIn's whole list daily is still the slowest thing (read only what is new: open). |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an automation's "worth telling". |
 | 4. Entities and bi-temporal facts across sources | **Partial.** Facts bi-temporal; entities with hard keys; a page per person (§4.23); noticing after every turn; entity cards in context. But no table in Kenil's world declares its rows as people, so 1,551 connections are rows, not people (20 entities, 6 facts). |
-| 5. Standing things, promotion from verified runs | **Partial.** Plan → yes → build by mechanism (§4.7); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). Since 9 Oct every automation is an agent's process (Q33): a goal, a page Alpha writes and the person edits (read by the model when it steps in), a row per run with a verdict judged by code, repair at most twice a run, failures in the journal and the companion, the Agents tab and page. No ladder, no promotion from repetition; no event triggers, no digest. |
+| 5. Standing things, promotion from verified runs | **Partial.** Plan → yes → build by mechanism (§4.7); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). Since 9 Oct every automation is an agent's process (Q33): a goal, a page Alpha writes and the person edits (read by the model when it steps in), a row per run with a verdict judged by code, repair at most twice a run, failures in the journal and the companion, the Agents tab and page. Since 9 Oct afternoon a build ask gets a research pass before its plan (Q37, §6.3): the job's questions first, then a pass in the background whose looks return findings the core resolves by code, then a plan of pieces (kept for you, your call, not this time) with evidence and buildability that the person keeps, skips or defers on the card; `plan_propose` only inside a pass; deferred pieces on the module's page; the findings as a `topic:` page. No ladder, no promotion from repetition; no event triggers, no digest; no later pass over a built module. |
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
@@ -67,7 +69,12 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 ChatGPT through the Codex CLI on his subscription, chosen in Settings › Thinks with; the ChatGPT
 way is proven by tests only until he signs in again (his Codex sign-in lapsed on 16 June).
 
-**Runs for real, daily, on Kenil's Mac:** four agents (LinkedIn connections; 15 deal
+**Run for real once, on a copy of Kenil's world (9 Oct, 13:49):** the research pass on the
+car wash ask, with the morning's module removed first: three looks, 58 findings from 37 pages
+(6 dropped by code), a plan of 13 pieces citing 21 resolved sources, nothing built, 896 s. The
+plan is grounded and names what free data cannot give, but its core is still a weighted
+scorecard with no gates-before-score piece, and it kept seven pieces where the rule asks for a
+lean core (the log entry judges it). **Runs for real, daily, on Kenil's Mac:** four agents (LinkedIn connections; 15 deal
 sites; 4 job boards; Gmail from one sender), each run a row with a verdict judged by code
 (9 Oct 07:40, the first wake: deal tracker succeeded 15 of 15 with no model; LinkedIn
 connections converted itself to steps and succeeded; founding-engineer partial, 3 of 4,
@@ -157,14 +164,20 @@ pending item 6, people for real, and noticing over what Alpha reads.
    runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
    installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
    right-click › Open for now); the friend's own first run, which decides it.
-9. **The conversation, the rest of Q35:** one automatic retry of a transient failure with a
+9. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
+   watch the next real asks for the lean core (seven kept on the first); a piece's
+   buildability feeding what capability to add next (computed things: a gate over a site's
+   values, a score over rows, were the first "not yet"); a later pass that brings "Not this
+   time" back; the suite's report keeping the plan's pieces; the time words against the
+   measured fourteen minutes.
+10. **The conversation, the rest of Q35:** one automatic retry of a transient failure with a
    Try again card; identical replies collapsed and a stopped build posting once (the loop that
    posted 19 on 2 Oct); long replies folded; copy and edit-and-resend; a plus for files in the
    composer; Kenil to say whether one stream should replace the per-page conversations.
-10. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
+11. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
-11. People for real: readers declare their rows as people; a pass links existing rows.
-12. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
+12. People for real: readers declare their rows as people; a pass links existing rows.
+13. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
    first-run experience on a clean Mac, the smaller

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from conftest import building
+from conftest import PIECES, researching
 
 from alpha.runtime import asking, claude_cli, turn
 from alpha.runtime.claude_cli import RunResult, TurnRequest
@@ -214,11 +214,11 @@ def test_a_plan_proposed_with_its_own_questions_keeps_them(world: World) -> None
 
 
 def test_the_model_must_give_a_default_with_choices(world: World) -> None:
-    t = building(world, turn="j_1")
-    out = t.plan_propose("P", "Body.", "log a run", questions=[
+    t = researching(world, turn="j_1")
+    out = t.plan_propose("P", "Body.", "log a run", pieces=PIECES, questions=[
         {"text": "Miles or km?", "options": ["Miles", "Km"]}])
     assert "no default" in out["error"]
-    out = t.plan_propose("P", "Body.", "log a run", questions=[
+    out = t.plan_propose("P", "Body.", "log a run", pieces=PIECES, questions=[
         {"text": "Miles or km?", "options": ["Miles", "Km"], "default": "Km"},
         {"text": "Which folder?"}])
     plan = world.plans.get(out["plan"])

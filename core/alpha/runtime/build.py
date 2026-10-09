@@ -131,6 +131,25 @@ def trial(world: World, plan: dict[str, Any], *, runner: turn.Runner = route.run
     return {"said": outcome.said, "reply": reply, **verdict}
 
 
+def not_this_time(world: World, plan: dict[str, Any], thread: str) -> None:
+    """The pieces the person deferred or skipped go on the module's page under "Not this
+    time" (Q37), so a later pass can bring them back; the journal says so."""
+    lines = plans_module.not_this_time(plan)
+    if not lines or not plan.get("module"):
+        return
+    try:
+        name = world.modules.get(plan["module"])["name"]
+        for line in lines:
+            world.knowledge.append_to_page(f"module:{name}", name, "Not this time", line,
+                                           source=thread)
+        world.journal.append("changed", f"Noted on the {name} page what was left out this time:"
+                             f" {len(lines)} piece{'s' if len(lines) != 1 else ''}.",
+                             actor="alpha", thread=thread, module=plan["module"],
+                             data={"plan": plan["id"]})
+    except Exception:
+        log.exception("could not note the deferred pieces for %s", plan["id"])
+
+
 def _what_was_done(world: World, thread: str) -> str:
     """What a build made so far, in one sentence: its module, tables (with rows), readers and
     automations."""
@@ -211,6 +230,7 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = route.run
         text = _report(world, plan, reply, tried)
         world.plans.finish(plan_id, text)
         world.modules.update_thread(thread, state="done")
+        not_this_time(world, world.plans.get(plan_id), thread)
         world.journal.append("replied", text, data={"plan": plan_id, "thread": thread},
                              module=plan["module"])
         return world.plans.get(plan_id)

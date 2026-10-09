@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from conftest import building
+from conftest import PIECES, building, researching
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -199,8 +199,8 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
 def test_a_refused_decline_leaves_no_answer_and_starts_nothing(world: World) -> None:
     """The panel once fired resume and decline together on "Leave it": the decline must be
     refused on a building plan without journaling a No."""
-    t = Tools(world, turn=world.journal.append("said", "track x", actor="person"))
-    pid = t.plan_propose("Track x", "A plan.", "show me x")["plan"]
+    t = researching(world, turn=world.journal.append("said", "track x", actor="person"))
+    pid = t.plan_propose("Track x", "A plan.", "show me x", pieces=PIECES)["plan"]
     plan = world.plans.get(pid)
     world.plans.approve(pid, "yes")
     thread = world.modules.open_thread("Build: Track x", "build", None)

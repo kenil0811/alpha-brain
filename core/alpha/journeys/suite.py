@@ -14,6 +14,7 @@ A journey file:
       - decline_plan: latest     # the person's no, through the app's route
       - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
       - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
+      - remove_module: "Car Wash Site Scoring"   # the world without something it already has
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
       - row: {collection: food_log, source_not: [estimated]}   # a row this journey added
@@ -54,6 +55,8 @@ import yaml
 
 from alpha.runtime import automation as automation_runtime
 from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn
+from alpha.runtime import research as research_runtime
+from alpha.world import purge
 from alpha.world.store import Problem, now
 from alpha.world.world import World
 
@@ -127,6 +130,7 @@ class Mark:
     modules: set[str]
     plans: set[str]
     skills: dict[str, int]
+    research: set[str] = field(default_factory=set)
 
 
 def mark(world: World) -> Mark:
@@ -136,6 +140,7 @@ def mark(world: World) -> Mark:
         modules={m["id"] for m in world.modules.all()},
         plans={p["id"] for p in world.plans.all()},
         skills={s["name"]: s["version"] for s in world.skills.all()},
+        research={r["id"] for r in world.research.all()},
     )
 
 
@@ -174,6 +179,7 @@ class Run:
             self.last_turn, self.last_reply = outcome.said, outcome.reply
             self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
+                self._settle_research()
                 self._settle_builds()
                 # What the app does after a person's turn: the noticing pass, here in line.
                 try:
@@ -218,6 +224,13 @@ class Run:
                 raise Problem(f"Unknown seed: {seed}")
             # Seeds are not the journey's own work: move the mark past them.
             self.mark = mark(self.world)
+        elif "remove_module" in spec:
+            # The world as it would be without something the person already has, for a
+            # journey that asks for it afresh; not the journey's own work, so the mark moves.
+            counts = purge.remove_module(self.world, spec["remove_module"])
+            record = {"remove_module": spec["remove_module"], "ok": True,
+                      "removed": {k: v for k, v in counts.items() if k != "module"}}
+            self.mark = mark(self.world)
         elif "approve_action" in spec:
             from alpha.runtime import acting
 
@@ -254,6 +267,19 @@ class Run:
             raise Problem(f"Unknown step: {spec}")
         record["seconds"] = round(time.monotonic() - began, 1)
         return record
+
+    def _settle_research(self) -> None:
+        """Run every research pass this journey started to its end, as the scheduler would
+        (Q37): to its plan, or until it waits on the person, fails or stops."""
+        for _ in range(50):
+            pending = [r for r in self.world.research.waiting()
+                       if r["id"] not in self.mark.research
+                       and not (r["thread"] and self.world.modules.thread(r["thread"])["state"]
+                                == "waiting")]
+            if not pending:
+                break
+            for research in pending:
+                research_runtime.run(self.world, research["id"], runner=self.runner)
 
     def _settle_builds(self) -> dict[str, Any]:
         """Run every approved or building plan to its end, as the scheduler would."""
@@ -365,13 +391,32 @@ class Run:
 
     def check_plan(self, arg: Any) -> tuple[bool, str]:
         """A plan in the state asked; `questions_min` (Q36): at least that many questions on
-        the plan, each with its choices listed in the words."""
+        the plan, each with its choices listed in the words; `pieces_min`, `kinds` and
+        `evidence_min` (Q37): a researched plan's pieces, the kinds among them, and how many
+        distinct findings with a page that answered they cite."""
         state = arg if isinstance(arg, str) else arg.get("state", "proposed")
         new = [p for p in self.world.plans.all() if p["id"] not in self.mark.plans]
         hits = [p for p in new if p["state"] == state]
         if not new:
             return False, "No plan was proposed."
         words = f"Plans: {', '.join(p['title'] + ' (' + p['state'] + ')' for p in new)}."
+        if isinstance(arg, dict) and (arg.get("pieces_min") or arg.get("kinds")
+                                      or arg.get("evidence_min")):
+            pieces = hits[-1]["pieces"] if hits else []
+            kinds = {p["kind"] for p in pieces}
+            cited = {e for p in pieces for e in p.get("evidence") or []}
+            resolved = {f["id"] for r in self.world.research.all()
+                        if r["id"] not in self.mark.research
+                        for f in self.world.research.findings(r["id"]) if f["resolved"] == 1}
+            evidence = len(cited & resolved)
+            shown = "; ".join(f"{p['kind']}: {p['title']} ({p.get('recommend')},"
+                              f" {p.get('can')})" for p in pieces)
+            missing = [k for k in arg.get("kinds") or [] if k not in kinds]
+            ok = (bool(hits) and len(pieces) >= int(arg.get("pieces_min") or 0)
+                  and not missing and evidence >= int(arg.get("evidence_min") or 0))
+            return ok, (f"{words} {len(pieces)} pieces: {shown or 'none'}."
+                        f" Kinds missing: {', '.join(missing) or 'none'}."
+                        f" Distinct findings cited with a page that answered: {evidence}.")
         if isinstance(arg, dict) and arg.get("questions_min"):
             questions = hits[-1]["questions"] if hits else []
             shown = "; ".join(f"{q['text'][:60]} → {q['options'] or 'open'}"
@@ -385,6 +430,24 @@ class Run:
                                  or (bool(arg.get("or_asked")) and bool(asked)))
             return ok, f"{words} Questions on the plan: {shown or 'none'}.{cards}"
         return bool(hits), words
+
+    def check_research(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A research pass this journey started (Q37), in the state asked, with at least
+        `looks_min` looks (each a journal line with its angle) and, when given, the verdict."""
+        new = [r for r in self.world.research.all() if r["id"] not in self.mark.research]
+        if not new:
+            return False, "No research pass was started."
+        research = new[-1]
+        looks = [e for e in self.world.journal.recent(200, thread=research["thread"])
+                 if e["kind"] == "did" and e["data"].get("angle")] if research["thread"] else []
+        state_ok = research["state"] == arg.get("state", "done")
+        verdict_ok = not arg.get("verdict") or research.get("verdict") == arg["verdict"]
+        looks_ok = len(looks) >= int(arg.get("looks_min") or 0)
+        angles = "; ".join(str(e["data"]["angle"]) for e in looks)
+        return (state_ok and verdict_ok and looks_ok,
+                f"Pass '{research['title']}' is {research['state']}"
+                f" (verdict {research.get('verdict') or 'none'}: {research.get('why') or ''});"
+                f" {len(looks)} look{'s' if len(looks) != 1 else ''}: {angles or 'none'}.")
 
     def check_ask(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A question for the person, as a card, from the last turn (Q35): `derived` whether

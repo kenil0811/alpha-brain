@@ -136,6 +136,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         db.execute("UPDATE plans SET state = 'stopped', report = COALESCE(report, ?),"
                    " updated_at = ? WHERE module = ? AND state IN ('proposed', 'approved',"
                    " 'building')", (f"{name} was removed.", now(), mid))
+        # Research passes about it stop too, and their findings go.
+        world.research.remove_module(db, mid)
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")

@@ -382,8 +382,70 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | `plan_propose` with a trial and its questions (choices and Alpha's default, on the card, answered before the yes and carried into the brief; Q36), `plan_approve` on the person's words or the card, `plan_resume`, `plan_decline`; the gate (`Tools._gate`) refuses making modules, tables, readers and automations outside a building plan; builds in the background from the brief with no limit, a stop, a resume, a trial and a coverage line; sources with statuses; pipelines. Agents, schedule first (Q33, 9 Oct): every automation is an agent's process with a goal, a page Alpha writes and the person edits (`agent:<id>`, read by the model when it steps into a run or a repair), a row per run in `runs` with a verdict judged by code (succeeded, partial, failed, and why), the model's time and the repairs counted, a broken reader repaired at most twice in a run, a failed run in the journal and the companion, the window's Agents tab and page. |
-| Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap; the only counter is two trial send-backs. |
-| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, deepen-in-background, the junk rules; of agents (Q33): event triggers, escalation to the person as a question, the digest, a brief per agent. (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
+| Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap; the only counter is two trial send-backs. Since 9 Oct (Q37, §6.3) step 1 is a research pass in the background, not one turn: the job's questions first, then `research_start`, and `plan_propose` works only inside the pass; the plan is a menu of pieces the person keeps, skips or defers. |
+| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, the junk rules; of agents (Q33): event triggers, escalation to the person as a question, the digest, a brief per agent. (Deepen-in-background became the research pass before the build, §6.3; a later pass over a built module is not built.) (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
+
+### 6.3 The research pass before a build (decided 9 October 2026; Q37)
+
+Why: the "Car Wash Site Scoring" module of 9 October. The ask was "something similar to
+growthfactor.ai" and four one-word answers; Alpha wrote the spec itself in two chat turns,
+planned in two minutes and built in fourteen: five tables, one worked example, a recipe in the
+note, no skill and no automation, and a weighted average with no gates that called a site with
+nine washes within 2.7 miles "Favorable". The person said yes to Alpha's own proposal. Compared
+with a site engine a friend built over a week from the client's own process documents (gates
+first, trade areas, a map, a per-site report), the gap was in kind, not polish. Kenil: Alpha
+should scan what could help, how well each piece can be built, suggest it, and let the person
+decide; not time-boxed deliveries, and not the friend's everything-list either. The evidence is
+in `research/research-before-build.md`: silent assumption is the default failure (models fill
+unspecified requirements silently 41% of the time); research before building measurably helps
+only when its output is checked; goal questions are worth asking only before the work; people
+tolerate a round of about 4–7 specific questions with choices; no builder on the market
+researches alternatives before proposing; good product people pre-keep the table stakes, offer
+the differentiators as a few choices with a recommended default, and name the won't-haves.
+
+**The job, first.** Step 1 of §6 begins with the questions research cannot answer and that
+change the goal: who uses it, what decision it serves, what happens today, what already exists
+(a process, a scorecard, files, a module of Alpha's). Asked as cards with choices, only the ones
+not already known, before any work; never during a build.
+
+**Alpha looks into it, in the background.** Every build ask gets a research pass, its breadth
+scaled to the ask by rule (a simple log: one look; a product-like thing: what the products in
+this space have, what the trade's own practice says, what open data and open-source tools exist,
+and what the person's own world already holds). It is a thread of kind `research` with its own
+session, started by `research_start` from the conversation and run by the scheduler like a
+build, with no limit and a stop. A lead run plans the looks; each look (`research_look`) is an
+independent run with web search only that reads sources and returns findings, each a claim with
+the quote and the page it came from; the core resolves every page by code, keeps the findings
+with the research, and journals what was looked at. The lead merges; a plan may only cite
+findings Alpha actually read, and a piece whose evidence did not resolve is refused, because the
+merge is where research errors come from. The person is told it takes a few minutes and can
+stop it; a plan is never proposed on a timeout.
+
+**The menu is the plan, one yes.** `plan_propose` works only inside a research thread (or for a
+revision of a researched plan), and a researched plan carries **pieces**, each with what it is,
+why it matters for the job, its evidence, how it would be built here, whether it can be built
+now (now; needs a sign-in, a file or a key; not yet, and why), Alpha's recommendation, and its
+kind: *kept for you* (table stakes, pre-kept as one block), *your call* (the differentiators, a
+few, each with why you might and might not), *not this time* (named and kept). The card shows
+the three blocks with keep / skip / defer on each piece and the questions as before, only where
+the products genuinely differ and the answer depends on the person; the button reads "Build
+with these"; the decisions go into the brief the build reads. The trial is the person's job in
+their own words from the first step, not one Alpha invented. The pieces deferred or skipped go
+on the module's page under "Not this time" when the build finishes, so a later pass can bring
+them back; the findings become a page of the wiki for that kind of thing (`topic:`), Alpha-built
+know-how for the next similar ask. A research pass has a verdict judged by code: succeeded
+(every piece's evidence resolved and the plan proposed), partial (some evidence dropped), failed
+(no plan).
+
+What this does not change: computed things (a gate, a weighted score over rows, a report page)
+are still "not yet" in the menu; that column is the measure of which capability to add next.
+"Agents" stays the word for a module's recurring processes (Q33); this is a pass.
+
+| Status (9 Oct 2026; detail in `../log/2026-10-09-research-pass.md`) | |
+|---|---|
+| Built | The job's questions in the rule; `research_start` from the conversation with the job; the pass as a `research` thread run by the scheduler like a build (no limit, a stop, a continue from the brief, waits when it asks the person, fails after three runs without a plan and says so); `research_look` as an independent web run whose findings the core resolves by code and keeps (`research`, `findings`); `plan_propose` only inside a pass (or a revision of a researched plan), with pieces checked against what was read; the card's three blocks with keep / skip / defer, the sources, whether a piece can be built now, the questions, "Build with these"; the decisions in the brief; "Not this time" on the module's page after the build; the findings as a `topic:` page; a verdict by code per pass; the `research_pass` journey. |
+| Differs | The pass starts when the job is known: the turn asks the job's questions first and starts the pass on the answers (the design's "research starts at once and the answers steer the merge" is not built: one mechanism, the person waits for themselves, not for Alpha). The merge is checked by the citable rule (a piece cites only findings whose page answered), not by a second opinion on the plan. |
+| Not built | A piece's buildability feeding what capability to add next (it is data on the plan, nothing reads it yet); a later pass that brings deferred pieces back; the Scout for a specific ask with no card (every build ask goes through the pass, breadth scaled by the lead's judgement). |
 
 ### 6.1 Acting outward (decided and built 2 October 2026, evening; Q24)
 
@@ -634,6 +696,7 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q34** | Alpha on another Mac (9 Oct 2026, after Kenil shared the app with a friend and it didn't work: the bundle held only the window, the core ran from the repository's uv environment at a path compiled into the binary, and nothing Alpha needs was installed by Alpha). A shipped Alpha (`just ship`) carries its runtime inside the bundle: uv's standalone Python with the core and its locked packages, the official Node binary, the connectors with the browser driver and Playwright's installer; the host uses that runtime when it finds one in its own resources, the repository otherwise, and clears macOS's quarantine mark from its runtime itself. What the person must have is asked for inside the window on first run: Claude Code (Install, Sign in with their own subscription) and Alpha's own browser (Install: Chromium, about 250 MB); sign-in windows open in their Chrome when they have it, else in that Chromium. Not notarized: Kenil has no Apple Developer account and is fine with right-click › Open for now; Apple silicon only, macOS 14+. | 9 Oct 2026 (`../log/2026-10-09-fresh-mac.md`). |
 | **Q35** | The conversation, closer to Claude (9 Oct 2026; Kenil: "questions are often just asked, there are no multiple choice options, it's flaky, i want the chat interface to be really seamless like claude", and a full-screen Assistant page above Intelligence). Measured first on his world: in a week, 23 replies ending with a question in prose against 2 ask cards, though the card and the rule existed. Decided: the reply's text shows as it is written (`--include-partial-messages`), with the steps so far inline and the first words' time measured per turn; a question left in prose becomes a card by mechanism, with options from the reply's own list, else from the System One seam when it is a choice, none when it is open (the rule to the model stands, the mechanism does not depend on it); the Assistant page is the same conversation at full width with every conversation, live and finished, down the left. Left for later from the same discussion: one automatic retry of a transient failure with a Try again card, identical replies collapsed and a stopped build posting once, long replies folded, copy and edit-and-resend, a plus for files in the composer, whether one stream should replace the per-page conversations. | 9 Oct 2026 (`../log/2026-10-09-chat.md`). |
 | **Q36** | A plan's questions with their choices (9 Oct 2026; Kenil, on the first plan on the Assistant page: "when there are questions, why give build option? … if there are default, those should be visible"). A plan's questions are part of the plan: text, 2 to 4 choices, Alpha's default; the model puts them on `plan_propose`, and questions it leaves in the text are read out by the core with the seam supplying choices and the plan's own lean. The card shows them with Alpha's pick selected, the button reads "Build with these", and the answers (or the defaults, named as such) go into the brief the build reads. | 9 Oct 2026 (`../log/2026-10-09-plan-questions.md`). |
+| **Q37** | The research pass before a build (9 Oct 2026, after the car wash module: Alpha wrote the spec itself from a one-line ask and four one-word answers, and built a weighted average with no gates in fourteen minutes; Kenil: "it needs to be a proper module… alpha should do a good scan of what all could potentially be helpful for such a product, and how well can it be built, and suggest those to the user so that they can decide"). Decided, with the evidence in `research/research-before-build.md`: the job's questions first, as cards, only the ones not known; every build ask gets a research pass in the background, breadth scaled by rule, each look an independent web run returning findings the core resolves by code; the plan is a menu of pieces (kept for you, your call, not this time) with evidence, how it would be built, whether it can be built now and Alpha's recommendation, decided with keep / skip / defer and one yes; `plan_propose` only inside a research thread; deferred pieces kept on the module's page; findings kept as a `topic:` page. Research first; computed things (gates, scores over rows) are a later slice, and the menu's "not yet" column is the measure of what to add. Kept apart from Q33's agents in name. | 9 Oct 2026 (`../log/2026-10-09-research-pass.md`). §6.3 |
 
 ---
 
@@ -644,4 +707,5 @@ Carried over with their tests, and only where the design calls for that exact th
 - `design/research/proactivity-and-standing-things.md` — 17 proactive products, interruption evidence, the four-layer mechanism, the standing-things ladder.
 - `design/research/workspace-ui.md` — 25 second-brain products and 20 agent workspaces compared; the review, approval and explanation evidence; the recommended information architecture.
 - Jev / System One models: TypeSafe docs and cookbooks, arXiv 2609.30216, the Laya comparison (summarised in the chat of 30 Sept 2026).
+- `design/research/research-before-build.md` — the evidence behind the research pass (Q37, 9 Oct 2026): agents under-ask and assume silently; research before building helps when checked; when questions are worth asking and how many; how the deep-research products and the builder agents do it; how product people scope from a vague ask.
 - `design/research/competitor-kanu.md` — Kanu (getkanu.com, 2 Oct 2026): the same thesis sold top-down to enterprises with forward-deployed engineers; what Alpha lacks (finished deliverables, enterprise connectors, a feedback-to-behaviour loop), what Kanu doesn't show (a person-sized, local, self-serve product with provenance per value), and what it means for the pitch.

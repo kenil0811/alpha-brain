@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from conftest import building
+from conftest import PIECES, building, researching
 from fastapi.testclient import TestClient
 
 import alpha.connectors.browser as browser_module
@@ -54,11 +54,14 @@ def test_a_plain_log_with_no_home_still_gets_the_simplest_table(world: World) ->
 
 def test_a_plan_needs_the_persons_yes_after_it_was_proposed(world: World) -> None:
     ask = said(world, "i want a live daily tracker of all deals from my list")
-    t = Tools(world, turn=ask)
-    assert "trial" in t.plan_propose("Daily deal tracker", "The plan.", "")["error"]
+    # A plan comes out of a research pass (Q37): never straight from the turn.
+    assert "research_start" in Tools(world, turn=ask).plan_propose(
+        "Daily deal tracker", "The plan.", "which deals are new today", pieces=PIECES)["error"]
+    t = researching(world, turn=ask)
+    assert "trial" in t.plan_propose("Daily deal tracker", "The plan.", "", pieces=PIECES)["error"]
     plan = t.plan_propose("Daily deal tracker", "## What I understood\nYour 20 sites…\n"
                           "## Questions\n1. Only accounting firms?",
-                          "which deals are new today")["plan"]
+                          "which deals are new today", pieces=PIECES)["plan"]
     assert world.plans.get(plan)["trial"] == "which deals are new today"
     home = TestClient(create_app(world, live=False)).get("/api/home").json()
     assert [n["text"] for n in home["needs_you"]] == ["Plan: Daily deal tracker"]
@@ -72,8 +75,8 @@ def test_a_plan_needs_the_persons_yes_after_it_was_proposed(world: World) -> Non
 
 
 def test_the_app_approves_a_plan_without_another_turn(world: World) -> None:
-    plan = Tools(world, turn=said(world, "track it")).plan_propose("Tracker", "The plan.",
-                                                                   "which deals are new")
+    plan = researching(world, turn=said(world, "track it")).plan_propose(
+        "Tracker", "The plan.", "which deals are new", pieces=PIECES)
     c = TestClient(create_app(world, live=False))
     proposal = c.get("/api/home").json()["needs_you"][0]
     out = c.post(f"/api/proposals/{proposal['id']}/decide", json={"accept": True}).json()

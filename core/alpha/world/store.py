@@ -256,6 +256,43 @@ CREATE TABLE IF NOT EXISTS plans (
     updated_at TEXT NOT NULL
 );
 
+-- a research pass: Alpha looking into how a thing is done before it proposes a plan (§6.3,
+-- Q37), with a verdict judged by code; and the findings each pass read, each a claim with its
+-- page, resolved by the core (1 the page answered, 0 it did not, NULL no page: the person's
+-- own world)
+CREATE TABLE IF NOT EXISTS research (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    ask TEXT NOT NULL,
+    job TEXT,
+    state TEXT NOT NULL,
+    thread TEXT,
+    conversation TEXT,
+    module TEXT,
+    turn TEXT,
+    plan TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    verdict TEXT,
+    why TEXT,
+    model_ms INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT,
+    ended_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS findings (
+    id TEXT PRIMARY KEY,
+    research TEXT NOT NULL,
+    angle TEXT NOT NULL,
+    claim TEXT NOT NULL,
+    quote TEXT,
+    url TEXT,
+    title TEXT,
+    resolved INTEGER,
+    at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS findings_research ON findings(research, at);
+
 -- everything a module reads from outside Alpha, and whether it works
 CREATE TABLE IF NOT EXISTS sources (
     id TEXT PRIMARY KEY,
@@ -408,6 +445,10 @@ ADDED_COLUMNS = [
     ("plans", "trial", "TEXT"),
     ("plans", "checks", "INTEGER NOT NULL DEFAULT 0"),
     ("plans", "questions", "TEXT"),  # the plan's questions with choices and defaults (Q36)
+    # a researched plan's pieces (kept for you, your call, not this time), each with its
+    # evidence and the person's decision, and the research pass that produced it (Q37)
+    ("plans", "pieces", "TEXT"),
+    ("plans", "research", "TEXT"),
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
     ("documents", "origin", "TEXT"),

@@ -1,0 +1,59 @@
+[
+ {
+  "name": "research_pass",
+  "title": "A product ask is looked into before it is planned; the plan is a menu of pieces with evidence",
+  "steps": [
+   {
+    "say": "I want to build something similar to growthfactor.ai, for car washes in the US, scoring sites from public data. It's for me, looking at sites for a car wash I might buy or build; it should help me pick which sites to pursue; today I look at listings by hand and I have no scorecard or site process. Look into it and propose it.",
+    "ok": true,
+    "reply": "This already exists — you built it earlier today. The **Car Wash Site Scoring** module is live: it takes a US address + format (express tunnel / in-bay automatic / self-serve) and scores it 0-100 from public data (TxDOT/state DOT traffic, Census demographics, OSM competition/corridor), plus a lender-style memo. Tables: `candidate_sites`, `score_factors`, `competitors`, `public_sources`, `site_scores`.\n\nIt's already been proven end-to-end on a trial address — **6900 N Lamar Blvd, Austin, TX** (Express Tunnel): **69/100, Favorable, Medium confidence.** Strong traffic (20.5k AADT) and demographic",
+    "steps": 4,
+    "seconds": 66.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "research",
+    "arg": {
+     "state": "done",
+     "looks_min": 2
+    },
+    "ok": false,
+    "why": "No research pass was started.",
+    "seconds": 0.0
+   },
+   {
+    "check": "plan",
+    "arg": {
+     "state": "proposed",
+     "pieces_min": 4,
+     "kinds": [
+      "kept",
+      "choice",
+      "wont"
+     ],
+     "evidence_min": 3
+    },
+    "ok": false,
+    "why": "No plan was proposed.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 67.1,
+  "error": "Problem: No plan was proposed in this journey to build."
+ }
+]

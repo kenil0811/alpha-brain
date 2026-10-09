@@ -18,10 +18,12 @@ from alpha.api.views import (
     _local_midnight_utc,
     module_card,
     needs_you,
+    plan_view,
     thread_views,
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import build, claude_cli, conversations
+from alpha.runtime import research as research_runtime
 from alpha.world.store import Problem
 
 
@@ -108,13 +110,15 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/plans", dependencies=[api])
     def plans() -> list[dict[str, Any]]:
-        return list(reversed(world.plans.all()))[:50]
+        return [plan_view(world, p) for p in list(reversed(world.plans.all()))[:50]]
 
     @app.post("/api/plans/{plan_id}/approve", dependencies=[api])
     def approve_plan(plan_id: str, body: ApprovePlanBody | None = None) -> dict[str, Any]:
         plan = world.plans.get(plan_id)
         if body and body.answers and plan["state"] == "proposed":
             plan = world.plans.answer(plan_id, body.answers)
+        if body and body.pieces and plan["state"] == "proposed":
+            plan = world.plans.decide_pieces(plan_id, body.pieces)
         if plan.get("proposal"):
             decide_proposal(plan["proposal"], DecideBody(accept=True))
             return world.plans.get(plan_id)
@@ -136,6 +140,17 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/turns/{key}/stop", dependencies=[api])
     def stop_turn(key: str) -> dict[str, Any]:
         return running.stop(key)
+
+    @app.post("/api/research/{rid}/stop", dependencies=[api])
+    def stop_research(rid: str) -> dict[str, Any]:
+        """Stop a research pass that isn't going anywhere: its run ends now and the
+        conversation says so."""
+        research = world.research.get(rid)
+        if research["state"] not in ("waiting", "running"):
+            raise Problem(f"Alpha isn't looking into {research['title']} now.")
+        if not (research["thread"] and claude_cli.LIVE.stop(research["thread"])):
+            research_runtime.stop(world, rid, None)
+        return world.research.get(rid)
 
     @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
     def resume_plan(plan_id: str) -> dict[str, Any]:

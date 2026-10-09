@@ -223,6 +223,25 @@ export interface PlanQuestion {
   derived?: boolean;
 }
 
+/** A researched plan's piece (Q37): what such a thing could have, with its evidence (the
+ *  findings' titles and pages), how it would be built here, whether it can be built now,
+ *  Alpha's recommendation and the person's decision. */
+export interface PlanPiece {
+  id: string;
+  title: string;
+  what: string;
+  why: string | null;
+  evidence: string[];
+  known: string | null;
+  build: string | null;
+  can: "now" | "needs" | "not_yet";
+  needs: string | null;
+  recommend: "keep" | "skip" | "defer";
+  kind: "kept" | "choice" | "wont";
+  decision: "keep" | "skip" | "defer" | null;
+  sources?: { title: string | null; url: string | null }[];
+}
+
 export interface Plan {
   id: string;
   title: string;
@@ -235,6 +254,19 @@ export interface Plan {
   report: string | null;
   created_at: string;
   questions?: PlanQuestion[];
+  pieces?: PlanPiece[];
+  research?: string | null;
+}
+
+/** A research pass (Q37): Alpha looking into how a thing is done before it proposes it. */
+export interface Research {
+  id: string;
+  title: string;
+  ask: string;
+  state: "waiting" | "running" | "done" | "stopped" | "failed";
+  thread: string | null;
+  conversation: string | null;
+  module: string | null;
 }
 
 export interface TableSummaryData {
@@ -310,6 +342,7 @@ export interface NeedItem {
   module?: string | null;
   plan?: string | null;
   questions?: PlanQuestion[];
+  pieces?: PlanPiece[];
   action?: Action;
 }
 
@@ -596,6 +629,7 @@ export interface Conversation {
   threads: Thread[];
   running: Turn[];
   plans: Plan[];
+  research?: Research[];
   actions?: Action[];
   asks?: Ask[];
   conversation?: Convo | null;
@@ -829,7 +863,9 @@ export class Client {
   };
   /** The person's yes, with their answers to the plan's questions by number (a question left
    * out keeps Alpha's default). */
-  approvePlan = (id: string, answers?: Record<string, string>) => this.call<Plan>("POST", `/api/plans/${id}/approve`, answers ? { answers } : undefined);
+  approvePlan = (id: string, answers?: Record<string, string>, pieces?: Record<string, string>) =>
+    this.call<Plan>("POST", `/api/plans/${id}/approve`, answers || pieces ? { answers, pieces } : undefined);
+  stopResearch = (id: string) => this.call<Research>("POST", `/api/research/${id}/stop`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
   stopPlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/stop`);

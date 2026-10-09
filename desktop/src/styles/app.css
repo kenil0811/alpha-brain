@@ -937,6 +937,19 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .working__partial { margin-top: 10px; color: var(--text); }
 
 /* ---------- a plan's questions on its card (Q36) ---------- */
+/* A researched plan's pieces (Q37): three blocks, each piece with its evidence and keep / defer / skip. */
+.planp { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 2px; }
+.planp__group { display: flex; flex-direction: column; gap: 8px; }
+.planp__head { margin: 0; font-size: var(--text-sm); font-weight: 600; }
+.planp__head .faint { font-weight: 400; }
+.planp__item { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.planp__title { font-weight: 500; }
+.planp__what { font-weight: 400; }
+.planp__meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: var(--text-xs); align-items: center; }
+.planp__can { padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); white-space: nowrap; }
+.planp__can--not_yet, .planp__can--needs { opacity: 0.8; }
+.planp__src { color: inherit; }
+.planp__opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .planq { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .planq__item { display: flex; flex-direction: column; gap: 6px; }
 .planq__text { font-weight: 500; }

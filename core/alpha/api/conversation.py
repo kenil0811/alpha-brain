@@ -16,6 +16,7 @@ from alpha.api.views import (
     action_view,
     conversation_view,
     needs_you,
+    plan_view,
     thread_views,
     troubles,
 )
@@ -108,7 +109,8 @@ def routes(app: FastAPI, s: Served) -> None:
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
                 "threads": thread_views(world), "running": running.running(),
-                "plans": world.plans.recent(),
+                "plans": [plan_view(world, p) for p in world.plans.recent()],
+                "research": world.research.all(("waiting", "running")),
                 "actions": [action_view(world, a) for a in world.actions.all(limit=20)],
                 "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
                           "options": a["data"].get("options", []), "thread": a["thread"],
