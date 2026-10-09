@@ -6,6 +6,7 @@
  * source has none, the view keeps the control, disabled, with the source's reason (or a plain
  * default), never hidden.
  */
+import type { ReactNode } from "react";
 import type { Client, FileInfo, RecordRow, Relations, SavedList, TableDesc } from "../core/client";
 import { host } from "../core/host";
 import { PREF } from "../core/preferences";
@@ -41,13 +42,18 @@ export interface DataSource {
   remove?(row: RecordRow): Promise<unknown>;
   duplicate?(row: RecordRow): Promise<unknown>;
   saveList?(title: string, config: SavedList["config"]): Promise<SavedList>;
-  updateList?(id: string, change: { config?: SavedList["config"]; default?: boolean }): Promise<SavedList>;
+  updateList?(id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }): Promise<SavedList>;
   deleteList?(id: string): Promise<unknown>;
   /** Download the rows; resolves to the words that say what was downloaded and where. */
   exportAs?(format: "csv" | "xlsx"): Promise<string>;
   /** Put a file on a row's file field. */
   addFile?(row: RecordRow, field: FieldInfo, file: File): Promise<unknown>;
   reasons?: Partial<Record<SourceAbility, string>>;
+  /** A small mark at the start of a record's title (an agent's avatar), in every view. */
+  rowIcon?(row: RecordRow): ReactNode;
+  /** Whether one cell can change: null when it can, else the reason (shown on hover; the cell
+   *  is not opened for editing). Absent, every editable kind can. */
+  editable?(row: RecordRow, field: FieldInfo): string | null;
 }
 
 const DEFAULT_REASON: Record<SourceAbility, string> = {
@@ -146,9 +152,9 @@ export function memorySource(o: Omit<DataSource, "load" | "saveList" | "updateLi
           await write((mine) => [...mine, made]);
           return made;
         },
-        updateList: async (id: string, change: { config?: SavedList["config"]; default?: boolean }) => {
+        updateList: async (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => {
           const now = new Date().toISOString();
-          const next = await write((mine) => mine.map((l) => (l.id === id ? { ...l, config: change.config ?? l.config, is_default: change.default ?? l.is_default, updated_at: now } : change.default ? { ...l, is_default: false } : l)));
+          const next = await write((mine) => mine.map((l) => (l.id === id ? { ...l, title: change.title ?? l.title, config: change.config ?? l.config, is_default: change.default ?? l.is_default, updated_at: now } : change.default ? { ...l, is_default: false } : l)));
           const changed = next.find((l) => l.id === id);
           if (!changed) throw new Error("That list is gone.");
           return changed;

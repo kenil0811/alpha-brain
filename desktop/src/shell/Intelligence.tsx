@@ -5,20 +5,19 @@
  * **Automations**, **Skills** and **Connections**. (9 Oct: Knowledge became Second Brain; later
  * the same day Map moved under Second Brain and Activity left the switch for the bell. The old
  * addresses still open: `map` is Second Brain's Map view, `activity` still draws Activity here.)
+ * Agents, Automations, Skills and Connections are each the one data view (`intel/sources.ts`):
+ * views, filters, the person's own lists; a row's click opens its page.
  */
-import { useEffect, useState } from "react";
-import type { Client, Intelligence as Data, Skill } from "../core/client";
-import { humanize, when } from "../modules/format";
+import { useEffect, useMemo, useState } from "react";
+import type { Client, Intelligence as Data } from "../core/client";
+import { DataPage } from "../modules/DataPage";
 import { Activity } from "./Activity";
-import { agentsFrom } from "./agents";
-import { AutomationList } from "./Automations";
 import { Connections } from "./Connections";
-import { AgentAvatar } from "./AgentAvatar";
-import { OpenCard } from "./OpenCard";
+import { agentsSource, automationsSource, BUILT_IN, skillsSource } from "./intel/sources";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
-import { Badge, EmptyCard, HeaderSwitch, InfoTip, ListRow, PageHeader, Trouble, type HeaderSwitchItem } from "../ui";
-import { AgentIcon, BrainIcon, ConnectionIcon, ICON, ICON_SM, SkillIcon, Zap } from "../ui/icons";
+import { HeaderSwitch, PageHeader, Trouble, type HeaderSwitchItem } from "../ui";
+import { AgentIcon, BrainIcon, ConnectionIcon, ICON_SM, SkillIcon, Zap } from "../ui/icons";
 
 export type IntelTab = "second-brain" | "agents" | "automations" | "skills" | "connections" | "activity" | "map";
 const TABS: HeaderSwitchItem<IntelTab>[] = [
@@ -35,48 +34,14 @@ export function intelTab(tab: string | undefined): IntelTab {
   return TABS.find((t) => t.id === tab)?.id ?? "second-brain";
 }
 
-const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", run: "Runs" };
-
-function SkillRow({ skill, modules, onOpen }: { skill: Skill; modules: Record<string, string>; onOpen?: () => void }) {
-  const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a module" : "");
-  const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
-  return (
-    <ListRow
-      icon={<SkillIcon size={ICON} />}
-      title={skill.description}
-      onOpen={onOpen}
-      description={[KIND_LABEL[skill.kind], where, skill.last_run_at ? when(skill.last_run_at) : ""].filter(Boolean).join(" · ")}
-      controls={<Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>}
-    >
-      {skill.last_problem ? <p className="notice lrow__problem">{skill.last_problem}</p> : null}
-    </ListRow>
-  );
-}
-
-function Agents({ client, data, modules, onGo }: { client: Client; data: Data; modules: Record<string, string>; onGo?: (s: Surface) => void }) {
-  const agents = agentsFrom(data, modules);
-  return (
-    <div className="modgrid">
-      {agents.map((a) => (
-        <OpenCard
-          key={a.id}
-          icon={<AgentAvatar client={client} agent={a.id} size={32} label={a.name} />}
-          name={a.name}
-          description={a.description}
-          meta={`${a.skills.length} ${a.skills.length === 1 ? "skill" : "skills"} · ${a.automations.length} ${a.automations.length === 1 ? "automation" : "automations"}`}
-          onOpen={() => onGo?.({ kind: "agent", id: a.id })}
-        />
-      ))}
-    </div>
-  );
-}
-
 export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onAsk }: { client: Client; tab: string; version: number; onTab: (t: IntelTab) => void; onChanged: () => void; onGo?: (s: Surface) => void; onAsk?: (text: string) => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [modules, setModules] = useState<Record<string, string>>({});
   const current = intelTab(tab);
+  // Stable per client and module names, so a data view reloads on `version`, not on every render.
+  const sources = useMemo(() => ({ agents: agentsSource(client, modules), automations: automationsSource(client, modules), skills: skillsSource(client, modules) }), [client, modules]);
   useEffect(() => {
     let live = true;
     client
@@ -106,43 +71,21 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
     switch (current) {
       case "second-brain":
       case "map":
-        return <SecondBrain client={client} data={data} onChanged={onChanged} onAsk={onAsk} onGo={onGo} initialView={current === "map" ? "map" : undefined} />;
+        return <SecondBrain client={client} data={data} version={version} onChanged={onChanged} onAsk={onAsk} onGo={onGo} initialView={current === "map" ? "map" : undefined} />;
       case "agents":
-        return <Agents client={client} data={data} modules={modules} onGo={onGo} />;
+        return <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => onGo({ kind: "agent", id }) : undefined} />;
       case "automations":
-        return <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "automation", id }) : undefined} empty="Ask Alpha to keep something current." />;
+        return <DataPage client={client} source={sources.automations} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => onGo({ kind: "automation", id }) : undefined} />;
       case "skills":
-        return (
-          <div className="stack stack--wide">
-            {data.skills.length ? (
-              <div className="card lrows">
-                {data.skills.map((s) => (
-                  <SkillRow key={s.name} skill={s} modules={modules} onOpen={onGo ? () => onGo({ kind: "skill", name: s.name }) : undefined} />
-                ))}
-              </div>
-            ) : (
-              <EmptyCard icon={<SkillIcon size={ICON} />} title="No skills yet" />
-            )}
-            {data.hands.length ? (
-              <>
-                <h2 className="sectitle">Built in</h2>
-                <div className="card lrows">
-                  {data.hands.map((h) => (
-                    <ListRow key={h.name} icon={<SkillIcon size={ICON} />} title={h.title} description={h.description ?? undefined} controls={<InfoTip text={h.tools.map((t) => humanize(t.name) + (t.effect === "write" ? " (asks first)" : "")).join(" · ")} />} />
-                  ))}
-                </div>
-              </>
-            ) : null}
-          </div>
-        );
+        return <DataPage client={client} source={sources.skills} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => (id.startsWith(BUILT_IN) ? undefined : onGo({ kind: "skill", name: id })) : undefined} />;
       case "connections":
-        return <Connections client={client} data={data} onChanged={onChanged} />;
+        return <Connections client={client} data={data} version={version} onChanged={onChanged} />;
     }
   })();
   return (
     <>
       <PageHeader centre={<HeaderSwitch label="Intelligence" items={TABS} value={current === "map" ? "second-brain" : current} onChange={onTab} />} />
-      <div className={`page ${current === "map" || current === "second-brain" ? "page--wide" : "page--column"}`}>{body}</div>
+      <div className={`page ${current === "activity" ? "page--column" : "page--wide"}`}>{body}</div>
     </>
   );
 }

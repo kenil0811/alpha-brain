@@ -144,3 +144,5 @@ export {
   SquarePen as EditIcon,
   TriangleAlert as AlertIcon,
 } from "lucide-react";
+/** The data view's Notion parity (9 Oct): sort, group, colour, peeks. */
+export { ArrowUpDown as SortIcon, Group as GroupIcon, PaintBucket as ColorIcon, PanelRight as SidePeekIcon, Square as CenterPeekIcon, ChevronUp } from "lucide-react";

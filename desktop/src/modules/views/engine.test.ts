@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
-import { applyQuery, byDay, byMonth, compare, groupBy, nextSort, ofKinds, pageOf, pinnedFirst, provenanceCounts, summarize, summaryOpsFor, defaultSummary } from "./engine";
+import { applyQuery, byDay, byMonth, chartPoints, colorsOf, compare, groupBy, groupRows, matchRule, nextSort, ofKinds, opsFor, pageOf, pinnedFirst, provenanceCounts, resolveDay, sortRows, summarize, summaryOpsFor, defaultSummary } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -106,5 +106,74 @@ describe("footer summaries", () => {
     expect(summarize(ticks, done, "checked")?.value).toBe("1");
     expect(summarize(ticks, done, "unchecked")?.value).toBe("2");
     expect(summarize(ticks, done, "percent_checked")?.value).toBe("33%");
+  });
+});
+
+describe("Notion's filters, sorts, groups and colours", () => {
+  const fields = [{ name: "title", kind: "text" }, { name: "price", kind: "number" }, status, { name: "when", kind: "date" }, { name: "tags", kind: "multichoice" }, { name: "done", kind: "bool" }];
+  const byName = new Map(fields.map((f) => [f.name, f]));
+  const ids = (rs: RecordRow[]) => rs.map((r) => r.id);
+  const now = new Date(2026, 9, 9);
+  const live = rows.slice(0, 3);
+  const match = (rule: import("./engine").FilterRule) => ids(live.filter((r) => matchRule(r, rule, byName.get(rule.field), now)));
+
+  it("has per-kind operators, and an unfinished rule narrows nothing", () => {
+    expect(opsFor("number")).toContain("ge");
+    expect(opsFor("date")).toContain("within");
+    expect(opsFor("bool")).toEqual(["checked", "unchecked"]);
+    expect(opsFor("text")).toContain("starts");
+    expect(match({ field: "title", op: "contains", value: "" })).toEqual(["a", "b", "c"]);
+  });
+  it("matches text, numbers, choices and emptiness", () => {
+    expect(match({ field: "title", op: "starts", value: "ca" })).toEqual(["b"]);
+    expect(match({ field: "title", op: "ends", value: "PRACTICE" })).toEqual(["c"]);
+    expect(match({ field: "title", op: "not_contains", value: "a" })).toEqual([]);
+    expect(match({ field: "price", op: "gt", value: "150" })).toEqual(["a"]);
+    expect(match({ field: "price", op: "le", value: "120" })).toEqual(["b"]);
+    expect(match({ field: "price", op: "empty" })).toEqual(["c"]);
+    expect(match({ field: "status", op: "is_not", value: "Sold" })).toEqual(["a", "c"]);
+  });
+  it("matches dates by exact day, by relative words and within a span", () => {
+    expect(resolveDay("tomorrow", now)).toBe("2026-10-10");
+    expect(resolveDay("month_ago", now)).toBe("2026-09-09");
+    expect(match({ field: "when", op: "is", value: "2026-10-02" })).toEqual(["a", "b"]);
+    expect(match({ field: "when", op: "on_after", value: "2026-10-05" })).toEqual(["c"]);
+    expect(match({ field: "when", op: "within", value: "past_week" })).toEqual(["a", "b", "c"]);
+    expect(match({ field: "when", op: "within", value: "next_week" })).toEqual([]);
+  });
+  it("matches checkboxes and multi-choices", () => {
+    const r = [row("x", { done: true, tags: ["Hot", "New"] }), row("y", { done: false, tags: ["Cold"] })];
+    expect(r.filter((x) => matchRule(x, { field: "done", op: "checked" }, byName.get("done"))).map((x) => x.id)).toEqual(["x"]);
+    expect(r.filter((x) => matchRule(x, { field: "tags", op: "contains", value: "new" }, byName.get("tags"))).map((x) => x.id)).toEqual(["x"]);
+  });
+  it("joins rules with And or Or, one group nested", () => {
+    const g = { join: "or" as const, rules: [{ field: "status", op: "is" as const, value: "Sold" }, { join: "and" as const, rules: [{ field: "price", op: "gt" as const, value: "100" }, { field: "title", op: "contains" as const, value: "bak" }] }] };
+    expect(ids(applyQuery(rows, { ...base, fields, advanced: g }))).toEqual(["a", "b"]);
+    expect(ids(applyQuery(rows, { ...base, fields, advanced: { ...g, join: "and" } }))).toEqual([]);
+    expect(ids(applyQuery(rows, { ...base, fields, rules: [{ field: "price", op: "ne", value: "300" }] }))).toEqual(["b", "c"]);
+  });
+  it("sorts by several fields, the first deciding first, choices by their order", () => {
+    const sorted = sortRows(live, [{ field: "when", direction: "asc" }, { field: "price", direction: "desc" }], byName);
+    expect(ids(sorted)).toEqual(["a", "b", "c"]);
+    expect(ids(sortRows(live, [{ field: "status", direction: "desc" }], byName))).toEqual(["b", "c", "a"]);
+    expect(ids(applyQuery(rows, { ...base, fields, sorts: [{ field: "price", direction: "asc" }] }))).toEqual(["b", "a", "c"]);
+  });
+  it("groups by any field, empty last, sorted or hidden when empty", () => {
+    expect(groupRows(live, status).map((g) => [g.label, g.rows.length])).toEqual([["Active", 1], ["Pending", 1], ["Sold", 1]]);
+    expect(groupRows(live, byName.get("when")!).map((g) => g.label)).toEqual(["Oct 2026"]);
+    expect(groupRows(live, byName.get("price")!, { order: "desc" }).map((g) => g.key)).toEqual(["300", "120", ""]);
+    expect(groupRows(live, byName.get("price")!).at(-1)?.label).toBe("No price");
+    expect(groupRows([live[0]], status, { hideEmpty: true }).map((g) => g.key)).toEqual(["Active"]);
+    expect(groupRows([row("x", { done: true })], byName.get("done")!).map((g) => [g.label, g.rows.length])).toEqual([["Checked", 1], ["Unchecked", 0]]);
+  });
+  it("colours a row or a cell by the first rule that matches", () => {
+    const rules = [{ field: "price", op: "gt" as const, value: "200", tone: "good" as const, target: "row" as const }, { field: "price", op: "gt" as const, value: "100", tone: "bad" as const, target: "row" as const }, { field: "status", op: "is" as const, value: "Sold", tone: "info" as const, target: "cell" as const }];
+    expect(colorsOf(live[0], rules, byName)).toEqual({ row: "good", cells: {} });
+    expect(colorsOf(live[1], rules, byName)).toEqual({ row: "bad", cells: { status: "info" } });
+    expect(colorsOf(live[2], rules, byName)).toEqual({ cells: {} });
+  });
+  it("charts a count per day or a sum per group", () => {
+    expect(chartPoints(live, byName.get("when")!, { agg: "count" }).map((p) => p.value)).toEqual([2, 1]);
+    expect(chartPoints(live, status, { agg: "sum", field: "price" }).map((p) => [p.label, p.value])).toEqual([["Active", 300], ["Pending", 0], ["Sold", 120]]);
   });
 });

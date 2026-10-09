@@ -2,18 +2,21 @@
  * Intelligence › Connections: every folder, site and calendar Alpha can reach, with its state,
  * and the three ways to add one. Deleting one is never a single click: the menu opens a dialog
  * that says what goes with it before the person confirms (the UI rulebook §12 and §14).
- * Rows share the Automations and Skills layout (`ListRow`). (9 Oct, the pages phase.)
+ * The connections are the one data view (`intel/sources.ts`); a row's click opens it in a dialog
+ * with Read now and Delete. (9 Oct, the pages phase; a data view the same day.)
  */
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data } from "../core/client";
+import { DataPage } from "../modules/DataPage";
 import { when } from "../modules/format";
-import { Badge, Button, Confirm, EmptyCard, IconButton, InfoTip, ListRow, Menu, MenuItem, Notice, SectionCard, type Tone } from "../ui";
-import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON, MoreHorizontal } from "../ui/icons";
+import { connectionName, connectionsSource } from "./intel/sources";
+import { Badge, Button, Confirm, Dialog, InfoTip, ListRow, Notice, SectionCard, type Tone } from "../ui";
+import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON } from "../ui/icons";
 
-const CONNECTOR: Record<string, { icon: ReactNode; label: (c: Connection) => string; reach: string }> = {
-  files: { icon: <FolderOpen size={ICON} />, label: (c) => c.target.split("/").slice(-2).join("/"), reach: "Reads the documents in this folder as they change; never changes your files" },
-  browser: { icon: <Globe size={ICON} />, label: (c) => `${c.target}, signed in as you`, reach: "Reads pages the way you would; never posts, messages or clicks" },
-  calendar: { icon: <Calendar size={ICON} />, label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
+const CONNECTOR: Record<string, { icon: ReactNode; reach: string }> = {
+  files: { icon: <FolderOpen size={ICON} />, reach: "Reads the documents in this folder as they change; never changes your files" },
+  browser: { icon: <Globe size={ICON} />, reach: "Reads pages the way you would; never posts, messages or clicks" },
+  calendar: { icon: <Calendar size={ICON} />, reach: "Reads events and attendees; adds nothing without a yes" },
 };
 
 const STATUS: Record<Connection["status"], { tone: Tone; words: string }> = {
@@ -28,7 +31,8 @@ function removalWords(plan: ConnectionRemoval): string {
   return `This deletes ${plan.what}. ${plan.connector === "files" ? "Your files stay." : "Your tables keep their records."}`;
 }
 
-export function Connections({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
+export function Connections({ client, data, version, onChanged }: { client: Client; data: Data; version: number; onChanged: () => void }) {
+  const [opened, setOpened] = useState<string | null>(null);
   const [folder, setFolder] = useState("");
   const [site, setSite] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -60,39 +64,33 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
   const live = data.connections.filter((c) => c.status !== "off");
   const hasCalendar = live.some((c) => c.connector === "calendar");
   const target = removing ? live.find((c) => c.id === removing.id) : undefined;
+  const source = useMemo(() => connectionsSource(client), [client]);
+  const open = live.find((c) => c.id === opened);
+  const meta = open ? (CONNECTOR[open.connector] ?? { icon: <ConnectionIcon size={ICON} />, reach: "" }) : null;
   return (
     <div className="stack stack--wide">
-      {live.length ? (
-        <div className="card lrows">
-          {live.map((c) => {
-            const meta = CONNECTOR[c.connector] ?? { icon: <ConnectionIcon size={ICON} />, label: () => c.target, reach: "" };
-            return (
-              <ListRow
-                key={c.id}
-                icon={meta.icon}
-                title={meta.label(c)}
-                description={[c.last_sync ? `Last read ${when(c.last_sync)}` : "", c.last_error ?? ""].filter(Boolean).join(" · ") || undefined}
-                controls={
-                  <>
-                    {meta.reach ? <InfoTip text={meta.reach} /> : null}
-                    <Badge tone={STATUS[c.status].tone}>{STATUS[c.status].words}</Badge>
-                    <Button size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
-                      {c.connector === "browser" ? "Check" : "Read now"}
-                    </Button>
-                    <Menu trigger={<IconButton size="sm" label={`More for ${meta.label(c)}`} icon={<MoreHorizontal size={ICON} />} />}>
-                      <MenuItem danger onSelect={() => askRemove(c.id)}>
-                        Delete connection…
-                      </MenuItem>
-                    </Menu>
-                  </>
-                }
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <EmptyCard icon={<ConnectionIcon size={ICON} />} title="Nothing connected yet" />
-      )}
+      <DataPage client={client} source={source} version={version} onChanged={onChanged} onOpenRecord={(_k, id) => setOpened(id)} />
+      <Dialog open={Boolean(open)} onOpenChange={(o) => !o && setOpened(null)} title={open ? connectionName(open) : "Connection"}>
+        {open && meta ? (
+          <ListRow
+            icon={meta.icon}
+            title={connectionName(open)}
+            description={[open.last_sync ? `Last read ${when(open.last_sync)}` : "", open.last_error ?? ""].filter(Boolean).join(" · ") || undefined}
+            controls={
+              <>
+                {meta.reach ? <InfoTip text={meta.reach} /> : null}
+                <Badge tone={STATUS[open.status].tone}>{STATUS[open.status].words}</Badge>
+                <Button size="sm" disabled={busy !== null} onClick={() => void run(open.id, () => client.syncConnection(open.id), "Read again.")}>
+                  {open.connector === "browser" ? "Check" : "Read now"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setOpened(null); askRemove(open.id); }}>
+                  Delete…
+                </Button>
+              </>
+            }
+          />
+        ) : null}
+      </Dialog>
       {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
       <Confirm
         open={Boolean(removing)}
@@ -105,7 +103,7 @@ export function Connections({ client, data, onChanged }: { client: Client; data:
           void run(id, () => client.removeConnection(id), "Deleted.").then(() => setRemoving(null));
         }}
       >
-        <p>{target ? <b>{CONNECTOR[target.connector]?.label(target) ?? target.target}</b> : null}</p>
+        <p>{target ? <b>{connectionName(target)}</b> : null}</p>
         <p>{removing?.plan ? removalWords(removing.plan) : "Checking what goes with it…"}</p>
       </Confirm>
       <div className="addgrid">

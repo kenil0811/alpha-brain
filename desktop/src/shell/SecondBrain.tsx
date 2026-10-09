@@ -3,15 +3,17 @@
  * picture, the brain in an egg (`map/BrainEgg`), and beside it what waits for a yes, then the
  * thing picked in the egg (the person by default: their facts), goals, standing instructions,
  * standing permissions and Alpha's notes. **Map** switches to the map of the world and of
- * Alpha's work (`map/WorkMap`). A note is an editable sentence (`writeNote`); a goal is read-only
+ * Alpha's work (`map/WorkMap`); **Facts** is every fact as the one data view (`intel/sources.ts`). A note is an editable sentence (`writeNote`); a goal is read-only
  * because the core has no call that edits one.
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { Badge, Button, IconButton, ListRow, Notice, SectionCard, Tabs } from "../ui";
+import { DataPage } from "../modules/DataPage";
+import { Badge, Button, Dialog, IconButton, ListRow, Notice, SectionCard, Tabs } from "../ui";
 import { ICON, ICON_SM, PermissionIcon, X } from "../ui/icons";
 import { FactRow } from "./FactRow";
+import { factsSource } from "./intel/sources";
 import { BrainEgg } from "./map/BrainEgg";
 import { brainOf } from "./map/egg";
 import { cacheFor, WorkMap } from "./map/WorkMap";
@@ -57,18 +59,19 @@ export function NoteEditor({ client, scope, title, body, summary, onChanged, lab
 
 const scopeWords = (n: Note) => (n.scope === "person" ? "About you" : n.scope.replace(/^(module|entity|skill):/, ""));
 
-export type BrainView = "brain" | "map";
+export type BrainView = "brain" | "facts" | "map";
 
 const VIEW_KEY = "alpha.brain.view";
 const lastView = (): BrainView => {
   try {
-    return localStorage.getItem(VIEW_KEY) === "map" ? "map" : "brain";
+    const v = localStorage.getItem(VIEW_KEY);
+    return v === "map" || v === "facts" ? v : "brain";
   } catch {
     return "brain";
   }
 };
 
-export function SecondBrain({ client, data, onChanged, onAsk, onGo, initialView }: { client: Client; data: Data; onChanged: () => void; onAsk?: (text: string) => void; onGo?: (s: Surface) => void; initialView?: BrainView }) {
+export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo, initialView }: { client: Client; data: Data; version?: number; onChanged: () => void; onAsk?: (text: string) => void; onGo?: (s: Surface) => void; initialView?: BrainView }) {
   // Brain or Map is this window's choice, kept like its widths (not an address of its own).
   const [view, setViewState] = useState<BrainView>(() => initialView ?? lastView());
   const setView = (v: BrainView) => {
@@ -109,6 +112,8 @@ export function SecondBrain({ client, data, onChanged, onAsk, onGo, initialView 
     };
   }, [client, view]);
   const brain = useMemo(() => brainOf(world, data), [world, data]);
+  const factSource = useMemo(() => factsSource(client), [client]);
+  const [openFact, setOpenFact] = useState<string | null>(null);
 
   async function revoke(id: string) {
     try {
@@ -120,12 +125,25 @@ export function SecondBrain({ client, data, onChanged, onAsk, onGo, initialView 
     }
   }
 
-  const switcher = <Tabs<BrainView> className="toggle toggle--views" style={{ alignSelf: "flex-start" }} label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain" }, { id: "map", label: "Map" }]} />;
+  const switcher = <Tabs<BrainView> className="toggle toggle--views" style={{ alignSelf: "flex-start" }} label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain" }, { id: "facts", label: "Facts" }, { id: "map", label: "Map" }]} />;
   if (view === "map") {
     return (
       <div className="stack stack--wide">
         {switcher}
         <WorkMap client={client} onGo={onGo} />
+      </div>
+    );
+  }
+
+  if (view === "facts") {
+    const f = facts.find((x) => x.id === openFact);
+    return (
+      <div className="stack stack--wide">
+        {switcher}
+        <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => setOpenFact(id)} />
+        <Dialog open={Boolean(f)} onOpenChange={(o) => !o && setOpenFact(null)} title={f ? humanize(f.predicate) : "Fact"}>
+          {f ? <FactRow fact={f} client={client} onChanged={() => { setOpenFact(null); onChanged(); }} onAsk={onAsk} /> : null}
+        </Dialog>
       </div>
     );
   }
@@ -158,7 +176,7 @@ export function SecondBrain({ client, data, onChanged, onAsk, onGo, initialView 
               <ListRow title={goal.text} description={`${goal.state === "active" ? "Active" : humanize(goal.state)} · since ${when(goal.since)}`} />
             </SectionCard>
           ) : (
-            <SectionCard title="Facts" actions={known.length ? <Badge tone="gray">{known.length}</Badge> : undefined}>
+            <SectionCard title="Facts" actions={<Button size="sm" variant="ghost" onClick={() => setView("facts")}>{known.length ? `All ${known.length}` : "All"}</Button>}>
               {known.length ? known.map((f) => <FactRow key={f.id} fact={f} client={client} onChanged={onChanged} onAsk={onAsk} />) : <p className="faint">None yet.</p>}
             </SectionCard>
           )}

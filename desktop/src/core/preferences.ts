@@ -27,6 +27,9 @@ export const PREF = {
   agentLooks: "agent_looks",
   /** Saved lists for data the core keeps no lists for (agents, skills, automations…), per source key. */
   windowLists: "window_lists",
+  /** A data view's own settings the core's lists can't hold (advanced filters, several sorts,
+   *  groups, layout, colours, tab order), per `${sourceKey}:${listId}` (and `${sourceKey}:tabs`). */
+  viewSettings: "view_settings",
 } as const;
 export type PrefKey = (typeof PREF)[keyof typeof PREF];
 

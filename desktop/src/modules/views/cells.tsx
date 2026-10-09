@@ -88,7 +88,7 @@ export function cellEditable(field: FieldInfo): boolean {
  * table puts on every cell (its context menu, a frozen column's place); `adornment` is a small
  * mark before the value (the pin).
  */
-export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, editing: editingProp, onEditing, tdProps, adornment }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; editing?: boolean; onEditing?: (on: boolean) => void; tdProps?: TdProps; adornment?: ReactNode }) {
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, editing: editingProp, onEditing, tdProps, adornment, locked }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; editing?: boolean; onEditing?: (on: boolean) => void; tdProps?: TdProps; adornment?: ReactNode; /** Why this cell can't change, if it can't: shown on hover, and it never opens for editing. */ locked?: string | null }) {
   const [own, setOwn] = useState(false);
   const editing = editingProp ?? own;
   const setEditing = onEditing ?? setOwn;
@@ -102,7 +102,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
   const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   const base = [tdProps?.className, numeric ? "r num" : ""].filter(Boolean).join(" ") || undefined;
-  if (editing) {
+  if (editing && !locked) {
     return (
       <td {...tdProps} className={base} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <CellEditor
@@ -118,7 +118,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   }
   const begin = (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
-    setEditing(true);
+    if (!locked) setEditing(true);
   };
   const words = showValue(value, field.kind, field.unit);
   // A click opens the record; a double-click, Enter or F2 edits the cell (the convention from
@@ -126,7 +126,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   return (
     <td
       {...tdProps}
-      className={`${base ?? ""} editable`.trim()}
+      className={`${base ?? ""}${locked ? "" : " editable"}`.trim()}
       onDoubleClick={begin}
       tabIndex={0}
       onKeyDown={(e) => {
@@ -137,7 +137,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
           begin(e);
         }
       }}
-      title={rests ? `${rests} Double-click to correct it.` : "Double-click to edit"}
+      title={locked ?? (rests ? `${rests} Double-click to correct it.` : "Double-click to edit")}
     >
       {adornment}
       {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <Badge tone={field.done_choices?.includes(String(value)) ? "good" : "gray"}>{words}</Badge> : field.kind === "bool" ? (value ? <Check size={ICON_SM} aria-label="Yes" /> : <span className="faint">—</span>) : words}

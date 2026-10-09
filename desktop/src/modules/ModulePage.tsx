@@ -9,6 +9,7 @@
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Client, ModuleCard, ModuleDetail, TableSummaryData } from "../core/client";
 import { DataPage } from "./DataPage";
+import { RecordPage } from "./RecordPage";
 import { FilesSection, GovernanceSection, IntelligenceSection, type AddedFile } from "./ModuleSections";
 import type { Surface } from "../shell/Rail";
 import { Breadcrumb, EmptyCard, HeaderSwitch, Notice, PageHeader, Trouble, type Crumb } from "../ui";
@@ -108,7 +109,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
         {dragging ? <div className="dropnote">Drop to upload to {detail.name}</div> : null}
         {dropNote ? <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"}>{dropNote}</Notice> : null}
         {table ? (
-          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={onOpenRecord} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} />
+          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={onOpenRecord} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id, onGuard) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} onGuard={onGuard} />} />
         ) : (
           <EmptyCard icon={<Table2 size={ICON} />} title="Nothing is kept here yet">
             Ask Alpha in the panel to set one up, or upload files.

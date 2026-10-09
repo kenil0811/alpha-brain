@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Client, RecordRow, TableDesc } from "../core/client";
+import type { Client, RecordRow, SavedList, TableDesc } from "../core/client";
 import { forgetPreferences } from "../core/preferences";
 import { TooltipProvider } from "../ui";
 import { DataPage } from "./DataPage";
@@ -19,8 +19,9 @@ const row = (id: string, title: string, price: number | null, extra: Partial<Rec
 /** A client over a small table that really changes when edited, and keeps the preferences written. */
 function fakeClient(rows: RecordRow[], tableDesc: TableDesc = desc) {
   const prefs: Record<string, unknown> = {};
+  let lists: SavedList[] = [];
   const client = {
-    table: vi.fn(async () => ({ table: tableDesc, records: rows, files: {}, lists: [], relations: {} })),
+    table: vi.fn(async () => ({ table: tableDesc, records: rows, files: {}, lists, relations: {} })),
     editRecord: vi.fn(async (_t: string, id: string, values: Record<string, unknown>, revision: number) => {
       const at = rows.findIndex((r) => r.id === id);
       rows[at] = { ...rows[at], values: { ...rows[at].values, ...values }, revision: revision + 1 };
@@ -32,9 +33,19 @@ function fakeClient(rows: RecordRow[], tableDesc: TableDesc = desc) {
       rows.push(made);
       return made;
     }),
-    saveList: vi.fn(async (_t: string, title: string) => ({ id: "v1", collection: "deals", title, config: {}, is_default: false, source: null, created_at: "", updated_at: "" })),
-    updateList: vi.fn(async () => ({})),
-    deleteList: vi.fn(async () => ({})),
+    saveList: vi.fn(async (_t: string, title: string, config: SavedList["config"]) => {
+      const made = { id: `v${lists.length + 1}`, collection: "deals", title, config, is_default: false, source: null, created_at: "", updated_at: "" };
+      lists = [...lists, made];
+      return made;
+    }),
+    updateList: vi.fn(async (id: string, change: { title?: string; config?: SavedList["config"] }) => {
+      lists = lists.map((l) => (l.id === id ? { ...l, title: change.title ?? l.title, config: change.config ?? l.config } : l));
+      return lists.find((l) => l.id === id);
+    }),
+    deleteList: vi.fn(async (id: string) => {
+      lists = lists.filter((l) => l.id !== id);
+      return {};
+    }),
     exportTable: vi.fn(async () => ({})),
     addFiles: vi.fn(async () => ({})),
     preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
@@ -53,6 +64,13 @@ function page(rows: RecordRow[], props: Partial<Parameters<typeof DataPage>[0]> 
     </TooltipProvider>,
   );
   return client;
+}
+/** ⋯ › Layout › Layout: pick a view type for the open tab. */
+async function pickLayout(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(screen.getByRole("button", { name: "More" }));
+  await user.click(screen.getByRole("button", { name: /^Layout/ }));
+  await user.click(screen.getByRole("combobox", { name: "Layout" }));
+  await user.click(screen.getByRole("option", { name }));
 }
 const rowOf = (name: string) => screen.getByRole("row", { name: new RegExp(`^(Open )?${name}$`) });
 
@@ -116,23 +134,26 @@ describe("the table page", () => {
 });
 
 describe("the toolbar", () => {
-  it("is one row: saved list, view, search and filter on the left, more on the right, with Download and Upload inside it", async () => {
+  it("is one row: view tabs, filter, sort and search on the left, more on the right, with Download and Upload inside it", async () => {
     const user = userEvent.setup();
     const onAddFiles = vi.fn();
     const client = page([row("r1", "Bakery", 300)], { onAddFiles });
     await screen.findByText("Bakery");
     const order = [
-      screen.getByRole("combobox", { name: "Saved list" }),
-      screen.getByRole("combobox", { name: "View" }),
-      screen.getByRole("textbox", { name: "Search" }),
+      screen.getByRole("tablist", { name: "Views" }),
       screen.getByRole("button", { name: "Filter" }),
+      screen.getByRole("button", { name: "Sort" }),
+      screen.getByRole("button", { name: "Search" }),
       screen.getByRole("button", { name: "More" }),
     ];
     for (let i = 1; i < order.length; i++) expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(order[0].closest(".toolbar")).toBe(order[4].closest(".toolbar")); // one row
     const spacer = order[0].closest(".toolbar")!.querySelector(".spacer")!;
-    expect(order[3].compareDocumentPosition(spacer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // Filter is on the left
+    expect(order[1].compareDocumentPosition(spacer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // Filter is on the left
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByRole("button", { name: "Upload" })).toBeNull(); // no file field: Upload is in More
+    await user.click(order[3]); // the magnifier opens a box
+    expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
     await user.click(order[4]);
     await user.click(screen.getByRole("button", { name: "Download as CSV" }));
     expect(client.exportTable).toHaveBeenCalledWith("deals", "csv");
@@ -157,36 +178,40 @@ describe("the toolbar", () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("combobox", { name: "View" }));
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: /^Layout/ }));
+    await user.click(screen.getByRole("combobox", { name: "Layout" }));
     const calendar = screen.getByRole("option", { name: "Calendar" });
     expect(calendar).toHaveAttribute("aria-disabled", "true");
     await user.hover(calendar);
     expect(screen.getByRole("status")).toHaveTextContent("Calendar needs a date field");
     await user.click(calendar);
-    expect(screen.getByRole("combobox", { name: "View" })).toHaveTextContent("Table"); // nothing changed
+    expect(screen.getByRole("combobox", { name: "Layout" })).toHaveTextContent("Table"); // nothing changed
     expect(screen.getByRole("option", { name: "Board" })).not.toHaveAttribute("aria-disabled");
   });
 
-  it("holds every filter in one popover, and shows what is active as removable pills with Clear all", async () => {
+  it("filters by a property as a chip that edits its rule, keeps Hide done in the panel, and clears all", async () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { values: { title: "Cafe", price: 120, status: "Sold" } })]);
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("button", { name: "Filter" }));
-    await user.click(screen.getByRole("combobox", { name: "Filter by status" }));
-    await user.click(screen.getByRole("option", { name: "Sold" }));
     expect(screen.getByRole("checkbox", { name: /Hide done/ })).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    expect(screen.queryByText("Bakery")).toBeNull();
+    await user.click(within(screen.getByRole("group", { name: "Filter by" })).getByRole("button", { name: "Status" }));
+    await user.click(await screen.findByRole("combobox", { name: "Value for Status" }));
+    await user.click(screen.getByRole("option", { name: "Sold" }));
+    await waitFor(() => expect(screen.queryByText("Bakery")).toBeNull());
     expect(screen.getByText("Cafe")).toBeInTheDocument();
     const pills = screen.getByLabelText("Active filters");
     expect(within(pills).getByText("Status: Sold")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
     await user.click(within(pills).getByRole("button", { name: "Remove filter: Status: Sold" }));
     expect(screen.getByText("Bakery")).toBeInTheDocument();
-    // and Clear all
+    // a number rule, then Clear all
     await user.click(screen.getByRole("button", { name: "Filter" }));
-    await user.click(screen.getByRole("checkbox", { name: /Hide done/ }));
+    await user.click(within(screen.getByRole("group", { name: "Filter by" })).getByRole("button", { name: "Price" }));
+    await user.type(await screen.findByRole("spinbutton", { name: "Value for Price" }), "200");
+    await waitFor(() => expect(screen.queryByText("Cafe")).toBeNull());
     await user.keyboard("{Escape}");
-    expect(screen.queryByText("Cafe")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Clear all" }));
     expect(screen.getByText("Cafe")).toBeInTheDocument();
     expect(screen.queryByLabelText("Active filters")).toBeNull();
@@ -196,25 +221,74 @@ describe("the toolbar", () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("combobox", { name: "View" }));
-    await user.click(screen.getByRole("option", { name: "Dashboard" }));
+    await pickLayout(user, "Dashboard");
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "stub: show these" }));
-    expect(screen.getByRole("combobox", { name: "View" })).toHaveTextContent("Table");
+    expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.queryByText("Bakery")).toBeNull();
     expect(screen.getByText("Cafe")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Remove filter: Overdue · 1" }));
     expect(screen.getByText("Bakery")).toBeInTheDocument();
   });
 
-  it("Add list opens the app's dialog to name the list, and saves the current view under it", async () => {
+  it("views are tabs: + adds one of a type, its menu renames and deletes it, and each keeps its own layout", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("combobox", { name: "Saved list" }));
-    await user.click(screen.getByRole("button", { name: "Add list" }));
-    const dialog = screen.getByRole("dialog", { name: "Add a list" });
-    await user.type(within(dialog).getByRole("textbox", { name: "List name" }), "Open ones{Enter}");
-    await waitFor(() => expect(client.saveList).toHaveBeenCalledWith("deals", "Open ones", expect.objectContaining({ view: "table" })));
+    await user.click(screen.getByRole("button", { name: "Add a view" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Board" }));
+    await waitFor(() => expect(client.saveList).toHaveBeenCalledWith("deals", "Board", expect.objectContaining({ view: "board" })));
+    const tab = await screen.findByRole("tab", { name: "Board" });
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Active")).toBeInTheDocument(); // the board's column
+    // the open tab's menu: Rename through the core's list
+    await user.click(tab);
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    const name = within(screen.getByRole("dialog", { name: "Rename view" })).getByRole("textbox", { name: "View name" });
+    await user.clear(name);
+    await user.type(name, "Pipeline{Enter}");
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { title: "Pipeline" }));
+    expect(await screen.findByRole("tab", { name: "Pipeline" })).toBeInTheDocument();
+    // All keeps its table
+    await user.click(screen.getByRole("tab", { name: "All" }));
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "All" }));
+    expect(await screen.findByRole("menuitem", { name: "Delete view" })).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Escape}");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Pipeline" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete view" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Delete this view?" })).getByRole("button", { name: "Delete view" }));
+    await waitFor(() => expect(client.deleteList).toHaveBeenCalledWith("v1"));
+    await waitFor(() => expect(screen.queryByRole("tab", { name: "Pipeline" })).toBeNull());
+  });
+
+  it("keeps several sorts, and a view's settings in the window's preference", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Deli", 300)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Sort" }));
+    await user.click(within(screen.getByRole("group", { name: "Sort by" })).getByRole("button", { name: "Price" }));
+    await user.click(screen.getByRole("combobox", { name: "Direction" }));
+    await user.click(screen.getByRole("option", { name: "Descending" }));
+    await user.click(screen.getByRole("button", { name: "Add sort" }));
+    await user.click(screen.getAllByRole("combobox", { name: "Direction" })[1]);
+    await user.click(screen.getByRole("option", { name: "Descending" }));
+    const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
+    expect(names()).toEqual(["Deli", "Bakery", "Cafe"]);
+    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("view_settings", expect.objectContaining({ "deals:all": expect.objectContaining({ sorts: [{ field: "price", direction: "desc" }, { field: "title", direction: "desc" }] }) })));
+  });
+
+  it("groups the table by a field, each group collapsible with its count", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { values: { title: "Cafe", price: 120, status: "Sold" } })]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Options for Status" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Group by this" }));
+    const sold = await screen.findByRole("button", { name: /Sold\s*1/ });
+    expect(sold).toHaveAttribute("aria-expanded", "true");
+    await user.click(sold);
+    expect(screen.queryByText("Cafe")).toBeNull();
+    expect(screen.getByText("Bakery")).toBeInTheDocument();
   });
 });
 
@@ -330,7 +404,7 @@ describe("the row's menu", () => {
     await user.keyboard("{Shift>}{F10}{/Shift}");
     const open = await screen.findByRole("menuitem", { name: "Open" });
     expect(open).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Edit", "Duplicate", "Pin", "Delete"]);
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Edit", "Duplicate", "Copy link", "Pin", "Delete"]);
   });
 });
 
@@ -436,6 +510,7 @@ describe("the + New row and an empty table", () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Search" }));
     await user.type(screen.getByRole("textbox", { name: "Search" }), "zzz");
     expect(await screen.findByText("Nothing matches.")).toBeInTheDocument();
     expect(document.querySelectorAll("tbody tr.row--blank").length).toBe(3);
@@ -467,8 +542,8 @@ describe("relations and the form view", () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("combobox", { name: "View" }));
-    await user.click(screen.getByRole("option", { name: "Form" }));
+    await pickLayout(user, "Form");
+    await user.keyboard("{Escape}");
     expect(screen.getByRole("region", { name: "Record 1 of 2" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Previous record" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Next record" }));
@@ -492,9 +567,73 @@ describe("any source", () => {
     expect(screen.getByRole("button", { name: "New" })).toBeDisabled();
     await user.dblClick(screen.getByText("Alpha"));
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull(); // no edit given: cells stay as they are
-    await user.click(screen.getByRole("combobox", { name: "Saved list" }));
-    await user.click(screen.getByRole("button", { name: "Add list" }));
-    await user.type(within(screen.getByRole("dialog", { name: "Add a list" })).getByRole("textbox", { name: "List name" }), "Busy{Enter}");
-    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("window_lists", { agents: [expect.objectContaining({ title: "Busy" })] }));
+    await user.click(screen.getByRole("button", { name: "Add a view" }));
+    await user.click(await screen.findByRole("menuitem", { name: "List" }));
+    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("window_lists", { agents: [expect.objectContaining({ title: "List" })] }));
+  });
+});
+
+describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
+  it("arrows move between cells, ⇧↓ selects down a column and ⌘D fills it from the top", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    const top = within(rowOf("Bakery")).getByText("300").closest("td")!;
+    top.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(within(rowOf("Cafe")).getByText("120").closest("td")).toHaveFocus();
+    await user.keyboard("{ArrowUp}{Shift>}{ArrowDown}{/Shift}");
+    expect(document.querySelectorAll("td.cell--range").length).toBe(2);
+    await user.keyboard("{Meta>}d{/Meta}");
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r2", { price: 300 }, 3));
+  });
+
+  it("Edit property sets one field on every selected record", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("checkbox", { name: "Select Bakery" }));
+    await user.click(screen.getByRole("checkbox", { name: "Select Cafe" }));
+    await user.click(screen.getByRole("button", { name: "Edit property" }));
+    await user.click(screen.getByRole("combobox", { name: "Property to change" }));
+    await user.click(screen.getByRole("option", { name: "Price" }));
+    await user.type(screen.getByRole("spinbutton", { name: "New value" }), "5");
+    await user.click(screen.getByRole("button", { name: "Apply to 2" }));
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledTimes(2));
+    expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 5 }, 3);
+  });
+
+  it("opens a record in a side peek when the view says so, with next and previous", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)], { onOpenRecord: vi.fn(), renderPeek: (_t, id) => <p>peek of {id}</p> });
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: /^Layout/ }));
+    await user.click(screen.getByRole("combobox", { name: "Open records in" }));
+    await user.click(screen.getByRole("option", { name: "Side peek" }));
+    await user.keyboard("{Escape}");
+    await user.click(rowOf("Open Bakery"));
+    expect(await screen.findByText("peek of r1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next record" }));
+    expect(screen.getByText("peek of r2")).toBeInTheDocument();
+  });
+
+  it("a source's row icon sits on the title, and a cell it can't change says why and never opens", async () => {
+    const user = userEvent.setup();
+    const client = fakeClient([]);
+    const edit = vi.fn();
+    const source = memorySource({ client, key: "agents", title: "Agents", fields: [{ name: "name", kind: "text" }, { name: "runs", kind: "number" }], rows: () => [row("a1", "", 4, { values: { name: "Alpha", runs: 4 } })], edit, rowIcon: () => <i>avatar</i>, editable: (_r, f) => (f.name === "runs" ? "Counted by Alpha." : null) });
+    render(
+      <TooltipProvider>
+        <DataPage client={client} source={source} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByText("avatar")).toBeInTheDocument();
+    const runs = within(screen.getByRole("row", { name: "Alpha" })).getByText("4").closest("td")!;
+    expect(runs).toHaveAttribute("title", "Counted by Alpha.");
+    await user.dblClick(runs);
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+    await user.dblClick(screen.getByText("Alpha"));
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
   });
 });
