@@ -912,3 +912,26 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__glance .linkbtn { text-align: left; padding: 0; }
 .map__think { background: var(--primary-soft); border-radius: 8px; padding: 6px 8px; font-size: var(--text-md); }
 .map__busy { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow); }
+
+/* ---------- the Assistant page and the reply as it is written (9 Oct, Q35) ---------- */
+.assistpage { display: grid; grid-template-columns: 280px minmax(0, 1fr); height: 100%; min-height: 100vh; }
+.assistpage__list { border-right: 1px solid var(--border); overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.assistpage__head { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 10px; }
+.assistpage__head h2 { margin: 0; font-size: var(--text-md); }
+.convrow { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 8px 10px; border-radius: 10px; border: 0; background: transparent; color: inherit; cursor: pointer; width: 100%; font: inherit; }
+.convrow:hover { background: var(--surface-2); }
+.convrow--active { background: var(--primary-soft); }
+.convrow .convchip__dot { margin-top: 6px; flex: none; }
+.convrow__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.convrow__body b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convrow__last { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.assist--page { border-left: 0; position: static; height: 100%; min-height: 100vh; }
+.assist--page .assist__body { padding: 24px max(24px, calc((100% - 860px) / 2)); gap: 14px; }
+.assist--page .composer { padding: 12px max(24px, calc((100% - 860px) / 2)) 16px; }
+.assist--page .msg { max-width: 100%; }
+.assist--page .msg--user { max-width: 80%; }
+.stepline { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--text-2); }
+.stepline li { display: flex; align-items: center; gap: 6px; }
+.stepline__done svg { color: var(--good); flex: none; }
+.stepline__failed { color: var(--bad); }
+.working__partial { margin-top: 10px; color: var(--text); }

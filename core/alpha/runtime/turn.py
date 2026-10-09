@@ -19,7 +19,7 @@ from typing import Any
 
 from alpha.connectors.base import skills_text
 from alpha.context import prepack
-from alpha.runtime import route
+from alpha.runtime import asking, route
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
@@ -113,7 +113,8 @@ Alpha keeps; it is a send and asks every time.
 10. When you need the person to choose and the answers are a few natural choices (which \
 size, which of two people, daily or weekly), call ask_person with 2 to 4 short options: they \
 tap one. Open questions go through ask_person without options. In both cases keep the reply \
-short and don't repeat the question in prose. Reply to the person, plain words, no tool names, \
+short and don't repeat the question in prose. (A question you leave in prose becomes a card \
+anyway, but with poorer options than yours.) Reply to the person, plain words, no tool names, \
 no ids. For a quick action or question: \
 two or three sentences, and where each number came from in a few words ("215 kcal from the \
 label on ocado.com", "estimated", "assumed the 330 ml bottle"). An answer that quietly \
@@ -163,6 +164,8 @@ def timings(world: World, limit: int = 40, *, actor: str = "person") -> list[dic
                     "wall_s": round(wall.total_seconds(), 1),
                     "model_s": round(data["duration_ms"] / 1000, 1),
                     "steps": data.get("num_turns") or 0, "resumed": resumed,
+                    "first_s": (round(data["first_text_ms"] / 1000, 1)
+                                if data.get("first_text_ms") else None),
                     "ok": row["kind"] == "replied"})
     return out[-limit:]
 
@@ -244,12 +247,17 @@ def ask(
         "num_turns": result.num_turns,
         "duration_ms": result.duration_ms,
         "cost_estimate": result.cost_estimate,
+        "first_text_ms": getattr(result, "first_text_ms", None),
     }
     if result.ok:
         replied = world.journal.append(
             "replied", result.reply, data=data, module=module_id, thread=thread
         )
         reply = result.reply
+        if actor == "person":
+            # A question asked in prose becomes a card, whatever the model did (Q35).
+            asking.derive(world, said=said, reply=reply, module=module_id, thread=thread,
+                          runner=runner)
     else:
         reply = (result.error or "You stopped it.") if result.stopped else (
             f"That didn't work: {result.error or 'no answer came back'}")

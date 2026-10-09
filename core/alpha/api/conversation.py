@@ -44,10 +44,11 @@ def routes(app: FastAPI, s: Served) -> None:
                 "people": world.entities.find(name=q), "journal": world.journal.search(q, 20)}
 
     @app.get("/api/conversations", dependencies=[api])
-    def list_conversations(module: str | None = None) -> list[dict[str, Any]]:
-        """Live conversations and work items, newest first, for the strip and for Home."""
+    def list_conversations(module: str | None = None, done: bool = False) -> list[dict[str, Any]]:
+        """Live conversations and work items, newest first, for the strip and for Home;
+        `done=true` adds the finished ones (the Assistant page's history)."""
         module_id = world.modules.get(module)["id"] if module else None
-        return [conversation_view(world, t["id"], t) for t in thread_views(world)
+        return [conversation_view(world, t["id"], t) for t in thread_views(world, done=done)
                 if module_id is None or t["module"] == module_id]
 
     @app.post("/api/conversations", dependencies=[api])
@@ -111,7 +112,9 @@ def routes(app: FastAPI, s: Served) -> None:
                 "actions": [action_view(world, a) for a in world.actions.all(limit=20)],
                 "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
                           "options": a["data"].get("options", []), "thread": a["thread"],
-                          "module": a["module"]} for a in world.journal.open_asks()]}
+                          "module": a["module"], "turn": a["data"].get("turn"),
+                          "derived": bool(a["data"].get("derived"))}
+                         for a in world.journal.open_asks()]}
 
     @app.post("/api/ask", dependencies=[api])
     def ask(body: AskBody) -> dict[str, Any]:

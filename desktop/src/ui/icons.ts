@@ -9,6 +9,7 @@ export {
   Table2 as ModuleIcon,
   Table2,
   Sparkles as IntelligenceIcon,
+  MessageSquare as AssistantIcon,
   Settings as SettingsIcon,
   Plus as PlusIcon,
   ChevronsLeft,

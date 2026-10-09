@@ -92,34 +92,35 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
   );
 }
 
-function Message({ e }: { e: JournalEntry }) {
+/** A reply whose trailing question became a card (Q35) shows without that question: the card
+ *  carries it, so the person reads it once. A reply that was only the question shows nothing. */
+export function withoutCarded(text: string, asks: Ask[], turn: unknown): string | null {
+  const carded = asks.find((a) => a.derived && a.turn === turn);
+  if (!carded) return text;
+  const question = carded.text.trim();
+  const plain = text.trim();
+  const at = plain.lastIndexOf(question.replace(/\?$/, ""));
+  if (at < 0) return text;
+  const rest = plain.slice(0, at).replace(/[*_\s]+$/, "").trim();
+  return rest.length ? rest : null;
+}
+
+function Message({ e, asks }: { e: JournalEntry; asks?: Ask[] }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
+  const text = e.kind === "replied" && asks ? withoutCarded(e.text, asks, e.data.turn) : e.text;
+  if (text === null) return null;
   return (
     <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
       {fromThread ? <div className="msg__label">From the thread · {fromThread}</div> : null}
-      <Rich text={e.text} />
+      <Rich text={text} />
       {typeof e.data.duration_ms === "number" ? <span className="msg__cite">{(e.data.duration_ms / 1000).toFixed(0)} s</span> : null}
     </div>
   );
 }
 
-export function AssistantPanel({
-  client,
-  open,
-  onOpen,
-  scopeName,
-  module,
-  version,
-  onChanged,
-  draft,
-  onDraftTaken,
-  focusThread,
-  focusConversation,
-}: {
+export interface ConversationProps {
   client: Client;
-  open: boolean;
-  onOpen: (open: boolean) => void;
   scopeName: string;
   module: ModuleCard | null;
   version: number;
@@ -128,7 +129,30 @@ export function AssistantPanel({
   onDraftTaken: () => void;
   focusThread?: { id: string; at: number } | null;
   focusConversation?: { id: string; at: number } | null;
-}) {
+}
+
+/** The side panel: the conversation of the page the person is on, closable. */
+export function AssistantPanel({ open, onOpen, ...rest }: ConversationProps & { open: boolean; onOpen: (open: boolean) => void }) {
+  if (!open) return null;
+  return <Conversation layout="panel" onClose={() => onOpen(false)} {...rest} />;
+}
+
+/** A conversation with Alpha: its messages, the cards (a plan, an action, a question with
+ *  choices), what Alpha is doing now with the reply as it is written, and the composer. The
+ *  same thing in the side panel ("panel") and on the Assistant page ("page", wide). */
+export function Conversation({
+  client,
+  layout,
+  onClose,
+  scopeName,
+  module,
+  version,
+  onChanged,
+  draft,
+  onDraftTaken,
+  focusThread,
+  focusConversation,
+}: ConversationProps & { layout: "panel" | "page"; onClose?: () => void }) {
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -186,9 +210,15 @@ export function AssistantPanel({
   }, [client, threadView?.id, threadView?.state]);
   // Alpha works on its own too (a build, a folder that changed): `version` moves when the
   // window's one poll sees a change (core/changes.ts); the panel keeps no clock of its own.
+  // The view follows the newest words unless the person scrolled up to read something.
+  const stick = useRef(true);
   useEffect(() => {
-    body.current?.scrollTo?.({ top: body.current.scrollHeight });
+    if (stick.current) body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
+  const onScroll = () => {
+    const el = body.current;
+    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
   const pendingId = pending?.id ?? null;
   useEffect(() => {
     // Keyed on the turn's id, not the polled object: the clock must not restart every second.
@@ -218,7 +248,7 @@ export function AssistantPanel({
           conversation = (await client.newConversation(module?.id ?? null, clean.slice(0, 60))).id;
           setActive(conversation);
         }
-        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, conversation }, setPending);
+        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, conversation }, setPending, 500);
         if (final.conversation && !threadId) setActive(final.conversation.id);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
@@ -260,7 +290,7 @@ export function AssistantPanel({
       setPending(turn);
       setElapsed(0);
       try {
-        const final = await client.waitTurn(turn, setPending);
+        const final = await client.waitTurn(turn, setPending, 8, 500);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         setError(`${e instanceof Error ? e.message : String(e)} The turn may still have run; its answer shows here when the core is back.`);
@@ -283,13 +313,15 @@ export function AssistantPanel({
     }
   };
 
-  if (!open) return null;
+  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : active ? a.thread === active : a.thread === null));
   const steps = pending?.steps ?? [];
   const live = pending?.live ?? null;
   const latest = steps.length ? steps[steps.length - 1].text : null;
   const doing = live?.doing ?? null;
   const thought = live?.thought ?? null;
-  const headline = doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking");
+  const partial = live?.partial?.trim() ? live.partial : null;
+  const headline = partial ? "Writing" : (doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking"));
+  const shown = showSteps ? steps : steps.slice(-3);
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working" role="status" aria-live="polite">
       <div className="working__head">
@@ -305,30 +337,36 @@ export function AssistantPanel({
           Stop
         </Button>
       </div>
-      {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
-        <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-          {showSteps ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
-          {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
-        </button>
-      ) : null}
-      {showSteps && steps.length ? (
-        <ul className="stages">
-          {steps.slice(-12).map((s, i) => (
-            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
+        <ul className="stepline" aria-label="Steps so far">
+          {shown.map((s, i) => (
+            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "stepline__failed" : "stepline__done"}>
               {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
             </li>
           ))}
+          {steps.length > 3 ? (
+            <li>
+              <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
+                {showSteps ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />} {showSteps ? "fewer" : `all ${steps.length} steps`}
+              </button>
+            </li>
+          ) : null}
         </ul>
+      ) : null}
+      {partial ? (
+        <div className="working__partial">
+          <Rich text={partial} />
+        </div>
+      ) : thought ? (
+        <p className="working__thought">{thought}</p>
       ) : null}
     </div>
   ) : null;
-  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : active ? a.thread === active : a.thread === null));
   const chats = convos.filter((c) => c.kind === "chat");
   const activeConvo = chats.find((c) => c.id === active) ?? null;
 
   return (
-    <aside className="assist" aria-label="Assistant">
+    <aside className={layout === "page" ? "assist assist--page" : "assist"} aria-label="Assistant">
       {threadView ? (
         <div className="assist__head">
           <button type="button" className="assist__back" onClick={() => setThreadView(null)}>
@@ -354,10 +392,10 @@ export function AssistantPanel({
               Done
             </Button>
           ) : null}
-          <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onOpen(false)} />
+          {layout === "panel" ? <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onClose?.()} /> : null}
         </div>
       )}
-      {!threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
+      {layout === "panel" && !threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
         <div className="convstrip" role="tablist" aria-label="Live conversations">
           {chats.map((c) => (
             <button key={c.id} type="button" role="tab" aria-selected={c.id === active} className={`convchip${c.id === active ? " convchip--active" : ""}${c.state === "waiting" ? " convchip--needs" : ""}`} title={`${c.scope}: ${c.title}${c.question ? ` · asked: ${c.question}` : ""}`} onClick={() => { setThreadView(null); setActive(c.id); }}>
@@ -371,7 +409,7 @@ export function AssistantPanel({
           </button>
         </div>
       ) : null}
-      <div className="assist__body" ref={body}>
+      <div className="assist__body" ref={body} onScroll={onScroll}>
         {threadView ? (
           <>
             {threadView.journal.map((e) =>
@@ -420,7 +458,7 @@ export function AssistantPanel({
             ) : null}
             {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
             {turns.map((e) => (
-              <Message key={e.id} e={e} />
+              <Message key={e.id} e={e} asks={openAsks} />
             ))}
             {plans
               .filter((p) => p.state === "proposed" || p.state === "stopped")

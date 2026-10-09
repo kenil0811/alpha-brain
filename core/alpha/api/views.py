@@ -36,7 +36,8 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for a in world.journal.open_asks():
         items.append({"kind": "ask", "id": a["id"], "text": a["text"], "at": a["at"],
-                      "options": a["data"].get("options", []), "module": a["module"]})
+                      "options": a["data"].get("options", []), "module": a["module"],
+                      "turn": a["data"].get("turn"), "derived": bool(a["data"].get("derived"))})
     answered = {loads(r["data"], {}).get("proposal")
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):
@@ -115,11 +116,12 @@ def conversation_view(world: World, cid: str,
             "updated_at": t["updated_at"], "live": claude_cli.LIVE.progress_for(cid)}
 
 
-def thread_views(world: World) -> list[dict[str, Any]]:
+def thread_views(world: World, *, done: bool = False) -> list[dict[str, Any]]:
     """Open threads with what Alpha has done in each lately, so a build is watched, not
-    waited for: its last few journal entries, newest last (a prompt line is left out)."""
+    waited for: its last few journal entries, newest last (a prompt line is left out).
+    `done=True` adds the finished ones, for the Assistant page's history."""
     out = []
-    for t in world.modules.threads():
+    for t in world.modules.threads(done=done):
         entries = world.journal.recent(40, thread=t["id"])
         steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in entries
                  if e["kind"] in STEP_KINDS and not e["text"].startswith(("Build the approved",

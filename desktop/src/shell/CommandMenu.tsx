@@ -9,7 +9,7 @@ import { moduleWords } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
-import { ActivityIcon, File, HomeIcon, IntelligenceIcon, ModuleIcon, PeopleIcon, SettingsIcon } from "../ui/icons";
+import { ActivityIcon, AssistantIcon, File, HomeIcon, IntelligenceIcon, ModuleIcon, PeopleIcon, SettingsIcon } from "../ui/icons";
 import type { Surface } from "./Rail";
 
 interface Item {
@@ -24,6 +24,7 @@ const PAGES: { label: string; surface: Surface; icon: React.ReactNode }[] = [
   { label: "Home", surface: { kind: "home" }, icon: <HomeIcon size={14} /> },
   { label: "Activity", surface: { kind: "activity" }, icon: <ActivityIcon size={14} /> },
   { label: "People & Companies", surface: { kind: "people" }, icon: <PeopleIcon size={14} /> },
+  { label: "Assistant", surface: { kind: "assistant" }, icon: <AssistantIcon size={14} /> },
   { label: "Intelligence", surface: { kind: "intelligence" }, icon: <IntelligenceIcon size={14} /> },
   { label: "Settings", surface: { kind: "settings" }, icon: <SettingsIcon size={14} /> },
 ];

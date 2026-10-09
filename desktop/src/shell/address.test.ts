@@ -7,6 +7,7 @@ describe("addresses", () => {
       { kind: "home" }, { kind: "activity" }, { kind: "people" }, { kind: "entity", id: "e_1" },
       { kind: "module", id: "m_de9c" }, { kind: "intelligence" }, { kind: "intelligence", tab: "skills" }, { kind: "settings" },
       { kind: "skill", name: "linkedin_connections" }, { kind: "automation", id: "a_1" },
+      { kind: "assistant" }, { kind: "assistant", id: "t_1" },
     ] as const) {
       expect(surfaceFromPath(`#${pathFor(s)}`)).toEqual(s);
     }

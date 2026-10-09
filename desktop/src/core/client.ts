@@ -542,6 +542,9 @@ export interface Live {
   doing: string | null;
   tools: number;
   at: number | null;
+  /** The reply's text as the model writes it (Q35); the whole reply lands when the turn ends. */
+  partial?: string | null;
+  first_text_at?: number | null;
 }
 
 export interface Ask {
@@ -551,6 +554,10 @@ export interface Ask {
   options: string[];
   thread: string | null;
   module: string | null;
+  /** The turn whose reply asked it; `derived` when the core made the card from a question
+   * the model left in prose (Q35). */
+  turn?: string | null;
+  derived?: boolean;
 }
 
 export interface Turn {
@@ -738,7 +745,14 @@ export class Client {
     const q = qs.toString();
     return this.call<Conversation>("GET", `/api/conversation${q ? `?${q}` : ""}`);
   };
-  conversations = (module?: string | null) => this.call<Convo[]>("GET", `/api/conversations${module ? `?module=${encodeURIComponent(module)}` : ""}`);
+  /** Live conversations and work items; `done` adds the finished ones (the Assistant page's history). */
+  conversations = (module?: string | null, done = false) => {
+    const qs = new URLSearchParams();
+    if (module) qs.set("module", module);
+    if (done) qs.set("done", "true");
+    const q = qs.toString();
+    return this.call<Convo[]>("GET", `/api/conversations${q ? `?${q}` : ""}`);
+  };
   newConversation = (module?: string | null, title?: string) => this.call<Convo>("POST", "/api/conversations", { module: module ?? null, title: title ?? null });
   closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
   focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
@@ -751,20 +765,21 @@ export class Client {
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
   thread = (id: string) => this.call<Thread & { journal: JournalEntry[] }>("GET", `/api/threads/${id}`);
 
-  /** Ask and wait for the answer, polling once a second. */
-  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void): Promise<Turn> {
+  /** Ask and wait for the answer, polling every `every` ms (a second; the conversation asks
+   * twice a second so the reply's text shows as it is written). */
+  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void, every = 1000): Promise<Turn> {
     const turn = await this.ask(text, opts);
-    return this.waitTurn(turn, onTick);
+    return this.waitTurn(turn, onTick, 8, every);
   }
   /** Follow a started turn to its end (a routing question comes back as is). A poll the core
    * does not answer is tried again for a while before the turn counts as lost: one missed poll
    * used to end the turn in the window while the core kept working (3 Oct). A core that says
    * it knows no such turn (it restarted) ends the wait at once. */
-  async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8): Promise<Turn> {
+  async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8, every = 1000): Promise<Turn> {
     let current = turn;
     let misses = 0;
     while ((current.state === "running" || current.state === "routing") && current.id) {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, every));
       try {
         current = await this.turn(current.id);
         misses = 0;
