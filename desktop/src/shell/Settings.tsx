@@ -1,17 +1,22 @@
 /**
- * Settings: only what a person decides. How Alpha thinks (their Claude, through Claude Code on
- * this Mac), the companion and how the app looks, where their world is kept and copies of it,
- * and the defaults set elsewhere in the app. Each row says what is so and offers the one thing
- * to do about it.
+ * Settings: only what a person decides (the UI rulebook §13). A header with an icon tile, the
+ * title and one line; a list of sections on the left; readable cards, in a centred narrow
+ * column, on the right. Each row says what is so and offers the one thing to do about it;
+ * what is not configurable yet is an empty card that says so, never a hidden control. The
+ * section that is open lives in this component's state, not the address (9 Oct, the pages
+ * phase). Sections: Workspace, Thinks with, Appearance, Companion, Notifications, Permissions,
+ * Builder rules, Defaults, Your data, Removed modules, Help.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { LookPicker } from "../avatar/LookPicker";
-import type { ClaudeStatus, Client, DataInfo, ThinkRoute, Thinking } from "../core/client";
+import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, ThinkRoute, Thinking } from "../core/client";
 import { host } from "../core/host";
+import { PREF, usePreference } from "../core/preferences";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
-import { Badge, Button, Dropdown, Trouble } from "../ui";
+import { Badge, Button, Dropdown, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Tabs, Trouble } from "../ui";
+import { AppearanceIcon, BuilderIcon, CompanionIcon, DataIcon, DefaultsIcon, HelpIcon, ICON, NotificationIcon, PermissionIcon, RemovedIcon, SettingsIcon, ThinksIcon, WorkspaceIcon } from "../ui/icons";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -86,46 +91,47 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
                 ? "Alpha thinks with Claude Code. Installing it takes a minute and needs no password."
                 : "Alpha can also think with ChatGPT through the Codex CLI, which the Codex app brings.";
   return (
-    <div className="item">
-      <div className="item__ico" aria-hidden="true">
-        {which === "claude" ? "✳" : "◎"}
-      </div>
-      <div className="item__body">
-        <b>{name}</b>
-        <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
-        {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
-      </div>
-      {inUse ? <Badge tone="good">In use</Badge> : onUse && connected ? (
-        <Button size="sm" onClick={onUse}>
-          Use this
-        </Button>
-      ) : null}
-      {status ? <Badge tone={connected ? "good" : "warn"}>{connected ? "Connected" : "Not connected"}</Badge> : null}
-      {!status ? null : connected ? (
-        confirming ? (
-          <>
-            <Button size="sm" onClick={() => setConfirming(false)}>
-              Keep it
+    <ListRow
+      icon={<ThinksIcon size={ICON} />}
+      title={name}
+      description={<span className={confirming ? "lrow__warn" : undefined}>{words}</span>}
+      controls={
+        <>
+          {inUse ? <Badge tone="good">In use</Badge> : onUse && connected ? (
+            <Button size="sm" onClick={onUse}>
+              Use this
             </Button>
-            <Button size="sm" variant="danger" onClick={() => void act(() => calls.signOut().then(onStatus), null).then(() => setConfirming(false))}>
-              Sign out
+          ) : null}
+          {status ? <Badge tone={connected ? "good" : "warn"}>{connected ? "Connected" : "Not connected"}</Badge> : null}
+          {!status ? null : connected ? (
+            confirming ? (
+              <>
+                <Button size="sm" onClick={() => setConfirming(false)}>
+                  Keep it
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => void act(() => calls.signOut().then(onStatus), null).then(() => setConfirming(false))}>
+                  Sign out
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
+                Sign out
+              </Button>
+            )
+          ) : status.installed ? (
+            <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.signIn(), "signin")}>
+              {waiting === "signin" ? "Waiting…" : "Sign in"}
             </Button>
-          </>
-        ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
-            Sign out
-          </Button>
-        )
-      ) : status.installed ? (
-        <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.signIn(), "signin")}>
-          {waiting === "signin" ? "Waiting…" : "Sign in"}
-        </Button>
-      ) : (
-        <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.install(), "install")}>
-          {waiting === "install" ? "Installing…" : "Install"}
-        </Button>
-      )}
-    </div>
+          ) : (
+            <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.install(), "install")}>
+              {waiting === "install" ? "Installing…" : "Install"}
+            </Button>
+          )}
+        </>
+      }
+    >
+      {error ? <Notice tone="bad">{error}</Notice> : null}
+    </ListRow>
   );
 }
 
@@ -134,7 +140,138 @@ export function ClaudeRow({ client, status, onStatus, which = "claude" }: { clie
   return <ThinkerRow which={which} client={client} status={status} onStatus={onStatus} />;
 }
 
-export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void }) {
+type SectionId = "workspace" | "thinks" | "appearance" | "companion" | "notifications" | "permissions" | "builder" | "defaults" | "data" | "removed" | "help";
+const SECTIONS: { id: SectionId; label: string; icon: ReactNode }[] = [
+  { id: "workspace", label: "Workspace", icon: <WorkspaceIcon size={ICON} /> },
+  { id: "thinks", label: "Thinks with", icon: <ThinksIcon size={ICON} /> },
+  { id: "appearance", label: "Appearance", icon: <AppearanceIcon size={ICON} /> },
+  { id: "companion", label: "Companion", icon: <CompanionIcon size={ICON} /> },
+  { id: "notifications", label: "Notifications", icon: <NotificationIcon size={ICON} /> },
+  { id: "permissions", label: "Permissions", icon: <PermissionIcon size={ICON} /> },
+  { id: "builder", label: "Builder rules", icon: <BuilderIcon size={ICON} /> },
+  { id: "defaults", label: "Defaults", icon: <DefaultsIcon size={ICON} /> },
+  { id: "data", label: "Your data", icon: <DataIcon size={ICON} /> },
+  { id: "removed", label: "Removed modules", icon: <RemovedIcon size={ICON} /> },
+  { id: "help", label: "Help", icon: <HelpIcon size={ICON} /> },
+];
+
+const SHORTCUTS: { keys: string; does: string }[] = [
+  { keys: "⌘K", does: "Search everything, from anywhere" },
+  { keys: "Enter", does: "Send what you wrote to Alpha" },
+  { keys: "Shift+Enter", does: "A new line in what you are writing" },
+  { keys: "Escape", does: "Close, cancel, or step back" },
+  { keys: "F2", does: "Edit the selected cell in a table" },
+  { keys: "Shift+F10", does: "Open the context menu of what is focused" },
+];
+
+/** The workspace's name: kept with the person's other choices about their world, then every
+ *  place that shows it (the sidebar's workspace button) hears it at once. */
+function WorkspaceCard({ client, onChanged }: { client: Client; onChanged?: () => void }) {
+  const [stored, change] = usePreference<string>(client, PREF.workspaceName, "Alpha");
+  const name = typeof stored === "string" && stored.trim() ? stored : "Alpha";
+  const [draft, setDraft] = useState(name);
+  const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => setDraft(name), [name]);
+  async function save() {
+    const problem = await change(draft.trim());
+    if (problem) {
+      setSaved({ ok: false, text: problem });
+      return;
+    }
+    setSaved({ ok: true, text: "Saved." });
+    onChanged?.();
+  }
+  return (
+    <SectionCard title="Workspace" subtitle="Your one world, kept on this Mac">
+      <div className="setname">
+        <span className="wstile" aria-hidden="true">
+          {(draft.trim()[0] ?? name[0] ?? "A").toUpperCase()}
+        </span>
+        <form className="setname__form" onSubmit={(e) => { e.preventDefault(); if (draft.trim() && draft.trim() !== name) void save(); }}>
+          <label className="setlabel" htmlFor="workspace-name">
+            Name
+          </label>
+          <div className="row">
+            <input id="workspace-name" className="textfield" value={draft} onChange={(e) => { setDraft(e.target.value); setSaved(null); }} />
+            <Button variant="primary" type="submit" disabled={!draft.trim() || draft.trim() === name}>
+              Save
+            </Button>
+            {saved ? <Notice tone={saved.ok ? "ok" : "bad"}>{saved.text}</Notice> : null}
+          </div>
+        </form>
+      </div>
+      <ListRow title="Manage Workspace" description="Colour, members and plan." controls={<Button size="sm" disabledReason="There is one workspace per person today; managing it needs accounts, which Alpha doesn't have yet.">Manage Workspace</Button>} />
+      <ListRow title="Sign out" description="Leave this workspace on this Mac." controls={<Button size="sm" variant="ghost" disabledReason="There is no account to sign out of: your workspace lives on this Mac.">Sign out</Button>} />
+    </SectionCard>
+  );
+}
+
+function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: () => void }) {
+  const [data, setData] = useState<IntelData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    client
+      .intelligence()
+      .then((d) => {
+        if (!live) return;
+        setData(d);
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, tick]);
+  async function revoke(id: string) {
+    try {
+      await client.revokePermission(id);
+      setMessage({ ok: true, text: "Revoked." });
+      setTick((n) => n + 1);
+      onChanged?.();
+    } catch (e) {
+      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  const permissions = data?.knowledge.permissions ?? [];
+  return (
+    <SectionCard title="Permissions" subtitle="What Alpha may do without asking; anything that reaches someone asks every time">
+      {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load permissions: {error}</Trouble> : null}
+      {!data && !error ? <p className="faint">Loading permissions…</p> : null}
+      {data && !permissions.length ? <EmptyCard icon={<PermissionIcon size={ICON} />} title="Nothing configured yet">When Alpha proposes a draft or a message, “Always allow” on its card makes a standing permission, and it appears here.</EmptyCard> : null}
+      {permissions.map((p) => (
+        <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Allowed since ${when(p.granted_at)}`} controls={<Button size="sm" variant="ghost" onClick={() => void revoke(p.id)}>Revoke</Button>} />
+      ))}
+      {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
+    </SectionCard>
+  );
+}
+
+function HelpCard() {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    if (!host.available()) return;
+    // the host knows its version; a browser tab has none, and says Unknown
+    void import("@tauri-apps/api/app").then((m) => m.getVersion()).then(setVersion).catch(() => undefined);
+  }, []);
+  return (
+    <>
+      <SectionCard title="Keyboard shortcuts" subtitle="What the window supports">
+        {SHORTCUTS.map((s) => (
+          <ListRow key={s.keys} title={<kbd className="kbd">{s.keys}</kbd>} description={s.does} />
+        ))}
+      </SectionCard>
+      <SectionCard title="About">
+        <ListRow title="Version" description={version ?? "Unknown"} />
+      </SectionCard>
+    </>
+  );
+}
+
+export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking, onChanged }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void; onChanged?: () => void }) {
+  const [section, setSection] = useState<SectionId>("workspace");
   const [companion, setCompanion] = useState<boolean | null>(null);
   const [data, setData] = useState<DataInfo | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
@@ -164,98 +301,143 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
   }, []);
 
   const last = data?.backups[0];
+  const panel = (() => {
+    switch (section) {
+      case "workspace":
+        return <WorkspaceCard client={client} onChanged={onChanged} />;
+      case "thinks":
+        return (
+          <SectionCard title="Thinks with" subtitle="Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription">
+            <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => void client.setThinking("claude").then((t) => onThinking?.(t))} />
+            <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => void client.setThinking("codex").then((t) => onThinking?.(t))} />
+          </SectionCard>
+        );
+      case "appearance":
+        return (
+          <SectionCard title="Appearance" subtitle="How Alpha looks in this window">
+            <ListRow title="Theme" description="Light, dark, or the same as your Mac" controls={<ThemeControl theme={theme} onChange={onTheme} />} />
+            <ListRow title="Motion" description="Follows your Mac's Reduce motion setting." />
+            <ListRow title="Contrast" description="Follows your Mac's Increase contrast setting." />
+          </SectionCard>
+        );
+      case "companion":
+        return (
+          <SectionCard title="Companion" subtitle="Alpha's character, always on top, for quick asks">
+            <ListRow
+              title="Show the companion"
+              description={companion === null ? "It lives in the Mac app." : companion ? "On" : "Off"}
+              controls={
+                companion !== null ? (
+                  <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
+                ) : (
+                  <Button size="sm" disabledReason="The companion is part of the Mac app; it isn't running in this window.">
+                    Show
+                  </Button>
+                )
+              }
+            />
+            <ListRow title="Look and size" description="The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.">
+              <LookPicker client={client} />
+            </ListRow>
+          </SectionCard>
+        );
+      case "notifications":
+        return (
+          <EmptyCard icon={<NotificationIcon size={ICON} />} title="Nothing configured yet">
+            Alpha doesn't interrupt you with notifications yet; when it can, what may interrupt you, and when, is set here.
+          </EmptyCard>
+        );
+      case "permissions":
+        return <PermissionsCard client={client} onChanged={onChanged} />;
+      case "builder":
+        return (
+          <EmptyCard icon={<BuilderIcon size={ICON} />} title="Nothing configured yet">
+            How Alpha makes modules (default views, metrics, naming) will be set here once the core keeps those rules.
+          </EmptyCard>
+        );
+      case "defaults":
+        return (
+          <SectionCard title="Defaults" subtitle="How tables start out">
+            <ListRow title="Rows per page" description="How many records a table shows at once" controls={<Dropdown size="sm" label="Rows per page" value={String(pageSize)} onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))} options={[{ value: "fit", label: "Fit to window" }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]} />} />
+          </SectionCard>
+        );
+      case "data":
+        return (
+          <SectionCard title="Your data" subtitle="Where your world is kept, and copies of it">
+            <ListRow
+              title="Kept on this Mac"
+              description={data ? `${data.folder} · ${bytes(data.size)}` : trouble ? "Unknown" : "Loading…"}
+              controls={
+                host.available() ? (
+                  <Button size="sm" onClick={() => void host.revealData()}>
+                    Show in Finder
+                  </Button>
+                ) : (
+                  <Button size="sm" disabledReason="Showing the folder needs the Mac app; this window is running in a browser.">
+                    Show in Finder
+                  </Button>
+                )
+              }
+            />
+            <ListRow
+              title="Backups"
+              description={!data ? (trouble ? "Unknown" : "Loading…") : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}
+              controls={
+                <Button size="sm" disabled={busy || !data} onClick={() => { setBusy(true); client.backUp().then(setData).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e))).finally(() => setBusy(false)); }}>
+                  {busy ? "Backing up…" : "Back up now"}
+                </Button>
+              }
+            />
+          </SectionCard>
+        );
+      case "removed":
+        return (
+          <EmptyCard icon={<RemovedIcon size={ICON} />} title="Nothing configured yet">
+            Modules you remove while keeping their data will be listed here with Restore, once the core keeps them.
+          </EmptyCard>
+        );
+      case "help":
+        return <HelpCard />;
+    }
+  })();
+
   return (
-    <div className="page">
-      {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
-      <div className="home__head">
-        <h1>Settings</h1>
-        <span className="muted">How Alpha thinks, looks and keeps your data</span>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Thinks with</h2>
-          <span className="faint">Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription</span>
-        </div>
-        <div className="card list">
-          <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => void client.setThinking("claude").then((t) => onThinking?.(t))} />
-          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => void client.setThinking("codex").then((t) => onThinking?.(t))} />
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Companion and appearance</h2>
-        </div>
-        <div className="card list">
-          {companion !== null ? (
-            <div className="item">
-              <div className="item__body">
-                <b>Companion</b>
-                <div className="item__sub">Alpha's character, always on top, for quick asks</div>
-              </div>
-              <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
-            </div>
-          ) : null}
-          <div className="item">
-            <div className="item__body">
-              <b>Appearance</b>
-              <div className="item__sub">Light, dark, or the same as your Mac</div>
-            </div>
-            <ThemeControl theme={theme} onChange={onTheme} />
+    <>
+      <PageHeader
+        centre={
+          <div className="sethead">
+            <span className="sethead__tile" aria-hidden="true">
+              <SettingsIcon size={ICON} />
+            </span>
+            <h1 className="pagehead__title serif">Settings</h1>
+            <span className="sethead__sub">How Alpha thinks, looks and keeps your data</span>
           </div>
-          <div className="item item--stack">
-            <div className="item__body">
-              <b>The companion's look</b>
-              <div className="item__sub">The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.</div>
-            </div>
-            <LookPicker client={client} />
-          </div>
+        }
+      />
+      <div className="page setpage">
+        <Tabs
+          className="setnav"
+          label="Settings sections"
+          value={section}
+          onChange={setSection}
+          items={SECTIONS.map((s) => ({
+            id: s.id,
+            label: (
+              <>
+                <span className="setnav__dot" aria-hidden="true" />
+                <span className="setnav__ico" aria-hidden="true">
+                  {s.icon}
+                </span>
+                {s.label}
+              </>
+            ),
+          }))}
+        />
+        <div className="setpanel" role="tabpanel" aria-label={SECTIONS.find((s) => s.id === section)?.label}>
+          {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
+          {panel}
         </div>
       </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Your data</h2>
-        </div>
-        <div className="card list">
-          <div className="item">
-            <div className="item__body">
-              <b>Kept on this Mac</b>
-              <div className="item__sub">{data ? `${data.folder} · ${bytes(data.size)}` : "…"}</div>
-            </div>
-            {host.available() ? (
-              <Button size="sm" onClick={() => void host.revealData()}>
-                Show in Finder
-              </Button>
-            ) : null}
-          </div>
-          <div className="item">
-            <div className="item__body">
-              <b>Backups</b>
-              <div className="item__sub">{!data ? "…" : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}</div>
-            </div>
-            <Button size="sm" disabled={busy} onClick={() => { setBusy(true); client.backUp().then(setData).catch(() => undefined).finally(() => setBusy(false)); }}>
-              {busy ? "Backing up…" : "Back up now"}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Defaults</h2>
-        </div>
-        <div className="card list">
-          <div className="item">
-            <div className="item__body">
-              <b>Rows per page</b>
-              <div className="item__sub">How many rows a table shows at once</div>
-            </div>
-            <Dropdown size="sm" label="Rows per page" value={String(pageSize)} onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))} options={[{ value: "fit", label: "Fit to window" }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]} />
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

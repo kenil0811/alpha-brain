@@ -1,19 +1,22 @@
 /**
  * One automation's page: the sentence, when it runs, the switch and Run now, what it runs (in
- * words, never edited here: the person asks Alpha), and its runs with what each found.
+ * words, never edited here: the person asks Alpha), and its runs with what each found. The
+ * shared page header carries a back link to Intelligence and the serif title (9 Oct, §5).
  */
 import { useEffect, useState } from "react";
 import type { AutomationDetail, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button } from "../ui";
-import { ArrowLeft, Check, X } from "../ui/icons";
+import { Badge, Button, EmptyCard, Notice, PageHeader, SectionCard, Trouble } from "../ui";
+import { Check, ICON_SM, X } from "../ui/icons";
+import { BackLink } from "./BackLink";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
 
 export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: { client: Client; id: string; version: number; onGo: (s: Surface) => void; onAsk: (text: string) => void; onChanged: () => void }) {
   const [auto, setAuto] = useState<AutomationDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
     let live = true;
     client
@@ -27,28 +30,48 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
     return () => {
       live = false;
     };
-  }, [client, id, version]);
+  }, [client, id, version, tick]);
   // While it runs, its steps arrive through the window's one poll (`version` moves).
-  if (error) return <div className="page"><p className="notice" role="alert">{error}</p></div>;
-  if (!auto) return <div className="page"><p className="empty">Loading…</p></div>;
+  const back = <BackLink to="Automations" onClick={() => onGo({ kind: "intelligence", tab: "automations" })} />;
+  if (!auto) {
+    return (
+      <>
+        <PageHeader left={back} />
+        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this automation: {error}</Trouble> : <p className="faint">Loading this automation…</p>}</div>
+      </>
+    );
+  }
   const act = async (work: () => Promise<unknown>, words: string) => {
     try {
       await work();
-      setMessage(words);
+      setMessage({ ok: true, text: words });
       onChanged();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
+      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
     }
   };
   return (
-    <div className="page">
-      <Button size="sm" onClick={() => onGo({ kind: "intelligence", tab: "automations" })}>
-        <ArrowLeft size={14} aria-hidden="true" /> Automations
-      </Button>
-      <div className="modhead" style={{ marginTop: 12 }}>
-        <div className="modhead__title" style={{ display: "block" }}>
-          <h1 style={auto.title.length > 60 ? { fontSize: "var(--text-xl)", lineHeight: 1.3 } : undefined}>{auto.title}</h1>
-          <div className="row" style={{ marginTop: 6 }}>
+    <>
+      <PageHeader
+        left={back}
+        title={auto.title}
+        right={
+          <>
+            <Button size="sm" onClick={() => void act(() => client.switchAutomation(auto.id, !auto.enabled), auto.enabled ? "Switched off." : "Switched on.")}>
+              {auto.enabled ? "Switch off" : "Switch on"}
+            </Button>
+            <Button size="sm" disabled={Boolean(auto.running)} onClick={() => void act(() => client.runAutomation(auto.id), "Running now.")}>
+              Run now
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => onAsk(`Change the automation "${auto.title}": `)}>
+              Ask Alpha to change this
+            </Button>
+          </>
+        }
+      />
+      <div className="page page--column">
+        <div className="stack stack--wide">
+          <div className="row">
             <Badge tone={auto.running ? "info" : auto.enabled ? "good" : "gray"}>{auto.running ? "Running now" : auto.enabled ? "On" : "Off"}</Badge>
             <span className="faint">
               {auto.when}
@@ -56,66 +79,45 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
               {auto.last_run_at ? ` · last ran ${when(auto.last_run_at)}` : " · hasn't run on its own yet"}
             </span>
           </div>
-        </div>
-        <div className="row">
-          <Button size="sm" onClick={() => void act(() => client.switchAutomation(auto.id, !auto.enabled), auto.enabled ? "Switched off." : "Switched on.")}>
-            {auto.enabled ? "Switch off" : "Switch on"}
-          </Button>
-          <Button size="sm" disabled={Boolean(auto.running)} onClick={() => void act(() => client.runAutomation(auto.id), "Running now.")}>
-            Run now
-          </Button>
-          <Button size="sm" variant="primary" onClick={() => onAsk(`Change the automation "${auto.title}": `)}>
-            Ask Alpha to change this
-          </Button>
-        </div>
-      </div>
-      {message ? <p className="notice notice--ok" role="status">{message}</p> : null}
-      {auto.last_error ? <p className="notice">Last run didn't work: {auto.last_error}</p> : null}
+          {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
+          {auto.last_error ? <Trouble>Last run didn't work: {auto.last_error}</Trouble> : null}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>What it does</h2>
-          <span className="faint">{auto.pipeline?.length ? "a pipeline: these steps, with no model" : "Alpha follows these instructions each run"}</span>
-        </div>
-        <div className="card card--pad">
-          {auto.pipeline?.length ? (
-            <ol className="steps">
-              {auto.pipeline.map((st, i) => (
-                <li key={i}>{stepSentence(st)}</li>
+          <SectionCard title="What it does" subtitle={auto.pipeline?.length ? "A pipeline: these steps, with no model" : "Alpha follows these instructions each run"}>
+            {auto.pipeline?.length ? (
+              <ol className="steps">
+                {auto.pipeline.map((st, i) => (
+                  <li key={i}>{stepSentence(st)}</li>
+                ))}
+              </ol>
+            ) : (
+              <div className="people__page">{auto.procedure}</div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Runs" subtitle={auto.runs.length ? `The last ${auto.runs.length}` : undefined}>
+            {!auto.runs.length ? <EmptyCard title="It hasn't run yet">Each run, with what it found, appears here.</EmptyCard> : null}
+            <div className="stack">
+              {auto.runs.map((r) => (
+                <div key={r.at} className="run">
+                  <div className="row">
+                    <b>{when(r.at)}</b>
+                    {r.outcome ? <span className="muted">{r.outcome}</span> : <span className="faint">Still running, or ended without a word.</span>}
+                  </div>
+                  {r.lines.length ? (
+                    <ul className="stages">
+                      {r.lines.map((l, i) => (
+                        <li key={`${l.at}-${i}`} className={l.kind === "failed" ? "notice" : "stages__done"}>
+                          {l.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : <Check size={ICON_SM} aria-label="done" />} {l.text}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ))}
-            </ol>
-          ) : (
-            <div className="people__page">{auto.procedure}</div>
-          )}
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Runs</h2>
-          <span className="faint">{auto.runs.length ? `the last ${auto.runs.length}` : ""}</span>
-        </div>
-        {!auto.runs.length ? <p className="empty">It hasn't run yet.</p> : null}
-        <div className="stack">
-          {auto.runs.map((r) => (
-            <div key={r.at} className="card card--pad">
-              <div className="row">
-                <b>{when(r.at)}</b>
-                {r.outcome ? <span className="muted">{r.outcome}</span> : <span className="faint">Still running, or ended without a word.</span>}
-              </div>
-              {r.lines.length ? (
-                <ul className="stages" style={{ marginTop: 6 }}>
-                  {r.lines.map((l, i) => (
-                    <li key={`${l.at}-${i}`} className={l.kind === "failed" ? "notice" : "stages__done"}>
-                      {l.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {l.text}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </div>
-          ))}
+          </SectionCard>
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -60,7 +60,7 @@ export function addressOf(node: GraphNode): Surface | null {
     case "source":
     case "document":
     case "goal":
-      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
+      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "second-brain" };
     case "skill":
       return { kind: "skill", name: node.name ?? node.id.slice("skill:".length) };
     case "automation":
@@ -71,9 +71,9 @@ export function addressOf(node: GraphNode): Surface | null {
     case "organisation":
       return node.entity ? { kind: "entity", id: node.entity } : { kind: "people" };
     case "page":
-      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
+      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "second-brain" };
     case "you":
-      return { kind: "intelligence", tab: "knowledge" };
+      return { kind: "intelligence", tab: "second-brain" };
   }
 }
 

@@ -1,9 +1,10 @@
 /**
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
- * rebuilt on main's Surface). `#/home`, `#/activity`, `#/people`, `#/people/<id>`, `#/m/<id>`,
- * `#/intelligence/<tab>`, `#/settings`. Nothing else is in the address: what is open inside a
- * page stays where it was.
+ * rebuilt on main's Surface). `#/home`, `#/people`, `#/people/<id>`, `#/m/<id>`,
+ * `#/intelligence/<tab>` (`activity` is one of the tabs now), `#/intelligence/agents/<id>`,
+ * `#/settings`. The old `#/activity` still opens Intelligence › Activity (9 Oct, the UI rulebook).
+ * Nothing else is in the address: what is open inside a page stays where it was.
  */
 import { knownSurface, type Surface } from "./Rail";
 
@@ -12,7 +13,7 @@ export function pathFor(surface: Surface): string {
     case "home":
       return "/home";
     case "activity":
-      return "/activity";
+      return "/intelligence/activity";
     case "people":
       return "/people";
     case "entity":
@@ -25,6 +26,8 @@ export function pathFor(surface: Surface): string {
       return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
     case "automation":
       return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
+    case "agent":
+      return `/intelligence/agents/${encodeURIComponent(surface.id)}`;
     case "settings":
       return "/settings";
   }
@@ -43,6 +46,7 @@ export function surfaceFromPath(path: string): Surface | null {
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };
     if (rest === "automations" && third) return { kind: "automation", id: third };
+    if (rest === "agents" && third) return { kind: "agent", id: third };
     return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
   }
   return null;

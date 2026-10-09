@@ -1,30 +1,262 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { toRow } from "../core/client";
+import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toRow, type Client, type ModuleCard } from "../core/client";
+import { PREF, forgetPreferences } from "../core/preferences";
 import { Rail, knownSurface, sameSurface, treeOf } from "./Rail";
 
-describe("the rail", () => {
+const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
+
+/** A core that keeps preferences in a map and records the module moves asked of it. */
+function fakeCore(stored: Record<string, unknown> = {}) {
+  const setPreference = vi.fn(async (key: string, value: unknown) => {
+    stored[key] = value;
+    return { key, value };
+  });
+  const moveModule = vi.fn(async (id: string, parent: string | null) => ({ ...card(id, id), parent }));
+  const createModule = vi.fn(async (name: string, _goal: string | null, parent: string | null) => ({ ...card("m_new", name), parent }));
+  const client = { preference: vi.fn(async (key: string) => ({ key, value: stored[key] ?? null })), setPreference, moveModule, createModule } as unknown as Client;
+  return { client, stored, setPreference, moveModule, createModule };
+}
+
+function setup(modules: ModuleCard[], over: { stored?: Record<string, unknown>; collapsed?: boolean; needs?: number } = {}) {
+  const core = fakeCore(over.stored);
+  const props = { onGo: vi.fn(), onNew: vi.fn(), onChanged: vi.fn(), onToggleCollapsed: vi.fn() };
+  const view = render(<Rail client={core.client} surface={{ kind: "home" }} modules={modules} needs={over.needs ?? 0} collapsed={over.collapsed ?? false} {...props} />);
+  const labels = () => [...view.container.querySelectorAll<HTMLElement>(".navbtn")].map((b) => b.getAttribute("aria-label"));
+  return { ...core, ...props, ...view, labels };
+}
+
+beforeEach(forgetPreferences);
+
+describe("the sidebar's places", () => {
   it("marks the right item current", () => {
     expect(sameSurface({ kind: "intelligence", tab: "connections" }, { kind: "intelligence" })).toBe(true);
+    expect(sameSurface({ kind: "agent", id: "ag_1" }, { kind: "intelligence" })).toBe(true);
     expect(knownSurface({ kind: "people" })).toEqual({ kind: "people" });
     expect(knownSurface({ kind: "entity", id: "e_1" })).toEqual({ kind: "entity", id: "e_1" });
+    expect(knownSurface({ kind: "agent", id: "ag_1" })).toEqual({ kind: "agent", id: "ag_1" });
     expect(sameSurface({ kind: "entity", id: "e_1" }, { kind: "people" })).toBe(true);
     expect(knownSurface({ kind: "nowhere" })).toEqual({ kind: "home" });
+    expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);
   });
 
-  it("lists the modules and what needs the person", () => {
-    render(
-      <Rail surface={{ kind: "home" }} modules={[{ id: "m_1", name: "Food", goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" }]} needs={2} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />,
-    );
-    expect(screen.getByRole("button", { name: "Food" })).toBeInTheDocument();
+  it("sends the old Activity place to Intelligence › Activity", () => {
+    expect(knownSurface({ kind: "activity" })).toEqual({ kind: "intelligence", tab: "activity" });
+  });
+});
+
+describe("the sidebar's order", () => {
+  it("is Home, People & Companies, the modules, New, then Intelligence and Settings last; nothing else", () => {
+    const { labels, container } = setup([card("m_j", "Job"), card("m_f", "Food")], { needs: 2 });
+    expect(labels()).toEqual(["Home", "People & Companies", "Food", "Job", "New", "Intelligence", "Settings"]);
     expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
-    expect(screen.getByRole("status")).toHaveTextContent("Alpha is running");
-    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
-    expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
-    expect(screen.getByRole("button", { name: "People & Companies" })).toBeInTheDocument();
+    // New is the last item of the module list, which is the only part that scrolls
+    const scroll = container.querySelector(".rail__scroll")!;
+    expect(scroll.lastElementChild).toBe(screen.getByRole("button", { name: "New" }));
+    expect(scroll.contains(screen.getByRole("button", { name: "Settings" }))).toBe(false);
+    expect(screen.queryByRole("button", { name: "Activity" })).toBeNull();
+    expect(screen.queryByText("Your modules")).toBeNull();
+    expect(screen.queryByText(/Alpha is running|Starting|Core not/)).toBeNull();
     expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
+  });
+
+  it("puts the workspace button on the top row, named for the workspace", async () => {
+    setup([], { stored: { [PREF.workspaceName]: "Home base" } });
+    expect(await screen.findByRole("button", { name: "Home base" })).toBeInTheDocument();
+  });
+
+  it("follows the person's own order, ignores ids that are gone, and appends new modules by name", async () => {
+    const { labels } = setup([card("m_a", "Alpha plans"), card("m_j", "Job"), card("m_f", "Food"), card("m_n", "Notes")], { stored: { [PREF.moduleOrder]: ["m_j", "m_gone", "m_f"] } });
+    await waitFor(() => expect(labels()).toEqual(["Home", "People & Companies", "Job", "Food", "Alpha plans", "Notes", "New", "Intelligence", "Settings"]));
+  });
+
+  it("draws People & Companies like a module row, whose menu is just Open", async () => {
+    const user = userEvent.setup();
+    const { onGo } = setup([]);
+    await user.click(screen.getByRole("button", { name: "More for People & Companies" }));
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open"]);
+    await user.click(screen.getByRole("menuitem", { name: "Open" }));
+    expect(onGo).toHaveBeenCalledWith({ kind: "people" });
+  });
+
+  it("folds each parent behind a chevron and remembers it", () => {
+    setup([card("m_j", "Job"), card("m_s", "Search", "m_j")]);
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fold Job" }));
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Unfold Job" }));
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+  });
+});
+
+describe("the workspace button", () => {
+  it("opens a menu whose Manage Workspace and Sign out are disabled, each with its reason", async () => {
+    const user = userEvent.setup();
+    setup([]);
+    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    for (const name of ["Manage Workspace", "Sign out"]) expect(await screen.findByRole("menuitem", { name })).toHaveAttribute("aria-disabled", "true");
+    await user.hover(screen.getByRole("menuitem", { name: "Sign out" }));
+    expect((await screen.findAllByText(/no account to sign out of/)).length).toBeGreaterThan(0);
+  });
+
+  it("holds the sidebar's fold, and View options so hidden modules can always come back", async () => {
+    const user = userEvent.setup();
+    const { onToggleCollapsed } = setup([]);
+    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Fold the sidebar" }));
+    expect(onToggleCollapsed).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "View options" }));
+    expect(await screen.findByText("Nothing is hidden.")).toBeInTheDocument();
+  });
+});
+
+describe("a module's menu", () => {
+  it("lists Open, Rename, Change icon, Move…, a new module above it, Hide, Delete and View options", async () => {
+    setup([card("m_f", "Food")]);
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Food" }));
+    await screen.findByRole("menu");
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "A new module above it…", "Hide", "Delete", "View options"]);
+  });
+
+  it("shows Rename and Delete disabled, and says why on hover", async () => {
+    const user = userEvent.setup();
+    setup([card("m_f", "Food")]);
+    await user.click(screen.getByRole("button", { name: "More for Food" }));
+    const rename = await screen.findByRole("menuitem", { name: "Rename" });
+    const del = screen.getByRole("menuitem", { name: "Delete" });
+    expect(rename).toHaveAttribute("aria-disabled", "true");
+    expect(del).toHaveAttribute("aria-disabled", "true");
+    await user.hover(rename);
+    expect((await screen.findAllByText(/can do yet/)).length).toBeGreaterThan(0);
+    await user.hover(del);
+    expect((await screen.findAllByText(/delete a module from this window yet/)).length).toBeGreaterThan(0);
+  });
+
+  it("hides a module (kept in preferences), and View options brings it back", async () => {
+    const user = userEvent.setup();
+    const { setPreference, labels } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    await user.click(screen.getByRole("button", { name: "More for Food" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
+    expect(setPreference).toHaveBeenCalledWith(PREF.hiddenModules, ["m_f"]);
+    await waitFor(() => expect(labels()).not.toContain("Food"));
+    expect(screen.getByRole("status")).toHaveTextContent("Food hidden");
+
+    await user.click(screen.getByRole("button", { name: "More for Job" }));
+    await user.click(await screen.findByRole("menuitem", { name: "View options" }));
+    const dialog = await screen.findByRole("dialog", { name: "View options" });
+    expect(within(dialog).getByText("Food")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Show Food" }));
+    expect(setPreference).toHaveBeenLastCalledWith(PREF.hiddenModules, []);
+    await waitFor(() => expect(labels()).toContain("Food"));
+    expect(within(dialog).getByText("Nothing is hidden.")).toBeInTheDocument();
+  });
+
+  it("changes a module's icon and keeps the choice in preferences", async () => {
+    const user = userEvent.setup();
+    const { setPreference } = setup([card("m_f", "Food")]);
+    await user.click(screen.getByRole("button", { name: "More for Food" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Change icon" }));
+    await user.click(await screen.findByRole("button", { name: "Fitness" }));
+    expect(setPreference).toHaveBeenCalledWith(PREF.moduleIcons, { m_f: "dumbbell" });
+  });
+
+  it("moves a module inside another, or to the top level, with the core's moveModule", async () => {
+    const user = userEvent.setup();
+    const { moveModule, onChanged } = setup([card("m_j", "Job"), card("m_s", "Search", "m_j"), card("m_f", "Food")]);
+    await user.click(screen.getByRole("button", { name: "More for Food" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Move…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Move Food" });
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to" }));
+    await user.click(await screen.findByRole("option", { name: "Job" }));
+    await user.click(within(dialog).getByRole("button", { name: "Move" }));
+    await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_f", "m_j"));
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it("makes a new module above one: asks for a name in a dialog, then createModule and moveModule", async () => {
+    const user = userEvent.setup();
+    const { createModule, moveModule } = setup([card("m_s", "Search", "m_j"), card("m_j", "Job")]);
+    await user.click(screen.getByRole("button", { name: "More for Search" }));
+    await user.click(await screen.findByRole("menuitem", { name: "A new module above it…" }));
+    const dialog = await screen.findByRole("dialog", { name: "A new module above Search" });
+    expect(within(dialog).getByRole("button", { name: "Make it" })).toBeDisabled();
+    await user.type(within(dialog).getByRole("textbox", { name: "The new module's name" }), "Avilo");
+    await user.click(within(dialog).getByRole("button", { name: "Make it" }));
+    await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_s", "m_new"));
+    expect(createModule).toHaveBeenCalledWith("Avilo", null, "m_j"); // made where Search sits now
+  });
+});
+
+describe("reordering", () => {
+  it("Alt+↓ on a focused module moves it below the next and saves the order", async () => {
+    const user = userEvent.setup();
+    const { setPreference, labels } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    screen.getByRole("button", { name: "Food" }).focus();
+    await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_j", "m_f"]));
+    await waitFor(() => expect(labels().slice(2, 4)).toEqual(["Job", "Food"]));
+    expect(screen.getByRole("status")).toHaveTextContent("Moved Food below Job.");
+    expect(screen.getByRole("button", { name: "Food" })).toHaveFocus();
+  });
+
+  it("Alt+→ moves a module inside the one above it, through moveModule", async () => {
+    const user = userEvent.setup();
+    const { moveModule, setPreference } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    screen.getByRole("button", { name: "Job" }).focus();
+    await user.keyboard("{Alt>}{ArrowRight}{/Alt}");
+    await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_j", "m_f"));
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_j"]));
+    expect(screen.getByRole("status")).toHaveTextContent("Moved Job inside Food.");
+  });
+
+  /** A drop lands by where on the row it is: the middle moves inside, the top quarter above. */
+  function drag(from: string, onto: string, y: number) {
+    const source = screen.getByRole("button", { name: from }).closest(".navrow")!;
+    const target = screen.getByRole("button", { name: onto }).closest(".navrow")!;
+    target.getBoundingClientRect = () => ({ top: 0, height: 40, bottom: 40, left: 0, right: 100, width: 100, x: 0, y: 0, toJSON: () => ({}) });
+    const dataTransfer = { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+    // jsdom has no DragEvent, so the pointer's height is put on the event by hand
+    const at = (make: typeof createEvent.dragOver) => {
+      const event = make(target, { dataTransfer });
+      Object.defineProperty(event, "clientY", { value: y });
+      fireEvent(target, event);
+    };
+    fireEvent.dragStart(source, { dataTransfer });
+    at(createEvent.dragOver);
+    at(createEvent.drop);
+  }
+
+  it("dropping on the middle of another module moves it inside, announced politely", async () => {
+    const { moveModule } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    drag("Food", "Job", 20);
+    await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_f", "m_j"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Moved Food inside Job."));
+  });
+
+  it("dropping on the top of another module reorders without a move, and saves the order", async () => {
+    const { moveModule, setPreference } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    drag("Job", "Food", 2);
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleOrder, ["m_j", "m_f"]));
+    expect(moveModule).not.toHaveBeenCalled();
+  });
+
+  it("a module cannot be dropped into what it holds", () => {
+    const { moveModule } = setup([card("m_j", "Job"), card("m_s", "Search", "m_j")]);
+    drag("Job", "Search", 20);
+    expect(moveModule).not.toHaveBeenCalled();
+  });
+});
+
+describe("the folded sidebar", () => {
+  it("keeps every item, each with its label (drawn tiny under the icon by CSS)", () => {
+    const { labels, container } = setup([card("m_f", "Food")], { collapsed: true });
+    expect(labels()).toEqual(["Home", "People & Companies", "Food", "New", "Intelligence", "Settings"]);
+    expect(container.querySelector(".rail--collapsed")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Unfold the sidebar" })).toBeInTheDocument();
   });
 });
 
@@ -36,9 +268,7 @@ describe("records from the core", () => {
   });
 });
 
-
 describe("modules as a tree", () => {
-  const card = (id: string, name: string, parent: string | null = null) => ({ id, name, parent, path: [], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
   it("nests each module under its parent, any depth, and shows an orphan at the top", () => {
     const tree = treeOf([card("m_s", "Search", "m_j"), card("m_j", "Job"), card("m_r", "Resume", "m_j"), card("m_d", "Drafts", "m_r"), card("m_x", "Lost", "m_gone")]);
     expect(tree.map((b) => b.module.name)).toEqual(["Job", "Lost"]);
@@ -46,12 +276,11 @@ describe("modules as a tree", () => {
     expect(tree[0].inside[0].inside[0].module.name).toBe("Drafts");
   });
 
-  it("lists the tree on the rail with a fold on each parent", () => {
-    render(<Rail surface={{ kind: "home" }} modules={[card("m_j", "Job"), card("m_s", "Search", "m_j")]} needs={0} runtime="connected" onGo={vi.fn()} onNew={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Fold Job" }));
-    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Unfold Job" }));
-    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+  it("follows the person's order inside each parent, and takes hidden modules out with what they hold", () => {
+    const mods = [card("m_s", "Search", "m_j"), card("m_j", "Job"), card("m_r", "Resume", "m_j"), card("m_f", "Food")];
+    const tree = treeOf(mods, ["m_r", "m_s", "m_f"], []);
+    expect(tree.map((b) => b.module.name)).toEqual(["Food", "Job"]);
+    expect(tree[1].inside.map((b) => b.module.name)).toEqual(["Resume", "Search"]);
+    expect(treeOf(mods, [], ["m_j"]).map((b) => b.module.name)).toEqual(["Food"]);
   });
 });

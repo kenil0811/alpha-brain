@@ -1,11 +1,14 @@
 /**
  * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched.
+ * search finds anything that happened. Each row opens to what it touched. It is a tab of
+ * Intelligence now, so it draws no header of its own (9 Oct, the UI rulebook §12; the sidebar
+ * entry is gone). Search comes first.
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { Badge, Trouble, type Tone } from "../ui";
+import { ICON_SM, SearchIcon } from "../ui/icons";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
@@ -75,15 +78,11 @@ export function Activity({ client, version }: { client: Client; version: number;
   );
   let lastDay = "";
   return (
-    <div className="page">
-      <div className="home__head">
-        <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
-      </div>
-      <div style={{ marginTop: 18 }}>
-        <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
-          <div className="search" style={{ maxWidth: "none" }}>
-            <span aria-hidden="true">⌕</span>
+    <div className="activity">
+      <div>
+        <div className="card toolbar toolbar--page activity__bar">
+          <div className="search activity__search">
+            <SearchIcon size={ICON_SM} aria-hidden="true" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
@@ -94,7 +93,7 @@ export function Activity({ client, version }: { client: Client; version: number;
         </div>
         <div className="runs">
           {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Activity: {error}</Trouble> : null}
-          {rows === null ? <p className="empty">Loading…</p> : null}
+          {rows === null && !error ? <p className="empty">Loading Activity…</p> : null}
           {rows && !shown.length ? <p className="empty">{q ? "Nothing matches." : "Nothing has happened yet."}</p> : null}
           {shown.map((e) => {
             const day = dayLabel(e.at);
