@@ -3,14 +3,16 @@
  * rulebook §7 and §15): a short input for a short value, a text area for long text, number, date
  * and date-time inputs, a dropdown for a choice or a status, toggles for several choices, a pill
  * that opens the related record (with a dropdown to point it elsewhere), a file that opens or is
- * shown in Finder. Nothing here writes: it reports the typed value to the page, which holds it
- * until Save (9 Oct, the record pages). An empty value reads "Unknown", never a dash. The marks
- * keep their hover reasons: ≈ the number is Alpha's estimate, ? it rests on an assumption.
+ * shown in Finder. Nothing here writes: typing reports the value to the page (`onChange`), and
+ * leaving the field, Enter in a one-line input, or picking a choice asks the page to save it
+ * (`onCommit`); a quiet "Saved." or the reason it couldn't be saved shows beside the field (9 Oct,
+ * the record pages save as you go). An empty value reads "Unknown", never a dash. The marks
+ * are "Estimated" and "Assumed" chips that say why on hover or focus (rulebook §6).
  */
 import { useEffect, useState } from "react";
 import type { Client, DocumentInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
-import { Badge, Button, Dropdown, IconButton, type DropdownOption } from "../../ui";
+import { Badge, Button, Dropdown, IconButton, Notice, type DropdownOption } from "../../ui";
 import { Check, FolderOpen, ICON_SM } from "../../ui/icons";
 import { coerce, editText, isNumeric, titleFieldOf, type FieldInfo } from "../fields";
 import { humanize } from "../format";
@@ -19,12 +21,12 @@ export const fieldLabel = (f: FieldInfo) => f.label || humanize(f.name);
 export const isEmpty = (v: unknown) => v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
 
 /** The marks on a number that does not rest on the person's word, with the reason for each. */
-export function marks(row: RecordRow | null, field: FieldInfo): { mark: "≈" | "?"; reason: string; label: string }[] {
+export function marks(row: RecordRow | null, field: FieldInfo): { mark: "Estimated" | "Assumed"; reason: string; label: string }[] {
   if (!row || !isNumeric(field.kind)) return [];
   const p = row.provenance ?? {};
-  const out: { mark: "≈" | "?"; reason: string; label: string }[] = [];
-  if (p.estimated) out.push({ mark: "≈", label: "estimated", reason: "Estimated by Alpha. Type a value to correct it." });
-  if (p.assumed) out.push({ mark: "?", label: "on an assumption", reason: `Alpha assumed ${p.assumed}. Type a value to correct it.` });
+  const out: { mark: "Estimated" | "Assumed"; reason: string; label: string }[] = [];
+  if (p.estimated) out.push({ mark: "Estimated", label: "estimated", reason: "Estimated by Alpha. Type a value to correct it." });
+  if (p.assumed) out.push({ mark: "Assumed", label: "on an assumption", reason: `Alpha assumed ${p.assumed}. Type a value to correct it.` });
   return out;
 }
 
@@ -74,8 +76,7 @@ function RelationField({ client, field, value, relations, relatedTitle, open, on
 }
 
 /** A file field holds a document's id: show its name, open it with the Mac's own app, or show it
- *  in Finder. Attaching one writes at once on the core's side, so it is not offered on a page
- *  that writes only on Save (disabled, with the next step). */
+ *  in Finder. Attaching one is not offered here (disabled, with the next step). */
 function FileField({ client, id }: { client: Client; id: string }) {
   const [doc, setDoc] = useState<DocumentInfo | null>(null);
   useEffect(() => {
@@ -85,7 +86,7 @@ function FileField({ client, id }: { client: Client; id: string }) {
       live = false;
     };
   }, [client, id]);
-  if (!id) return <Button size="sm" disabledReason="Uploading writes at once and this page writes only on Save. Drop the file on the table instead.">Upload</Button>;
+  if (!id) return <Button size="sm" disabledReason="Drop the file on the table to attach it.">Upload</Button>;
   if (!doc) return <span className="faint">{id}</span>;
   return (
     <span className="row">
@@ -97,22 +98,22 @@ function FileField({ client, id }: { client: Client; id: string }) {
   );
 }
 
-export function RecordField({ client, field, value, row, relations, relatedTitle, open, error, onChange }: { client: Client; field: FieldInfo; value: unknown; row: RecordRow | null; relations?: Relations; relatedTitle?: string; open: (() => void) | null; error?: string; onChange: (value: unknown) => void }) {
+export function RecordField({ client, field, value, row, relations, relatedTitle, open, error, saved, onChange, onCommit }: { client: Client; field: FieldInfo; value: unknown; row: RecordRow | null; relations?: Relations; relatedTitle?: string; open: (() => void) | null; error?: string; saved?: boolean; onChange: (value: unknown) => void; onCommit: (value: unknown) => void }) {
   const label = fieldLabel(field);
   const inputId = `recfield-${field.name}`;
   const kind = field.kind;
   const short = kind === "number" || kind === "date" || kind === "datetime" || kind === "bool" || kind === "choice" || kind === "status";
   const choices = field.choices ?? [];
   const text = (type: string) => (
-    <input id={inputId} className="textfield" type={type} step={kind === "number" ? "any" : undefined} value={inputText(value, field)} placeholder="Unknown" aria-invalid={error ? true : undefined} onChange={(e) => onChange(coerce(e.target.value, kind))} />
+    <input id={inputId} className="textfield" type={type} step={kind === "number" ? "any" : undefined} value={inputText(value, field)} placeholder="Unknown" aria-invalid={error ? true : undefined} onChange={(e) => onChange(coerce(e.target.value, kind))} onBlur={(e) => onCommit(coerce(e.target.value, kind))} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
   );
   let control;
   if (kind === "long_text") {
-    control = <textarea id={inputId} className="textfield" rows={4} value={inputText(value, field)} placeholder="Unknown" aria-invalid={error ? true : undefined} onChange={(e) => onChange(coerce(e.target.value, kind))} />;
+    control = <textarea id={inputId} className="textfield" rows={4} value={inputText(value, field)} placeholder="Unknown" aria-invalid={error ? true : undefined} onChange={(e) => onChange(coerce(e.target.value, kind))} onBlur={(e) => onCommit(coerce(e.target.value, kind))} />;
   } else if (kind === "choice" || kind === "status") {
-    control = <Dropdown id={inputId} label={label} value={isEmpty(value) ? "" : String(value)} onChange={(v) => onChange(v || null)} placeholder="Unknown" options={[{ value: "", label: "Unknown" }, ...choices.map((c) => ({ value: c, label: humanize(c) }))]} />;
+    control = <Dropdown id={inputId} label={label} value={isEmpty(value) ? "" : String(value)} onChange={(v) => onCommit(v || null)} placeholder="Unknown" options={[{ value: "", label: "Unknown" }, ...choices.map((c) => ({ value: c, label: humanize(c) }))]} />;
   } else if (kind === "bool") {
-    control = <Dropdown id={inputId} label={label} value={isEmpty(value) ? "" : value ? "true" : "false"} onChange={(v) => onChange(v === "" ? null : v === "true")} placeholder="Unknown" options={[{ value: "", label: "Unknown" }, { value: "true", label: "Yes" }, { value: "false", label: "No" }]} />;
+    control = <Dropdown id={inputId} label={label} value={isEmpty(value) ? "" : value ? "true" : "false"} onChange={(v) => onCommit(v === "" ? null : v === "true")} placeholder="Unknown" options={[{ value: "", label: "Unknown" }, { value: "true", label: "Yes" }, { value: "false", label: "No" }]} />;
   } else if (kind === "multichoice") {
     const chosen = Array.isArray(value) ? (value as unknown[]).map(String) : [];
     control = (
@@ -121,7 +122,7 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
           const on = chosen.includes(c);
           const next = on ? chosen.filter((x) => x !== c) : [...chosen, c];
           return (
-            <Button key={c} size="sm" aria-pressed={on} icon={on ? <Check size={ICON_SM} /> : undefined} onClick={() => onChange(next.length ? next : null)}>
+            <Button key={c} size="sm" aria-pressed={on} icon={on ? <Check size={ICON_SM} /> : undefined} onClick={() => onCommit(next.length ? next : null)}>
               {humanize(c)}
             </Button>
           );
@@ -130,7 +131,7 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
       </div>
     );
   } else if (kind === "relation") {
-    control = <RelationField client={client} field={field} value={value} relations={relations} relatedTitle={relatedTitle} open={open} onChange={onChange} />;
+    control = <RelationField client={client} field={field} value={value} relations={relations} relatedTitle={relatedTitle} open={open} onChange={onCommit} />;
   } else if (kind === "file") {
     control = <FileField client={client} id={isEmpty(value) ? "" : String(value)} />;
   } else {
@@ -143,17 +144,13 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
         {field.unit ? <span className="faint"> ({field.unit})</span> : null}
         {field.required ? <span className="faint"> · required</span> : null}
         {marks(row, field).map((m) => (
-          <span key={m.mark} className="est" title={m.reason} aria-label={m.label}>
+          <Badge key={m.mark} tone="gray" className="provchip" tabIndex={0} title={m.reason} aria-label={`${m.mark}: ${m.reason}`}>
             {m.mark}
-          </span>
+          </Badge>
         ))}
       </label>
       {control}
-      {error ? (
-        <p className="notice" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="bad">{error}</Notice> : saved ? <Notice>Saved.</Notice> : null}
     </div>
   );
 }

@@ -20,11 +20,11 @@ describe("Home", () => {
     expect(screen.getByRole("button", { name: "Start a new module" })).toBeInTheDocument();
   });
 
-  it("shows what Needs you with Approve and Veto, not accept and reject", async () => {
+  it("shows what Needs you with Approve and Decline, not accept and reject", async () => {
     const home = { ...quiet, needs_you: [{ kind: "proposal" as const, id: "p1", text: "Track what you eat", why: "You mentioned it", at: "2026-10-09T08:00:00+00:00" }] };
     const decideProposal = vi.fn(async () => ({ decided: "p1", turn: null }));
     mount({ home: vi.fn(async () => home), modules: vi.fn(async () => []), decideProposal });
-    await userEvent.click(await screen.findByRole("button", { name: "Veto" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Decline" }));
     expect(decideProposal).toHaveBeenCalledWith("p1", false);
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
   });

@@ -18,7 +18,8 @@ import * as RadixPopover from "@radix-ui/react-popover";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import type { Client, ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
-import { Button, IconButton, Popover, useContextMenu, type ContextItem } from "../ui";
+import { Button, IconButton, Popover, Tooltip, useContextMenu, type ContextItem } from "../ui";
+import { SUBTITLES } from "../ui/subtitles";
 import {
   AboveIcon,
   ChangeIconIcon,
@@ -306,31 +307,34 @@ export function Rail({
     },
   });
 
-  const item = (o: { key: string; icon: ReactNode; label: string; onClick: () => void; current?: boolean; count?: number; depth?: number; fold?: { open: boolean; onToggle: () => void }; menu?: Row; module?: ModuleCard; className?: string }) => {
+  const item = (o: { key: string; icon: ReactNode; label: string; onClick: () => void; current?: boolean; count?: number; depth?: number; fold?: { open: boolean; onToggle: () => void }; menu?: Row; module?: ModuleCard; className?: string; hint?: string }) => {
     const bound = o.menu ? rowMenu.bind(o.menu) : null;
     const dropHere = o.module && drop?.id === o.module.id ? ` navrow--drop-${drop.zone}` : "";
+    const button = (
+      <button
+        type="button"
+        className={`navbtn${o.current ? " navbtn--current" : ""}${o.className ? ` ${o.className}` : ""}`}
+        aria-current={o.current ? "page" : undefined}
+        aria-label={o.label}
+        title={collapsed && !o.hint ? o.label : undefined}
+        data-module-id={o.module?.id}
+        onClick={o.onClick}
+        onContextMenu={bound?.onContextMenu}
+        onKeyDown={(e) => {
+          bound?.onKeyDown(e);
+          if (o.module) keyReorder(e, o.module);
+        }}
+      >
+        <span className="navbtn__ico" aria-hidden="true">
+          {o.icon}
+        </span>
+        <span className="navbtn__text">{o.label}</span>
+        {o.count ? <span className="navbtn__count">{o.count}</span> : null}
+      </button>
+    );
     return (
       <div key={o.key} className={`navrow${o.fold ? " navrow--fold" : ""}${o.module && drag === o.module.id ? " navrow--dragging" : ""}${dropHere}`} style={o.depth && !collapsed ? { paddingLeft: o.depth * 14 } : undefined} {...(o.module ? dragProps(o.module) : {})}>
-        <button
-          type="button"
-          className={`navbtn${o.current ? " navbtn--current" : ""}${o.className ? ` ${o.className}` : ""}`}
-          aria-current={o.current ? "page" : undefined}
-          aria-label={o.label}
-          title={collapsed ? o.label : undefined}
-          data-module-id={o.module?.id}
-          onClick={o.onClick}
-          onContextMenu={bound?.onContextMenu}
-          onKeyDown={(e) => {
-            bound?.onKeyDown(e);
-            if (o.module) keyReorder(e, o.module);
-          }}
-        >
-          <span className="navbtn__ico" aria-hidden="true">
-            {o.icon}
-          </span>
-          <span className="navbtn__text">{o.label}</span>
-          {o.count ? <span className="navbtn__count">{o.count}</span> : null}
-        </button>
+        {o.hint ? <Tooltip text={collapsed ? `${o.label} — ${o.hint}` : o.hint}>{button}</Tooltip> : button}
         {o.fold && !collapsed ? (
           <button type="button" className="navfold" aria-label={o.fold.open ? `Fold ${o.label}` : `Unfold ${o.label}`} aria-expanded={o.fold.open} onClick={o.fold.onToggle}>
             {o.fold.open ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />}
@@ -340,7 +344,7 @@ export function Rail({
       </div>
     );
   };
-  const go = (target: Surface, icon: ReactNode, label: string, count?: number) => item({ key: target.kind, icon, label, count, current: sameSurface(surface, target), onClick: () => onGo(target) });
+  const go = (target: Surface, icon: ReactNode, label: string, count?: number, hint?: string) => item({ key: target.kind, icon, label, count, hint, current: sameSurface(surface, target), onClick: () => onGo(target) });
 
   const branches = (list: ModuleBranch[], depth: number): ReactNode[] =>
     list.flatMap((b) => {
@@ -439,7 +443,7 @@ export function Rail({
         </p>
       ) : null}
       <div className="rail__bottom">
-        {go({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence")}
+        {go({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence", undefined, SUBTITLES.intelligence)}
         {go({ kind: "settings" }, <SettingsIcon />, "Settings")}
       </div>
       <div className="sr-only" role="status" aria-live="polite">

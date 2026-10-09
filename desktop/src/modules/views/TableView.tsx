@@ -1,8 +1,8 @@
 /**
  * The table (9 Oct, the UI rulebook §6): as wide as the page's section, a quiet header, columns
  * the person can size, drag into order, freeze, wrap and sort, a row that opens its record page,
- * cells edited in place, right-click menus on the heading, the cell and the row (each also reached
- * by the keyboard). As in Notion, a row's handle (⋮⋮, its menu) and checkbox appear over its left
+ * cells edited in place (a double-click, Enter or F2, or the pencil a cell shows on hover),
+ * right-click menus on the heading, the cell and the row (each also reached by the keyboard). As in Notion, a row's handle (⋮⋮, its menu) and checkbox appear over its left
  * edge on hover, and stay for every row once one is selected, so no column is kept empty for
  * them; the header's select-all does the same. A "+ New" row at the bottom adds a record, a "+"
  * after the last heading would add a column (the core's, so disabled with the reason), and the

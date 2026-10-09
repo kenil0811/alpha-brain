@@ -59,7 +59,7 @@ export const DEFAULT_VIEW: ViewState = {
   collapsed: [],
   lines: false,
   wrapAll: false,
-  rowHeight: "compact",
+  rowHeight: "medium",
   openIn: "page",
   loadLimit: null,
   colors: [],

@@ -54,3 +54,4 @@
 .intel__fields .field input, .intel__fields .field textarea { width: 100%; }
 .intel__code { font-family: var(--font-mono); font-size: var(--text-sm); }
 .intel__hands { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3); }
+.intel__sub { margin-bottom: var(--space-3); }

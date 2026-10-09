@@ -1,14 +1,15 @@
 /**
- * One cell of a record, in every view: shown as words with its provenance marks (≈ estimated,
- * ? on an assumption), or being edited in place. A file cell opens or reveals the document.
+ * One cell of a record, in every view: shown as words with its provenance marks (quiet grey
+ * "Estimated" or "Assumed" chips that say why on hover or focus, rulebook §6), or being edited in
+ * place. A file cell opens or reveals the document.
  */
 import { type KeyboardEvent, type ReactNode, type TdHTMLAttributes, useRef, useState } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { dayText, humanize } from "../format";
-import { Badge, Dropdown, IconButton } from "../../ui";
-import { Check, FolderOpen, ICON_SM } from "../../ui/icons";
+import { Badge, Dropdown, IconButton, Tooltip } from "../../ui";
+import { Check, FolderOpen, ICON_SM, Pencil } from "../../ui/icons";
 
 /** When a reader-fed row came and went, as dates: "New · 9 Oct" (first seen today), "Since 2 Oct",
  *  "Gone 5 Oct" (absolute, 9 Oct, the UI rulebook §2). */
@@ -82,8 +83,9 @@ export function cellEditable(field: FieldInfo): boolean {
 }
 
 /**
- * One cell, in every view. A double-click edits it (clicking away saves, Escape cancels; Enter
- * or F2 starts from the keyboard). `editing` and `onEditing` let the table start an edit from a
+ * One cell, in every view. A double-click edits it, or the pencil that shows at its right edge on
+ * hover and keyboard focus (clicking away saves, Escape cancels; Enter or F2 starts from the
+ * keyboard). `editing` and `onEditing` let the table start an edit from a
  * menu; without them the cell keeps its own state (the form view's). `tdProps` carries what the
  * table puts on every cell (its context menu, a frozen column's place); `adornment` is a small
  * mark before the value (the pin).
@@ -141,15 +143,14 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     >
       {adornment}
       {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <Badge tone={field.done_choices?.includes(String(value)) ? "good" : "gray"}>{words}</Badge> : field.kind === "bool" ? (value ? <Check size={ICON_SM} aria-label="Yes" /> : <span className="faint">—</span>) : words}
-      {estimate ? (
-        <span className="est" title={`${rests} Double-click the cell to correct it.`} aria-label="estimated">
-          ≈
-        </span>
-      ) : assumed && numeric ? (
-        <span className="est" title={`${rests} Double-click the cell to correct it.`} aria-label="on an assumption">
-          ?
-        </span>
+      {estimate || (assumed && numeric) ? (
+        <Tooltip text={`${rests} Double-click the cell to correct it.`}>
+          <Badge tone="gray" className="provchip" tabIndex={0} aria-label={`${estimate ? "Estimated" : "Assumed"}: ${rests}`}>
+            {estimate ? "Estimated" : "Assumed"}
+          </Badge>
+        </Tooltip>
       ) : null}
+      {locked ? null : <IconButton size="sm" className="cellpen" tabIndex={-1} label={`Edit ${field.label ?? humanize(field.name)}`} icon={<Pencil size={ICON_SM} />} onClick={begin} onDoubleClick={(e) => e.stopPropagation()} />}
     </td>
   );
 }

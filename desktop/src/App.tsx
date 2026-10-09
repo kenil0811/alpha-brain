@@ -129,13 +129,22 @@ export function App({ client: injected }: { client?: Client } = {}) {
     // once: the listeners read the address, not this render's surface
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // ⌘K (or Ctrl+K) anywhere in the window: search everything.
+  // ⌘K (or Ctrl+K) anywhere in the window: search everything. "/" outside a text field: insert
+  // (the UI rulebook §15).
   const [commandOpen, setCommandOpen] = useState(false);
+  const [inserting, setInserting] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        setInserting(false);
         setCommandOpen((o) => !o);
+      } else if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.defaultPrevented) {
+        const t = e.target as HTMLElement | null;
+        if (t?.closest?.("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='dialog']")) return;
+        e.preventDefault();
+        setInserting(true);
+        setCommandOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -340,7 +349,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Intelligence client={runtime.client} tab={surface.tab ?? "second-brain"} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : null}
       </main>
-      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
+      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} insert={inserting} surface={surface} onNewModule={startNew} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (
         <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} />
       ) : null}

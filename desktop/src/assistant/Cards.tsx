@@ -1,6 +1,6 @@
 /**
  * The structured steps of a conversation, as cards built from the kit (9 Oct, the UI rulebook
- * §9): a plan Alpha proposes, with Approve and Veto, and a question, with choice pills and
+ * §9): a plan Alpha proposes, with Approve and Decline, and a question, with choice pills and
  * "Or say it your way". Moved out of the panel so the panel stays about the conversation.
  */
 import { useState } from "react";
@@ -41,7 +41,7 @@ export function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Clie
           Approve
         </Button>
         <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
-          Veto
+          Decline
         </Button>
       </div>
     </section>

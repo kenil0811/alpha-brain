@@ -36,7 +36,6 @@ export {
   Circle,
   Maximize2,
   MoreHorizontal,
-  MoreVertical,
   Star,
   Search as SearchIcon,
   Info,

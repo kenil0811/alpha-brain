@@ -76,7 +76,7 @@ describe("the dropdown", () => {
   it("says no match, and shows the reason for a disabled option on hover without picking it", async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(<Dropdown label="View" value="table" onChange={onChange} options={[{ value: "table", label: "Table" }, { value: "calendar", label: "Calendar", disabled: "Calendar needs a date field. Add one from ⋮ More › Add column." }]} />);
+    render(<Dropdown label="View" value="table" onChange={onChange} options={[{ value: "table", label: "Table" }, { value: "calendar", label: "Calendar", disabled: "Calendar needs a date field. Add one from ⋯ More › Add column." }]} />);
     await user.click(screen.getByRole("combobox", { name: "View" }));
     const calendar = screen.getByRole("option", { name: "Calendar" });
     expect(calendar).toHaveAttribute("aria-disabled", "true");
@@ -96,5 +96,30 @@ describe("the dropdown", () => {
     await user.click(screen.getByRole("button", { name: "Add list…" }));
     expect(onAdd).toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("marks the default with a star, and a star sets the default without choosing", async () => {
+    const onChange = vi.fn();
+    const onSetDefault = vi.fn();
+    const user = userEvent.setup();
+    render(<Dropdown label="Fruit" value="cherry" options={FRUIT} onChange={onChange} defaultValue="apple" onSetDefault={onSetDefault} />);
+    await user.click(screen.getByRole("combobox", { name: "Fruit" }));
+    expect(screen.getByRole("img", { name: "Apple is the default" })).toBeInTheDocument();
+    expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true"); // the check stays on the choice
+    await user.click(screen.getByRole("button", { name: "Make Banana the default" }));
+    expect(onSetDefault).toHaveBeenCalledWith("banana");
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    screen.getByRole("button", { name: "Make Cherry the default" }).focus();
+    await user.keyboard("{Enter}");
+    expect(onSetDefault).toHaveBeenCalledWith("cherry");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("shows no stars without onSetDefault", async () => {
+    const user = userEvent.setup();
+    render(<Dropdown label="Fruit" value="cherry" options={FRUIT} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("combobox", { name: "Fruit" }));
+    expect(screen.queryByRole("button", { name: /the default/ })).toBeNull();
   });
 });

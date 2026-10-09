@@ -1,8 +1,9 @@
 /**
  * An outward action Alpha proposed (a draft, a message, something to send): the exact text
  * that would be typed, a screenshot of the dry run, what it reaches, how to undo it, and the
- * decision: Approve or Veto (9 Oct, the UI rulebook §9 and §2; it was Do it / Send it and Not
- * now). Nothing leaves until the person approves here or in words. The card carries no expected
+ * decision: Approve or Decline (9 Oct, the UI rulebook §9 and §2; it was Do it / Send it and Not
+ * now). Always allow stays a quiet button; after three approvals of the same kind (the procedure,
+ * counted on this Mac) the card suggests it in a line of its own. Nothing leaves until the person approves here or in words. The card carries no expected
  * outcome or success criteria of its own (the core does not produce them), so none is shown.
  */
 import { useEffect, useState } from "react";
@@ -17,6 +18,25 @@ const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 const isIdentifier = (field: string, value: string) =>
   /(^|_)(urn|id|slug|key|token|uid|guid|handle)$/.test(field) || /^urn:/i.test(value) || (/^[A-Za-z0-9_-]{24,}$/.test(value) && !/\s/.test(value));
 const EVIDENCE_SHORT = 150;
+
+/** Approvals of one kind of action, counted on this Mac, so the card can suggest Always allow
+ *  (§9). ponytail: per Mac, not per workspace; move to the core if approvals ever sync. */
+const SUGGEST_AFTER = 3;
+const approvalsKey = (kind: string) => `alpha.approvals.${kind}`;
+export function approvalsOf(kind: string): number {
+  try {
+    return Number(localStorage.getItem(approvalsKey(kind))) || 0;
+  } catch {
+    return 0;
+  }
+}
+function countApproval(kind: string) {
+  try {
+    localStorage.setItem(approvalsKey(kind), String(approvalsOf(kind) + 1));
+  } catch {
+    /* uncounted: the plain Always allow is still there */
+  }
+}
 
 const EFFECT: Record<string, string> = {
   prepare: "Stays in your account; reaches nobody",
@@ -67,7 +87,14 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
   };
   const save = () => act(() => client.editAction(action.id, draft).then(() => setEditing(false)), "Edited. The preview is redone when you approve.");
   const open = action.state === "proposed";
-  const badge = open ? "Needs approval" : action.state === "done" ? (action.effect === "send" ? "Sent" : "Made") : action.state === "running" ? "Doing it" : action.state === "failed" ? "Didn't happen" : action.state === "declined" ? "Vetoed" : "Approved";
+  const badge = open ? "Needs approval" : action.state === "done" ? (action.effect === "send" ? "Sent" : "Made") : action.state === "running" ? "Doing it" : action.state === "failed" ? "Didn't happen" : action.state === "declined" ? "Declined" : "Approved";
+  const approved = open && action.effect === "prepare" ? approvalsOf(action.procedure) : 0;
+  const suggest = approved >= SUGGEST_AFTER;
+  const alwaysAllow = (variant?: "ghost") => (
+    <Button variant={variant} disabled={busy} disabledReason={!action.preview ? "Wait for the preview first." : undefined} title="Approve, and create a standing permission: Alpha may do this kind of thing without asking. It is listed in Second Brain, where you can revoke it." onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
+      Always allow
+    </Button>
+  );
 
   return (
     <article className={`card need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`}>
@@ -132,6 +159,12 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
       </p>
       {action.state === "done" && action.result ? <p className="because">{action.result}</p> : null}
       {action.state === "failed" && action.error ? <p className="notice">{action.error} Alpha looks at the page again and proposes it afresh.</p> : null}
+      {open && suggest && !editing ? (
+        <div className="row">
+          <span className="faint">You've approved this {approved} times. Always allow it?</span>
+          {alwaysAllow()}
+        </div>
+      ) : null}
       {open ? (
         <div className="row">
           {editing ? (
@@ -145,19 +178,15 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
             </>
           ) : (
             <>
-              <Button variant="primary" disabled={busy} disabledReason={!action.preview ? "Wait for the preview: Approve is offered once Alpha has shown how it will look." : undefined} onClick={() => void act(() => client.approveAction(action.id, false), action.effect === "send" ? "Approved. Sending it now." : "Approved. Doing it now.")}>
+              <Button variant="primary" disabled={busy} disabledReason={!action.preview ? "Wait for the preview: Approve is offered once Alpha has shown how it will look." : undefined} onClick={() => void act(() => client.approveAction(action.id, false).then(() => countApproval(action.procedure)), action.effect === "send" ? "Approved. Sending it now." : "Approved. Doing it now.")}>
                 Approve
               </Button>
-              {action.effect === "prepare" ? (
-                <Button disabled={busy} disabledReason={!action.preview ? "Wait for the preview first." : undefined} title="Approve, and create a standing permission: Alpha may do this kind of thing without asking. It is listed in Second Brain, where you can revoke it." onClick={() => void act(() => client.approveAction(action.id, true), "Doing it now, and from now on without asking.")}>
-                  Always allow
-                </Button>
-              ) : null}
+              {action.effect === "prepare" && !suggest ? alwaysAllow("ghost") : null}
               <Button disabled={busy} title="Change the text before approving" onClick={() => setEditing(true)}>
                 Edit
               </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Vetoed.")}>
-                Veto
+              <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.declineAction(action.id), "Declined.")}>
+                Decline
               </Button>
             </>
           )}

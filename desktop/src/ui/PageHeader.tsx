@@ -4,7 +4,7 @@ import { ChevronRight } from "./icons";
 /** The header band every page has, at the one shared height (`--header-h`) and sticky (the UI
  *  rulebook §3 and §5): a left slot (a back link or breadcrumb), a centre slot (a `HeaderSwitch`
  *  for a page with sections, or the page's title in serif when it has only one), and a right slot
- *  (actions, ⋮). Pass `title` for the single-section case. (9 Oct, phase 1.) */
+ *  (actions, ⋯). Pass `title` for the single-section case. (9 Oct, phase 1.) */
 export function PageHeader({ left, centre, title, right }: { left?: ReactNode; centre?: ReactNode; title?: string; right?: ReactNode }) {
   return (
     <header className="pagehead">

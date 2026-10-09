@@ -362,7 +362,7 @@ A page of visuals where **every visual is actionable**.
 - A collection's headline numbers sit in one strip of metric tiles above the table, **folded by default** so the table is the focus. The Dashboard view shows them in full.
 - Each tile has a tinted icon square, a small sentence-case label, a serif number and what it is based on.
 - A small chevron shows or hides the strip, and the choice is remembered.
-- Tiles that need attention get a red-tinted icon.
+- Tiles that need attention get an amber tint (red is only for problems).
 
 ### Files
 

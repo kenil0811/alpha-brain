@@ -1,13 +1,15 @@
 /**
  * Where the person speaks to Alpha (9 Oct, the UI rulebook §9): one rounded box, a borderless text
- * area that grows as you type above a row with attach, the choice of model, the microphone and a
- * round send button. Enter sends, Shift+Enter adds a line. Typing @ offers other agents: the rule
+ * area that grows as you type above a row with attach, the depth, the microphone and a round send
+ * button. Depth is Quick overview or Deep thinking, never a model (the route is chosen in Settings ›
+ * Thinks with); the core takes no depth with a message yet, so Deep thinking shows disabled with
+ * the reason. Enter sends, Shift+Enter adds a line. Typing @ offers other agents: the rule
  * is here, the capability is not (Alpha is the only agent today), so the offer is one disabled
  * line that says so. The box owns no words of its own: the panel keeps them, so a lost send can
  * put them back and a draft from the window can land in it.
  */
-import { type KeyboardEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Client, ClaudeStatus, ModuleCard, ThinkRoute, Thinking, Turn } from "../core/client";
+import { type KeyboardEvent, type RefObject, useLayoutEffect, useRef, useState } from "react";
+import type { Client, ModuleCard, Turn } from "../core/client";
 import { MicButton } from "../shell/voice";
 import { Dropdown, type DropdownOption, IconButton, Notice } from "../ui";
 import { ArrowUp, AttachIcon } from "../ui/icons";
@@ -15,16 +17,23 @@ import { ArrowUp, AttachIcon } from "../ui/icons";
 /** The line the @ offer shows. Alpha is the only agent today (Intelligence › Agents lists them). */
 export const MENTION_REASON = "Alpha is the only agent today, so there is no one else to address yet.";
 
-const GROWS_TO = 160;
-const ROUTE_NAME: Record<ThinkRoute, string> = { claude: "Claude", codex: "ChatGPT" };
+/** Why Deep thinking can't be chosen: `client.ask` carries no depth, tier or model. */
+export const DEPTH_REASON = "Choosing depth needs Alpha's core; every answer is a quick overview for now.";
+const DEPTH_DEFAULT_KEY = "alpha.depth.default";
+type Depth = "quick" | "deep";
+const DEPTHS: DropdownOption<Depth>[] = [
+  { value: "quick", label: "Quick overview" },
+  { value: "deep", label: "Deep thinking", disabled: DEPTH_REASON },
+];
+const storedDepth = (): Depth => {
+  try {
+    return localStorage.getItem(DEPTH_DEFAULT_KEY) === "deep" ? "deep" : "quick";
+  } catch {
+    return "quick";
+  }
+};
 
-/** Why a route cannot be chosen right now, or undefined when it can. */
-function routeReason(route: ThinkRoute, status: ClaudeStatus | undefined): string | undefined {
-  if (!status) return "Checking which models are ready.";
-  if (!status.installed) return `${ROUTE_NAME[route]} isn't installed on this Mac. Set it up in Settings.`;
-  if (!status.signed_in) return `${ROUTE_NAME[route]} isn't signed in. Sign in from Settings.`;
-  return undefined;
-}
+const GROWS_TO = 160;
 
 export function Composer({
   client,
@@ -51,14 +60,13 @@ export function Composer({
   /** Files that started a turn of their own: the panel follows it. */
   onFollow: (turn: Turn | null) => void;
 }) {
-  const [thinking, setThinking] = useState<Thinking | null>(null);
+  // ponytail: one depth until the core takes one with a message; then send `depth` with ask.
+  const [depthDefault, setDepthDefault] = useState<Depth>(storedDepth);
+  const [depth, setDepth] = useState<Depth>(() => (DEPTHS.find((d) => d.value === depthDefault)?.disabled ? "quick" : depthDefault));
   const [note, setNote] = useState<{ ok: boolean; text: string; files?: boolean } | null>(null);
   const [mentionOff, setMentionOff] = useState(false);
   const files = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    client.thinking().then(setThinking).catch(() => setThinking(null));
-  }, [client]);
   // The box grows with its words, up to a ceiling, then scrolls. (jsdom measures nothing: skipped.)
   useLayoutEffect(() => {
     const box = inputRef.current;
@@ -67,9 +75,13 @@ export function Composer({
     if (box.scrollHeight > 0) box.style.height = `${Math.min(box.scrollHeight, GROWS_TO)}px`;
   }, [text, inputRef]);
 
-  const options: DropdownOption<ThinkRoute>[] = (["claude", "codex"] as const).map((r) => ({ value: r, label: ROUTE_NAME[r], disabled: routeReason(r, thinking?.[r]) }));
-  const choose = (route: ThinkRoute) => {
-    client.setThinking(route).then(setThinking).catch((e: unknown) => setNote({ ok: false, text: `Couldn't change the model: ${e instanceof Error ? e.message : String(e)}` }));
+  const makeDefault = (d: Depth) => {
+    setDepthDefault(d);
+    try {
+      localStorage.setItem(DEPTH_DEFAULT_KEY, d);
+    } catch {
+      /* the default lasts this session */
+    }
   };
 
   const attach = async (picked: File[]) => {
@@ -122,7 +134,7 @@ export function Composer({
         <div className="composer__row">
           <input ref={files} type="file" multiple hidden onChange={(e) => { void attach(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
           <IconButton size="sm" label="Attach files" title={module ? `Attach files to ${module.name}` : "Attach files"} icon={<AttachIcon />} onClick={() => files.current?.click()} />
-          <Dropdown size="sm" className="composer__model" label="Model" value={thinking?.route ?? "claude"} options={options} onChange={choose} />
+          <Dropdown size="sm" className="composer__model" label="Depth" value={depth} options={DEPTHS} onChange={setDepth} defaultValue={depthDefault} onSetDefault={makeDefault} />
           <span className="composer__gap" />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
           <IconButton className="composer__send" label="Send" icon={<ArrowUp />} disabledReason={sendReason} onClick={onSend} />

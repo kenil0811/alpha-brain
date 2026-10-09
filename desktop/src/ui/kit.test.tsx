@@ -66,6 +66,16 @@ describe("the header switch", () => {
     expect(onChange).toHaveBeenCalledWith("calendar");
   });
 
+  it("says a tab's hint as its description and its tooltip, keeping the label as its name", async () => {
+    const user = userEvent.setup();
+    render(<HeaderSwitch label="Sections" items={[{ ...items[0], hint: "What this holds" }, items[1]]} value="data" onChange={vi.fn()} />);
+    const data = screen.getByRole("tab", { name: "Data" });
+    expect(data).toHaveAccessibleDescription("What this holds");
+    expect(screen.getByRole("tab", { name: "Calendar" })).not.toHaveAttribute("aria-describedby");
+    await user.hover(data);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("What this holds");
+  });
+
   it("drops the labels, not the names, when it does not fit", async () => {
     // only the switch's own observer is driven by hand; the tooltip's is left alone
     let watch: () => void = () => {};

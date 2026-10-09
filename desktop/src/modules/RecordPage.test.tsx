@@ -65,85 +65,75 @@ describe("a record's page", () => {
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("Sales");
   });
 
-  it("holds edits until Save, then writes only what changed with the revision", async () => {
+  it("saves a changed field once when it is left, with the revision, and says Saved beside it", async () => {
     const user = userEvent.setup();
-    const { client } = setup();
+    const { client, guard } = setup();
     const price = await screen.findByLabelText(/^Price/);
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
     await user.clear(price);
     await user.type(price, "400");
-    expect(client.editRecord).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(client.editRecord).not.toHaveBeenCalled(); // typing is not leaving
+    await user.tab();
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledTimes(1));
     expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 400 }, 3);
     expect(await screen.findByText("Saved.")).toBeInTheDocument();
+    await user.click(price);
+    await user.tab(); // left again, unchanged since the save
+    expect(client.editRecord).toHaveBeenCalledTimes(1);
+    expect(guard()).toBeNull(); // nothing is held, so leaving the page asks nothing
   });
 
-  it("Discard puts the saved values back", async () => {
+  it("does not save a field left unchanged", async () => {
     const user = userEvent.setup();
     const { client } = setup();
     const title = await screen.findByLabelText(/^Title/);
-    await user.type(title, " and more");
-    expect(title).toHaveValue("Bakery and more");
-    await user.click(screen.getByRole("button", { name: "Discard" }));
-    expect(title).toHaveValue("Bakery");
+    await user.click(title);
+    await user.tab();
+    await user.type(title, "!");
+    await user.type(title, "{Backspace}");
+    await user.tab();
     expect(client.editRecord).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
-  it("shows a refusal under the field it names and keeps the edits", async () => {
+  it("Enter saves a one-line field, and the next write carries the revision the last one returned", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    await user.type(await screen.findByLabelText(/^Title/), "!{Enter}");
+    const price = screen.getByLabelText(/^Price/);
+    await user.type(price, "5");
+    await user.tab();
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledTimes(2));
+    expect(client.editRecord).toHaveBeenNthCalledWith(1, "deals", "r1", { title: "Bakery!" }, 3);
+    expect(client.editRecord).toHaveBeenNthCalledWith(2, "deals", "r1", { price: 3505 }, 4);
+  });
+
+  it("a field that can't be saved keeps the input and says why beside it", async () => {
     const user = userEvent.setup();
     const { client } = setup();
     client.editRecord.mockRejectedValueOnce(new Error("'price' must be a number; got 'x'."));
     const price = await screen.findByLabelText(/^Price/);
     await user.type(price, "5");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.tab();
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("'price' must be a number");
+    expect(price.closest(".recfield")).toContainElement(alert);
     expect(price).toHaveValue(3505);
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.queryByText("Saved.")).toBeNull();
   });
 
-  it("asks before leaving with changes: Stay keeps them, Discard lets the window go", async () => {
-    const user = userEvent.setup();
-    const { guard } = setup();
-    const title = await screen.findByLabelText(/^Title/);
-    const proceed = vi.fn();
-    expect(guard()!(proceed)).toBe(false); // nothing changed: the page lets it go
-    await user.type(title, "!");
-    expect(guard()!(proceed)).toBe(true);
-    const dialog = await screen.findByRole("dialog", { name: "Save your changes?" });
-    expect(dialog).toHaveTextContent("Title");
-    await user.click(within(dialog).getByRole("button", { name: "Stay" }));
-    expect(proceed).not.toHaveBeenCalled();
-    expect(title).toHaveValue("Bakery!");
-    guard()!(proceed);
-    const again = await screen.findByRole("dialog", { name: "Save your changes?" });
-    await user.click(within(again).getByRole("button", { name: "Discard" }));
-    expect(proceed).toHaveBeenCalledTimes(1);
-  });
-
-  it("saves from the leaving dialog, then lets the window go", async () => {
-    const user = userEvent.setup();
-    const { guard, client } = setup();
-    await user.type(await screen.findByLabelText(/^Title/), "!");
-    const proceed = vi.fn();
-    guard()!(proceed);
-    const dialog = await screen.findByRole("dialog", { name: "Save your changes?" });
-    await user.click(within(dialog).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(proceed).toHaveBeenCalledTimes(1));
-    expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { title: "Bakery!" }, 3);
-  });
-
-  it("a new record starts with defaults and Save adds it, then opens it", async () => {
+  it("a new record starts with defaults and the first field left with a value adds it, then opens it", async () => {
     const user = userEvent.setup();
     const { client, onGo } = setup({ id: "new" });
     expect(await screen.findByRole("heading", { name: "New Deal" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent("Active"); // the first status
     expect(screen.getByLabelText(/^Opened/)).not.toHaveValue(""); // today, for a required date
     expect(client.record).not.toHaveBeenCalled();
+    await user.click(screen.getByLabelText(/^Price/));
+    await user.tab(); // left empty: nothing is made
+    expect(client.addRecord).not.toHaveBeenCalled();
     await user.type(screen.getByLabelText(/^Title/), "Florist");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.tab();
     await waitFor(() => expect(client.addRecord).toHaveBeenCalledTimes(1));
     const [table, values] = client.addRecord.mock.calls[0] as unknown as [string, Record<string, unknown>];
     expect(table).toBe("deals");
@@ -166,7 +156,7 @@ describe("a record's page", () => {
     await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_1" }));
   });
 
-  it("History lists this record's changes from the journal, and Undo puts the old value in the form", async () => {
+  it("History lists this record's changes from the journal, and Undo saves the old value at once", async () => {
     const user = userEvent.setup();
     const { client } = setup();
     await screen.findByRole("heading", { name: "Bakery" });
@@ -179,11 +169,22 @@ describe("a record's page", () => {
     expect(dialog).toHaveTextContent("2 Oct, 09:30");
     expect(dialog).toHaveTextContent("300 USD → 350 USD");
     await user.click(within(dialog).getByRole("button", { name: "Undo" }));
-    expect(client.editRecord).not.toHaveBeenCalled(); // held in the form
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 300 }, 3));
+    expect(await within(dialog).findByText("Undone")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Done" }));
     expect(screen.getByLabelText(/^Price/)).toHaveValue(300);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+  });
+
+  it("⌘Z undoes the last change and ⇧⌘Z redoes it, each saved", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    await screen.findByRole("heading", { name: "Bakery" });
+    await waitFor(() => expect(client.activity).toHaveBeenCalled());
+    await user.keyboard("{Meta>}z{/Meta}");
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 300 }, 3));
+    await waitFor(() => expect(client.activity).toHaveBeenCalledTimes(2)); // the history is read again
+    await user.keyboard("{Meta>}{Shift>}z{/Shift}{/Meta}");
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 350 }, 4));
   });
 
   it("shows the sections the collection's preference names, and all three by default", async () => {

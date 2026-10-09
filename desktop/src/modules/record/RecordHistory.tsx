@@ -1,10 +1,11 @@
 /**
- * A record's history (the UI rulebook §7, ⋮ More › History): every change the journal holds for
+ * A record's history (the UI rulebook §7, ⋯ More › History): every change the journal holds for
  * this record, newest first: who made it, the field, old → new, the day and time. There is no
  * route for a record's history; the journal has it already: `GET /api/activity` for the module,
  * and the entries whose data names this table and this record (`edit_record` and Alpha's own
  * edit tool both journal `{collection, record, before, after}`). Undo and Redo step through the
- * changes; an undone change goes into the page's form, held, and Save writes it.
+ * changes and save as they go: Undo writes a change's old values back, Redo its new ones (⌘Z and
+ * ⇧⌘Z on the page do the same).
  * ponytail: the activity route returns at most 500 entries per module, so a very busy module
  * may not show the oldest changes of a record; a per-record route in the core would lift that.
  */
@@ -53,7 +54,7 @@ export function dayAndTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : `${dayText(d)}, ${timeText(d)}`;
 }
 
-export function HistoryDialog({ open, onClose, changes, fields, undone, onUndo, onRedo }: { open: boolean; onClose: () => void; changes: Change[]; fields: FieldInfo[]; undone: number; onUndo: () => void; onRedo: () => void }) {
+export function HistoryDialog({ open, onClose, changes, fields, undone, canUndo, canRedo, onUndo, onRedo }: { open: boolean; onClose: () => void; changes: Change[]; fields: FieldInfo[]; /** The ids of the changes undone so far. */ undone: string[]; canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void }) {
   const byName = new Map(fields.map((f) => [f.name, f]));
   const words = (name: string, value: unknown) => {
     const f = byName.get(name);
@@ -62,12 +63,12 @@ export function HistoryDialog({ open, onClose, changes, fields, undone, onUndo, 
   };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()} title="History" className="dialog--history">
-      <div className="dialog__body">Every change to this record, newest first. Undo puts the old value back in the form; nothing is written until you save.</div>
+      <div className="dialog__body">Every change to this record, newest first. Undo puts the old values back and Redo the new ones; each saves at once.</div>
       <div className="row history__bar">
-        <Button size="sm" onClick={onUndo} disabledReason={undone >= changes.length ? "There is no earlier change to undo." : undefined}>
+        <Button size="sm" onClick={onUndo} disabledReason={!canUndo ? "There is no earlier change to undo." : undefined}>
           Undo
         </Button>
-        <Button size="sm" onClick={onRedo} disabledReason={undone === 0 ? "Nothing has been undone yet." : undefined}>
+        <Button size="sm" onClick={onRedo} disabledReason={!canRedo ? "Nothing has been undone yet." : undefined}>
           Redo
         </Button>
       </div>
@@ -75,12 +76,12 @@ export function HistoryDialog({ open, onClose, changes, fields, undone, onUndo, 
         <p className="faint">No changes yet.</p>
       ) : (
         <ol className="history">
-          {changes.map((c, i) => (
+          {changes.map((c) => (
             <li key={c.id} className="history__item">
               <div className="history__head">
                 <b>{c.who}</b>
                 <span className="faint">{dayAndTime(c.at)}</span>
-                {i < undone ? <Badge tone="warn">Undone in the form</Badge> : null}
+                {undone.includes(c.id) ? <Badge tone="warn">Undone</Badge> : null}
               </div>
               {Object.keys(c.after).map((name) => (
                 <div key={name} className="history__line">

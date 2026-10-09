@@ -1,7 +1,7 @@
 import * as RadixPopover from "@radix-ui/react-popover";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { Check, ChevronDown, PlusIcon } from "./icons";
+import { Check, ChevronDown, PlusIcon, Star } from "./icons";
 
 export interface DropdownOption<T extends string = string> {
   value: T;
@@ -20,7 +20,10 @@ const SEARCH_ABOVE = 7;
  *  seven options; about five rows show and the list scrolls; an optional "Add…" row is pinned at
  *  the bottom. From the keyboard: arrows move, Enter picks, Escape closes, typing searches (a
  *  box when there is one, otherwise a jump to the option that starts with what was typed).
- *  Built on a Radix popover, so it stays inside the window. (9 Oct, the UI rulebook phase 1.) */
+ *  Built on a Radix popover, so it stays inside the window. (9 Oct, the UI rulebook phase 1.)
+ *  Star defaults (§14): given `onSetDefault`, every option carries a star; a filled one marks the
+ *  person's default, an outline one (shown on hover or focus) makes that option the default
+ *  without choosing it. The stars are buttons, so Tab reaches them. */
 export function Dropdown<T extends string = string>({
   value,
   options,
@@ -35,6 +38,8 @@ export function Dropdown<T extends string = string>({
   defaultOpen,
   onOpenChange,
   icon,
+  defaultValue,
+  onSetDefault,
 }: {
   value: T;
   options: DropdownOption<T>[];
@@ -53,6 +58,10 @@ export function Dropdown<T extends string = string>({
   /** An icon before the value in the trigger (the data view's view picker, which shows only
    *  this when the toolbar is narrow). */
   icon?: ReactNode;
+  /** The person's default option, marked with a filled star when `onSetDefault` is given. */
+  defaultValue?: string;
+  /** Makes an option the default (the star); it does not choose the option. */
+  onSetDefault?: (value: T) => void;
 }) {
   const [open, setOpenState] = useState(Boolean(defaultOpen));
   const [query, setQuery] = useState("");
@@ -97,6 +106,7 @@ export function Dropdown<T extends string = string>({
   const move = (to: number) => setActive(Math.max(0, Math.min(rows - 1, to)));
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation(); // a row or a cell behind this must not hear the keys
+    if ((e.target as HTMLElement).closest?.(".dropdown__star")) return; // a star hears its own Enter and Space
     if (e.key === "ArrowDown") move(active + 1);
     else if (e.key === "ArrowUp") move(active - 1);
     else if (e.key === "Home") move(0);
@@ -185,6 +195,27 @@ export function Dropdown<T extends string = string>({
                   </span>
                 ) : null}
                 <span className="dropdown__label">{o.label}</span>
+                {onSetDefault ? (
+                  o.value === defaultValue ? (
+                    <span className="dropdown__star" data-on="" role="img" aria-label={`${o.label} is the default`}>
+                      <Star fill="currentColor" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="dropdown__star"
+                      aria-label={`Make ${o.label} the default`}
+                      title={o.disabled ? o.disabled : `Make ${o.label} the default`}
+                      disabled={Boolean(o.disabled)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // the star sets the default; it does not choose
+                        onSetDefault(o.value);
+                      }}
+                    >
+                      <Star aria-hidden="true" />
+                    </button>
+                  )
+                ) : null}
               </div>
             ))}
             {!shown.length ? <div className="dropdown__none">No match</div> : null}

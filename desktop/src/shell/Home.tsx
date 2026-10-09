@@ -86,8 +86,8 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
           <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Approved. Building it now; it reports in the conversation." : "Approved. Alpha is doing that now.")}>
             Approve
           </Button>
-          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Vetoed. It won't come back.")}>
-            Veto
+          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Declined. It won't come back.")}>
+            Decline
           </Button>
         </div>
         {error ? <Notice tone="bad">{error}</Notice> : null}

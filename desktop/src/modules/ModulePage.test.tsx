@@ -31,8 +31,15 @@ describe("adding files to a module", () => {
   it("has a button that opens the Mac's picker and sends what was chosen the way a drop does", async () => {
     const addFiles = vi.fn(() => Promise.resolve({ documents: [{ id: "d_1", title: "RestoPros P&L.xlsx" }], turn: null }));
     const client = fakeClient(detail, { addFiles });
-    render(<ModulePage client={client} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />);
-    const files = await screen.findByRole("region", { name: "Files" });
+    render(
+      <TooltipProvider>
+        <ModulePage client={client} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
+      </TooltipProvider>,
+    );
+    // no collection yet: it lands on Files
+    expect(await screen.findByRole("tab", { name: "Files", selected: true })).toBeInTheDocument();
+    expect(screen.getByText("Nothing is kept here yet")).toBeInTheDocument();
+    const files = screen.getByRole("region", { name: "Files" });
     expect(within(files).getByText(/Drop files here or/)).toBeInTheDocument(); // an empty space to drop on
     expect(within(files).getByRole("button", { name: "Upload" })).toBeInTheDocument();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -76,36 +83,47 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     expect(await screen.findByText("Bakery")).toBeInTheDocument(); // data first
-    const switcher = screen.getByRole("tablist", { name: "Collections" });
-    expect(within(switcher).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Deals", "Clients"]);
+    const switcher = screen.getByRole("tablist", { name: "Sections" });
+    expect(within(switcher).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Deals", "Clients", "Files", "Intelligence", "Governance"]);
     expect(screen.queryByRole("tab", { name: "Summary" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Settings" })).toBeNull();
-    // the numbers sit above the table, each with what it is based on
+    // the numbers sit above the table, folded until asked for, each with what it is based on
+    await user.click(screen.getByRole("button", { name: "Show the numbers" }));
     expect(await screen.findByText("1 added this week")).toBeInTheDocument();
     expect(screen.queryByText("At a glance")).toBeNull();
     await user.click(within(switcher).getByRole("tab", { name: "Clients" }));
     expect(await screen.findByText("No records yet.")).toBeInTheDocument();
   });
 
-  it("keeps Files, then Intelligence, then Governance below the data", async () => {
-    render(
+  it("shows one section at a time: Files, Intelligence and Governance are tabs, and the page remembers the last", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
       <TooltipProvider>
         <ModulePage client={fakeClient(two)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
-    const sections = ["Files", "Intelligence", "Governance"].map((n) => screen.getByRole("region", { name: n }));
-    const table = screen.getByRole("table");
-    let previous: HTMLElement = table;
-    for (const s of sections) {
-      expect(previous.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      previous = s;
-    }
+    // nothing stacked below the table
+    for (const n of ["Files", "Intelligence", "Governance"]) expect(screen.queryByRole("region", { name: n })).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Files" })).getByText(/Drop files here/)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Intelligence" }));
+    const intelligence = screen.getByRole("region", { name: "Intelligence" });
+    expect(screen.queryByRole("region", { name: "Files" })).toBeNull();
     // Intelligence is in tabs; the goals are one of them
-    await userEvent.setup().click(within(sections[1]).getByRole("tab", { name: "Goals · 1" }));
-    expect(within(sections[1]).getByText("Close three deals")).toBeInTheDocument();
-    expect(within(sections[2]).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
-    expect(within(sections[0]).getByText(/Drop files here/)).toBeInTheDocument();
+    await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
+    expect(within(intelligence).getByText("Close three deals")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Governance" }));
+    expect(within(screen.getByRole("region", { name: "Governance" })).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
+    unmount();
+    render(
+      <TooltipProvider>
+        <ModulePage client={fakeClient(two)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByRole("region", { name: "Governance" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Governance", selected: true })).toBeInTheDocument();
   });
 
   it("Governance keeps Always and Never rules per module: Enter adds, a click edits, × deletes", async () => {
@@ -117,6 +135,7 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
+    await user.click(screen.getByRole("tab", { name: "Governance" }));
     const never = screen.getByRole("group", { name: "Never" });
     await user.type(within(never).getByRole("textbox", { name: "Add a rule: never" }), "Email a client{Enter}");
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email a client"] } }));
@@ -130,7 +149,7 @@ describe("a module's page", () => {
     expect(screen.getByRole("group", { name: "Always" })).toBeInTheDocument();
   });
 
-  it("a module with one collection shows its name as the title, not a switch", async () => {
+  it("a module with one collection still has the switch, the collection's tab first, and its name in the breadcrumb", async () => {
     const one = { ...detail, tables: [deals] } as unknown as ModuleDetail;
     render(
       <TooltipProvider>
@@ -138,8 +157,8 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
-    expect(screen.queryByRole("tablist", { name: "Collections" })).toBeNull();
-    expect(screen.getByRole("heading", { level: 1, name: "Advisory" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Deals", selected: true })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Advisory")).toBeInTheDocument();
   });
 
   it("a nested module shows where it sits in the header, and its children with the note", async () => {
@@ -154,6 +173,7 @@ describe("a module's page", () => {
     await screen.findByText("Bakery");
     await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("button", { name: "Avilo" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_0" });
+    await user.click(screen.getByRole("tab", { name: "Intelligence" }));
     await user.click(screen.getByRole("tab", { name: "Inside · 1" }));
     expect(screen.getByLabelText("What you ask here reaches them all.")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Leads")).toBeInTheDocument();

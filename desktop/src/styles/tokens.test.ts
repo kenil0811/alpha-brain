@@ -60,6 +60,12 @@ describe("type and chips", () => {
     expect(css).not.toMatch(/\.badge\b/);
   });
 
+  it("writes no tiny capitals: labels are sentence case (rule 22)", () => {
+    const sheets = readdirSync(join(SRC, "styles")).filter((n) => n.endsWith(".css"));
+    const offenders = sheets.filter((n) => /text-transform:\s*uppercase/.test(readFileSync(join(SRC, "styles", n), "utf8")));
+    expect(offenders).toEqual([]);
+  });
+
   it("never fades something in from nothing", () => {
     expect(css).not.toMatch(/@keyframes fadein/);
     expect(css).not.toMatch(/animation:\s*fadein/);

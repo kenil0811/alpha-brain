@@ -6,11 +6,12 @@
  * forgetting one already accepted is disabled, with the reason and the next step.
  * Shared by Intelligence › Second Brain and a person's page. (9 Oct, the pages phase.)
  */
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Client, Fact } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { Button, ListRow, Notice } from "../ui";
+import { Button, ListRow, Notice, Tooltip } from "../ui";
 import { ChevronDown, ChevronRight, ICON_SM } from "../ui/icons";
+import { SUBTITLES } from "../ui/subtitles";
 
 /** Where a fact came from, in words a person can check. */
 export function sourceWords(f: Fact): string {
@@ -23,11 +24,18 @@ export function sourceWords(f: Fact): string {
 /** The disclosure: closed by default, so the row stays one line. */
 export function Provenance({ fact }: { fact: Fact }) {
   const [open, setOpen] = useState(false);
+  const hint = useId();
   return (
     <div className="prov2">
-      <button type="button" className="prov2__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {open ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />} Provenance
-      </button>
+      <Tooltip text={SUBTITLES.provenance}>
+        <button type="button" className="prov2__toggle" aria-expanded={open} aria-describedby={hint} onClick={() => setOpen(!open)}>
+          {open ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />} Provenance
+        </button>
+      </Tooltip>
+      <span id={hint} hidden>
+        {SUBTITLES.provenance}
+      </span>
+      {open ? <p className="scard__sub">{SUBTITLES.provenance}</p> : null}
       {open ? (
         <dl className="prov2__body">
           <div>

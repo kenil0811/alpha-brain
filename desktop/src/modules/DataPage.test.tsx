@@ -83,7 +83,7 @@ describe("the table page", () => {
   it("shows the records, marks what Alpha estimated and counts it in the page bar", async () => {
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { provenance: { estimated: true } })]);
     expect(await screen.findByText("Bakery")).toBeInTheDocument();
-    expect(screen.getByLabelText("estimated")).toBeInTheDocument();
+    expect(screen.getByText("Estimated")).toBeInTheDocument();
     expect(screen.getByText(/1 estimated/)).toBeInTheDocument();
     // one page: nothing to page through, so no "Showing…" and no page size
     expect(screen.queryByText(/Showing/)).toBeNull();

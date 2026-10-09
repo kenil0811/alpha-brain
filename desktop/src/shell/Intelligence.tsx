@@ -18,14 +18,15 @@ import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
 import { HeaderSwitch, PageHeader, Trouble, type HeaderSwitchItem } from "../ui";
 import { AgentIcon, BrainIcon, ConnectionIcon, ICON_SM, SkillIcon, Zap } from "../ui/icons";
+import { SUBTITLES } from "../ui/subtitles";
 
 export type IntelTab = "second-brain" | "agents" | "automations" | "skills" | "connections" | "activity" | "map";
 const TABS: HeaderSwitchItem<IntelTab>[] = [
-  { id: "second-brain", label: "Second Brain", icon: <BrainIcon size={ICON_SM} /> },
-  { id: "agents", label: "Agents", icon: <AgentIcon size={ICON_SM} /> },
-  { id: "automations", label: "Automations", icon: <Zap size={ICON_SM} /> },
-  { id: "skills", label: "Skills", icon: <SkillIcon size={ICON_SM} /> },
-  { id: "connections", label: "Connections", icon: <ConnectionIcon size={ICON_SM} /> },
+  { id: "second-brain", label: "Second Brain", icon: <BrainIcon size={ICON_SM} />, hint: SUBTITLES.secondBrain },
+  { id: "agents", label: "Agents", icon: <AgentIcon size={ICON_SM} />, hint: SUBTITLES.agents },
+  { id: "automations", label: "Automations", icon: <Zap size={ICON_SM} />, hint: SUBTITLES.automations },
+  { id: "skills", label: "Skills", icon: <SkillIcon size={ICON_SM} />, hint: SUBTITLES.skills },
+  { id: "connections", label: "Connections", icon: <ConnectionIcon size={ICON_SM} />, hint: SUBTITLES.connections },
 ];
 
 /** An address from before the rename ("knowledge") or one nobody knows opens Second Brain. */
@@ -82,10 +83,15 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
         return <Connections client={client} data={data} version={version} onChanged={onChanged} />;
     }
   })();
+  const shown = current === "map" ? "second-brain" : current;
+  const subtitle = TABS.find((t) => t.id === shown)?.hint; // the active tab's plain subtitle (rulebook §2)
   return (
     <>
-      <PageHeader centre={<HeaderSwitch label="Intelligence" items={TABS} value={current === "map" ? "second-brain" : current} onChange={onTab} />} />
-      <div className={`page ${current === "activity" ? "page--column" : "page--wide"}`}>{body}</div>
+      <PageHeader centre={<HeaderSwitch label="Intelligence" items={TABS} value={shown} onChange={onTab} />} />
+      <div className={`page ${current === "activity" ? "page--column" : "page--wide"}`}>
+        {subtitle ? <p className="scard__sub intel__sub">{subtitle}</p> : null}
+        {body}
+      </div>
     </>
   );
 }

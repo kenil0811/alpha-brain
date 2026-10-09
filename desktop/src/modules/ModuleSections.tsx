@@ -1,9 +1,9 @@
 /**
- * What a module page keeps below its data, in the rulebook's order (9 Oct, the UI rulebook §5):
+ * A module page's tabs after its collections, in the rulebook's order (9 Oct, the UI rulebook §5):
  * Files, then Intelligence (Alpha's page about the module, its goals, what happened here, the
  * modules inside it, each a tab), then Governance (what Alpha should always and never do here,
  * where it sits, what it keeps, where it reads from, what runs on its own). Each is a section
- * card; the page keeps scrolling into them from the table.
+ * card, shown alone under its header tab.
  */
 import { useEffect, useMemo, useState } from "react";
 import { UploadIcon as Upload } from "../ui/icons";

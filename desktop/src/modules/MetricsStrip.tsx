@@ -3,7 +3,8 @@
  * tiles as wide as what they hold, each a number with its label and basis beside it, and a small
  * chart where there is a trend (records and amounts added per week) or a split (the status). The
  * records resting on an estimate or an assumption get a tile only when there are some, in the
- * attention tone. A small chevron folds the strip, and the page remembers it. The numbers come
+ * attention tone. The strip starts folded so the table is the focus (rulebook §6); a small
+ * chevron shows or hides it, and the page remembers the choice. The numbers come
  * from the module's summary (the core works them out) and from the records on the page; nothing
  * is invented. A tile never shows a bare dash (§2): an amount shows today's if there is one, else
  * this week's (its basis saying so), else "Unknown".
@@ -18,9 +19,9 @@ import { provenanceCounts } from "./views/engine";
 
 function remembered(key: string): boolean {
   try {
-    return localStorage.getItem(key) !== "closed";
+    return localStorage.getItem(key) === "open"; // folded unless the person opened it
   } catch {
-    return true;
+    return false;
   }
 }
 
