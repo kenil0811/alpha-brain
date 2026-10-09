@@ -1,0 +1,16 @@
+name: plan_questions
+title: A plan's questions are on its card with their choices, or were asked as cards first
+why: "Q36: 'when there are questions, why give build option? … if there are default, those
+  should be visible'. What the person must decide is a card with choices: on the plan (the
+  model's own, or read out of the reply), or asked before the plan. Never only prose next to
+  Build it."
+steps:
+  - say: "I want to keep track of my runs: distance, time and how I felt, and see my weekly totals"
+  - say: "Kilometres, and a short scale for how I felt. Go on and propose it."
+checks:
+  - plan: {state: proposed, questions_min: 1, or_asked: true}
+  - no_new_tables: {}
+steps_after:
+  - decline_plan: latest
+checks_after:
+  - plan: declined

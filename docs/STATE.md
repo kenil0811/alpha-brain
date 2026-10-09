@@ -40,7 +40,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | Core tests | 233, in about 18 s; ruff and mypy strict clean |
 | Desktop tests | 84, in twenty-five files; typecheck and `cargo check` clean |
 | Tools the model sees | 72 |
-| Journeys | 21 defined; latest `docs/journeys/2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); before it `2026-10-09-0008.md`, 1 of 1 (an automation converts itself to steps); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
+| Journeys | 23 defined; latest `docs/journeys/2026-10-09-1157.md`, 1 of 1 (a plan's questions with choices, the model's own); `2026-10-09-1155.md`, question card passed, the plan journey's first shape failed and was corrected; `2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |

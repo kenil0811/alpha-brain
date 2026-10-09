@@ -49,7 +49,12 @@ them with choices (Miles / Kilometers; Short scale / Free text per run, from the
 questions have no pick yet", since that reply expressed no lean; the first such run had shown
 the same card with no choices, because the seam had answered the person's questions in prose
 instead of JSON, which is what the parser-not-participant wording and the "A or B?" rule fix.
-**Proven by tests only:** the model's own path (`plan_propose` with questions and defaults):
-on the copy the model proposed in prose each time, and after two declines refused to propose
-a third time ("it's just waiting on two answers"), so the card with Alpha's picks selected
-hasn't been seen in a real run yet.
+**The model's own path, run for real** (journey `plan_questions`,
+`docs/journeys/2026-10-09-1157.md`, passed, 126 s): asked for a running tracker, the model
+first asked miles-or-km as a card; told "Kilometres, and a short scale", it proposed Running
+Tracker with one question on the plan itself, "After you log a run, should I show the week's
+totals automatically?", with the choices "Show totals automatically after each run" and "Only
+when I ask" and the latter as its pick. The journey accepts either shape: questions on the
+plan, or asked as cards before it; never prose next to Build it. (Its first run,
+`2026-10-09-1155.md`, failed on the journey's own expectation that the plan comes in one turn,
+when the model rightly asked first.)

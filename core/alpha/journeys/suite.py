@@ -364,12 +364,45 @@ class Run:
         return not new, ("No module was made." if not new else f"Made {len(new)} module(s).")
 
     def check_plan(self, arg: Any) -> tuple[bool, str]:
+        """A plan in the state asked; `questions_min` (Q36): at least that many questions on
+        the plan, each with its choices listed in the words."""
         state = arg if isinstance(arg, str) else arg.get("state", "proposed")
         new = [p for p in self.world.plans.all() if p["id"] not in self.mark.plans]
         hits = [p for p in new if p["state"] == state]
         if not new:
             return False, "No plan was proposed."
-        return bool(hits), f"Plans: {', '.join(p['title'] + ' (' + p['state'] + ')' for p in new)}."
+        words = f"Plans: {', '.join(p['title'] + ' (' + p['state'] + ')' for p in new)}."
+        if isinstance(arg, dict) and arg.get("questions_min"):
+            questions = hits[-1]["questions"] if hits else []
+            shown = "; ".join(f"{q['text'][:60]} → {q['options'] or 'open'}"
+                              + (f" (pick {q['default']})" if q.get("default") else "")
+                              for q in questions)
+            # Asking as cards before the plan, so the plan needs none, is as good.
+            asked = [a for a in self.world.journal.recent(50, kinds=["asked"])
+                     if a["at"] >= self.mark.at]
+            cards = f" Asked as cards first: {len(asked)}." if asked else ""
+            ok = bool(hits) and (len(questions) >= int(arg["questions_min"])
+                                 or (bool(arg.get("or_asked")) and bool(asked)))
+            return ok, f"{words} Questions on the plan: {shown or 'none'}.{cards}"
+        return bool(hits), words
+
+    def check_ask(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A question for the person, as a card, from the last turn (Q35): `derived` whether
+        the core made it from the reply, `options_min` how many choices at least."""
+        if not self.last_turn:
+            return False, "No turn."
+        asks = [a for a in self.world.journal.open_asks()
+                if a["data"].get("turn") == self.last_turn]
+        if not asks:
+            return False, "The last turn made no card."
+        a = asks[-1]
+        words = (f"\"{a['text'][:80]}\" with {a['data'].get('options') or 'no'} options"
+                 f"{' (made by the core)' if a['data'].get('derived') else ' (the model\'s own)'}")
+        if "derived" in arg and bool(a["data"].get("derived")) != bool(arg["derived"]):
+            return False, words
+        if len(a["data"].get("options") or []) < int(arg.get("options_min", 0)):
+            return False, words
+        return True, words
 
     def check_reply(self, arg: dict[str, Any]) -> tuple[bool, str]:
         text = self.last_reply
