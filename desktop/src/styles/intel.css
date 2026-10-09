@@ -1,0 +1,68 @@
+/* intel — styles for this area; tokens only (see app.css). */
+
+/* ---------- Second Brain: the brain in an egg, and what sits beside it ---------- */
+.brain { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); gap: var(--space-6); align-items: start; }
+.brain__left { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.brain__side { min-width: 0; }
+.brain__box { container-type: inline-size; }
+@container (max-width: 760px) { .brain { grid-template-columns: minmax(0, 1fr); } .brain__left { position: static; } }
+.brain__egg { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.brain__svg { display: block; width: min(100%, 620px, max(300px, (100vh - var(--header-h) - 150px) * 0.79)); height: auto; aspect-ratio: 600 / 760; touch-action: none; user-select: none; }
+.brain__shell { fill: var(--surface); filter: drop-shadow(var(--shadow-card)); }
+.brain__rim { fill: none; stroke: var(--border); stroke-width: 1.5; pointer-events: none; }
+/* Lines and rims keep one screen width at every zoom (non-scaling), so links read at a glance and stay quiet. */
+.brain__edge { stroke: var(--text-3); stroke-width: 1px; opacity: 0.55; vector-effect: non-scaling-stroke; transition: opacity var(--dur-state) var(--ease-out); }
+.brain__edge--spoke { opacity: 0.25; }
+.brain__edge--waiting { stroke-dasharray: 4 3; }
+.brain__edge--lit { stroke: var(--primary); opacity: 0.95; stroke-width: 1.5px; }
+.brain__edge--dim { opacity: 0.08; }
+.brain__node { cursor: pointer; transition: opacity var(--dur-state) var(--ease-out); }
+.brain__node:focus { outline: none; }
+.brain__node circle { stroke: var(--surface); stroke-width: 1.5px; vector-effect: non-scaling-stroke; transition: stroke var(--dur-quick) var(--ease-out); }
+.brain__node:hover circle, .brain__node:focus-visible circle, .brain__node--on circle { stroke: var(--primary); stroke-width: 2.5; }
+.brain__node--dim { opacity: 0.2; }
+.brain__node--you circle { fill: var(--k-you); }
+.brain__node--module circle { fill: var(--k-module); }
+.brain__node--agent circle { fill: var(--surface-2); stroke: var(--border); }
+.brain__node--skill circle { fill: var(--k-read); }
+.brain__node--person circle { fill: var(--k-person); }
+.brain__node--organisation circle { fill: var(--k-organisation); }
+.brain__node--goal circle { fill: var(--k-goal); }
+.brain__node--fact circle { fill: var(--chart-2); }
+.brain__node--collection circle { fill: var(--k-table); }
+.brain__node--record circle { fill: var(--k-table); stroke: none; opacity: 0.75; }
+.brain__node--waiting circle { fill: var(--surface); stroke: var(--warn); stroke-dasharray: 2 2; stroke-width: 1.5; }
+.brain__node foreignObject { pointer-events: none; }
+.brain__label { font-size: var(--text-xs); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.brain__label--more { fill: var(--text-3); font-weight: 400; }
+.brain__node--you .brain__label, .brain__node--module .brain__label, .brain__node--agent .brain__label { font-weight: 600; fill: var(--text); }
+.brain__zoom { display: flex; gap: var(--space-1); align-items: center; }
+.brain__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--text-2); }
+.brain__key { display: inline-flex; align-items: center; gap: var(--space-1); }
+.brain__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); display: inline-block; }
+.brain__dot--module { background: var(--k-module); }
+.brain__dot--collection, .brain__dot--record { background: var(--k-table); }
+.brain__dot--fact { background: var(--chart-2); }
+.brain__dot--person { background: var(--k-person); }
+.brain__dot--organisation { background: var(--k-organisation); }
+.brain__dot--goal { background: var(--k-goal); }
+.brain__dot--agent { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.brain__dot--skill { background: var(--k-read); }
+
+/* ---------- an agent's face: the companion's head in a circle ---------- */
+.agentface { position: relative; display: inline-block; flex: none; overflow: hidden; border-radius: var(--radius-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); vertical-align: middle; }
+.agentface__rig { position: absolute; line-height: 0; }
+.agentface .agentface__rig > svg.rig { display: block; width: var(--rig-w); height: var(--rig-h); max-width: none; }
+.modcard__ico:has(.agentface) { background: none; }
+
+/* ---------- item pages: a face beside the title, fields that edit ---------- */
+.intel__head { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.intel__fields { display: flex; flex-direction: column; gap: var(--space-3); }
+.intel__fields .field input, .intel__fields .field textarea { width: 100%; }
+.intel__code { font-family: var(--font-mono); font-size: var(--text-sm); }
+.intel__hands { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3); }
+.intel__sub { margin-bottom: var(--space-3); }
+
+/* ---------- Add goal / agent / automation: the describe box (`DescribeAdd`) ---------- */
+.describe__sent { max-width: 260px; padding: var(--space-2); color: var(--text-2); }
+.intel__adds { display: flex; gap: var(--space-2); justify-content: flex-end; }

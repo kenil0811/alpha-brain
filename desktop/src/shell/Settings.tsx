@@ -1,17 +1,23 @@
 /**
- * Settings: only what a person decides. How Alpha thinks (their Claude, through Claude Code on
- * this Mac), the companion and how the app looks, where their world is kept and copies of it,
- * and the defaults set elsewhere in the app. Each row says what is so and offers the one thing
- * to do about it.
+ * Settings: only what a person decides (the UI rulebook §13). A list of sections on the left;
+ * the first, **Overview**, shows every section's card at once in as many columns as the window
+ * has room for, and each other section shows just its own card (9 Oct, the owner's review). Each
+ * row says what is so and offers the one thing to do about it, with as few words as it takes;
+ * what is not configurable yet says so, never a hidden control. Sections: Overview, Workspace,
+ * Thinks with, Reads with, Appearance, Notifications, Permissions, Builder rules, Defaults, Your
+ * data, Removed projects, Help. The companion's look is edited on Alpha's agent page; Appearance
+ * links there (the Companion section went, 9 Oct).
  */
-import { useCallback, useEffect, useState } from "react";
-import { LookPicker } from "../avatar/LookPicker";
-import type { ClaudeStatus, Client, DataInfo, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
 import { host } from "../core/host";
+import { PREF, usePreference } from "../core/preferences";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
+import { DEFAULT_WORKSPACE, WorkspaceTile, type Surface } from "./Rail";
 import { ThemeControl, type Theme } from "./theme";
-import { Button, Trouble } from "../ui";
+import { Badge, Button, Dropdown, InfoTip, ListRow, Notice, PageHeader, SectionCard, Tabs, Trouble } from "../ui";
+import { ICON, PermissionIcon, ThinksIcon } from "../ui/icons";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -83,6 +89,15 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
   }
 
   const connected = Boolean(status?.signed_in);
+  const about = !status
+    ? undefined
+    : connected
+      ? [status.plan ? `${status.plan} plan` : null, status.via === "api_key" ? "with an API key" : null, `through ${tool} on this Mac`].filter(Boolean).join(" · ")
+      : status.installed
+        ? `Sign in with your ${name} account; your browser opens.`
+        : which === "claude"
+          ? "Alpha thinks with Claude Code. Installing it takes a minute and needs no password."
+          : "Alpha can also think with ChatGPT through the Codex CLI, which the Codex app brings.";
   const words = !status
     ? "Checking…"
     : confirming
@@ -94,53 +109,50 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
         : waiting === "signin"
           ? "Finish signing in in your browser."
           : connected
-            ? [status.email, status.plan ? `${status.plan} plan` : null, status.via === "api_key" ? "with an API key" : null, `through ${tool} on this Mac`].filter(Boolean).join(" · ")
-            : status.installed
-              ? `Sign in with your ${name} account; your browser opens.`
-              : which === "claude"
-                ? "Alpha thinks with Claude Code. Installing it takes a minute and needs no password."
-                : "Alpha can also think with ChatGPT through the Codex CLI, which the Codex app brings.";
+            ? status.email
+            : null;
   return (
-    <div className="item">
-      <div className="item__ico" aria-hidden="true">
-        {which === "claude" ? "✳" : "◎"}
-      </div>
-      <div className="item__body">
-        <b>{name}</b>
-        <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
-        {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
-      </div>
-      {inUse ? <span className="pill pill--good">In use</span> : onUse && connected ? (
-        <Button size="sm" disabled={trying} onClick={() => void use()}>
-          {trying ? "Trying it…" : "Use this"}
-        </Button>
-      ) : null}
-      {status ? <span className={`pill ${connected ? "pill--good" : "pill--warn"}`}>{connected ? "Connected" : "Not connected"}</span> : null}
-      {!status ? null : connected ? (
-        confirming ? (
-          <>
-            <Button size="sm" onClick={() => setConfirming(false)}>
-              Keep it
+    <ListRow
+      icon={<ThinksIcon size={ICON} />}
+      title={<>{name} {about ? <InfoTip text={about} /> : null}</>}
+      description={words ? <span className={confirming ? "lrow__warn" : undefined}>{words}</span> : undefined}
+      controls={
+        <>
+          {inUse ? <Badge tone="good">In use</Badge> : onUse && connected ? (
+            <Button size="sm" disabled={trying} onClick={() => void use()}>
+              {trying ? "Trying it…" : "Use this"}
             </Button>
-            <Button size="sm" variant="danger" onClick={() => void act(() => calls.signOut().then(onStatus), null).then(() => setConfirming(false))}>
-              Sign out
+          ) : null}
+          {status ? <Badge tone={connected ? "good" : "warn"}>{connected ? "Connected" : "Not connected"}</Badge> : null}
+          {!status ? null : connected ? (
+            confirming ? (
+              <>
+                <Button size="sm" onClick={() => setConfirming(false)}>
+                  Keep it
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => void act(() => calls.signOut().then(onStatus), null).then(() => setConfirming(false))}>
+                  Sign out
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
+                Sign out
+              </Button>
+            )
+          ) : status.installed ? (
+            <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.signIn(), "signin")}>
+              {waiting === "signin" ? "Waiting…" : "Sign in"}
             </Button>
-          </>
-        ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
-            Sign out
-          </Button>
-        )
-      ) : status.installed ? (
-        <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.signIn(), "signin")}>
-          {waiting === "signin" ? "Waiting…" : "Sign in"}
-        </Button>
-      ) : (
-        <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.install(), "install")}>
-          {waiting === "install" ? "Installing…" : "Install"}
-        </Button>
-      )}
-    </div>
+          ) : (
+            <Button size="sm" variant="primary" disabled={waiting !== null} onClick={() => void act(() => calls.install(), "install")}>
+              {waiting === "install" ? "Installing…" : "Install"}
+            </Button>
+          )}
+        </>
+      }
+    >
+      {error ? <Notice tone="bad">{error}</Notice> : null}
+    </ListRow>
   );
 }
 
@@ -164,30 +176,27 @@ export function BrowserRow({ client, status, onStatus }: { client: Client; statu
       setError(e instanceof Error ? e.message : String(e));
     }
   }
-  const words = !status
-    ? "Checking…"
-    : status.installing
-      ? (status.words ?? "Installing… this takes a few minutes.")
-      : status.installed
-        ? `Installed · sign-in windows open in ${status.chrome ? "your Chrome" : "Alpha's own browser"}`
-        : (status.problem ?? "Alpha reads web pages with its own browser (Chromium). Installing it downloads about 250 MB, once.");
+  const words = !status ? "Checking…" : status.installing ? (status.words ?? "Installing…") : status.installed ? null : status.problem;
+  const about = status?.installed
+    ? `Alpha reads web pages with its own browser (Chromium). Sign-in windows open in ${status.chrome ? "your Chrome" : "Alpha's own browser"}.`
+    : "Alpha reads web pages with its own browser (Chromium). Installing it downloads about 250 MB, once, and takes a few minutes.";
   return (
-    <div className="item">
-      <div className="item__ico" aria-hidden="true">
-        ◫
-      </div>
-      <div className="item__body">
-        <b>The browser Alpha reads with</b>
-        <div className={`item__sub${status?.problem ? " item__sub--warn" : ""}`}>{words}</div>
-        {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
-      </div>
-      {status ? <span className={`pill ${status.installed ? "pill--good" : "pill--warn"}`}>{status.installed ? "Installed" : "Not installed"}</span> : null}
-      {status && !status.installed ? (
-        <Button size="sm" variant="primary" disabled={installing} onClick={() => void install()}>
-          {installing ? "Installing…" : status.problem ? "Try again" : "Install"}
-        </Button>
-      ) : null}
-    </div>
+    <ListRow
+      title={<>Browser <InfoTip text={about} /></>}
+      description={words ? <span className={status?.problem ? "lrow__warn" : undefined}>{words}</span> : undefined}
+      controls={
+        <>
+          {status ? <Badge tone={status.installed ? "good" : "warn"}>{status.installed ? "Installed" : "Not installed"}</Badge> : null}
+          {status && !status.installed ? (
+            <Button size="sm" variant="primary" disabled={installing} onClick={() => void install()}>
+              {installing ? "Installing…" : status.problem ? "Try again" : "Install"}
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {error ? <Notice tone="bad">{error}</Notice> : null}
+    </ListRow>
   );
 }
 
@@ -196,7 +205,146 @@ export function ClaudeRow({ client, status, onStatus, which = "claude" }: { clie
   return <ThinkerRow which={which} client={client} status={status} onStatus={onStatus} />;
 }
 
-export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void }) {
+const SHORTCUTS: { keys: string; does: string }[] = [
+  { keys: "⌘K", does: "Search everything, from anywhere" },
+  { keys: "Enter", does: "Send what you wrote to Alpha" },
+  { keys: "Shift+Enter", does: "A new line in what you are writing" },
+  { keys: "Escape", does: "Close, cancel, or step back" },
+  { keys: "F2", does: "Edit the selected cell in a table" },
+  { keys: "Shift+F10", does: "Open the context menu of what is focused" },
+];
+
+/** The workspace's name: kept with the person's other choices about their world, then every
+ *  place that shows it (the sidebar's workspace button) hears it at once. The sidebar also
+ *  renames it, and changes its logo, on a double-click. */
+function WorkspaceCard({ client, onChanged }: { client: Client; onChanged?: () => void }) {
+  const [stored, change] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
+  const [logo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
+  const name = typeof stored === "string" && stored.trim() ? stored : DEFAULT_WORKSPACE;
+  const [draft, setDraft] = useState(name);
+  const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => setDraft(name), [name]);
+  async function save() {
+    const problem = await change(draft.trim());
+    if (problem) {
+      setSaved({ ok: false, text: problem });
+      return;
+    }
+    setSaved({ ok: true, text: "Saved." });
+    onChanged?.();
+  }
+  return (
+    <SectionCard title="Workspace">
+      <form className="setname" onSubmit={(e) => { e.preventDefault(); if (draft.trim() && draft.trim() !== name) void save(); }}>
+        <WorkspaceTile logo={typeof logo === "string" ? logo : ""} name={draft.trim() || name} className="wstile" />
+        <input className="textfield setname__input" aria-label="Name" value={draft} onChange={(e) => { setDraft(e.target.value); setSaved(null); }} />
+        <Button variant="primary" type="submit" disabled={!draft.trim() || draft.trim() === name}>
+          Save
+        </Button>
+        <InfoTip text="Double-click the name or the tile in the sidebar to change them there." />
+      </form>
+      {saved ? <Notice tone={saved.ok ? "ok" : "bad"}>{saved.text}</Notice> : null}
+      <div className="row">
+        <Button size="sm" disabledReason="One workspace per person today; managing it needs accounts.">
+          Manage Workspace
+        </Button>
+        <Button size="sm" variant="ghost" disabledReason="There is no account to sign out of: your workspace lives on this Mac.">
+          Sign out
+        </Button>
+      </div>
+    </SectionCard>
+  );
+}
+
+function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: () => void }) {
+  const [data, setData] = useState<IntelData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    client
+      .intelligence()
+      .then((d) => {
+        if (!live) return;
+        setData(d);
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, tick]);
+  async function revoke(id: string) {
+    try {
+      await client.revokePermission(id);
+      setMessage({ ok: true, text: "Revoked." });
+      setTick((n) => n + 1);
+      onChanged?.();
+    } catch (e) {
+      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  const permissions = data?.knowledge.permissions ?? [];
+  return (
+    <SectionCard title="Permissions">
+      {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load permissions: {error}</Trouble> : null}
+      {!data && !error ? <p className="faint">Loading permissions…</p> : null}
+      {data && !permissions.length ? (
+        <p className="faint">
+          None yet <InfoTip text="“Always allow” on a proposal's card adds one here. Anything that reaches someone still asks every time." />
+        </p>
+      ) : null}
+      {permissions.map((p) => (
+        <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Allowed since ${when(p.granted_at)}`} controls={<Button size="sm" variant="ghost" onClick={() => void revoke(p.id)}>Revoke</Button>} />
+      ))}
+      {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
+    </SectionCard>
+  );
+}
+
+function HelpCard() {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    if (!host.available()) return;
+    // the host knows its version; a browser tab has none, and says Unknown
+    void import("@tauri-apps/api/app").then((m) => m.getVersion()).then(setVersion).catch(() => undefined);
+  }, []);
+  return (
+    <SectionCard title="Help">
+      <dl className="setkeys">
+        {SHORTCUTS.map((s) => (
+          <div key={s.keys}>
+            <dt>
+              <kbd className="kbd">{s.keys}</kbd>
+            </dt>
+            <dd>{s.does}</dd>
+          </div>
+        ))}
+      </dl>
+      <ListRow title="Version" description={version ?? "Unknown"} />
+    </SectionCard>
+  );
+}
+
+type SectionId = "overview" | "workspace" | "thinks" | "reads" | "appearance" | "permissions" | "defaults" | "data" | "notifications" | "builder" | "removed" | "help";
+const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "workspace", label: "Workspace" },
+  { id: "thinks", label: "Thinks with" },
+  { id: "reads", label: "Reads with" },
+  { id: "appearance", label: "Appearance" },
+  { id: "notifications", label: "Notifications" },
+  { id: "permissions", label: "Permissions" },
+  { id: "builder", label: "Builder rules" },
+  { id: "defaults", label: "Defaults" },
+  { id: "data", label: "Your data" },
+  { id: "removed", label: "Removed projects" },
+  { id: "help", label: "Help" },
+];
+
+export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking, onChanged, onGo }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void; onChanged?: () => void; onGo?: (s: Surface) => void }) {
+  const [section, setSection] = useState<SectionId>("overview");
   const [companion, setCompanion] = useState<boolean | null>(null);
   const [data, setData] = useState<DataInfo | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
@@ -230,115 +378,105 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
   }, []);
 
   const last = data?.backups[0];
-  return (
-    <div className="page">
-      {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
-      <div className="home__head">
-        <h1>Settings</h1>
-        <span className="muted">How Alpha thinks, looks and keeps your data</span>
-      </div>
+  const notYet = (title: string, tip: string) => (
+    <SectionCard title={title}>
+      <p className="faint">
+        Nothing configured yet <InfoTip text={tip} />
+      </p>
+    </SectionCard>
+  );
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Thinks with</h2>
-          <span className="faint">Claude through Claude Code, or ChatGPT through the Codex CLI; each on your own subscription</span>
-        </div>
-        <div className="card list">
-          <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
-          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Reads with</h2>
-          <span className="faint">The browser Alpha opens pages in, kept on this Mac</span>
-        </div>
-        <div className="list">
-          <BrowserRow client={client} status={browser} onStatus={setBrowser} />
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Companion and appearance</h2>
-        </div>
-        <div className="card list">
-          {companion !== null ? (
-            <div className="item">
-              <div className="item__body">
-                <b>Companion</b>
-                <div className="item__sub">Alpha's character, always on top, for quick asks</div>
-              </div>
-              <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
-            </div>
-          ) : null}
-          <div className="item">
-            <div className="item__body">
-              <b>Appearance</b>
-              <div className="item__sub">Light, dark, or the same as your Mac</div>
-            </div>
-            <ThemeControl theme={theme} onChange={onTheme} />
-          </div>
-          <div className="item item--stack">
-            <div className="item__body">
-              <b>The companion's look</b>
-              <div className="item__sub">The animal and what it wears. It is Alpha whichever you pick; the artwork is Bridge's, with thanks.</div>
-            </div>
-            <LookPicker client={client} />
-          </div>
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section__head">
-          <h2>Your data</h2>
-        </div>
-        <div className="card list">
-          <div className="item">
-            <div className="item__body">
-              <b>Kept on this Mac</b>
-              <div className="item__sub">{data ? `${data.folder} · ${bytes(data.size)}` : "…"}</div>
-            </div>
-            {host.available() ? (
+  const cards: Record<Exclude<SectionId, "overview">, ReactNode> = {
+    workspace: <WorkspaceCard client={client} onChanged={onChanged} />,
+    thinks: (
+      <SectionCard title="Thinks with" subtitle="Which assistant answers, and the model behind Quick overview and Deep thinking. The composer picks the depth, never the model.">
+        <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
+        <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
+        <ListRow title="Quick overview and Deep thinking" description="Every answer is a quick overview for now, on the chosen assistant's own model: choosing depth, and a model for each, needs Alpha's core." />
+      </SectionCard>
+    ),
+    reads: (
+      <SectionCard title="Reads with" info="Alpha's own browser, kept on this Mac; sign-in windows open in your Chrome when you have it.">
+        <BrowserRow client={client} status={browser} onStatus={setBrowser} />
+      </SectionCard>
+    ),
+    appearance: (
+      <SectionCard title="Appearance">
+        <ListRow title="Theme" controls={<ThemeControl theme={theme} onChange={onTheme} />} />
+        <ListRow title="Motion and contrast" description="Follow your Mac" />
+        <ListRow
+          title="Companion"
+          description="Its look and size are Alpha's, on Alpha's agent page."
+          controls={
+            <>
+              {companion !== null ? (
+                <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
+              ) : null}
+              <Button size="sm" onClick={onGo ? () => onGo({ kind: "agent", id: "alpha" }) : undefined} disabledReason={onGo ? undefined : "Open it from Intelligence › Agents."}>
+                Companion
+              </Button>
+            </>
+          }
+        />
+      </SectionCard>
+    ),
+    notifications: notYet("Notifications", "What may interrupt you, and when. Alpha doesn't send notifications yet."),
+    permissions: <PermissionsCard client={client} onChanged={onChanged} />,
+    builder: notYet("Builder rules", "How Alpha makes projects: default views, metrics, naming. Needs the core to keep these rules."),
+    defaults: (
+      <SectionCard title="Defaults">
+        <ListRow title="Rows per page" controls={<Dropdown size="sm" label="Rows per page" value={String(pageSize)} onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))} options={[{ value: "fit", label: "Fit to window" }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]} />} />
+      </SectionCard>
+    ),
+    data: (
+      <SectionCard title="Your data">
+        <ListRow
+          title="On this Mac"
+          description={data ? `${data.folder} · ${bytes(data.size)}` : trouble ? "Unknown" : "Loading…"}
+          controls={
+            host.available() ? (
               <Button size="sm" onClick={() => void host.revealData()}>
                 Show in Finder
               </Button>
-            ) : null}
-          </div>
-          <div className="item">
-            <div className="item__body">
-              <b>Backups</b>
-              <div className="item__sub">{!data ? "…" : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}</div>
-            </div>
-            <Button size="sm" disabled={busy} onClick={() => { setBusy(true); client.backUp().then(setData).catch(() => undefined).finally(() => setBusy(false)); }}>
+            ) : (
+              <Button size="sm" disabledReason="Showing the folder needs the Mac app; this window is running in a browser.">
+                Show in Finder
+              </Button>
+            )
+          }
+        />
+        <ListRow
+          title="Backups"
+          description={!data ? (trouble ? "Unknown" : "Loading…") : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}
+          controls={
+            <Button size="sm" disabled={busy || !data} onClick={() => { setBusy(true); client.backUp().then(setData).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e))).finally(() => setBusy(false)); }}>
               {busy ? "Backing up…" : "Back up now"}
             </Button>
-          </div>
-        </div>
-      </div>
+          }
+        />
+      </SectionCard>
+    ),
+    removed: notYet("Removed projects", "Projects removed with their data kept, with Restore. Needs the core to keep them."),
+    help: <HelpCard />,
+  };
+  const order: Exclude<SectionId, "overview">[] = ["workspace", "thinks", "reads", "appearance", "permissions", "defaults", "data", "notifications", "builder", "removed", "help"];
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Defaults</h2>
-        </div>
-        <div className="card list">
-          <div className="item">
-            <div className="item__body">
-              <b>Rows per page</b>
-              <div className="item__sub">How many rows a table shows at once</div>
-            </div>
-            <select className="btn btn--sm" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))} aria-label="Rows per page">
-              <option value="fit">Fit to window</option>
-              {PAGE_SIZES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
+  return (
+    <>
+      <PageHeader title="Settings" />
+      <div className="page setpage">
+        <Tabs<SectionId>
+          className="setnav"
+          label="Settings sections"
+          value={section}
+          onChange={setSection}
+          items={SECTIONS.map((x) => ({ id: x.id, label: (<><span className="setnav__dot" aria-hidden="true" />{x.label}</>) }))}
+        />
+        <div className={section === "overview" ? "setgrid" : "setone"} role="tabpanel" aria-label={SECTIONS.find((x) => x.id === section)?.label}>
+          {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
+          {section === "overview" ? order.map((id) => <div key={id}>{cards[id]}</div>) : cards[section]}
         </div>
       </div>
-    </div>
+    </>
   );
 }

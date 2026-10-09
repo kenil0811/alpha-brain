@@ -49,7 +49,7 @@ describe("the map", () => {
     return c as unknown as Client & typeof c;
   }
 
-  it("draws every thing, opens a card on a click, and the card opens the page", async () => {
+  it("draws every thing, opens a page on a click, and shows a card on a right-click", async () => {
     const user = userEvent.setup();
     const onGo = vi.fn();
     render(
@@ -61,13 +61,14 @@ describe("the map", () => {
     const broker = await screen.findByRole("button", { name: "brokers, read skill, brokers.com" });
     expect(broker).toHaveClass("map__node--bad");
     await user.click(broker);
+    expect(onGo).toHaveBeenCalledWith({ kind: "skill", name: "brokers" });
+    await user.pointer({ keys: "[MouseRight]", target: broker });
     const card = screen.getByRole("complementary", { name: "brokers" });
     expect(within(card).getByText("broken: the list moved")).toBeInTheDocument();
     expect(within(card).getByText("4 runs in 30 days, 1 failed")).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "reads into Deal listings" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "brokers.com signed in at this" })).toBeInTheDocument();
-    await user.click(within(card).getByRole("button", { name: "Open" }));
-    expect(onGo).toHaveBeenCalledWith({ kind: "skill", name: "brokers" });
+    expect(within(card).queryByRole("button", { name: "Open" })).toBeNull();
   });
 
   it("a legend chip hides a kind and its links", async () => {
@@ -104,7 +105,7 @@ describe("the map", () => {
       </TooltipProvider>,
     );
     await screen.findByRole("img", { name: "8 things and 4 links" });
-    await user.click(await screen.findByRole("button", { name: "Deals, area" }));
+    await user.pointer({ keys: "[MouseRight]", target: await screen.findByRole("button", { name: "Deals, area" }) });
     await user.click(screen.getByRole("button", { name: "Just this area" }));
     expect(await screen.findByRole("img", { name: "5 things and 3 links" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show everything" }));
@@ -176,7 +177,7 @@ describe("the map of the world", () => {
         <WorkMap client={c} />
       </TooltipProvider>,
     );
-    await user.click(await screen.findByRole("button", { name: "Vikas Badami, person, v@x.com" }));
+    await user.pointer({ keys: "[MouseRight]", target: await screen.findByRole("button", { name: "Vikas Badami, person, v@x.com" }) });
     const card = screen.getByRole("complementary", { name: "Vikas Badami" });
     expect(within(card).getByRole("button", { name: "sent RestoPros P&L" })).toBeInTheDocument();
     expect(card).toHaveTextContent("Alpha thinks: Vikas sent the exports the document holds.");

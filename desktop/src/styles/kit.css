@@ -1,0 +1,37 @@
+/* The kit's own rules (ui/), loaded by ui/index.ts. Colours and sizes come from the tokens in app.css. */
+
+/* the dropdown: the one select (ui/Dropdown, MultiDropdown) */
+.dropdown__trigger { justify-content: space-between; max-width: 100%; min-width: 0; }
+.dropdown__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dropdown__value--placeholder { color: var(--text-3); }
+.dropdown__chev { flex: none; color: var(--text-3); transition: transform var(--dur-quick) var(--ease-out); }
+.dropdown__chev svg { width: var(--icon-sm); height: var(--icon-sm); }
+.dropdown__trigger[aria-expanded="true"] .dropdown__chev { transform: rotate(180deg); }
+.dropdown__pop { z-index: 65; min-width: max(var(--radix-popover-trigger-width), 200px); max-width: min(360px, calc(100vw - var(--space-4))); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-float); padding: var(--space-1); display: flex; flex-direction: column; gap: var(--space-1); max-height: var(--radix-popover-content-available-height); }
+.dropdown__search { font: inherit; font-size: var(--text-md); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 5px var(--space-2); min-width: 0; }
+.dropdown__list { overflow-y: auto; max-height: calc(var(--space-8) * 5); display: flex; flex-direction: column; outline: none; }
+.dropdown__opt { display: flex; align-items: center; gap: var(--space-2); flex: none; height: var(--space-8); padding: 0 var(--space-2); border-radius: var(--radius-control); font-size: var(--text-md); color: var(--text); cursor: default; }
+.dropdown__star { flex: none; display: inline-grid; place-items: center; width: var(--icon); height: var(--icon); padding: 0; border: 0; background: none; color: var(--text-3); opacity: 0; cursor: pointer; }
+.dropdown__opt:hover .dropdown__star, .dropdown__opt[data-active] .dropdown__star, .dropdown__star:focus-visible, .dropdown__star[data-on] { opacity: 1; }
+.dropdown__star[data-on] { color: var(--primary); cursor: default; }
+.dropdown__star:disabled { cursor: not-allowed; }
+.dropdown__star svg { width: var(--icon-sm); height: var(--icon-sm); }
+.dropdown__opt[data-active] { background: var(--hover); }
+.dropdown__opt[aria-selected="true"] { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
+.dropdown__opt[aria-disabled="true"] { color: var(--text-3); cursor: not-allowed; }
+.dropdown__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dropdown__ico { display: inline-grid; place-items: center; flex: none; width: var(--icon); color: var(--text-3); }
+.dropdown__ico svg { width: var(--icon); height: var(--icon); }
+.dropdown__none, .dropdown__hint { padding: var(--space-1) var(--space-2); font-size: var(--text-sm); color: var(--text-3); }
+.dropdown__add { display: flex; align-items: center; gap: var(--space-2); height: var(--space-8); padding: 0 var(--space-2); border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-control) var(--radius-control); background: none; color: var(--primary); font-size: var(--text-md); font-weight: 500; text-align: left; }
+.dropdown__add[data-active] { background: var(--hover); }
+.dropdown__add svg { width: var(--icon); height: var(--icon); }
+.dropdown__tico { display: inline-grid; flex: none; color: var(--text-3); }
+.dropdown__ask { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); padding: var(--space-1); }
+.dropdown__askbox { width: 100%; min-height: 72px; resize: vertical; font-size: var(--text-md); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 5px var(--space-2); }
+
+/* a submenu in the menu (ui/ContextMenu) */
+.menu__chev { margin-left: auto; }
+.menu__item--sub[data-state="open"] { background: var(--hover); }
+/* an on/off item in the menu ("Wrap text"): its switch at the end */
+.menu__switch { margin-left: auto; }

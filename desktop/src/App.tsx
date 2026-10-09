@@ -1,34 +1,50 @@
 /**
- * The workspace: the rail, the page it points at, and the conversation beside it. The window
+ * The workspace: the sidebar, the page it points at, and the conversation beside it. The window
  * gets its core session from the host (or Vite env in a browser), then everything is one
  * client. Pages reload when the core reports a change that touches them (`core/changes.ts`: one
  * poll, versions per scope, nothing while the window is hidden), and when the person does
  * something here. When the core stops answering the window says so and the host brings it back.
+ *
+ * The frame is always three parts (the UI rulebook §3): sidebar | main | assistant panel, apart by
+ * a soft seam. Each side panel has three widths: normal, wide (dragged, or by the keys on its
+ * handle) and folded, a narrow strip that never disappears. Escape steps the panel with the
+ * focus back one level (`shell/stepBack.ts`). Widths and folds are remembered here, per window.
+ * (9 Oct, the owner) A panel widens until the middle is gone, and a drag past its narrowest folds
+ * it to the strip, as its fold button does. Any part may hand the assistant a sentence to send
+ * (`AssistantProvider`, `useAssistant().say`).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Client, moduleWords } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
 import { resolveSession } from "./core/session";
 import { AssistantPanel } from "./assistant/AssistantPanel";
-import { Activity } from "./shell/Activity";
+import { ActivityPage } from "./shell/ActivityPage";
+import { AgentPage } from "./shell/AgentPage";
 import { Home } from "./shell/Home";
-import { Intelligence, type IntelTab } from "./shell/Intelligence";
+import { Intelligence } from "./shell/Intelligence";
 import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
-import { SkillPage } from "./shell/SkillPage";
-import { EntityPage, People } from "./shell/People";
+import { HandPage, SkillPage } from "./shell/SkillPage";
+import { BUILT_IN } from "./shell/intel/sources";
+import { ConnectionPage } from "./shell/Connections";
+import { FactPage } from "./shell/SecondBrain";
+import { NewProjectPage } from "./modules/NewProjectPage";
+import { EntityPage, Network } from "./shell/Network";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
+import { useStepBack } from "./shell/stepBack";
 import { ModulePage } from "./modules/ModulePage";
+import { RecordPage } from "./modules/RecordPage";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
-import { Button } from "./ui";
+import { AssistantProvider, Button, InfoTip } from "./ui";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
+const RAIL_KEY = "alpha.rail.collapsed";
 export const HANDOFF_KEY = "alpha.handoff";
 
 function remembered<T>(key: string, fallback: T): T {
@@ -52,10 +68,14 @@ type Runtime = { kind: "connecting" } | { kind: "connected"; client: Client } | 
 export function App({ client: injected }: { client?: Client } = {}) {
   const [runtime, setRuntime] = useState<Runtime>(injected ? { kind: "connected", client: injected } : { kind: "connecting" });
   const [attempt, setAttempt] = useState(0);
-  // The address wins when it names a page; otherwise the remembered place.
-  const [surface, setSurfaceState] = useState<Surface>(() => currentHashSurface() ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  // The address wins when it names a page; otherwise the remembered place. Activity is no page:
+  // asked for, it opens the assistant panel's bell over the page that is open (Home at the start).
+  const [start] = useState<Surface>(() => currentHashSurface() ?? knownSurface(remembered<unknown>(SURFACE_KEY, null)));
+  const [surface, setSurfaceState] = useState<Surface>(start.kind === "activity" ? { kind: "home" } : start);
+  const [activityAt, setActivityAt] = useState(start.kind === "activity" ? Date.now() : 0);
+  // `panelOpen` false is the assistant panel folded to its strip, never gone.
   const [panelOpen, setPanelOpen] = useState<boolean>(() => remembered<boolean>(PANEL_KEY, true));
-  const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>("alpha.rail.collapsed", false));
+  const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>(RAIL_KEY, false));
   const [modules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
   const [restarted, setRestarted] = useState(false);
@@ -68,19 +88,28 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
   const [thinking, setThinking] = useState<Thinking | null>(null);
 
+  const surfaceRef = useRef(surface);
+  surfaceRef.current = surface;
   const setSurface = useCallback((next: Surface) => {
-    setSurfaceState(next);
-    remember(SURFACE_KEY, next);
-    pushAddress(next);
+    const place = knownSurface(next);
+    if (place.kind === "activity") {
+      setActivityAt(Date.now());
+      pushAddress(surfaceRef.current, true); // the address names the page, not the bell
+      return;
+    }
+    setSurfaceState(place);
+    remember(SURFACE_KEY, place);
+    pushAddress(place);
   }, []);
   // Back and forward move between pages; a typed address opens one.
   useEffect(() => {
     const onPop = () => {
       const named = currentHashSurface();
-      if (named) {
-        setSurfaceState(named);
-        remember(SURFACE_KEY, named);
-      }
+      if (!named) return;
+      if (named.kind === "activity") return setSurface(named);
+      setSurfaceState(named);
+      remember(SURFACE_KEY, named);
+      pushAddress(named, true); // an old address (`#/people`) shows its new name
     };
     window.addEventListener("popstate", onPop);
     window.addEventListener("hashchange", onPop);
@@ -92,20 +121,34 @@ export function App({ client: injected }: { client?: Client } = {}) {
     // once: the listeners read the address, not this render's surface
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // ⌘K (or Ctrl+K) anywhere in the window: search everything.
+  // ⌘K (or Ctrl+K) anywhere in the window: search everything. "/" outside a text field: insert
+  // (the UI rulebook §15).
   const [commandOpen, setCommandOpen] = useState(false);
+  const [inserting, setInserting] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        setInserting(false);
         setCommandOpen((o) => !o);
+      } else if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.defaultPrevented) {
+        const t = e.target as HTMLElement | null;
+        if (t?.closest?.("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='dialog']")) return;
+        e.preventDefault();
+        setInserting(true);
+        setCommandOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  const rail = useDragWidth("alpha.rail.width", 224, 160, 360, "right");
-  const panel = useDragWidth("alpha.panel.width", 380, 280, 560, "left");
+  // No cap but the window: each panel may widen until the middle is gone (the folded widths are
+  // app.css's --rail-folded-w and --panel-folded-w).
+  // Each panel's width as drawn, so the other knows how far it may go (set just below).
+  const drawn = useRef({ rail: 0, panel: 0 });
+  const rail = useDragWidth("alpha.rail.width", { initial: 224, min: 160, max: () => window.innerWidth - drawn.current.panel, wide: 288, grow: "right", onFold: () => foldRail(true) });
+  const panel = useDragWidth("alpha.panel.width", { initial: 380, min: 280, max: () => window.innerWidth - drawn.current.rail, wide: 500, grow: "left", onFold: () => togglePanel(false) });
+  drawn.current = { rail: railCollapsed ? 72 : rail.width, panel: panelOpen ? panel.width : 48 };
 
   useEffect(() => {
     if (injected) return;
@@ -218,28 +261,38 @@ export function App({ client: injected }: { client?: Client } = {}) {
     setPanelOpen(open);
     remember(PANEL_KEY, open);
   };
-  const toggleRail = () =>
-    setRailCollapsed((c) => {
-      remember("alpha.rail.collapsed", !c);
-      return !c;
-    });
-  const startNew = () => {
-    setDraft({ text: "I want to ", send: false });
-    togglePanel(true);
+  const foldRail = (folded: boolean) => {
+    setRailCollapsed(folded);
+    remember(RAIL_KEY, folded);
   };
+  useStepBack(
+    { folded: railCollapsed, wide: rail.wide, narrow: rail.narrow, fold: () => foldRail(true) },
+    { folded: !panelOpen, wide: panel.wide, narrow: panel.narrow, fold: () => togglePanel(false) },
+  );
+  // New project is a page of its own (9 Oct, the owner).
+  const startNew = () => setSurface({ kind: "new-project" });
+  /** A sentence for Alpha, sent at once: quick entry, the New project page, any kit part. */
+  const say = useCallback((text: string) => {
+    setDraft({ text, send: true });
+    setPanelOpen(true);
+    remember(PANEL_KEY, true);
+  }, []);
 
-  const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
+  // a record's page is inside its module: the assistant works in that module's scope there too
+  const scopeId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : null;
+  const scopeModule = scopeId ? (modules.find((m) => m.id === scopeId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? "Network" : surface.kind === "entry" ? "Activity" : "Intelligence";
 
   return (
+    <AssistantProvider say={say}>
     <div
-      className={`app${panelOpen ? "" : " app--assistant-hidden"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
-      style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: `${panel.width}px` }}
+      className={`app${panelOpen ? "" : " app--assistant-folded"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
+      style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: panelOpen ? `${panel.width}px` : undefined }}
     >
-      <Rail surface={surface} modules={modules} needs={needs} runtime={down ? "lost" : runtime.kind} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
-      {!railCollapsed ? <div className={`resizer resizer--rail${rail.active ? " resizer--active" : ""}`} onPointerDown={rail.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" /> : null}
-      {panelOpen && client ? <div className={`resizer resizer--panel${panel.active ? " resizer--active" : ""}`} onPointerDown={panel.onPointerDown} role="separator" aria-orientation="vertical" aria-label="Resize the conversation panel" /> : null}
+      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} />
+      {!railCollapsed ? <Resizer side="rail" label="Resize the sidebar" drag={rail} /> : null}
+      {panelOpen && client ? <Resizer side="panel" label="Resize the assistant panel" drag={panel} /> : null}
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
@@ -253,17 +306,13 @@ export function App({ client: injected }: { client?: Client } = {}) {
             Alpha's core started again. Anything that was running is open to ask again.
           </div>
         ) : null}
-        {!panelOpen && runtime.kind === "connected" ? (
-          <Button variant="primary" className="assist__reopen" onClick={() => togglePanel(true)}>
-            Ask Alpha
-          </Button>
-        ) : null}
         {runtime.kind === "connected" && chosen && needsSetup && surface.kind !== "settings" ? (
           <div className="page firstrun">
             <div className="card firstrun__card">
               <div className="firstrun__head">
-                <h2>Set Alpha up to start</h2>
-                <span className="muted">Two things, once: the {chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.</span>
+                <h2>
+                  Set up Alpha <InfoTip text={`Two things, once: the ${chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.`} />
+                </h2>
               </div>
               <div className="list">
                 <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
@@ -292,27 +341,61 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "home" ? (
           <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
-          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
+          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={say} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onOpenRecord={(table, id) => setSurface({ kind: "record", module: surface.id, table, id })} modules={modules} />
+        ) : surface.kind === "record" ? (
+          <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} module={surface.module} table={surface.table} id={surface.id} version={(versions.modules[surface.module] ?? 0) + versions.all} modules={modules} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} onGo={setSurface} />
+        ) : surface.kind === "new-project" ? (
+          <NewProjectPage client={runtime.client} onSay={say} onGo={setSurface} onOpenChat={() => togglePanel(true)} />
+        ) : surface.kind === "connection" ? (
+          <ConnectionPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "connections" })} onChanged={changed} />
+        ) : surface.kind === "fact" ? (
+          <FactPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "second-brain" })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "people" ? (
-          <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
+          <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (
-          <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} />
+          <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
+        ) : surface.kind === "skill" && surface.name.startsWith(BUILT_IN) ? (
+          <HandPage key={surface.name} client={runtime.client} name={surface.name.slice(BUILT_IN.length)} version={versions.intelligence} onGo={setSurface} />
         ) : surface.kind === "skill" ? (
           <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "automation" ? (
           <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
+        ) : surface.kind === "agent" ? (
+          <AgentPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
+        ) : surface.kind === "entry" ? (
+          <ActivityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
-          <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} />
-        ) : (
-          <Activity client={runtime.client} version={versions.activity} onChanged={changed} />
-        )}
+          <Intelligence client={runtime.client} tab={surface.tab ?? "second-brain"} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
+        ) : null}
       </main>
-      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
+      {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} insert={inserting} surface={surface} onNewModule={startNew} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (
-        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} />
+        <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} openActivity={activityAt} activityVersion={versions.intelligence} onOpenEntry={(id) => setSurface({ kind: "entry", id })} />
       ) : null}
     </div>
+    </AssistantProvider>
+  );
+}
+
+/** The handle on a side panel's inner edge: shown on hover and on keyboard focus, drawn by the
+ *  pointer, the arrow keys (Home and End for the ends) or a double-click (normal ↔ wide). */
+function Resizer({ side, label, drag }: { side: "rail" | "panel"; label: string; drag: ReturnType<typeof useDragWidth> }) {
+  return (
+    <div
+      className={`resizer resizer--${side}${drag.active ? " resizer--active" : ""}`}
+      data-panel={side}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={drag.width}
+      aria-valuemin={drag.bounds.min}
+      aria-valuemax={drag.bounds.max}
+      tabIndex={0}
+      onPointerDown={drag.onPointerDown}
+      onKeyDown={drag.onKeyDown}
+      onDoubleClick={drag.onDoubleClick}
+    />
   );
 }

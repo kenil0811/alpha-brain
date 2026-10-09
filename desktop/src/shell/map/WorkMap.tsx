@@ -6,7 +6,8 @@
  * dense, big cluster; what is quiet as a small one; what nothing connects wears a dotted ring,
  * and the glance at the corner counts it. **Work** is Alpha's own plumbing: skills, automations,
  * sources, connections. Both are drawn the same way: a force layout in a worker, pan, zoom,
- * find, pins, focus on one area, a card for anything with its links in words and Open.
+ * find, pins, focus on one area. A click opens a thing's page; a right-click (or Shift+F10)
+ * shows its card, with its links in words. It lives under Intelligence › Second Brain › Map.
  *
  * The map asks the core only when the person opens it for the first time and when they press
  * Refresh (Q30: never on a clock); it says as of when. Refresh on the World view also has
@@ -15,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Client, GraphEdge, GraphKind, GraphNode, WorkGraph } from "../../core/client";
 import type { Surface } from "../Rail";
+import { timeText } from "../../modules/format";
 import { Button, IconButton } from "../../ui";
 import { ActivityIcon, BookOpen, Building2, Eye, FileText, Flag, FolderOpen, Globe, IntelligenceIcon, Layers, Link2, Play, Table2, User, X, Zap } from "../../ui/icons";
 import { anchorsFor, makeSimulation, positionsOf, settle, toMapEdges, toMapNodes, type Anchors, type Positions } from "./layout";
@@ -24,7 +26,7 @@ import { shape, signature, type ShapedNode } from "./shape";
 type Kind = GraphNode["kind"];
 const KINDS: Record<GraphKind, { kind: Kind; label: string }[]> = {
   work: [
-    { kind: "module", label: "Modules" },
+    { kind: "module", label: "Projects" },
     { kind: "table", label: "Tables" },
     { kind: "skill", label: "Skills" },
     { kind: "automation", label: "Agents" },
@@ -48,7 +50,7 @@ const PLACES_KEY = "alpha.map.places";
 
 /** The last map of each kind this window drew for a core: opening the tab again shows it, as of then. */
 const caches = new WeakMap<Client, Map<GraphKind, { graph: WorkGraph; at: Date }>>();
-const cacheFor = (client: Client) => caches.get(client) ?? caches.set(client, new Map()).get(client)!;
+export const cacheFor = (client: Client) => caches.get(client) ?? caches.set(client, new Map()).get(client)!;
 
 /** The address a node opens: the window's, not the core's. */
 export function addressOf(node: GraphNode): Surface | null {
@@ -59,7 +61,7 @@ export function addressOf(node: GraphNode): Surface | null {
     case "source":
     case "document":
     case "goal":
-      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
+      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "second-brain" };
     case "skill":
       return { kind: "skill", name: node.name ?? node.id.slice("skill:".length) };
     case "automation":
@@ -70,9 +72,9 @@ export function addressOf(node: GraphNode): Surface | null {
     case "organisation":
       return node.entity ? { kind: "entity", id: node.entity } : { kind: "people" };
     case "page":
-      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
+      return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "second-brain" };
     case "you":
-      return { kind: "intelligence", tab: "knowledge" };
+      return { kind: "intelligence", tab: "second-brain" };
   }
 }
 
@@ -166,7 +168,7 @@ function curve(a: { x: number; y: number }, b: { x: number; y: number }): string
   return `M ${a.x} ${a.y} Q ${mx - dy * bend} ${my + dx * bend} ${b.x} ${b.y}`;
 }
 
-const timeOf = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+const timeOf = timeText;
 
 export function WorkMap({ client, onGo, initialKind = "world" }: { client: Client; onGo?: (s: Surface) => void; initialKind?: GraphKind }) {
   const [kind, setKind] = useState<GraphKind>(initialKind);
@@ -301,7 +303,12 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
     started.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shaped, shown, anchors]);
-  useEffect(() => () => worker.current?.terminate(), []);
+  // Gone: the worker stops, and a remount (React's dev double mount too) starts a new one.
+  useEffect(() => () => {
+    worker.current?.terminate();
+    worker.current = null;
+    started.current = false;
+  }, []);
 
   const byId = useMemo(() => new Map(shown.nodes.map((n) => [n.id, n])), [shown]);
   const neighbours = useMemo(() => {
@@ -364,8 +371,13 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
     if (!d) return;
     if (d.id && d.moved) worker.current?.postMessage({ type: "release", id: d.id } satisfies ToWorker);
     if (!d.moved) {
-      setSelected(d.id);
-      setLitSet(null);
+      const node = d.id ? byId.get(d.id) : undefined;
+      const to = node ? addressOf(node) : null;
+      if (to && onGo) onGo(to);
+      else {
+        setSelected(d.id);
+        setLitSet(null);
+      }
     }
     (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
   };
@@ -443,7 +455,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
   return (
     <div className="map" ref={box} aria-label={kind === "world" ? "The map of your world" : "The map of Alpha's work"}>
       {!graph.nodes.length ? (
-        <p className="empty" style={{ padding: 24 }}>Nothing to map yet. A module, a table or a skill is the first dot.</p>
+        <p className="empty" style={{ padding: 24 }}>Nothing to map yet.</p>
       ) : (
         <svg className={`map__svg${settled ? "" : " map__svg--settling"}`} width={size.width} height={size.height} role="img" aria-label={`${shown.nodes.length} things and ${shown.edges.filter((e) => !MEMBERSHIP.has(e.kind)).length} links`} onPointerDown={(e) => onPointerDown(e, null)} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onWheel={onWheel}>
           <defs>
@@ -488,8 +500,12 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
                     onPointerUp={(e) => { e.stopPropagation(); onPointerUp(e); }}
                     onPointerEnter={() => setHovered(n.id)}
                     onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
-                    onDoubleClick={() => { const s = addressOf(n); if (s && onGo) onGo(s); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") setSelected(n.id); }}
+                    onContextMenu={(e) => { e.preventDefault(); setSelected(n.id); setLitSet(null); }}
+                    onKeyDown={(e) => {
+                      const to = addressOf(n);
+                      if (e.key === "Enter") { if (to && onGo) onGo(to); else setSelected(n.id); }
+                      if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) { e.preventDefault(); setSelected(n.id); }
+                    }}
                   >
                     <circle r={r} fill={colourOf(n)} />
                     <g className="map__glyph"><Glyph node={n} /></g>
@@ -517,7 +533,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
         <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(0.77)} />
         <Button size="sm" onClick={() => fit()}>Fit</Button>
         <Button size="sm" onClick={shake} disabled={!worker.current} title="Let every pinned node go and settle again">Shake</Button>
-        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Ask the core again and have Alpha look for links" : "Ask the core again"}>Refresh</Button>
+        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Have Alpha look for links; dashed ones are its guesses" : "Ask the core again"}>Refresh</Button>
         {asOf ? <span className="map__asof">as of {timeOf(asOf)}</span> : null}
       </div>
       {busy ? <div className="map__busy" role="status">{busy}</div> : null}
@@ -554,7 +570,6 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
             )}
           </div>
           {suggested ? <div><b>Alpha thinks:</b> {suggested} link{suggested === 1 ? " waits" : "s wait"} for your yes</div> : null}
-          <div className="faint">Refresh asks Alpha to look for links; dashed lines are its guesses.</div>
         </aside>
       ) : null}
       {selectedNode ? (
@@ -615,9 +630,6 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
             </div>
           ) : null}
           <div className="row" style={{ marginTop: 8 }}>
-            {addressOf(selectedNode) && onGo ? (
-              <Button size="sm" variant="primary" onClick={() => onGo(addressOf(selectedNode)!)}>Open</Button>
-            ) : null}
             {selectedNode.kind === "module" && selectedNode.module && focusHome !== selectedNode.module ? (
               <Button size="sm" onClick={() => focusOn(selectedNode.module!)}>Just this area</Button>
             ) : null}

@@ -1,25 +1,35 @@
 /**
- * Home: what needs the person (questions Alpha asked, things it proposes, facts waiting for a
- * yes), what's coming up, and their modules. Nothing here is decoration: each card is something
- * to answer or open.
+ * Home: a single centred column with no page header bar (the UI rulebook §11). A heading block
+ * (today's date and a greeting), **one Today card** (what needs the person, what Alpha
+ * did, what is coming up, and what Alpha is working on), the modules as cards that open, and,
+ * for a new workspace only, a few first steps. Nothing here is decoration: each card is
+ * something to answer or open, and words only where the thing does not say itself (9 Oct,
+ * Vikas: no subtitles, no icons in the tiles, each number with its label beside it).
+ *
+ * Done today names what failed (9 Oct, the owner): each failure today as a card with what it was,
+ * when, the plain reason, and Open and Try again where the journal says what to open or rerun; the
+ * same entries are in the bell's Activity under Failed. They come from `/api/activity`.
+ *
+ * Each part loads on its own (9 Oct): the Today card from `/api/home`, the project cards from
+ * `/api/modules`. A part that cannot load says what went wrong and offers Try again; the rest of
+ * the page still shows.
  */
 import { useEffect, useState } from "react";
-import type { Client, Home as HomeData, NeedItem } from "../core/client";
-import { when } from "../modules/format";
+import type { Client, Home as HomeData, JournalEntry, ModuleCard, NeedItem } from "../core/client";
+import { dayLabel, dayText, timeText, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
+import { ModuleGlyph } from "./moduleIcons";
+import { OpenCard } from "./OpenCard";
 import type { Surface } from "./Rail";
-import { Badge, Button } from "../ui";
-import { ModuleIcon, ArrowRight, Check, X, Eye } from "../ui/icons";
+import { Badge, Button, InfoTip, ListRow, MetricTile, Notice, SectionCard, Trouble } from "../ui";
+import { ArrowRight, ActivityIcon, Check, Eye, FolderOpen, ICON, ICON_SM, ModuleIcon, PlusIcon, Zap, X } from "../ui/icons";
 
 function greeting(): string {
   const hour = new Date().getHours();
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
+/** One thing that needs the person: a question, a proposal, a suggested fact or an action. */
 function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,11 +51,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   }
   if (item.kind === "ask") {
     return (
-      <article className="card need">
-        <h3>{item.text}</h3>
-        <p className="because">
-          <b>Alpha asked</b> {when(item.at)}, because the answer changes what it builds.
-        </p>
+      <article className="today__item">
+        <h4 className="today__ask">{item.text}</h4>
+        <p className="because faint">{when(item.at)}</p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); if (answer.trim()) void act(() => client.answerAsk(item.id, answer.trim()), "Answered."); }}>
           {item.options?.length ? (
             item.options.map((o) => (
@@ -55,7 +63,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
             ))
           ) : (
             <>
-              <input className="need__input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" aria-label="Your answer" />
+              <input className="textfield today__input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" aria-label="Your answer" />
               <Button variant="primary" type="submit" disabled={busy || !answer.trim()}>
                 Answer
               </Button>
@@ -65,34 +73,34 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
             Dismiss
           </Button>
         </form>
-        {error ? <p className="notice">{error}</p> : null}
+        {error ? <Notice tone="bad">{error}</Notice> : null}
       </article>
     );
   }
   if (item.kind === "proposal") {
     return (
-      <article className="card need">
-        <h3>{item.text}</h3>
+      <article className="today__item">
+        <h4 className="today__ask">{item.text}</h4>
         {item.why ? (
           <p className="because">
             <b>Because</b> {item.why}
           </p>
         ) : null}
         <div className="row">
-          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Building it now. It reports in the conversation." : "On it. Alpha is doing that now.")}>
-            {item.plan ? "Build it" : "Yes, do it"}
+          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Approved. Building it now; it reports in the conversation." : "Approved. Alpha is doing that now.")}>
+            Approve
           </Button>
-          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Noted. It won't come back.")}>
-            Not now
+          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Declined. It won't come back.")}>
+            Decline
           </Button>
         </div>
-        {error ? <p className="notice">{error}</p> : null}
+        {error ? <Notice tone="bad">{error}</Notice> : null}
       </article>
     );
   }
   return (
-    <article className="card need">
-      <h3>Is this right? {item.text.replace(/_/g, " ")}</h3>
+    <article className="today__item">
+      <h4 className="today__ask">Is this right? {item.text.replace(/_/g, " ")}</h4>
       {item.why ? (
         <p className="because">
           <b>Alpha noticed</b> {item.why}
@@ -100,204 +108,254 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
       ) : null}
       <div className="row">
         <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, true), "Remembered.")}>
-          Yes, remember it
+          Remember
         </Button>
         <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideFact(item.id, false), "Forgotten.")}>
-          No
+          Forget
         </Button>
       </div>
-      {error ? <p className="notice">{error}</p> : null}
+      {error ? <Notice tone="bad">{error}</Notice> : null}
     </article>
+  );
+}
+
+/** Today's failures, newest first: the journal's `failed` entries since local midnight. */
+export function failedToday(entries: JournalEntry[], now = new Date()): JournalEntry[] {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return entries.filter((e) => e.kind === "failed" && new Date(e.at).getTime() >= midnight);
+}
+
+/** One failure: what it was (its title opens the entry's own page), when, why in plain words, and
+ *  Open and Try again where the entry says what it touched (an agent's run reruns; a conversation
+ *  or a project opens). */
+function Failure({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDone: (words: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const automation = typeof e.data.automation === "string" ? e.data.automation : null;
+  const reason = [e.data.error, e.data.why].find((r): r is string => typeof r === "string" && r.trim() !== "" && !e.text.includes(r));
+  const open = automation ? () => onGo({ kind: "automation", id: automation }) : e.thread ? () => onOpenThread(e.thread!) : e.module ? () => onGo({ kind: "module", id: e.module! }) : null;
+  async function again() {
+    if (!automation) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await client.runAutomation(automation);
+      onDone("Running it again; it reports in Activity.");
+    } catch (x) {
+      setError(x instanceof Error ? x.message : String(x));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <ListRow
+      icon={<X size={ICON} aria-label="failed" />}
+      title={e.text}
+      onOpen={() => onGo({ kind: "entry", id: e.id })}
+      description={[timeText(new Date(e.at)), reason].filter(Boolean).join(" · ")}
+      controls={
+        <>
+          {open ? (
+            <Button size="sm" onClick={open}>
+              Open
+            </Button>
+          ) : null}
+          {automation ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void again()}>
+              Try again
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {error ? <Notice tone="bad">{error}</Notice> : null}
+    </ListRow>
   );
 }
 
 export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThread }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void; onOpenThread: (id: string) => void }) {
   const [home, setHome] = useState<HomeData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [homeError, setHomeError] = useState<string | null>(null);
+  const [homeTick, setHomeTick] = useState(0);
+  const [modules, setModules] = useState<ModuleCard[] | null>(null);
+  const [modulesError, setModulesError] = useState<string | null>(null);
+  const [modulesTick, setModulesTick] = useState(0);
+  const [message, setMessage] = useState<string | null>(null);
+  const [failures, setFailures] = useState<JournalEntry[]>([]);
+  const failedCount = home?.failed_today ?? 0;
+  // ponytail: the newest 300 entries; a day with more than that names only its latest failures
   useEffect(() => {
+    if (!failedCount) {
+      setFailures([]);
+      return;
+    }
+    let live = true;
+    client
+      .activity({ limit: 300 })
+      .then((rows) => live && setFailures(failedToday(rows)))
+      .catch(() => live && setFailures([])); // the count still says how many
+    return () => {
+      live = false;
+    };
+  }, [client, version, failedCount]);
+  useEffect(() => {
+    let live = true;
     client
       .home()
       .then((h) => {
+        if (!live) return;
         setHome(h);
-        setError(null);
+        setHomeError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [client, version]);
+      .catch((e: unknown) => live && setHomeError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, version, homeTick]);
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
-    return () => clearTimeout(t);
-  }, [toast]);
+    let live = true;
+    client
+      .modules()
+      .then((m) => {
+        if (!live) return;
+        setModules(m);
+        setModulesError(null);
+      })
+      .catch((e: unknown) => live && setModulesError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, version, modulesTick]);
 
-  const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  if (!home) {
-    return (
-      <div className="page">
-        <div className="eyebrow">{date}</div>
-        <h1>{greeting()}</h1>
-        {error ? <p className="notice">{error}</p> : <p className="muted">Loading…</p>}
-      </div>
-    );
-  }
-  const next = home.coming_up[0];
+  const date = dayLabel(home?.date ?? new Date().toISOString());
+  const next = home?.coming_up[0];
+  const needs = home?.needs_you ?? [];
+  const top = (modules ?? []).filter((m) => !m.parent);
+
   return (
-    <div className="page">
-      <div className="eyebrow">{date}</div>
-      <h1>{greeting()}</h1>
-      <div className="today">
-        <div className="card tile">
-          <div className="tile__lab">Needs you</div>
-          <div className="tile__big num">{home.needs_you.length}</div>
-          <div className="tile__sub">{home.needs_you.length ? "Questions and suggestions below" : "Nothing waiting on you"}</div>
-        </div>
-        <div className="card tile">
-          <div className="tile__lab">Done today</div>
-          <div className="tile__big num">{home.ran_today}</div>
-          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work; see Activity` : "Things Alpha read, made and changed"}</div>
-        </div>
-        <div className="card tile">
-          <div className="tile__lab">Coming up</div>
-          <div className="tile__big">{next ? timeOf(next.starts_at) : "—"}</div>
-          <div className="tile__sub">{next ? next.title : home.coming_up.length === 0 ? "Nothing on your calendar, or it isn't connected" : ""}</div>
-        </div>
-      </div>
+    <div className="page page--home">
+      <header className="home__hero">
+        <div className="eyebrow">{date}</div>
+        <h1 className="home__greeting">{greeting()}</h1>
+      </header>
 
-      {home.needs_you.length ? (
-        <div className="section" style={{ marginTop: 0 }}>
-          <div className="section__head">
-            <h2>Needs you</h2>
-            <span className="faint">Alpha never sends anything or acts for you without a yes</span>
-          </div>
-          <div className="needs">
-            {home.needs_you.map((item) => (
-              <Need key={item.id} item={item} client={client} onDone={(words) => { setToast(words); onChanged(); }} />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <section className="card today" aria-label="Today">
+        {homeError ? <Trouble onRetry={() => setHomeTick((n) => n + 1)}>Couldn't load today's summary: {homeError}</Trouble> : null}
+        {!home && !homeError ? <p className="faint">Loading today's summary…</p> : null}
+        {home ? (
+          <>
+            <div className="today__tiles">
+              <MetricTile label="Needs you" value={needs.length} attention={needs.length > 0} basis="" />
+              <MetricTile label="Done today" value={home.ran_today} basis={home.failed_today ? `${home.failed_today} didn't work` : ""} attention={home.failed_today > 0} />
+              <MetricTile label="Coming up" value={next ? (next.all_day ? "All day" : timeText(new Date(next.starts_at))) : "None"} basis={next ? `${dayText(new Date(next.starts_at))} · ${next.title}` : "Calendar empty or not connected"} />
+            </div>
 
-      {home.threads.length ? (
-        <div className="section">
-          <div className="section__head">
-            <h2>Alpha is working on</h2>
-          </div>
-          <div className="card list">
-            {home.threads.map((t) => (
-              <div key={t.id} className="item item--thread">
-                <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</span>
-                <div className="item__body">
-                  <b>{t.title}</b>
-                  <div className="item__sub">
-                    {t.state === "working" ? `${t.step_count ?? 0} steps so far` : t.state === "waiting" ? "Waiting for your answer above" : "Started"} · started {when(t.created_at)}
-                    {t.last_at && t.state === "working" ? ` · last ${when(t.last_at)}` : ""}
-                  </div>
-                  {t.state === "working" && (t.live?.doing || t.live?.thought) ? (
-                    <div className="thread__now">
-                      <span className="working__pulse" aria-hidden="true" />
-                      <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
-                      {t.live?.thought ? <span className="faint"> · {t.live.thought.slice(0, 140)}</span> : null}
-                    </div>
-                  ) : null}
-                  {t.steps?.length ? (
-                    <ul className="stages thread__live" aria-label="What Alpha did lately">
-                      {t.steps.map((s, i) => (
-                        <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : ""}>
-                          {s.kind === "failed" ? <X size={12} aria-label="failed" /> : s.kind === "saw" ? <Eye size={12} aria-label="read" /> : <Check size={12} aria-label="done" />} {s.text}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : t.state === "working" ? (
-                    <div className="item__sub">Starting…</div>
-                  ) : null}
-                </div>
-                <Button size="sm" onClick={() => onOpenThread(t.id)}>
-                  Open
-                </Button>
+            {message ? <Notice>{message}</Notice> : null}
+
+            {failures.length ? (
+              <div className="today__part">
+                <h3 className="today__title">
+                  Didn't work today
+                  <Button size="sm" variant="ghost" onClick={() => onGo({ kind: "activity" })}>
+                    All in Activity
+                  </Button>
+                </h3>
+                {failures.map((e) => (
+                  <Failure key={e.id} e={e} client={client} onGo={onGo} onOpenThread={onOpenThread} onDone={(words) => { setMessage(words); onChanged(); }} />
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+            ) : null}
 
-      {home.coming_up.length ? (
-        <div className="section">
-          <div className="section__head">
-            <h2>Coming up</h2>
-            <span className="faint">From your calendar</span>
-          </div>
-          <div className="card list">
-            {home.coming_up.map((e) => (
-              <div key={e.id} className="item">
-                <span className="item__when num">{e.all_day ? "All day" : timeOf(e.starts_at)}</span>
-                <div className="item__body">
-                  <b>{e.title}</b>
-                  {e.attendees.length ? <div className="item__sub">with {e.attendees.map((a) => a.name ?? a.email).slice(0, 4).join(", ")}</div> : null}
-                </div>
+            {needs.length ? (
+              <div className="today__part">
+                <h3 className="today__title">
+                  Needs you <InfoTip text="Alpha never sends anything or acts for you without a yes." />
+                </h3>
+                {needs.map((item) => (
+                  <Need key={item.id} item={item} client={client} onDone={(words) => { setMessage(words); onChanged(); }} />
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+            ) : (
+              <p className="today__quiet">Nothing needs you right now.</p>
+            )}
 
-      <div className="section">
-        <div className="section__head">
-          <h2>Your modules</h2>
-          <span className="faint">Made from what you asked for; each grows as you use it</span>
-        </div>
+            {home.threads.length ? (
+              <div className="today__part">
+                <h3 className="today__title">Alpha is working on</h3>
+                {home.threads.map((t) => (
+                  <ListRow
+                    key={t.id}
+                    icon={<Zap size={ICON} />}
+                    title={t.title}
+                    description={
+                      <>
+                        {t.state === "working" ? `${t.step_count ?? 0} steps · ` : ""}
+                        {when(t.created_at)}
+                      </>
+                    }
+                    controls={
+                      <>
+                        <Badge tone={t.state === "waiting" ? "warn" : "info"}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</Badge>
+                        <Button size="sm" onClick={() => onOpenThread(t.id)}>
+                          Open
+                        </Button>
+                        <Button size="sm" variant="ghost" disabledReason="Stop it from its conversation: open it and press Stop there.">
+                          Stop
+                        </Button>
+                      </>
+                    }
+                  >
+                    {t.state === "working" && (t.live?.doing || t.live?.thought) ? (
+                      <div className="thread__now">
+                        <span className="working__pulse" aria-hidden="true" />
+                        <span>{t.live?.doing ?? "Thinking"}</span>
+                        {t.live?.thought ? <span className="faint"> · {t.live.thought.slice(0, 140)}</span> : null}
+                      </div>
+                    ) : null}
+                    {t.steps?.length ? (
+                      <ul className="stages thread__live" aria-label="What Alpha did lately">
+                        {t.steps.map((s, i) => (
+                          <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : ""}>
+                            {s.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : s.kind === "saw" ? <Eye size={ICON_SM} aria-label="read" /> : <Check size={ICON_SM} aria-label="done" />} {s.text}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : t.state === "working" ? (
+                      <div className="lrow__desc">Starting…</div>
+                    ) : null}
+                  </ListRow>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </section>
+
+      <section className="home__modules" aria-label="Your projects">
+        <h2 className="sectitle">Projects</h2>
+        {modulesError ? <Trouble onRetry={() => setModulesTick((n) => n + 1)}>Couldn't load your projects: {modulesError}</Trouble> : null}
+        {!modules && !modulesError ? <p className="faint">Loading projects…</p> : null}
         <div className="modgrid">
-          {home.modules.filter((m) => !m.parent).map((m) => (
-            <div key={m.id} className="card modcard">
-              <div className="modcard__top">
-                <div className="modcard__ico" aria-hidden="true">
-                  <ModuleIcon size={18} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3>{m.name}</h3>
-                  <div className="faint">
-                    {m.children?.length ? `${m.children.length} ${m.children.length === 1 ? "module" : "modules"} inside · ` : ""}
-                    {m.tables.length} {m.tables.length === 1 ? "table" : "tables"} · {m.records} {m.records === 1 ? "row" : "rows"}
-                  </div>
-                </div>
-                <Badge tone="good" style={{ marginLeft: "auto" }}>
-                  Active
-                </Badge>
-              </div>
-              <p>{m.goal ?? m.last_text ?? "Nothing in it yet."}</p>
-              <div className="modcard__foot">
-                <span>{m.last_at ? `Last change ${when(m.last_at)}` : ""}</span>
-                <Button size="sm" onClick={() => onGo({ kind: "module", id: m.id })}>
-                  Open
-                </Button>
-              </div>
-            </div>
+          {top.map((m) => (
+            <OpenCard
+              key={m.id}
+              icon={<ModuleGlyph id={m.id} size={ICON} />}
+              name={m.name}
+              description={m.goal ?? ""}
+              meta={[`${m.records} ${m.records === 1 ? "record" : "records"}`, m.children?.length ? `${m.children.length} inside` : ""].filter(Boolean).join(" · ")}
+              onOpen={() => onGo({ kind: "module", id: m.id })}
+            />
           ))}
-          <div className="card modcard modcard--new">
-            <div className="eyebrow">New</div>
-            <b>Describe what you want</b>
-            <p>"Track what I eat", "watch We Work Remotely for back-end roles", "read my job search folder". Alpha sets it up and grows it as you use it.</p>
-            <button type="button" className="linkbtn" style={{ color: "var(--primary)", fontWeight: 500 }} onClick={onNew}>
-              Start a new module <ArrowRight size={14} aria-hidden="true" />
-            </button>
-          </div>
+          <OpenCard dashed icon={<PlusIcon size={ICON} />} name="New project" description="" openLabel="Start a new project" onOpen={onNew} />
         </div>
-      </div>
-      {home.modules.length === 0 ? (
-        <div className="section">
-          <div className="card card--pad">
-            <div className="eyebrow">First steps</div>
-            <p style={{ marginTop: 6 }}>Tell Alpha one thing you keep track of, or connect something it can read.</p>
-            <div className="row" style={{ marginTop: 10 }}>
-              <Button onClick={() => onAsk("I want to track what I eat")}>Track what I eat</Button>
-              <Button onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Connect a folder or my calendar</Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {toast ? (
-        <div className="toast" role="status">
-          {toast}
-        </div>
+      </section>
+
+      {modules && modules.length === 0 ? (
+        <SectionCard title="First steps">
+          <ListRow icon={<ModuleIcon size={ICON} />} title="Track what I eat" controls={<Button size="sm" onClick={() => onAsk("I want to track what I eat")}>Start</Button>} />
+          <ListRow icon={<FolderOpen size={ICON} />} title="Connect a folder or my calendar" controls={<Button size="sm" onClick={() => onGo({ kind: "intelligence", tab: "connections" })}>Open <ArrowRight size={ICON_SM} aria-hidden="true" /></Button>} />
+          <ListRow icon={<ActivityIcon size={ICON} />} title="Describe something new" controls={<Button size="sm" onClick={onNew}>Start</Button>} />
+        </SectionCard>
       ) : null}
     </div>
   );

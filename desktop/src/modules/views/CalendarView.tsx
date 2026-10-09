@@ -1,4 +1,5 @@
 /** A month of a date field, rows as chips on their days. */
+import { useState } from "react";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { IconButton } from "../../ui";
@@ -13,6 +14,7 @@ export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }
   while (cells.length % 7) cells.push(null);
   const onDays = byDay(rows, field);
   const label = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const [all, setAll] = useState<string | null>(null); // the day showing every record, not three
   return (
     <div className="calendar">
       <div className="calendar__head">
@@ -32,12 +34,16 @@ export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }
           return (
             <div key={i} className={`calendar__day${day ? "" : " calendar__day--pad"}`}>
               {day ? <span className="calendar__num">{day}</span> : null}
-              {items.slice(0, 3).map((row) => (
+              {(all === iso ? items : items.slice(0, 3)).map((row) => (
                 <button key={row.id} type="button" className="calendar__chip" onClick={() => onOpen(row.id)}>
                   {titleField ? String(row.values[titleField] ?? "Untitled") : row.id}
                 </button>
               ))}
-              {items.length > 3 ? <span className="faint">+{items.length - 3}</span> : null}
+              {items.length > 3 && all !== iso ? (
+                <button type="button" className="linkbtn faint" onClick={() => setAll(iso)}>
+                  +{items.length - 3} more
+                </button>
+              ) : null}
             </div>
           );
         })}

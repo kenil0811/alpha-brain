@@ -4,6 +4,9 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AvatarBoot, isAvatarWindow } from "./avatar/boot";
 import "./styles/app.css";
+import "./styles/data.css";
+import "./styles/shell.css";
+import "./styles/intel.css";
 
 /** A window that went blank tells nobody anything: any error that escapes rendering is shown
  *  in the window with a way back. */

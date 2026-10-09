@@ -4,52 +4,27 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 9 October 2026.** Last entries: Alpha on another Mac
-([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34), agents, schedule first
-([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md), Q33 built in part), reliability first
-([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)), what went wrong 4–8 October and the agents
-decision ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md), Q33;
-no code changed), replies rendered the same in the panel and
-the companion ([`log/2026-10-03-replies-rendered.md`](log/2026-10-03-replies-rendered.md)), a second way to think, ChatGPT through the
-Codex CLI ([`log/2026-10-03-chatgpt-route.md`](log/2026-10-03-chatgpt-route.md), Q32; built, not
-yet run for real), modules inside modules
-([`log/2026-10-03-nested-modules.md`](log/2026-10-03-nested-modules.md), Q31), a plain yes, a plan not asked about twice,
-Add files ([`log/2026-10-03-yes-and-add-files.md`](log/2026-10-03-yes-and-add-files.md)), the desktop's four
-([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)), fast turns
-([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)), the split
-([`log/2026-10-03-the-split.md`](log/2026-10-03-the-split.md)), the map of the brain
-([`log/2026-10-03-brain-map.md`](log/2026-10-03-brain-map.md)), the map of Alpha's work
-([`log/2026-10-03-work-map.md`](log/2026-10-03-work-map.md)), the companion's sizes, drag and moods
-([`log/2026-10-03-companion-moods.md`](log/2026-10-03-companion-moods.md)), relations followed and the form view
-([`log/2026-10-03-table-views-2.md`](log/2026-10-03-table-views-2.md)), the companion's characters
-([`log/2026-10-03-companion-characters.md`](log/2026-10-03-companion-characters.md)), quick entry on a table
-([`log/2026-10-03-quick-entry.md`](log/2026-10-03-quick-entry.md)), the desktop check and the type scale
-([`log/2026-10-03-desktop-check.md`](log/2026-10-03-desktop-check.md)), the table views, ⌘K,
-fact origins, the module's page and the item pages
-([`log/2026-10-03-table-views-1.md`](log/2026-10-03-table-views-1.md)), the desktop foundations
-([`log/2026-10-03-desktop-foundations.md`](log/2026-10-03-desktop-foundations.md)), the review
-of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
-contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
+**As of 9 October 2026.** Last entry: the owner's third review ([`log/2026-10-09-owner-review-3.md`](log/2026-10-09-owner-review-3.md), window only): type and spacing ×1.3, Governance as Allowed/Denied tabs, a page for every item including Activity, Alpha among the agents, Add goal/agent/automation, Sub-projects; Task manager and the pre-built projects specified for the core in [`design/core-changes-for-the-window.md`](design/core-changes-for-the-window.md). Before it: the owner's second review of the window ([`log/2026-10-09-owner-review-2.md`](log/2026-10-09-owner-review-2.md), Q37, window only): sections back below the table, ⋮ everywhere, every dropdown with search, a star and Add new, Save / Cancel / Last saved, New project, Settings with Overview, the bell in the assistant's header, the egg with every record and its links; "project" reads "project". Before it: `feat/ui-rulebook` merged with main ([`log/2026-10-09-merge-main.md`](log/2026-10-09-merge-main.md)): main's agents (Q33) shown as the window's one Agents data view with goal, verdict and the companion each wears; the browser row in Settings and on first run (Q34). On the branch before it, window only: the UX guidelines v2 in the window ([`log/2026-10-09-ux-guidelines-built.md`](log/2026-10-09-ux-guidelines-built.md), Q36), the owner's review ([`log/2026-10-09-owner-review.md`](log/2026-10-09-owner-review.md)), the UI rulebook ([`log/2026-10-09-ui-rulebook.md`](log/2026-10-09-ui-rulebook.md), Q35). On main before the merge: Alpha on another Mac ([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34), agents, schedule first ([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md), Q33 built in part), reliability first ([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)), what went wrong 4–8 October ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md)); older entries in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 9 Oct morning)
+## Numbers (`just stats`, 9 Oct)
 
 | | |
 |---|---|
-| Core tests | 223, in about 18 s; ruff and mypy strict clean |
-| Desktop tests | 80, in twenty-two files; typecheck and `cargo check` clean |
+| Core tests | 223, in about 24 s; ruff and mypy strict clean |
+| Desktop tests | 313, in 48 files; typecheck clean (`cargo check` not re-run on the branch; main's host change came with the merge) |
 | Tools the model sees | 72 |
-| Journeys | 21 defined; latest `docs/journeys/2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); before it `2026-10-09-0008.md`, 1 of 1 (an automation converts itself to steps); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
-| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; after nesting, Home and Settings `docs/checks/2026-10-03-2212.md`, 2 of 2 |
+| Journeys | 21 defined; latest `docs/journeys/2026-10-09-0022.md`, 1 of 1 (main's deal tracker run with its verdict); the window's changes need none (no change to how Alpha behaves) |
+| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; **not run since the rulebook** (no Chromium for Playwright on Vikas's Mac); the rulebook's window looked at by hand in a browser at 1240×820 and 1100×560, light and dark, on a scratch world |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 139 total; 139 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 13,885 Python; tests 5,103; desktop 10,232 TS/TSX |
+| Commits | 150 total; 148 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 13,885 Python; tests 5,103; desktop 21,275 TS/TSX |
 
 ## What is built, against the design's order of work
 
 | Step | State |
 |---|---|
-| 1. World store, MCP server, stream, companion | **Built.** One SQLite file per person; the journal verbatim with FTS; what the model saw kept per turn; 72 tools; the companion window and the panel. Modules nest since 3 Oct night (Q31): a module inside a module to any depth, a parent's page, summary, activity and conversation reaching what it holds, the rail as a tree; the person makes a parent and moves modules in from a module's Settings. |
+| 1. World store, MCP server, stream, companion | **Built.** One SQLite file per person; the journal verbatim with FTS; what the model saw kept per turn; 72 tools; the companion window and the panel. Projects nest since 3 Oct night (Q31): a project inside a project to any depth, a parent's page, summary, activity and conversation reaching what it holds, the rail as a tree; the person makes a parent and moves projects in from a project's Settings. |
 | 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) kept only after a real run, health-checked, repaired by Alpha; files in and out (§4.17); calendar read-only. Reading LinkedIn's whole list daily is still the slowest thing (read only what is new: open). |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an automation's "worth telling". |
 | 4. Entities and bi-temporal facts across sources | **Partial.** Facts bi-temporal; entities with hard keys; a page per person (§4.23); noticing after every turn; entity cards in context. But no table in Kenil's world declares its rows as people, so 1,551 connections are rows, not people (20 entities, 6 facts). |
@@ -57,7 +32,8 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
-| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map (Intelligence › Map, Q29–Q30): the person's world as the default view with Alpha's proposed links as suggested facts, the map of work as a toggle, refresh only on demand; the host watches the core and restarts it on the same port, the window asks one question for what changed (nothing while hidden) and says what failed with Try again, the words come back when a send is lost; Add files on every module's page (the Mac's picker, the same route as a drop). **Left:** the links worth having wait on people-for-real (pending item 6) and noticing over what Alpha reads. |
+| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the project's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map (Intelligence › Map, Q29–Q30): the person's world as the default view with Alpha's proposed links as suggested facts, the map of work as a toggle, refresh only on demand; the host watches the core and restarts it on the same port, the window asks one question for what changed (nothing while hidden) and says what failed with Try again, the words come back when a send is lost; Add files on every project's page (the Mac's picker, the same route as a drop). **Left:** the links worth having wait on people-for-real (pending item 6) and noticing over what Alpha reads. |
+| The window by the UI rulebook (Q35, Q36) | **Built, window only:** one frame and header line; panels fold to strips and step back with Escape; the sidebar's order, project menu (icon, move, hide, View options), drag to reorder; project pages that land on their data, with Files, Intelligence and Governance below the data (Q37; tabs in Q36 were reversed), and one empty table when there is nothing yet; one data view (toolbar order, Filter with pills, table menus, Duplicate, Pin, footer summaries, the add bar, frozen columns) and a Dashboard view whose every tile has a call to action; a page per record that saves as you go, with History's Undo and Redo; Home's Today card; Intelligence with Second Brain (an egg graph, Map inside), Agents, Automations, Skills, Connections as data views; Activity in a bell; Network; Settings as a grid; after the owner's review: Notion's database (view tabs, advanced filters, sorts, groups, layouts, peeks, footers on every column, bulk edit, grid keys, conditional colour), Governance's Always and Never, agents wearing a companion; the panel's picker and composer (depth: Quick overview, Deep thinking disabled); Approve and Decline, Always allow suggested after three approvals; after Q36: comfortable rows, sentence case, Estimated and Assumed chips, a pencil on hover, the metrics strip folded, star defaults, "/" to insert. **Left (needs the core):** project rename and delete, removed projects, several workspaces, conversation delete, adding a field, outcome and success criteria on proposals, the data-sharing notice, other agents, saving a dashboard's selection as a list, per-record notes and history routes, editing skills, agents and automations, a file's content (CSV save), Governance rules read by the runtime; from the UX guidelines (Q36): every assistant output saved as a file and linked from its turn, each reply's sources (records and files), the goal-confirmation rule in planning, a plan approved once covering its routine steps, a depth carried by `ask` (to enable Deep thinking); from the second review (Q37): creating a person or organisation in Network, files tied to Network, the builder refusing a duplicate name (and project rename to fix "Deals › Deals" at the source), Try again for failures other than an agent's run; from the third review: the pre-built projects Task manager and Network (A6) and Task manager in full (section T), creating goals, agents and automations directly (D11), activity and goals by id (D12). The whole list, each with what it should do: `design/core-changes-for-the-window.md`. **Not adopted:** forced edits, Task manager first, the Mac title bar. |
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
 
@@ -80,6 +56,8 @@ copy of Kenil's world (see the numbers). **Proven in the real app** (3 Oct night
 killed by hand twice came back on the same port within two seconds and the window said so.
 
 ## What is wrong, measured (the checkpoint, updated)
+
+- The rulebook's window has not run in the Tauri app (WebKit) nor through `just check-desktop`; it is proven by 267 tests and by looking in a browser; the egg has been seen only on a small world. Before merging: `just check-desktop` (needs Playwright's Chromium) and a look in `just app`.
 
 - A turn takes 25 s at the median, up to three minutes at p90: the model's steps and the
   length of its answer, not Alpha's 1.5 s of overhead (measured 3 Oct night; `just turns`). A
@@ -107,7 +85,7 @@ killed by hand twice came back on the same port within two seconds and the windo
   connections automation is a procedure and pays a model turn a day~~ (it converted itself to
   steps at the 9 Oct 07:40 run), and the schedule's words say "or when your Mac next wakes".
   Still true: a clock-time run waits for the Mac's next full wake, by the sleep rule.
-- Alpha cannot rename a module (seen in the nested-modules journey: a part kept its old name
+- Alpha cannot rename a project (seen in the nested-modules journey: a part kept its old name
   under the new path); a small missing tool.
 - Noticing keeps session state as suggested facts about the person ("using_module =
   Advisory", 3 Oct 20:21), which then show in Needs you and the companion's bubble; it needs
@@ -120,9 +98,11 @@ killed by hand twice came back on the same port within two seconds and the windo
 
 ## Pending, in order
 
+**The UI rulebook (Q35, Q36):** review `feat/ui-rulebook` with Kenil (it supersedes 1 Oct's "keep it similar"); run `just check-desktop` and the app; answer the questions at the end of both log entries; then the core's side of what the window shows disabled (project rename and delete, conversation delete, adding a field, outcome and success criteria on proposals, per-record notes and history).
+
 **The port of pull request #3's ideas (Q27–Q29), all built:** ~~foundations~~ → ~~the table
 views~~ (stage three, relations followed and the form view, 3 Oct evening) → ~~⌘K~~ → ~~item pages, fact origins,
-the module's page~~ → ~~the desktop check and the UI rules~~ → ~~quick entry on a table~~ → ~~the
+the project's page~~ → ~~the desktop check and the UI rules~~ → ~~quick entry on a table~~ → ~~the
 companion's characters~~ → ~~a graph~~: the map of Alpha's work (Q29), then the map of the brain
 as the default view with Alpha's links as suggestions (Q30); the links worth having wait on
 pending item 6, people for real, and noticing over what Alpha reads.

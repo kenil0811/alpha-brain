@@ -2,15 +2,24 @@
  * The icons the app uses, from lucide, named by what they mean here so a change of set is one
  * file. Glyph characters are not icons (CONTRIBUTING §3.8).
  */
+/** The two icon sizes (the UI rulebook §1): small, inside chips, switches and dropdown rows, and
+ *  regular everywhere else. The same two are `--icon-sm` and `--icon` in the stylesheet. */
+export const ICON_SM = 18;
+export const ICON = 21;
+
 export {
   Home as HomeIcon,
   Clock as ActivityIcon,
   Users as PeopleIcon,
   Table2 as ModuleIcon,
   Table2,
+  Ban,
   Sparkles as IntelligenceIcon,
   Settings as SettingsIcon,
   Plus as PlusIcon,
+  GripVertical as GripIcon,
+  Upload as UploadIcon,
+  WrapText as WrapIcon,
   ChevronsLeft,
   ChevronsRight,
   ChevronRight,
@@ -27,7 +36,10 @@ export {
   Mic,
   Circle,
   Maximize2,
-  MoreHorizontal,
+  MoreVertical,
+  // ponytail: kept until the callers outside ui/ switch to MoreVertical (the rulebook: ⋮ everywhere, 9 Oct)
+  Star,
+  Search as SearchIcon,
   Info,
   FolderOpen,
   Calendar,
@@ -42,4 +54,96 @@ export {
   Play,
   Link2,
   File,
+  // pages: Intelligence's tabs and Settings' sections (9 Oct, the UI rulebook §12, §13)
+  Brain as BrainIcon,
+  Bot as AgentIcon,
+  Plug as ConnectionIcon,
+  Map as MapIcon,
+  Wrench as SkillIcon,
+  Palette as AppearanceIcon,
+  Bell as NotificationIcon,
+  ShieldCheck as PermissionIcon,
+  Hammer as BuilderIcon,
+  SlidersHorizontal as DefaultsIcon,
+  HardDrive as DataIcon,
+  Archive as RemovedIcon,
+  CircleHelp as HelpIcon,
+  Briefcase as WorkspaceIcon,
+  Lightbulb as ThinksIcon,
+  PawPrint as CompanionIcon,
+  Pencil,
 } from "lucide-react";
+
+/** The icons a module can be given (shell/moduleIcons.tsx), and the few the sidebar adds. */
+export {
+  Folder as FolderIcon,
+  Briefcase as BriefcaseIcon,
+  Heart as HeartIcon,
+  Dumbbell as DumbbellIcon,
+  Utensils as UtensilsIcon,
+  Wallet as WalletIcon,
+  GraduationCap as GraduationIcon,
+  Plane as PlaneIcon,
+  ShoppingCart as CartIcon,
+  Music as MusicIcon,
+  Camera as CameraIcon,
+  Code as CodeIcon,
+  Lightbulb as IdeaIcon,
+  Target as TargetIcon,
+  Mail as MailIcon,
+  Leaf as LeafIcon,
+  Car as CarIcon,
+  Gift as GiftIcon,
+  Package as PackageIcon,
+  Wrench as WrenchIcon,
+  Receipt as ReceiptIcon,
+  ListChecks as ChecklistIcon,
+  PiggyBank as SavingsIcon,
+  Inbox as InboxIcon,
+  Users as TeamIcon,
+  Calendar as CalendarIcon,
+  BookOpen as BookIcon,
+  Star as StarIcon,
+  House as HouseIcon,
+  EyeOff as HideIcon,
+  FolderInput as MoveIcon,
+  Palette as ChangeIconIcon,
+  SlidersHorizontal as ViewOptionsIcon,
+  Trash2 as DeleteIcon,
+  Pencil as RenameIcon,
+  CornerLeftUp as AboveIcon,
+  ArrowRightFromLine as OpenIcon,
+  LogOut as SignOutIcon,
+  Building as BuildingIcon,
+} from "lucide-react";
+
+/** The assistant panel's (9 Oct, the UI rulebook §9). */
+export { Archive as ArchiveIcon, Paperclip as AttachIcon, RotateCcw as RetryIcon } from "lucide-react";
+
+/** The Dashboard view's (9 Oct, the UI rulebook §6): the metric tiles and the edit controls. */
+export { Hash as CountIcon, Sigma as TotalIcon, Gauge as AverageIcon, Minimize2 } from "lucide-react";
+
+/** The data view (9 Oct, the UI rulebook §6): the view types, the table's menus, the footer. */
+export {
+  Download as DownloadIcon,
+  ListFilter as FilterIcon,
+  List as ListIcon,
+  Kanban as BoardIcon,
+  LayoutGrid as GalleryIcon,
+  ChartNoAxesGantt as TimelineIcon,
+  ChartColumn as ChartIcon,
+  ClipboardList as FormIcon,
+  LayoutDashboard as DashboardIcon,
+  Pin as PinIcon,
+  PinOff as UnpinIcon,
+  Copy as CopyIcon,
+  Eraser as ClearIcon,
+  History as HistoryIcon,
+  Snowflake as FreezeIcon,
+  ArrowUpAZ as SortAscIcon,
+  ArrowDownAZ as SortDescIcon,
+  SquarePen as EditIcon,
+  TriangleAlert as AlertIcon,
+} from "lucide-react";
+/** The data view's Notion parity (9 Oct): sort, group, colour, peeks. */
+export { ArrowUpDown as SortIcon, Group as GroupIcon, PaintBucket as ColorIcon, PanelRight as SidePeekIcon, Square as CenterPeekIcon, ChevronUp } from "lucide-react";

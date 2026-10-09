@@ -144,6 +144,18 @@ export const POSES: Record<Mood, Pose> = {
   sleepy: { ...CALM, eyeOpen: 0.3, mouth: "open", mouthScale: 0.4, squash: 0.3, earPerk: -12, earScale: 0.94, headTilt: 5, headDrop: 50, whiskerDroop: 0.8, cheeks: 0.35, browRaise: -0.3, blinkEvery: 3, blinkSpeed: 0.3, breath: 8, saccade: 0.1 },
 };
 
+/** A pupil on a white eye: a dark iris with the painted glint over it. The painted pupil is only
+ *  the glint (white, made for the panda's dark eye), so on a white eye alone it vanished and the
+ *  white-eyed animals had no eyes (9 Oct, the owner on the panel's avatar). */
+function WhitePupil({ cx, cy }: { cx: number; cy: number }) {
+  return (
+    <>
+      <ellipse cx={cx} cy={cy + 6} rx="112" ry="118" fill="#2a2730" />
+      <image href={pupil} x={cx - 110} y={cy - 104} width="220" height="209" />
+    </>
+  );
+}
+
 function Part({ href, box, filter, transform }: { href: string; box: readonly number[]; filter?: string; transform?: string }) {
   return <image href={href} x={box[0]} y={box[1]} width={box[2]} height={box[3]} filter={filter} transform={transform} />;
 }
@@ -430,10 +442,10 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
                 )}
                 <g className="rig__pupils" style={{ transform: `translate(${pose.gazeX + drift.x}px, ${pose.gazeY + drift.y}px)` }}>
                   <Pivot x={EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} />}
+                    {animal.eyes === "white" ? <WhitePupil cx={EYE.x} cy={EYE.y} /> : <Part href={pupil} box={BOX.pupil} />}
                   </Pivot>
                   <Pivot x={2 * AXIS - EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={2 * AXIS - EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
+                    {animal.eyes === "white" ? <WhitePupil cx={2 * AXIS - EYE.x} cy={EYE.y} /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
                   </Pivot>
                 </g>
               </Pivot>

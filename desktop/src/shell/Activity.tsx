@@ -1,33 +1,49 @@
 /**
  * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched.
+ * search finds anything that happened. Each row opens to what it touched. It opens from the bell
+ * beside the workspace name, in a small panel over the page, so it is compact and draws no header
+ * of its own (9 Oct, Vikas: it left Intelligence). Search comes first. With `onOpen` (the bell,
+ * Intelligence) an entry opens its own page, `#/activity/<id>` (`ActivityPage`, 9 Oct, the owner:
+ * every element has a page); without it, it unfolds in place.
  */
+import { humanize } from "../modules/format";
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
-import { Trouble } from "../ui";
+import { Badge, Trouble, type Tone } from "../ui";
+import { ICON_SM, SearchIcon } from "../ui/icons";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
-function badge(e: JournalEntry): { cls: string; words: string } {
-  if (e.kind === "failed") return { cls: "badge--failed", words: "Failed" };
-  if (e.kind === "asked" || e.kind === "proposed") return { cls: "badge--waiting", words: "Waiting" };
-  if (e.actor === "person") return { cls: "", words: "You" };
-  if (e.kind === "saw") return { cls: "badge--running", words: "Read" };
-  if (e.kind === "checked") return { cls: (e.data as { agree?: boolean }).agree ? "badge--succeeded" : "badge--failed", words: "Checked" };
-  return { cls: "badge--succeeded", words: "Done" };
+export function badge(e: JournalEntry): { tone: Tone; words: string } {
+  if (e.kind === "failed") return { tone: "bad", words: "Failed" };
+  if (e.kind === "asked" || e.kind === "proposed") return { tone: "warn", words: "Waiting" };
+  if (e.actor === "person") return { tone: "gray", words: "You" };
+  if (e.kind === "saw") return { tone: "info", words: "Read" };
+  if (e.kind === "checked") return { tone: (e.data as { agree?: boolean }).agree ? "good" : "bad", words: "Checked" };
+  return { tone: "good", words: "Done" };
 }
 
-function Details({ e }: { e: JournalEntry }) {
+/** What an entry recorded beyond its sentence, one plain line each. */
+export function detailLines(e: JournalEntry): string[] {
   const data = e.data as Record<string, unknown>;
   const lines: string[] = [];
   if (typeof data.url === "string") lines.push(`Page: ${data.url}${data.signed_in ? " (signed in)" : ""}`);
   if (typeof data.path === "string") lines.push(`File: ${data.path}`);
   if (data.values && typeof data.values === "object") lines.push(`Values: ${Object.entries(data.values as Record<string, unknown>).map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(", ")}`);
-  if (data.before && data.after) lines.push(`Before ${JSON.stringify(data.before)} → after ${JSON.stringify(data.after)}`);
+  if (data.before && data.after) {
+    const said = (v: unknown) => (v === null || v === undefined || v === "" ? "empty" : typeof v === "object" ? JSON.stringify(v) : String(v));
+    const before = data.before as Record<string, unknown>, after = data.after as Record<string, unknown>;
+    for (const k of Object.keys({ ...before, ...after })) lines.push(`${humanize(k)}: ${said(before[k])} → ${said(after[k])}`);
+  }
   if (typeof data.why === "string") lines.push(`Because: ${data.why}`);
   if (typeof data.error === "string") lines.push(`What went wrong: ${data.error}`);
   if (e.source) lines.push(`Source: ${e.source.replace("connector:", "")}`);
+  return lines;
+}
+
+function Details({ e }: { e: JournalEntry }) {
+  const lines = detailLines(e);
   return (
     <div className="detail">
       {lines.length ? (
@@ -42,12 +58,12 @@ function Details({ e }: { e: JournalEntry }) {
       ) : (
         <span className="faint">Nothing more recorded.</span>
       )}
-      <span className="faint">{new Date(e.at).toLocaleString()}</span>
+      <span className="faint">{when(e.at)}</span>
     </div>
   );
 }
 
-export function Activity({ client, version }: { client: Client; version: number; onChanged: () => void }) {
+export function Activity({ client, version, onOpen }: { client: Client; version: number; onChanged?: () => void; onOpen?: (id: string) => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -75,16 +91,12 @@ export function Activity({ client, version }: { client: Client; version: number;
   );
   let lastDay = "";
   return (
-    <div className="page">
-      <div className="home__head">
-        <h1>Activity</h1>
-        <span className="muted">What Alpha read, made and changed, and what you did</span>
-      </div>
-      <div style={{ marginTop: 18 }}>
-        <div className="card toolbar toolbar--page" style={{ borderRadius: 12, marginBottom: 8 }}>
-          <div className="search" style={{ maxWidth: "none" }}>
-            <span aria-hidden="true">⌕</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything that happened" aria-label="Search activity" />
+    <div className="activity">
+      <div>
+        <div className="activity__bar">
+          <div className="search activity__search">
+            <SearchIcon size={ICON_SM} aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search activity" />
           </div>
           {(["all", "alpha", "you", "failed"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
@@ -94,7 +106,7 @@ export function Activity({ client, version }: { client: Client; version: number;
         </div>
         <div className="runs">
           {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Activity: {error}</Trouble> : null}
-          {rows === null ? <p className="empty">Loading…</p> : null}
+          {rows === null && !error ? <p className="empty">Loading Activity…</p> : null}
           {rows && !shown.length ? <p className="empty">{q ? "Nothing matches." : "Nothing has happened yet."}</p> : null}
           {shown.map((e) => {
             const day = dayLabel(e.at);
@@ -108,9 +120,9 @@ export function Activity({ client, version }: { client: Client; version: number;
             return (
               <div key={e.id}>
                 {head}
-                <button type="button" className="item item--btn" aria-expanded={open === e.id} onClick={() => setOpen((o) => (o === e.id ? null : e.id))}>
+                <button type="button" className="item item--btn" aria-expanded={onOpen ? undefined : open === e.id} onClick={() => (onOpen ? onOpen(e.id) : setOpen((o) => (o === e.id ? null : e.id)))}>
                   <span className="item__when num">{when(e.at)}</span>
-                  <span className={`badge ${b.cls}`}>{b.words}</span>
+                  <Badge tone={b.tone}>{b.words}</Badge>
                   <span className="item__body">
                     <b>{e.snippet ? <span dangerouslySetInnerHTML={{ __html: e.snippet.replace(/</g, "&lt;").replace(/\[/g, "<mark>").replace(/\]/g, "</mark>") }} /> : e.text}</b>
                   </span>

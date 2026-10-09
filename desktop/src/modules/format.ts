@@ -9,33 +9,43 @@ export function formatNumber(value: number, unit?: string | null): string {
   return unit ? `${text} ${unit}` : text;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const LONG_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "8 Oct" this year, "8 Oct 2025" in another. Dates are always absolute, never "2 days ago"
+ *  (9 Oct, the UI rulebook §2); the words are fixed here so they do not change with the Mac's
+ *  region. */
+export function dayText(date: Date): string {
+  const text = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  return date.getFullYear() === new Date().getFullYear() ? text : `${text} ${date.getFullYear()}`;
+}
+
+/** "14:30", 24 hours. */
+export function timeText(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 export function formatDay(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
   if (!y || !m || !d) return day;
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return dayText(new Date(y, m - 1, d));
 }
 
-/** "10:12" today, "Yesterday 14:41", "28 Sep" before that. */
+/** "8 Oct, 14:30" this year, "8 Oct 2025" in another year. */
 export function when(iso: string | null | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);
-  const now = new Date();
-  const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  if (date.toDateString() === now.toDateString()) return time;
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`;
-  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.getFullYear() === new Date().getFullYear() ? `${dayText(date)}, ${timeText(date)}` : dayText(date);
 }
 
+/** A heading for a day: "Thursday 8 October", with the year when it is another year. */
 export function dayLabel(iso: string): string {
   const date = new Date(iso);
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) return "Today";
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  if (Number.isNaN(date.getTime())) return iso;
+  const text = `${WEEKDAYS[date.getDay()]} ${date.getDate()} ${LONG_MONTHS[date.getMonth()]}`;
+  return date.getFullYear() === new Date().getFullYear() ? text : `${text} ${date.getFullYear()}`;
 }
 
 export function initials(name: string): string {
