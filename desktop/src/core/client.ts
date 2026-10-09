@@ -366,6 +366,17 @@ export interface ClaudeStatus {
   via?: "subscription" | "console" | "chatgpt" | "api_key" | "unknown";
 }
 
+/** Alpha's own browser (Playwright's Chromium) on this Mac, with which it reads pages: installed
+ * once, by Alpha, on first run; `words` is the installer's progress while it runs. */
+export interface BrowserStatus {
+  installed: boolean;
+  installing: boolean;
+  words: string | null;
+  /** Sign-in windows open in the person's own Chrome when it is there. */
+  chrome: boolean;
+  problem: string | null;
+}
+
 /** Which way Alpha thinks (Q32): Claude through Claude Code, or ChatGPT through the Codex
  * CLI, each on the person's own subscription; the choice and both states. */
 export type ThinkRoute = "claude" | "codex";
@@ -445,7 +456,11 @@ export interface AutomationDetail extends Automation {
   skill?: string | null;
   /** A pipeline's saved steps (its run skill's), or none for a procedure. */
   pipeline?: Record<string, unknown>[] | null;
-  runs: { at: string; outcome: string | null; lines: { at: string; kind: string; text: string }[] }[];
+  runs: Run[];
+  /** The agent's page: what it is for, what a good run looks like, what to do; Alpha writes it, the person edits it. */
+  guidelines?: Note | null;
+  /** What counts as a good run, in words, judged by code. */
+  good_run?: string;
 }
 
 export interface Intelligence {
@@ -472,6 +487,28 @@ export interface Automation {
   last_error: string | null;
   running?: boolean;
   steps?: { at: string; kind: string; text: string }[];
+  /** What it is for, in the person's words (Q33). */
+  goal?: string | null;
+  /** The last run's verdict, judged by code, and why. */
+  last_verdict?: Verdict | null;
+  last_why?: string | null;
+}
+
+export type Verdict = "succeeded" | "partial" | "failed";
+
+/** One run of an agent, as the runs table keeps it. */
+export interface Run {
+  id: string;
+  started_at: string;
+  ended_at: string | null;
+  verdict: Verdict | null;
+  why: string | null;
+  line: string | null;
+  model_ms: number;
+  repairs: number;
+  read: number | null;
+  sources: number | null;
+  lines: { at: string; kind: string; text: string }[];
 }
 
 export interface Reader {
@@ -559,10 +596,20 @@ export interface Changed {
   working: boolean;
 }
 
+/** A run that went wrong in the last day: the companion says so (8 Oct). */
+export interface Trouble {
+  id: string;
+  title: string;
+  at: string;
+  words: string;
+  module: string | null;
+}
+
 export interface Companion {
   focus: Convo | null;
   conversations: Convo[];
   needs_you: NeedItem[];
+  troubles?: Trouble[];
   /** The look the person chose for the companion (`avatar/looks.ts` reads it), or null. */
   look?: unknown;
 }
@@ -610,6 +657,8 @@ export class Client {
   /** What changed since `since`; without one, the stamp to start from. */
   changes = (since: string | null) => this.call<Changed>("GET", `/api/changes${since ? `?since=${encodeURIComponent(since)}` : ""}`);
   claude = () => this.call<ClaudeStatus>("GET", "/api/claude");
+  browser = () => this.call<BrowserStatus>("GET", "/api/browser");
+  installBrowser = () => this.call<BrowserStatus>("POST", "/api/browser/install");
   thinking = () => this.call<Thinking>("GET", "/api/thinking");
   setThinking = (route: ThinkRoute) => this.call<Thinking>("PUT", "/api/thinking", { route });
   installCodex = () => this.call<{ started: boolean }>("POST", "/api/codex/install");

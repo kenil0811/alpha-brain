@@ -70,22 +70,25 @@ def routes(app: FastAPI, s: Served) -> None:
         auto = next((a for a in automation_views(world, scheduler) if a["id"] == aid), None)
         if auto is None:
             raise Problem(f"There is no automation {aid}.")
+        entries = world.journal.recent(400, thread=auto["thread"]) if auto["thread"] else []
         runs: list[dict[str, Any]] = []
-        if auto["thread"]:
-            for e in world.journal.recent(400, thread=auto["thread"]):
-                if e["kind"] == "did" and e["text"].startswith("Run the automation"):
-                    runs.append({"at": e["at"], "lines": [], "outcome": None})
-                    continue
-                if not runs:
-                    continue
-                if e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed", "asked"}:
-                    runs[-1]["lines"].append({"at": e["at"], "kind": e["kind"],
-                                              "text": e["text"][:300]})
-                if e["kind"] in {"replied", "failed", "noticed"}:
-                    runs[-1]["outcome"] = e["text"][:400]
+        for r in world.runs.of(aid, 12):
+            until = r["ended_at"] or "9999"
+            lines = [{"at": e["at"], "kind": e["kind"], "text": e["text"][:300]}
+                     for e in entries if r["started_at"] <= e["at"] <= until
+                     and e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed",
+                                       "asked"}
+                     and not e["text"].startswith("Run the automation")]
+            runs.append({**r, "lines": lines[-40:]})
         skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
-        return {**auto, "runs": list(reversed(runs))[:12],
-                "pipeline": skill["steps"] if skill else None}
+        sources = sum(1 for s in (skill["steps"] if skill else []) if "read" in s)
+        good = ((f"every one of its {sources} source{'s' if sources != 1 else ''} read and"
+                 " every reader healthy; partial when some were; failed when none were")
+                if skill else "it ends with its line for the log; failed when the model could"
+                " not finish or Alpha's tools didn't answer")
+        return {**auto, "runs": runs, "pipeline": skill["steps"] if skill else None,
+                "guidelines": world.knowledge.find_note(f"agent:{aid}", auto["title"]),
+                "good_run": good}
 
     @app.post("/api/permissions/{pid}/revoke", dependencies=[api])
     def revoke_permission(pid: str) -> dict[str, Any]:

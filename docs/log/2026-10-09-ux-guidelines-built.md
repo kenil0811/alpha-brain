@@ -2,7 +2,7 @@
 
 Vikas chose from the seventeen recommendations in `log/2026-10-09-ux-guidelines.md`: build 1–3,
 5–8, 10–15 and 17; item 4 changed (keep the 220 ms wait, add a pencil on hover); item 9 left;
-item 16 documented with the other changes that wait on the core. Same branch and limits as Q33:
+item 16 documented with the other changes that wait on the core. Same branch and limits as Q35:
 window only, no core change, no new route, no new dependency. Built after the owner's review
 (e0d3918, 4b65651), which had already given every column Notion's footer set (item 12: nothing
 left to do).

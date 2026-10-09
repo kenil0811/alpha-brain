@@ -250,7 +250,7 @@ def test_a_skill_and_an_automation_have_pages(world: World) -> None:
                            runner=lambda req: RunResult(ok=True, reply="Nothing new."))
     j = c.get(f"/api/automations/{judged['id']}").json()
     assert j["pipeline"] is None and len(j["runs"]) == 1
-    assert j["runs"][0]["outcome"] == "Nothing new."
+    assert j["runs"][0]["line"] == "Nothing new." and j["runs"][0]["verdict"] == "succeeded"
 
 
 def test_a_relation_shows_the_related_records_title_and_opens_it(world: World) -> None:
@@ -297,3 +297,39 @@ def test_changes_say_what_moved_since_a_stamp(world: World) -> None:
     assert after["at"] >= since
     again = c.get("/api/changes", params={"since": after["at"]}).json()
     assert again["journal"] == 0 and again["threads"] is False
+
+
+def test_the_companion_hears_about_runs_that_went_wrong(world: World) -> None:
+    t = building(world, turn="j_1")
+    t.module_create("Network", "x")
+    auto = t.automation_create("Daily brokers", "daily 07:00", "read the brokers",
+                               module="Network")
+    world.automations.finished(auto["id"], result=None, error="brokers couldn't be reached.")
+    c = client(world)
+    troubles = c.get("/api/companion").json()["troubles"]
+    assert [tr["words"] for tr in troubles] == ["brokers couldn't be reached."]
+    assert troubles[0]["title"] == "Daily brokers" and troubles[0]["id"] == auto["id"]
+    world.automations.finished(auto["id"], result="Read 1 of 1 sources.", error=None)
+    assert c.get("/api/companion").json()["troubles"] == []
+
+
+def test_an_automations_page_has_its_runs_with_verdicts_its_page_and_a_good_run(
+        world: World) -> None:
+    t = building(world, turn="j_1")
+    t.module_create("Network", "x")
+    auto = t.automation_create("Daily brokers", "daily 07:00", "read the brokers",
+                               module="Network", goal="deals",
+                               guidelines="What it is for: deals.")
+    rid = world.runs.start(auto["id"])
+    world.journal.append("did", "Read 3 with brokers.", thread=auto["thread"])
+    world.runs.finish(rid, verdict="partial", why="walled couldn't be reached.",
+                      line="Read 1 of 2 sources.", model_ms=0, read=1, sources=2)
+    c = client(world)
+    page = c.get(f"/api/automations/{auto['id']}").json()
+    assert page["goal"] == "deals" and page["guidelines"]["body"] == "What it is for: deals."
+    assert page["last_verdict"] == "partial" and page["last_why"] == "walled couldn't be reached."
+    assert page["runs"][0]["verdict"] == "partial" and page["runs"][0]["read"] == 1
+    assert [ln["text"] for ln in page["runs"][0]["lines"]] == ["Read 3 with brokers."]
+    assert page["good_run"].startswith("it ends with its line")
+    listed = c.get("/api/intelligence").json()["automations"][0]
+    assert listed["last_verdict"] == "partial"

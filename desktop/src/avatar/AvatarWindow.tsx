@@ -197,7 +197,31 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     return () => clearTimeout(timer);
   }, [busy, expanded, mood, text, bubble]);
   const typing = expanded && text.trim().length > 0 && !busy && !speech.listening;
-  const shownMood: Mood = busy ? "thinking" : speech.listening ? "listening" : mood !== "idle" ? mood : typing ? "curious" : drowsy ? "sleepy" : "idle";
+  const needs = home?.needs_you ?? [];
+  // A run that went wrong is said once, in the bubble, with a way to see it; never twice.
+  const [seenTroubles, setSeenTroubles] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("alpha.companion.troubles") ?? "[]") as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const failedRun = (comp?.troubles ?? []).find((t) => !seenTroubles.has(`${t.id}@${t.at}`)) ?? null;
+  const failedRunWords = failedRun ? `${failedRun.title.split(",")[0]}: ${failedRun.words}` : null;
+  const dismissFailedRun = () => {
+    if (!failedRun) return;
+    setSeenTroubles((s) => {
+      const next = new Set(s);
+      next.add(`${failedRun.id}@${failedRun.at}`);
+      try {
+        localStorage.setItem("alpha.companion.troubles", JSON.stringify([...next].slice(-50)));
+      } catch {
+        /* per-window */
+      }
+      return next;
+    });
+  };
+  const shownMood: Mood = busy ? "thinking" : speech.listening ? "listening" : mood !== "idle" ? mood : typing ? "curious" : !expanded && !bubble && !needs.length && failedRun ? "concerned" : drowsy ? "sleepy" : "idle";
   const look = normaliseLook(comp?.look);
   const px = SIZE_PX[look.size];
 
@@ -225,13 +249,12 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     if (outcome === "click") toggle();
   };
 
-  const needs = home?.needs_you ?? [];
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
   const label = trouble ? "Core not answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
-  const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : null);
+  const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && failedRunWords ? failedRunWords : null);
   const mode: AvatarMode = expanded ? "open" : shownBubble ? "bubble" : "idle";
   useEffect(() => {
     // The window covers what it shows: the character with room for its shadow, the character
@@ -340,6 +363,15 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               <div className="row" style={{ marginTop: 6 }}>
                 <Button size="sm" variant="primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
                   Open
+                </Button>
+              </div>
+            ) : !bubble && failedRun ? (
+              <div className="row" style={{ marginTop: 6 }}>
+                <Button size="sm" variant="primary" onClick={() => { dismissFailedRun(); handOff({ surface: { kind: "intelligence", tab: "automations" } }, host); }}>
+                  See it
+                </Button>
+                <Button size="sm" variant="ghost" onClick={dismissFailedRun}>
+                  OK
                 </Button>
               </div>
             ) : null}

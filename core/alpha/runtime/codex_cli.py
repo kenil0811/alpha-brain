@@ -36,11 +36,14 @@ from alpha.runtime.claude_cli import (
     RunResult,
     TurnRequest,
     plain_tool,
+    tools_verdict,
 )
 
 log = logging.getLogger(__name__)
 
 SIGNED_OUT = "ChatGPT isn't signed in on this Mac (or its sign-in lapsed): sign in from Settings."
+# Found 8 Oct: Codex's own approval gate refuses Alpha's tools before the server starts.
+REFUSED = "Codex refused the call under its own approval gate (\"user cancelled MCP tool call\")"
 # The Claude aliases the rest of Alpha speaks in, as Codex's reasoning effort.
 EFFORT = {"haiku": "low", "sonnet": "medium", "opus": "high"}
 CLAUDE_ALIASES = set(EFFORT)
@@ -210,6 +213,13 @@ def parse_events(events: list[dict[str, Any]], reply_file: str, stderr: str, cod
     calls = sum(1 for e in events if e.get("type") == "item.completed"
                 and (e.get("item") or {}).get("type") in ("mcp_tool_call", "command_execution",
                                                           "web_search"))
+    mcp = [(e.get("item") or {}) for e in events if e.get("type") == "item.completed"
+           and (e.get("item") or {}).get("type") == "mcp_tool_call"]
+    mcp_failed = [i for i in mcp if i.get("status") == "failed" or i.get("error")]
+    first_failure = ""
+    if mcp_failed:
+        words = str(((mcp_failed[0].get("error") or {}).get("message")) or "")
+        first_failure = REFUSED if "cancelled" in words.lower() else words[:160]
     completed = next((e for e in events if e.get("type") == "turn.completed"), None)
     failed = next((e for e in events if e.get("type") in ("turn.failed", "error")), None)
     reply = reply_file.strip() or (messages[-1].strip() if messages else "")
@@ -227,5 +237,7 @@ def parse_events(events: list[dict[str, Any]], reply_file: str, stderr: str, cod
         return RunResult(reply="", ok=False, error=NO_ANSWER, session_id=thread,
                          duration_ms=duration_ms)
     usage = (completed or {}).get("usage") or {}
-    return RunResult(reply=reply, ok=True, session_id=thread, num_turns=calls + 1,
-                     duration_ms=duration_ms, cost_estimate=None, raw={"usage": usage})
+    return tools_verdict(
+        RunResult(reply=reply, ok=True, session_id=thread, num_turns=calls + 1,
+                  duration_ms=duration_ms, cost_estimate=None, raw={"usage": usage}),
+        len(mcp), len(mcp_failed), first_failure)

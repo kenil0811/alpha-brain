@@ -29,9 +29,9 @@ import { useDragWidth } from "./shell/useDragWidth";
 import { useStepBack } from "./shell/stepBack";
 import { ModulePage } from "./modules/ModulePage";
 import { RecordPage, type LeaveGuard } from "./modules/RecordPage";
-import { ClaudeRow, Settings } from "./shell/Settings";
+import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
-import type { ClaudeStatus, ModuleCard, Thinking } from "./core/client";
+import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
 import { Button } from "./ui";
 
 const SURFACE_KEY = "alpha.surface";
@@ -216,6 +216,13 @@ export function App({ client: injected }: { client?: Client } = {}) {
   }, [client, versions.all]);
   const chosen = thinking ? thinking[thinking.route] : claude;
   const chosenName = thinking?.route === "codex" ? "ChatGPT" : "Claude";
+  // Alpha's own browser: installed once, on first run, with the account (9 Oct, a fresh Mac).
+  const [browser, setBrowser] = useState<BrowserStatus | null>(null);
+  useEffect(() => {
+    if (!client) return;
+    client.browser().then(setBrowser).catch(() => undefined);
+  }, [client, versions.all]);
+  const needsSetup = Boolean(chosen && (!chosen.signed_in || (browser && !browser.installed)));
 
   // The host says when it started the core again: look at everything afresh and say so.
   useEffect(() => {
@@ -297,15 +304,16 @@ export function App({ client: injected }: { client?: Client } = {}) {
             Alpha's core started again. Anything that was running is open to ask again.
           </div>
         ) : null}
-        {runtime.kind === "connected" && chosen && !chosen.signed_in && surface.kind !== "settings" ? (
+        {runtime.kind === "connected" && chosen && needsSetup && surface.kind !== "settings" ? (
           <div className="page firstrun">
             <div className="card firstrun__card">
               <div className="firstrun__head">
-                <h2>Connect {chosenName} to start</h2>
-                <span className="muted">Alpha thinks with your {chosenName} account. It takes a minute, once. Settings has the other way too.</span>
+                <h2>Set Alpha up to start</h2>
+                <span className="muted">Two things, once: the {chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.</span>
               </div>
               <div className="list">
                 <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
+                <BrowserRow client={runtime.client} status={browser} onStatus={setBrowser} />
               </div>
             </div>
           </div>

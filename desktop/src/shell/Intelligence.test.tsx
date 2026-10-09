@@ -9,7 +9,7 @@ const fact = (over: Partial<Fact>): Fact => ({ id: "f1", subject: "person", pred
 const data = {
   hands: [{ name: "files", title: "Files", description: "Reads folders", tools: [], origin: null }],
   skills: [{ name: "read_deals", kind: "read", site: null, module: "m1", url: null, description: "Reads the deal listings", when_to_use: null, effect: null, fields: [], version: 2, health: "ok", last_problem: null, last_run_at: null, last_count: null, last_ok_count: null, source: null, updated_at: "", notes: null }],
-  automations: [{ id: "a1", title: "Check deals every morning", module: "m1", thread: null, schedule: "daily", when: "Every day at 07:00", procedure: "", enabled: true, next_run_at: null, last_run_at: null, last_result: null, last_error: null }],
+  automations: [{ id: "a1", title: "Check deals every morning", module: "m1", thread: null, schedule: "daily", when: "Every day at 07:00", procedure: "", enabled: true, next_run_at: null, last_run_at: null, last_result: null, last_error: null, goal: "deals", last_verdict: "partial" as const, last_why: "one source needs a sign-in" }],
   readers: [],
   connections: [],
   knowledge: { facts: [fact({}), fact({ id: "f2", predicate: "likes", value: "tea", state: "suggested", source: "turn:1" })], notes: [], goals: [], permissions: [] },
@@ -31,7 +31,7 @@ describe("Intelligence", () => {
   it("has the tabs in the header; Map is a view of Second Brain and Activity is not a tab", async () => {
     const onTab = vi.fn();
     mount("second-brain", onTab);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Second Brain", "Agents", "Automations", "Skills", "Connections"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Second Brain", "Agents", "Skills", "Connections"]);
     await userEvent.click(screen.getByRole("tab", { name: "Agents" }));
     expect(onTab).toHaveBeenCalledWith("agents");
   });
@@ -65,15 +65,15 @@ describe("Intelligence", () => {
     expect(screen.getByRole("heading", { name: "Home city" })).toBeInTheDocument(); // a fact shows beside the egg
   });
 
-  it("lists Alpha and each module's runner as rows of a data view, and a row's click opens the agent", async () => {
+  it("lists each agent (an automation, Q33) as a row with its goal and verdict, and a row's click opens it", async () => {
     localStorage.clear();
     const onGo = vi.fn();
     mount("agents", vi.fn(), onGo);
-    expect(await screen.findByText("Deals runner")).toBeInTheDocument();
-    const table = screen.getByRole("table");
-    expect(within(table).getAllByRole("row").filter((r) => within(r).queryByText(/^(Alpha|Deals runner)$/))).toHaveLength(2);
-    await userEvent.click(screen.getByText("Deals runner"));
-    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "m1" }));
+    const row = (await screen.findByText("Check deals every morning")).closest("tr")!;
+    expect(within(row).getByText("deals")).toBeInTheDocument();
+    expect(within(row).getByText("Partial")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Check deals every morning"));
+    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "automation", id: "a1" }));
     expect(screen.getByRole("button", { name: "Add a view" })).toBeEnabled(); // the person's own lists
   });
 

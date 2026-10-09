@@ -29,7 +29,7 @@ const KINDS: Record<GraphKind, { kind: Kind; label: string }[]> = {
     { kind: "module", label: "Modules" },
     { kind: "table", label: "Tables" },
     { kind: "skill", label: "Skills" },
-    { kind: "automation", label: "Automations" },
+    { kind: "automation", label: "Agents" },
     { kind: "source", label: "Sources" },
     { kind: "connection", label: "Connections" },
   ],

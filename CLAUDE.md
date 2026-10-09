@@ -83,5 +83,5 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 
 `uv` (Python 3.13.9), Node from `/opt/homebrew/opt/node@24/bin` (the default Node is broken),
 pnpm 10, Tauri 2.11.6. `just test`, `just lint`, `just test-desktop`, `just journeys`, `just app`,
-`just stats`. The model route is the Claude Code CLI on Kenil's subscription; `claude` must be
+`just stats`; `just ship` builds Alpha for another Mac with its runtime inside. The model route is the Claude Code CLI on Kenil's subscription; `claude` must be
 signed in from the default config home and `USER` must be set. Keep `desktop/src-tauri/Cargo.lock`.

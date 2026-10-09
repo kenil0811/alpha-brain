@@ -320,18 +320,62 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// The core's Python: the repository's uv environment in development; `ALPHA_PYTHON` overrides.
-fn core_python() -> PathBuf {
+/// The runtime a shipped Alpha carries inside its bundle (`just ship`, 9 Oct 2026): Python with
+/// the core and its packages, Node for the browser driver, and the connectors. Absent in
+/// development, where the repository's uv environment and connectors are used instead.
+fn bundled_runtime(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().resource_dir().ok()?.join("runtime");
+    dir.join("python/bin/python3.13").is_file().then_some(dir)
+}
+
+/// A copy of Alpha that arrived by download or AirDrop carries macOS's quarantine mark on
+/// every file inside it. The person's right-click › Open answers for the app, not for the
+/// Python and Node inside it, which macOS would then refuse to run. Once the host runs, it
+/// clears the mark from its own runtime: its own files, no password, once.
+fn release_quarantine(dir: &PathBuf) {
+    let marked = Command::new("/usr/bin/xattr")
+        .args(["-p", "com.apple.quarantine"])
+        .arg(dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !marked {
+        return;
+    }
+    let cleared = Command::new("/usr/bin/xattr")
+        .args(["-dr", "com.apple.quarantine"])
+        .arg(dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    note(&format!(
+        "{} the quarantine mark on {}",
+        if cleared { "cleared" } else { "couldn't clear" },
+        dir.display()
+    ));
+}
+
+/// The core's Python: the bundled runtime's when shipped, the repository's uv environment in
+/// development; `ALPHA_PYTHON` overrides both.
+fn core_python(bundled: Option<&PathBuf>) -> PathBuf {
     if let Ok(path) = std::env::var("ALPHA_PYTHON") {
         return PathBuf::from(path);
     }
-    repo_root().join(".venv/bin/python")
+    match bundled {
+        Some(dir) => dir.join("python/bin/python3.13"),
+        None => repo_root().join(".venv/bin/python"),
+    }
 }
 
 /// Start the core. `keep`: the port and token of the core this one replaces, so the windows'
 /// sessions stay good; none on the first start (port 0 picks a free one, the token is new).
 fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProcess, String> {
-    let python = core_python();
+    let bundled = bundled_runtime(app);
+    let python = core_python(bundled.as_ref());
     if !python.is_file() {
         return Err(format!(
             "Alpha's core isn't installed ({}). Run `just setup` in the repository.",
@@ -354,6 +398,9 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
     let log_dir = data_dir.join("logs");
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("create log dir: {e}"))?;
     let _ = HOST_LOG.set(log_dir.join("host.log"));
+    if let Some(dir) = &bundled {
+        release_quarantine(dir);
+    }
     let (port_arg, token) = match keep {
         Some((port, token)) => (port.to_string(), token),
         None => ("0".to_string(), random_token()?),
@@ -371,14 +418,27 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
             .unwrap_or_default()
     });
     // The model runs through the Claude Code CLI on the person's own login: their HOME and
-    // USER, the default config home, and a PATH that finds `claude` and Node 24.
+    // USER, the default config home, and a PATH that finds `claude` and Node (the bundled one
+    // first when shipped).
+    let node_bin = bundled
+        .as_ref()
+        .map(|dir| format!("{}:", dir.join("node/bin").display()))
+        .unwrap_or_default();
     let path = format!(
-        "/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:{home}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+        "{node_bin}/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:{home}/.local/bin:/usr/local/bin:/usr/bin:/bin"
     );
+    let connectors = match &bundled {
+        Some(dir) => dir.join("connectors"),
+        None => repo_root().join("connectors"),
+    };
     note(&format!(
-        "launching core: python={} data={}",
+        "launching core: python={} data={} runtime={}",
         python.display(),
-        data_dir.display()
+        data_dir.display(),
+        bundled
+            .as_ref()
+            .map(|d| d.display().to_string())
+            .unwrap_or_else(|| "the repository".to_string())
     ));
     let mut command = Command::new(&python);
     command
@@ -389,7 +449,7 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
         .env("PATH", path)
         .env("ALPHA_HOME", &data_dir)
         .env("ALPHA_TOKEN", &token)
-        .env("ALPHA_CONNECTORS", repo_root().join("connectors"))
+        .env("ALPHA_CONNECTORS", &connectors)
         .env("PYTHONUNBUFFERED", "1")
         .env("PYTHONDONTWRITEBYTECODE", "1")
         .env("LANG", "en_GB.UTF-8")
@@ -397,6 +457,12 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::from(core_log));
+    if let Some(dir) = &bundled {
+        command
+            .env("PYTHONPATH", dir.join("site-packages"))
+            .env("PYTHONNOUSERSITE", "1")
+            .env("ALPHA_NODE", dir.join("node/bin/node"));
+    }
     if let Ok(model) = std::env::var("ALPHA_MODEL") {
         command.env("ALPHA_MODEL", model);
     }

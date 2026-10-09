@@ -51,6 +51,12 @@ app:
 app-restart:
     pkill -f "Alpha.app/Contents/MacOS/alpha-desktop" || true; pkill -f "alpha.cli serve" || true; sleep 2; open desktop/src-tauri/target/debug/bundle/macos/Alpha.app
 
+# Alpha for another Mac (Apple silicon, macOS 14+): the release app with the core, Python, Node
+# and the connectors inside, zipped next to it (desktop/scripts/ship.sh). Not notarized: the
+# person opens it once with right-click › Open; Alpha installs Chromium and Claude Code itself.
+ship:
+    export PATH=/opt/homebrew/opt/node@24/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH && desktop/scripts/ship.sh
+
 test-desktop:
     export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && pnpm typecheck && pnpm test
 

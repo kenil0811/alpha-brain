@@ -14,6 +14,7 @@ class Automating(Base):
     def automation_create(
         self, title: str, schedule: str, procedure: str = "",
         steps: list[dict[str, Any]] | None = None, module: str | None = None,
+        goal: str | None = None, guidelines: str | None = None,
     ) -> dict[str, Any]:
         """Make something run on its own from now on. title: the sentence the person reads,
         e.g. "Every morning at 08:00, read the listings and tell you what's new". schedule:
@@ -26,7 +27,10 @@ class Automating(Base):
         only if a step breaks.
         procedure: only for work that needs judgement on every run: exact instructions you
         will follow. Do the first run yourself now, before creating it. Only things that read
-        and update Alpha's own tables; never anything that sends, posts or submits."""
+        and update Alpha's own tables; never anything that sends, posts or submits.
+        goal: what it is for, in the person's words. guidelines: its page (Markdown), which the
+        person reads and edits and you read when you step in: what it is for, what a good run
+        looks like, what to do when a source needs a sign-in or stops reading, what to tell."""
         refused = self._gate("Setting up an automation")
         if refused:
             return refused
@@ -37,26 +41,42 @@ class Automating(Base):
         thread = self.world.modules.open_thread(title, "job", module_id)
         self.world.modules.update_thread(thread["id"], state="done")
         auto = self.world.automations.create(title, schedule, procedure, module=module_id,
-                                             thread=thread["id"], steps=clean)
+                                             thread=thread["id"], steps=clean, goal=goal)
+        if guidelines and guidelines.strip():
+            self.world.knowledge.write_note(f"agent:{auto['id']}", title, guidelines,
+                                            source=self.turn)
         self._did("made", f"Set up: {title} ({auto['when']}).", {"automation": auto["id"]},
                   module_id)
         return auto
 
     @tool
     def automations_list(self) -> list[dict[str, Any]]:
-        """Everything that runs on its own, with when it runs next and how its last run went."""
-        return self.world.automations.all()
+        """Everything that runs on its own, with when it runs next and how its last run went
+        (its verdict, judged by code: succeeded, partial or failed, and why)."""
+        out = []
+        for a in self.world.automations.all():
+            last = self.world.runs.last(a["id"])
+            out.append({**a, "last_verdict": last["verdict"] if last else None,
+                        "last_why": last["why"] if last else None})
+        return out
 
     @tool
     def automation_update(self, id: str, enabled: bool | None = None,
                           schedule: str | None = None, procedure: str | None = None,
                           title: str | None = None,
-                          steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                          steps: list[dict[str, Any]] | None = None,
+                          goal: str | None = None,
+                          guidelines: str | None = None) -> dict[str, Any]:
         """Change an automation: switch it off or on, change when it runs or what it does;
-        steps turn it into (or change) a pipeline run with no model."""
+        steps turn it into (or change) a pipeline run with no model; goal and guidelines as in
+        automation_create (guidelines replaces its page)."""
         clean = pipeline.check_steps(self.world, steps) if steps else None
         auto = self.world.automations.update(id, enabled=enabled, schedule=schedule,
-                                             procedure=procedure, title=title, steps=clean)
+                                             procedure=procedure, title=title, steps=clean,
+                                             goal=goal)
+        if guidelines and guidelines.strip():
+            self.world.knowledge.write_note(f"agent:{auto['id']}", auto["title"], guidelines,
+                                            source=self.turn)
         self._did("changed", f"Changed: {auto['title']} ({'on' if auto['enabled'] else 'off'},"
                   f" {auto['when']}).", {"automation": id}, auto["module"])
         return auto

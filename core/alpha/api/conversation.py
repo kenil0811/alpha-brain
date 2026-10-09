@@ -17,6 +17,7 @@ from alpha.api.views import (
     conversation_view,
     needs_you,
     thread_views,
+    troubles,
 )
 from alpha.connectors.files import Files
 from alpha.runtime import conversations
@@ -73,6 +74,7 @@ def routes(app: FastAPI, s: Served) -> None:
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
                 "needs_you": needs_you(world),
+                "troubles": troubles(world),
                 "look": world.preferences.get("companion_look")}
 
     @app.post("/api/turns/{key}/move", dependencies=[api])

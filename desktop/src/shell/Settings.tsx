@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { LookPicker } from "../avatar/LookPicker";
-import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, ThinkRoute, Thinking } from "../core/client";
+import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
 import { host } from "../core/host";
 import { PREF, usePreference } from "../core/preferences";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
@@ -36,11 +36,26 @@ function readPageSize(): PageSize {
 
 /** One way to think, connected or not, and the one step that gets there: Claude through Claude
  *  Code, or ChatGPT through the Codex CLI (Q32). Also used on first run for the chosen one. */
-export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { which: ThinkRoute; client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void; inUse?: boolean; onUse?: () => void }) {
+export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { which: ThinkRoute; client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void; inUse?: boolean; onUse?: () => Promise<unknown> }) {
   const [waiting, setWaiting] = useState<"install" | "signin" | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trying, setTrying] = useState(false);
   const name = which === "claude" ? "Claude" : "ChatGPT";
+  // Use this runs one real tool call through the new way first; a way that cannot reach
+  // Alpha's tools is never switched to, and the reason shows here.
+  async function use() {
+    if (!onUse) return;
+    setTrying(true);
+    setError(null);
+    try {
+      await onUse();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTrying(false);
+    }
+  }
   const tool = which === "claude" ? "Claude Code" : "the Codex CLI";
   const calls = which === "claude"
     ? { status: () => client.claude(), install: () => client.installClaude(), signIn: () => client.signInClaude(), signOut: () => client.signOutClaude() }
@@ -98,8 +113,8 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
       controls={
         <>
           {inUse ? <Badge tone="good">In use</Badge> : onUse && connected ? (
-            <Button size="sm" onClick={onUse}>
-              Use this
+            <Button size="sm" disabled={trying} onClick={() => void use()}>
+              {trying ? "Trying it…" : "Use this"}
             </Button>
           ) : null}
           {status ? <Badge tone={connected ? "good" : "warn"}>{connected ? "Connected" : "Not connected"}</Badge> : null}
@@ -127,6 +142,53 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
               {waiting === "install" ? "Installing…" : "Install"}
             </Button>
           )}
+        </>
+      }
+    >
+      {error ? <Notice tone="bad">{error}</Notice> : null}
+    </ListRow>
+  );
+}
+
+/** Alpha's own browser, with which it reads web pages: installed once, by Alpha, on first run;
+ *  about 250 MB comes down. Sign-in windows open in the person's Chrome when they have it. */
+export function BrowserRow({ client, status, onStatus }: { client: Client; status: BrowserStatus | null; onStatus: (s: BrowserStatus) => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const installing = Boolean(status?.installing);
+  useEffect(() => {
+    if (!installing) return;
+    const timer = setInterval(() => {
+      client.browser().then(onStatus).catch(() => undefined);
+    }, WAIT_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [installing, client, onStatus]);
+  async function install() {
+    setError(null);
+    try {
+      onStatus(await client.installBrowser());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+  const words = !status
+    ? "Checking…"
+    : status.installing
+      ? (status.words ?? "Installing… this takes a few minutes.")
+      : status.installed
+        ? `Installed · sign-in windows open in ${status.chrome ? "your Chrome" : "Alpha's own browser"}`
+        : (status.problem ?? "Alpha reads web pages with its own browser (Chromium). Installing it downloads about 250 MB, once.");
+  return (
+    <ListRow
+      title="The browser Alpha reads with"
+      description={<span className={status?.problem ? "lrow__warn" : undefined}>{words}</span>}
+      controls={
+        <>
+          {status ? <Badge tone={status.installed ? "good" : "warn"}>{status.installed ? "Installed" : "Not installed"}</Badge> : null}
+          {status && !status.installed ? (
+            <Button size="sm" variant="primary" disabled={installing} onClick={() => void install()}>
+              {installing ? "Installing…" : status.problem ? "Try again" : "Install"}
+            </Button>
+          ) : null}
         </>
       }
     >
@@ -270,6 +332,10 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
 
   const [trouble, setTrouble] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [browser, setBrowser] = useState<BrowserStatus | null>(null);
+  useEffect(() => {
+    void client.browser().then(setBrowser).catch(() => undefined);
+  }, [client, tick]);
   useEffect(() => {
     void host.companionVisible().then(setCompanion).catch(() => setCompanion(null));
     client
@@ -307,9 +373,12 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
         {trouble ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Settings: {trouble}</Trouble> : null}
         <WorkspaceCard client={client} onChanged={onChanged} />
         <SectionCard title="Thinks with" subtitle="Which assistant answers, and the model behind Quick overview and Deep thinking. The composer picks the depth, never the model.">
-          <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => void client.setThinking("claude").then((t) => onThinking?.(t))} />
-          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => void client.setThinking("codex").then((t) => onThinking?.(t))} />
+          <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
+          <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
           <ListRow title="Quick overview and Deep thinking" description="Every answer is a quick overview for now, on the chosen assistant's own model: choosing depth, and a model for each, needs Alpha's core." />
+        </SectionCard>
+        <SectionCard title="Reads with" info="Alpha's own browser, kept on this Mac; sign-in windows open in your Chrome when you have it.">
+          <BrowserRow client={client} status={browser} onStatus={setBrowser} />
         </SectionCard>
         <SectionCard title="Appearance">
           <ListRow title="Theme" controls={<ThemeControl theme={theme} onChange={onTheme} />} />

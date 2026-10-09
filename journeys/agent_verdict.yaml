@@ -1,0 +1,9 @@
+name: agent_verdict
+title: A run of an agent ends with a verdict judged by code, and the run is kept
+why: "Q33: success and failure declared and judged by code, a verdict stored per run, never the
+  model's opinion. The deal tracker reads 15 broker sites with no model."
+steps:
+  - automation: "Daily deal tracker — read all broker sources, flag new listings"
+checks:
+  - run_verdict: {one_of: [succeeded, partial]}
+  - automation: {result_matches: "Read 1[0-5] of 15 sources", problem_allowed: "couldn't be (reached|repaired)|sign-in"}

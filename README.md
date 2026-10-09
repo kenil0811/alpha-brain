@@ -53,6 +53,7 @@ just ask "log two boiled eggs"
 just serve          # the core's HTTP API on a loopback port
 just app            # build the signed debug app and open it (needs the node@24 keg and Rust)
 just app-dev        # the app with Vite hot reload
+just ship           # Alpha for another Mac: the release app with its runtime inside, zipped
 just test-desktop   # typecheck + vitest
 just journeys       # the journey suite on a copy of the app's world (uses the subscription)
 just check-desktop  # every page of the window at its sizes, on a copy of the world (no model)
@@ -68,3 +69,19 @@ from the default config home and `USER` must be in the environment. The app keep
 acceptance runs use a scratch one so the owner's world stays untouched). Builds are
 signed with the local "Alpha Local Signing" certificate so macOS keeps the app's permissions
 across rebuilds; see `docs/log/2026-10-01-4-1-slice-2-as-built-1.md`.
+
+## Sharing Alpha with someone
+
+`just ship` builds the release app with everything the core needs inside it (uv's standalone
+Python 3.13.9, the core and its locked packages, the official Node binary, the connectors with
+the browser driver and Playwright's installer) and zips it next to the app:
+`desktop/src-tauri/target/release/bundle/macos/Alpha.zip`. The debug app Kenil runs daily
+(`just app`) keeps using the repository's environment; the host picks the bundled runtime only
+when it finds one in its own `Contents/Resources/runtime` (`desktop/scripts/ship.sh`).
+
+The person needs an Apple-silicon Mac on macOS 14 or later and a Claude subscription. They
+unzip Alpha and open it once with right-click › Open (it is not notarized: no Apple Developer
+account yet); the host clears macOS's quarantine mark from its own runtime. On first run Alpha
+asks for the two things it needs, inside the window: Claude Code (Install, then Sign in with
+their account) and its own browser (Install: Playwright's Chromium, about 250 MB). Calendar and
+microphone access are asked by macOS when first used.

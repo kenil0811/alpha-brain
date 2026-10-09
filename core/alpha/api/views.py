@@ -4,7 +4,7 @@ titles behind relation fields, a module's card, an entity's timeline."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -94,7 +94,10 @@ def automation_views(world: World, scheduler: Scheduler,
             current = entries[starts[-1] + 1:] if starts else entries
             steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in current
                      if e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
-        out.append({**a, "running": running, "steps": steps[-8:]})
+        last = world.runs.last(a["id"])
+        out.append({**a, "running": running, "steps": steps[-8:],
+                    "last_verdict": last["verdict"] if last else None,
+                    "last_why": last["why"] if last else None})
     return out
 
 
@@ -166,6 +169,21 @@ def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
             "threads": [t for t in world.modules.threads() if t["module"] == m["id"]],
             "path": [p["name"] for p in world.modules.path(m["id"])],
             "children": [c["id"] for c in world.modules.children(m["id"])]}
+
+
+TROUBLE_WINDOW_H = 24
+
+
+def troubles(world: World) -> list[dict[str, Any]]:
+    """Runs that went wrong in the last day, for the companion to say so (8 Oct: four days of
+    failed runs reached nobody but Activity)."""
+    since = (datetime.now(UTC) - timedelta(hours=TROUBLE_WINDOW_H)).isoformat()
+    out = []
+    for a in world.automations.all():
+        if a.get("last_error") and (a.get("last_run_at") or "") >= since:
+            out.append({"id": a["id"], "title": a["title"], "at": a["last_run_at"],
+                        "words": a["last_error"], "module": a["module"]})
+    return sorted(out, key=lambda t: t["at"], reverse=True)
 
 
 def timeline(world: World, entity_id: str, limit: int = 100) -> list[dict[str, Any]]:

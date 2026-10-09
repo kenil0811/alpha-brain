@@ -498,7 +498,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
         ) : null}
         <div className="subsec">
           <div className="subsec__head">
-            <h4 className="subsec__title">What runs on its own</h4>
+            <h4 className="subsec__title">Agents</h4>
           </div>
           <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="" />
         </div>

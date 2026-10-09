@@ -41,18 +41,17 @@ SETTLED_S = 60  # awake this long without a break before a run starts
 
 AUTOMATION_RULES = """You are Alpha, the person's second brain, running one of their \
 automations on your own: nobody is watching this run. Follow the procedure, with the tools it \
-names. Keep what you read in Alpha's tables (reader_run or records_upsert, so repeat runs \
-update instead of duplicating). Never send, post, message, apply or submit anything.
+names. Never send, post, message, apply or submit anything.
 
-If reader_run says a reader is broken, repair it in this run: look at the page as it is now \
-(page_script returning the HTML of one item, or page_read), rewrite the reader's script, try it \
-with page_script, save it with reader_save under the same name, then reader_run again. If the \
+Reading pages into tables is never your work in a run: it is the automation's steps, which run \
+with no model. If this procedure reads a page or runs a reader, convert the automation now with \
+automation_update(id, steps=[{"read": "<reader>", "into": "<table>", "key": "<field>", "keep": \
+[<the person's own fields>]}, {"tell": "<table>"}]) and finish: the steps run as soon as you have \
+saved them, in this run, and on every run after. A procedure is for judgement over what the \
+tables hold (compare, summarise, flag), with records_query and records_aggregate. If the \
 procedure itself is what's wrong (it relies on something that isn't true, or a step that \
 cannot scale), fix it with automation_update so the next run is right. Never update rows one \
-by one after a sync: anything a new row should start with (a status, a tag) goes into the \
-reader's rows, protected with keep_person_fields so it is only filled where empty. Never \
-conclude that a site has a limit from one failed attempt: check it with page_script first, \
-and correct any note or procedure that says otherwise.
+by one; never conclude that a site has a limit from one failed attempt.
 
 If a site asks for a sign-in or the run cannot be done, don't retry in a loop: say so in one \
 line, and call ask_person once with what the person needs to do (for example "sign in to \
@@ -62,10 +61,6 @@ This run starts fresh: what earlier runs learned is in THIS THREAD below (the br
 thread's own history), not in your memory. Before you finish, if this run taught you something \
 the next run needs (a decision, something that didn't work and why, the next step), rewrite the \
 brief with thread_brief: short, current, and only what you verified.
-
-If this automation only runs readers into tables (and tells the person what changed), turn \
-it into a pipeline with automation_update(steps=…): from then on the scheduler runs it with no \
-model, and you are called only when a step breaks.
 
 Your final answer is one or two lines for the automation's log: what changed (counts, names \
 that matter). If something is worth the person's attention (a change they would want to know \
@@ -83,6 +78,10 @@ def worth_telling(reply: str) -> str | None:
 
 def run(world: World, automation_id: str, *,
         runner: turn.Runner = route.run) -> dict[str, Any]:
+    """One run of an automation (an agent's process, Q33): a row in `runs` from start to its
+    verdict, judged by code. Steps run with no model; a procedure is a model turn with the
+    automation's page in front of it; a procedure that converts itself to steps runs them at
+    once."""
     auto = world.automations.get(automation_id)
     thread = auto["thread"]
     if not thread:
@@ -90,35 +89,66 @@ def run(world: World, automation_id: str, *,
         world.automations.set_thread(automation_id, thread)
         auto = world.automations.get(automation_id)
     world.modules.update_thread(thread, state="working")
+    run_id = world.runs.start(automation_id)
     if auto["steps"]:
-        # A pipeline: saved steps, no model unless a step breaks.
-        try:
-            line, problem = pipeline.run_pipeline(world, auto, runner=runner)
-        except Exception as e:
-            log.exception("pipeline %s failed", automation_id)
-            line, problem = "", str(e)
-        world.modules.update_thread(thread, state="done")
-        return world.automations.finished(automation_id, result=line or None, error=problem)
+        return _steps(world, auto, run_id, runner)
     prompt = (f"Run the automation \"{auto['title']}\" now ({auto['when']}). "
               f"Procedure:\n{auto['procedure']}")
+    page = world.knowledge.find_note(f"agent:{automation_id}", auto["title"])
+    if page and page["body"].strip():
+        prompt += (f"\n\nIts page (what it is for, how to judge, what to tell):\n"
+                   f"{page['body'][:3000]}")
     try:
         outcome = turn.ask(world, prompt, thread=thread, runner=runner, rules=AUTOMATION_RULES,
                            actor="alpha")
     except Exception as e:
         log.exception("automation %s failed", automation_id)
-        world.modules.update_thread(thread, state="done")
-        return world.automations.finished(automation_id, result=None, error=str(e))
-    world.modules.update_thread(thread, state="done")
+        return _ended(world, auto, run_id, "failed", str(e), None, 0)
+    after = world.automations.get(automation_id)
+    if outcome.ok and after["steps"]:
+        # The run converted the automation to steps: they run now, not tomorrow.
+        world.journal.append("did", f"\"{auto['title']}\" now runs as steps, with no model;"
+                             " running them now.", actor="alpha", thread=thread,
+                             module=auto["module"], data={"automation": automation_id})
+        return _steps(world, after, run_id, runner, model_ms=outcome.result.duration_ms or 0)
+    model_ms = int(outcome.result.duration_ms or 0)
     if outcome.ok:
         worth = worth_telling(outcome.reply)
         if worth:
             world.journal.append("noticed", worth, data={"automation": automation_id},
                                  module=auto["module"])
-        return world.automations.finished(automation_id, result=outcome.reply[:2000], error=None)
-    world.journal.append("failed", f"{auto['title']}: {outcome.result.error or outcome.reply}",
-                         data={"automation": automation_id}, module=auto["module"])
-    return world.automations.finished(automation_id, result=None,
-                                      error=outcome.result.error or outcome.reply)
+        return _ended(world, auto, run_id, "succeeded", None, outcome.reply[:2000], model_ms)
+    return _ended(world, auto, run_id, "failed", outcome.result.error or outcome.reply, None,
+                  model_ms)
+
+
+def _steps(world: World, auto: dict[str, Any], run_id: str, runner: turn.Runner, *,
+           model_ms: int = 0) -> dict[str, Any]:
+    """The steps, with no model unless one breaks; the verdict from what was read."""
+    try:
+        result = pipeline.run_pipeline(world, auto, runner=runner)
+    except Exception as e:
+        log.exception("pipeline %s failed", auto["id"])
+        return _ended(world, auto, run_id, "failed", str(e), None, model_ms)
+    verdict, why = result.verdict()
+    return _ended(world, auto, run_id, verdict, why, result.line or None,
+                  model_ms + result.model_ms, repairs=result.repairs, read=result.read,
+                  sources=result.sources)
+
+
+def _ended(world: World, auto: dict[str, Any], run_id: str, verdict: str, why: str | None,
+           line: str | None, model_ms: int, *, repairs: int = 0, read: int | None = None,
+           sources: int | None = None) -> dict[str, Any]:
+    """The run's row, its line in the journal when it went wrong, the thread back to done."""
+    if verdict == "failed":
+        world.journal.append("failed", f"Run of \"{auto['title']}\" failed: {why}",
+                             data={"automation": auto["id"], "run": run_id},
+                             thread=auto["thread"], module=auto["module"])
+    world.runs.finish(run_id, verdict=verdict, why=why, line=line, model_ms=model_ms,
+                      repairs=repairs, read=read, sources=sources)
+    if auto["thread"]:
+        world.modules.update_thread(auto["thread"], state="done")
+    return world.automations.finished(auto["id"], result=line, error=why)
 
 
 def backoff_s(crashes: int) -> float:

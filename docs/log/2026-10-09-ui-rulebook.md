@@ -2,7 +2,7 @@
 
 Vikas compared two UI rulebooks (v1, written against this app; W1, a generic workspace one) with
 what main has, chose rule by rule, and asked for the result to be built on main, in the window
-only. The choices are `docs/design/ui-rulebook.md`; the decision is Q33. Branch
+only. The choices are `docs/design/ui-rulebook.md`; the decision is Q35 (Q33 until the merge with main, 9 Oct). Branch
 `feat/ui-rulebook` from main at 90c1a5a; local commits only, not pushed.
 
 **The limits, decided before any code.** Nothing in `core/`, `connectors/`, `journeys/` or

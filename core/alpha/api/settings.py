@@ -1,4 +1,5 @@
-"""Routes for settings: the person's Claude, their data, their preferences."""
+"""Routes for settings: the person's Claude, Alpha's own browser, their data, their
+preferences."""
 
 from __future__ import annotations
 
@@ -8,6 +9,7 @@ from fastapi import FastAPI
 
 from alpha.api.bodies import PreferenceBody, ThinkingBody
 from alpha.api.served import Served
+from alpha.connectors import browser
 from alpha.runtime import claude_account, codex_account, route
 from alpha.world import backup
 from alpha.world.store import Problem
@@ -33,6 +35,16 @@ def routes(app: FastAPI, s: Served) -> None:
     def claude_sign_out() -> dict[str, Any]:
         return claude_account.sign_out()
 
+    # ---- the browser Alpha reads with: Playwright's Chromium, installed once by Alpha ----
+
+    @app.get("/api/browser", dependencies=[api])
+    def browser_status() -> dict[str, Any]:
+        return browser.status()
+
+    @app.post("/api/browser/install", dependencies=[api])
+    def browser_install() -> dict[str, Any]:
+        return browser.install()
+
     # ---- which way Alpha thinks (Q32): Claude through Claude Code, or ChatGPT through Codex ----
 
     @app.get("/api/thinking", dependencies=[api])
@@ -43,6 +55,12 @@ def routes(app: FastAPI, s: Served) -> None:
     def set_thinking(body: ThinkingBody) -> dict[str, Any]:
         if body.route not in route.ROUTES:
             raise Problem("Alpha thinks with Claude or with ChatGPT.")
+        if body.route != route.chosen(world.path):
+            # One real tool call first: a way of thinking that cannot reach Alpha's tools is
+            # never switched to (8 Oct).
+            ok, words = route.trial(world.path, body.route)
+            if not ok:
+                raise Problem(f"{route.WORDS[body.route]} can't reach Alpha's tools yet: {words}")
         world.preferences.set(route.PREFERENCE, body.route)
         world.journal.append("changed", f"You chose to think with {route.WORDS[body.route]}.",
                              actor="person", data={"thinks_with": body.route})

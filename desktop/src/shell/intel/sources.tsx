@@ -1,5 +1,5 @@
 /**
- * Intelligence's lists as data sources (9 Oct): agents, automations, skills, connections and
+ * Intelligence's lists as data sources (9 Oct): agents (automations, Q33), skills, connections and
  * facts, each drawn by the one data view (`DataPage`), so each has views, filters, sorting and
  * the person's own lists (kept in `PREF.windowLists` by `memorySource`). Rows are asked of the
  * core afresh on every load, so an edit shows as saved. Only what the core can change is
@@ -7,48 +7,25 @@
  */
 import type { Client, Connection, Fact, Intelligence, RecordRow } from "../../core/client";
 import { memorySource, type DataSource } from "../../modules/source";
-import { agentsFrom } from "../agents";
 import { sourceWords } from "../FactRow";
 import { AgentAvatar } from "../AgentAvatar";
+import { VERDICT } from "../Automations";
 
 const NEEDS_CORE = "needs Alpha's core";
 const rec = (id: string, values: Record<string, unknown>, at = ""): RecordRow => ({ id, revision: 1, values, created_at: at, updated_at: at, provenance: {} });
-const latest = (dates: (string | null | undefined)[]) => dates.filter((d): d is string => Boolean(d)).sort().at(-1) ?? null;
 
-export const AGENT_STATES = ["Running", "Working", "Needs attention", "Not run yet"];
-export function agentsSource(client: Client, modules: Record<string, string>): DataSource {
-  return memorySource({
-    client,
-    key: "intel.agents",
-    title: "Agents",
-    titleField: "name",
-    fields: [
-      { name: "name", kind: "text", label: "Name" },
-      { name: "kind", kind: "choice", label: "Kind", choices: ["Assistant", "Module runner"] },
-      { name: "module", kind: "text", label: "Module" },
-      { name: "skills", kind: "number", label: "Skills" },
-      { name: "automations", kind: "number", label: "Automations" },
-      { name: "last_run", kind: "datetime", label: "Last run" },
-      { name: "status", kind: "status", label: "Status", choices: AGENT_STATES },
-    ],
-    rows: async () =>
-      agentsFrom(await client.intelligence(), modules).map((a) => {
-        const status = a.automations.some((x) => x.running) ? "Running" : a.automations.some((x) => x.last_error) || a.skills.some((s) => s.health === "broken") ? "Needs attention" : latest([...a.automations.map((x) => x.last_run_at), ...a.skills.map((s) => s.last_run_at)]) ? "Working" : "Not run yet";
-        return rec(a.id, { name: a.name, kind: a.module ? "Module runner" : "Assistant", module: a.module ? (modules[a.module] ?? a.module) : "", skills: a.skills.length, automations: a.automations.length, last_run: latest([...a.automations.map((x) => x.last_run_at), ...a.skills.map((s) => s.last_run_at)]), status });
-      }),
-    rowIcon: (row) => <AgentAvatar client={client} agent={row.id} size={20} label={String(row.values.name)} />,
-    reasons: { edit: `Changing an agent ${NEEDS_CORE}; open it to see what it does.`, add: "Ask Alpha to make an agent.", remove: `Deleting an agent ${NEEDS_CORE}.` },
-  });
-}
-
+/** Agents (Q33): every automation is an agent's process, with a goal and a verdict per run judged
+ *  by code; each row wears the companion chosen for that agent. */
 export function automationsSource(client: Client, modules: Record<string, string>): DataSource {
   return memorySource({
     client,
     key: "intel.automations",
-    title: "Automations",
+    title: "Agents",
     titleField: "title",
     fields: [
-      { name: "title", kind: "text", label: "Automation" },
+      { name: "title", kind: "text", label: "Agent" },
+      { name: "goal", kind: "text", label: "Goal" },
+      { name: "verdict", kind: "status", label: "Last verdict", choices: ["Succeeded", "Partial", "Failed", "Not judged yet"], done_choices: ["Succeeded"] },
       { name: "when", kind: "text", label: "When" },
       { name: "on", kind: "bool", label: "On" },
       { name: "last_run", kind: "datetime", label: "Last run" },
@@ -58,7 +35,7 @@ export function automationsSource(client: Client, modules: Record<string, string
     ],
     rows: async () =>
       (await client.intelligence()).automations.map((a) =>
-        rec(a.id, { title: a.title, when: a.when, on: a.enabled, last_run: a.last_run_at, next_run: a.next_run_at, result: a.running ? "Running" : a.last_error ? "Didn't work" : a.last_run_at ? "Worked" : "Not run yet", module: a.module ? (modules[a.module] ?? a.module) : "" }),
+        rec(a.id, { title: a.title, goal: a.goal ?? "", verdict: a.last_verdict ? VERDICT[a.last_verdict].words : "Not judged yet", when: a.when, on: a.enabled, last_run: a.last_run_at, next_run: a.next_run_at, result: a.running ? "Running" : a.last_error ? "Didn't work" : a.last_run_at ? "Worked" : "Not run yet", module: a.module ? (modules[a.module] ?? a.module) : "" }),
       ),
     edit: async (row, values) => {
       const keys = Object.keys(values);
@@ -66,6 +43,7 @@ export function automationsSource(client: Client, modules: Record<string, string
       await client.switchAutomation(row.id, values.on === true || values.on === "true");
       return { ...row, values: { ...row.values, on: values.on === true || values.on === "true" }, revision: row.revision + 1 };
     },
+    rowIcon: (row) => <AgentAvatar client={client} agent={row.id} size={20} label={String(row.values.title)} />,
     editable: (_row, field) => (field.name === "on" ? null : `Only On changes here; the rest ${NEEDS_CORE}.`),
     reasons: { add: "Ask Alpha to keep something current.", remove: `Deleting an automation ${NEEDS_CORE}.` },
   });

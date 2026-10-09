@@ -47,7 +47,10 @@ readers can feed one table. Don't add first-seen, last-seen or gone fields: the 
 them for every row a reader writes, and the table shows them.
 - Keep it current with an automation made of steps: automation_create with a read step per \
 reader and a tell step for what the person wants to hear about. Use a procedure only for work \
-that needs judgement on every run.
+that needs judgement on every run. Give every automation its goal (the person's words) and its \
+page (guidelines=): what it is for, what a good run looks like, what to do when a source needs a \
+sign-in or stops reading, and what to tell the person. The person reads and edits that page; \
+you read it whenever you step into a run.
 - Give the person something working early: one source end to end, with the automation, before \
 the rest.
 - Every value in a table is stated by the person, looked up from a source, or estimated and \

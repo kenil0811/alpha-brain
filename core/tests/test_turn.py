@@ -194,3 +194,28 @@ def test_turn_timings_are_measured_from_the_journal(world: World) -> None:
     assert [r["model_s"] for r in rows] == [1.2, 1.2] and [r["steps"] for r in rows] == [3, 3]
     assert [r["resumed"] for r in rows] == [False, True] and all(r["ok"] for r in rows)
     assert rows[0]["wall_s"] >= 0 and rows[0]["text"] == "log two eggs"
+
+
+def test_a_turn_whose_tool_calls_all_failed_is_a_failed_turn() -> None:
+    """8 Oct: a route that refused every tool call still produced text that claimed a build
+    was approved. Every call failed means no answer, whatever the words."""
+    from typing import Any
+
+    from alpha.runtime.claude_cli import TOOLS_DOWN, count_tools, parse_result, tools_verdict
+
+    tools: dict[str, Any] = {"called": 0, "failed": 0, "first": ""}
+    count_tools({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "mcp__alpha__plan_approve", "input": {}}]}}, tools)
+    count_tools({"type": "user", "message": {"content": [
+        {"type": "tool_result", "is_error": True, "content": [
+            {"type": "text", "text": "MCP server alpha is not connected"}]}]}}, tools)
+    assert tools == {"called": 1, "failed": 1, "first": "MCP server alpha is not connected"}
+    done = parse_result({"type": "result", "result": "Approved. The build will run."}, "", 0)
+    out = tools_verdict(done, 1, 1, tools["first"])
+    assert not out.ok and out.error and out.error.startswith(TOOLS_DOWN)
+    assert "MCP server alpha is not connected" in out.error
+    assert "nothing it said counts" in out.error
+    # one answered call among failed ones is still an answer
+    again = parse_result({"type": "result", "result": "Logged two eggs."}, "", 0)
+    assert tools_verdict(again, 3, 2, "x").ok and again.tools_failed == 2
+    assert tools_verdict(parse_result({"type": "result", "result": "Hello."}, "", 0), 0, 0, "").ok

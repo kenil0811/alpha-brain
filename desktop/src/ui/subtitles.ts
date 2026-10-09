@@ -5,7 +5,7 @@ export const SUBTITLES = {
   intelligence: "What Alpha knows and does across your modules",
   governance: "Where this data lives and what Alpha may do with it",
   provenance: "Where this came from, and when",
-  agents: "The assistants that work for you",
+  agents: "Each keeps something current, with a verdict per run",
   skills: "Things Alpha knows how to do",
   automations: "Things that run on their own, and when",
   connections: "Apps, folders and calendars Alpha can reach",

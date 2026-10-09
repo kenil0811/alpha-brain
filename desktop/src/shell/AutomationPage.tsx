@@ -1,8 +1,9 @@
 /**
- * One automation's page: the switch and Run now (both work), its title, when it runs and what it
- * does as fields (the core has no call that edits them, so Save stays disabled with the reason),
- * and its runs with what each found. The shared page header carries a back link and the serif
- * title (9 Oct, §5).
+ * One agent's page (Q33: every automation is an agent's process): the switch and Run now, its goal
+ * and last verdict, its page (Alpha writes it, the person edits it; saved as the note
+ * `agent:<id>`), its title, when it runs and what it does as fields (the core has no call that
+ * edits those, so Save stays disabled with the reason), the companion it wears, and its runs with
+ * a verdict each. The shared page header carries a back link and the serif title (9 Oct, §5).
  */
 import { useEffect, useState } from "react";
 import type { AutomationDetail, Client } from "../core/client";
@@ -12,7 +13,10 @@ import { Check, ICON_SM, X } from "../ui/icons";
 import { BackLink } from "./BackLink";
 import type { Surface } from "./Rail";
 import { Field } from "./SkillPage";
+import { LookPicker } from "../avatar/LookPicker";
+import { AgentAvatar, useAgentLook } from "./AgentAvatar";
 import { stepSentence } from "./steps";
+import { VERDICT } from "./Automations";
 
 export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: { client: Client; id: string; version: number; onGo: (s: Surface) => void; onAsk: (text: string) => void; onChanged: () => void }) {
   const [auto, setAuto] = useState<AutomationDetail | null>(null);
@@ -20,6 +24,8 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
   const [tick, setTick] = useState(0);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [draft, setDraft] = useState<{ title: string; when: string; does: string } | null>(null);
+  const [pageBody, setPageBody] = useState<string | null>(null);
+  const [look, setLook] = useAgentLook(client, id);
   useEffect(() => {
     let live = true;
     client
@@ -35,12 +41,12 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
     };
   }, [client, id, version, tick]);
   // While it runs, its steps arrive through the window's one poll (`version` moves).
-  const back = <BackLink to="Automations" onClick={() => onGo({ kind: "intelligence", tab: "automations" })} />;
+  const back = <BackLink to="Agents" onClick={() => onGo({ kind: "intelligence", tab: "agents" })} />;
   if (!auto) {
     return (
       <>
         <PageHeader left={back} />
-        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this automation: {error}</Trouble> : <p className="faint">Loading this automation…</p>}</div>
+        <div className="page page--column">{error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this agent: {error}</Trouble> : <p className="faint">Loading this agent…</p>}</div>
       </>
     );
   }
@@ -58,7 +64,12 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
     <>
       <PageHeader
         left={back}
-        title={auto.title}
+        centre={
+          <span className="intel__head">
+            <AgentAvatar client={client} agent={auto.id} size={32} label={auto.title} />
+            <h1 className="pagehead__title serif">{auto.title}</h1>
+          </span>
+        }
         right={
           <>
             <Button size="sm" onClick={() => void act(() => client.switchAutomation(auto.id, !auto.enabled), auto.enabled ? "Switched off." : "Switched on.")}>
@@ -67,7 +78,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
             <Button size="sm" disabled={Boolean(auto.running)} onClick={() => void act(() => client.runAutomation(auto.id), "Running now.")}>
               Run now
             </Button>
-            <Button size="sm" variant="primary" onClick={() => onAsk(`Change the automation "${auto.title}": `)}>
+            <Button size="sm" variant="primary" onClick={() => onAsk(`Change the agent "${auto.title}": `)}>
               Ask Alpha to change this
             </Button>
           </>
@@ -77,17 +88,48 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
         <div className="stack stack--wide">
           <div className="row">
             <Badge tone={auto.running ? "info" : auto.enabled ? "good" : "gray"}>{auto.running ? "Running now" : auto.enabled ? "On" : "Off"}</Badge>
+            {auto.last_verdict ? <Badge tone={VERDICT[auto.last_verdict].tone}>Last run {VERDICT[auto.last_verdict].words.toLowerCase()}</Badge> : null}
             <span className="faint">
+              {auto.goal ? `${auto.goal} · ` : ""}
               {auto.when}
               {auto.enabled && auto.next_run_at ? ` · next ${when(auto.next_run_at)}` : ""}
               {auto.last_run_at ? ` · last ran ${when(auto.last_run_at)}` : ""}
             </span>
           </div>
           {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
-          {auto.last_error ? <Trouble>Last run didn't work: {auto.last_error}</Trouble> : null}
+          {auto.last_verdict && auto.last_why ? <Notice tone={auto.last_verdict === "succeeded" ? "ok" : "bad"}>{auto.last_why}</Notice> : !auto.last_verdict && auto.last_error ? <Trouble>Last run didn't work: {auto.last_error}</Trouble> : null}
 
           <SectionCard
-            title="Automation"
+            title="Its page"
+            info={auto.good_run ? `A run succeeds when ${auto.good_run}.` : undefined}
+            actions={
+              pageBody !== null ? (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => setPageBody(null)}>
+                    Discard
+                  </Button>
+                  <Button size="sm" variant="primary" onClick={() => void act(() => client.writeNote(`agent:${auto.id}`, auto.title, pageBody), "Saved.").then(() => setPageBody(null))}>
+                    Save
+                  </Button>
+                </>
+              ) : !auto.guidelines?.body ? (
+                <Button size="sm" onClick={() => onAsk(`Write the page for the agent "${auto.title}": what it is for, what a good run looks like, what to do when a source needs a sign-in or stops reading, and what to tell me.`)}>
+                  Ask Alpha to write it
+                </Button>
+              ) : null
+            }
+          >
+            {pageBody !== null ? (
+              <textarea className="textfield" rows={8} value={pageBody} onChange={(e) => setPageBody(e.target.value)} aria-label="Edit the agent's page" autoFocus />
+            ) : (
+              <p className="editable" style={{ whiteSpace: "pre-wrap" }} tabIndex={0} title="Click to edit" onClick={() => setPageBody(auto.guidelines?.body ?? "")} onKeyDown={(e) => e.key === "Enter" && setPageBody(auto.guidelines?.body ?? "")}>
+                {auto.guidelines?.body || <span className="faint">No page yet. Click to write it.</span>}
+              </p>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Agent"
             actions={
               <>
                 {draft ? (
@@ -95,7 +137,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
                     Discard
                   </Button>
                 ) : null}
-                <Button size="sm" variant="primary" disabledReason="Editing an automation needs Alpha's core">
+                <Button size="sm" variant="primary" disabledReason="Editing an agent needs Alpha's core">
                   Save
                 </Button>
               </>
@@ -108,14 +150,21 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
             </div>
           </SectionCard>
 
+          <SectionCard title="Companion">
+            <LookPicker value={look} onChange={(l) => void setLook(l)} />
+          </SectionCard>
+
           <SectionCard title="Runs">
             {!auto.runs.length ? <p className="faint">None yet.</p> : null}
             <div className="stack">
               {auto.runs.map((r) => (
-                <div key={r.at} className="run">
-                  <div className="row">
-                    <b>{when(r.at)}</b>
-                    {r.outcome ? <span className="muted">{r.outcome}</span> : null}
+                <div key={r.id} className="run">
+                  <div className="row" style={{ gap: "var(--space-2)", flexWrap: "wrap" }}>
+                    <b>{when(r.started_at)}</b>
+                    {r.verdict ? <Badge tone={VERDICT[r.verdict].tone}>{VERDICT[r.verdict].words}</Badge> : <Badge tone="info">Running</Badge>}
+                    {r.line ? <span className="muted">{r.line}</span> : null}
+                    {r.why ? <span className="faint">{r.why}</span> : null}
+                    {r.model_ms || r.repairs ? <span className="faint">{r.model_ms ? `${Math.round(r.model_ms / 1000)} s of model time` : ""}{r.repairs ? ` · ${r.repairs} repair${r.repairs === 1 ? "" : "s"}` : ""}</span> : null}
                   </div>
                   {r.lines.length ? (
                     <ul className="stages">

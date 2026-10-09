@@ -16,6 +16,9 @@ from alpha.world.store import loads
 ROUTES = ("claude", "codex")
 PREFERENCE = "thinks_with"
 WORDS = {"claude": "Claude", "codex": "ChatGPT"}
+TRIAL_SYSTEM = """You are Alpha, checking that your tools answer. Call the tool collections_list \
+once, then reply with the single word ok. Nothing else."""
+TRIAL_SENTENCE = "Call collections_list once and reply ok."
 
 
 def chosen(world_path: Path | str | None) -> str:
@@ -40,6 +43,21 @@ def run(req: TurnRequest) -> RunResult:
     if chosen(req.world_path) == "codex":
         return codex_cli.run(req)
     return claude_cli.run(req)
+
+
+def trial(world_path: Path | str, which: str) -> tuple[bool, str]:
+    """One real tool call through a way of thinking, before the person is allowed to switch
+    to it (8 Oct: a route that could not reach the tools was in use for five days). True with a
+    line saying so, or False with the reason."""
+    runner = codex_cli.run if which == "codex" else claude_cli.run
+    result = runner(TurnRequest(sentence=TRIAL_SENTENCE, system=TRIAL_SYSTEM,
+                                world_path=Path(world_path), turn_id="trial", model="haiku"))
+    if not result.ok:
+        return False, result.error or "no answer came back"
+    if result.tools_called == 0:
+        return False, "the model answered without calling a tool"
+    return True, (f"{result.tools_called} tool call{'s' if result.tools_called != 1 else ''}"
+                  " answered")
 
 
 def status(world_path: Path | str | None) -> dict[str, Any]:
