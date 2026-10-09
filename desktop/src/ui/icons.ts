@@ -115,3 +115,29 @@ export {
 
 /** The assistant panel's (9 Oct, the UI rulebook §9). */
 export { Archive as ArchiveIcon, Paperclip as AttachIcon, RotateCcw as RetryIcon } from "lucide-react";
+
+/** The Dashboard view's (9 Oct, the UI rulebook §6): the metric tiles and the edit controls. */
+export { Hash as CountIcon, Sigma as TotalIcon, Gauge as AverageIcon, Minimize2 } from "lucide-react";
+
+/** The data view (9 Oct, the UI rulebook §6): the view types, the table's menus, the footer. */
+export {
+  Download as DownloadIcon,
+  ListFilter as FilterIcon,
+  List as ListIcon,
+  Kanban as BoardIcon,
+  LayoutGrid as GalleryIcon,
+  ChartNoAxesGantt as TimelineIcon,
+  ChartColumn as ChartIcon,
+  ClipboardList as FormIcon,
+  LayoutDashboard as DashboardIcon,
+  Pin as PinIcon,
+  PinOff as UnpinIcon,
+  Copy as CopyIcon,
+  Eraser as ClearIcon,
+  History as HistoryIcon,
+  Snowflake as FreezeIcon,
+  ArrowUpAZ as SortAscIcon,
+  ArrowDownAZ as SortDescIcon,
+  SquarePen as EditIcon,
+  TriangleAlert as AlertIcon,
+} from "lucide-react";

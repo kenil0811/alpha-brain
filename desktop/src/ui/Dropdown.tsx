@@ -34,6 +34,7 @@ export function Dropdown<T extends string = string>({
   id,
   defaultOpen,
   onOpenChange,
+  icon,
 }: {
   value: T;
   options: DropdownOption<T>[];
@@ -49,6 +50,9 @@ export function Dropdown<T extends string = string>({
   /** Opens on arrival, for a cell that turns into a dropdown to be edited. */
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** An icon before the value in the trigger (the data view's view picker, which shows only
+   *  this when the toolbar is narrow). */
+  icon?: ReactNode;
 }) {
   const [open, setOpenState] = useState(Boolean(defaultOpen));
   const [query, setQuery] = useState("");
@@ -117,6 +121,11 @@ export function Dropdown<T extends string = string>({
     <RadixPopover.Root open={open} onOpenChange={setOpen}>
       <RadixPopover.Trigger asChild>
         <button type="button" id={id} role="combobox" aria-haspopup="listbox" aria-label={label} aria-describedby={valueId} className={["btn", size === "sm" ? "btn--sm" : "", "dropdown__trigger", className ?? ""].filter(Boolean).join(" ")} onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setOpen(true); } }}>
+          {icon ? (
+            <span className="dropdown__tico" aria-hidden="true">
+              {icon}
+            </span>
+          ) : null}
           <span id={valueId} className={`dropdown__value${selected ? "" : " dropdown__value--placeholder"}`}>
             {selected ? selected.label : placeholder}
           </span>
