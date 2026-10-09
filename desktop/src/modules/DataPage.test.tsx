@@ -60,7 +60,7 @@ function fakeClient(rows: RecordRow[], tableDesc: TableDesc = desc) {
 function page(rows: RecordRow[], props: Partial<Parameters<typeof DataPage>[0]> = {}, client = fakeClient(rows)) {
   render(
     <TooltipProvider>
-      <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} {...props} />
+      <DataPage onOpenRecord={vi.fn()} client={client} table={desc} version={0} onChanged={vi.fn()} {...props} />
     </TooltipProvider>,
   );
   return client;
@@ -183,7 +183,7 @@ describe("the toolbar", () => {
     const client = fakeClient([row("r1", "Bakery", 300)], withFile);
     render(
       <TooltipProvider>
-        <DataPage client={client} table={withFile} version={0} onChanged={vi.fn()} onAddFiles={vi.fn()} />
+        <DataPage onOpenRecord={vi.fn()} client={client} table={withFile} version={0} onChanged={vi.fn()} onAddFiles={vi.fn()} />
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
@@ -293,7 +293,7 @@ describe("the toolbar", () => {
     await user.click(screen.getAllByRole("combobox", { name: "Direction" })[1]);
     await user.click(screen.getByRole("option", { name: "Descending" }));
     const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
-    expect(names()).toEqual(["Deli", "Bakery", "Cafe"]);
+    expect(names()).toEqual(["Open Deli", "Open Bakery", "Open Cafe"]);
     await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("view_settings", expect.objectContaining({ "deals:all": expect.objectContaining({ sorts: [{ field: "price", direction: "desc" }, { field: "title", direction: "desc" }] }) })));
   });
 
@@ -369,7 +369,7 @@ describe("editing a cell", () => {
     const client = fakeClient(rows);
     const ui = (version: number) => (
       <TooltipProvider>
-        <DataPage client={client} table={desc} version={version} onChanged={vi.fn()} />
+        <DataPage onOpenRecord={vi.fn()} client={client} table={desc} version={version} onChanged={vi.fn()} />
       </TooltipProvider>
     );
     const { rerender } = render(ui(0));
@@ -415,14 +415,14 @@ describe("the row's menu", () => {
     await waitFor(() => expect(client.deleteRecord).toHaveBeenCalledWith("deals", "r1", 3));
   });
 
-  it("opens from the keyboard with Shift+F10, and keeps Open disabled, with its reason, when records have no page", async () => {
+  it("opens from the keyboard with Shift+F10; Open is always there, since every record has a page", async () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
     rowOf("Bakery").focus();
     await user.keyboard("{Shift>}{F10}{/Shift}");
     const open = await screen.findByRole("menuitem", { name: "Open" });
-    expect(open).toHaveAttribute("aria-disabled", "true");
+    expect(open).not.toHaveAttribute("aria-disabled", "true");
     expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Edit", "Duplicate", "Copy link", "Pin", "Delete"]);
   });
 });
@@ -470,7 +470,7 @@ describe("the column and cell menus and the footer", () => {
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     await user.click(await screen.findByRole("menuitem", { name: "Sort ascending" }));
     const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
-    expect(names()).toEqual(["Cafe", "Bakery"]);
+    expect(names()).toEqual(["Open Cafe", "Open Bakery"]);
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     await user.click(await screen.findByRole("menuitem", { name: "Freeze up to here" }));
     expect(document.querySelectorAll("th.col--frozen").length).toBe(2); // Title and Price; no checkbox column
@@ -498,16 +498,15 @@ describe("the column and cell menus and the footer", () => {
 });
 
 describe("the + New row and an empty table", () => {
-  it("adds an empty record and opens its title for typing", async () => {
+  it("opens a new record's own page and makes nothing first", async () => {
     const user = userEvent.setup();
-    const client = page([row("r1", "Bakery", 300)]);
+    const onOpenRecord = vi.fn();
+    const client = page([row("r1", "Bakery", 300)], { onOpenRecord });
     await screen.findByText("Bakery");
     expect(screen.queryByRole("textbox", { name: /in a sentence/ })).toBeNull(); // the sentence goes to the panel now
     await user.click(screen.getByRole("button", { name: "New" }));
-    await waitFor(() => expect(client.addRecord).toHaveBeenCalledWith("deals", {}));
-    const title = await screen.findByRole("textbox", { name: "Title" });
-    await user.type(title, "Deli{Enter}");
-    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r2", { title: "Deli" }, 3));
+    expect(onOpenRecord).toHaveBeenCalledWith("deals", "new");
+    expect(client.addRecord).not.toHaveBeenCalled();
   });
 
   it("opens the new record's own page whenever records have pages, making nothing first", async () => {
@@ -640,7 +639,7 @@ describe("any source", () => {
     const source = memorySource({ client, key: "agents", title: "Agents", fields: [{ name: "name", kind: "text" }, { name: "runs", kind: "number" }], rows: () => [row("a1", "", 4, { values: { name: "Alpha", runs: 4 } })], reasons: { add: "Ask Alpha to make an agent." } });
     render(
       <TooltipProvider>
-        <DataPage client={client} source={source} version={0} onChanged={vi.fn()} />
+        <DataPage onOpenRecord={vi.fn()} client={client} source={source} version={0} onChanged={vi.fn()} />
       </TooltipProvider>,
     );
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
@@ -706,11 +705,11 @@ describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
     const source = memorySource({ client, key: "agents", title: "Agents", fields: [{ name: "name", kind: "text" }, { name: "runs", kind: "number" }], rows: () => [row("a1", "", 4, { values: { name: "Alpha", runs: 4 } })], edit, rowIcon: () => <i>avatar</i>, editable: (_r, f) => (f.name === "runs" ? "Counted by Alpha." : null) });
     render(
       <TooltipProvider>
-        <DataPage client={client} source={source} version={0} onChanged={vi.fn()} />
+        <DataPage onOpenRecord={vi.fn()} client={client} source={source} version={0} onChanged={vi.fn()} />
       </TooltipProvider>,
     );
     expect(await screen.findByText("avatar")).toBeInTheDocument();
-    const runs = within(screen.getByRole("row", { name: "Alpha" })).getByText("4").closest("td")!;
+    const runs = within(screen.getByRole("row", { name: "Open Alpha" })).getByText("4").closest("td")!;
     expect(runs).toHaveAttribute("title", "Counted by Alpha.");
     await user.dblClick(runs);
     expect(screen.queryByRole("spinbutton")).toBeNull();

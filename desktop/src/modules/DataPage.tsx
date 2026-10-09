@@ -89,10 +89,10 @@ function recordLink(table: string, id: string): string | null {
   return m ? `${window.location.origin}${window.location.pathname}#/m/${m[1]}/${encodeURIComponent(table)}/${encodeURIComponent(id)}` : null;
 }
 
-/** The data view over a table the core keeps (`table`) or over any other `source`. `onOpenRecord`
- *  gets the source's key and the record's id ("new" for a new record's page); `onAddFiles` is
+/** The data view over a table the core keeps (`table`) or over any other `source`. `onOpenRecord` (required:
+ *  every record has a page) gets the source's key and the record's id ("new" for a new record's page); `onAddFiles` is
  *  Upload (the module's file picker). */
-export function DataPage({ client, table, source, version, onChanged, onSay, onAsk, onOpenRecord, onAddFiles, summary, renderPeek }: { client: Client; table?: TableDesc; source?: DataSource; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void; onAddFiles?: () => void; summary?: TableSummaryData | null; /** A record's page for a side or centre peek. Absent, records open as full pages only. */ renderPeek?: (table: string, id: string) => ReactNode }) {
+export function DataPage({ client, table, source, version, onChanged, onSay, onAsk, onOpenRecord, onAddFiles, summary, renderPeek }: { client: Client; table?: TableDesc; source?: DataSource; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; /** Every record opens a page of its own (the rulebook §14): required, so no view can show a record that leads nowhere. */ onOpenRecord: (table: string, id: string) => void; onAddFiles?: () => void; summary?: TableSummaryData | null; /** A record's page for a side or centre peek. Absent, records open as full pages only. */ renderPeek?: (table: string, id: string) => ReactNode }) {
   const src = useMemo(() => source ?? tableSource(client, table!), [source, client, table]);
   const fields = src.fields;
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
@@ -372,7 +372,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   /** Open a record where the view says: a peek over the page, or the page itself. */
   const open = (id: string) => {
     if (vs.openIn !== "page" && renderPeek) movePeek(id);
-    else onOpenRecord?.(src.key, id);
+    else onOpenRecord(src.key, id);
   };
   /** Change what the peek shows (another record, or nothing). */
   const movePeek = (next: string | null) => setPeek(next);
@@ -381,7 +381,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
    *  one). Rows the window holds get an empty record, its title cell open for typing. */
   async function addNew() {
     setStatus(null);
-    if (!source && onOpenRecord) return onOpenRecord(src.key, "new");
+    if (!source) return onOpenRecord(src.key, "new");
     try {
       const made = await src.add!({});
       load();
@@ -390,8 +390,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       const first = titleField && columns.includes(titleField) ? titleField : columns.find((c) => cellEditable(byName.get(c)!));
       if (made?.id && first) setEditRequest({ id: made.id, field: first });
     } catch (e) {
-      if (onOpenRecord) onOpenRecord(src.key, "new");
-      else setStatus({ ok: false, text: `Couldn't add one: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't add one: ${e instanceof Error ? e.message : String(e)}` });
     }
   }
   const editReason = src.edit ? undefined : reasonFor(src, "edit");
@@ -661,7 +660,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   // a person or a company opens its Network page (by the address); another table's record, its page
   const openRelated = (target: string, id: string) => {
     if (target === "person" || target === "organisation" || target.startsWith("entity:")) window.location.hash = `#${pathFor({ kind: "entity", id })}`;
-    else onOpenRecord?.(target, id);
+    else onOpenRecord(target, id);
   };
   const none = rows && !rows.length;
   const rowIcon = src.rowIcon ? (row: RecordRow) => src.rowIcon!(row) : undefined;
@@ -803,7 +802,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             lockedFor={src.editable ? (row, field) => src.editable!(row, field) : undefined}
             onSay={(text, ok) => setStatus({ ok, text })}
             pinned={pinned}
-            onOpen={onOpenRecord || (renderPeek && vs.openIn !== "page") ? open : undefined}
+            onOpen={open}
             onCommit={(row, field, text) => void commit(row, field, text)}
             editReason={editReason}
             files={files}
@@ -817,7 +816,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             onSummary={setSummary}
             calcDefaults={calcDefaults}
             onCalcDefault={(kind, op) => void setFootPref({ ...footPref, "*": { ...calcDefaults, [kind]: op } })}
-            rowActions={{ open: onOpenRecord ? (row) => open(row.id) : undefined, duplicate: (row) => void duplicate([row]), duplicateReason, pin: togglePin, remove: (row) => setRemoving([row]), removeReason, copy, history: onOpenRecord ? (row) => onOpenRecord(src.key, row.id) : undefined, copyLink: recordLink(src.key, "x") ? copyLink : undefined }}
+            rowActions={{ open: (row) => open(row.id), duplicate: (row) => void duplicate([row]), duplicateReason, pin: togglePin, remove: (row) => setRemoving([row]), removeReason, copy, history: (row) => onOpenRecord(src.key, row.id), copyLink: recordLink(src.key, "x") ? copyLink : undefined }}
             columnActions={{
               hide: (c) => setHidden((h) => [...h, c]),
               freeze: (c) => setFrozen(columns.indexOf(c) < frozen ? 0 : columns.indexOf(c) + 1),
@@ -834,7 +833,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             blank={Boolean(none)}
           />
         ) : null}
-        {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} files={files} onCommit={(row, field, text) => void commit(row, field, text)} onOpenRelated={openRelated} onOpen={onOpenRecord || (renderPeek && vs.openIn !== "page") ? open : undefined} empty={none ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
+        {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} files={files} onCommit={(row, field, text) => void commit(row, field, text)} onOpenRelated={openRelated} onOpen={open} empty={none ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
         {view === "board" && groupField ? <BoardView rows={shownRows ?? []} field={groupField} subField={vs.subGroupBy ? byName.get(vs.subGroupBy) : null} hideEmpty={vs.hideEmptyGroups} order={vs.groupOrder} toneOf={toneOf} rowIcon={rowIcon} titleField={titleField} fields={fields} onOpen={open} onMove={(row, value) => move(row, groupField, value)} /> : null}
         {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={columns} byName={byName} onOpen={open} groups={groups} collapsed={vs.collapsed} onCollapse={toggleGroup} toneOf={toneOf} rowIcon={rowIcon} /> : null}
         {view === "gallery" ? <GalleryView rows={shownRows ?? []} fields={fields.filter((f) => columns.includes(f.name))} titleField={titleField} onOpen={open} toneOf={toneOf} rowIcon={rowIcon} /> : null}
@@ -911,7 +910,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             <IconButton size="sm" label="Previous record" icon={<ChevronUp size={ICON_SM} />} disabled={peekAt <= 0} onClick={() => rows && movePeek(rows[peekAt - 1].id)} />
             <IconButton size="sm" label="Next record" icon={<ChevronDown size={ICON_SM} />} disabled={!rows || peekAt < 0 || peekAt >= rows.length - 1} onClick={() => rows && movePeek(rows[peekAt + 1].id)} />
             <span className="spacer" />
-            <IconButton size="sm" label="Open as full page" icon={<Maximize2 size={ICON_SM} />} disabled={!onOpenRecord} onClick={() => { const id = peek!; setPeek(null); onOpenRecord?.(src.key, id); }} />
+            <IconButton size="sm" label="Open as full page" icon={<Maximize2 size={ICON_SM} />} onClick={() => { const id = peek!; setPeek(null); onOpenRecord(src.key, id); }} />
             <IconButton size="sm" label="Close" icon={<X size={ICON_SM} />} onClick={() => movePeek(null)} />
           </div>
           <div className="peek__body">{peek ? renderPeek(src.key, peek) : null}</div>

@@ -63,7 +63,7 @@ export function Connections({ client, data, version, onChanged, onOpen }: { clie
   const source = useMemo(() => connectionsSource(client), [client]);
   return (
     <div className="stack stack--wide">
-      <DataPage client={client} source={source} version={version} onChanged={onChanged} onOpenRecord={onOpen ? (_k, id) => onOpen(id) : undefined} />
+      <DataPage client={client} source={source} version={version} onChanged={onChanged} onOpenRecord={(_k, id) => onOpen?.(id)} />
       {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
       <div className="addgrid">
         <SectionCard title="A folder">

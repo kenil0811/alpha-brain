@@ -115,7 +115,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
         {dragging ? <div className="dropnote">Drop to upload to {detail.name}</div> : null}
         {dropNote ? <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"}>{dropNote}</Notice> : null}
         {table ? (
-          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={onOpenRecord} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} />} />
+          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={(t, id) => onOpenRecord?.(t, id)} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} />} />
         ) : (
           <SimpleTable label={`${detail.name}'s first table`} columns={["Name"]} addReason="There's no table here yet to add to." note="Alpha fills this in as the project is built: ask in the panel, or upload files." />
         )}

@@ -244,6 +244,7 @@ One row that never wraps, in this order:
 
 **Saved list · View · Search** on the left; **Filter · frequent actions · ⋮ More** on the right
 
+- **A list is a saved view of the collection:** its filters (which rows), its visible columns and their order (which columns), its sorts, grouping and view type. Choosing a list shows exactly the records that qualify; each of them opens its own page, as every record does.
 - **Saved list:** the current list's name ("All") opens a standard dropdown of the lists (search, star for the list the collection opens on, **Add list** at the bottom), as in every dropdown (§14). Editing, duplicating, copying a link to and deleting a list live in ⋮ More.
   - Lists are kept in the workspace, so Alpha can make them too.
 - **View:** a button showing the current view's icon and name ("▦ Table") that picks among the view types in the next section.

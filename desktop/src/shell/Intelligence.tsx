@@ -83,11 +83,11 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
               <DescribeAdd thing="agent" />
               <DescribeAdd thing="automation" />
             </div>
-            <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => onGo(id.startsWith(AGENT_ROW) ? { kind: "agent", id: id.slice(AGENT_ROW.length) } : { kind: "automation", id }) : undefined} />
+            <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.(id.startsWith(AGENT_ROW) ? { kind: "agent", id: id.slice(AGENT_ROW.length) } : { kind: "automation", id })} />
           </div>
         );
       case "skills":
-        return <DataPage client={client} source={sources.skills} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => onGo({ kind: "skill", name: id }) : undefined} />;
+        return <DataPage client={client} source={sources.skills} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.({ kind: "skill", name: id })} />;
       case "connections":
         return <Connections client={client} data={data} version={version} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "connection", id }) : undefined} />;
     }

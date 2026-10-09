@@ -142,7 +142,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
     return (
       <div className="stack stack--wide">
         {switcher}
-        <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => onGo({ kind: "fact", id }) : undefined} />
+        <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.({ kind: "fact", id })} />
       </div>
     );
   }

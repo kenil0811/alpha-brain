@@ -533,8 +533,6 @@ by keyboard (arrows, Enter) and pinch works on touch; the leave-guard props are 
 
 - The sidebar's drag-to-nest fix is for the Mac app's WebKit; it is unit-tested but not yet tried
   in the Mac app.
-- Collections that aren't a project's own tables (lists the window builds itself) show cards in
-  List, Board and Gallery that look clickable but have no page to open.
 
 ---
 
