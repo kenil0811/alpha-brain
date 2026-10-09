@@ -54,12 +54,15 @@ export type Surface =
   | { kind: "skill"; name: string }
   | { kind: "automation"; id: string }
   | { kind: "agent"; id: string }
-  | { kind: "module"; id: string };
+  | { kind: "module"; id: string }
+  /** A record's own page (the UI rulebook §7); `id` is "new" for a record not yet made. */
+  | { kind: "record"; module: string; table: string; id: string };
 
 /** Whether sidebar item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
   if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent")) return true; // item pages live under Intelligence
+  if (b.kind === "module" && a.kind === "record") return a.module === b.id; // a record's page is inside its module
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
@@ -81,7 +84,7 @@ function readFolded(): Set<string> {
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
   if (s && s.kind === "activity") return { kind: "intelligence", tab: "activity" };
-  if (s && (s.kind === "home" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 

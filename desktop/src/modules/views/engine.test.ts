@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
-import { applyQuery, byDay, byMonth, compare, groupBy, nextSort, ofKinds, pageOf, provenanceCounts, totalsFor } from "./engine";
+import { applyQuery, byDay, byMonth, compare, groupBy, nextSort, ofKinds, pageOf, pinnedFirst, provenanceCounts, summarize, summaryOpsFor, defaultSummary } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -40,10 +40,16 @@ describe("a view's query", () => {
     expect(pageOf([1, 2, 3], 9, 2)).toEqual({ rows: [3], at: 1, pages: 2 });
     expect(pageOf([], 0, 10)).toEqual({ rows: [], at: 0, pages: 1 });
   });
-  it("totals numeric columns and counts estimates and assumptions", () => {
-    const byName = new Map([["price", { name: "price", kind: "number" }], ["title", { name: "title", kind: "text" }]]);
-    expect(totalsFor(rows, ["title", "price"], byName)).toEqual([{ field: "price", value: 470 }]);
+  it("counts estimates and assumptions", () => {
     expect(provenanceCounts(rows)).toEqual({ estimated: 1, assumed: 1 });
+  });
+  it("narrows to an id set, as the dashboard's Show these records does", () => {
+    expect(applyQuery(rows, { ...base, ids: new Set(["b", "c", "d"]) }).map((r) => r.id)).toEqual(["b", "c"]);
+    expect(applyQuery(rows, { ...base, ids: null }).map((r) => r.id)).toEqual(["a", "b", "c"]);
+  });
+  it("puts pinned records first, each group keeping its order", () => {
+    expect(pinnedFirst(rows, ["c", "b"]).map((r) => r.id)).toEqual(["b", "c", "a", "d"]);
+    expect(pinnedFirst(rows, [])).toBe(rows);
   });
   it("groups by a field in the field's own order and buckets days", () => {
     expect(groupBy(rows, status).map((g) => [g.key, g.rows.length])).toEqual([["Active", 2], ["Pending", 1], ["Sold", 1]]);
@@ -58,5 +64,29 @@ describe("time and field helpers", () => {
     const months = byMonth([...rows, row("e", { title: "Older", when: "2026-09-12" })], { name: "when", kind: "date" });
     expect(months.map((m) => [m.month, m.rows.map((r) => r.id)])).toEqual([["2026-10", ["c", "a", "b"]], ["2026-09", ["e"]]]);
     expect(ofKinds([status, { name: "when", kind: "date" }, { name: "n", kind: "number" }], new Set(["date", "datetime"])).map((f) => f.name)).toEqual(["when"]);
+  });
+});
+
+describe("footer summaries", () => {
+  const price = { name: "price", kind: "number", unit: "£" };
+  const when = { name: "when", kind: "date" };
+  it("offers each kind its own choices, and numbers add up by default", () => {
+    expect(summaryOpsFor("number")).toContain("sum");
+    expect(summaryOpsFor("date")).toContain("earliest");
+    expect(summaryOpsFor("text")).toEqual(["none", "count", "filled"]);
+    expect(defaultSummary("number")).toBe("sum");
+    expect(defaultSummary("text")).toBe("none");
+  });
+  it("works each one out over the records, and says '—' rather than guess", () => {
+    expect(summarize(rows, price, "sum")).toEqual({ label: "Sum", value: "470 £" });
+    expect(summarize(rows, price, "average")?.value).toBe("156.7 £");
+    expect(summarize(rows, price, "min")?.value).toBe("50 £");
+    expect(summarize(rows, price, "max")?.value).toBe("300 £");
+    expect(summarize(rows, price, "count")?.value).toBe("3");
+    expect(summarize(rows, price, "filled")?.value).toBe("75%");
+    expect(summarize(rows, when, "earliest")?.value).toBe("2 Oct");
+    expect(summarize(rows, when, "latest")?.value).toBe("5 Oct");
+    expect(summarize([], price, "sum")?.value).toBe("—");
+    expect(summarize(rows, price, "none")).toBeNull();
   });
 });

@@ -37,6 +37,12 @@ describe("the sidebar's places", () => {
     expect(knownSurface({ kind: "entity", id: "e_1" })).toEqual({ kind: "entity", id: "e_1" });
     expect(knownSurface({ kind: "agent", id: "ag_1" })).toEqual({ kind: "agent", id: "ag_1" });
     expect(sameSurface({ kind: "entity", id: "e_1" }, { kind: "people" })).toBe(true);
+    // a record's page sits inside its module in the sidebar, and a remembered one is kept only whole
+    const record = { kind: "record", module: "m_1", table: "deals", id: "r_1" } as const;
+    expect(sameSurface(record, { kind: "module", id: "m_1" })).toBe(true);
+    expect(sameSurface(record, { kind: "module", id: "m_2" })).toBe(false);
+    expect(knownSurface(record)).toEqual(record);
+    expect(knownSurface({ kind: "record", module: "m_1" })).toEqual({ kind: "home" });
     expect(knownSurface({ kind: "nowhere" })).toEqual({ kind: "home" });
     expect(knownSurface({ kind: "settings" })).toEqual({ kind: "settings" });
     expect(sameSurface({ kind: "module", id: "m_1" }, { kind: "module", id: "m_2" })).toBe(false);

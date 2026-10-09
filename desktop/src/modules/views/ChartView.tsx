@@ -20,10 +20,11 @@ export function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; 
   return (
     <div className="chart">
       <div className="chart__head">
-        <span className="faint">Per day, over the entries shown</span>
+        <span className="faint">Per day, over the records shown</span>
         <Dropdown size="sm" label="What to chart" value={measure} onChange={setMeasure} options={[{ value: "count", label: "Count" }, ...(valueField ? [{ value: valueField.name, label: humanize(valueField.name) }] : [])]} />
       </div>
       {days.length ? (
+        <>
         <div className="chart__bars" role="img" aria-label={`${humanize(measure)} per day`}>
           {days.map((d) => {
             const v = byDay.get(d) ?? 0;
@@ -35,6 +36,11 @@ export function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; 
             );
           })}
         </div>
+        <div className="chart__legend">
+          <span className="chart__swatch" aria-hidden="true" />
+          {measure === "count" ? "Records" : humanize(measure)} per day, by {dateField.label ?? humanize(dateField.name).toLowerCase()} (last {days.length} {days.length === 1 ? "day" : "days"} with any)
+        </div>
+        </>
       ) : (
         <p className="empty">Nothing to chart yet.</p>
       )}

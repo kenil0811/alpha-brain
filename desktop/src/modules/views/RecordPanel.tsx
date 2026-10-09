@@ -1,13 +1,9 @@
-/** One record, opened beside the view: every field editable in place, the long texts under,
- *  when it was added and last changed, Remove. A relation in it opens the related record in
- *  the same drawer, on a stack: Back returns to where the person came from. The fields alone
- *  (`RecordFields`) are also the form view's body. */
+/** A record's fields, each editable in place, the long texts under, when it was added and last
+ *  changed: the form view's body. (Records open as pages of their own now, 9 Oct, the UI
+ *  rulebook §7; the side drawer that lived here is gone.) */
 import type { RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { humanize, when } from "../format";
-import { useState } from "react";
-import { Button, Confirm, IconButton } from "../../ui";
-import { ArrowLeft, X } from "../../ui/icons";
 import { Cell, LongText } from "./cells";
 
 export function RecordFields({ row, fields, titleField, relations, onCommit, onOpenRelated }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void }) {
@@ -44,32 +40,5 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
         </div>
       ))}
     </>
-  );
-}
-
-export function RecordPanel({ row, fields, titleField, relations, tableTitle, onClose, onCommit, onRemove, onOpenRelated, back }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; tableTitle?: string; onClose: () => void; onCommit: (field: FieldInfo, text: string) => void; onRemove?: () => void; onOpenRelated?: (collection: string, id: string) => void; back?: { to: string; onBack: () => void } }) {
-  const title = titleField ? String(row.values[titleField] ?? "") : "";
-  const [asking, setAsking] = useState(false);
-  return (
-    <section className="drawer" aria-label={title || "Details"}>
-      <Confirm open={asking} title={`Remove ${title || "this row"}?`} action="Remove it" onConfirm={() => { setAsking(false); onRemove?.(); }} onCancel={() => setAsking(false)}>
-        It leaves the table; Activity keeps that it was here.
-      </Confirm>
-      <div className="drawer__head">
-        {back ? <IconButton size="sm" label={`Back to ${back.to}`} icon={<ArrowLeft />} onClick={back.onBack} /> : null}
-        <div className="drawer__title">
-          <h3>{title || "Details"}</h3>
-          {tableTitle ? <span className="faint">{tableTitle}</span> : null}
-        </div>
-        <span className="spacer" />
-        {onRemove ? (
-          <Button size="sm" variant="danger" onClick={() => setAsking(true)}>
-            Remove
-          </Button>
-        ) : null}
-        <IconButton size="sm" label="Close details" icon={<X />} onClick={onClose} />
-      </div>
-      <RecordFields row={row} fields={fields} titleField={titleField} relations={relations} onCommit={onCommit} onOpenRelated={onOpenRelated} />
-    </section>
   );
 }

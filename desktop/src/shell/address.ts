@@ -1,7 +1,7 @@
 /**
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
- * rebuilt on main's Surface). `#/home`, `#/people`, `#/people/<id>`, `#/m/<id>`,
+ * rebuilt on main's Surface). `#/home`, `#/people`, `#/people/<id>`, `#/m/<id>`, `#/m/<id>/<table>/<record>` (a record's page; `new` for one not made yet),
  * `#/intelligence/<tab>` (`activity` is one of the tabs now), `#/intelligence/agents/<id>`,
  * `#/settings`. The old `#/activity` still opens Intelligence › Activity (9 Oct, the UI rulebook).
  * Nothing else is in the address: what is open inside a page stays where it was.
@@ -20,6 +20,8 @@ export function pathFor(surface: Surface): string {
       return `/people/${encodeURIComponent(surface.id)}`;
     case "module":
       return `/m/${encodeURIComponent(surface.id)}`;
+    case "record":
+      return `/m/${encodeURIComponent(surface.module)}/${encodeURIComponent(surface.table)}/${encodeURIComponent(surface.id)}`;
     case "intelligence":
       return surface.tab ? `/intelligence/${encodeURIComponent(surface.tab)}` : "/intelligence";
     case "skill":
@@ -42,6 +44,7 @@ export function surfaceFromPath(path: string): Surface | null {
     if (head === "people" && rest) return { kind: "entity", id: rest };
     return knownSurface({ kind: head });
   }
+  if (head === "m" && rest && third && parts[3]) return { kind: "record", module: rest, table: third, id: parts[3] };
   if (head === "m" && rest) return { kind: "module", id: rest };
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };

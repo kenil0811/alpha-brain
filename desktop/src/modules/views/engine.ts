@@ -6,6 +6,7 @@
  */
 import type { RecordRow } from "../../core/client";
 import { isNumeric, openChoices, type FieldInfo } from "../fields";
+import { formatDay, formatNumber, when } from "../format";
 
 export interface Sort {
   field: string;
@@ -22,6 +23,9 @@ export interface ViewQuery {
   statusField?: FieldInfo;
   showGone: boolean;
   sort: Sort | null;
+  /** Only these records: the Dashboard's "Show these 12" (9 Oct, the UI rulebook §6). Temporary;
+   *  the core's saved lists cannot hold ids. */
+  ids?: Set<string> | null;
 }
 
 /** Empty values sort last; numbers by value; everything else as words, numerically aware. */
@@ -41,6 +45,7 @@ export function applyQuery(rows: RecordRow[], q: ViewQuery): RecordRow[] {
     for (const [field, value] of Object.entries(q.filters)) if (value && String(r.values[field] ?? "") !== value) return false;
     if (q.hideDone && q.statusField && open && !open.has(String(r.values[q.statusField.name] ?? ""))) return false;
     if (!q.showGone && r.gone_at) return false;
+    if (q.ids && !q.ids.has(r.id)) return false;
     return true;
   });
   if (q.sort) {
@@ -68,13 +73,6 @@ export function pageOf<T>(rows: T[], at: number, size: number): { rows: T[]; at:
   const pages = Math.max(1, Math.ceil(rows.length / Math.max(1, size)));
   const page = Math.min(Math.max(0, at), pages - 1);
   return { rows: rows.slice(page * size, page * size + size), at: page, pages };
-}
-
-/** Column totals for the numeric columns, over every row the view shows (not only the page). */
-export function totalsFor(rows: RecordRow[], columns: string[], byName: Map<string, FieldInfo>): { field: string; value: number }[] {
-  return columns
-    .filter((c) => isNumeric(byName.get(c)?.kind ?? ""))
-    .map((c) => ({ field: c, value: rows.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
 }
 
 /** Rows by the value of one field, in the field's own order of choices, unknown values last. */
@@ -129,4 +127,50 @@ export function byMonth(rows: RecordRow[], field: FieldInfo): { month: string; r
 /** The fields a view can run on: every one of these kinds, in the table's order. */
 export function ofKinds(fields: FieldInfo[], kinds: Set<string>): FieldInfo[] {
   return fields.filter((f) => kinds.has(f.kind));
+}
+
+/** Pinned records first, each group keeping the order it had (9 Oct, the UI rulebook §6). */
+export function pinnedFirst<T extends { id: string }>(rows: T[], pinned: string[]): T[] {
+  if (!pinned.length) return rows;
+  const set = new Set(pinned);
+  return [...rows.filter((r) => set.has(r.id)), ...rows.filter((r) => !set.has(r.id))];
+}
+
+/** What a column's footer can say about the records under it (9 Oct, the UI rulebook §6). */
+export type SummaryOp = "none" | "count" | "sum" | "average" | "min" | "max" | "earliest" | "latest" | "filled";
+export const SUMMARY_LABEL: Record<SummaryOp, string> = { none: "None", count: "Count", sum: "Sum", average: "Average", min: "Minimum", max: "Maximum", earliest: "Earliest", latest: "Latest", filled: "Percent filled" };
+
+/** The choices for a kind of field: every kind can count and say how much is filled, numbers can
+ *  add up, dates have a first and a last. */
+export function summaryOpsFor(kind: string): SummaryOp[] {
+  if (isNumeric(kind)) return ["none", "count", "sum", "average", "min", "max", "filled"];
+  if (kind === "date" || kind === "datetime") return ["none", "count", "earliest", "latest", "filled"];
+  return ["none", "count", "filled"];
+}
+
+/** A number column adds up until the person says otherwise (as the table always has); the rest say nothing. */
+export function defaultSummary(kind: string): SummaryOp {
+  return isNumeric(kind) ? "sum" : "none";
+}
+
+const present = (v: unknown) => v !== null && v !== undefined && v !== "";
+
+/** The footer's words for one column over the records the view shows (not only the page), or
+ *  null for none. Nothing to work out reads "—", never a made-up zero. */
+export function summarize(rows: RecordRow[], field: FieldInfo, op: SummaryOp): { label: string; value: string } | null {
+  if (op === "none") return null;
+  const label = SUMMARY_LABEL[op];
+  const values = rows.map((r) => r.values[field.name]).filter(present);
+  if (op === "count") return { label, value: values.length.toLocaleString() };
+  if (op === "filled") return { label, value: rows.length ? `${Math.round((values.length / rows.length) * 100)}%` : "—" };
+  if (op === "earliest" || op === "latest") {
+    const days = values.map(String).sort();
+    const pick = days.length ? (op === "earliest" ? days[0] : days[days.length - 1]) : "";
+    return { label, value: pick ? (field.kind === "datetime" ? when(pick) : formatDay(pick.slice(0, 10))) : "—" };
+  }
+  const nums = values.filter((v): v is number => typeof v === "number");
+  if (!nums.length) return { label, value: "—" };
+  const total = nums.reduce((a, b) => a + b, 0);
+  const n = op === "sum" ? total : op === "average" ? total / nums.length : op === "min" ? Math.min(...nums) : Math.max(...nums);
+  return { label, value: formatNumber(n, field.unit) };
 }

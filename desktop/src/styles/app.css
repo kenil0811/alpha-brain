@@ -266,10 +266,6 @@ a { color: var(--primary); }
 .modcard--new { border-style: dashed; background: transparent; box-shadow: none; }
 
 /* ---------- module page ---------- */
-.modhead { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
-.modhead__title { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 280px; }
-.modhead__title .faint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.modhead__ico { width: 36px; height: 36px; border-radius: var(--radius-card); background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: var(--text-xl); flex: none; }
 .toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 3px; gap: 2px; margin-left: auto; }
 .toggle button { padding: 6px 14px; border-radius: 7px; font-size: var(--text-md); color: var(--text-2); background: none; border: 0; }
 .toggle button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-raised); font-weight: 500; }
@@ -284,8 +280,6 @@ a { color: var(--primary); }
 .quick input { flex: 1; border: 0; background: transparent; font-size: var(--text-lg); min-width: 0; }
 .quick input::placeholder { color: var(--text-3); }
 .quick__status { font-size: var(--text-sm); padding: 0 14px 10px; }
-.quick--table { box-shadow: none; border-bottom: 1px solid var(--border); padding: 6px 10px 6px 14px; }
-.quick--table input { font-size: var(--text-base); }
 
 .toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .toolbar select.btn { padding-right: 24px; }
@@ -311,16 +305,6 @@ a { color: var(--primary); }
 .pager .spacer { flex: 1; }
 .pager__size { display: inline-flex; align-items: center; gap: 6px; }
 .pager__pages { display: inline-flex; align-items: center; gap: 6px; }
-/* A table's page fills the window and never scrolls; its rows scroll in their own area, with the
-   header and totals held in place. */
-.page--fill { height: 100%; display: flex; flex-direction: column; padding-bottom: 22px; }
-.page--fill > .stack--fill { flex: 1; min-height: 0; }
-.stack--fill > .card--fill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.card--fill > .pagebody { flex: 1; min-height: 0; overflow: auto; }
-.card--fill > .drawer { flex-shrink: 0; max-height: 45%; overflow: auto; }
-.pagebody .tablewrap { overflow: visible; }
-.pagebody .table thead th { position: sticky; top: 0; z-index: 2; border-bottom-color: transparent; box-shadow: inset 0 -1px 0 var(--border); }
-.pagebody .table tfoot td { position: sticky; bottom: 0; z-index: 2; box-shadow: inset 0 1px 0 var(--border); }
 
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .metric { padding: 16px; }
@@ -625,8 +609,6 @@ body.avatar-window #root { height: 100vh; }
 .menu__head { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); padding: 6px 8px 2px; }
 .menu__item { display: flex; align-items: center; gap: var(--space-2); padding: 5px var(--space-2); font-size: var(--text-md); border-radius: 6px; background: none; border: 0; text-align: left; color: var(--text); cursor: default; }
 .menu__item:hover { background: var(--hover); }
-.addrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); align-items: end; }
-.addrow .row { grid-column: 1 / -1; }
 .field--compact label { font-size: var(--text-xs); color: var(--text-3); }
 .field--compact input, .field--compact select, .field--compact textarea { width: 100%; }
 .table td.editable:hover { box-shadow: inset 0 0 0 1px var(--border); cursor: text; }
@@ -1124,3 +1106,150 @@ h3 .linkbtn { font: inherit; color: inherit; }
   .setpage { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .setnav { flex-direction: row; flex-wrap: wrap; position: static; }
 }
+
+/* ---------- the Dashboard view (9 Oct, the UI rulebook §6) ---------- */
+.dash { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); min-width: 0; }
+.dash__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.dash__lead { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-3); font-size: var(--text-sm); }
+.dash__tools { display: flex; align-items: center; gap: var(--space-2); }
+.dash__problem { margin: 0; color: var(--bad); font-size: var(--text-sm); }
+.dash__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3); align-items: start; }
+.dash__cell { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.dash__cell--wide { grid-column: span 2; }
+.dash__edit { display: flex; align-items: center; gap: var(--space-1); justify-content: flex-end; }
+.dash__none { margin: 0 0 var(--space-2); color: var(--text-3); font-size: var(--text-md); }
+.dash__basis { margin: var(--space-2) 0 0; color: var(--text-2); font-size: var(--text-sm); }
+.dash__cta { margin-top: var(--space-2); display: flex; gap: var(--space-2); }
+.dash__legend { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.dash__seg { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-1); border: 0; border-radius: var(--radius-control); background: none; color: var(--text); font-size: var(--text-sm); }
+button.dash__seg:hover { background: var(--hover); }
+.dash__seg--plain { color: var(--text-2); }
+.dash__swatch { width: var(--space-3); height: var(--space-3); flex: none; }
+.dash__count { color: var(--text-3); }
+.dash__att { list-style: none; margin: 0; padding: 0; }
+.dash__att-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.dash__att-row:first-child { border-top: 0; }
+.dash__att-text { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: var(--text-md); }
+.dash__att-text b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash__why { color: var(--text-3); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dchart { display: block; width: 100%; height: auto; }
+.dchart text { font-family: var(--font-ui); font-size: var(--text-xs); fill: var(--text-3); }
+.dchart--stack { margin-top: var(--space-1); }
+.dchart__grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
+.dchart__seg, .dchart__bar { cursor: pointer; }
+.dchart__bar:hover rect:last-of-type, .dchart__bar:focus-visible rect:last-of-type { fill: var(--primary); }
+.dchart__bar:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+@media (max-width: 720px) {
+  .dash__cell--wide { grid-column: auto; }
+}
+
+/* ---------- a record's page (9 Oct, the UI rulebook §7): one readable column, the form in a card ---------- */
+.page--record { max-width: 760px; }
+.record { display: flex; flex-direction: column; gap: var(--space-4); }
+.rechead { display: flex; align-items: center; gap: var(--space-3); padding-bottom: var(--space-2); }
+.rechead__tile { display: inline-grid; place-items: center; flex: none; width: var(--space-10); height: var(--space-10); border-radius: var(--radius-card); background: var(--primary-soft); color: var(--primary); }
+.rechead__tile svg { width: var(--icon); height: var(--icon); }
+.rechead__text { min-width: 0; }
+.rechead h1 { font-size: var(--text-2xl); overflow-wrap: anywhere; }
+/* short answers sit side by side, long ones take the row */
+.recform { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-12) * 5), 1fr)); gap: var(--space-4) var(--space-4); }
+.recfield { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; grid-column: 1 / -1; }
+.recfield--short { grid-column: auto; }
+.recfield__label { font-size: var(--text-sm); font-weight: 500; color: var(--text-2); }
+.recfield .textfield { width: 100%; min-width: 0; font-size: var(--text-base); }
+.recfield textarea.textfield { resize: vertical; min-height: calc(var(--space-12) * 2); }
+.recfield--short .dropdown__trigger { width: 100%; }
+.recfield--bad .textfield { border-color: var(--bad); }
+.recfield .notice { font-size: var(--text-sm); }
+.recfield__relation { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.recmeta { display: flex; gap: var(--space-8); margin: var(--space-4) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--line); font-size: var(--text-sm); }
+.recmeta dt { color: var(--text-3); }
+.recmeta dd { margin: 0; color: var(--text-2); }
+/* Save and Discard together, next to the fields they save, kept in view while the card scrolls */
+.recbar { position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--space-2); margin: var(--space-4) calc(var(--space-4) * -1) calc(var(--space-4) * -1); padding: var(--space-3) var(--space-4); background: var(--surface); border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-card) var(--radius-card); z-index: 2; }
+.recbar .spacer { flex: 1; }
+.recnote { width: 100%; resize: vertical; font-size: var(--text-base); }
+.recnote__text { margin: 0; white-space: pre-wrap; font-size: var(--text-base); color: var(--text); overflow-wrap: anywhere; }
+.recgov { margin: 0; }
+.history__bar { margin-bottom: var(--space-3); }
+.history { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-3); max-height: calc(var(--space-12) * 8); overflow-y: auto; }
+.history__item { padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
+.history__item:last-child { border-bottom: 0; }
+.history__head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
+.history__line { display: flex; gap: var(--space-3); font-size: var(--text-md); }
+.history__line .muted { min-width: calc(var(--space-12) * 2); }
+.dialog--history { width: min(560px, calc(100vw - 48px)); }
+
+/* ---------- the data view and the module page (9 Oct, the UI rulebook §5, §6) ---------- */
+.modpage__body { display: flex; flex-direction: column; gap: var(--space-6); }
+.modpage__below { display: flex; flex-direction: column; gap: var(--space-4); }
+.datapage { display: flex; flex-direction: column; gap: var(--space-3); }
+.datacard { overflow: hidden; box-shadow: var(--shadow-card); }
+/* the numbers above the table */
+.mstrip__bar { display: flex; align-items: center; gap: var(--space-1); }
+.mstrip__title { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.mstrip__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); margin-top: var(--space-1); }
+/* the toolbar: one row that never wraps */
+.toolbar--page { flex-wrap: nowrap; gap: var(--space-2); }
+.toolbar--page > * { flex: none; }
+.toolbar--page .search { flex: 1 1 140px; min-width: 100px; max-width: 280px; }
+.toolbar--page .spacer { flex: 1 1 0; min-width: 0; }
+.toolbar--icons .tb__label, .toolbar--icons .tb__view .dropdown__value { display: none; }
+.toolbar--icons .tb__view .dropdown__chev { display: none; }
+.dropdown__tico { display: inline-grid; flex: none; color: var(--text-3); }
+.fpills { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.fpill { display: inline-flex; align-items: center; gap: var(--space-1); }
+.fpill__x { display: inline-grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; border-radius: var(--radius-pill); }
+.fpill__x:hover { background: var(--primary-soft); }
+.filterpanel { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); min-width: 240px; }
+.filterpanel__row { display: flex; flex-direction: column; gap: var(--space-1); }
+.filterpanel__lab { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.more { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); width: 300px; max-height: calc(var(--radix-popover-content-available-height, 80vh) - var(--space-4)); overflow-y: auto; }
+.more .menu__head { padding-left: 0; }
+.more__row, .more__col { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.more__stack { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1); }
+.more__stack .btn { justify-content: flex-start; }
+.more__name { font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu__arrows { display: inline-flex; }
+/* the table */
+.datacard .tablewrap { border-top: 0; }
+.table th { position: relative; }
+.table th.col--frozen, .table td.col--frozen { position: sticky; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--border); }
+.table th.col--frozen { background: var(--surface-2); z-index: 3; }
+.table tbody tr:hover td.col--frozen { background: var(--hover); }
+.table td.sel, .table th.sel { width: 36px; padding-left: var(--space-3); padding-right: 0; }
+.table th + th, .table td + td { border-left: 1px solid var(--line); }
+.table th .th__label { display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer; }
+.table th .th__menu { opacity: 0; width: 20px; height: 20px; vertical-align: middle; margin-left: var(--space-1); }
+.table th:hover .th__menu, .table th:focus-within .th__menu { opacity: 1; }
+.table th.r { text-align: right; }
+.th__grip { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.th__grip:hover { background: var(--primary-soft); }
+.th--end, .td--end { width: 40px; }
+.table tbody tr.row--open { cursor: pointer; }
+.table tbody tr.row--selected td { background: var(--primary-soft); }
+.table .row--blank td { height: 34px; }
+.table .row--blank:hover td { background: none; }
+.tablewrap--tall .table td { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+.table tr.row--add:hover td { background: none; }
+.table td.addcell { padding: 0; max-width: none; white-space: normal; overflow: visible; border-left: 0; }
+.table tfoot td { white-space: nowrap; color: var(--text-2); }
+.foot__lab { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin-right: var(--space-1); }
+.pinmark { vertical-align: -2px; margin-right: var(--space-1); color: var(--primary); }
+/* the add row, in a table and under the other views */
+.addbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.addbar__ico { display: inline-grid; color: var(--text-3); }
+.addbar__input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: var(--text-md); }
+.addbar__input::placeholder { color: var(--text-3); }
+.addbar__input:disabled { cursor: not-allowed; }
+.addbar-wrap { border-top: 1px solid var(--border); }
+.pager { border-top: 1px solid var(--border); flex-wrap: wrap; }
+/* below the fold: sections made of small blocks */
+.subsecs { display: flex; flex-direction: column; gap: var(--space-5); }
+.subsec__head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.subsec__title { margin: 0; font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.subsec .lrow { padding-left: 0; padding-right: 0; }
+.goals { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-md); }
+/* a chart's legend */
+.chart__legend { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm); color: var(--text-2); }
+.chart__swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--primary); flex: none; }

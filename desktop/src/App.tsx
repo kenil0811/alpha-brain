@@ -10,7 +10,7 @@
  * handle) and folded, a narrow strip that never disappears. Escape steps the panel with the
  * focus back one level (`shell/stepBack.ts`). Widths and folds are remembered here, per window.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Client, moduleWords } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
@@ -28,6 +28,7 @@ import { currentHashSurface, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
 import { useStepBack } from "./shell/stepBack";
 import { ModulePage } from "./modules/ModulePage";
+import { RecordPage, type LeaveGuard } from "./modules/RecordPage";
 import { ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking } from "./core/client";
@@ -76,20 +77,36 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
   const [thinking, setThinking] = useState<Thinking | null>(null);
 
-  const setSurface = useCallback((next: Surface) => {
+  // A page with unsaved changes (a record's) holds the window's leaving until the person says
+  // Save, Discard or Stay: it registers a guard here, and every way out asks it first (9 Oct,
+  // the UI rulebook §7).
+  const guard = useRef<LeaveGuard | null>(null);
+  const onGuard = useCallback((g: LeaveGuard | null) => {
+    guard.current = g;
+  }, []);
+  const surfaceRef = useRef(surface);
+  surfaceRef.current = surface;
+  const commitSurface = useCallback((next: Surface) => {
     const place = knownSurface(next); // Activity now lives in Intelligence, wherever it is asked for from
     setSurfaceState(place);
     remember(SURFACE_KEY, place);
     pushAddress(place);
   }, []);
+  const setSurface = useCallback((next: Surface) => {
+    if (guard.current?.(() => commitSurface(next))) return;
+    commitSurface(next);
+  }, [commitSurface]);
   // Back and forward move between pages; a typed address opens one.
   useEffect(() => {
     const onPop = () => {
       const named = currentHashSurface();
-      if (named) {
-        setSurfaceState(named);
-        remember(SURFACE_KEY, named);
+      if (!named) return;
+      if (guard.current?.(() => commitSurface(named))) {
+        pushAddress(surfaceRef.current); // Back was held: the address goes back to the page that stays
+        return;
       }
+      setSurfaceState(named);
+      remember(SURFACE_KEY, named);
     };
     window.addEventListener("popstate", onPop);
     window.addEventListener("hashchange", onPop);
@@ -233,9 +250,11 @@ export function App({ client: injected }: { client?: Client } = {}) {
     togglePanel(true);
   };
 
-  const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
+  // a record's page is inside its module: the assistant works in that module's scope there too
+  const scopeId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : null;
+  const scopeModule = scopeId ? (modules.find((m) => m.id === scopeId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   return (
     <div
@@ -291,7 +310,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "home" ? (
           <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
-          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
+          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onOpenRecord={(table, id) => setSurface({ kind: "record", module: surface.id, table, id })} modules={modules} />
+        ) : surface.kind === "record" ? (
+          <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} module={surface.module} table={surface.table} id={surface.id} version={(versions.modules[surface.module] ?? 0) + versions.all} modules={modules} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onGuard={onGuard} />
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} />
         ) : surface.kind === "people" ? (
