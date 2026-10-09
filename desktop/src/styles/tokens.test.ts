@@ -51,7 +51,7 @@ describe("the named values", () => {
 describe("type and chips", () => {
   it("uses the serif in four places only: titles (h1, .serif) and the three big numbers", () => {
     const selectors = [...css.matchAll(/([^{}]+)\{[^{}]*font-family: var\(--font-ed\)/g)].map((m) => m[1].trim());
-    expect(selectors).toEqual(["h1, .serif", ".tile__big", ".metric__big", ".progress__nums", ".mtile__big"]);
+    expect(selectors).toEqual(["h1, .serif", ".metric__big", ".progress__nums", ".mtile__big"]);
   });
 
   it("has exactly five chip tones, and one chip", () => {
