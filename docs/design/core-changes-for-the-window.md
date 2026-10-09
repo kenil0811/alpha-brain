@@ -228,6 +228,19 @@ Each item: **Now** (what the window does today) · **Should** (exact behaviour) 
   and marked done or dropped.
 - **Core needs:** routes to edit and forget a fact, and to edit a goal.
 
+### D1b. Memory as plain, editable text, with export
+- **Now:** what Alpha remembers is shown as separate facts, goals and notes in Second Brain;
+  there is no single readable view of it and no way to take it away.
+- **Should:** Second Brain › Memory shows everything Alpha remembers about the person as one plain
+  document in ordinary sentences, grouped by topic (about you, your projects, your people, your
+  instructions and permissions). The person can edit any sentence in place; an edit corrects or
+  forgets the underlying fact, goal or note, and History records it. **Export** downloads the
+  whole memory as a Markdown (and JSON) file with each item's source and date. Why: owning your
+  memory builds trust, and trust is what keeps people using Alpha.
+- **Core needs:** a route that returns all memory as ordered, editable text items (each mapped to
+  its fact, goal or note, with provenance), a route that applies an edited sentence back to its
+  item, and an export route.
+
 ### D2. Edit skills, agents and automations
 - **Now:** their pages show fields as editable, but Save is disabled.
 - **Should:** changes to name, description, trigger, schedule and instructions save (with the
@@ -275,9 +288,54 @@ Each item: **Now** (what the window does today) · **Should** (exact behaviour) 
 - **Should:** every failure of today, however busy.
 - **Core needs:** activity filterable by day and by failed.
 
+### D10. Formula fields (fx)
+- **Now:** no formula fields; a column can't be computed from other columns.
+- **Should:** a column type **Formula** (shown with an **fx** icon) whose value is computed from
+  the record's other fields (arithmetic, text joins, date differences, if/then, sums over
+  related records). The formula is edited in a small editor with field-name suggestions and a
+  live preview of the result on the first rows; an error says what is wrong in plain words.
+  Formula cells are read-only and say "Computed by a formula" on hover; they sort, filter and
+  summarise like any other value.
+- **Core needs:** a formula field type in the schema, evaluation (on write or on read) with
+  recomputation when the inputs change, and validation that returns plain errors.
+
 ---
 
-## E. Left in the window (no core needed), for completeness
+## E. The Mac app's native code (`desktop/src-tauri`, Rust)
+
+These need the host, which this branch doesn't change.
+
+### E1. Remember where the companion was dragged
+- **Now:** the companion (the always-on-top character) can be dragged anywhere, but on the next
+  launch it returns to the default, the bottom-right corner of the screen (Kenil's behaviour,
+  kept as the default).
+- **Should:** wherever the person drops it, it reopens there next time (per display); if that
+  display is gone, it falls back to bottom-right. A "Reset position" in the companion's menu
+  puts it back in the corner.
+- **Host needs:** saving the companion window's position when a drag ends and restoring it when
+  the window opens.
+
+### E2. The companion window's title
+- **Now:** the companion's window is titled "Alpha companion", set in `desktop/src-tauri/src/lib.rs`
+  (the window side, `avatar/AvatarWindow.tsx`, can't change it).
+- **Should:** the title matches the product words: the assistant's name (by default "Alpha"), so
+  Mission Control, the Dock and screen readers show the same name the panel shows.
+- **Host needs:** the window title set from the assistant's name (or simply "Alpha").
+
+### E3. Send by voice when a sentence is finished
+- **Now:** speaking fills the message box as you talk (`shell/voice.tsx`); you press Send
+  (Kenil's version, kept).
+- **Should:** an option in Settings › Appearance (off by default): "Send when I stop speaking".
+  When on, a short pause after a finished sentence sends the message; the words stay visible for
+  a moment with **Stop** so a mis-heard sentence can be caught before it goes. When off, it
+  behaves as today.
+- **Host needs:** if end-of-speech detection uses the Mac's native speech recognition, the host
+  must report the end of an utterance to the window; if it stays in the web view, this is window
+  work only.
+
+---
+
+## F. Left in the window (no core needed), for completeness
 
 - The table footer's **Calculate** menu and the column menu's **Wrap text** still use their old
   menus rather than the standard dropdown (search, star, highlighted choice).
