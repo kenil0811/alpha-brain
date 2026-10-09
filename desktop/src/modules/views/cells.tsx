@@ -6,16 +6,17 @@ import { type KeyboardEvent, useState } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
-import { humanize } from "../format";
-import { Badge, IconButton } from "../../ui";
+import { dayText, humanize } from "../format";
+import { Badge, Dropdown, IconButton } from "../../ui";
 import { FolderOpen } from "../../ui/icons";
 
-/** When a reader-fed row came and went, in words: "New today", "Since 2 Oct", "Gone 5 Oct". */
+/** When a reader-fed row came and went, as dates: "New · 9 Oct" (first seen today), "Since 2 Oct",
+ *  "Gone 5 Oct" (absolute, 9 Oct, the UI rulebook §2). */
 export function SeenCell({ row }: { row: RecordRow }) {
-  const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const day = (iso: string) => dayText(new Date(iso));
   const today = new Date().toDateString();
   if (row.gone_at) return <td><Badge tone="gray">Gone {day(row.gone_at)}</Badge></td>;
-  if (new Date(row.created_at).toDateString() === today) return <td><Badge tone="good">New today</Badge></td>;
+  if (new Date(row.created_at).toDateString() === today) return <td><Badge tone="good">New · {day(row.created_at)}</Badge></td>;
   return <td className="faint">Since {day(row.created_at)}</td>;
 }
 
@@ -62,6 +63,11 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     setEditing(false);
     if (commit) onCommit(text);
   }
+  // a choice is committed the moment it is picked; closing the list without one leaves the value as it was
+  function pickChoice(next: string) {
+    setEditing(false);
+    onCommit(next);
+  }
   function key(e: KeyboardEvent) {
     if (e.key === "Enter" && field.kind !== "long_text") finish(true);
     if (e.key === "Escape") finish(false);
@@ -71,19 +77,9 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     return (
       <td className={numeric ? "r" : undefined} onClick={(e) => e.stopPropagation()}>
         {field.kind === "choice" || field.kind === "status" ? (
-          <select autoFocus value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label}>
-            <option value="">—</option>
-            {(field.choices ?? []).map((c) => (
-              <option key={c} value={c}>
-                {humanize(c)}
-              </option>
-            ))}
-          </select>
+          <Dropdown defaultOpen size="sm" label={label} value={text} onChange={pickChoice} onOpenChange={(o) => !o && setEditing(false)} placeholder="—" options={[{ value: "", label: "—" }, ...(field.choices ?? []).map((c) => ({ value: c, label: humanize(c) }))]} />
         ) : field.kind === "bool" ? (
-          <select autoFocus value={text || "false"} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label}>
-            <option value="false">No</option>
-            <option value="true">Yes</option>
-          </select>
+          <Dropdown defaultOpen size="sm" label={label} value={text || "false"} onChange={pickChoice} onOpenChange={(o) => !o && setEditing(false)} options={[{ value: "false", label: "No" }, { value: "true", label: "Yes" }]} />
         ) : field.kind === "long_text" ? (
           <textarea autoFocus rows={3} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(true)} onKeyDown={key} aria-label={label} />
         ) : (

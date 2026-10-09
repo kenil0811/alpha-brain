@@ -4,7 +4,7 @@
  *  (`RecordFields`) are also the form view's body. */
 import type { RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { humanize } from "../format";
+import { humanize, when } from "../format";
 import { useState } from "react";
 import { Button, Confirm, IconButton } from "../../ui";
 import { ArrowLeft, X } from "../../ui/icons";
@@ -13,7 +13,6 @@ import { Cell, LongText } from "./cells";
 export function RecordFields({ row, fields, titleField, relations, onCommit, onOpenRelated }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void }) {
   const long = fields.filter((f) => f.kind === "long_text");
   const shown = fields.filter((f) => f.name !== titleField && f.kind !== "long_text");
-  const when = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
   return (
     <>
       <table className="table table--kv">

@@ -10,7 +10,7 @@ import { humanize, when } from "../modules/format";
 import { AutomationList } from "./Automations";
 import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
-import { Button, Badge, Tabs } from "../ui";
+import { Button, Badge, Tabs, type Tone } from "../ui";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
@@ -27,11 +27,11 @@ const CONNECTOR: Record<string, { icon: string; label: (c: Connection) => string
   calendar: { icon: "▦", label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
 };
 
-const STATUS: Record<Connection["status"], { pill: string; words: string }> = {
-  connected: { pill: "pill--good", words: "Connected" },
-  needs_ok: { pill: "pill--warn", words: "Needs your OK" },
-  broken: { pill: "pill--bad", words: "Not working" },
-  off: { pill: "pill--gray", words: "Off" },
+const STATUS: Record<Connection["status"], { tone: Tone; words: string }> = {
+  connected: { tone: "good", words: "Connected" },
+  needs_ok: { tone: "warn", words: "Needs your OK" },
+  broken: { tone: "bad", words: "Not working" },
+  off: { tone: "gray", words: "Off" },
 };
 
 /** What removing a connection takes with it: the same words Activity records afterwards. */
@@ -95,7 +95,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
                   )}
                 </div>
               </div>
-              <span className={`pill ${STATUS[c.status].pill}`}>{STATUS[c.status].words}</span>
+              <Badge tone={STATUS[c.status].tone}>{STATUS[c.status].words}</Badge>
               {removing?.id === c.id ? (
                 <>
                   <Button size="sm" onClick={() => setRemoving(null)}>

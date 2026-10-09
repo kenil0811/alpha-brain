@@ -11,7 +11,7 @@ import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
-import { Button, Trouble } from "../ui";
+import { Badge, Button, Dropdown, Trouble } from "../ui";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -95,12 +95,12 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
         <div className={`item__sub${confirming ? " item__sub--warn" : ""}`}>{words}</div>
         {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
       </div>
-      {inUse ? <span className="pill pill--good">In use</span> : onUse && connected ? (
+      {inUse ? <Badge tone="good">In use</Badge> : onUse && connected ? (
         <Button size="sm" onClick={onUse}>
           Use this
         </Button>
       ) : null}
-      {status ? <span className={`pill ${connected ? "pill--good" : "pill--warn"}`}>{connected ? "Connected" : "Not connected"}</span> : null}
+      {status ? <Badge tone={connected ? "good" : "warn"}>{connected ? "Connected" : "Not connected"}</Badge> : null}
       {!status ? null : connected ? (
         confirming ? (
           <>
@@ -252,14 +252,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
               <b>Rows per page</b>
               <div className="item__sub">How many rows a table shows at once</div>
             </div>
-            <select className="btn btn--sm" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))} aria-label="Rows per page">
-              <option value="fit">Fit to window</option>
-              {PAGE_SIZES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+            <Dropdown size="sm" label="Rows per page" value={String(pageSize)} onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))} options={[{ value: "fit", label: "Fit to window" }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]} />
           </div>
         </div>
       </div>

@@ -9,8 +9,8 @@ import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } fro
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
-import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
-import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
+import { Button, Confirm, Dropdown, IconButton, Tabs, Popover } from "../ui";
+import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal, Star } from "../ui/icons";
 import { applyQuery, ofKinds, pageOf, provenanceCounts, type Sort } from "./views/engine";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
@@ -392,42 +392,16 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
           ) : null}
           <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
           {view === "board" && choiceFields.length > 1 ? (
-            <select className="btn btn--sm" value={groupField?.name ?? ""} onChange={(e) => setGroupBy(e.target.value)} aria-label="Group by">
-              {choiceFields.map((f) => (
-                <option key={f.name} value={f.name}>
-                  By {humanize(f.name).toLowerCase()}
-                </option>
-              ))}
-            </select>
+            <Dropdown size="sm" label="Group by" value={groupField?.name ?? ""} onChange={setGroupBy} options={choiceFields.map((f) => ({ value: f.name, label: `By ${humanize(f.name).toLowerCase()}` }))} />
           ) : null}
           {(view === "calendar" || view === "timeline" || view === "chart") && dateFields.length > 1 ? (
-            <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
-              {dateFields.map((f) => (
-                <option key={f.name} value={f.name}>
-                  By {humanize(f.name).toLowerCase()}
-                </option>
-              ))}
-            </select>
+            <Dropdown size="sm" label="Date field" value={dateField?.name ?? ""} onChange={setDateBy} options={dateFields.map((f) => ({ value: f.name, label: `By ${humanize(f.name).toLowerCase()}` }))} />
           ) : null}
           {lists.length ? (
-            <select className="btn btn--sm" value={listId} onChange={(e) => applyList(e.target.value)} aria-label="Saved list">
-              <option value="all">All</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.is_default ? "★ " : ""}{l.title}
-                </option>
-              ))}
-            </select>
+            <Dropdown size="sm" label="Saved list" value={listId} onChange={applyList} options={[{ value: "all", label: "All" }, ...lists.map((l) => ({ value: l.id, label: l.title, icon: l.is_default ? <Star /> : undefined }))]} />
           ) : null}
           {facets.map((field) => (
-            <select key={field.name} className="btn btn--sm" value={filters[field.name] ?? ""} onChange={(e) => setFilters((p) => ({ ...p, [field.name]: e.target.value }))} aria-label={`Filter by ${humanize(field.name).toLowerCase()}`}>
-              <option value="">{humanize(field.name)}: any</option>
-              {(field.choices ?? []).map((c) => (
-                <option key={c} value={c}>
-                  {humanize(c)}
-                </option>
-              ))}
-            </select>
+            <Dropdown key={field.name} size="sm" label={`Filter by ${humanize(field.name).toLowerCase()}`} value={filters[field.name] ?? ""} onChange={(v) => setFilters((p) => ({ ...p, [field.name]: v }))} options={[{ value: "", label: `${humanize(field.name)}: any` }, ...(field.choices ?? []).map((c) => ({ value: c, label: humanize(c) }))]} />
           ))}
           {statusField && (statusField.done_choices ?? []).length ? (
             <label className="check">
@@ -595,14 +569,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
           {paged && rows?.length ? (
             <label className="pager__size">
               Rows per page
-              <select className="btn btn--sm" value={String(pageSize)} onChange={(e) => choosePageSize(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
-                <option value="fit">Fit to window{pageSize === "fit" ? ` (${fit})` : ""}</option>
-                {PAGE_SIZES.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+              <Dropdown size="sm" label="Rows per page" value={String(pageSize)} onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))} options={[{ value: "fit", label: `Fit to window${pageSize === "fit" ? ` (${fit})` : ""}` }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]} />
             </label>
           ) : null}
           {paged && pages > 1 ? (

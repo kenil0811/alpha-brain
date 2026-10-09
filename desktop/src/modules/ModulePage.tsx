@@ -9,7 +9,7 @@ import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
-import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
+import { Badge, Button, Tabs, Menu, MenuHeading, MenuItem, type Tone } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
@@ -335,7 +335,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
                         {src.detail ?? (src.status === "working" ? `${src.last_rows ?? 0} rows${src.last_checked ? ` · read ${when(src.last_checked)}` : ""}` : src.site)}
                       </div>
                     </div>
-                    <span className={`pill ${SOURCE_STATUS[src.status].pill}`}>{SOURCE_STATUS[src.status].words}</span>
+                    <Badge tone={SOURCE_STATUS[src.status].tone}>{SOURCE_STATUS[src.status].words}</Badge>
                   </div>
                 ))}
               </div>
@@ -354,14 +354,14 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
   );
 }
 
-const SOURCE_STATUS: Record<Source["status"], { pill: string; words: string }> = {
-  working: { pill: "pill--good", words: "Working" },
-  needs_signin: { pill: "pill--warn", words: "Needs your sign-in" },
-  blocked: { pill: "pill--bad", words: "Blocked" },
-  broken: { pill: "pill--bad", words: "Being repaired" },
-  not_built: { pill: "pill--gray", words: "Not read yet" },
-  unavailable: { pill: "pill--gray", words: "Nothing to read" },
-  skipped: { pill: "pill--gray", words: "Skipped by you" },
+const SOURCE_STATUS: Record<Source["status"], { tone: Tone; words: string }> = {
+  working: { tone: "good", words: "Working" },
+  needs_signin: { tone: "warn", words: "Needs your sign-in" },
+  blocked: { tone: "bad", words: "Blocked" },
+  broken: { tone: "bad", words: "Being repaired" },
+  not_built: { tone: "gray", words: "Not read yet" },
+  unavailable: { tone: "gray", words: "Nothing to read" },
+  skipped: { tone: "gray", words: "Skipped by you" },
 };
 
 function sourceSummary(sources: Source[]): string {
@@ -378,13 +378,13 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
   const rows = detail.activity;
   if (!rows.length) return <p className="empty">Nothing has happened here yet.</p>;
   const label = (e: ModuleDetail["activity"][number]) =>
-    e.kind === "failed" ? { cls: "badge--failed", words: "Failed" }
-    : e.kind === "said" ? { cls: "", words: "You said" }
-    : e.kind === "replied" ? { cls: "badge--running", words: "Alpha said" }
-    : e.kind === "asked" || e.kind === "proposed" ? { cls: "badge--waiting", words: "Asked" }
-    : e.actor === "person" ? { cls: "", words: "You" }
-    : e.kind === "saw" ? { cls: "badge--running", words: "Read" }
-    : { cls: "badge--succeeded", words: "Alpha" };
+    e.kind === "failed" ? { tone: "bad" as const, words: "Failed" }
+    : e.kind === "said" ? { tone: "gray" as const, words: "You said" }
+    : e.kind === "replied" ? { tone: "info" as const, words: "Alpha said" }
+    : e.kind === "asked" || e.kind === "proposed" ? { tone: "warn" as const, words: "Asked" }
+    : e.actor === "person" ? { tone: "gray" as const, words: "You" }
+    : e.kind === "saw" ? { tone: "info" as const, words: "Read" }
+    : { tone: "good" as const, words: "Alpha" };
   return (
     <div className="stack">
       <div className="card list" aria-label="Everything that happened here">
@@ -393,7 +393,7 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
           return (
             <div key={e.id} className="item item--top">
               <span className="item__when">{when(e.at)}</span>
-              <span className={`badge ${b.cls}`}>{b.words}</span>
+              <Badge tone={b.tone}>{b.words}</Badge>
               <div className="item__body activity__text">{e.text}</div>
             </div>
           );
@@ -520,9 +520,9 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
               <div className="metric__lab">{t.split.label}</div>
               <div className="row" style={{ marginTop: 8 }}>
                 {Object.entries(t.split.counts).map(([choice, n]) => (
-                  <span key={choice} className={`pill ${t.split?.done.includes(choice) ? "pill--good" : "pill--gray"}`}>
+                  <Badge key={choice} tone={t.split?.done.includes(choice) ? "good" : "gray"}>
                     {humanize(choice)} <b className="num">{n}</b>
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>

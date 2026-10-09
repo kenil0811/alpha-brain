@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { formatNumber, humanize } from "../format";
+import { Dropdown } from "../../ui";
 
 export function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; dateField: FieldInfo; valueField: FieldInfo | null }) {
   const [measure, setMeasure] = useState<string>(valueField?.name ?? "count");
@@ -20,10 +21,7 @@ export function ChartView({ rows, dateField, valueField }: { rows: RecordRow[]; 
     <div className="chart">
       <div className="chart__head">
         <span className="faint">Per day, over the entries shown</span>
-        <select className="btn btn--sm" value={measure} onChange={(e) => setMeasure(e.target.value)} aria-label="What to chart">
-          <option value="count">Count</option>
-          {valueField ? <option value={valueField.name}>{humanize(valueField.name)}</option> : null}
-        </select>
+        <Dropdown size="sm" label="What to chart" value={measure} onChange={setMeasure} options={[{ value: "count", label: "Count" }, ...(valueField ? [{ value: valueField.name, label: humanize(valueField.name) }] : [])]} />
       </div>
       {days.length ? (
         <div className="chart__bars" role="img" aria-label={`${humanize(measure)} per day`}>

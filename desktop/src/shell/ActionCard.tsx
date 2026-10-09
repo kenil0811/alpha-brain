@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Button, Dialog } from "../ui";
+import { Badge, Button, Dialog } from "../ui";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 /** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
@@ -71,9 +71,9 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
     <article className={`card need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`}>
       <h3>
         {action.title}
-        <span className={`badge ${action.state === "failed" ? "badge--failed" : action.state === "done" ? "badge--good" : "badge--waiting"}`} style={{ marginLeft: 8 }}>
+        <Badge tone={action.state === "failed" ? "bad" : action.state === "done" ? "good" : "warn"} style={{ marginLeft: 8 }}>
           {badge}
-        </span>
+        </Badge>
       </h3>
       <p className="because">
         <b>{action.effect === "send" ? "Sends" : "Prepares"}</b> on {action.site} · {EFFECT[action.effect]} · {when(action.created_at)}

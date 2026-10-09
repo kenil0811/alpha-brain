@@ -2,6 +2,11 @@
  * The icons the app uses, from lucide, named by what they mean here so a change of set is one
  * file. Glyph characters are not icons (CONTRIBUTING §3.8).
  */
+/** The two icon sizes (the UI rulebook §1): small, inside chips, switches and dropdown rows, and
+ *  regular everywhere else. The same two are `--icon-sm` and `--icon` in the stylesheet. */
+export const ICON_SM = 14;
+export const ICON = 16;
+
 export {
   Home as HomeIcon,
   Clock as ActivityIcon,
@@ -28,6 +33,9 @@ export {
   Circle,
   Maximize2,
   MoreHorizontal,
+  MoreVertical,
+  Star,
+  Search as SearchIcon,
   Info,
   FolderOpen,
   Calendar,

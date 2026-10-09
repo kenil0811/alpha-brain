@@ -1,13 +1,17 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
+import { Tooltip } from "./Tooltip";
 
 export interface TabItem<T extends string> {
   id: T;
   label: ReactNode;
+  /** A name for when the label is not shown (icons only): it becomes the tab's accessible name
+   *  and a tooltip. */
+  tip?: string;
 }
 
 /** A row of tabs with a keyboard path: arrow keys move, Home and End jump, the selected tab is
- *  the one in the tab order. `className` picks the look (`subtabs`, `toggle`). */
+ *  the one in the tab order. `className` picks the look (`subtabs`, `toggle`, `hswitch`). */
 export function Tabs<T extends string>({ items, value, onChange, label, className = "subtabs", style }: { items: TabItem<T>[]; value: T; onChange: (id: T) => void; label?: string; className?: string; style?: React.CSSProperties }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const move = (from: number, to: number) => {
@@ -18,29 +22,39 @@ export function Tabs<T extends string>({ items, value, onChange, label, classNam
   };
   return (
     <div className={className} role="tablist" aria-label={label} style={style}>
-      {items.map((t, i) => (
-        <button
-          key={t.id}
-          ref={(el) => {
-            refs.current[i] = el;
-          }}
-          type="button"
-          role="tab"
-          aria-selected={value === t.id}
-          tabIndex={value === t.id ? 0 : -1}
-          onClick={() => onChange(t.id)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowRight" || e.key === "ArrowDown") move(i, i + 1);
-            else if (e.key === "ArrowLeft" || e.key === "ArrowUp") move(i, i - 1);
-            else if (e.key === "Home") move(i, 0);
-            else if (e.key === "End") move(i, items.length - 1);
-            else return;
-            e.preventDefault();
-          }}
-        >
-          {t.label}
-        </button>
-      ))}
+      {items.map((t, i) => {
+        const tab = (
+          <button
+            key={t.id}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            type="button"
+            role="tab"
+            aria-label={t.tip}
+            aria-selected={value === t.id}
+            tabIndex={value === t.id ? 0 : -1}
+            onClick={() => onChange(t.id)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowDown") move(i, i + 1);
+              else if (e.key === "ArrowLeft" || e.key === "ArrowUp") move(i, i - 1);
+              else if (e.key === "Home") move(i, 0);
+              else if (e.key === "End") move(i, items.length - 1);
+              else return;
+              e.preventDefault();
+            }}
+          >
+            {t.label}
+          </button>
+        );
+        return t.tip ? (
+          <Tooltip key={t.id} text={t.tip}>
+            {tab}
+          </Tooltip>
+        ) : (
+          tab
+        );
+      })}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { coerce, inputType, type FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { Button } from "../../ui";
+import { Button, Dropdown } from "../../ui";
 
 export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; collection: string; onAdd: (values: Record<string, unknown>) => Promise<boolean>; onDone: () => void }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -35,19 +35,9 @@ export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInf
           <div key={f.name} className="field field--compact">
             <label htmlFor={id}>{label}</label>
             {f.kind === "choice" || f.kind === "status" ? (
-              <select id={id} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)}>
-                <option value="">Choose…</option>
-                {(f.choices ?? []).map((c) => (
-                  <option key={c} value={c}>
-                    {humanize(c)}
-                  </option>
-                ))}
-              </select>
+              <Dropdown id={id} label={label} value={draft[f.name] ?? ""} onChange={(v) => set(f.name, v)} placeholder="Choose…" options={(f.choices ?? []).map((c) => ({ value: c, label: humanize(c) }))} />
             ) : f.kind === "bool" ? (
-              <select id={id} value={draft[f.name] ?? "false"} onChange={(e) => set(f.name, e.target.value)}>
-                <option value="false">No</option>
-                <option value="true">Yes</option>
-              </select>
+              <Dropdown id={id} label={label} value={draft[f.name] ?? "false"} onChange={(v) => set(f.name, v)} options={[{ value: "false", label: "No" }, { value: "true", label: "Yes" }]} />
             ) : f.kind === "long_text" ? (
               <textarea id={id} rows={3} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} />
             ) : (

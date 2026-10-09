@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
-import { when } from "../modules/format";
+import { dayLabel, timeText, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 import { Badge, Button } from "../ui";
@@ -17,7 +17,7 @@ function greeting(): string {
 }
 
 function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return timeText(new Date(iso));
 }
 
 function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
@@ -130,7 +130,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
     return () => clearTimeout(t);
   }, [toast]);
 
-  const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const date = dayLabel(new Date().toISOString());
   if (!home) {
     return (
       <div className="page">
@@ -185,7 +185,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           <div className="card list">
             {home.threads.map((t) => (
               <div key={t.id} className="item item--thread">
-                <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</span>
+                <Badge tone={t.state === "waiting" ? "warn" : "info"}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</Badge>
                 <div className="item__body">
                   <b>{t.title}</b>
                   <div className="item__sub">

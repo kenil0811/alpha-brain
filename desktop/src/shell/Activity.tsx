@@ -5,17 +5,17 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
-import { Trouble } from "../ui";
+import { Badge, Trouble, type Tone } from "../ui";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
-function badge(e: JournalEntry): { cls: string; words: string } {
-  if (e.kind === "failed") return { cls: "badge--failed", words: "Failed" };
-  if (e.kind === "asked" || e.kind === "proposed") return { cls: "badge--waiting", words: "Waiting" };
-  if (e.actor === "person") return { cls: "", words: "You" };
-  if (e.kind === "saw") return { cls: "badge--running", words: "Read" };
-  if (e.kind === "checked") return { cls: (e.data as { agree?: boolean }).agree ? "badge--succeeded" : "badge--failed", words: "Checked" };
-  return { cls: "badge--succeeded", words: "Done" };
+function badge(e: JournalEntry): { tone: Tone; words: string } {
+  if (e.kind === "failed") return { tone: "bad", words: "Failed" };
+  if (e.kind === "asked" || e.kind === "proposed") return { tone: "warn", words: "Waiting" };
+  if (e.actor === "person") return { tone: "gray", words: "You" };
+  if (e.kind === "saw") return { tone: "info", words: "Read" };
+  if (e.kind === "checked") return { tone: (e.data as { agree?: boolean }).agree ? "good" : "bad", words: "Checked" };
+  return { tone: "good", words: "Done" };
 }
 
 function Details({ e }: { e: JournalEntry }) {
@@ -42,7 +42,7 @@ function Details({ e }: { e: JournalEntry }) {
       ) : (
         <span className="faint">Nothing more recorded.</span>
       )}
-      <span className="faint">{new Date(e.at).toLocaleString()}</span>
+      <span className="faint">{when(e.at)}</span>
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function Activity({ client, version }: { client: Client; version: number;
                 {head}
                 <button type="button" className="item item--btn" aria-expanded={open === e.id} onClick={() => setOpen((o) => (o === e.id ? null : e.id))}>
                   <span className="item__when num">{when(e.at)}</span>
-                  <span className={`badge ${b.cls}`}>{b.words}</span>
+                  <Badge tone={b.tone}>{b.words}</Badge>
                   <span className="item__body">
                     <b>{e.snippet ? <span dangerouslySetInnerHTML={{ __html: e.snippet.replace(/</g, "&lt;").replace(/\[/g, "<mark>").replace(/\]/g, "</mark>") }} /> : e.text}</b>
                   </span>

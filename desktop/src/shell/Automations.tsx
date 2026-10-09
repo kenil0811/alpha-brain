@@ -5,7 +5,7 @@
 import { useState } from "react";
 import type { Automation, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Button } from "../ui";
+import { Badge, Button } from "../ui";
 import { Check, X } from "../ui/icons";
 
 export function AutomationList({ client, items, onChanged, empty, onOpen }: { client: Client; items: Automation[]; onChanged: () => void; empty: string; onOpen?: (id: string) => void }) {
@@ -53,7 +53,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen }: { cl
               </div>
               {a.running ? (
                 <div className="run__live" role="status">
-                  <span className="badge badge--running">Running now</span>
+                  <Badge tone="info">Running now</Badge>
                   {a.steps?.length ? (
                     <ul className="stages">
                       {a.steps.map((s, i) => (

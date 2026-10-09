@@ -9,7 +9,7 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Button, IconButton, Trouble, Rich } from "../ui";
+import { Badge, Button, IconButton, Trouble, Rich } from "../ui";
 import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
@@ -34,7 +34,7 @@ function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onD
     <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
       <h3 className="creation__title">
         {plan.title}
-        <span className="badge badge--waiting">{stopped ? "Stopped" : "Plan"}</span>
+        <Badge tone="warn">{stopped ? "Stopped" : "Plan"}</Badge>
       </h3>
       <span className="faint">{stopped ? "The build stopped before it finished. It can carry on from where it stopped." : "Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed."}</span>
       <div className="row" style={{ marginTop: 8 }}>
@@ -400,7 +400,7 @@ export function AssistantPanel({
                   <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
                     <h3 className="creation__title">
                       {t.title}
-                      <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
+                      <Badge tone={t.state === "waiting" ? "warn" : "info"}>{THREAD_STATE[t.state] ?? t.state}</Badge>
                     </h3>
                     <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
                     {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}

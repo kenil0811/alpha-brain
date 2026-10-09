@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Client, GraphEdge, GraphKind, GraphNode, WorkGraph } from "../../core/client";
 import type { Surface } from "../Rail";
+import { timeText } from "../../modules/format";
 import { Button, IconButton } from "../../ui";
 import { ActivityIcon, BookOpen, Building2, Eye, FileText, Flag, FolderOpen, Globe, IntelligenceIcon, Layers, Link2, Play, Table2, User, X, Zap } from "../../ui/icons";
 import { anchorsFor, makeSimulation, positionsOf, settle, toMapEdges, toMapNodes, type Anchors, type Positions } from "./layout";
@@ -166,7 +167,7 @@ function curve(a: { x: number; y: number }, b: { x: number; y: number }): string
   return `M ${a.x} ${a.y} Q ${mx - dy * bend} ${my + dx * bend} ${b.x} ${b.y}`;
 }
 
-const timeOf = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+const timeOf = timeText;
 
 export function WorkMap({ client, onGo, initialKind = "world" }: { client: Client; onGo?: (s: Surface) => void; initialKind?: GraphKind }) {
   const [kind, setKind] = useState<GraphKind>(initialKind);
