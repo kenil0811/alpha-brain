@@ -101,9 +101,12 @@ killed by hand twice came back on the same port within two seconds and the windo
   never says so. The ChatGPT route (Q32), in use from 3 Oct 22:41 to 8 Oct, was refused every
   call to Alpha's tools by Codex's own approval gate, and the model claimed a build was approved
   that never was; the LinkedIn connections run, the Sunday summary and the LinkedIn readers'
-  repair all failed with it. A run that fails on a network error at wake is not retried. Failed
-  runs reach nobody but Activity. The LinkedIn connections automation is a procedure (made
-  before pipelines) and pays a model turn a day for a read. Kenil is back on Claude.
+  repair all failed with it. Kenil is back on Claude. Since 9 Oct: ~~a run that fails on a
+  network error at wake is not retried~~ (tried again after a minute), ~~failed runs reach
+  nobody but Activity~~ (the companion carries them; every run has a verdict), ~~the LinkedIn
+  connections automation is a procedure and pays a model turn a day~~ (it converted itself to
+  steps at the 9 Oct 07:40 run), and the schedule's words say "or when your Mac next wakes".
+  Still true: a clock-time run waits for the Mac's next full wake, by the sleep rule.
 - Alpha cannot rename a module (seen in the nested-modules journey: a part kept its old name
   under the new path); a small missing tool.
 - Noticing keeps session state as suggested facts about the person ("using_module =

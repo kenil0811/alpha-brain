@@ -312,7 +312,7 @@ For now the system owner (developer) handles hands, listed in Intelligence. Open
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Browser: Alpha's own Chrome through Playwright, a profile per signed-in site, the person signs in themselves in a window Alpha opens, a sign-in covers the sites it passed through. Files: watchdog plus pypdf, python-docx, openpyxl, python-pptx and plain-text kinds into documents with FTS (50 MB and 400k-character limits). Calendar: EventKit, 30 days back and 60 ahead, every five minutes. |
+| Built | Browser: Playwright, driving the person's own Chrome when it is on the Mac and Alpha's own Chromium otherwise (installed by Alpha on first run, Q34), a profile per signed-in site, the person signs in themselves in a window Alpha opens, a sign-in covers the sites it passed through. Files: watchdog plus pypdf, python-docx, openpyxl, python-pptx and plain-text kinds into documents with FTS (50 MB and 400k-character limits). Calendar: EventKit, 30 days back and 60 ahead, every five minutes. |
 | Differs | Not Claude in Chrome. A sign-in counts as done when any cookie is set (a heuristic). The file watcher runs only while the core runs. Gmail is read in the browser (Q4 revised). |
 | Not built | Reading only what is new on a list read daily. |
 - **Screen capture.** Not in v1. Every consumer product that shipped continuous capture was killed or forced opt-in (Rewind's capture ended December 2025, Limitless was sold, Recall was redesigned); the one research system that made it work (GUM) did so for five people behind a strict utility gate. Revisit once the connector-only brain is trusted.
