@@ -42,9 +42,16 @@ def needs_you(world: World) -> list[dict[str, Any]]:
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):
         if p["id"] not in answered:
+            plan_id = p["data"].get("plan")
+            questions: list[dict[str, Any]] = []
+            if plan_id:
+                try:
+                    questions = world.plans.get(plan_id)["questions"]
+                except Problem:
+                    questions = []
             items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
                           "why": p["data"].get("why"), "at": p["at"], "module": p["module"],
-                          "plan": p["data"].get("plan")})
+                          "plan": plan_id, "questions": questions})
     for f in world.knowledge.facts("person", states=("suggested",)):
         items.append({"kind": "fact", "id": f["id"], "text": f"{f['predicate']}: {f['value']}",
                       "why": f["why"], "at": f["recorded_at"]})

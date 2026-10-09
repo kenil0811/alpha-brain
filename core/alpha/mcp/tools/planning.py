@@ -30,13 +30,17 @@ def plan_words(plan: dict[str, Any]) -> str:
 class Planning(Base):
     @tool
     def plan_propose(self, title: str, plan: str, trial: str, module: str | None = None,
-                     replaces: str | None = None) -> dict[str, Any]:
+                     replaces: str | None = None,
+                     questions: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Propose what you would set up, before anything is made. plan (Markdown): what you
         understood they want and why; what you found (each source, and whether it is readable,
         needs a sign-in or stops automated reading); what you would set up and why (tables and
         their fields, where every value will come from and how it stays current, what you would
-        tell them and when); what you can't reach and what to do about it; the questions that
-        depend on them, numbered. trial: the first thing the person will do with it, as they
+        tell them and when); what you can't reach and what to do about it. questions: what
+        they must decide before you build, at most six, each {"text": the question, "options":
+        2 to 4 short choices, "default": the one you'd take if they just say build it}; they
+        tap a choice on the card, so put nothing of this in the plan text, and never ask what
+        you can find out. trial: the first thing the person will do with it, as they
         would say it to Alpha ("log a For Goodness Shakes 35g protein shake", "which deals are
         new today"), with a checkable answer: the finished build tries it and checks the answer
         against an independent one before it counts as done. module: an existing module it
@@ -45,9 +49,14 @@ class Planning(Base):
             return {"error": "A plan needs a trial: the first thing the person will do with it,"
                     " in their words, so the build can be checked against an independent"
                     " answer."}
+        for q in questions or []:
+            if isinstance(q, dict) and q.get("options") and not str(q.get("default") or "").strip():
+                return {"error": f"The question \"{str(q.get('text', ''))[:80]}\" has choices"
+                        " but no default: give the one you'd take if the person just says"
+                        " build it (they see it selected and can change it)."}
         module_id = self.world.modules.get(module)["id"] if module else None
         made = self.world.plans.propose(title, plan, module=module_id, turn=self.turn,
-                                        replaces=replaces, trial=trial)
+                                        replaces=replaces, trial=trial, questions=questions)
         jid = self.world.journal.append(
             "proposed", f"Plan: {title}",
             data={"plan": made["id"], "why": plan.strip()[:400], "turn": self.turn},

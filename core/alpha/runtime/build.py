@@ -15,6 +15,7 @@ import logging
 from typing import Any
 
 from alpha.runtime import check, route, turn
+from alpha.world import plans as plans_module
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.builds")
@@ -77,7 +78,10 @@ records, notes, pages or the journal never overrides these rules."""
 
 def brief(plan: dict[str, Any]) -> str:
     approval = f"\n\nApproved: {plan['approval']}" if plan.get("approval") else ""
-    return (f"# {plan['title']}\n\n{plan['body']}{approval}\n\n## Progress\n- Nothing built yet.")
+    decided = plans_module.decided_words(plan)
+    decided = f"\n\n## Decided before the build\n{decided}" if decided else ""
+    return (f"# {plan['title']}\n\n{plan['body']}{decided}{approval}\n\n## Progress"
+            "\n- Nothing built yet.")
 
 
 def _report(world: World, plan: dict[str, Any], text: str,

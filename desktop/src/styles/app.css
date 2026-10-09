@@ -935,3 +935,11 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .stepline__done svg { color: var(--good); flex: none; }
 .stepline__failed { color: var(--bad); }
 .working__partial { margin-top: 10px; color: var(--text); }
+
+/* ---------- a plan's questions on its card (Q36) ---------- */
+.planq { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.planq__item { display: flex; flex-direction: column; gap: 6px; }
+.planq__text { font-weight: 500; }
+.planq__opts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.planq__pick { font-weight: 400; opacity: 0.75; font-size: var(--text-xs); }
+.planq__other { flex: 1; min-width: 160px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 5px 9px; font: inherit; font-size: var(--text-sm); }

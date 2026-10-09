@@ -407,6 +407,7 @@ ADDED_COLUMNS = [
     # many times the build's trial of it disagreed with an independent answer
     ("plans", "trial", "TEXT"),
     ("plans", "checks", "INTEGER NOT NULL DEFAULT 0"),
+    ("plans", "questions", "TEXT"),  # the plan's questions with choices and defaults (Q36)
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
     ("documents", "origin", "TEXT"),

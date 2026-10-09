@@ -15,6 +15,12 @@ class AskBody(BaseModel):
     conversation: str | None = None
 
 
+class ApprovePlanBody(BaseModel):
+    """The person's answers to a plan's questions, by number from 0; a question left out
+    keeps Alpha's default."""
+    answers: dict[str, str] | None = None
+
+
 class ConversationBody(BaseModel):
     module: str | None = None
     title: str | None = None

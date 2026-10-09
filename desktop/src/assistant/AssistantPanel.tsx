@@ -5,7 +5,7 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, PlanQuestion, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
@@ -15,31 +15,81 @@ import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
 
+/** The questions a plan asks before its build (Q36): each with its choices, Alpha's pick
+ *  selected, and a line to say it another way. What is chosen goes with the yes. */
+export function PlanQuestions({ questions, answers, onChange }: { questions: PlanQuestion[]; answers: Record<string, string>; onChange: (answers: Record<string, string>) => void }) {
+  return (
+    <ol className="planq">
+      {questions.map((q, i) => {
+        const key = String(i);
+        const chosen = answers[key] ?? q.default ?? "";
+        const custom = chosen && !q.options.includes(chosen) ? chosen : "";
+        return (
+          <li key={key} className="planq__item">
+            <div className="planq__text">{q.text}</div>
+            <div className="planq__opts">
+              {q.options.map((o) => (
+                <Button key={o} size="sm" variant={chosen === o ? "primary" : undefined} aria-pressed={chosen === o} onClick={() => onChange({ ...answers, [key]: o })}>
+                  {o}
+                  {o === q.default ? <span className="planq__pick"> · Alpha's pick</span> : null}
+                </Button>
+              ))}
+              <input className="planq__other" value={custom} placeholder={q.options.length ? "Or say it your way" : (q.default ? `Alpha's pick: ${q.default}` : "Your answer")} aria-label={`Your answer: ${q.text}`} onChange={(e) => onChange({ ...answers, [key]: e.target.value })} />
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export function defaultAnswers(questions: PlanQuestion[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  questions.forEach((q, i) => {
+    const v = q.answer ?? q.default;
+    if (v) out[String(i)] = v;
+  });
+  return out;
+}
+
 /** A plan Alpha proposed (nothing is built until the person says yes, here or in words), or a
- *  build that stopped before it finished (it can carry on from where it stopped). */
-function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onDecided: () => void }) {
+ *  build that stopped before it finished (it can carry on from where it stopped). A plan with
+ *  questions shows them with Alpha's picks selected: the yes carries the answers. */
+export function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onDecided: () => void }) {
   const [busy, setBusy] = useState(false);
+  const questions = plan.state === "proposed" ? (plan.questions ?? []) : [];
+  const [answers, setAnswers] = useState<Record<string, string>>(() => defaultAnswers(plan.questions ?? []));
   const stopped = plan.state === "stopped";
   const decide = (yes: boolean) => {
     setBusy(true);
     // One request per decision. (Until 2 Oct evening the yes request was built eagerly, so
     // "Not now" approved and "Leave it" resumed before declining: builds ran on a no.)
-    const go = () => (stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id));
+    const go = () => (stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id, questions.length ? answers : undefined));
     void (yes ? go() : client.declinePlan(plan.id)).finally(() => {
       setBusy(false);
       onDecided();
     });
   };
+  const open = questions.filter((_q, i) => !(answers[String(i)] ?? "").trim()).length;
   return (
     <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
       <h3 className="creation__title">
         {plan.title}
         <span className="badge badge--waiting">{stopped ? "Stopped" : "Plan"}</span>
       </h3>
-      <span className="faint">{stopped ? "The build stopped before it finished. It can carry on from where it stopped." : "Nothing is built until you say yes. Answer the questions above in a reply, or build it as proposed."}</span>
+      {questions.length ? <PlanQuestions questions={questions} answers={answers} onChange={setAnswers} /> : null}
+      <span className="faint">
+        {stopped
+          ? "The build stopped before it finished. It can carry on from where it stopped."
+          : questions.length
+            ? open
+              ? `Nothing is built until you say yes. ${open === 1 ? "One question has no pick yet" : `${open} questions have no pick yet`}: answer it, or build and Alpha decides it sensibly.`
+              : "Nothing is built until you say yes. Alpha's picks are selected: change any, or say it your way."
+            : "Nothing is built until you say yes."}
+      </span>
       <div className="row" style={{ marginTop: 8 }}>
         <Button size="sm" variant="primary" disabled={busy} onClick={() => decide(true)}>
-          {stopped ? "Continue building" : "Build it"}
+          {stopped ? "Continue building" : questions.length ? "Build with these" : "Build it"}
         </Button>
         <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
           {stopped ? "Leave it" : "Not now"}
@@ -92,6 +142,26 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
   );
 }
 
+/** A reply that proposed a plan whose questions the core read out of it (Q36) shows without
+ *  those numbered questions and their lead-in line: the plan card carries them with choices. */
+export function withoutPlanQuestions(text: string, plans: Plan[], turn: unknown): string {
+  const plan = plans.find((p) => p.turn === turn && p.state === "proposed" && (p.questions ?? []).length && (p.questions ?? []).every((q) => q.derived));
+  if (!plan) return text;
+  const lines = text.trimEnd().split("\n");
+  let i = lines.length - 1;
+  while (i >= 0 && !lines[i].trim()) i--;
+  let removed = 0;
+  while (i >= 0 && /^\s*(?:[-*•]|\d+[.)])\s+.*\?\s*$/.test(lines[i])) {
+    i--;
+    removed++;
+  }
+  if (!removed) return text;
+  while (i >= 0 && !lines[i].trim()) i--;
+  if (i >= 0 && /:\s*$/.test(lines[i]) && lines[i].length < 160) i--;
+  const rest = lines.slice(0, i + 1).join("\n").trimEnd();
+  return rest.length ? rest : text;
+}
+
 /** A reply whose trailing question became a card (Q35) shows without that question: the card
  *  carries it, so the person reads it once. A reply that was only the question shows nothing. */
 export function withoutCarded(text: string, asks: Ask[], turn: unknown): string | null {
@@ -105,10 +175,12 @@ export function withoutCarded(text: string, asks: Ask[], turn: unknown): string 
   return rest.length ? rest : null;
 }
 
-function Message({ e, asks }: { e: JournalEntry; asks?: Ask[] }) {
+function Message({ e, asks, plans }: { e: JournalEntry; asks?: Ask[]; plans?: Plan[] }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
-  const text = e.kind === "replied" && asks ? withoutCarded(e.text, asks, e.data.turn) : e.text;
+  let text: string | null = e.text;
+  if (e.kind === "replied" && asks) text = withoutCarded(e.text, asks, e.data.turn);
+  if (text !== null && e.kind === "replied" && plans) text = withoutPlanQuestions(text, plans, e.data.turn);
   if (text === null) return null;
   return (
     <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
@@ -458,7 +530,7 @@ export function Conversation({
             ) : null}
             {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
             {turns.map((e) => (
-              <Message key={e.id} e={e} asks={openAsks} />
+              <Message key={e.id} e={e} asks={openAsks} plans={plans} />
             ))}
             {plans
               .filter((p) => p.state === "proposed" || p.state === "stopped")

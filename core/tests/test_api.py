@@ -346,3 +346,18 @@ def test_the_conversations_list_adds_the_finished_ones_when_asked(world: World) 
     assert open_one["id"] in live and done_one["id"] not in live
     everything = [x["id"] for x in c.get("/api/conversations?done=true").json()]
     assert open_one["id"] in everything and done_one["id"] in everything
+
+
+def test_approving_a_plan_in_the_app_carries_the_answers(world: World) -> None:
+    t = building(world, turn="j_1")
+    plan = world.plans.propose("P", "Body.", questions=[
+        {"text": "Daily or weekly?", "options": ["Daily", "Weekly"], "default": "Daily"}])
+    c = client(world)
+    home = c.get("/api/home").json()
+    shown = [i for lst in home.values() if isinstance(lst, list)
+             for i in lst if isinstance(i, dict) and i.get("plan") == plan["id"]]
+    assert not shown  # no proposal entry: this plan was made straight in the store
+    out = c.post(f"/api/plans/{plan['id']}/approve", json={"answers": {"0": "Weekly"}}).json()
+    assert out["state"] == "approved" and out["questions"][0]["answer"] == "Weekly"
+    assert "Weekly (their choice)" in out["approval"]
+    assert t  # the building tools fixture is unused here, kept for the world's shape

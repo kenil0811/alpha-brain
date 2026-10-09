@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from alpha.api.bodies import (
     AnswerBody,
+    ApprovePlanBody,
     AskBody,
     DecideBody,
 )
@@ -110,8 +111,10 @@ def routes(app: FastAPI, s: Served) -> None:
         return list(reversed(world.plans.all()))[:50]
 
     @app.post("/api/plans/{plan_id}/approve", dependencies=[api])
-    def approve_plan(plan_id: str) -> dict[str, Any]:
+    def approve_plan(plan_id: str, body: ApprovePlanBody | None = None) -> dict[str, Any]:
         plan = world.plans.get(plan_id)
+        if body and body.answers and plan["state"] == "proposed":
+            plan = world.plans.answer(plan_id, body.answers)
         if plan.get("proposal"):
             decide_proposal(plan["proposal"], DecideBody(accept=True))
             return world.plans.get(plan_id)

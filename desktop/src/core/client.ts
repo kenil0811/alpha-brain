@@ -213,6 +213,16 @@ export interface Source {
 }
 
 /** What Alpha proposed to set up, and its way from the person's yes to a finished build. */
+/** A question a plan asks before its build (Q36): its choices and the one Alpha would take. */
+export interface PlanQuestion {
+  text: string;
+  options: string[];
+  default: string | null;
+  answer: string | null;
+  /** The core read it out of the reply; the model didn't put it on the plan itself. */
+  derived?: boolean;
+}
+
 export interface Plan {
   id: string;
   title: string;
@@ -220,9 +230,11 @@ export interface Plan {
   state: "proposed" | "approved" | "building" | "done" | "stopped" | "declined" | "replaced";
   module: string | null;
   thread: string | null;
+  turn?: string | null;
   proposal: string | null;
   report: string | null;
   created_at: string;
+  questions?: PlanQuestion[];
 }
 
 export interface TableSummaryData {
@@ -297,6 +309,7 @@ export interface NeedItem {
   options?: string[];
   module?: string | null;
   plan?: string | null;
+  questions?: PlanQuestion[];
   action?: Action;
 }
 
@@ -814,7 +827,9 @@ export class Client {
     if (!response.ok) throw new CoreError(`No screenshot (${response.status}).`, response.status);
     return URL.createObjectURL(await response.blob());
   };
-  approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);
+  /** The person's yes, with their answers to the plan's questions by number (a question left
+   * out keeps Alpha's default). */
+  approvePlan = (id: string, answers?: Record<string, string>) => this.call<Plan>("POST", `/api/plans/${id}/approve`, answers ? { answers } : undefined);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
   stopPlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/stop`);
