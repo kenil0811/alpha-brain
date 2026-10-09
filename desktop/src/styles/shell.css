@@ -1,12 +1,12 @@
 /* shell — styles for this area; tokens only (see app.css). */
 
-/* The sidebar's top row: the workspace tile and name (both edited in place on a double-click)
-   and the Activity bell. */
+/* The sidebar's top row: the workspace tile and name (both edited in place on a double-click).
+   The Activity bell is in the assistant panel's header (9 Oct, the owner). */
 .wsbtn--edit, .wsbtn--edit:hover { background: none; }
 .wsbtn__input { flex: 1; min-width: 0; height: 28px; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
 .wsbtn__tile img, .wstile img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .wsbtn__tile:has(img), .wstile:has(img) { background: none; }
-.rail__bell { flex: none; color: var(--text-3); }
+
 .wslogo__body { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-2); width: 220px; }
 .wslogo__mark { flex: 1; min-width: 0; }
 
@@ -21,7 +21,22 @@
 .bellpop .detail { margin: 0 0 var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-2); font-size: var(--text-sm); }
 
 /* Settings: every section a card, in as many columns as fit. */
+/* Settings: the section list on the left (9 Oct, the owner), Overview's cards in columns, one
+   section's card in a readable column */
+.setpage { display: grid; grid-template-columns: calc(var(--space-12) * 4) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.setnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--header-h) + var(--space-6)); }
+.setnav button { display: flex; align-items: center; gap: var(--space-2); padding: 6px var(--space-3); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
+.setnav button:hover { background: var(--hover); color: var(--text); }
+.setnav button[aria-selected="true"] { background: var(--primary-soft); color: var(--text); font-weight: 500; }
+.setnav__dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; flex: none; }
+.setnav button[aria-selected="true"] .setnav__dot { background: var(--primary); }
+.setone { max-width: calc(var(--space-12) * 14); min-width: 0; }
+.setone .lrow { flex-wrap: wrap; padding: var(--space-2) 0; }
 .setgrid { columns: 340px; column-gap: var(--space-4); }
+@media (max-width: 1100px) {
+  .setpage { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .setnav { flex-direction: row; flex-wrap: wrap; position: static; }
+}
 .setgrid > * { break-inside: avoid; margin: 0 0 var(--space-4); }
 .setname { display: flex; align-items: center; gap: var(--space-2); }
 .setname__input { flex: 1; min-width: 0; }

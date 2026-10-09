@@ -1,13 +1,14 @@
 /**
- * The sidebar (the UI rulebook §4), left of the frame. Top to bottom: the workspace button and
- * the Activity bell (the top row, at the shared header height), Home with what needs the person,
- * Network, the person's modules as a tree in their own order, New, and pinned at the bottom
+ * The sidebar (the UI rulebook §4), left of the frame. Top to bottom: the workspace button (the
+ * top row, at the shared header height), Home with what needs the person, Network, the person's
+ * projects (modules in the code) as a tree in their own order, New project, and pinned at the bottom
  * Intelligence and Settings. Only the module list scrolls. It holds nothing else: no headings,
  * no status lines, no agents, automations or records (9 Oct, the UI rulebook phase 2; the old
  * "Your modules" heading and "Alpha is running" went).
  *
  * The workspace button: a click opens its menu; a double-click on the name renames the workspace
- * in place, on the tile changes its logo (9 Oct, Vikas). The bell opens Activity over the page.
+ * in place, on the tile changes its logo (9 Oct, Vikas). The Activity bell sits in the assistant
+ * panel's header since the owner's review (9 Oct).
  *
  * A module is dragged to reorder it or dropped on the middle of another to move it inside;
  * Alt+↑/↓ reorder from the keyboard, Alt+→ moves it inside the one above, Alt+← out. The order
@@ -18,7 +19,7 @@ import * as RadixPopover from "@radix-ui/react-popover";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import type { Client, ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
-import { Button, IconButton, Popover, Tooltip, useContextMenu, type ContextItem } from "../ui";
+import { Button, IconButton, Tooltip, useContextMenu, type ContextItem } from "../ui";
 import { SUBTITLES } from "../ui/subtitles";
 import {
   AboveIcon,
@@ -33,9 +34,8 @@ import {
   ICON,
   ICON_SM,
   IntelligenceIcon,
-  MoreHorizontal,
+  MoreVertical,
   MoveIcon,
-  NotificationIcon,
   OpenIcon,
   PeopleIcon,
   PlusIcon,
@@ -45,14 +45,13 @@ import {
   ViewOptionsIcon,
   BuildingIcon,
 } from "../ui/icons";
-import { Activity } from "./Activity";
 import { IconDialog, MoveDialog, NewAboveDialog, ViewOptionsDialog } from "./ModuleDialogs";
 import { iconNamed } from "./moduleIcons";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
 
 export type Surface =
   | { kind: "home" }
-  /** Activity: not a page; asking for it opens the sidebar's bell over the page that is open. */
+  /** Activity: not a page; asking for it opens the assistant panel's bell over the page that is open. */
   | { kind: "activity" }
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings" }
@@ -61,6 +60,11 @@ export type Surface =
   | { kind: "skill"; name: string }
   | { kind: "automation"; id: string }
   | { kind: "agent"; id: string }
+  /** A connection's or a fact's own page, inside Intelligence (9 Oct, the owner: pages, not dialogs). */
+  | { kind: "connection"; id: string }
+  | { kind: "fact"; id: string }
+  /** The New project page (9 Oct, the owner). */
+  | { kind: "new-project" }
   | { kind: "module"; id: string }
   /** A record's own page (the UI rulebook §7); `id` is "new" for a record not yet made. */
   | { kind: "record"; module: string; table: string; id: string };
@@ -68,7 +72,7 @@ export type Surface =
 /** Whether sidebar item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside Network
-  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent")) return true; // item pages live under Intelligence
+  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent" || a.kind === "connection" || a.kind === "fact")) return true; // item pages live under Intelligence
   if (b.kind === "module" && a.kind === "record") return a.module === b.id; // a record's page is inside its module
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
@@ -76,6 +80,9 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 }
 
 export { treeOf, type ModuleBranch };
+
+/** The workspace's name until the person gives it one (9 Oct, the owner). */
+export const DEFAULT_WORKSPACE = "Kenil's workspace";
 
 const FOLDED_KEY = "alpha.rail.folded";
 function readFolded(): Set<string> {
@@ -92,7 +99,7 @@ export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
   if (s && s.kind === "intelligence" && s.tab === "activity") return { kind: "activity" };
   if (s && s.kind === "intelligence" && s.tab === "map") return { kind: "intelligence", tab: "second-brain" };
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "new-project" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "agent" || s.kind === "connection" || s.kind === "fact") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -112,8 +119,6 @@ export function Rail({
   collapsed,
   onToggleCollapsed,
   onChanged,
-  openActivity = 0,
-  activityVersion = 0,
 }: {
   client: Client | null;
   surface: Surface;
@@ -125,19 +130,15 @@ export function Rail({
   onToggleCollapsed: () => void;
   /** After the core changed (a module moved or made): reload what the window shows. */
   onChanged: () => void;
-  /** Set (to a new time) to open the bell's Activity from elsewhere: an old address, ⌘K. */
-  openActivity?: number;
-  /** When Activity has something new to show. */
-  activityVersion?: number;
 }) {
   const [folded, setFolded] = useState<Set<string>>(readFolded);
-  const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, "Alpha");
+  const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
   const [logoPref, setLogo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
   const logo = typeof logoPref === "string" ? logoPref : "";
   const [orderPref, setOrder] = usePreference<string[]>(client, PREF.moduleOrder, NO_IDS);
   const [hiddenPref, setHidden] = usePreference<string[]>(client, PREF.hiddenModules, NO_IDS);
   const [iconsPref, setIcons] = usePreference<Record<string, string>>(client, PREF.moduleIcons, NO_ICONS);
-  const name = typeof workspace === "string" && workspace.trim() ? workspace.trim() : "Alpha";
+  const name = typeof workspace === "string" && workspace.trim() ? workspace.trim() : DEFAULT_WORKSPACE;
   const order = ids(orderPref);
   const hidden = ids(hiddenPref);
   const icons = iconsPref && typeof iconsPref === "object" ? iconsPref : NO_ICONS;
@@ -148,8 +149,6 @@ export function Rail({
   const [drag, setDrag] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; zone: "before" | "inside" | "after" } | null>(null);
   const refocus = useRef<string | null>(null);
-  const [bell, setBell] = useState(false);
-  useEffect(() => setBell(openActivity > 0), [openActivity]);
   const [renaming, setRenaming] = useState(false);
   const [logoOpen, setLogoOpen] = useState(false);
   const clickTimer = useRef(0);
@@ -235,12 +234,12 @@ export function Rail({
 
   const moduleItems = (m: ModuleCard): ContextItem[] => [
     { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "module", id: m.id }) },
-    { label: "Rename", icon: <RenameIcon />, onSelect: () => undefined, disabled: "Renaming a module isn't something this window can do yet." },
+    { label: "Rename", icon: <RenameIcon />, onSelect: () => undefined, disabled: "Renaming a project isn't something this window can do yet." },
     { label: "Change icon", icon: <ChangeIconIcon />, onSelect: () => setDialog({ kind: "icon", module: m }) },
     { label: "Move…", icon: <MoveIcon />, onSelect: () => setDialog({ kind: "move", module: m }), separatorBefore: true },
-    { label: "A new module above it…", icon: <AboveIcon />, onSelect: () => setDialog({ kind: "above", module: m }) },
+    { label: "A new project above it…", icon: <AboveIcon />, onSelect: () => setDialog({ kind: "above", module: m }) },
     { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
-    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "The core can't delete a module from this window yet. Hide it to take it off the sidebar." },
+    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "The core can't delete a project from this window yet. Hide it to take it off the sidebar." },
     { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }), separatorBefore: true },
   ];
   const rowMenu = useContextMenu<Row>((r) => (r.kind === "people" ? [{ label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "people" }) }] : moduleItems(r.module)));
@@ -282,6 +281,11 @@ export function Rail({
     onDragEnd: () => {
       setDrag(null);
       setDrop(null);
+    },
+    // WebKit (the Mac app's engine) drops only on an element whose dragenter was cancelled too;
+    // without it a drop onto another project never fired there (9 Oct, the owner: "nesting is broken").
+    onDragEnter: (e: DragEvent<HTMLElement>) => {
+      if (mayDrop(m.id)) e.preventDefault();
     },
     onDragOver: (e: DragEvent<HTMLElement>) => {
       if (!mayDrop(m.id)) return;
@@ -340,7 +344,7 @@ export function Rail({
             {o.fold.open ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />}
           </button>
         ) : null}
-        {o.menu && !collapsed ? <IconButton size="sm" className="navmore" label={`More for ${o.label}`} icon={<MoreHorizontal size={ICON_SM} />} onClick={(e) => rowMenu.openFrom(o.menu!, e.currentTarget)} /> : null}
+        {o.menu && !collapsed ? <IconButton size="sm" className="navmore" label={`More for ${o.label}`} icon={<MoreVertical size={ICON_SM} />} onClick={(e) => rowMenu.openFrom(o.menu!, e.currentTarget)} /> : null}
       </div>
     );
   };
@@ -407,13 +411,6 @@ export function Rail({
                 <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
               </button>
             )}
-            {client && !collapsed ? (
-              <Popover open={bell} onOpenChange={setBell} align="start" label="Activity" trigger={<IconButton className="rail__bell" size="sm" label="Activity" aria-expanded={bell} icon={<NotificationIcon size={ICON_SM} />} />}>
-                <div className="bellpop">
-                  <Activity client={client} version={activityVersion} />
-                </div>
-              </Popover>
-            ) : null}
             <IconButton className="rail__fold" size="sm" label={collapsed ? "Unfold the sidebar" : "Fold the sidebar"} aria-expanded={!collapsed} icon={collapsed ? <ChevronsRight size={ICON_SM} /> : <ChevronsLeft size={ICON_SM} />} onClick={onToggleCollapsed} />
           </div>
         </RadixPopover.Anchor>
@@ -427,13 +424,13 @@ export function Rail({
         {go({ kind: "home" }, <HomeIcon />, "Home", needs)}
         {item({ key: "people", icon: <PeopleIcon />, label: "Network", current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "people" } })}
         <div className="rail__scroll">
-          {modules.length === 0 ? <p className="faint rail__none">None yet. Ask for one.</p> : tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
+          {modules.length === 0 ? <p className="faint rail__none">No projects yet. Ask for one.</p> : tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
           {branches(tree, 0)}
-          <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined}>
+          <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New project" title={collapsed ? "New project" : undefined}>
             <span className="navbtn__ico" aria-hidden="true">
               <PlusIcon />
             </span>
-            <span className="navbtn__text">New</span>
+            <span className="navbtn__text">New project</span>
           </button>
         </div>
       </div>

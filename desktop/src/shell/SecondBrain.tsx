@@ -3,15 +3,18 @@
  * picture, the brain in an egg (`map/BrainEgg`), and beside it what waits for a yes, then the
  * thing picked in the egg (the person by default: their facts), goals, standing instructions,
  * standing permissions and Alpha's notes. **Map** switches to the map of the world and of
- * Alpha's work (`map/WorkMap`); **Facts** is every fact as the one data view (`intel/sources.ts`). A note is an editable sentence (`writeNote`); a goal is read-only
- * because the core has no call that edits one.
+ * Alpha's work (`map/WorkMap`); **Facts** is every fact as the one data view (`intel/sources.ts`);
+ * a fact's click opens its own page (`#/intelligence/facts/<id>`, 9 Oct, the owner: a page, not a
+ * dialog). A note is an editable sentence (`writeNote`); a goal is read-only because the core has
+ * no call that edits one.
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
-import { Badge, Button, Dialog, IconButton, ListRow, Notice, SectionCard, Tabs } from "../ui";
-import { ICON, ICON_SM, PermissionIcon, X } from "../ui/icons";
+import { Badge, Button, EmptyCard, IconButton, ListRow, Notice, PageHeader, SectionCard, Tabs, Trouble } from "../ui";
+import { BrainIcon, ICON, ICON_SM, PermissionIcon, X } from "../ui/icons";
+import { BackLink } from "./BackLink";
 import { FactRow } from "./FactRow";
 import { factsSource } from "./intel/sources";
 import { BrainEgg } from "./map/BrainEgg";
@@ -113,7 +116,6 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
   }, [client, view]);
   const brain = useMemo(() => brainOf(world, data), [world, data]);
   const factSource = useMemo(() => factsSource(client), [client]);
-  const [openFact, setOpenFact] = useState<string | null>(null);
 
   async function revoke(id: string) {
     try {
@@ -136,14 +138,10 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
   }
 
   if (view === "facts") {
-    const f = facts.find((x) => x.id === openFact);
     return (
       <div className="stack stack--wide">
         {switcher}
-        <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => setOpenFact(id)} />
-        <Dialog open={Boolean(f)} onOpenChange={(o) => !o && setOpenFact(null)} title={f ? humanize(f.predicate) : "Fact"}>
-          {f ? <FactRow fact={f} client={client} onChanged={() => { setOpenFact(null); onChanged(); }} onAsk={onAsk} /> : null}
-        </Dialog>
+        <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => onGo({ kind: "fact", id }) : undefined} />
       </div>
     );
   }
@@ -212,5 +210,43 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
         </div>
       </div>
     </div>
+  );
+}
+
+/** A fact's own page: the fact with its provenance, Correct and Forget (`FactRow`). Back returns
+ *  to Second Brain, which opens again on the view it was left on (Facts). */
+export function FactPage({ client, id, version, onBack, onChanged, onAsk }: { client: Client; id: string; version: number; onBack: () => void; onChanged: () => void; onAsk?: (text: string) => void }) {
+  const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    client
+      .intelligence()
+      .then((d) => {
+        if (!live) return;
+        setData(d);
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, version, tick]);
+  const fact = data?.knowledge.facts.find((f) => f.id === id);
+  return (
+    <>
+      <PageHeader left={<BackLink to="Facts" onClick={onBack} />} title={fact ? humanize(fact.predicate) : "Fact"} />
+      <div className="page page--narrow">
+        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load the fact: {error}</Trouble> : null}
+        {!data && !error ? <p className="faint">Loading…</p> : null}
+        {data && !fact ? <EmptyCard icon={<BrainIcon size={ICON} />} title="No such fact" /> : null}
+        {fact ? (
+          <SectionCard title="Fact">
+            <FactRow fact={fact} client={client} onChanged={() => { onChanged(); setTick((n) => n + 1); }} onAsk={onAsk} />
+          </SectionCard>
+        ) : null}
+      </div>
+    </>
   );
 }

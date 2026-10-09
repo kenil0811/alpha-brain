@@ -89,10 +89,11 @@ function fromConfig(c: SavedList["config"]): Partial<ViewState> {
 }
 
 /** A view as it opens: the defaults, what the window kept, and the core's list where it changed
- *  since the window last saved it (or where the window kept nothing). */
-export function stateFor(config: SavedList["config"] | undefined, kept: KeptView | undefined, fallbackView: PageView = "table"): ViewState {
+ *  since the window last saved it (or where the window kept nothing). `starred` are the person's
+ *  ★ defaults from the dropdowns (row height, where records open), under what the view keeps. */
+export function stateFor(config: SavedList["config"] | undefined, kept: KeptView | undefined, fallbackView: PageView = "table", starred: Partial<ViewState> = {}): ViewState {
   const { core, ...mine } = kept ?? {};
-  const base: ViewState = { ...DEFAULT_VIEW, view: fallbackView, ...mine };
+  const base: ViewState = { ...DEFAULT_VIEW, view: fallbackView, ...starred, ...mine };
   if (!config) return base;
   if (kept && core === JSON.stringify(config)) return base;
   return { ...base, ...fromConfig(config) };

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { TableSummaryData } from "../core/client";
 import { TooltipProvider } from "../ui";
-import { MetricsStrip } from "./MetricsStrip";
+import { MetricsStrip, useMetricsOpen } from "./MetricsStrip";
 
 const amount = (today: number | null, this_week: number | null) => ({ field: "amount", label: "Amount", unit: "USD", how: "total" as const, today, this_week });
 beforeEach(() => localStorage.clear());
@@ -13,7 +13,7 @@ const strip = (a: ReturnType<typeof amount>) => {
   const summary: TableSummaryData = { name: "deals", title: "Deals", rows: 1, added_this_week: 0, amounts: [a] };
   render(
     <TooltipProvider>
-      <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} />
+      <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} onHide={() => undefined} />
     </TooltipProvider>,
   );
   return screen.getByText("Amount").closest(".mtile") as HTMLElement;
@@ -40,10 +40,15 @@ describe("the amount tile", () => {
 });
 
 describe("the fold", () => {
+  // The data view's way: the show arrow lives in the toolbar, the hide arrow on the strip.
+  function Fold() {
+    const [open, setOpen] = useMetricsOpen("deals");
+    return open ? <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={null} onHide={() => setOpen(false)} /> : <button onClick={() => setOpen(true)}>Show the numbers</button>;
+  }
   const show = () =>
     render(
       <TooltipProvider>
-        <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={null} />
+        <Fold />
       </TooltipProvider>,
     );
 

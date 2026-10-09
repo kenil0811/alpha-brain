@@ -1,18 +1,25 @@
 /**
- * The Second Brain drawn as a graph inside an egg (`egg.ts` lays it out). Hovering or focusing a
- * node lights it and its neighbours; a click opens it: a module, a person, an agent or a skill
- * goes to its page, a fact, a goal or the person is shown beside the egg (`onSelect`). The wheel
- * zooms, a drag on the background pans, a double-click puts it back; all of it inside the shell.
+ * The Second Brain drawn as a graph inside an egg (`egg.ts` lays it out). It reads every
+ * collection's records itself (`client.table`), so each record is a dot around its collection.
+ * Hovering or focusing a node lights it, its links and its neighbours and writes its name; a
+ * click opens it: a project, a record, a person, an agent or a skill goes to its page, a fact,
+ * a goal or the person is shown beside the egg (`onSelect`). The wheel, a pinch or the + and −
+ * buttons zoom; deeper layers get their names as it zooms in (`LABEL_AT`), and a big
+ * collection's records past its sample appear. A drag on the background pans, a double-click
+ * puts it back; all of it inside the shell.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Client } from "../../core/client";
 import { AgentAvatar } from "../AgentAvatar";
 import type { Surface } from "../Rail";
-import { EGG, EGG_PATH, layEgg, type Brain, type BrainKind, type BrainNode, type Placed } from "./egg";
+import { Button, IconButton } from "../../ui";
+import { EGG, EGG_PATH, LABEL_AT, layEgg, RECORDS_ALL_AT, type Brain, type BrainKind, type BrainNode, type Placed, type TableRecords, withRecords } from "./egg";
 
-const KIND_WORD: Record<BrainKind, string> = { you: "you", module: "module", agent: "agent", skill: "skill", person: "person", organisation: "organisation", goal: "goal", fact: "fact" };
+const KIND_WORD: Record<BrainKind, string> = { you: "you", module: "project", collection: "collection", record: "record", agent: "agent", skill: "skill", person: "person", organisation: "organisation", goal: "goal", fact: "fact" };
 const LEGEND: { kind: BrainKind; label: string }[] = [
-  { kind: "module", label: "Modules" },
+  { kind: "module", label: "Projects" },
+  { kind: "collection", label: "Collections" },
+  { kind: "record", label: "Records" },
   { kind: "fact", label: "Facts" },
   { kind: "person", label: "People" },
   { kind: "organisation", label: "Organisations" },
@@ -20,13 +27,27 @@ const LEGEND: { kind: BrainKind; label: string }[] = [
   { kind: "agent", label: "Agents" },
   { kind: "skill", label: "Skills" },
 ];
-const ALWAYS_LABELLED = new Set<BrainKind>(["you", "module", "agent"]);
+const MAX_ZOOM = 16;
 
 const short = (s: string, n = 24) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: Client; brain: Brain; selected: string | null; onGo?: (s: Surface) => void; onSelect: (id: string) => void }) {
+export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { client: Client; brain: Brain; selected: string | null; onGo?: (s: Surface) => void; onSelect: (id: string) => void }) {
   const clip = `egg-${useId().replace(/:/g, "")}`;
   const svg = useRef<SVGSVGElement | null>(null);
+  // Every collection's records, read once per set of collections; one that fails is left out.
+  const names = given.nodes.filter((n) => n.kind === "collection" && n.id.startsWith("table:")).map((n) => n.id.slice("table:".length)).join("\n");
+  const [tables, setTables] = useState<TableRecords[]>([]);
+  useEffect(() => {
+    if (!names) return;
+    let live = true;
+    void Promise.allSettled(names.split("\n").map(async (name) => client.table(name))).then((got) => {
+      if (live) setTables(got.flatMap((g) => (g.status === "fulfilled" && g.value ? [g.value] : [])));
+    });
+    return () => {
+      live = false;
+    };
+  }, [client, names]);
+  const brain = useMemo(() => (tables.length ? withRecords(given, tables) : given), [given, tables]);
   const placed = useRef<Placed>({});
   const at = useMemo(() => (placed.current = layEgg(brain, placed.current)), [brain]);
   const [hover, setHover] = useState<string | null>(null);
@@ -55,6 +76,7 @@ export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: 
   }, [brain]);
   const focus = hover ?? selected;
   const lit = focus ? new Set([focus, ...(neighbours.get(focus) ?? [])]) : null;
+  const shows = (id: string) => (at[id]?.zoom ?? 1) <= view.k;
 
   /** A point on screen in the drawing's units. */
   const units = (clientX: number, clientY: number) => {
@@ -63,6 +85,12 @@ export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: 
     const per = Math.max(EGG.width / rect.width, EGG.height / rect.height); // the viewBox meets the box
     return { x: EGG.width / 2 + (clientX - rect.left - rect.width / 2) * per, y: EGG.height / 2 + (clientY - rect.top - rect.height / 2) * per, per };
   };
+  /** Zoom by `factor` around point `p` (the drawing's units; its middle by default). */
+  const zoomBy = (factor: number, p: { x: number; y: number } = { x: EGG.width / 2, y: EGG.height / 2 }) =>
+    setView((v) => {
+      const k = Math.min(MAX_ZOOM, Math.max(1, v.k * factor));
+      return k === 1 ? { x: 0, y: 0, k } : { k, x: p.x - ((p.x - v.x) * k) / v.k, y: p.y - ((p.y - v.y) * k) / v.k };
+    });
   // The wheel zooms around the pointer (a native listener, so the page does not scroll too).
   useEffect(() => {
     const el = svg.current;
@@ -70,10 +98,7 @@ export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: 
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
       const p = units(e.clientX, e.clientY);
-      setView((v) => {
-        const k = Math.min(4, Math.max(1, v.k * (e.deltaY < 0 ? 1.15 : 0.87)));
-        return k === 1 ? { x: 0, y: 0, k } : { k, x: p.x - ((p.x - v.x) * k) / v.k, y: p.y - ((p.y - v.y) * k) / v.k };
-      });
+      zoomBy(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), p); // a trackpad pinch comes as a ctrl-wheel
     };
     el.addEventListener("wheel", wheel, { passive: false });
     return () => el.removeEventListener("wheel", wheel);
@@ -125,23 +150,25 @@ export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: 
               {brain.edges.map((e) => {
                 const a = at[e.from];
                 const b = at[e.to];
-                if (!a || !b) return null;
+                if (!a || !b || !shows(e.from) || !shows(e.to)) return null;
                 const on = lit ? lit.has(e.from) && lit.has(e.to) && (e.from === focus || e.to === focus) : false;
-                return <line key={`${e.from}|${e.to}`} className={`brain__edge${e.waiting ? " brain__edge--waiting" : ""}${lit ? (on ? " brain__edge--lit" : " brain__edge--dim") : ""}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+                return <line key={`${e.from}|${e.to}`} className={`brain__edge${e.spoke ? " brain__edge--spoke" : ""}${e.waiting ? " brain__edge--waiting" : ""}${lit ? (on ? " brain__edge--lit" : " brain__edge--dim") : ""}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
               })}
             </g>
             {brain.nodes.map((n) => {
               const p = at[n.id];
-              if (!p) return null;
+              if (!p || !shows(n.id)) return null;
               const dim = lit ? !lit.has(n.id) : false;
-              const labelled = ALWAYS_LABELLED.has(n.kind) || view.k >= 2 || (lit?.has(n.id) ?? false);
+              // Its layer's zoom names it; hover names it and, but for records, its neighbours.
+              const more = p.more && view.k < RECORDS_ALL_AT ? p.more : 0;
+              const labelled = view.k >= LABEL_AT[n.kind] || n.id === focus || more > 0 || (n.kind !== "record" && (lit?.has(n.id) ?? false));
               return (
                 <g
                   key={n.id}
                   className={`brain__node brain__node--${n.kind}${n.waiting ? " brain__node--waiting" : ""}${dim ? " brain__node--dim" : ""}${selected === n.id ? " brain__node--on" : ""}`}
                   transform={`translate(${p.x} ${p.y})`}
                   role="button"
-                  tabIndex={0}
+                  tabIndex={n.kind === "record" ? -1 : 0}
                   aria-label={`${n.title}, ${n.detail ?? KIND_WORD[n.kind]}`}
                   onClick={() => open(n)}
                   onKeyDown={(e) => {
@@ -167,6 +194,11 @@ export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: 
                       <text className="brain__label" y={11} textAnchor="middle">
                         {short(n.title)}
                       </text>
+                      {more ? (
+                        <text className="brain__label brain__label--more" y={24} textAnchor="middle">
+                          +{more.toLocaleString()} more — zoom in
+                        </text>
+                      ) : null}
                     </g>
                   ) : null}
                   <title>{n.detail ? `${n.detail}: ${n.title}` : n.title}</title>
@@ -177,6 +209,13 @@ export function BrainEgg({ client, brain, selected, onGo, onSelect }: { client: 
         </g>
         <path className="brain__rim" d={EGG_PATH} />
       </svg>
+      <div className="brain__zoom">
+        <IconButton size="sm" label="Zoom in" icon={<span aria-hidden="true">+</span>} onClick={() => zoomBy(1.5)} disabledReason={view.k >= MAX_ZOOM ? "As close as it goes" : undefined} />
+        <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(1 / 1.5)} disabledReason={view.k <= 1 ? "The whole egg is in view" : undefined} />
+        <Button size="sm" onClick={() => setView({ x: 0, y: 0, k: 1 })} disabled={view.k === 1}>
+          Fit
+        </Button>
+      </div>
       <div className="brain__legend" aria-hidden="true">
         {LEGEND.filter((l) => counts.get(l.kind)).map((l) => (
           <span key={l.kind} className="brain__key">

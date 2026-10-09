@@ -1,7 +1,7 @@
 /**
  * The cards under a record's fields (the UI rulebook §7): Notes, Intelligence, Governance, each a
  * `SectionCard` with a small title and a one-line subtitle. Which show is the person's choice per
- * collection (`PREF.recordSections`, set from the data view's ⋯ More). Empty ones say so in one
+ * collection (`PREF.recordSections`, set from the data view's ⋮ More). Empty ones say so in one
  * sentence with "yet". (9 Oct, the record pages.)
  *
  * - Notes: the core keeps a page per scope; a record's is `topic:record-<table>-<id>`, written

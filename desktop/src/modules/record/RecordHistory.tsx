@@ -1,5 +1,5 @@
 /**
- * A record's history (the UI rulebook §7, ⋯ More › History): every change the journal holds for
+ * A record's history (the UI rulebook §7, ⋮ More › History): every change the journal holds for
  * this record, newest first: who made it, the field, old → new, the day and time. There is no
  * route for a record's history; the journal has it already: `GET /api/activity` for the module,
  * and the entries whose data names this table and this record (`edit_record` and Alpha's own

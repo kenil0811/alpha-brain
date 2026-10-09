@@ -8,15 +8,19 @@
  * name), a history picker for the live conversations (start, archive, delete), dark ink bubbles for
  * the person and light ones for Alpha with a tiny provenance line under each of Alpha's turns, and
  * a composer in its own file.
+ *
+ * (9 Oct, the owner) The Activity bell sits at the right end of the header; folded, the strip shows
+ * the avatar with "Alpha" under it and the bell below.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
+import { Activity } from "../shell/Activity";
 import { AgentAvatar } from "../shell/AgentAvatar";
 import { useSpeech } from "../shell/voice";
-import { Badge, Button, Dropdown, IconButton, PageHeader, Rich, Trouble } from "../ui";
-import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronsRight, DeleteIcon, PlusIcon, RetryIcon, X } from "../ui/icons";
+import { Badge, Button, Dropdown, IconButton, PageHeader, Popover, Rich, Trouble } from "../ui";
+import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronsRight, DeleteIcon, ICON_SM, NotificationIcon, PlusIcon, RetryIcon, X } from "../ui/icons";
 import { AskCard, PlanCard } from "./Cards";
 import { Composer } from "./Composer";
 
@@ -82,6 +86,8 @@ export function AssistantPanel({
   onDraftTaken,
   focusThread,
   focusConversation,
+  openActivity = 0,
+  activityVersion = 0,
 }: {
   client: Client;
   open: boolean;
@@ -94,7 +100,20 @@ export function AssistantPanel({
   onDraftTaken: () => void;
   focusThread?: { id: string; at: number } | null;
   focusConversation?: { id: string; at: number } | null;
+  /** Set (to a new time) to open the bell's Activity from elsewhere: an old address, ⌘K. */
+  openActivity?: number;
+  /** When Activity has something new to show. */
+  activityVersion?: number;
 }) {
+  const [bellOpen, setBellOpen] = useState(false);
+  useEffect(() => setBellOpen(openActivity > 0), [openActivity]);
+  const bell = (
+    <Popover open={bellOpen} onOpenChange={setBellOpen} align="end" label="Activity" trigger={<IconButton className="assist__bell" size="sm" label="Activity" aria-expanded={bellOpen} icon={<NotificationIcon size={ICON_SM} />} />}>
+      <div className="bellpop">
+        <Activity client={client} version={activityVersion} />
+      </div>
+    </Popover>
+  );
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -245,7 +264,11 @@ export function AssistantPanel({
   if (!open) {
     return (
       <aside className="assist assist--folded" aria-label="Assistant, folded">
-        <IconButton className="assist__strip" label="Open the assistant" icon={<Mark client={client} />} onClick={() => onOpen(true)} />
+        <button type="button" className="assist__strip" aria-label="Open the assistant" onClick={() => onOpen(true)}>
+          <Mark client={client} />
+          <span className="assist__striplabel">Alpha</span>
+        </button>
+        {bell}
       </aside>
     );
   }
@@ -329,6 +352,7 @@ export function AssistantPanel({
             </div>
           </div>
         }
+        right={bell}
       />
       {threadView ? (
         <div className="assist__history">

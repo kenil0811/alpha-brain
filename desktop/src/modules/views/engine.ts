@@ -459,7 +459,7 @@ export function colorsOf(row: RecordRow, rules: ColorRule[], byName: Map<string,
   const out: { row?: ColorTone; cells: Record<string, ColorTone> } = { cells: {} };
   for (const r of rules) {
     if (!matchRule(row, r, byName.get(r.field))) continue;
-    if ((r.op === "is" || r.op === "contains" || r.op === "eq") && !r.value) continue; // an unfinished rule colours nothing
+    if (needsValue(r.op) && !r.value) continue; // an unfinished rule colours nothing
     if (r.target === "row") out.row ??= r.tone;
     else out.cells[r.field] ??= r.tone;
   }

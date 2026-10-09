@@ -58,14 +58,14 @@ describe("the sidebar's places", () => {
 describe("the sidebar's order", () => {
   it("is Home, Network, the modules, New, then Intelligence and Settings last; nothing else", () => {
     const { labels, container } = setup([card("m_j", "Job"), card("m_f", "Food")], { needs: 2 });
-    expect(labels()).toEqual(["Home", "Network", "Food", "Job", "New", "Intelligence", "Settings"]);
+    expect(labels()).toEqual(["Home", "Network", "Food", "Job", "New project", "Intelligence", "Settings"]);
     expect(screen.getByRole("button", { name: "Home" })).toHaveTextContent("2");
     // New is the last item of the module list, which is the only part that scrolls
     const scroll = container.querySelector(".rail__scroll")!;
-    expect(scroll.lastElementChild).toBe(screen.getByRole("button", { name: "New" }));
+    expect(scroll.lastElementChild).toBe(screen.getByRole("button", { name: "New project" }));
     expect(scroll.contains(screen.getByRole("button", { name: "Settings" }))).toBe(false);
-    // Activity is the bell on the top row, not a place in the list
-    expect(container.querySelector(".rail__top")!.contains(screen.getByRole("button", { name: "Activity" }))).toBe(true);
+    // Activity is the bell in the assistant panel's header now, not on the sidebar
+    expect(screen.queryByRole("button", { name: "Activity" })).toBeNull();
     expect(screen.queryByText("Your modules")).toBeNull();
     expect(screen.queryByText(/Alpha is running|Starting|Core not/)).toBeNull();
     expect(screen.queryByRole("button", { name: "About you" })).toBeNull();
@@ -79,7 +79,7 @@ describe("the sidebar's order", () => {
 
   it("follows the person's own order, ignores ids that are gone, and appends new modules by name", async () => {
     const { labels } = setup([card("m_a", "Alpha plans"), card("m_j", "Job"), card("m_f", "Food"), card("m_n", "Notes")], { stored: { [PREF.moduleOrder]: ["m_j", "m_gone", "m_f"] } });
-    await waitFor(() => expect(labels()).toEqual(["Home", "Network", "Job", "Food", "Alpha plans", "Notes", "New", "Intelligence", "Settings"]));
+    await waitFor(() => expect(labels()).toEqual(["Home", "Network", "Job", "Food", "Alpha plans", "Notes", "New project", "Intelligence", "Settings"]));
   });
 
   it("draws Network like a module row, whose menu is just Open", async () => {
@@ -105,7 +105,7 @@ describe("the workspace button", () => {
   it("opens a menu whose Manage Workspace and Sign out are disabled, each with its reason", async () => {
     const user = userEvent.setup();
     setup([]);
-    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    await user.click(screen.getByRole("button", { name: "Kenil's workspace" }));
     for (const name of ["Manage Workspace", "Sign out"]) expect(await screen.findByRole("menuitem", { name })).toHaveAttribute("aria-disabled", "true");
     await user.hover(screen.getByRole("menuitem", { name: "Sign out" }));
     expect((await screen.findAllByText(/no account to sign out of/)).length).toBeGreaterThan(0);
@@ -114,10 +114,10 @@ describe("the workspace button", () => {
   it("holds the sidebar's fold, and View options so hidden modules can always come back", async () => {
     const user = userEvent.setup();
     const { onToggleCollapsed } = setup([]);
-    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    await user.click(screen.getByRole("button", { name: "Kenil's workspace" }));
     await user.click(await screen.findByRole("menuitem", { name: "Fold the sidebar" }));
     expect(onToggleCollapsed).toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Alpha" }));
+    await user.click(screen.getByRole("button", { name: "Kenil's workspace" }));
     await user.click(await screen.findByRole("menuitem", { name: "View options" }));
     expect(await screen.findByText("Nothing is hidden.")).toBeInTheDocument();
   });
@@ -127,7 +127,7 @@ describe("editing the workspace in place", () => {
   it("renames it on a double-click on the name: Enter saves, Escape cancels", async () => {
     const user = userEvent.setup();
     const { setPreference } = setup([]);
-    await user.dblClick(screen.getByText("Alpha"));
+    await user.dblClick(screen.getByText("Kenil's workspace"));
     const input = screen.getByRole("textbox", { name: "Workspace name" });
     await user.clear(input);
     await user.type(input, "Studio{Enter}");
@@ -153,26 +153,12 @@ describe("editing the workspace in place", () => {
   });
 });
 
-describe("the bell", () => {
-  it("opens Activity beside the workspace name, and opens when asked from elsewhere", async () => {
-    const core = fakeCore();
-    const activity = vi.fn(async () => []);
-    Object.assign(core.client, { activity });
-    const props = { onGo: vi.fn(), onNew: vi.fn(), onChanged: vi.fn(), onToggleCollapsed: vi.fn() };
-    const { rerender } = render(<Rail client={core.client} surface={{ kind: "home" }} modules={[]} needs={0} collapsed={false} {...props} />);
-    expect(screen.queryByRole("textbox", { name: "Search activity" })).toBeNull();
-    rerender(<Rail client={core.client} surface={{ kind: "home" }} modules={[]} needs={0} collapsed={false} {...props} openActivity={1} />);
-    expect(await screen.findByRole("textbox", { name: "Search activity" })).toBeInTheDocument();
-    await waitFor(() => expect(activity).toHaveBeenCalled());
-  });
-});
-
 describe("a module's menu", () => {
-  it("lists Open, Rename, Change icon, Move…, a new module above it, Hide, Delete and View options", async () => {
+  it("lists Open, Rename, Change icon, Move…, a new project above it, Hide, Delete and View options", async () => {
     setup([card("m_f", "Food")]);
     fireEvent.contextMenu(screen.getByRole("button", { name: "Food" }));
     await screen.findByRole("menu");
-    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "A new module above it…", "Hide", "Delete", "View options"]);
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "A new project above it…", "Hide", "Delete", "View options"]);
   });
 
   it("shows Rename and Delete disabled, and says why on hover", async () => {
@@ -186,7 +172,7 @@ describe("a module's menu", () => {
     await user.hover(rename);
     expect((await screen.findAllByText(/can do yet/)).length).toBeGreaterThan(0);
     await user.hover(del);
-    expect((await screen.findAllByText(/delete a module from this window yet/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/delete a project from this window yet/)).length).toBeGreaterThan(0);
   });
 
   it("hides a module (kept in preferences), and View options brings it back", async () => {
@@ -234,10 +220,10 @@ describe("a module's menu", () => {
     const user = userEvent.setup();
     const { createModule, moveModule } = setup([card("m_s", "Search", "m_j"), card("m_j", "Job")]);
     await user.click(screen.getByRole("button", { name: "More for Search" }));
-    await user.click(await screen.findByRole("menuitem", { name: "A new module above it…" }));
-    const dialog = await screen.findByRole("dialog", { name: "A new module above Search" });
+    await user.click(await screen.findByRole("menuitem", { name: "A new project above it…" }));
+    const dialog = await screen.findByRole("dialog", { name: "A new project above Search" });
     expect(within(dialog).getByRole("button", { name: "Make it" })).toBeDisabled();
-    await user.type(within(dialog).getByRole("textbox", { name: "The new module's name" }), "Avilo");
+    await user.type(within(dialog).getByRole("textbox", { name: "The new project's name" }), "Avilo");
     await user.click(within(dialog).getByRole("button", { name: "Make it" }));
     await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_s", "m_new"));
     expect(createModule).toHaveBeenCalledWith("Avilo", null, "m_j"); // made where Search sits now
@@ -297,6 +283,17 @@ describe("reordering", () => {
     expect(moveModule).not.toHaveBeenCalled();
   });
 
+  it("accepts the drag on dragenter as well as dragover, so WebKit lets a project drop onto another and nests it", async () => {
+    const { moveModule } = setup([card("m_f", "Food"), card("m_j", "Job")]);
+    const source = screen.getByRole("button", { name: "Food" }).closest(".navrow")!;
+    const target = screen.getByRole("button", { name: "Job" }).closest(".navrow")!;
+    fireEvent.dragStart(source, { dataTransfer: { setData: vi.fn(), effectAllowed: "", dropEffect: "" } });
+    // fireEvent returns false when the handler called preventDefault: the row is a drop target
+    expect(fireEvent.dragEnter(target, { dataTransfer: { dropEffect: "" } })).toBe(false);
+    drag("Food", "Job", 20);
+    await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_f", "m_j"));
+  });
+
   it("a module cannot be dropped into what it holds", () => {
     const { moveModule } = setup([card("m_j", "Job"), card("m_s", "Search", "m_j")]);
     drag("Job", "Search", 20);
@@ -307,7 +304,7 @@ describe("reordering", () => {
 describe("the folded sidebar", () => {
   it("keeps every item, each with its label (drawn tiny under the icon by CSS)", () => {
     const { labels, container } = setup([card("m_f", "Food")], { collapsed: true });
-    expect(labels()).toEqual(["Home", "Network", "Food", "New", "Intelligence", "Settings"]);
+    expect(labels()).toEqual(["Home", "Network", "Food", "New project", "Intelligence", "Settings"]);
     expect(container.querySelector(".rail--collapsed")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Unfold the sidebar" })).toBeInTheDocument();
   });

@@ -55,7 +55,7 @@ describe("Intelligence", () => {
     localStorage.clear();
     const onGo = vi.fn();
     mount("second-brain", vi.fn(), onGo);
-    await userEvent.click(await screen.findByRole("button", { name: "Deals, module" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Deals, project" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m1" });
     await userEvent.click(screen.getByRole("button", { name: "Ada, person" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "entity", id: "p1" });
@@ -74,7 +74,7 @@ describe("Intelligence", () => {
     expect(within(row).getByText("Partial")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Check deals every morning"));
     await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "automation", id: "a1" }));
-    expect(screen.getByRole("button", { name: "Add a view" })).toBeEnabled(); // the person's own lists
+    expect(screen.getByLabelText("View")).toBeEnabled(); // the toolbar picks the view (the data worker's "View")
   });
 
   it("switches an automation on and off from its On cell, and a row opens its page", async () => {

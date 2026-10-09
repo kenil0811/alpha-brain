@@ -57,11 +57,11 @@ describe("⌘K", () => {
       </TooltipProvider>,
     );
     expect(screen.getByRole("dialog", { name: "Insert" })).toBeInTheDocument();
-    expect(screen.getAllByRole("option").map((o) => o.textContent?.replace(/deal_listings|To Deal Tracker/, ""))).toEqual(["New record", "New module", "Upload files"]);
+    expect(screen.getAllByRole("option").map((o) => o.textContent?.replace(/deal_listings|To Deal Tracker/, ""))).toEqual(["New record", "New project", "Upload files"]);
     expect(screen.queryByRole("option", { name: /Home/ })).toBeNull();
     await user.click(screen.getByRole("option", { name: /New record/ }));
     expect(onGo).toHaveBeenCalledWith({ kind: "record", module: "m_1", table: "deal_listings", id: "new" });
-    await user.type(screen.getByRole("combobox"), "mod{Enter}");
+    await user.type(screen.getByRole("combobox"), "proj{Enter}");
     expect(onNewModule).toHaveBeenCalled();
     expect(search).not.toHaveBeenCalled();
   });

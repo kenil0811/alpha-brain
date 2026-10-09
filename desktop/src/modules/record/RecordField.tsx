@@ -1,7 +1,7 @@
 /**
  * One field of a record page, labelled and editable, sized to the answer it expects (the UI
  * rulebook §7 and §15): a short input for a short value, a text area for long text, number, date
- * and date-time inputs, a dropdown for a choice or a status, toggles for several choices, a pill
+ * and date-time inputs, a dropdown for a choice or a status, the multiple dropdown for several choices, a pill
  * that opens the related record (with a dropdown to point it elsewhere), a file that opens or is
  * shown in Finder. Nothing here writes: typing reports the value to the page (`onChange`), and
  * leaving the field, Enter in a one-line input, or picking a choice asks the page to save it
@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import type { Client, DocumentInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { Badge, Button, Dropdown, IconButton, Notice, type DropdownOption } from "../../ui";
-import { Check, FolderOpen, ICON_SM } from "../../ui/icons";
+import { MultiDropdown } from "../../ui/Dropdown";
+import { FolderOpen } from "../../ui/icons";
 import { coerce, editText, isNumeric, titleFieldOf, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 
@@ -116,20 +117,7 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
     control = <Dropdown id={inputId} label={label} value={isEmpty(value) ? "" : value ? "true" : "false"} onChange={(v) => onCommit(v === "" ? null : v === "true")} placeholder="Unknown" options={[{ value: "", label: "Unknown" }, { value: "true", label: "Yes" }, { value: "false", label: "No" }]} />;
   } else if (kind === "multichoice") {
     const chosen = Array.isArray(value) ? (value as unknown[]).map(String) : [];
-    control = (
-      <div className="row" role="group" aria-label={label}>
-        {choices.map((c) => {
-          const on = chosen.includes(c);
-          const next = on ? chosen.filter((x) => x !== c) : [...chosen, c];
-          return (
-            <Button key={c} size="sm" aria-pressed={on} icon={on ? <Check size={ICON_SM} /> : undefined} onClick={() => onCommit(next.length ? next : null)}>
-              {humanize(c)}
-            </Button>
-          );
-        })}
-        {choices.length === 0 ? <span className="faint">Unknown</span> : null}
-      </div>
-    );
+    control = <MultiDropdown id={inputId} label={label} values={chosen} onChange={(next) => onCommit(next.length ? next : null)} placeholder="Unknown" options={choices.map((c) => ({ value: c, label: humanize(c) }))} />;
   } else if (kind === "relation") {
     control = <RelationField client={client} field={field} value={value} relations={relations} relatedTitle={relatedTitle} open={open} onChange={onCommit} />;
   } else if (kind === "file") {

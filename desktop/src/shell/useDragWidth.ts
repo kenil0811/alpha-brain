@@ -5,6 +5,10 @@
  * dragging the inner edge, with the arrow keys on the focused handle (Home and End go to the
  * ends), or by double-clicking the handle (normal ↔ wide). `grow` says which way a drag to the
  * right makes the pane bigger: the sidebar grows rightwards, the assistant panel leftwards.
+ *
+ * (9 Oct, the owner) No cap but the window: `max` is asked at the moment (the window less the
+ * other panel), so a panel may widen until the middle is gone. Dragged on past `min` (below half
+ * of it), the panel folds to its strip through `onFold`, as its fold button does.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -12,21 +16,29 @@ export interface PanelWidth {
   /** The normal width: what Escape steps back to, and the first-time width. */
   initial: number;
   min: number;
-  max: number;
+  /** The largest width: a number, or asked at the moment (the window less the other panel). */
+  max: number | (() => number);
   /** From this width up the panel counts as wide. */
   wide: number;
   grow: "right" | "left";
+  /** Called when a drag goes on past `min`: the caller folds the panel to its strip. */
+  onFold?: () => void;
 }
 
 const STEP = 16;
 
-export function useDragWidth(key: string, { initial, min, max, wide, grow }: PanelWidth) {
-  const clamp = useCallback((n: number) => Math.min(max, Math.max(min, Math.round(n))), [min, max]);
+export function useDragWidth(key: string, { initial, min, max, wide, grow, onFold }: PanelWidth) {
+  const maxNow = useRef(max);
+  maxNow.current = max;
+  const top = useCallback(() => { const m = maxNow.current; return Math.max(min, typeof m === "function" ? m() : m); }, [min]);
+  const fold = useRef(onFold);
+  fold.current = onFold;
+  const clamp = useCallback((n: number) => Math.min(top(), Math.max(min, Math.round(n))), [min, top]);
   const [width, setWidthState] = useState<number>(() => {
     try {
       const raw = localStorage.getItem(key);
       const n = raw ? Number(raw) : NaN;
-      return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : initial;
+      return Number.isFinite(n) ? Math.min(top(), Math.max(min, n)) : initial;
     } catch {
       return initial;
     }
@@ -49,7 +61,15 @@ export function useDragWidth(key: string, { initial, min, max, wide, grow }: Pan
     const onMove = (event: PointerEvent) => {
       if (!start.current) return;
       const delta = event.clientX - start.current.x;
-      setWidth(start.current.width + (grow === "right" ? delta : -delta));
+      const next = start.current.width + (grow === "right" ? delta : -delta);
+      if (fold.current && next < min / 2) {
+        // dragged all the way in: fold, keeping the width it had for when it opens again
+        start.current = null;
+        setActive(false);
+        fold.current();
+        return;
+      }
+      setWidth(next);
     };
     const onUp = () => {
       setActive(false);
@@ -63,7 +83,7 @@ export function useDragWidth(key: string, { initial, min, max, wide, grow }: Pan
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [active, grow, setWidth]);
+  }, [active, grow, min, setWidth]);
 
   useEffect(() => {
     try {
@@ -80,7 +100,7 @@ export function useDragWidth(key: string, { initial, min, max, wide, grow }: Pan
     if (event.key === "ArrowRight") setWidth(width + (grow === "right" ? by : -by));
     else if (event.key === "ArrowLeft") setWidth(width + (grow === "right" ? -by : by));
     else if (event.key === "Home") setWidth(min);
-    else if (event.key === "End") setWidth(max);
+    else if (event.key === "End") setWidth(top());
     else return;
     event.preventDefault();
   };
@@ -93,6 +113,6 @@ export function useDragWidth(key: string, { initial, min, max, wide, grow }: Pan
     onDoubleClick: () => setWidth(isWide ? initial : wide),
     /** Back to normal (what Escape does to a wide panel). */
     narrow: () => setWidth(initial),
-    bounds: { min, max },
+    bounds: { min, max: top() },
   };
 }

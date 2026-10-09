@@ -1,20 +1,40 @@
 /**
- * The view's settings, behind the toolbar's ⋯ (9 Oct, the owner's Notion parity pass): a short
- * list that opens pages, as Notion's does. Layout (the view type and its options: lines, wrap,
- * row height, frozen columns, where records open, load limit, the chart's axes), Properties
- * (show, hide, drag into order), Group and Sub-group, Conditional colour, the record page's
- * sections; then Download, Upload and Reset view. Explanations live in (i) tooltips.
+ * The view's settings, behind the toolbar's ⋮ (9 Oct, the owner's Notion parity pass, then his
+ * decisions): a short list that opens pages, as Notion's does. Sort, Layout (the view type and its
+ * options: lines, wrap, row height, frozen columns, where records open, load limit, the chart's
+ * axes), Properties (show, hide, drag into order; a hidden one stays in place, its eye shut),
+ * Group and Sub-group, Conditional colour (saying what it coloured), the record page's sections;
+ * then the open list's own actions, Download (CSV or Excel, in a submenu on hover), Upload and
+ * Reset view. Explanations live in (i) tooltips.
  */
 import { useState } from "react";
 import type { FieldInfo } from "./fields";
-import { Button, Dropdown, IconButton, InfoTip } from "../ui";
+import { Button, Dropdown, IconButton, InfoTip, type ContextItem } from "../ui";
+import { MultiDropdown } from "../ui/Dropdown";
 import { ArrowLeft, ChevronRight, DownloadIcon, Eye, GripIcon, HideIcon, ICON_SM, PlusIcon, UploadIcon } from "../ui/icons";
-import { VIEWS, type PageView } from "./DataToolbar";
-import { fieldLabel, RuleEditor, ruleFor } from "./FilterUI";
-import type { ColorTone } from "./views/engine";
+import { VIEWS, PropertyPicker, type PageView } from "./DataToolbar";
+import { fieldLabel, RuleEditor, ruleFor, SortEditor } from "./FilterUI";
+import { needsValue, type ColorRule, type ColorTone, type Sort } from "./views/engine";
 import type { ViewState } from "./viewState";
 
-export type SettingsPage = "root" | "layout" | "properties" | "group" | "subgroup" | "color" | "sections";
+export type SettingsPage = "root" | "sort" | "layout" | "properties" | "group" | "subgroup" | "color" | "sections";
+
+/** What the colour rules do, in words: "Rows coloured by Stage", or "" when no rule is finished. */
+export function colourNote(colors: ColorRule[], byName: Map<string, FieldInfo>): string {
+  const live = colors.filter((c) => !needsValue(c.op) || c.value);
+  if (!live.length) return "";
+  const names = (target: "row" | "cell") => [...new Set(live.filter((c) => c.target === target).map((c) => fieldLabel(byName.get(c.field), c.field)))].join(", ");
+  return [names("row") ? `Rows coloured by ${names("row")}` : "", names("cell") ? `Cells coloured by ${names("cell")}` : ""].filter(Boolean).join(" · ");
+}
+
+/** A new colour rule that colours something at once: the status or a choice field, on its first
+ *  choice; else any field, where it has a value. (An empty "is" coloured nothing, which is why
+ *  choosing Conditional colour seemed to do nothing.) */
+export function firstColour(fields: FieldInfo[]): ColorRule {
+  const choice = fields.find((f) => f.kind === "status" && f.choices?.length) ?? fields.find((f) => f.kind === "choice" && f.choices?.length);
+  if (choice) return { field: choice.name, op: "is", value: choice.choices![0], tone: "info", target: "row" };
+  return { field: fields[0].name, op: "not_empty", tone: "info", target: "row" };
+}
 
 const TONES: { value: ColorTone; label: string }[] = [
   { value: "gray", label: "Grey" },
@@ -54,6 +74,10 @@ export interface SettingsProps {
   peekReason?: string;
   sections: string[];
   onSections: (next: string[]) => void;
+  sorts: Sort[];
+  onSorts: (s: Sort[]) => void;
+  /** The open list's own actions (rename, duplicate, default, delete). */
+  listActions: ContextItem[];
   onDownload?: (format: "csv" | "xlsx") => void;
   downloadReason?: string;
   uploadHere: boolean;
@@ -171,6 +195,15 @@ export function ViewSettings(p: SettingsProps) {
     );
   }
 
+  if (p.page === "sort") {
+    return (
+      <div className="vset vset--wide">
+        {head("Sort")}
+        {s.sorts.length ? <SortEditor fields={p.fields} sorts={s.sorts} onChange={p.onSorts} /> : <PropertyPicker label="Sort by" fields={p.fields} onPick={(x) => p.onSorts([{ field: x.name, direction: "asc" }])} />}
+      </div>
+    );
+  }
+
   if (p.page === "properties") return <Properties {...p} head={head("Properties")} byName={byName} />;
 
   if (p.page === "group" || p.page === "subgroup") {
@@ -201,6 +234,7 @@ export function ViewSettings(p: SettingsProps) {
 
   if (p.page === "color") {
     const set = (i: number, r: ViewState["colors"][number] | null) => p.patch({ colors: r ? s.colors.map((x, j) => (j === i ? r : x)) : s.colors.filter((_, j) => j !== i) });
+    const note = colourNote(s.colors, byName);
     return (
       <div className="vset vset--wide">
         {head("Conditional colour")}
@@ -213,9 +247,12 @@ export function ViewSettings(p: SettingsProps) {
             </span>
           </div>
         ))}
-        <Button size="sm" variant="ghost" icon={<PlusIcon size={ICON_SM} />} disabled={!p.fields.length} onClick={() => p.patch({ colors: [...s.colors, { ...ruleFor(p.fields[0]), tone: "info", target: "row" }] })}>
+        <Button size="sm" variant="ghost" icon={<PlusIcon size={ICON_SM} />} disabled={!p.fields.length} onClick={() => p.patch({ colors: [...s.colors, s.colors.length ? { ...ruleFor(p.fields[0]), tone: "info", target: "row" } : firstColour(p.fields)] })}>
           Add rule
         </Button>
+        <p className="faint vset__note" role="status">
+          {note ? `${note}.` : s.colors.length ? "Choose a value to colour by." : "Nothing is coloured yet."}
+        </p>
       </div>
     );
   }
@@ -224,15 +261,14 @@ export function ViewSettings(p: SettingsProps) {
     return (
       <div className="vset">
         {head("Record page sections")}
-        {SECTIONS.map((x) => (
-          <Toggle key={x.id} label={x.label} on={p.sections.includes(x.id)} set={(on) => p.onSections(on ? SECTIONS.map((y) => y.id).filter((id) => id === x.id || p.sections.includes(id)) : p.sections.filter((id) => id !== x.id))} />
-        ))}
+        <MultiDropdown size="sm" label="Record page sections" placeholder="None" values={p.sections} onChange={(next) => p.onSections(SECTIONS.map((y) => y.id).filter((id) => next.includes(id)))} options={SECTIONS.map((x) => ({ value: x.id, label: x.label }))} />
       </div>
     );
   }
 
   return (
     <div className="vset">
+      {go("sort", "Sort", s.sorts.length ? String(s.sorts.length) : "None")}
       {go("layout", "Layout", viewLabel)}
       {go("properties", "Properties", `${p.shown.length} shown`)}
       {go("group", "Group", groupName ? fieldLabel(byName.get(groupName), groupName) : "None")}
@@ -241,12 +277,30 @@ export function ViewSettings(p: SettingsProps) {
       {go("sections", "Record page sections")}
       <div className="menu__sep" />
       <div className="more__stack">
-        <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} disabledReason={p.onDownload ? undefined : p.downloadReason} onClick={() => p.onDownload?.("csv")}>
-          Download as CSV
-        </Button>
-        <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} disabledReason={p.onDownload ? undefined : p.downloadReason} onClick={() => p.onDownload?.("xlsx")}>
-          Download as Excel
-        </Button>
+        {p.listActions.map((a) => (
+          <Button key={a.label} size="sm" variant={a.danger ? "danger" : "ghost"} icon={a.icon} disabledReason={a.disabled} onClick={a.onSelect}>
+            {a.label}
+          </Button>
+        ))}
+      </div>
+      <div className="menu__sep" />
+      <div className="more__stack">
+        <div className="vset__sub">
+          <Button size="sm" variant="ghost" icon={<DownloadIcon size={ICON_SM} />} aria-haspopup="menu" disabledReason={p.onDownload ? undefined : p.downloadReason}>
+            Download
+            <ChevronRight size={ICON_SM} aria-hidden="true" className="vset__subchev" />
+          </Button>
+          {p.onDownload ? (
+            <div className="vset__subpop menu" role="menu" aria-label="Download as">
+              <button type="button" role="menuitem" className="menu__item" onClick={() => p.onDownload?.("csv")}>
+                CSV
+              </button>
+              <button type="button" role="menuitem" className="menu__item" onClick={() => p.onDownload?.("xlsx")}>
+                Excel
+              </button>
+            </div>
+          ) : null}
+        </div>
         {p.uploadHere ? (
           <Button size="sm" variant="ghost" icon={<UploadIcon size={ICON_SM} />} disabledReason={p.onUpload ? undefined : p.uploadReason} onClick={p.onUpload}>
             Upload
@@ -282,7 +336,7 @@ function Properties(p: SettingsProps & { head: React.ReactNode; byName: Map<stri
         return (
           <div key={name} className="vset__prop" draggable onDragStart={() => setDrag(name)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag && drag !== name) p.onReorder(drag, name); setDrag(null); }}>
             <GripIcon size={ICON_SM} className="fsort__grip" aria-hidden="true" />
-            <span className={on ? "vset__name" : "vset__name faint"}>{label}</span>
+            <span className="vset__name">{label}</span>
             <IconButton size="sm" label={on ? `Hide ${label}` : `Show ${label}`} icon={on ? <Eye size={ICON_SM} /> : <HideIcon size={ICON_SM} />} disabled={on && p.shown.length <= 1} onClick={() => p.onShow(name, !on)} />
           </div>
         );

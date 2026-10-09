@@ -65,7 +65,7 @@ function page(rows: RecordRow[], props: Partial<Parameters<typeof DataPage>[0]> 
   );
   return client;
 }
-/** ⋯ › Layout › Layout: pick a view type for the open tab. */
+/** ⋮ › Layout › Layout: pick a view type for the open tab. */
 async function pickLayout(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(screen.getByRole("button", { name: "More" }));
   await user.click(screen.getByRole("button", { name: /^Layout/ }));
@@ -134,31 +134,48 @@ describe("the table page", () => {
 });
 
 describe("the toolbar", () => {
-  it("is one row: view tabs, filter, sort and search on the left, more on the right, with Download and Upload inside it", async () => {
+  it("is one row: list, view and search on the left; Filter, then ⋮ at the far right, with Sort, Download and Upload inside it", async () => {
     const user = userEvent.setup();
     const onAddFiles = vi.fn();
     const client = page([row("r1", "Bakery", 300)], { onAddFiles });
     await screen.findByText("Bakery");
     const order = [
-      screen.getByRole("tablist", { name: "Views" }),
-      screen.getByRole("button", { name: "Filter" }),
-      screen.getByRole("button", { name: "Sort" }),
+      screen.getByRole("combobox", { name: "List" }),
+      screen.getByRole("combobox", { name: "View" }),
       screen.getByRole("button", { name: "Search" }),
+      screen.getByRole("button", { name: "Filter" }),
+      screen.getByRole("button", { name: "Show the numbers" }),
       screen.getByRole("button", { name: "More" }),
     ];
     for (let i = 1; i < order.length; i++) expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(order[0].closest(".toolbar")).toBe(order[4].closest(".toolbar")); // one row
+    expect(order[0].closest(".toolbar")).toBe(order[5].closest(".toolbar")); // one row
     const spacer = order[0].closest(".toolbar")!.querySelector(".spacer")!;
-    expect(order[1].compareDocumentPosition(spacer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // Filter is on the left
-    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("button", { name: "Upload" })).toBeNull(); // no file field: Upload is in More
-    await user.click(order[3]); // the magnifier opens a box
+    expect(spacer.compareDocumentPosition(order[3]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // Filter is right-aligned
+    expect(order[0]).toHaveTextContent("All");
+    expect(order[1]).toHaveTextContent("Table");
+    expect(screen.queryByRole("button", { name: "Sort" })).toBeNull(); // Sort is in ⋮
+    expect(screen.queryByRole("button", { name: "Upload" })).toBeNull(); // no file field: Upload is in ⋮
+    await user.click(order[2]); // the magnifier opens a box
     expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
-    await user.click(order[4]);
-    await user.click(screen.getByRole("button", { name: "Download as CSV" }));
+    await user.click(order[5]);
+    expect(screen.getByRole("button", { name: /^Sort/ })).toBeInTheDocument();
+    await user.hover(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByRole("menuitem", { name: "CSV" }));
     expect(client.exportTable).toHaveBeenCalledWith("deals", "csv");
     await user.click(screen.getByRole("button", { name: "Upload" }));
     expect(onAddFiles).toHaveBeenCalled();
+  });
+
+  it("shows the numbers below the toolbar; their hide arrow sits on the strip", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Show the numbers" }));
+    const strip = screen.getByRole("region", { name: "Deals: the numbers" });
+    expect(screen.getByRole("button", { name: "More" }).compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show the numbers" })).toBeNull();
+    await user.click(within(strip).getByRole("button", { name: "Hide the numbers" }));
+    expect(screen.queryByRole("region", { name: "Deals: the numbers" })).toBeNull();
   });
 
   it("makes Upload the primary action, left of more, when the collection has a file field", async () => {
@@ -231,42 +248,44 @@ describe("the toolbar", () => {
     expect(screen.getByText("Bakery")).toBeInTheDocument();
   });
 
-  it("views are tabs: + adds one of a type, its menu renames and deletes it, and each keeps its own layout", async () => {
+  it("lists: the list dropdown adds one to name, View changes its type, ⋮ and a right-click rename and delete it", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "Add a view" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Board" }));
-    await waitFor(() => expect(client.saveList).toHaveBeenCalledWith("deals", "Board", expect.objectContaining({ view: "board" })));
-    const tab = await screen.findByRole("tab", { name: "Board" });
-    expect(tab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByLabelText("Active")).toBeInTheDocument(); // the board's column
-    // the open tab's menu: Rename through the core's list
-    await user.click(tab);
-    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
-    const name = within(screen.getByRole("dialog", { name: "Rename view" })).getByRole("textbox", { name: "View name" });
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Add list" }));
+    await waitFor(() => expect(client.saveList).toHaveBeenCalledWith("deals", "New list", expect.objectContaining({ view: "table" })));
+    const name = within(await screen.findByRole("dialog", { name: "Rename view" })).getByRole("textbox", { name: "View name" });
     await user.clear(name);
     await user.type(name, "Pipeline{Enter}");
     await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { title: "Pipeline" }));
-    expect(await screen.findByRole("tab", { name: "Pipeline" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Pipeline"));
+    await user.click(screen.getByRole("combobox", { name: "View" }));
+    await user.click(screen.getByRole("option", { name: "Board" }));
+    expect(screen.getByRole("combobox", { name: "View" })).toHaveTextContent("Board");
+    expect(screen.getByLabelText("Active")).toBeInTheDocument(); // the board's column
     // All keeps its table
-    await user.click(screen.getByRole("tab", { name: "All" }));
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("option", { name: /^All/ }));
     expect(screen.getByRole("table")).toBeInTheDocument();
-    fireEvent.contextMenu(screen.getByRole("tab", { name: "All" }));
-    expect(await screen.findByRole("menuitem", { name: "Delete view" })).toHaveAttribute("aria-disabled", "true");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("button", { name: "Delete list" })).toBeDisabled();
     await user.keyboard("{Escape}");
-    fireEvent.contextMenu(screen.getByRole("tab", { name: "Pipeline" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Delete view" }));
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("option", { name: /^Pipeline/ }));
+    fireEvent.contextMenu(screen.getByRole("combobox", { name: "List" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete list" }));
     await user.click(within(screen.getByRole("dialog", { name: "Delete this view?" })).getByRole("button", { name: "Delete view" }));
     await waitFor(() => expect(client.deleteList).toHaveBeenCalledWith("v1"));
-    await waitFor(() => expect(screen.queryByRole("tab", { name: "Pipeline" })).toBeNull());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("All"));
   });
 
   it("keeps several sorts, and a view's settings in the window's preference", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Deli", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "Sort" }));
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: /^Sort/ }));
     await user.click(within(screen.getByRole("group", { name: "Sort by" })).getByRole("button", { name: "Price" }));
     await user.click(screen.getByRole("combobox", { name: "Direction" }));
     await user.click(screen.getByRole("option", { name: "Descending" }));
@@ -479,15 +498,39 @@ describe("the + New row and an empty table", () => {
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r2", { title: "Deli" }, 3));
   });
 
-  it("opens a new record's page when the core won't take an empty record", async () => {
+  it("opens the new record's own page whenever records have pages, making nothing first", async () => {
     const user = userEvent.setup();
     const onOpenRecord = vi.fn();
     const client = fakeClient([row("r1", "Bakery", 300)]);
-    client.addRecord.mockRejectedValueOnce(new Error("title is required"));
     page([], { onOpenRecord }, client);
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("button", { name: "New" }));
     await waitFor(() => expect(onOpenRecord).toHaveBeenCalledWith("deals", "new"));
+    expect(client.addRecord).not.toHaveBeenCalled();
+  });
+
+  it("conditional colour colours at once and says what it did", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: /^Conditional colour/ }));
+    await user.click(screen.getByRole("button", { name: "Add rule" }));
+    expect(rowOf("Bakery")).toHaveClass("tone--info"); // Status is Active, the first choice
+    expect(screen.getAllByText("Rows coloured by Status.").length).toBeGreaterThan(0);
+  });
+
+  it("a hidden property keeps its place in Properties, its eye shut", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: /^Properties/ }));
+    const names = () => [...document.querySelectorAll(".vset__prop .vset__name")].map((n) => n.textContent);
+    const before = names();
+    await user.click(screen.getByRole("button", { name: "Hide Price" }));
+    expect(names()).toEqual(before);
+    expect(screen.getByRole("button", { name: "Show Price" })).toBeInTheDocument();
   });
 
   it("keeps a header '+' for a column, disabled, with the reason", async () => {
@@ -567,9 +610,9 @@ describe("any source", () => {
     expect(screen.getByRole("button", { name: "New" })).toBeDisabled();
     await user.dblClick(screen.getByText("Alpha"));
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull(); // no edit given: cells stay as they are
-    await user.click(screen.getByRole("button", { name: "Add a view" }));
-    await user.click(await screen.findByRole("menuitem", { name: "List" }));
-    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("window_lists", { agents: [expect.objectContaining({ title: "List" })] }));
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Add list" }));
+    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("window_lists", { agents: [expect.objectContaining({ title: "New list" })] }));
   });
 });
 

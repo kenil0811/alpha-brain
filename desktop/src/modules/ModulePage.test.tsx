@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Client, ModuleDetail, TableDesc } from "../core/client";
 import { forgetPreferences } from "../core/preferences";
 import { TooltipProvider } from "../ui";
+import { dedupeCrumbs } from "./crumbs";
 import { ModulePage } from "./ModulePage";
 
 const detail = { id: "m_1", name: "Advisory", goal: "help clients", tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "", activity: [], note: null, goals: [], automations: [], sources: [] } as unknown as ModuleDetail;
@@ -36,9 +37,14 @@ describe("adding files to a module", () => {
         <ModulePage client={client} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
       </TooltipProvider>,
     );
-    // no collection yet: it lands on Files
-    expect(await screen.findByRole("tab", { name: "Files", selected: true })).toBeInTheDocument();
-    expect(screen.getByText("Nothing is kept here yet")).toBeInTheDocument();
+    // no collection yet: one empty table, never an empty screen, and the sections below it
+    const empty = await screen.findByRole("table", { name: "Advisory's first table" });
+    expect(within(empty).getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
+    expect(within(empty).getByRole("button", { name: "New" })).toBeDisabled();
+    expect(screen.getByText(/Alpha fills this in as the project is built/)).toBeInTheDocument();
+    expect(screen.queryByText("Nothing is kept here yet")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Advisory" })).toBeInTheDocument();
+    for (const n of ["Intelligence", "Governance"]) expect(screen.getByRole("region", { name: n })).toBeInTheDocument();
     const files = screen.getByRole("region", { name: "Files" });
     expect(within(files).getByText(/Drop files here or/)).toBeInTheDocument(); // an empty space to drop on
     expect(within(files).getByRole("button", { name: "Upload" })).toBeInTheDocument();
@@ -75,7 +81,7 @@ describe("adding files to a module", () => {
 describe("a module's page", () => {
   const two = { ...detail, tables: [deals, clients], goals: [{ id: "g1", text: "Close three deals", state: "open", module: "m_1", since: "" }] } as unknown as ModuleDetail;
 
-  it("lands on the first collection's data, with a header switch of collections, and no Summary", async () => {
+  it("lands on the first collection's data, with a header switch of collections only, and no Summary", async () => {
     const user = userEvent.setup();
     render(
       <TooltipProvider>
@@ -83,10 +89,10 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     expect(await screen.findByText("Bakery")).toBeInTheDocument(); // data first
-    const switcher = screen.getByRole("tablist", { name: "Sections" });
-    expect(within(switcher).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Deals", "Clients", "Files", "Intelligence", "Governance"]);
+    const switcher = screen.getByRole("tablist", { name: "Collections" });
+    expect(within(switcher).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Deals", "Clients"]);
     expect(screen.queryByRole("tab", { name: "Summary" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Files" })).toBeNull();
     // the numbers sit above the table, folded until asked for, each with what it is based on
     await user.click(screen.getByRole("button", { name: "Show the numbers" }));
     expect(await screen.findByText("1 added this week")).toBeInTheDocument();
@@ -95,35 +101,46 @@ describe("a module's page", () => {
     expect(await screen.findByText("No records yet.")).toBeInTheDocument();
   });
 
-  it("shows one section at a time: Files, Intelligence and Governance are tabs, and the page remembers the last", async () => {
+  it("keeps Files, Intelligence and Governance below the data, in that order", async () => {
     const user = userEvent.setup();
+    const withAgent = { ...two, automations: [{ id: "a1", title: "Chase late invoices", module: "m_1", thread: null, schedule: "", when: "every Monday", procedure: "", enabled: true, next_run_at: null, last_run_at: null, last_result: null, last_error: null }] } as unknown as ModuleDetail;
+    render(
+      <TooltipProvider>
+        <ModulePage client={fakeClient(withAgent)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    const regions = screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+    expect(regions.filter((n) => ["Files", "Intelligence", "Governance"].includes(n ?? ""))).toEqual(["Files", "Intelligence", "Governance"]);
+    expect(within(screen.getByRole("region", { name: "Files" })).getByText(/Drop files here/)).toBeInTheDocument();
+    const intelligence = screen.getByRole("region", { name: "Intelligence" });
+    await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
+    expect(within(intelligence).getByText("Close three deals")).toBeInTheDocument();
+    // agents and automations live in Intelligence, not Governance
+    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations · 1" }));
+    expect(within(intelligence).getByText("Chase late invoices")).toBeInTheDocument();
+    const governance = screen.getByRole("region", { name: "Governance" });
+    expect(within(governance).queryByText("Chase late invoices")).toBeNull();
+    expect(within(governance).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
+  });
+
+  it("remembers the last collection; a remembered section tab from before falls back to the first", async () => {
+    localStorage.setItem("alpha.module.m_1.tab", "clients");
     const { unmount } = render(
       <TooltipProvider>
         <ModulePage client={fakeClient(two)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
       </TooltipProvider>,
     );
-    await screen.findByText("Bakery");
-    // nothing stacked below the table
-    for (const n of ["Files", "Intelligence", "Governance"]) expect(screen.queryByRole("region", { name: n })).toBeNull();
-    await user.click(screen.getByRole("tab", { name: "Files" }));
-    expect(screen.queryByRole("table")).toBeNull();
-    expect(within(screen.getByRole("region", { name: "Files" })).getByText(/Drop files here/)).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Intelligence" }));
-    const intelligence = screen.getByRole("region", { name: "Intelligence" });
-    expect(screen.queryByRole("region", { name: "Files" })).toBeNull();
-    // Intelligence is in tabs; the goals are one of them
-    await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
-    expect(within(intelligence).getByText("Close three deals")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Governance" }));
-    expect(within(screen.getByRole("region", { name: "Governance" })).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Clients", selected: true })).toBeInTheDocument();
     unmount();
+    localStorage.setItem("alpha.module.m_1.tab", "@governance");
     render(
       <TooltipProvider>
         <ModulePage client={fakeClient(two)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} />
       </TooltipProvider>,
     );
-    expect(await screen.findByRole("region", { name: "Governance" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Governance", selected: true })).toBeInTheDocument();
+    expect(await screen.findByText("Bakery")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Deals", selected: true })).toBeInTheDocument();
   });
 
   it("Governance keeps Always and Never rules per module: Enter adds, a click edits, × deletes", async () => {
@@ -135,7 +152,6 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("tab", { name: "Governance" }));
     const never = screen.getByRole("group", { name: "Never" });
     await user.type(within(never).getByRole("textbox", { name: "Add a rule: never" }), "Email a client{Enter}");
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email a client"] } }));
@@ -149,7 +165,7 @@ describe("a module's page", () => {
     expect(screen.getByRole("group", { name: "Always" })).toBeInTheDocument();
   });
 
-  it("a module with one collection still has the switch, the collection's tab first, and its name in the breadcrumb", async () => {
+  it("a project with one collection has no switch: its name is the title", async () => {
     const one = { ...detail, tables: [deals] } as unknown as ModuleDetail;
     render(
       <TooltipProvider>
@@ -157,8 +173,21 @@ describe("a module's page", () => {
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
-    expect(screen.getByRole("tab", { name: "Deals", selected: true })).toBeInTheDocument();
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Advisory")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Collections" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Advisory" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
+  });
+
+  it("never names one thing twice in a row: a project Deals inside Deals shows Deals once", async () => {
+    const twin = { ...detail, name: "Deals", tables: [deals], path: ["Deals", "Deals"], parent: "m_0" } as unknown as ModuleDetail;
+    render(
+      <TooltipProvider>
+        <ModulePage client={fakeClient(twin)} moduleId="m_1" version={0} onChanged={vi.fn()} onGo={vi.fn()} modules={[{ id: "m_0", name: "Deals", parent: null, tables: [], records: 0, goal: null, last_at: null, last_text: null, threads: [], created_at: "" }, { id: "m_1", name: "Deals", parent: "m_0", tables: [], records: 0, goal: null, last_at: null, last_text: null, threads: [], created_at: "" }]} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    expect(document.querySelector(".pagehead")).toHaveTextContent(/^Deals$/);
+    expect(dedupeCrumbs([{ label: "Avilo" }, { label: "Deals" }, { label: "deals " }, { label: "Bakery" }]).map((c) => c.label)).toEqual(["Avilo", "deals ", "Bakery"]);
   });
 
   it("a nested module shows where it sits in the header, and its children with the note", async () => {
@@ -173,7 +202,6 @@ describe("a module's page", () => {
     await screen.findByText("Bakery");
     await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("button", { name: "Avilo" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_0" });
-    await user.click(screen.getByRole("tab", { name: "Intelligence" }));
     await user.click(screen.getByRole("tab", { name: "Inside · 1" }));
     expect(screen.getByLabelText("What you ask here reaches them all.")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Leads")).toBeInTheDocument();

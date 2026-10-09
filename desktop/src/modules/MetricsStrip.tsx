@@ -3,8 +3,10 @@
  * tiles as wide as what they hold, each a number with its label and basis beside it, and a small
  * chart where there is a trend (records and amounts added per week) or a split (the status). The
  * records resting on an estimate or an assumption get a tile only when there are some, in the
- * attention tone. The strip starts folded so the table is the focus (rulebook §6); a small
- * chevron shows or hides it, and the page remembers the choice. The numbers come
+ * attention tone. The strip sits below the toolbar and starts folded so the table is the focus
+ * (rulebook §6; the owner, 9 Oct): folded, its show arrow is in the toolbar just left of ⋮; shown,
+ * its hide arrow sits at the strip's top-right corner. The page remembers the choice
+ * (`useMetricsOpen`). The numbers come
  * from the module's summary (the core works them out) and from the records on the page; nothing
  * is invented. A tile never shows a bare dash (§2): an amount shows today's if there is one, else
  * this week's (its basis saying so), else "Unknown".
@@ -12,7 +14,7 @@
 import { useEffect, useState } from "react";
 import type { RecordRow, TableDesc, TableSummaryData } from "../core/client";
 import { MetricTile, IconButton } from "../ui";
-import { ChevronDown, ChevronRight } from "../ui/icons";
+import { ChevronUp } from "../ui/icons";
 import { dayText, formatNumber, humanize } from "./format";
 import { SplitBar, Sparkline, weekly } from "./minicharts";
 import { provenanceCounts } from "./views/engine";
@@ -25,8 +27,9 @@ function remembered(key: string): boolean {
   }
 }
 
-export function MetricsStrip({ table, rows, summary }: { table: Pick<TableDesc, "name" | "title">; rows: RecordRow[] | null; summary?: TableSummaryData | null }) {
-  const key = `alpha.page.${table.name}.metrics`;
+/** Whether a collection's numbers are shown, remembered per collection; folded unless opened. */
+export function useMetricsOpen(name: string): [boolean, (open: boolean) => void] {
+  const key = `alpha.page.${name}.metrics`;
   const [open, setOpen] = useState(() => remembered(key));
   useEffect(() => {
     try {
@@ -35,6 +38,11 @@ export function MetricsStrip({ table, rows, summary }: { table: Pick<TableDesc, 
       /* the strip forgets whether it was folded, nothing more */
     }
   }, [key, open]);
+  return [open, setOpen];
+}
+
+/** The strip, shown; `onHide` folds it (its arrow at the top-right corner). */
+export function MetricsStrip({ table, rows, summary, onHide }: { table: Pick<TableDesc, "name" | "title">; rows: RecordRow[] | null; summary?: TableSummaryData | null; onHide: () => void }) {
   if (!rows) return null;
   const amount = (v: number | null, unit?: string | null) => (v === null ? "none" : formatNumber(v, unit));
   const today = dayText(new Date());
@@ -52,27 +60,23 @@ export function MetricsStrip({ table, rows, summary }: { table: Pick<TableDesc, 
   const perWeek = weekly(rows);
   const spark = (values: number[], what: string) => (values.some(Boolean) ? <Sparkline values={values} label={`${what} per week, the last ${values.length} weeks: ${values.join(", ")}`} /> : undefined);
   return (
-    <section className={`mstrip${open ? "" : " mstrip--folded"}`} aria-label={`${table.title}: the numbers`}>
-      <IconButton size="sm" className="mstrip__fold" label={open ? "Hide the numbers" : "Show the numbers"} aria-expanded={open} icon={open ? <ChevronDown /> : <ChevronRight />} onClick={() => setOpen((o) => !o)} />
-      {open ? (
-        <>
-          <MetricTile label="Records" value={rows.length.toLocaleString()} basis={summary ? `${summary.added_this_week.toLocaleString()} added this week` : `as of ${today}`} chart={spark(perWeek, "Records added")} />
-          {(summary?.amounts ?? []).map((a) => {
-            const { value, basis } = headline(a);
-            const sums = weekly(rows, 8, (r) => (typeof r.values[a.field] === "number" ? (r.values[a.field] as number) : 0));
-            return <MetricTile key={a.field} label={`${a.label}${a.how === "average" ? " · average" : ""}`} value={value} basis={basis} chart={a.how === "total" ? spark(sums, `${a.label} added`) : undefined} />;
-          })}
-          {split ? (
-            <MetricTile
-              label={`${humanize(split.label)} · open`}
-              value={openCount.toLocaleString()}
-              basis={`${doneCount.toLocaleString()} done of ${(openCount + doneCount).toLocaleString()}`}
-              chart={<SplitBar parts={Object.entries(split.counts).map(([c, n]) => ({ label: humanize(c), count: n }))} label={Object.entries(split.counts).map(([c, n]) => `${humanize(c)} ${n}`).join(" · ")} />}
-            />
-          ) : null}
-          {check ? <MetricTile label="To check" value={check.toLocaleString()} attention basis="rest on an estimate or an assumption" /> : null}
-        </>
+    <section className="mstrip" aria-label={`${table.title}: the numbers`}>
+      <IconButton size="sm" className="mstrip__fold" label="Hide the numbers" icon={<ChevronUp />} onClick={onHide} />
+      <MetricTile label="Records" value={rows.length.toLocaleString()} basis={summary ? `${summary.added_this_week.toLocaleString()} added this week` : `as of ${today}`} chart={spark(perWeek, "Records added")} />
+      {(summary?.amounts ?? []).map((a) => {
+        const { value, basis } = headline(a);
+        const sums = weekly(rows, 8, (r) => (typeof r.values[a.field] === "number" ? (r.values[a.field] as number) : 0));
+        return <MetricTile key={a.field} label={`${a.label}${a.how === "average" ? " · average" : ""}`} value={value} basis={basis} chart={a.how === "total" ? spark(sums, `${a.label} added`) : undefined} />;
+      })}
+      {split ? (
+        <MetricTile
+          label={`${humanize(split.label)} · open`}
+          value={openCount.toLocaleString()}
+          basis={`${doneCount.toLocaleString()} done of ${(openCount + doneCount).toLocaleString()}`}
+          chart={<SplitBar parts={Object.entries(split.counts).map(([c, n]) => ({ label: humanize(c), count: n }))} label={Object.entries(split.counts).map(([c, n]) => `${humanize(c)} ${n}`).join(" · ")} />}
+        />
       ) : null}
+      {check ? <MetricTile label="To check" value={check.toLocaleString()} attention basis="rest on an estimate or an assumption" /> : null}
     </section>
   );
 }

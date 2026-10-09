@@ -26,7 +26,7 @@ import { shape, signature, type ShapedNode } from "./shape";
 type Kind = GraphNode["kind"];
 const KINDS: Record<GraphKind, { kind: Kind; label: string }[]> = {
   work: [
-    { kind: "module", label: "Modules" },
+    { kind: "module", label: "Projects" },
     { kind: "table", label: "Tables" },
     { kind: "skill", label: "Skills" },
     { kind: "automation", label: "Agents" },

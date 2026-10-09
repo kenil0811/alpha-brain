@@ -1,5 +1,5 @@
 /**
- * Intelligence: everything Alpha knows and can do across modules (the UI rulebook §12). One page
+ * Intelligence: everything Alpha knows and can do across projects (the UI rulebook §12). One page
  * with a centred switch in its header: **Second Brain** (the brain in an egg, with the Map as its
  * second view), **Agents** (Q33: every automation is an agent's process, with a goal and a
  * verdict per run, each wearing its companion's face), **Skills** and **Connections**. (9 Oct: Knowledge became Second Brain; later
@@ -78,7 +78,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
       case "skills":
         return <DataPage client={client} source={sources.skills} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={onGo ? (_k, id) => (id.startsWith(BUILT_IN) ? undefined : onGo({ kind: "skill", name: id })) : undefined} />;
       case "connections":
-        return <Connections client={client} data={data} version={version} onChanged={onChanged} />;
+        return <Connections client={client} data={data} version={version} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "connection", id }) : undefined} />;
     }
   })();
   const shown = current === "map" ? "second-brain" : current;

@@ -10,13 +10,15 @@
 .brain__svg { display: block; width: min(100%, 620px, max(300px, (100vh - var(--header-h) - 150px) * 0.79)); height: auto; aspect-ratio: 600 / 760; touch-action: none; user-select: none; }
 .brain__shell { fill: var(--surface); filter: drop-shadow(var(--shadow-card)); }
 .brain__rim { fill: none; stroke: var(--border); stroke-width: 1.5; pointer-events: none; }
-.brain__edge { stroke: var(--text-3); stroke-width: 0.8; opacity: 0.35; transition: opacity var(--dur-state) var(--ease-out); }
-.brain__edge--waiting { stroke-dasharray: 3 3; }
-.brain__edge--lit { stroke: var(--primary); opacity: 0.9; stroke-width: 1.2; }
+/* Lines and rims keep one screen width at every zoom (non-scaling), so links read at a glance and stay quiet. */
+.brain__edge { stroke: var(--text-3); stroke-width: 1px; opacity: 0.55; vector-effect: non-scaling-stroke; transition: opacity var(--dur-state) var(--ease-out); }
+.brain__edge--spoke { opacity: 0.25; }
+.brain__edge--waiting { stroke-dasharray: 4 3; }
+.brain__edge--lit { stroke: var(--primary); opacity: 0.95; stroke-width: 1.5px; }
 .brain__edge--dim { opacity: 0.08; }
 .brain__node { cursor: pointer; transition: opacity var(--dur-state) var(--ease-out); }
 .brain__node:focus { outline: none; }
-.brain__node circle { stroke: var(--surface); stroke-width: 1.5; transition: stroke var(--dur-quick) var(--ease-out); }
+.brain__node circle { stroke: var(--surface); stroke-width: 1.5px; vector-effect: non-scaling-stroke; transition: stroke var(--dur-quick) var(--ease-out); }
 .brain__node:hover circle, .brain__node:focus-visible circle, .brain__node--on circle { stroke: var(--primary); stroke-width: 2.5; }
 .brain__node--dim { opacity: 0.2; }
 .brain__node--you circle { fill: var(--k-you); }
@@ -27,14 +29,19 @@
 .brain__node--organisation circle { fill: var(--k-organisation); }
 .brain__node--goal circle { fill: var(--k-goal); }
 .brain__node--fact circle { fill: var(--chart-2); }
+.brain__node--collection circle { fill: var(--k-table); }
+.brain__node--record circle { fill: var(--k-table); stroke: none; opacity: 0.75; }
 .brain__node--waiting circle { fill: var(--surface); stroke: var(--warn); stroke-dasharray: 2 2; stroke-width: 1.5; }
 .brain__node foreignObject { pointer-events: none; }
 .brain__label { font-size: var(--text-xs); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.brain__label--more { fill: var(--text-3); font-weight: 400; }
 .brain__node--you .brain__label, .brain__node--module .brain__label, .brain__node--agent .brain__label { font-weight: 600; fill: var(--text); }
+.brain__zoom { display: flex; gap: var(--space-1); align-items: center; }
 .brain__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--text-2); }
 .brain__key { display: inline-flex; align-items: center; gap: var(--space-1); }
 .brain__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); display: inline-block; }
 .brain__dot--module { background: var(--k-module); }
+.brain__dot--collection, .brain__dot--record { background: var(--k-table); }
 .brain__dot--fact { background: var(--chart-2); }
 .brain__dot--person { background: var(--k-person); }
 .brain__dot--organisation { background: var(--k-organisation); }

@@ -13,11 +13,33 @@ function mount(client: Partial<Client>, onGo = vi.fn()) {
 }
 
 describe("Home", () => {
-  it("says so in one sentence on a quiet day, and ends the module grid with New", async () => {
+  it("names what failed today beside the count: what, when, why, with Open and Try again", async () => {
+    const at = new Date().toISOString();
+    const failed = (id: string, text: string, data: Record<string, unknown>, extra: object = {}) => ({ id, at, kind: "failed", actor: "alpha", text, data, module: null, thread: null, entity_ids: [], source: null, ...extra });
+    const activity = vi.fn(async () => [
+      failed("j1", 'Run of "Daily brokers" failed: walled couldn\'t be reached', { automation: "a_1", run: "r_1" }),
+      failed("j2", "That didn't work: no answer came back", { error: "the model timed out" }, { module: "m1" }),
+      { ...failed("j3", "Old failure", {}), at: "2020-01-01T00:00:00+00:00" },
+      { ...failed("j4", "Read a page", {}), kind: "saw" },
+    ]);
+    const runAutomation = vi.fn(async () => ({}));
+    const onGo = mount({ home: vi.fn(async () => ({ ...quiet, ran_today: 4, failed_today: 2 })), modules: vi.fn(async () => []), activity, runAutomation } as unknown as Partial<Client>);
+    expect(await screen.findByText("Didn't work today")).toBeInTheDocument();
+    expect(screen.getByText(/the model timed out/)).toBeInTheDocument();
+    expect(screen.queryByText("Old failure")).toBeNull();
+    expect(screen.queryByText("Read a page")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(runAutomation).toHaveBeenCalledWith("a_1");
+    const opens = screen.getAllByRole("button", { name: "Open" });
+    await userEvent.click(opens[1]);
+    expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m1" });
+  });
+
+  it("says so in one sentence on a quiet day, and ends the project grid with New project", async () => {
     mount({ home: vi.fn(async () => quiet), modules: vi.fn(async () => [deals]) });
     expect(await screen.findByText("Nothing needs you right now.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Deals" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start a new module" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start a new project" })).toBeInTheDocument();
   });
 
   it("shows what Needs you with Approve and Decline, not accept and reject", async () => {
@@ -42,7 +64,7 @@ describe("Home", () => {
   it("says what failed in the modules, with Try again, while Today still shows", async () => {
     mount({ home: vi.fn(async () => quiet), modules: vi.fn().mockRejectedValueOnce(new Error("no modules")).mockResolvedValue([deals]) });
     expect(await screen.findByText("Nothing needs you right now.")).toBeInTheDocument();
-    expect(await screen.findByText(/Couldn't load your modules: no modules/)).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load your projects: no modules/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("button", { name: "Open Deals" })).toBeInTheDocument();
   });

@@ -62,7 +62,8 @@ describe("a record's page", () => {
     expect(screen.getByLabelText("What happened")).toHaveValue("");
     expect(screen.getByLabelText("What happened")).toHaveAttribute("placeholder", "Unknown");
     expect(screen.getAllByText("Last changed").length).toBeGreaterThan(0);
-    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("Sales");
+    expect(screen.getByRole("button", { name: "Sales" })).toBeInTheDocument(); // Back, named for the project
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("DealsBakery");
   });
 
   it("saves a changed field once when it is left, with the revision, and says Saved beside it", async () => {
@@ -140,6 +141,20 @@ describe("a record's page", () => {
     expect(values).toMatchObject({ title: "Florist", status: "Active" });
     expect(values.price).toBeUndefined();
     await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "record", module: "m_1", table: "deals", id: "r2" }));
+  });
+
+  it("a just-edited record shows Save and a quiet Saved, then when it was saved", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    const price = await screen.findByLabelText(/^Price/);
+    expect(screen.queryByRole("region", { name: "Saving" })).toBeNull();
+    await user.type(price, "1");
+    const bar = screen.getByRole("region", { name: "Saving" });
+    expect(bar).toHaveTextContent("Not saved yet");
+    expect(within(bar).queryByRole("button", { name: "Cancel" })).toBeNull(); // not made in this visit
+    await user.click(within(bar).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 3501 }, 3));
+    expect(within(bar).getByRole("status")).toHaveTextContent(/^Saved$/);
   });
 
   it("More › Delete confirms, says what happens, then goes back to the collection", async () => {

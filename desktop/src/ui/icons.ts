@@ -35,7 +35,8 @@ export {
   Mic,
   Circle,
   Maximize2,
-  MoreHorizontal,
+  MoreVertical,
+  // ponytail: kept until the callers outside ui/ switch to MoreVertical (the rulebook: ⋮ everywhere, 9 Oct)
   Star,
   Search as SearchIcon,
   Info,

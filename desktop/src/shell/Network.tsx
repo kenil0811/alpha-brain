@@ -5,14 +5,19 @@
  * (accepted, or suggested with a yes or no), who else might be the same, and everything in the
  * journal that involves them. Both pages open with the shared page header (the UI rulebook §5):
  * the serif title, and a back link on a person's page; sections are cards (9 Oct, the pages phase).
+ * Each side is a table even when empty (header row, blank rows, "+ New"), never a blank screen,
+ * with Intelligence (the latest with each) and Governance (what it keeps, Always and Never) below
+ * (9 Oct, Vikas). No Files: no route ties a file to Network.
  */
 import { useEffect, useState } from "react";
 import type { Client, Entity, EntityDetail } from "../core/client";
 import { initials, when } from "../modules/format";
 import { BackLink } from "./BackLink";
 import { FactRow } from "./FactRow";
-import { Button, Badge, EmptyCard, HeaderSwitch, PageHeader, SectionCard, Trouble } from "../ui";
-import { BuildingIcon, ICON, ICON_SM, PeopleIcon } from "../ui/icons";
+import { GovernanceRules } from "../modules/ModuleSections";
+import { SimpleTable } from "../modules/NewProjectPage";
+import { Button, Badge, HeaderSwitch, PageHeader, SectionCard, Trouble } from "../ui";
+import { BuildingIcon, ICON_SM, PeopleIcon } from "../ui/icons";
 
 type Side = "people" | "orgs";
 const SIDES = [
@@ -56,22 +61,51 @@ export function Network({ client, version, onOpen }: { client: Client; version: 
         <div className="stack stack--wide">
           {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Network: {error}</Trouble> : null}
           {people === null && !error ? <p className="faint">Loading Network…</p> : null}
-          {people && !rows.length ? (
-            <EmptyCard icon={side === "people" ? <PeopleIcon size={ICON} /> : <BuildingIcon size={ICON} />} title={q ? "Nothing by that name" : `No ${noun} yet`} />
-          ) : null}
-          {rows.length ? (
-            <div className="card list">
-              {rows.map((e) => (
-                <button key={e.id} type="button" className="list__row people__row" onClick={() => onOpen(e.id)}>
-                  <span className="people__avatar" aria-hidden="true">
-                    {initials(e.name)}
-                  </span>
-                  <span className="people__name">{e.name}</span>
-                  <span className="people__line muted">{e.summary || e.last_text || keysLine(e)}</span>
-                  <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
-                </button>
-              ))}
-            </div>
+          {people ? (
+            <>
+              <SimpleTable label={side === "people" ? "People" : "Organizations"} columns={["Name", "About", "Last heard"]} addReason={`Alpha adds ${noun} as it meets them in what it reads.`} note={q && !rows.length ? "Nothing by that name." : undefined}>
+                {rows.map((e) => (
+                  <tr key={e.id}>
+                    <td>
+                      <button type="button" className="linkbtn people__name" onClick={() => onOpen(e.id)}>
+                        <span className="people__avatar" aria-hidden="true">
+                          {initials(e.name)}
+                        </span>{" "}
+                        {e.name}
+                      </button>
+                    </td>
+                    <td className="muted">{e.summary || keysLine(e)}</td>
+                    <td className="faint">{e.last_at ? when(e.last_at) : ""}</td>
+                  </tr>
+                ))}
+              </SimpleTable>
+              {rows.some((e) => e.last_text) ? (
+                <SectionCard title="Intelligence" info={`The latest Alpha has with each of these ${noun}.`}>
+                  <div className="list">
+                    {rows.filter((e) => e.last_text).map((e) => (
+                      <div key={e.id} className="list__row">
+                        <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
+                        <span className="people__name">{e.name}</span>
+                        <span className="people__line">{e.last_text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              ) : null}
+              <SectionCard title="Governance">
+                <div className="subsecs">
+                  <div className="subsec">
+                    <div className="subsec__head">
+                      <h4 className="subsec__title">What it keeps</h4>
+                    </div>
+                    <p className="faint">
+                      {people.filter((e) => e.kind === "person").length} people and {people.filter((e) => e.kind !== "person").length} organizations{q ? " by that name" : ""}, in Alpha's world on this Mac.
+                    </p>
+                  </div>
+                  <GovernanceRules client={client} moduleId="network" />
+                </div>
+              </SectionCard>
+            </>
           ) : null}
         </div>
       </div>

@@ -52,7 +52,7 @@ export function CommandMenu({
   insert?: boolean;
   /** Where the person is, for Insert. */
   surface?: Surface;
-  /** Starts a new module (the sidebar's New). */
+  /** Starts a new project (the sidebar's New project). */
   onNewModule?: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -124,7 +124,7 @@ export function CommandMenu({
         for (const t of here.length ? here : surface?.kind === "record" ? [{ name: surface.table, title: surface.table }] : [])
           out.push({ key: `new:${t.name}`, kind: "insert", label: here.length > 1 ? `New record in ${t.title}` : "New record", hint: t.title, go: () => { onGo({ kind: "record", module: scope, table: t.name, id: "new" }); close(); } });
       }
-      if (onNewModule) out.push({ key: "new-module", kind: "module", label: "New module", go: () => { onNewModule(); close(); } });
+      if (onNewModule) out.push({ key: "new-module", kind: "module", label: "New project", go: () => { onNewModule(); close(); } });
       out.push({ key: "upload", kind: "upload", label: "Upload files", hint: scopeModule ? `To ${scopeModule.name}` : undefined, go: () => files.current?.click() });
       return out.filter((i) => !q || i.label.toLowerCase().includes(q));
     }
@@ -154,7 +154,7 @@ export function CommandMenu({
         className="command__input"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={insert ? "What to add" : "A page, a module, a person, a row, a document, or a question for Alpha"}
+        placeholder={insert ? "What to add" : "A page, a project, a person, a row, a document, or a question for Alpha"}
         aria-label={insert ? "Insert" : "Search everything"}
         role="combobox"
         aria-expanded={items.length > 0}

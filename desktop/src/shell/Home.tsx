@@ -6,12 +6,16 @@
  * something to answer or open, and words only where the thing does not say itself (9 Oct,
  * Vikas: no subtitles, no icons in the tiles, each number with its label beside it).
  *
- * Each part loads on its own (9 Oct): the Today card from `/api/home`, the module cards from
+ * Done today names what failed (9 Oct, the owner): each failure today as a card with what it was,
+ * when, the plain reason, and Open and Try again where the journal says what to open or rerun; the
+ * same entries are in the bell's Activity under Failed. They come from `/api/activity`.
+ *
+ * Each part loads on its own (9 Oct): the Today card from `/api/home`, the project cards from
  * `/api/modules`. A part that cannot load says what went wrong and offers Try again; the rest of
  * the page still shows.
  */
 import { useEffect, useState } from "react";
-import type { Client, Home as HomeData, ModuleCard, NeedItem } from "../core/client";
+import type { Client, Home as HomeData, JournalEntry, ModuleCard, NeedItem } from "../core/client";
 import { dayLabel, dayText, timeText, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import { ModuleGlyph } from "./moduleIcons";
@@ -115,6 +119,58 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   );
 }
 
+/** Today's failures, newest first: the journal's `failed` entries since local midnight. */
+export function failedToday(entries: JournalEntry[], now = new Date()): JournalEntry[] {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return entries.filter((e) => e.kind === "failed" && new Date(e.at).getTime() >= midnight);
+}
+
+/** One failure: what it was, when, why in plain words, and Open and Try again where the entry says
+ *  what it touched (an agent's run reruns; a conversation or a project opens). */
+function Failure({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDone: (words: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const automation = typeof e.data.automation === "string" ? e.data.automation : null;
+  const reason = [e.data.error, e.data.why].find((r): r is string => typeof r === "string" && r.trim() !== "" && !e.text.includes(r));
+  const open = automation ? () => onGo({ kind: "automation", id: automation }) : e.thread ? () => onOpenThread(e.thread!) : e.module ? () => onGo({ kind: "module", id: e.module! }) : null;
+  async function again() {
+    if (!automation) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await client.runAutomation(automation);
+      onDone("Running it again; it reports in Activity.");
+    } catch (x) {
+      setError(x instanceof Error ? x.message : String(x));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <ListRow
+      icon={<X size={ICON} aria-label="failed" />}
+      title={e.text}
+      description={[timeText(new Date(e.at)), reason].filter(Boolean).join(" · ")}
+      controls={
+        <>
+          {open ? (
+            <Button size="sm" onClick={open}>
+              Open
+            </Button>
+          ) : null}
+          {automation ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void again()}>
+              Try again
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {error ? <Notice tone="bad">{error}</Notice> : null}
+    </ListRow>
+  );
+}
+
 export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThread }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void; onOpenThread: (id: string) => void }) {
   const [home, setHome] = useState<HomeData | null>(null);
   const [homeError, setHomeError] = useState<string | null>(null);
@@ -123,6 +179,23 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
   const [modulesError, setModulesError] = useState<string | null>(null);
   const [modulesTick, setModulesTick] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
+  const [failures, setFailures] = useState<JournalEntry[]>([]);
+  const failedCount = home?.failed_today ?? 0;
+  // ponytail: the newest 300 entries; a day with more than that names only its latest failures
+  useEffect(() => {
+    if (!failedCount) {
+      setFailures([]);
+      return;
+    }
+    let live = true;
+    client
+      .activity({ limit: 300 })
+      .then((rows) => live && setFailures(failedToday(rows)))
+      .catch(() => live && setFailures([])); // the count still says how many
+    return () => {
+      live = false;
+    };
+  }, [client, version, failedCount]);
   useEffect(() => {
     let live = true;
     client
@@ -176,6 +249,20 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             </div>
 
             {message ? <Notice>{message}</Notice> : null}
+
+            {failures.length ? (
+              <div className="today__part">
+                <h3 className="today__title">
+                  Didn't work today
+                  <Button size="sm" variant="ghost" onClick={() => onGo({ kind: "activity" })}>
+                    All in Activity
+                  </Button>
+                </h3>
+                {failures.map((e) => (
+                  <Failure key={e.id} e={e} client={client} onGo={onGo} onOpenThread={onOpenThread} onDone={(words) => { setMessage(words); onChanged(); }} />
+                ))}
+              </div>
+            ) : null}
 
             {needs.length ? (
               <div className="today__part">
@@ -242,10 +329,10 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         ) : null}
       </section>
 
-      <section className="home__modules" aria-label="Your modules">
-        <h2 className="sectitle">Modules</h2>
-        {modulesError ? <Trouble onRetry={() => setModulesTick((n) => n + 1)}>Couldn't load your modules: {modulesError}</Trouble> : null}
-        {!modules && !modulesError ? <p className="faint">Loading modules…</p> : null}
+      <section className="home__modules" aria-label="Your projects">
+        <h2 className="sectitle">Projects</h2>
+        {modulesError ? <Trouble onRetry={() => setModulesTick((n) => n + 1)}>Couldn't load your projects: {modulesError}</Trouble> : null}
+        {!modules && !modulesError ? <p className="faint">Loading projects…</p> : null}
         <div className="modgrid">
           {top.map((m) => (
             <OpenCard
@@ -257,7 +344,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
               onOpen={() => onGo({ kind: "module", id: m.id })}
             />
           ))}
-          <OpenCard dashed icon={<PlusIcon size={ICON} />} name="New" description="" openLabel="Start a new module" onOpen={onNew} />
+          <OpenCard dashed icon={<PlusIcon size={ICON} />} name="New project" description="" openLabel="Start a new project" onOpen={onNew} />
         </div>
       </section>
 

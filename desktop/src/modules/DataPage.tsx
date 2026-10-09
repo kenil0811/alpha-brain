@@ -1,6 +1,6 @@
 /**
  * A collection's data view: Alpha draws one for every table it keeps, so nothing has to be
- * designed. One toolbar (saved list, view, search, filter; a primary action and ⋯ More on the
+ * designed. One toolbar (list, view and search; Filter, the frequent actions and ⋮ More on the
  * right), the numbers above, the records in any of nine views, a "+ New" row that is always
  * there, and a page bar when there is more than one page. It draws any `DataSource` (a table the
  * core keeps, or rows the window holds), and what a source can't do stays visible, disabled, with
@@ -23,11 +23,12 @@ import { DATE_KINDS, coerce, inputType, showValue, titleFieldOf, type FieldInfo 
 import { reasonFor, tableSource, type DataSource } from "./source";
 import { humanize } from "./format";
 import { Button, Confirm, Dialog, Dropdown, IconButton, Popover, Trouble } from "../ui";
+import { useDropdownDefault } from "../ui/Dropdown";
 import { ChevronDown, ChevronsLeft, ChevronsRight, ChevronUp, ICON_SM, Maximize2, PlusIcon, X } from "../ui/icons";
 import { applyQuery, colorsOf, defaultSummary, groupRows, ofKinds, pageOf, pinnedFirst, provenanceCounts, type Sort, type SummaryOp } from "./views/engine";
 import { DEFAULT_VIEW, stateFor, toConfig, type KeptView, type ViewState } from "./viewState";
 import { FilterBar, GroupEditor, RuleEditor, fieldLabel, ruleFor } from "./FilterUI";
-import { ViewSettings, type SettingsPage } from "./ViewSettings";
+import { colourNote, ViewSettings, type SettingsPage } from "./ViewSettings";
 import { downloadText, toCsv } from "./csv";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
@@ -39,8 +40,8 @@ import { FormView } from "./views/FormView";
 import { TableView, copyText } from "./views/TableView";
 import { cellEditable } from "./views/cells";
 import { DashboardView, dashboardAvailable } from "./views/DashboardView";
-import { DataToolbar, VIEWS, type PageView, type ViewTab } from "./DataToolbar";
-import { MetricsStrip } from "./MetricsStrip";
+import { DataToolbar, listActions, type PageView, type TabActions, type ViewTab } from "./DataToolbar";
+import { MetricsStrip, useMetricsOpen } from "./MetricsStrip";
 
 export type { PageView } from "./DataToolbar";
 /** Rows per page: by default as many as fit the first screen; the person can pick a fixed size,
@@ -113,7 +114,12 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const vkey = `${src.key}:${listId}`;
   const list = lists.find((l) => l.id === listId);
   const [edited, setEdited] = useState<Record<string, ViewState>>({});
-  const vs: ViewState = edited[vkey] ?? stateFor(list?.config, kept[vkey], listId === "all" ? remembered<PageView>(`${key}.view`, "table") : "table");
+  // The person's ★ defaults from the dropdowns: the view type, row height and where records open.
+  const starView = (useDropdownDefault("data.view") ?? "table") as PageView;
+  const starRow = useDropdownDefault("Row height") as ViewState["rowHeight"] | undefined;
+  const starOpen = useDropdownDefault("Open records in") as ViewState["openIn"] | undefined;
+  const starred: Partial<ViewState> = { ...(starRow ? { rowHeight: starRow } : {}), ...(starOpen ? { openIn: starOpen } : {}) };
+  const vs: ViewState = edited[vkey] ?? stateFor(list?.config, kept[vkey], listId === "all" ? remembered<PageView>(`${key}.view`, starView) : starView, starred);
   const dirty = useRef(new Set<string>());
   const patch = (p: Partial<ViewState>) => {
     dirty.current.add(vkey);
@@ -165,7 +171,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     setFilterOpenState(o);
     if (!o) setFilterEdit(null);
   };
-  const [sortOpen, setSortOpen] = useState(false);
   const [openChip, setOpenChip] = useState<number | "advanced" | "sort" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("root");
@@ -184,11 +189,13 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const [frozen, setFrozen] = useState<number>(() => remembered<number>(`${key}.frozen`, 0));
   const [wrapped, setWrapped] = useState<string[]>(() => remembered<string[]>(`${key}.wrap`, []));
   const [editRequest, setEditRequest] = useState<{ id: string; field: string } | null>(null);
-  const columns = useMemo(() => {
-    const base = fields.map((f) => f.name).filter((c) => !hidden.includes(c));
-    const placed = order.filter((c) => base.includes(c));
-    return [...placed, ...base.filter((c) => !placed.includes(c))];
-  }, [fields, hidden, order]);
+  // Every field in the person's order, shown or not, so a hidden one keeps its place (9 Oct).
+  const everyField = useMemo(() => {
+    const names = fields.map((f) => f.name);
+    const placed = order.filter((c) => names.includes(c));
+    return [...placed, ...names.filter((c) => !placed.includes(c))];
+  }, [fields, order]);
+  const columns = useMemo(() => everyField.filter((c) => !hidden.includes(c)), [everyField, hidden]);
   const [all, setAll] = useState<RecordRow[] | null>(null);
   const [pageAt, setPageAt] = useState(0);
   const [pageSize, setPageSize] = useState<PageSize>(() => remembered<PageSize>(PAGE_SIZE_KEY, "fit"));
@@ -220,22 +227,16 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   useEffect(() => remember(`${key}.frozen`, frozen), [key, frozen]);
   useEffect(() => remember(`${key}.wrap`, wrapped), [key, wrapped]);
   useEffect(() => remember(PAGE_SIZE_KEY, pageSize), [pageSize]);
-  const moveColumn = (name: string, by: -1 | 1) =>
-    setOrder(() => {
-      const current = [...columns];
-      const at = current.indexOf(name);
-      const to = at + by;
-      if (at < 0 || to < 0 || to >= current.length) return current;
-      current.splice(at, 1);
-      current.splice(to, 0, name);
-      return current;
-    });
   const reorderColumn = (from: string, to: string) =>
     setOrder(() => {
-      const current = columns.filter((c) => c !== from);
-      current.splice(columns.indexOf(to), 0, from);
+      const current = everyField.filter((c) => c !== from);
+      current.splice(everyField.indexOf(to), 0, from);
       return current;
     });
+  const moveColumn = (name: string, by: -1 | 1) => {
+    const next = columns[columns.indexOf(name) + by];
+    if (next) reorderColumn(name, next);
+  };
 
   const searchable = useMemo(() => fields.filter((f) => f.kind === "text" || f.kind === "long_text" || f.kind === "url").map((f) => f.name), [fields]);
 
@@ -380,10 +381,12 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     const go = () => setPeek(next);
     if (!peekGuard.current?.(go)) go();
   }
-  /** "+ New": an empty record, its title cell open for typing; where the source won't take an
-   *  empty one, the new record's page. */
+  /** "+ New": a table the core keeps opens the new record's own page (9 Oct, the owner: everywhere,
+   *  as Deals did; Food log took an empty record and added it inline only because its core accepts
+   *  one). Rows the window holds get an empty record, its title cell open for typing. */
   async function addNew() {
     setStatus(null);
+    if (!source && onOpenRecord) return onOpenRecord(src.key, "new");
     try {
       const made = await src.add!({});
       load();
@@ -503,26 +506,27 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
 
   const tabOrder = kept[`${src.key}:tabs`]?.tabOrder ?? [];
   const tabs: ViewTab[] = [
-    { id: "all", title: "All", view: listId === "all" ? vs.view : (edited[`${src.key}:all`] ?? stateFor(undefined, kept[`${src.key}:all`], remembered<PageView>(`${key}.view`, "table"))).view, isDefault: false },
+    { id: "all", title: "All", view: listId === "all" ? vs.view : (edited[`${src.key}:all`] ?? stateFor(undefined, kept[`${src.key}:all`], remembered<PageView>(`${key}.view`, starView), starred)).view, isDefault: false },
     ...[...lists]
       .sort((a, b) => (tabOrder.indexOf(a.id) + 1 || 1e9) - (tabOrder.indexOf(b.id) + 1 || 1e9))
-      .map((l) => ({ id: l.id, title: l.title, view: (edited[`${src.key}:${l.id}`] ?? stateFor(l.config, kept[`${src.key}:${l.id}`])).view, isDefault: l.is_default })),
+      .map((l) => ({ id: l.id, title: l.title, view: (edited[`${src.key}:${l.id}`] ?? stateFor(l.config, kept[`${src.key}:${l.id}`], starView, starred)).view, isDefault: l.is_default })),
   ];
-  const stateOf = (id: string) => edited[`${src.key}:${id}`] ?? stateFor(lists.find((l) => l.id === id)?.config, kept[`${src.key}:${id}`]);
+  const stateOf = (id: string) => edited[`${src.key}:${id}`] ?? stateFor(lists.find((l) => l.id === id)?.config, kept[`${src.key}:${id}`], starView, starred);
   function switchTab(id: string) {
     setListId(id);
     setPicked(null);
     setSelected(new Set());
     setOpenChip(null);
   }
-  async function addView(title: string, state: ViewState) {
+  async function addView(title: string, state: ViewState, naming = false) {
     await run(async () => {
       const saved = await src.saveList!(title, toConfig(state));
       setLists((existing) => [...existing, saved]);
       setEdited((m) => ({ ...m, [`${src.key}:${saved.id}`]: state }));
       dirty.current.add(`${src.key}:${saved.id}`);
       setListId(saved.id);
-    }, "Couldn't add the view");
+      if (naming) setNaming({ id: saved.id, text: title });
+    }, "Couldn't add the list");
   }
   async function renameList(id: string, title: string) {
     const ok = await run(async () => {
@@ -546,11 +550,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       setLists((existing) => existing.filter((l) => l.id !== id));
     }, "Couldn't delete the view");
     if (id === listId) switchTab("all");
-  }
-  function reorderTabs(from: string, to: string) {
-    const ids = tabs.map((t) => t.id).filter((id) => id !== "all" && id !== from);
-    ids.splice(ids.indexOf(to), 0, from);
-    void setKept({ ...kept, [`${src.key}:tabs`]: { tabOrder: ids } });
   }
   function resetView() {
     setSearch("");
@@ -669,43 +668,36 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const rowIcon = src.rowIcon ? (row: RecordRow) => src.rowIcon!(row) : undefined;
   const peekAt = peek && rows ? rows.findIndex((r) => r.id === peek) : -1;
   const peekReason = renderPeek ? undefined : "Records open as pages here.";
-
+  const [numbersOpen, setNumbersOpen] = useMetricsOpen(src.key);
+  const coloured = view === "table" || view === "list" || view === "board" || view === "gallery" ? colourNote(vs.colors, byName) : "";
+  const tabActions: TabActions = {
+    onTab: switchTab,
+    onAddList: src.saveList ? () => void addView("New list", { ...DEFAULT_VIEW, ...starred, view: vs.view }, true) : undefined,
+    listsReason,
+    view,
+    onView: setView,
+    viewReasons,
+    rename: (id) => setNaming({ id, text: lists.find((l) => l.id === id)?.title ?? "" }),
+    duplicate: (id) => void addView(`${tabs.find((t) => t.id === id)?.title ?? "List"} copy`, stateOf(id)),
+    remove: (id) => setDropping(id),
+    setDefault: starList,
+  };
   return (
     <div className="datapage" aria-label={src.title}>
-      <MetricsStrip table={{ name: src.key, title: src.title }} rows={all} summary={summary} />
       <div className="card datacard">
         <DataToolbar
           tabs={tabs}
           activeTab={listId}
-          tabActions={{
-            onTab: switchTab,
-            onAdd: src.saveList ? (v) => void addView(VIEWS.find((x) => x.id === v)?.label ?? "View", { ...DEFAULT_VIEW, view: v }) : undefined,
-            listsReason,
-            viewReasons,
-            rename: (id) => setNaming({ id, text: lists.find((l) => l.id === id)?.title ?? "" }),
-            edit: (id) => {
-              switchTab(id);
-              setSettingsPage("layout");
-              setSettingsOpen(true);
-            },
-            duplicate: (id) => void addView(`${tabs.find((t) => t.id === id)?.title ?? "View"} copy`, stateOf(id)),
-            remove: (id) => setDropping(id),
-            setDefault: starList,
-            reorder: reorderTabs,
-          }}
+          tabActions={tabActions}
           search={search}
           onSearch={setSearch}
           searchable={searchable.length > 0}
           tableTitle={src.title}
           filter={{ fields, onAddRule: addRule, onAdvanced: addAdvanced, hasDone: Boolean(statusField && (statusField.done_choices ?? []).length), hideDone: vs.hideDone, onHideDone: (on) => patch({ hideDone: on }), goneCount: tracked ? goneCount : 0, showGone, onShowGone: setShowGone, open: filterOpen, onOpenChange: setFilterOpen, editor: filterEditor, active: vs.rules.length + (vs.advanced ? 1 : 0) + pills.length }}
-          fields={fields}
-          sorts={sorts}
-          onSorts={setSorts}
-          sortOpen={sortOpen}
-          onSortOpen={setSortOpen}
           uploadFirst={fileFirst}
           onUpload={onAddFiles}
           uploadReason={reasonFor(src, "upload")}
+          onShowNumbers={all && !numbersOpen ? () => setNumbersOpen(true) : undefined}
           settingsOpen={settingsOpen}
           onSettingsOpen={(o) => {
             setSettingsOpen(o);
@@ -719,7 +711,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
               patch={patch}
               fields={fields}
               viewReasons={viewReasons}
-              order={[...columns, ...fields.map((f) => f.name).filter((n) => !columns.includes(n))]}
+              order={everyField}
               shown={columns}
               onShow={(name, on) => setHidden((h) => (on ? h.filter((n) => n !== name) : [...h, name]))}
               onShowAll={(on) => setHidden(on ? [] : fields.map((f) => f.name).filter((n) => n !== (titleField ?? fields[0]?.name)))}
@@ -733,6 +725,9 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
               peekReason={peekReason}
               sections={sections}
               onSections={(next) => void setSectionPref({ ...sectionPref, [src.key]: next })}
+              sorts={sorts}
+              onSorts={setSorts}
+              listActions={listActions(tabs.find((t) => t.id === listId) ?? tabs[0], tabActions)}
               onDownload={src.exportAs ? (f) => void download(f) : undefined}
               downloadReason={reasonFor(src, "download")}
               uploadHere={!fileFirst}
@@ -743,6 +738,8 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
           }
         />
         <FilterBar fields={fields} rules={vs.rules} onRules={(r) => patch({ rules: r })} advanced={vs.advanced} onAdvanced={(g) => patch({ advanced: g })} sorts={sorts} onSorts={setSorts} openChip={openChip} onOpenChip={setOpenChip} extra={pills} onClearAll={clearAll} />
+        {numbersOpen ? <MetricsStrip table={{ name: src.key, title: src.title }} rows={all} summary={summary} onHide={() => setNumbersOpen(false)} /> : null}
+        {coloured ? <p className="faint datacard__note">{coloured}.</p> : null}
         {selected.size ? (
           <div className="selectbar" role="status">
             <b>{count(selected.size)} selected</b>

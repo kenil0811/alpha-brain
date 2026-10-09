@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { IconButton } from "./IconButton";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
-import { MoreHorizontal } from "./icons";
+import { MoreVertical } from "./icons";
 
 describe("the context menu", () => {
   const items = (onOpen = vi.fn(), onDelete = vi.fn()) => [
@@ -63,7 +63,7 @@ describe("the context menu", () => {
     expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
-  it("serves many rows from one menu, and a ⋯ button opens the same menu for its row", async () => {
+  it("serves many rows from one menu, and a ⋮ button opens the same menu for its row", async () => {
     const opened = vi.fn();
     const user = userEvent.setup();
     function Rows() {
@@ -73,7 +73,7 @@ describe("the context menu", () => {
           {["a", "b"].map((id) => (
             <div key={id} tabIndex={0} {...cm.bind(id)}>
               Row {id}
-              <IconButton label={`More for ${id}`} icon={<MoreHorizontal />} onClick={(e) => cm.openFrom(id, e.currentTarget)} />
+              <IconButton label={`More for ${id}`} icon={<MoreVertical />} onClick={(e) => cm.openFrom(id, e.currentTarget)} />
             </div>
           ))}
           {cm.menu}
@@ -87,5 +87,30 @@ describe("the context menu", () => {
     await user.click(screen.getByRole("button", { name: "More for a" }));
     await user.click(await screen.findByRole("menuitem", { name: "Open a" }));
     expect(opened).toHaveBeenLastCalledWith("a");
+  });
+});
+
+describe("a submenu in the context menu", () => {
+  it("opens on ArrowRight, closes on ArrowLeft, and runs the child chosen", async () => {
+    const csv = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ContextMenu items={[{ label: "Rename", onSelect: vi.fn() }, { label: "Download", children: [{ label: "CSV", onSelect: csv }, { label: "Excel", onSelect: vi.fn() }] }]}>
+        Row one
+      </ContextMenu>,
+    );
+    fireEvent.contextMenu(screen.getByText("Row one"));
+    const download = await screen.findByRole("menuitem", { name: "Download" });
+    expect(download).toHaveAttribute("aria-haspopup", "menu");
+    download.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(await screen.findByRole("menuitem", { name: "CSV" })).toBeInTheDocument();
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.queryByRole("menuitem", { name: "CSV" })).toBeNull();
+    await user.keyboard("{ArrowRight}");
+    await screen.findByRole("menuitem", { name: "CSV" });
+    await user.keyboard("{Enter}"); // the first child has the focus
+    expect(csv).toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 /**
- * The four small dialogs behind the sidebar's module menu (the UI rulebook §4 and §8): Move…,
- * A new module above it, Change icon, and View options (the hidden modules, with Show). Each
+ * The four small dialogs behind the sidebar's project menu ("module" in the code) (the UI rulebook §4 and §8): Move…,
+ * A new project above it, Change icon, and View options (the hidden projects, with Show). Each
  * asks one thing, names the consequence, and ends in Cancel and the main action (§14). They do
  * nothing themselves: the sidebar calls the core and keeps the preferences.
  */
@@ -13,7 +13,7 @@ import { isInside } from "./sidebarOrder";
 
 const TOP = "__top__";
 
-/** Move a module to the top level, or inside another one. Never into itself or what it holds,
+/** Move a project to the top level, or inside another one. Never into itself or what it holds,
  *  and not where it already is. */
 export function MoveDialog({ module, modules, onMove, onClose }: { module: ModuleCard; modules: ModuleCard[]; onMove: (parent: string | null) => void; onClose: () => void }) {
   const [to, setTo] = useState("");
@@ -24,7 +24,7 @@ export function MoveDialog({ module, modules, onMove, onClose }: { module: Modul
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title={`Move ${module.name}`}>
       <div className="dialog__body">
-        {options.length ? "Choose where it sits. What you ask in a module reaches the ones inside it." : `${module.name} has nowhere else to go yet: there are no other modules.`}
+        {options.length ? "Choose where it sits. What you ask in a project reaches the ones inside it." : `${module.name} has nowhere else to go yet: there are no other projects.`}
       </div>
       {options.length ? <Dropdown label="Move to" value={to} options={options} onChange={setTo} placeholder="Choose where…" /> : null}
       <div className="row dialog__actions" style={{ marginTop: "var(--space-4)" }}>
@@ -39,15 +39,15 @@ export function MoveDialog({ module, modules, onMove, onClose }: { module: Modul
   );
 }
 
-/** A new module made where this one sits now; this one moves into it (what ModulePage's
+/** A new project made where this one sits now; this one moves into it (what ModulePage's
  *  Settings does too: `createModule`, then `moveModule`). */
 export function NewAboveDialog({ module, onMake, onClose }: { module: ModuleCard; onMake: (name: string) => void; onClose: () => void }) {
   const [name, setName] = useState("");
   const ready = name.trim().length > 0;
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} title={`A new module above ${module.name}`}>
+    <Dialog open onOpenChange={(o) => !o && onClose()} title={`A new project above ${module.name}`}>
       <div className="dialog__body">It is made where {module.name} sits now, and {module.name} moves into it.</div>
-      <input className="textfield" aria-label="The new module's name" placeholder="Its name, e.g. Avilo" value={name} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && ready) onMake(name.trim()); }} />
+      <input className="textfield" aria-label="The new project's name" placeholder="Its name, e.g. Avilo" value={name} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && ready) onMake(name.trim()); }} />
       <div className="row dialog__actions" style={{ marginTop: "var(--space-4)" }}>
         <Button variant="ghost" onClick={onClose}>
           Cancel
@@ -81,12 +81,12 @@ export function IconDialog({ module, current, onPick, onClose }: { module: Modul
   );
 }
 
-/** What is hidden from the sidebar, each with Show. Hiding only takes a module off the sidebar:
+/** What is hidden from the sidebar, each with Show. Hiding only takes a project off the sidebar:
  *  it, its records and its page are all still there. */
 export function ViewOptionsDialog({ hidden, onShow, onClose }: { hidden: ModuleCard[]; onShow: (id: string) => void; onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title="View options">
-      <div className="dialog__body">Hidden modules are off the sidebar only; their records and pages are untouched. Modules inside a hidden module are hidden with it.</div>
+      <div className="dialog__body">Hidden projects are off the sidebar only; their records and pages are untouched. Projects inside a hidden project are hidden with it.</div>
       {hidden.length ? (
         <ul className="viewopts">
           {hidden.map((m) => (

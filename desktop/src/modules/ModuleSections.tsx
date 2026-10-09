@@ -1,9 +1,9 @@
 /**
- * A module page's tabs after its collections, in the rulebook's order (9 Oct, the UI rulebook §5):
- * Files, then Intelligence (Alpha's page about the module, its goals, what happened here, the
- * modules inside it, each a tab), then Governance (what Alpha should always and never do here,
- * where it sits, what it keeps, where it reads from, what runs on its own). Each is a section
- * card, shown alone under its header tab.
+ * The sections below a project's data, in the rulebook's order (9 Oct, the UI rulebook §5;
+ * "module" in the code): Files, then Intelligence (what happened here, its agents and automations,
+ * its goals, Alpha's page about it, the projects inside it, each a tab), then Governance (where
+ * its data lives and is read from, where it sits, what Alpha should always and never do here).
+ * Each is a section card.
  */
 import { useEffect, useMemo, useState } from "react";
 import { UploadIcon as Upload } from "../ui/icons";
@@ -33,7 +33,7 @@ export function FilesSection({ added, onPick }: { added: AddedFile[]; onPick: ()
   return (
     <SectionCard
       title="Files"
-      info="Alpha reads what you upload into this module's collections."
+      info="Alpha reads what you upload into this project's collections."
       actions={
         added.length ? (
           <Button size="sm" icon={<Upload size={ICON} />} onClick={onPick}>
@@ -112,7 +112,7 @@ function CsvGrid({ file }: { file: File }) {
 
 const PAGE = 10;
 
-/** Everything that happened in this module, newest first: what you did, what Alpha did, what
+/** Everything that happened in this project, newest first: what you did, what Alpha did, what
  *  it read, what you asked and what it answered. */
 function ModuleActivity({ detail }: { detail: ModuleDetail }) {
   const [shown, setShown] = useState(PAGE);
@@ -149,7 +149,7 @@ function ModuleActivity({ detail }: { detail: ModuleDetail }) {
   );
 }
 
-/** The module's page of Alpha's wiki: what it is for, what it holds, what was tried, what is
+/** The project's page of Alpha's wiki: what it is for, what it holds, what was tried, what is
  *  open; Alpha writes it and the person may edit it. */
 function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Client; moduleRef: string; version: number; onChanged: () => void }) {
   const [page, setPage] = useState<{ name: string; scope: string; page: Note | null } | null>(null);
@@ -178,7 +178,7 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   return (
     <div className="subsec">
       <div className="subsec__head">
-        <InfoTip text="What this module is for, what it holds, what is open. Alpha writes it; you can edit it." />
+        <InfoTip text="What this project is for, what it holds, what is open. Alpha writes it; you can edit it." />
         <span className="section__right">
           {editing ? (
             <>
@@ -207,15 +207,16 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   );
 }
 
-type IntelTab = "page" | "goals" | "activity" | "inside";
+type IntelTab = "activity" | "agents" | "goals" | "page" | "inside";
 
 export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (id: string) => void }) {
-  const [tab, setTab] = useState<IntelTab>("page");
+  const [tab, setTab] = useState<IntelTab>("activity");
   const inside = detail.inside ?? [];
   const tabs: { id: IntelTab; label: string }[] = [
-    { id: "page", label: "Alpha's page" },
-    { id: "goals", label: `Goals${detail.goals.length ? ` · ${detail.goals.length}` : ""}` },
     { id: "activity", label: "Activity" },
+    { id: "agents", label: `Agents and automations${detail.automations.length ? ` · ${detail.automations.length}` : ""}` },
+    { id: "goals", label: `Goals${detail.goals.length ? ` · ${detail.goals.length}` : ""}` },
+    { id: "page", label: "Alpha's page" },
     ...(inside.length ? [{ id: "inside" as const, label: `Inside · ${inside.length}` }] : []),
   ];
   return (
@@ -234,6 +235,7 @@ export function IntelligenceSection({ client, detail, version, onChanged, onGo }
         )
       ) : null}
       {tab === "activity" ? <ModuleActivity detail={detail} /> : null}
+      {tab === "agents" ? <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="No agents or automations work here yet." /> : null}
       {tab === "inside" ? (
         <div className="subsec">
           <div className="subsec__head">
@@ -260,10 +262,10 @@ export function IntelligenceSection({ client, detail, version, onChanged, onGo }
   );
 }
 
-/** What Alpha should always and never do in this module, as rules the person writes: Enter adds
- *  one, a click edits it, its × deletes it. Kept per module in `PREF.governance`; the runtime does
+/** What Alpha should always and never do in this project, as rules the person writes: Enter adds
+ *  one, a click edits it, its × deletes it. Kept per project in `PREF.governance`; the runtime does
  *  not read them yet, and the (i) says so. */
-function GovernanceRules({ client, moduleId }: { client: Client; moduleId: string }) {
+export function GovernanceRules({ client, moduleId }: { client: Client; moduleId: string }) {
   const [all, setAll] = usePreference<Record<string, { always: string[]; never: string[] }>>(client, PREF.governance, {});
   const [problem, setProblem] = useState<string | null>(null);
   const mine = { always: all[moduleId]?.always ?? [], never: all[moduleId]?.never ?? [] };
@@ -355,7 +357,7 @@ function sourceSummary(sources: Source[]): string {
 }
 
 export function GovernanceSection({ client, detail, modules, onChanged }: { client: Client; detail: ModuleDetail; modules: ModuleCard[]; onChanged: () => void }) {
-  // Where this module could go (never itself, what it holds, or where it already is), and what
+  // Where this project could go (never itself, what it holds, or where it already is), and what
   // could come in (never itself, what is already here, or anything above it).
   const canHoldMe = useMemo(() => modules.filter((m) => m.id !== detail.id && m.id !== (detail.parent ?? null) && !(m.path ?? []).includes(detail.name)), [modules, detail.id, detail.parent, detail.name]);
   const canMoveIn = useMemo(() => modules.filter((m) => m.id !== detail.id && m.parent !== detail.id && !(detail.path ?? []).slice(0, -1).includes(m.name)), [modules, detail.id, detail.path]);
@@ -371,7 +373,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
       setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-  /** A new module above this one: made where this one sits, then this one moves into it
+  /** A new project above this one: made where this one sits, then this one moves into it
    *  ("create Avilo and have Deals and Advisory in it": make it above one, move the other in). */
   async function makeParent(name: string) {
     try {
@@ -398,61 +400,6 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
     <SectionCard title="Governance">
       {naming ? <NewAboveDialog module={asCard} onMake={(name) => void makeParent(name)} onClose={() => setNaming(false)} /> : null}
       <div className="subsecs">
-        <GovernanceRules client={client} moduleId={detail.id} />
-        <div className="subsec">
-          <div className="subsec__head">
-            <h4 className="subsec__title">Where it sits</h4>
-            <InfoTip text="Everything in a module moves with it." />
-          </div>
-          <div className="lrows">
-            <ListRow
-              icon={<ModuleIcon size={ICON} />}
-              title={detail.name}
-              description={detail.path && detail.path.length > 1 ? `Inside ${detail.path.slice(0, -1).join(" › ")}` : "At the top level"}
-              controls={
-                <Menu
-                  trigger={
-                    <Button size="sm" aria-label={`Move ${detail.name}`}>
-                      Move…
-                    </Button>
-                  }
-                >
-                  <MenuItem onSelect={() => setNaming(true)}>A new module above it…</MenuItem>
-                  {detail.parent ? <MenuItem onSelect={() => void moveUnder(null)}>To the top level</MenuItem> : null}
-                  {canHoldMe.length ? <MenuHeading>Inside</MenuHeading> : null}
-                  {canHoldMe.map((m) => (
-                    <MenuItem key={m.id} onSelect={() => void moveUnder(m.id)}>
-                      {moduleWords(m)}
-                    </MenuItem>
-                  ))}
-                </Menu>
-              }
-            />
-            <ListRow
-              icon={<ModuleIcon size={ICON} />}
-              title="Inside it"
-              description={detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet"}
-              controls={
-                canMoveIn.length ? (
-                  <Menu
-                    trigger={
-                      <Button size="sm" aria-label={`Move a module into ${detail.name}`}>
-                        Move a module in…
-                      </Button>
-                    }
-                  >
-                    {canMoveIn.map((m) => (
-                      <MenuItem key={m.id} onSelect={() => void moveIn(m.id)}>
-                        {moduleWords(m)}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                ) : undefined
-              }
-            />
-          </div>
-          {moveNote ? <Notice tone={moveNote.startsWith("Couldn") ? "bad" : "ok"}>{moveNote}</Notice> : null}
-        </div>
         <div className="subsec">
           <div className="subsec__head">
             <h4 className="subsec__title">What it keeps</h4>
@@ -498,10 +445,59 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
         ) : null}
         <div className="subsec">
           <div className="subsec__head">
-            <h4 className="subsec__title">Agents</h4>
+            <h4 className="subsec__title">Where it sits</h4>
+            <InfoTip text="Everything in a project moves with it." />
           </div>
-          <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="" />
+          <div className="lrows">
+            <ListRow
+              icon={<ModuleIcon size={ICON} />}
+              title={detail.name}
+              description={detail.path && detail.path.length > 1 ? `Inside ${detail.path.slice(0, -1).join(" › ")}` : "At the top level"}
+              controls={
+                <Menu
+                  trigger={
+                    <Button size="sm" aria-label={`Move ${detail.name}`}>
+                      Move…
+                    </Button>
+                  }
+                >
+                  <MenuItem onSelect={() => setNaming(true)}>A new project above it…</MenuItem>
+                  {detail.parent ? <MenuItem onSelect={() => void moveUnder(null)}>To the top level</MenuItem> : null}
+                  {canHoldMe.length ? <MenuHeading>Inside</MenuHeading> : null}
+                  {canHoldMe.map((m) => (
+                    <MenuItem key={m.id} onSelect={() => void moveUnder(m.id)}>
+                      {moduleWords(m)}
+                    </MenuItem>
+                  ))}
+                </Menu>
+              }
+            />
+            <ListRow
+              icon={<ModuleIcon size={ICON} />}
+              title="Inside it"
+              description={detail.inside?.length ? detail.inside.map((m) => m.name).join(", ") : "Nothing yet"}
+              controls={
+                canMoveIn.length ? (
+                  <Menu
+                    trigger={
+                      <Button size="sm" aria-label={`Move a project into ${detail.name}`}>
+                        Move a project in…
+                      </Button>
+                    }
+                  >
+                    {canMoveIn.map((m) => (
+                      <MenuItem key={m.id} onSelect={() => void moveIn(m.id)}>
+                        {moduleWords(m)}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                ) : undefined
+              }
+            />
+          </div>
+          {moveNote ? <Notice tone={moveNote.startsWith("Couldn") ? "bad" : "ok"}>{moveNote}</Notice> : null}
         </div>
+        <GovernanceRules client={client} moduleId={detail.id} />
       </div>
     </SectionCard>
   );

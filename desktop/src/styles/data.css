@@ -40,6 +40,12 @@
 .rowctl--head { padding-left: calc(var(--space-5) + 2px); }  /* under the rows' checkboxes, past their handles */
 .tablewrap--selecting .rowctl--head .rowctl__grip { display: none; }
 .table td.col--wrap { white-space: normal; overflow-wrap: anywhere; }
+/* nothing covers text on hover (the owner, 9 Oct): the first cell's text slides right by the handle
+   and checkbox's width, an editable cell's text gives the pencil its room, with a quick transition */
+.table td.col--first { transition: padding-left var(--dur-quick) var(--ease-out); }
+.table tbody tr:hover td.col--first, .table tbody tr:focus-within td.col--first { padding-left: var(--space-10); }
+.table td.editable { transition: padding-right var(--dur-quick) var(--ease-out); }
+.table td.editable:hover, .table td.editable:focus-visible { padding-right: calc(var(--space-6) + var(--space-2)); }
 /* the pencil at an editable cell's right edge, on hover and keyboard focus (rulebook §6: a visible edit control) */
 .table td.editable:not(.col--frozen) { position: relative; }
 .cellpen.iconbtn { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); width: var(--space-6); height: var(--space-6); background: var(--surface); opacity: 0; pointer-events: none; }
@@ -114,7 +120,7 @@
 .fpill__open { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
 .fpills { justify-content: flex-start; }
 
-/* the view's settings (⋯): a short list that opens pages */
+/* the view's settings (⋮): a short list that opens pages */
 .vset { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); width: calc(var(--space-12) * 6 + var(--space-4)); max-height: calc(var(--radix-popover-content-available-height, 80vh) - var(--space-4)); overflow-y: auto; }
 .vset--wide { width: calc(var(--space-12) * 10); }
 .vset__head { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-1); border-bottom: 1px solid var(--line); font-size: var(--text-md); }
@@ -128,6 +134,23 @@
 .vset__prop:hover { background: var(--hover); }
 .vset__name { flex: 1; min-width: 0; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vset__color { padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.vset__note { margin: 0; padding: var(--space-1); font-size: var(--text-sm); }
+/* Download › CSV, Excel: the formats open beneath it on hover or focus (the panel scrolls, so not beside it) */
+.vset__sub { display: flex; flex-direction: column; }
+.vset__subchev { margin-left: auto; transition: transform var(--dur-quick) var(--ease-out); }
+.vset__sub:hover .vset__subchev, .vset__sub:focus-within .vset__subchev { transform: rotate(90deg); }
+.vset__subpop { display: none; flex-direction: column; padding: 0 0 0 var(--space-6); box-shadow: none; border: 0; background: none; }
+.vset__sub:hover .vset__subpop, .vset__sub:focus-within .vset__subpop { display: flex; }
+
+/* the toolbar's list picker; the numbers below the toolbar, their hide arrow at the top-right corner */
+.tb__lists { display: inline-flex; }
+.datacard > .mstrip { position: relative; padding: var(--space-2) calc(var(--space-8) + var(--space-3)) var(--space-2) var(--space-3); }
+.datacard > .mstrip .mstrip__fold { position: absolute; top: var(--space-2); right: var(--space-2); }
+.datacard__note { margin: 0; padding: 0 var(--space-3) var(--space-1); font-size: var(--text-sm); }
+
+/* the record page's save bar: a quiet line, Cancel and Save */
+.savebar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-1) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); font-size: var(--text-sm); }
+.crumb__dot { color: var(--text-3); }
 
 /* table layout: vertical lines, row heights, a selected range */
 .tablewrap--lines .table th, .tablewrap--lines .table td { border-right: 1px solid var(--line); }

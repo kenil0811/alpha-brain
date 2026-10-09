@@ -1,6 +1,6 @@
 /**
  * A record's own page (the UI rulebook §7): a sticky header (a back link to the collection, a
- * breadcrumb module › collection › record, and ⋯ More: Duplicate, Pin, History, Delete), then one
+ * breadcrumb module › collection › record, and ⋮ More: Duplicate, Pin, History, Delete), then one
  * centred column: the type as a small uppercase eyebrow, a line icon, the title in serif, a card
  * with every field labelled and editable, and below it the person's chosen sections (Notes,
  * Intelligence, Governance).
@@ -17,16 +17,22 @@
  * choice); the first field left with a value adds it (with the defaults and anything else typed),
  * and the address becomes the new record's. (9 Oct, the UI rulebook, record pages.)
  * Forced edits (the rulebook's red marking) are not done: decided with the owner.
+ * Autosave plus a visible control (the owner, 9 Oct: assist and inform rather than assume): a new
+ * or just-edited record shows a small bar with Save (writes whatever a field still holds, then
+ * confirms) and, for a record made in this visit, Cancel (deletes it after a one-line yes, and goes
+ * back). After a save "Saved" shows for a few seconds, then "Last saved 14:32". The header is a
+ * Back button named for the project, then the rest of the trail with no name twice ("← Deals · X").
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Client, JournalEntry, ModuleCard, RecordRow, Relations, TableDesc } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { BackLink } from "../shell/BackLink";
 import type { Surface } from "../shell/Rail";
-import { Breadcrumb, Confirm, IconButton, Notice, PageHeader, SectionCard, Trouble, useContextMenu, type ContextItem } from "../ui";
-import { CopyIcon, DeleteIcon, FileText, HistoryIcon, ICON, MoreHorizontal, PinIcon, UnpinIcon } from "../ui/icons";
+import { Breadcrumb, Button, Confirm, IconButton, Notice, PageHeader, SectionCard, Trouble, useContextMenu, type ContextItem } from "../ui";
+import { CopyIcon, DeleteIcon, FileText, HistoryIcon, ICON, MoreVertical, PinIcon, UnpinIcon } from "../ui/icons";
+import { dedupeCrumbs } from "./crumbs";
 import { openChoices, titleFieldOf, type FieldInfo } from "./fields";
-import { when } from "./format";
+import { timeText, when } from "./format";
 import { isEmpty, RecordField } from "./record/RecordField";
 import { changesFrom, entriesAbout, HistoryDialog, type Change } from "./record/RecordHistory";
 import { GovernanceSection, IntelligenceSection, NotesSection } from "./record/RecordSections";
@@ -64,6 +70,13 @@ export function defaultsFor(fields: FieldInfo[]): Record<string, unknown> {
   return out;
 }
 
+/** Records made in this visit of the window, and when each was made: the page is mounted afresh
+ *  when a new record gets its address, so these outlive the page. */
+const madeHere = new Set<string>();
+const savedAt = new Map<string, number>();
+/** How long "Saved" shows before the bar says when. */
+const SAVED_FOR = 3000;
+
 const same = (a: unknown, b: unknown) => (isEmpty(a) && isEmpty(b)) || JSON.stringify(a) === JSON.stringify(b);
 
 type Loaded = { desc: TableDesc; row: RecordRow | null; relations: Relations };
@@ -94,13 +107,25 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const mounted = useRef(true);
   const keys = useRef({ undo: () => {}, redo: () => {}, flush: () => {} });
+  const here = `${table}/${id}`;
+  const [lastSaved, setLastSaved] = useState<number | null>(() => savedAt.get(here) ?? null);
+  const [now, setNow] = useState(() => Date.now());
+  const [cancelling, setCancelling] = useState(false);
+  // "Saved" for a few seconds after a save, then "Last saved 14:32"
+  useEffect(() => {
+    if (lastSaved === null) return;
+    const left = lastSaved + SAVED_FOR - Date.now();
+    if (left <= 0) return;
+    const timer = window.setTimeout(() => setNow(Date.now()), left);
+    return () => window.clearTimeout(timer);
+  }, [lastSaved]);
 
   useEffect(() => {
     let live = true;
     const load: Promise<Loaded> = isNew
       ? client.module(module).then((d) => {
           const desc = d.tables.find((t) => t.name === table);
-          if (!desc) throw new Error(`There is no collection ${table} in this module.`);
+          if (!desc) throw new Error(`There is no collection ${table} in this project.`);
           return { desc, row: null, relations: {} };
         })
       : client.record(table, id).then((r) => ({ desc: r.table, row: r.record, relations: r.relations }));
@@ -228,6 +253,13 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
           ? await client.editRecord(table, current.id, values, current.revision)
           : await client.addRecord(table, Object.fromEntries(Object.entries({ ...base, ...draftRef.current, ...values }).filter(([, v]) => !isEmpty(v))));
         rowRef.current = next;
+        const at = Date.now();
+        if (!current) {
+          madeHere.add(`${table}/${next.id}`);
+          savedAt.set(`${table}/${next.id}`, at); // the page opens afresh at the new address
+        }
+        setLastSaved(at);
+        setNow(at);
         setLoaded((l) => (l ? { ...l, row: next } : l));
         setDraft((d) => Object.fromEntries(Object.entries(d).filter(([k, v]) => !(k in values && same(v, values[k])))));
         setFieldErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in values))));
@@ -285,6 +317,21 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
     },
   };
 
+  /** Save: whatever a field still holds is written (a new record is made from it), then confirmed. */
+  async function saveNow() {
+    const current = rowRef.current;
+    const held = Object.fromEntries(Object.entries(draftRef.current).filter(([k, v]) => !same(v, (current?.values ?? base)[k])));
+    if (Object.keys(held).length || (!current && Object.values({ ...base, ...draftRef.current }).some((v) => !isEmpty(v)))) {
+      setSteps(null);
+      setUndone(0);
+      await write(held);
+    } else {
+      const at = Date.now();
+      setLastSaved(at);
+      setNow(at);
+    }
+  }
+
   async function duplicate() {
     try {
       const copy = await client.addRecord(table, Object.fromEntries(Object.entries(row!.values).filter(([, v]) => !isEmpty(v))));
@@ -296,14 +343,16 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
   }
   async function remove() {
     try {
-      await client.deleteRecord(table, id, row!.revision);
+      await client.deleteRecord(table, rowRef.current!.id, rowRef.current!.revision);
       rowRef.current = null;
       draftRef.current = {};
       setAsking(false);
+      setCancelling(false);
       onChanged();
       toCollection();
     } catch (e) {
       setAsking(false);
+      setCancelling(false);
       setProblem(`Couldn't delete it: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
@@ -320,19 +369,41 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
     const m = modules.find((x) => x.tables.some((tb) => tb.name === t));
     return m ? () => onGo({ kind: "record", module: m.id, table: t, id: rid }) : null;
   };
+  // "← Deals · Bakery": Back is named for the project; the trail after it never repeats a name.
+  const [first, ...trail] = dedupeCrumbs([{ label: mod?.name ?? collection }, { label: collection, onClick: () => toCollection() }, { label: titleText }]);
+  const made = madeHere.has(here);
+  const held = Object.keys(draft).length > 0;
+  const savedLine = lastSaved === null ? (held ? "Not saved yet" : "") : now - lastSaved < SAVED_FOR ? "Saved" : `Last saved ${timeText(new Date(lastSaved))}`;
   return (
     <>
       <PageHeader
         left={
           <>
-            <BackLink to={collection} onClick={() => toCollection()} />
-            <Breadcrumb items={[{ label: mod?.name ?? "Module", onClick: () => toCollection("summary") }, { label: collection, onClick: () => toCollection() }, { label: titleText }]} />
+            <BackLink to={first.label} onClick={() => toCollection()} />
+            {trail.length ? <span className="crumb__dot" aria-hidden="true">·</span> : null}
+            {trail.length ? <Breadcrumb items={trail} /> : null}
           </>
         }
-        right={<IconButton label="More" icon={<MoreHorizontal />} onClick={(e) => openFrom(undefined, e.currentTarget)} />}
+        right={<IconButton label="More" icon={<MoreVertical />} onClick={(e) => openFrom(undefined, e.currentTarget)} />}
       />
       {menu}
       <div className="page page--record">
+        {isNew || made || held || lastSaved !== null ? (
+          <div className="savebar" role="region" aria-label="Saving">
+            <span className="faint" role="status">
+              {savedLine}
+            </span>
+            <span className="spacer" />
+            {isNew || made ? (
+              <Button size="sm" variant="ghost" onClick={() => (rowRef.current ? setCancelling(true) : toCollection())}>
+                Cancel
+              </Button>
+            ) : null}
+            <Button size="sm" variant="primary" disabledReason={!row && !held ? saveFirst : undefined} onClick={() => void saveNow()}>
+              Save
+            </Button>
+          </div>
+        ) : null}
         <div className="record">
           <div className="rechead">
             <span className="rechead__tile" aria-hidden="true">
@@ -374,6 +445,9 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
         </div>
       </div>
       <HistoryDialog open={historyOpen} onClose={() => setHistoryOpen(false)} changes={changes} fields={fields} undone={list.slice(0, undone).map((c) => c.id)} canUndo={canUndo} canRedo={canRedo} onUndo={() => void undo()} onRedo={() => void redo()} />
+      <Confirm open={cancelling} title="Cancel this new record?" action="Delete it" onConfirm={() => void remove()} onCancel={() => setCancelling(false)}>
+        It was made in this visit; it is deleted and you go back to {collection}.
+      </Confirm>
       <Confirm open={asking} title={`Delete ${titleText}?`} action="Delete" onConfirm={() => void remove()} onCancel={() => setAsking(false)}>
         It leaves {collection}. Activity keeps that it was here and what it held, but the window cannot bring it back.
       </Confirm>

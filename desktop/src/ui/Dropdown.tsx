@@ -1,7 +1,9 @@
 import * as RadixPopover from "@radix-ui/react-popover";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { Check, ChevronDown, PlusIcon, Star } from "./icons";
+import { useAssistant } from "./assistant";
+import { Button } from "./Button";
+import { ChevronDown, PlusIcon, Star } from "./icons";
 
 export interface DropdownOption<T extends string = string> {
   value: T;
@@ -12,41 +14,13 @@ export interface DropdownOption<T extends string = string> {
   disabled?: string;
 }
 
-/** More options than this and the list gets a search box (the UI rulebook §14). */
-const SEARCH_ABOVE = 7;
-
-/** The one standard single-select, in place of the browser's native `<select>` (the UI rulebook
- *  §14 and §17): the selected option comes first, marked with a check; a search box above
- *  seven options; about five rows show and the list scrolls; an optional "Add…" row is pinned at
- *  the bottom. From the keyboard: arrows move, Enter picks, Escape closes, typing searches (a
- *  box when there is one, otherwise a jump to the option that starts with what was typed).
- *  Built on a Radix popover, so it stays inside the window. (9 Oct, the UI rulebook phase 1.)
- *  Star defaults (§14): given `onSetDefault`, every option carries a star; a filled one marks the
- *  person's default, an outline one (shown on hover or focus) makes that option the default
- *  without choosing it. The stars are buttons, so Tab reaches them. */
-export function Dropdown<T extends string = string>({
-  value,
-  options,
-  onChange,
-  label,
-  placeholder = "Choose…",
-  onAdd,
-  addLabel = "Add…",
-  size = "md",
-  className,
-  id,
-  defaultOpen,
-  onOpenChange,
-  icon,
-  defaultValue,
-  onSetDefault,
-}: {
-  value: T;
+/** What the single and the multiple dropdown share. */
+interface DropdownBase<T extends string> {
   options: DropdownOption<T>[];
-  onChange: (value: T) => void;
-  /** What this chooses, for assistive technology ("Group by"). */
+  /** What this chooses, for assistive technology ("Group by"), and the context of "Add new…". */
   label: string;
   placeholder?: string;
+  /** Adds an option the caller's own way; without it "Add new…" asks the assistant. */
   onAdd?: () => void;
   addLabel?: string;
   size?: "md" | "sm";
@@ -58,27 +32,87 @@ export function Dropdown<T extends string = string>({
   /** An icon before the value in the trigger (the data view's view picker, which shows only
    *  this when the toolbar is narrow). */
   icon?: ReactNode;
-  /** The person's default option, marked with a filled star when `onSetDefault` is given. */
+  /** The person's default option, when the caller keeps it (with `onSetDefault`). */
   defaultValue?: string;
-  /** Makes an option the default (the star); it does not choose the option. */
+  /** Makes an option the default (the star); it does not choose the option. Without it the
+   *  dropdown keeps the default itself, under `defaultKey` (else `label`): see `useDropdownDefault`. */
   onSetDefault?: (value: T) => void;
-}) {
+  defaultKey?: string;
+}
+
+const STORE = "alpha.default.";
+const heard = new Set<() => void>();
+function storeDefault(key: string, value: string) {
+  localStorage.setItem(STORE + key, value);
+  for (const hear of heard) hear();
+}
+const listen = (hear: () => void) => {
+  heard.add(hear);
+  return () => void heard.delete(hear);
+};
+
+/** The default a dropdown keeps itself (the star, when its caller passes no `onSetDefault`), for
+ *  the caller to start from: `useDropdownDefault(label) ?? "table"`. Every reader hears a change. */
+export function useDropdownDefault(key: string, fallback?: string): string | undefined {
+  return useSyncExternalStore(listen, () => localStorage.getItem(STORE + key) ?? fallback);
+}
+
+/** The one standard single-select, in place of the browser's native `<select>` (the UI rulebook
+ *  §14 and §17, as Vikas decided on 9 Oct): a search box at the top, always; the selected option
+ *  first, shown by a highlighted row (no tick); about five rows show and the list scrolls; a star
+ *  on each option, ★ filled on the person's default, ☆ on hover or focus to make one the default
+ *  without choosing it; "Add new…" pinned at the bottom. From the keyboard: arrows move, Enter
+ *  picks, Escape closes, typing searches. Built on a Radix popover, so it stays inside the window. */
+export function Dropdown<T extends string = string>({ value, onChange, ...rest }: DropdownBase<T> & { value: T; onChange: (value: T) => void }) {
+  return <DropdownCore {...rest} values={[value]} onPick={(v) => onChange(v)} />;
+}
+
+/** The same, choosing several: every chosen option is highlighted, a click toggles one and the
+ *  list stays open; the trigger reads the chosen labels, or "3 selected". */
+export function MultiDropdown<T extends string = string>({ values, onChange, ...rest }: DropdownBase<T> & { values: T[]; onChange: (values: T[]) => void }) {
+  return <DropdownCore {...rest} multiple values={values} onPick={(v) => onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v])} />;
+}
+
+function DropdownCore<T extends string>({
+  values,
+  onPick,
+  multiple,
+  options,
+  label,
+  placeholder = "Choose…",
+  onAdd,
+  addLabel = "Add new…",
+  size = "md",
+  className,
+  id,
+  defaultOpen,
+  onOpenChange,
+  icon,
+  defaultValue,
+  onSetDefault,
+  defaultKey,
+}: DropdownBase<T> & { values: T[]; onPick: (value: T) => void; multiple?: boolean }) {
   const [open, setOpenState] = useState(Boolean(defaultOpen));
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  const typed = useRef({ text: "", at: 0 });
+  const [adding, setAdding] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const uid = useId();
-  const searchable = options.length > SEARCH_ABOVE;
-  const selected = options.find((o) => o.value === value);
+  const assistant = useAssistant();
+  const storeKey = defaultKey ?? label;
+  const stored = useDropdownDefault(storeKey);
+  const theDefault = onSetDefault ? defaultValue : stored;
+  const setDefault = onSetDefault ?? ((v: T) => storeDefault(storeKey, v));
+  const chosen = options.filter((o) => values.includes(o.value));
 
   const shown = useMemo(() => {
-    const ordered = selected ? [selected, ...options.filter((o) => o !== selected)] : options;
+    // one choice comes first; several stay where they are, so a toggle does not move the row
+    const first = multiple ? undefined : options.find((o) => values.includes(o.value));
+    const ordered = first ? [first, ...options.filter((o) => o !== first)] : options;
     const q = query.trim().toLowerCase();
     return q ? ordered.filter((o) => o.label.toLowerCase().includes(q)) : ordered;
-  }, [options, selected, query]);
-  const rows = shown.length + (onAdd ? 1 : 0);
+  }, [options, values, multiple, query]);
+  const rows = shown.length + 1; // the options, then "Add new…"
   const optionId = (i: number) => `${uid}-o${i}`;
 
   const setOpen = (next: boolean) => {
@@ -86,39 +120,39 @@ export function Dropdown<T extends string = string>({
     if (next) {
       setQuery("");
       setActive(0);
+      setAdding(null);
     }
     onOpenChange?.(next);
   };
   const pick = (option: DropdownOption<T>) => {
     if (option.disabled) return;
-    onChange(option.value);
-    setOpen(false);
+    onPick(option.value);
+    if (!multiple) setOpen(false);
   };
   const add = () => {
+    if (!onAdd) return setAdding("");
     setOpen(false);
-    onAdd?.();
+    onAdd();
+  };
+  const send = () => {
+    if (!assistant || !adding?.trim()) return;
+    assistant.say(`In "${label}", add: ${adding.trim()}`);
+    setOpen(false);
   };
 
   useEffect(() => {
-    if (open) document.getElementById(optionId(active))?.scrollIntoView?.({ block: "nearest" });
+    if (open && adding === null) document.getElementById(optionId(active))?.scrollIntoView?.({ block: "nearest" });
   });
 
   const move = (to: number) => setActive(Math.max(0, Math.min(rows - 1, to)));
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation(); // a row or a cell behind this must not hear the keys
-    if ((e.target as HTMLElement).closest?.(".dropdown__star")) return; // a star hears its own Enter and Space
+    if (adding !== null || (e.target as HTMLElement).closest?.(".dropdown__star")) return; // the add box and a star hear their own keys
     if (e.key === "ArrowDown") move(active + 1);
     else if (e.key === "ArrowUp") move(active - 1);
-    else if (e.key === "Home") move(0);
-    else if (e.key === "End") move(rows - 1);
-    else if (e.key === "Enter" || (e.key === " " && !searchable && !typed.current.text)) {
+    else if (e.key === "Enter") {
       if (active < shown.length) pick(shown[active]);
-      else if (onAdd && rows) add();
-    } else if (!searchable && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const now = Date.now();
-      typed.current = { text: (now - typed.current.at < 700 ? typed.current.text : "") + e.key.toLowerCase(), at: now };
-      const hit = shown.findIndex((o) => o.label.toLowerCase().startsWith(typed.current.text));
-      if (hit >= 0) setActive(hit);
+      else add();
     } else return;
     e.preventDefault();
   };
@@ -126,7 +160,7 @@ export function Dropdown<T extends string = string>({
   const current = active < shown.length ? shown[active] : undefined;
   const valueId = `${uid}-value`;
   const listId = `${uid}-list`;
-  const activeId = rows ? optionId(active) : undefined;
+  const shownValue = chosen.length > 2 ? `${chosen.length} selected` : chosen.map((o) => o.label).join(", ");
   return (
     <RadixPopover.Root open={open} onOpenChange={setOpen}>
       <RadixPopover.Trigger asChild>
@@ -136,8 +170,8 @@ export function Dropdown<T extends string = string>({
               {icon}
             </span>
           ) : null}
-          <span id={valueId} className={`dropdown__value${selected ? "" : " dropdown__value--placeholder"}`}>
-            {selected ? selected.label : placeholder}
+          <span id={valueId} className={`dropdown__value${chosen.length ? "" : " dropdown__value--placeholder"}`}>
+            {shownValue || placeholder}
           </span>
           <span className="dropdown__chev" aria-hidden="true">
             <ChevronDown />
@@ -153,84 +187,93 @@ export function Dropdown<T extends string = string>({
           onKeyDown={onKeyDown}
           onOpenAutoFocus={(e) => {
             e.preventDefault();
-            (searchRef.current ?? listRef.current)?.focus();
+            searchRef.current?.focus();
           }}
         >
-          {searchable ? (
-            <input
-              ref={searchRef}
-              className="dropdown__search"
-              role="combobox"
-              aria-expanded="true"
-              aria-controls={listId}
-              aria-activedescendant={activeId}
-              aria-label={`Search ${label}`}
-              placeholder="Search…"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setActive(0);
-              }}
-            />
-          ) : null}
-          <div ref={listRef} id={listId} className="dropdown__list" role="listbox" aria-label={label} tabIndex={-1} aria-activedescendant={searchable ? undefined : activeId}>
-            {shown.map((o, i) => (
-              <div
-                key={o.value}
-                id={optionId(i)}
-                role="option"
-                aria-selected={o === selected}
-                aria-disabled={o.disabled ? true : undefined}
-                data-active={i === active ? "" : undefined}
-                className="dropdown__opt"
-                onMouseMove={() => active !== i && setActive(i)}
-                onClick={() => pick(o)}
-              >
-                <span className="dropdown__check" aria-hidden="true">
-                  {o === selected ? <Check /> : null}
-                </span>
-                {o.icon ? (
-                  <span className="dropdown__ico" aria-hidden="true">
-                    {o.icon}
-                  </span>
-                ) : null}
-                <span className="dropdown__label">{o.label}</span>
-                {onSetDefault ? (
-                  o.value === defaultValue ? (
-                    <span className="dropdown__star" data-on="" role="img" aria-label={`${o.label} is the default`}>
-                      <Star fill="currentColor" aria-hidden="true" />
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="dropdown__star"
-                      aria-label={`Make ${o.label} the default`}
-                      title={o.disabled ? o.disabled : `Make ${o.label} the default`}
-                      disabled={Boolean(o.disabled)}
-                      onClick={(e) => {
-                        e.stopPropagation(); // the star sets the default; it does not choose
-                        onSetDefault(o.value);
-                      }}
-                    >
-                      <Star aria-hidden="true" />
-                    </button>
-                  )
-                ) : null}
-              </div>
-            ))}
-            {!shown.length ? <div className="dropdown__none">No match</div> : null}
-          </div>
-          {current?.disabled ? (
-            <div className="dropdown__hint" role="status">
-              {current.disabled}
+          {adding !== null ? (
+            <div className="dropdown__ask">
+              <textarea
+                autoFocus
+                className="dropdown__askbox"
+                aria-label="Describe what you'd like to add"
+                placeholder="Describe what you'd like to add"
+                value={adding}
+                onChange={(e) => setAdding(e.target.value)}
+              />
+              <Button variant="primary" size="sm" onClick={send} disabled={!adding.trim()} disabledReason={assistant ? undefined : "The assistant isn't reachable here."}>
+                Send
+              </Button>
             </div>
-          ) : null}
-          {onAdd ? (
-            <button type="button" id={optionId(shown.length)} className="dropdown__add" data-active={active === shown.length ? "" : undefined} tabIndex={-1} onMouseMove={() => active !== shown.length && setActive(shown.length)} onClick={add}>
-              <PlusIcon aria-hidden="true" />
-              {addLabel}
-            </button>
-          ) : null}
+          ) : (
+            <>
+              <input
+                ref={searchRef}
+                className="dropdown__search"
+                role="combobox"
+                aria-expanded="true"
+                aria-controls={listId}
+                aria-activedescendant={optionId(active)}
+                aria-label={`Search ${label}`}
+                placeholder="Search…"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                }}
+              />
+              <div id={listId} className="dropdown__list" role="listbox" aria-label={label} aria-multiselectable={multiple || undefined} tabIndex={-1}>
+                {shown.map((o, i) => (
+                  <div
+                    key={o.value}
+                    id={optionId(i)}
+                    role="option"
+                    aria-selected={values.includes(o.value)}
+                    aria-disabled={o.disabled ? true : undefined}
+                    data-active={i === active ? "" : undefined}
+                    className="dropdown__opt"
+                    onMouseMove={() => active !== i && setActive(i)}
+                    onClick={() => pick(o)}
+                  >
+                    {o.icon ? (
+                      <span className="dropdown__ico" aria-hidden="true">
+                        {o.icon}
+                      </span>
+                    ) : null}
+                    <span className="dropdown__label">{o.label}</span>
+                    {o.value === theDefault ? (
+                      <span className="dropdown__star" data-on="" role="img" aria-label={`${o.label} is the default`}>
+                        <Star fill="currentColor" aria-hidden="true" />
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="dropdown__star"
+                        aria-label={`Make ${o.label} the default`}
+                        title={o.disabled ? o.disabled : `Make ${o.label} the default`}
+                        disabled={Boolean(o.disabled)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // the star sets the default; it does not choose
+                          setDefault(o.value);
+                        }}
+                      >
+                        <Star aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {!shown.length ? <div className="dropdown__none">No match</div> : null}
+              </div>
+              {current?.disabled ? (
+                <div className="dropdown__hint" role="status">
+                  {current.disabled}
+                </div>
+              ) : null}
+              <button type="button" id={optionId(shown.length)} className="dropdown__add" data-active={active === shown.length ? "" : undefined} tabIndex={-1} onMouseMove={() => active !== shown.length && setActive(shown.length)} onClick={add}>
+                <PlusIcon aria-hidden="true" />
+                {addLabel}
+              </button>
+            </>
+          )}
         </RadixPopover.Content>
       </RadixPopover.Portal>
     </RadixPopover.Root>

@@ -26,6 +26,7 @@ function setup(opts: { turns?: JournalEntry[]; plans?: Plan[]; actions?: Action[
     stopTurn: vi.fn(),
     addFiles: vi.fn(),
     preference: vi.fn(async (key: string) => ({ key, value: null })),
+    activity: vi.fn(async () => []),
   } as unknown as Client;
   const onOpen = vi.fn();
   render(
@@ -38,10 +39,22 @@ function setup(opts: { turns?: JournalEntry[]; plans?: Plan[]; actions?: Action[
 const box = () => screen.getByRole("textbox", { name: "Message Alpha" });
 
 describe("the assistant panel", () => {
-  it("folded, it is a strip with Alpha's avatar that opens the panel", async () => {
+  it("folded, it is a strip with Alpha's avatar, labelled Alpha, that opens the panel, and the bell below it", async () => {
     const { onOpen } = setup({ open: false });
+    expect(screen.getByRole("button", { name: "Open the assistant" })).toHaveTextContent("Alpha");
+    expect(screen.getByRole("button", { name: "Activity" })).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole("button", { name: "Open the assistant" }));
     expect(onOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("has the Activity bell at the header's right end; it opens Activity", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    const bell = screen.getByRole("button", { name: "Activity" });
+    expect(bell.closest(".pagehead")).not.toBeNull();
+    await user.click(bell);
+    expect(await screen.findByRole("textbox", { name: "Search activity" })).toBeInTheDocument();
+    await waitFor(() => expect(client.activity).toHaveBeenCalled());
   });
 
   it("Enter sends and Shift+Enter adds a line", async () => {

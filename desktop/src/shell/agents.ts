@@ -29,7 +29,7 @@ export function agentsFrom(data: Pick<Intelligence, "skills" | "automations" | "
     automations: data.automations.filter((a) => !a.module),
   };
   const per = runners.map((m): Agent => {
-    const name = modules[m] ?? "A module";
+    const name = modules[m] ?? "A project";
     const automations = data.automations.filter((a) => a.module === m);
     return {
       id: m,

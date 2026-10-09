@@ -1,19 +1,19 @@
 /**
- * The data view's toolbar (9 Oct, the owner's Notion parity pass): one row that never wraps. On
- * the left, the views as tabs (All and each saved list, Notion's view tabs) with "+" to add one,
- * then Filter, Sort and Search (a magnifier that opens a box). On the right: at most one primary
- * action (Upload, when files are what the collection is about) and ⋯, the view's settings. A
- * tab's menu (click the open tab, or right-click any) renames, edits, duplicates, deletes it or
- * makes it the one the collection opens on; tabs drag into order. When the window is narrow the
- * labels become icons.
+ * The data view's toolbar (9 Oct, the owner's decisions): one row that never wraps. On the left,
+ * the list picker (All and each saved list, a standard dropdown with ★ for the list the collection
+ * opens on and Add list at the bottom), the View button (the view type's icon and name, which
+ * opens the view types), then Search (a magnifier that opens a box). Right-aligned: Filter, the
+ * frequent actions (Upload when the collection has a file field; the numbers' show arrow when they
+ * are folded), and ⋮ at the far right, which holds Sort, the view's settings, the list's own
+ * actions and Download. A right-click on the list picker gives the list's actions too. When the
+ * window is narrow the labels become icons.
  */
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { UploadIcon as Upload } from "../ui/icons";
-import { Badge, Button, IconButton, Popover, useContextMenu, type ContextItem } from "../ui";
-import { BoardIcon, Calendar, ChartIcon, CopyIcon, DashboardIcon, DeleteIcon, EditIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, Link2, ListIcon, MoreHorizontal, PlusIcon, RenameIcon, SearchIcon, SortIcon, Star, Table2, TimelineIcon } from "../ui/icons";
+import { Badge, Button, Dropdown, IconButton, Popover, useContextMenu, type ContextItem } from "../ui";
+import { BoardIcon, Calendar, ChartIcon, ChevronDown, CopyIcon, DashboardIcon, DeleteIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, Link2, ListIcon, MoreVertical, PlusIcon, RenameIcon, SearchIcon, Star, Table2, TimelineIcon } from "../ui/icons";
 import type { FieldInfo } from "./fields";
-import { fieldLabel, SortEditor } from "./FilterUI";
-import type { Sort } from "./views/engine";
+import { fieldLabel } from "./FilterUI";
 
 export type PageView = "table" | "list" | "board" | "calendar" | "timeline" | "gallery" | "chart" | "form" | "dashboard";
 
@@ -62,16 +62,17 @@ export interface ViewTab {
 }
 export interface TabActions {
   onTab: (id: string) => void;
-  /** "+": add a view of this type; absent, "+" stays disabled with `listsReason`. */
-  onAdd?: (view: PageView) => void;
+  /** "Add list"; absent, the dropdown's "Add new…" asks Alpha (`listsReason` says why). */
+  onAddList?: () => void;
   listsReason?: string;
+  /** The open list's view type, and changing it. */
+  view: PageView;
+  onView: (view: PageView) => void;
   viewReasons: Partial<Record<PageView, string>>;
   rename: (id: string) => void;
-  edit: (id: string) => void;
   duplicate: (id: string) => void;
   remove: (id: string) => void;
   setDefault: (id: string) => void;
-  reorder: (from: string, to: string) => void;
 }
 
 /** The Filter button's panel: pick a property to add a rule for it, or open the advanced filter;
@@ -109,52 +110,46 @@ export function PropertyPicker({ fields, onPick, label }: { fields: FieldInfo[];
   );
 }
 
-function ViewTabs({ tabs, active, a }: { tabs: ViewTab[]; active: string; a: TabActions }) {
-  const dragging = useRef<string | null>(null);
-  const menu = useContextMenu<ViewTab>((t): ContextItem[] => {
-    const all = t.id === "all";
-    return [
-      { label: "Rename", icon: <RenameIcon size={ICON_SM} />, onSelect: () => a.rename(t.id), disabled: all ? "All shows every record; add a view to name one." : a.listsReason },
-      { label: "Edit view", icon: <EditIcon size={ICON_SM} />, onSelect: () => a.edit(t.id) },
-      { label: "Duplicate view", icon: <CopyIcon size={ICON_SM} />, onSelect: () => a.duplicate(t.id), disabled: a.listsReason },
-      { label: "Copy link to view", icon: <Link2 size={ICON_SM} />, onSelect: () => undefined, disabled: "Views have no address of their own yet." },
-      { label: "Set as default", icon: <Star size={ICON_SM} />, onSelect: () => a.setDefault(t.id), disabled: all ? "All opens when no view is the default." : t.isDefault ? "It already opens on this view." : a.listsReason },
-      { label: "Delete view", icon: <DeleteIcon size={ICON_SM} />, danger: true, separatorBefore: true, onSelect: () => a.remove(t.id), disabled: all ? "All can't be deleted." : a.listsReason },
-    ];
-  });
-  const add = useContextMenu<void>(() => VIEWS.map((v) => ({ label: v.label, icon: v.icon, onSelect: () => a.onAdd?.(v.id), disabled: a.viewReasons[v.id] })));
+/** A list's own actions: in ⋮ for the open list, and on a right-click of the list picker. */
+export function listActions(t: ViewTab, a: TabActions): ContextItem[] {
+  const all = t.id === "all";
+  return [
+    { label: "Rename list", icon: <RenameIcon size={ICON_SM} />, onSelect: () => a.rename(t.id), disabled: all ? "All shows every record; add a list to name one." : a.listsReason },
+    { label: "Duplicate list", icon: <CopyIcon size={ICON_SM} />, onSelect: () => a.duplicate(t.id), disabled: a.listsReason },
+    { label: "Copy link to list", icon: <Link2 size={ICON_SM} />, onSelect: () => undefined, disabled: "Lists have no address of their own yet." },
+    { label: "Open on this list", icon: <Star size={ICON_SM} />, onSelect: () => a.setDefault(t.id), disabled: all ? "All opens when no list is the default." : t.isDefault ? "It already opens on this list." : a.listsReason },
+    { label: "Delete list", icon: <DeleteIcon size={ICON_SM} />, danger: true, separatorBefore: true, onSelect: () => a.remove(t.id), disabled: all ? "All can't be deleted." : a.listsReason },
+  ];
+}
+
+/** The list picker (the standard dropdown: search, ★ the list it opens on, Add list) and the View
+ *  button beside it (the current view type's icon and name, which opens the view types). */
+function ListAndView({ tabs, active, a }: { tabs: ViewTab[]; active: string; a: TabActions }) {
+  const menu = useContextMenu<ViewTab>((t) => listActions(t, a));
+  const current = tabs.find((t) => t.id === active) ?? tabs[0];
+  const view = VIEWS.find((v) => v.id === a.view) ?? VIEWS[0];
   return (
-    <div className="vtabs" role="tablist" aria-label="Views">
-      {tabs.map((t) => {
-        const icon = VIEWS.find((v) => v.id === t.view)?.icon;
-        return (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            className="vtab"
-            aria-selected={t.id === active}
-            draggable={t.id !== "all"}
-            onDragStart={() => { dragging.current = t.id; }}
-            onDragOver={(e) => { if (dragging.current && dragging.current !== t.id && t.id !== "all") e.preventDefault(); }}
-            onDrop={() => { if (dragging.current) a.reorder(dragging.current, t.id); dragging.current = null; }}
-            onClick={(e) => (t.id === active ? menu.openFrom(t, e.currentTarget) : a.onTab(t.id))}
-            {...menu.bind(t)}
-          >
-            <span className="vtab__ico" aria-hidden="true">{icon}</span>
-            <span className="vtab__label">{t.title}</span>
-            {t.isDefault ? <Star size={12} aria-label="Opens on this view" /> : null}
-          </button>
-        );
-      })}
-      <IconButton size="sm" label="Add a view" icon={<PlusIcon size={ICON_SM} />} disabledReason={a.onAdd ? undefined : a.listsReason} onClick={(e) => add.openFrom(undefined, e.currentTarget)} />
+    <>
+      <span className="tb__lists" {...menu.bind(current)}>
+        <Dropdown
+          size="sm"
+          label="List"
+          value={active}
+          onChange={a.onTab}
+          options={tabs.map((t) => ({ value: t.id, label: t.title }))}
+          defaultValue={tabs.find((t) => t.isDefault)?.id ?? "all"}
+          onSetDefault={(id) => (id === "all" ? undefined : a.setDefault(id))}
+          onAdd={a.onAddList}
+          addLabel="Add list"
+        />
+      </span>
+      <Dropdown size="sm" label="View" defaultKey="data.view" icon={view.icon} value={view.id} onChange={a.onView} options={VIEWS.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: a.viewReasons[v.id] }))} />
       {menu.menu}
-      {add.menu}
-    </div>
+    </>
   );
 }
 
-export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, fields, sorts, onSorts, sortOpen, onSortOpen, uploadFirst, onUpload, uploadReason, settings, settingsOpen, onSettingsOpen }: {
+export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, onShowNumbers, settings, settingsOpen, onSettingsOpen }: {
   tabs: ViewTab[];
   activeTab: string;
   tabActions: TabActions;
@@ -163,17 +158,14 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   searchable: boolean;
   tableTitle: string;
   filter: FilterState;
-  fields: FieldInfo[];
-  sorts: Sort[];
-  onSorts: (s: Sort[]) => void;
-  sortOpen: boolean;
-  onSortOpen: (open: boolean) => void;
-  /** Files are what this collection is about (it has a file field): Upload is the primary action
-   *  beside ⋯ rather than inside it. */
+  /** Files are what this collection is about (it has a file field): Upload is an action in the
+   *  right group rather than inside ⋮. */
   uploadFirst: boolean;
   onUpload?: () => void;
   uploadReason?: string;
-  /** The ⋯ panel's content (the view's settings). */
+  /** The numbers are folded: their show arrow sits here, just left of ⋮. */
+  onShowNumbers?: () => void;
+  /** The ⋮ panel's content (the view's settings). */
   settings: ReactNode;
   settingsOpen: boolean;
   onSettingsOpen: (open: boolean) => void;
@@ -184,8 +176,27 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   const f = filter;
   return (
     <div className={`toolbar toolbar--page${icons ? " toolbar--icons" : ""}`} ref={bar}>
-      <ViewTabs tabs={tabs} active={activeTab} a={tabActions} />
-      <Popover label="Filter" align="start" open={f.open} onOpenChange={f.onOpenChange} trigger={
+      <ListAndView tabs={tabs} active={activeTab} a={tabActions} />
+      {searchable ? (
+        searching || search ? (
+          <div className="search search--open">
+            <SearchIcon size={ICON_SM} aria-hidden="true" />
+            <input
+              autoFocus={searching}
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+              onBlur={() => setSearching(false)}
+              onKeyDown={(e) => { if (e.key === "Escape") { onSearch(""); setSearching(false); } }}
+              placeholder={`Search ${tableTitle.toLowerCase()}`}
+              aria-label="Search"
+            />
+          </div>
+        ) : (
+          <IconButton size="sm" label="Search" icon={<SearchIcon size={ICON_SM} />} onClick={() => setSearching(true)} />
+        )
+      ) : null}
+      <span className="spacer" />
+      <Popover label="Filter" align="end" open={f.open} onOpenChange={f.onOpenChange} trigger={
         <Button size="sm" variant="ghost" icon={<FilterIcon size={ICON_SM} />} aria-label="Filter">
           <span className="tb__label">Filter</span>
           {f.active ? <Badge tone="info">{f.active}</Badge> : null}
@@ -209,39 +220,13 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
           ) : null}
         </div>}
       </Popover>
-      <Popover label="Sort" align="start" open={sortOpen} onOpenChange={onSortOpen} trigger={
-        <Button size="sm" variant="ghost" icon={<SortIcon size={ICON_SM} />} aria-label="Sort">
-          <span className="tb__label">Sort</span>
-          {sorts.length ? <Badge tone="info">{sorts.length}</Badge> : null}
-        </Button>
-      }>
-        {sorts.length ? <SortEditor fields={fields} sorts={sorts} onChange={onSorts} /> : <PropertyPicker label="Sort by" fields={fields} onPick={(x) => onSorts([{ field: x.name, direction: "asc" }])} />}
-      </Popover>
-      {searchable ? (
-        searching || search ? (
-          <div className="search search--open">
-            <SearchIcon size={ICON_SM} aria-hidden="true" />
-            <input
-              autoFocus={searching}
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              onBlur={() => setSearching(false)}
-              onKeyDown={(e) => { if (e.key === "Escape") { onSearch(""); setSearching(false); } }}
-              placeholder={`Search ${tableTitle.toLowerCase()}`}
-              aria-label="Search"
-            />
-          </div>
-        ) : (
-          <IconButton size="sm" label="Search" icon={<SearchIcon size={ICON_SM} />} onClick={() => setSearching(true)} />
-        )
-      ) : null}
-      <span className="spacer" />
       {uploadFirst ? (
         <Button size="sm" variant="primary" icon={<Upload size={ICON_SM} />} aria-label="Upload" disabledReason={onUpload ? undefined : uploadReason} onClick={onUpload}>
           <span className="tb__label">Upload</span>
         </Button>
       ) : null}
-      <Popover label="View settings" open={settingsOpen} onOpenChange={onSettingsOpen} trigger={<IconButton label="More" icon={<MoreHorizontal />} />}>
+      {onShowNumbers ? <IconButton size="sm" label="Show the numbers" icon={<ChevronDown size={ICON_SM} />} onClick={onShowNumbers} /> : null}
+      <Popover label="View settings" open={settingsOpen} onOpenChange={onSettingsOpen} trigger={<IconButton label="More" icon={<MoreVertical />} />}>
         {settings}
       </Popover>
     </div>

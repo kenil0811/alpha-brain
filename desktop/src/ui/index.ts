@@ -1,3 +1,4 @@
+import "../styles/kit.css";
 export { Button } from "./Button";
 export { IconButton } from "./IconButton";
 export { Badge, type Tone } from "./Badge";
@@ -6,7 +7,8 @@ export { HeaderSwitch, type HeaderSwitchItem } from "./HeaderSwitch";
 export { PageHeader, Breadcrumb, type Crumb } from "./PageHeader";
 export { Menu, MenuHeading, MenuItem } from "./Menu";
 export { ContextMenu, useContextMenu, type ContextItem } from "./ContextMenu";
-export { Dropdown, type DropdownOption } from "./Dropdown";
+export { Dropdown, MultiDropdown, useDropdownDefault, type DropdownOption } from "./Dropdown";
+export { AssistantContext, AssistantProvider, useAssistant } from "./assistant";
 export { Popover } from "./Popover";
 export { Dialog } from "./Dialog";
 export { Tooltip, TooltipProvider, InfoTip } from "./Tooltip";

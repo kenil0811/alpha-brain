@@ -31,7 +31,7 @@ export function automationsSource(client: Client, modules: Record<string, string
       { name: "last_run", kind: "datetime", label: "Last run" },
       { name: "next_run", kind: "datetime", label: "Next run" },
       { name: "result", kind: "status", label: "Last result", choices: ["Running", "Worked", "Didn't work", "Not run yet"], done_choices: ["Worked"] },
-      { name: "module", kind: "text", label: "Module" },
+      { name: "module", kind: "text", label: "Project" },
     ],
     rows: async () =>
       (await client.intelligence()).automations.map((a) =>

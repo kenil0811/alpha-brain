@@ -2,26 +2,30 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { ChevronRight } from "./icons";
 import { Tooltip } from "./Tooltip";
 
 export interface ContextItem {
   label: string;
   icon?: ReactNode;
-  onSelect: () => void;
+  /** What it does; an item with `children` opens them instead. */
+  onSelect?: () => void;
+  /** A submenu ("Download ›" CSV, Excel…), opened by hover, a click or ArrowRight. */
+  children?: ContextItem[];
   /** The reason it cannot be done now; the item stays visible, greyed, and says why on hover. */
   disabled?: string;
   danger?: boolean;
   separatorBefore?: boolean;
 }
 
-/** One menu for a right-click and for a ⋯ button (the UI rulebook §6 and §14). It opens at a
- *  point: the pointer for a right-click, under the button for ⋯, beside the focused element for
+/** One menu for a right-click and for a ⋮ button (the UI rulebook §6 and §14). It opens at a
+ *  point: the pointer for a right-click, under the button for ⋮, beside the focused element for
  *  Shift+F10 or the ContextMenu key. Built on the Radix dropdown menu, so Escape and a click
  *  outside close it, the arrow keys move, and it stays inside the window.
  *
  *  `useContextMenu(items)` gives `bind(target)` (spread on the row, cell or header) and `menu`
- *  (render it anywhere; it draws nothing until open), plus `openFrom(target, element)` for a ⋯
- *  button. `items` may be a function of the target, so one menu serves every row of a table.
+ *  (render it anywhere; it draws nothing until open), plus `openFrom(target, element)` for a ⋮
+ *  button. An item with `children` is a submenu. `items` may be a function of the target, so one menu serves every row of a table.
  *  (9 Oct, the UI rulebook phase 1.) */
 export function useContextMenu<T = void>(items: ContextItem[] | ((target: T) => ContextItem[])) {
   const [at, setAt] = useState<{ x: number; y: number; target: T } | null>(null);
@@ -91,6 +95,33 @@ export function useContextMenu<T = void>(items: ContextItem[] | ((target: T) => 
 }
 
 function ContextRow({ item }: { item: ContextItem }) {
+  if (item.children && !item.disabled) {
+    return (
+      <>
+        {item.separatorBefore ? <DropdownMenu.Separator className="menu__sep" /> : null}
+        <DropdownMenu.Sub>
+          <DropdownMenu.SubTrigger className="menu__item menu__item--sub">
+            {item.icon ? (
+              <span className="menu__ico" aria-hidden="true">
+                {item.icon}
+              </span>
+            ) : null}
+            {item.label}
+            <span className="menu__ico menu__chev" aria-hidden="true">
+              <ChevronRight />
+            </span>
+          </DropdownMenu.SubTrigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.SubContent className="menu__list" sideOffset={2} collisionPadding={8}>
+              {item.children.map((child, i) => (
+                <ContextRow key={`${i}-${child.label}`} item={child} />
+              ))}
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Sub>
+      </>
+    );
+  }
   const row = (
     <DropdownMenu.Item className={`menu__item${item.danger ? " menu__item--danger" : ""}`} disabled={Boolean(item.disabled)} onSelect={item.onSelect}>
       {item.icon ? (
