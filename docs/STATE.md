@@ -32,19 +32,19 @@ fact origins, the module's page and the item pages
 of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
 contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
 
-## Numbers (`just stats`, 9 Oct morning)
+## Numbers (`just stats`, 9 Oct, 10:10)
 
 | | |
 |---|---|
-| Core tests | 223, in about 18 s; ruff and mypy strict clean |
-| Desktop tests | 80, in twenty-two files; typecheck and `cargo check` clean |
+| Core tests | 229, in about 17 s; ruff and mypy strict clean |
+| Desktop tests | 82, in twenty-four files; typecheck and `cargo check` clean |
 | Tools the model sees | 72 |
 | Journeys | 21 defined; latest `docs/journeys/2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); before it `2026-10-09-0008.md`, 1 of 1 (an automation converts itself to steps); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
-| Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min |
+| Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 139 total; 139 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 13,885 Python; tests 5,103; desktop 10,232 TS/TSX |
+| Commits | 142 total; 142 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 14,113 Python; tests 5,258; desktop 10,414 TS/TSX |
 
 ## What is built, against the design's order of work
 
