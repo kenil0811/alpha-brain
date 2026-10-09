@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { LookPicker } from "../avatar/LookPicker";
-import type { ClaudeStatus, Client, DataInfo, ThinkRoute, Thinking } from "../core/client";
+import type { ClaudeStatus, Client, DataInfo, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
 import { host } from "../core/host";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
@@ -144,6 +144,53 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
   );
 }
 
+/** Alpha's own browser, with which it reads web pages: installed once, by Alpha, on first run;
+ *  about 250 MB comes down. Sign-in windows open in the person's Chrome when they have it. */
+export function BrowserRow({ client, status, onStatus }: { client: Client; status: BrowserStatus | null; onStatus: (s: BrowserStatus) => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const installing = Boolean(status?.installing);
+  useEffect(() => {
+    if (!installing) return;
+    const timer = setInterval(() => {
+      client.browser().then(onStatus).catch(() => undefined);
+    }, WAIT_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [installing, client, onStatus]);
+  async function install() {
+    setError(null);
+    try {
+      onStatus(await client.installBrowser());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+  const words = !status
+    ? "Checking…"
+    : status.installing
+      ? (status.words ?? "Installing… this takes a few minutes.")
+      : status.installed
+        ? `Installed · sign-in windows open in ${status.chrome ? "your Chrome" : "Alpha's own browser"}`
+        : (status.problem ?? "Alpha reads web pages with its own browser (Chromium). Installing it downloads about 250 MB, once.");
+  return (
+    <div className="item">
+      <div className="item__ico" aria-hidden="true">
+        ◫
+      </div>
+      <div className="item__body">
+        <b>The browser Alpha reads with</b>
+        <div className={`item__sub${status?.problem ? " item__sub--warn" : ""}`}>{words}</div>
+        {error ? <div className="notice" style={{ fontSize: "var(--text-sm)" }}>{error}</div> : null}
+      </div>
+      {status ? <span className={`pill ${status.installed ? "pill--good" : "pill--warn"}`}>{status.installed ? "Installed" : "Not installed"}</span> : null}
+      {status && !status.installed ? (
+        <Button size="sm" variant="primary" disabled={installing} onClick={() => void install()}>
+          {installing ? "Installing…" : status.problem ? "Try again" : "Install"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 /** The chosen way to think, for the first run. */
 export function ClaudeRow({ client, status, onStatus, which = "claude" }: { client: Client; status: ClaudeStatus | null; onStatus: (s: ClaudeStatus) => void; which?: ThinkRoute }) {
   return <ThinkerRow which={which} client={client} status={status} onStatus={onStatus} />;
@@ -157,6 +204,10 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
 
   const [trouble, setTrouble] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [browser, setBrowser] = useState<BrowserStatus | null>(null);
+  useEffect(() => {
+    void client.browser().then(setBrowser).catch(() => undefined);
+  }, [client, tick]);
   useEffect(() => {
     void host.companionVisible().then(setCompanion).catch(() => setCompanion(null));
     client
@@ -195,6 +246,16 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
         <div className="card list">
           <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
           <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section__head">
+          <h2>Reads with</h2>
+          <span className="faint">The browser Alpha opens pages in, kept on this Mac</span>
+        </div>
+        <div className="list">
+          <BrowserRow client={client} status={browser} onStatus={setBrowser} />
         </div>
       </div>
 

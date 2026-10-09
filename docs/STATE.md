@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 9 October 2026.** Last entries: agents, schedule first
+**As of 9 October 2026.** Last entries: Alpha on another Mac
+([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34), agents, schedule first
 ([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md), Q33 built in part), reliability first
 ([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)), what went wrong 4–8 October and the agents
 decision ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md), Q33;
@@ -65,11 +66,15 @@ ChatGPT through the Codex CLI on his subscription, chosen in Settings › Thinks
 way is proven by tests only until he signs in again (his Codex sign-in lapsed on 16 June).
 
 **Runs for real, daily, on Kenil's Mac:** four agents (LinkedIn connections; 15 deal
-sites; 4 job boards; Gmail from one sender), each run now a row with a verdict (the deal
-tracker's proven 9 Oct: 15 of 15, succeeded, no model), questions over the tables, drafts and
-sends with previews, files in and out, builds in the background. The four have no goal or page
-yet: Alpha writes one when asked from the agent's page, or when it next builds one. **Proven by tests only:** the calendar
-connect, Install and Sign in on a fresh Mac, the first-run experience as a whole. **Proven by
+sites; 4 job boards; Gmail from one sender), each run a row with a verdict judged by code
+(9 Oct 07:40, the first wake: deal tracker succeeded 15 of 15 with no model; LinkedIn
+connections converted itself to steps and succeeded; founding-engineer partial, 3 of 4,
+Wellfound stops automated reading), questions over the tables, drafts and sends with
+previews, files in and out, builds in the background. The four have no goal or page yet:
+Alpha writes one when asked from the agent's page, or when it next builds one. **Proven by tests only:** the calendar
+connect, Claude Code's Install and Sign in on a fresh Mac. **Proven in a clean room on
+Kenil's Mac (9 Oct, a fresh HOME, the shipped app):** see the fresh-Mac log entry for exactly
+what ran; the friend's own first run is the acceptance and hasn't happened yet. **Proven by
 the desktop check:** every page opens clean at 1100×560 and 1240×820, light and dark, on a
 copy of Kenil's world (see the numbers). **Proven in the real app** (3 Oct night): the core
 killed by hand twice came back on the same port within two seconds and the window said so.
@@ -142,10 +147,11 @@ pending item 6, people for real, and noticing over what Alpha reads.
    code, repair at most twice a run, the window; the build writes each agent's page. Left of
    Q33: event triggers, escalation as a question, the digest, a brief per agent; the four
    agents' pages written for real.
-8. **Alpha self-sufficient on a fresh Mac** (Kenil, 9 Oct: he shared the app with a friend and
-   it didn't work for him; "all permission request, access, etc should be handled within
-   Alpha, so anyone using it can start working on it"). To discuss first: what the friend saw;
-   then every permission, install and sign-in asked for and handled inside Alpha on first run.
+8. ~~Alpha self-sufficient on a fresh Mac~~ — done 9 Oct
+   ([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34): `just ship` carries the
+   runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
+   installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
+   right-click › Open for now); the friend's own first run, which decides it.
 9. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
 10. People for real: readers declare their rows as people; a pass links existing rows.

@@ -13,5 +13,7 @@ node_modules/
 dist/
 .env*.local
 desktop/src-tauri/target/
+desktop/src-tauri/runtime/
+desktop/src-tauri/.runtime-cache/
 desktop/src-tauri/gen/
 desktop/.check/

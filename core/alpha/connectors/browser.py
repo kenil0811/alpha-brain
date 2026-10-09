@@ -10,7 +10,9 @@ end). The one write is `act`: an approved action's procedure, performed in the p
 typing only the payload the person saw. Every page read and every act is journaled.
 
 The driver is `connectors/browser/scripts/browser_session.mjs` (Playwright, pinned), run with
-Node 24.
+Node 24. The browser it reads with is Playwright's Chromium, installed once on this Mac by
+Alpha itself (`install`, on first run); sign-in windows open in the person's own Chrome when
+they have it, else in that Chromium.
 """
 
 from __future__ import annotations
@@ -31,6 +33,10 @@ from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
 
 NODE_CANDIDATES = ["/opt/homebrew/opt/node@24/bin/node", "/usr/local/opt/node@24/bin/node"]
+CHROME_APPS = ["/Applications/Google Chrome.app", "~/Applications/Google Chrome.app"]
+INSTALL_LOG = "browser-install.log"
+PROGRESS = re.compile(r"(\d{1,3})% of ([\d.]+ \w+)")
+DOWNLOADING = re.compile(r"Downloading (\S+ [\d.]+)")
 READ_TIMEOUT_S = 180
 ACT_TIMEOUT_S = 300
 SIGNIN_TIMEOUT_S = 1800
@@ -52,6 +58,92 @@ def node_binary() -> str:
 
 def driver() -> Path:
     return connectors_dir() / "browser" / "scripts" / "browser_session.mjs"
+
+
+def installer() -> Path:
+    """Playwright's own installer (the `playwright` package next to `playwright-core`)."""
+    return connectors_dir() / "browser" / "node_modules" / "playwright" / "cli.js"
+
+
+def chrome_channel() -> str | None:
+    """Sign-in windows open in the person's own Chrome (the browser they know) when it is on
+    this Mac, else in Alpha's own Chromium: `channel` for the driver, or none."""
+    return "chrome" if any(Path(p).expanduser().exists() for p in CHROME_APPS) else None
+
+
+def chromium_path() -> str | None:
+    """Where Playwright's Chromium is on this Mac, or none when it isn't installed."""
+    script = ("const {chromium} = require('playwright-core');"
+              " console.log(chromium.executablePath())")
+    try:
+        done = subprocess.run([node_binary(), "-e", script], capture_output=True, text=True,
+                              timeout=30, cwd=str(connectors_dir() / "browser"))
+    except (OSError, subprocess.TimeoutExpired, Problem):
+        return None
+    path = done.stdout.strip().splitlines()[-1] if done.stdout.strip() else ""
+    return path if path and Path(path).exists() else None
+
+
+_installing: subprocess.Popen[bytes] | None = None
+
+
+def _install_log() -> Path:
+    logs = alpha_home() / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    return logs / INSTALL_LOG
+
+
+def progress_words(log: str) -> str | None:
+    """The installer's last word: "Downloading Chromium 151.0.7922.34… 40% of 160.4 MiB"."""
+    lines = [ln.strip() for ln in re.split(r"[\r\n]+", log) if ln.strip()]
+    name = next((m.group(1) for ln in reversed(lines) if (m := DOWNLOADING.search(ln))), None)
+    done = next((m for ln in reversed(lines) if (m := PROGRESS.search(ln))), None)
+    if done:
+        return f"Downloading {name or 'the browser'}… {done.group(1)}% of {done.group(2)}"
+    return f"Downloading {name}…" if name else None
+
+
+def status() -> dict[str, Any]:
+    """Alpha's own browser on this Mac: {installed, installing, words, chrome, problem}."""
+    running = _installing is not None and _installing.poll() is None
+    log = ""
+    if _installing is not None:
+        try:
+            log = _install_log().read_text(errors="replace")[-4000:]
+        except OSError:
+            log = ""
+    problem = None
+    installed = False if running else chromium_path() is not None
+    if not running and not installed:
+        try:
+            node_binary()
+        except Problem as e:
+            problem = str(e)
+        if _installing is not None and _installing.returncode not in (None, 0):
+            tail = " ".join(log.strip().splitlines()[-3:])[-300:]
+            problem = f"The browser didn't install: {tail or 'see browser-install.log'}"
+    return {"installed": installed, "installing": running,
+            "words": progress_words(log) if running else None,
+            "chrome": chrome_channel() == "chrome", "problem": problem}
+
+
+def install() -> dict[str, Any]:
+    """Install Playwright's Chromium for this Mac, once: Playwright's own installer, in the
+    background; `status` says how far it is. About 250 MB comes down."""
+    global _installing
+    if _installing is not None and _installing.poll() is None:
+        return status()
+    script = installer()
+    if not script.exists():
+        raise Problem("Alpha's browser installer is missing (connectors/browser/node_modules/"
+                      "playwright).")
+    with _install_log().open("ab") as out:
+        _installing = subprocess.Popen(
+            [node_binary(), str(script), "install", "chromium"], stdin=subprocess.DEVNULL,
+            stdout=out, stderr=subprocess.STDOUT, cwd=str(script.parent.parent.parent),
+            start_new_session=True,
+        )
+    return status()
 
 
 def profile_dir(site: str) -> Path:
@@ -146,7 +238,7 @@ class Browser:
         site = site_of(site_or_url)
         url = site_or_url if "://" in site_or_url else f"https://www.{site}/"
         result = self.runner({"op": "signin", "site": site, "url": url,
-                              "profile": str(profile_dir(site)), "channel": "chrome"},
+                              "profile": str(profile_dir(site)), "channel": chrome_channel()},
                              SIGNIN_TIMEOUT_S)
         status = "connected" if result.get("signed_in") else "needs_ok"
         conn = self.connections.upsert("browser", site, status=status,
@@ -171,7 +263,7 @@ class Browser:
         target = covering["target"] if covering else site
         profile = profile_of(covering) if covering else profile_dir(site)
         job = {"op": "signin", "site": target, "url": url, "profile": str(profile),
-               "channel": "chrome"}
+               "channel": chrome_channel()}
         script = driver()
         proc = subprocess.Popen(
             [node_binary(), str(script)], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
@@ -217,7 +309,7 @@ class Browser:
             if conn["status"] == "off" or site in signin_sites(conn):
                 continue
             held = self.runner({"op": "status", "site": site, "sites": [site],
-                                "profile": str(profile_of(conn)), "channel": "chrome"}, 60)
+                                "profile": str(profile_of(conn)), "channel": chrome_channel()}, 60)
             if not held.get("signed_in"):
                 continue
             page = self.runner({**job, "profile": str(profile_of(conn))}, timeout)
@@ -233,7 +325,7 @@ class Browser:
             raise Problem(f"Alpha's browser has never been signed in to {site_of(site_or_url)}.")
         target = conn["target"]
         result = self.runner({"op": "status", "site": target, "sites": signin_sites(conn),
-                              "profile": str(profile_of(conn)), "channel": "chrome"}, 60)
+                              "profile": str(profile_of(conn)), "channel": chrome_channel()}, 60)
         status = "connected" if result.get("signed_in") else "needs_ok"
         conn = self.connections.upsert("browser", target, status=status, config=conn["config"])
         if status == "connected":
@@ -254,7 +346,7 @@ class Browser:
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected" and signed_in is not False
         job: dict[str, Any] = {"op": "read", "url": url, "max_chars": max_chars,
-                               "channel": "chrome", "scroll_to_end": to_end}
+                               "channel": chrome_channel(), "scroll_to_end": to_end}
         if use_profile and conn is not None:
             job["profile"] = str(profile_of(conn))
         page = self.runner(job, READ_TIMEOUT_S)
@@ -309,8 +401,8 @@ class Browser:
         if conn is not None and conn["status"] != "connected":
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected"
-        job: dict[str, Any] = {"op": "script", "url": url, "script": script, "channel": "chrome",
-                               "scroll_to_end": to_end}
+        job: dict[str, Any] = {"op": "script", "url": url, "script": script,
+                               "channel": chrome_channel(), "scroll_to_end": to_end}
         if use_profile and conn is not None:
             job["profile"] = str(profile_of(conn))
         timeout = READ_TIMEOUT_S * 3 if to_end else READ_TIMEOUT_S
@@ -355,7 +447,7 @@ class Browser:
         if conn is not None and conn["status"] != "connected":
             conn = self.refresh(site)
         use_profile = conn is not None and conn["status"] == "connected"
-        job: dict[str, Any] = {"op": "download", "url": url, "channel": "chrome",
+        job: dict[str, Any] = {"op": "download", "url": url, "channel": chrome_channel(),
                                "dest_dir": str(into), "click": click, "click_text": click_text,
                                "name": name}
         if use_profile and conn is not None:
@@ -401,7 +493,7 @@ class Browser:
             return {"needs_signin": True, "done": 0, "site": site,
                     "note": f"Acting on {site} needs the person's sign-in there (browser_signin)."}
         job: dict[str, Any] = {
-            "op": "act", "url": url, "channel": "chrome", "profile": str(profile_of(conn)),
+            "op": "act", "url": url, "channel": chrome_channel(), "profile": str(profile_of(conn)),
             "steps": procedure["steps"], "verify": procedure.get("verify") or [],
             "values": {**values, "__files": files or {}}, "stop_before_last": dry_run,
             "shots_dir": str(shots_dir),
