@@ -1,0 +1,3 @@
+/* shell — styles for this area; tokens only (see app.css). */
+.agent-avatar { display: inline-grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--surface-2); flex: none; }
+.agent-avatar > * { flex: none; margin-top: 18%; }

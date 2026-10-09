@@ -19,6 +19,14 @@ export const PREF = {
   footerSummaries: "footer_summaries",
   dashboards: "dashboards",
   recordSections: "record_sections",
+  companionLook: "companion_look",
+  workspaceLogo: "workspace_logo",
+  /** Per module: { always: string[]; never: string[] } — saved only; the runtime does not read them yet. */
+  governance: "governance_rules",
+  /** Per agent id: a companion Look; an agent without one wears the companion's. */
+  agentLooks: "agent_looks",
+  /** Saved lists for data the core keeps no lists for (agents, skills, automations…), per source key. */
+  windowLists: "window_lists",
 } as const;
 export type PrefKey = (typeof PREF)[keyof typeof PREF];
 
