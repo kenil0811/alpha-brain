@@ -245,7 +245,7 @@ One row that never wraps, in this order:
 - **Filter:** every filtering choice in one place.
   - Active filters appear as small removable pills under the toolbar, with **Clear all**.
   - The **Hide done** and **Show gone** toggles live in Filter.
-- **Page actions:** at most one primary action. Defaults are **Add files** and **Export**.
+- **Page actions:** at most one primary action, left of ⋯. **Upload** shows here only when files are the collection's main input (it has a file field); otherwise Upload and **Download** live in ⋯. Filter, Sort and Search are always left-aligned, never right or centre (owner's review, 9 Oct).
 - **⋯ More** holds:
   - Sort
   - Add column
@@ -306,7 +306,7 @@ A page of visuals where **every visual is actionable**.
 **Columns**
 
 - Resizable, reorderable and freezable.
-- A checkbox column on the left selects several rows.
+- A row's checkbox and ⋮⋮ handle appear on hover at the row's left edge (no checkbox column, no left gutter); once any row is selected they show on every row.
 
 **Opening and editing**
 
@@ -366,7 +366,7 @@ A page of visuals where **every visual is actionable**.
 
 ### Files
 
-- **Add files** on the toolbar opens the Mac's file picker. Files can also be dropped anywhere on a module page; a quiet overlay says where they will go.
+- **Upload** opens the Mac's file picker. Files can also be dropped anywhere on a module page; a quiet overlay says where they will go.
 - Alpha reads added files into the module's collections and says what it did.
 - **Everything Alpha makes here** (reports, summaries, tables, drafts) is saved as a file with a clear name, listed in Files with its history, and linked from the conversation.
 
@@ -445,7 +445,7 @@ A forced edit is allowed. It carries a quiet **Overridden** chip in a neutral to
 - It holds the person's and Alpha's tasks.
 - Its due items feed Home's Today card.
 
-**People & Companies**
+**Network** (People and Organizations as two tabs; was People & Companies)
 
 - A built-in module by default.
 - Each person or company record page has:
@@ -606,10 +606,10 @@ The one place for everything Alpha knows and can do across modules. Its header t
 - **Connections**
   - Every app, folder, site and calendar Alpha can reach, with its state (Working, Needs your sign-in, Being repaired, Blocked) and which modules use it.
   - Removing a connection states what goes with it before you confirm.
-- **Activity**
+- **Activity** (a bell beside the workspace name, not a tab, since the owner's review on 9 Oct)
   - Everything Alpha did and read, and what the person changed, grouped by day with search first.
   - Each entry opens to what it touched.
-- **Map**
+- **Map** (inside Second Brain as Brain | Facts | Map, since 9 Oct)
   - The workspace as a graph: the person's world by default, Alpha's own work as a toggle.
   - Suggested links appear dashed until the person decides.
   - It refreshes when asked.
