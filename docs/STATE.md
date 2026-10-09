@@ -4,41 +4,21 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 3 October 2026, late night.** Last entries: replies rendered the same in the panel and
-the companion ([`log/2026-10-03-replies-rendered.md`](log/2026-10-03-replies-rendered.md)), a second way to think, ChatGPT through the
-Codex CLI ([`log/2026-10-03-chatgpt-route.md`](log/2026-10-03-chatgpt-route.md), Q32; built, not
-yet run for real), modules inside modules
-([`log/2026-10-03-nested-modules.md`](log/2026-10-03-nested-modules.md), Q31), a plain yes, a plan not asked about twice,
-Add files ([`log/2026-10-03-yes-and-add-files.md`](log/2026-10-03-yes-and-add-files.md)), the desktop's four
-([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)), fast turns
-([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)), the split
-([`log/2026-10-03-the-split.md`](log/2026-10-03-the-split.md)), the map of the brain
-([`log/2026-10-03-brain-map.md`](log/2026-10-03-brain-map.md)), the map of Alpha's work
-([`log/2026-10-03-work-map.md`](log/2026-10-03-work-map.md)), the companion's sizes, drag and moods
-([`log/2026-10-03-companion-moods.md`](log/2026-10-03-companion-moods.md)), relations followed and the form view
-([`log/2026-10-03-table-views-2.md`](log/2026-10-03-table-views-2.md)), the companion's characters
-([`log/2026-10-03-companion-characters.md`](log/2026-10-03-companion-characters.md)), quick entry on a table
-([`log/2026-10-03-quick-entry.md`](log/2026-10-03-quick-entry.md)), the desktop check and the type scale
-([`log/2026-10-03-desktop-check.md`](log/2026-10-03-desktop-check.md)), the table views, ⌘K,
-fact origins, the module's page and the item pages
-([`log/2026-10-03-table-views-1.md`](log/2026-10-03-table-views-1.md)), the desktop foundations
-([`log/2026-10-03-desktop-foundations.md`](log/2026-10-03-desktop-foundations.md)), the review
-of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
-contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
+**As of 9 October 2026.** Last entry: the UI rulebook in the window ([`log/2026-10-09-ui-rulebook.md`](log/2026-10-09-ui-rulebook.md), Q33, branch `feat/ui-rulebook`, local commits, not pushed): the window rebuilt by [`design/ui-rulebook.md`](design/ui-rulebook.md), in the window only; the core, the host and the store untouched. Before it: replies rendered the same in the panel and the companion, the ChatGPT route (Q32), modules inside modules (Q31), and the 3 Oct entries listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 3 Oct late night)
+## Numbers (`just stats`, 9 Oct)
 
 | | |
 |---|---|
 | Core tests | 210, in about 15 s; ruff and mypy strict clean |
-| Desktop tests | 77, in twenty-one files; typecheck and `cargo check` clean |
+| Desktop tests | 235, in forty files; typecheck clean (`cargo check` not re-run: the host is unchanged) |
 | Tools the model sees | 72 |
 | Journeys | 19 defined; latest full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 (the four read in the fast-turns log: none the change's doing); since then `nested_modules` `docs/journeys/2026-10-03-2211.md` 1 of 1, and the two memory ones re-run `docs/journeys/2026-10-03-2048.md`, 1 of 2 |
-| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; after nesting, Home and Settings `docs/checks/2026-10-03-2212.md`, 2 of 2 |
+| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; **not run since the rulebook** (no Chromium for Playwright on Vikas's Mac); the rulebook's window looked at by hand in a browser at 1240×820 and 1100×560, light and dark, on a scratch world |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 132 total; 132 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 13,418 Python; tests 4,710; desktop 9,962 TS/TSX |
+| Commits | 141 total; 139 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 13,418 Python; tests 4,710; desktop 16,403 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -53,6 +33,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
 | The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map (Intelligence › Map, Q29–Q30): the person's world as the default view with Alpha's proposed links as suggested facts, the map of work as a toggle, refresh only on demand; the host watches the core and restarts it on the same port, the window asks one question for what changed (nothing while hidden) and says what failed with Try again, the words come back when a send is lost; Add files on every module's page (the Mac's picker, the same route as a drop). **Left:** the links worth having wait on people-for-real (pending item 6) and noticing over what Alpha reads. |
+| The window by the UI rulebook (Q33) | **Built, window only:** one frame and header line; panels fold to strips and step back with Escape; the sidebar's order, module menu (icon, move, hide, View options), drag to reorder; module pages that land on their data with Files, Intelligence and Governance below; one data view (toolbar order, Filter with pills, table menus, Duplicate, Pin, footer summaries, the add bar, frozen columns) and a Dashboard view whose every tile has a call to action; a page per record with Save and Discard, a leave guard and History with Undo and Redo; Home's Today card; Intelligence with Second Brain, Agents, Activity; Settings in sections; the panel's picker and composer; Approve and Veto. **Left (needs the core):** module rename and delete, removed modules, several workspaces, conversation delete, adding a field, outcome and success criteria on proposals, the data-sharing notice, other agents, saving a dashboard's selection as a list, per-record notes and history routes. **Not adopted:** forced edits, Task manager first, the Mac title bar. |
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
 
@@ -69,6 +50,8 @@ copy of Kenil's world (see the numbers). **Proven in the real app** (3 Oct night
 killed by hand twice came back on the same port within two seconds and the window said so.
 
 ## What is wrong, measured (the checkpoint, updated)
+
+- The rulebook's window has not run in the Tauri app (WebKit) nor through `just check-desktop`; it is proven by 235 tests and by looking in a browser. Before merging: `just check-desktop` (needs Playwright's Chromium) and a look in `just app`.
 
 - A turn takes 25 s at the median, up to three minutes at p90: the model's steps and the
   length of its answer, not Alpha's 1.5 s of overhead (measured 3 Oct night; `just turns`). A
@@ -100,6 +83,8 @@ killed by hand twice came back on the same port within two seconds and the windo
   its judge, which sees no evidence of reads the journal holds.
 
 ## Pending, in order
+
+**The UI rulebook (Q33):** review `feat/ui-rulebook` with Kenil (it supersedes 1 Oct's "keep it similar"); run `just check-desktop` and the app; answer the questions at the end of the log entry; then the core's side of what the window shows disabled (module rename and delete, conversation delete, adding a field, outcome and success criteria on proposals, per-record notes and history).
 
 **The port of pull request #3's ideas (Q27–Q29), all built:** ~~foundations~~ → ~~the table
 views~~ (stage three, relations followed and the form view, 3 Oct evening) → ~~⌘K~~ → ~~item pages, fact origins,
