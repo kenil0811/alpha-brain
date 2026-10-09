@@ -89,6 +89,15 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
   }
 
   const connected = Boolean(status?.signed_in);
+  const about = !status
+    ? undefined
+    : connected
+      ? [status.plan ? `${status.plan} plan` : null, status.via === "api_key" ? "with an API key" : null, `through ${tool} on this Mac`].filter(Boolean).join(" · ")
+      : status.installed
+        ? `Sign in with your ${name} account; your browser opens.`
+        : which === "claude"
+          ? "Alpha thinks with Claude Code. Installing it takes a minute and needs no password."
+          : "Alpha can also think with ChatGPT through the Codex CLI, which the Codex app brings.";
   const words = !status
     ? "Checking…"
     : confirming
@@ -100,17 +109,13 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
         : waiting === "signin"
           ? "Finish signing in in your browser."
           : connected
-            ? [status.email, status.plan ? `${status.plan} plan` : null, status.via === "api_key" ? "with an API key" : null, `through ${tool} on this Mac`].filter(Boolean).join(" · ")
-            : status.installed
-              ? `Sign in with your ${name} account; your browser opens.`
-              : which === "claude"
-                ? "Alpha thinks with Claude Code. Installing it takes a minute and needs no password."
-                : "Alpha can also think with ChatGPT through the Codex CLI, which the Codex app brings.";
+            ? status.email
+            : null;
   return (
     <ListRow
       icon={<ThinksIcon size={ICON} />}
-      title={name}
-      description={<span className={confirming ? "lrow__warn" : undefined}>{words}</span>}
+      title={<>{name} {about ? <InfoTip text={about} /> : null}</>}
+      description={words ? <span className={confirming ? "lrow__warn" : undefined}>{words}</span> : undefined}
       controls={
         <>
           {inUse ? <Badge tone="good">In use</Badge> : onUse && connected ? (
@@ -171,17 +176,14 @@ export function BrowserRow({ client, status, onStatus }: { client: Client; statu
       setError(e instanceof Error ? e.message : String(e));
     }
   }
-  const words = !status
-    ? "Checking…"
-    : status.installing
-      ? (status.words ?? "Installing… this takes a few minutes.")
-      : status.installed
-        ? `Installed · sign-in windows open in ${status.chrome ? "your Chrome" : "Alpha's own browser"}`
-        : (status.problem ?? "Alpha reads web pages with its own browser (Chromium). Installing it downloads about 250 MB, once.");
+  const words = !status ? "Checking…" : status.installing ? (status.words ?? "Installing…") : status.installed ? null : status.problem;
+  const about = status?.installed
+    ? `Alpha reads web pages with its own browser (Chromium). Sign-in windows open in ${status.chrome ? "your Chrome" : "Alpha's own browser"}.`
+    : "Alpha reads web pages with its own browser (Chromium). Installing it downloads about 250 MB, once, and takes a few minutes.";
   return (
     <ListRow
-      title="The browser Alpha reads with"
-      description={<span className={status?.problem ? "lrow__warn" : undefined}>{words}</span>}
+      title={<>Browser <InfoTip text={about} /></>}
+      description={words ? <span className={status?.problem ? "lrow__warn" : undefined}>{words}</span> : undefined}
       controls={
         <>
           {status ? <Badge tone={status.installed ? "good" : "warn"}>{status.installed ? "Installed" : "Not installed"}</Badge> : null}

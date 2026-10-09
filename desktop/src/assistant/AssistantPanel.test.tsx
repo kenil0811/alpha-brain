@@ -8,7 +8,6 @@ import { DEPTH_REASON, MENTION_REASON } from "./Composer";
 
 const CHAT: Convo = { id: "c1", title: "Chat", kind: "chat", state: "open", module: null, scope: "Everything", question: null, last: null, last_at: "", updated_at: "" };
 const entry = (id: string, kind: string, text: string): JournalEntry => ({ id, at: "2026-10-09T10:00:00+00:00", kind, actor: "x", text, data: {}, module: null, thread: null, entity_ids: [], source: null });
-const DEALS = { id: "deals", name: "Deals", children: [] } as unknown as ModuleCard;
 const PLAN = { id: "p1", title: "Track my deals", body: "A Deals table with stage and value.", state: "proposed", module: null, thread: null, proposal: null, report: null, created_at: "" } as Plan;
 const ACTION = { id: "a1", procedure: "x", title: "Message Ada", payload: { text: "Hello" }, evidence: null, undo: "It can be deleted.", effect: "send", site: "example.com", state: "proposed", module: null, preview: "shot.png", preview_note: null, shots: {}, result: null, error: null, created_at: "", updated_at: "" } as Action;
 
@@ -137,8 +136,4 @@ describe("the assistant panel", () => {
     expect(client.askAndWait.mock.calls[0][0]).toBe("Add a deal");
   });
 
-  it("an empty conversation says, quietly, what Alpha can do here", async () => {
-    setup({ module: DEALS });
-    expect(await screen.findByText("Ask about Deals, change it, or log something.")).toBeInTheDocument();
-  });
 });

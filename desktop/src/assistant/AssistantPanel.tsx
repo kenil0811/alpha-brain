@@ -340,7 +340,6 @@ export function AssistantPanel({
       return <Message key={e.id} e={e} onRetry={retry} />;
     });
   };
-  const hint = module ? `Ask about ${module.name}, change it, or log something.` : "Ask about anything Alpha holds, or say what to keep track of.";
 
   return (
     <aside className="assist" aria-label="Assistant">
@@ -422,7 +421,6 @@ export function AssistantPanel({
                 </div>
               );
             })}
-            {!turns.length && !pending ? <p className="assist__empty">{hint}</p> : null}
             {renderMessages(turns)}
             {plans
               .filter((p) => p.state === "proposed" || p.state === "stopped")

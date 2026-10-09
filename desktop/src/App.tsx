@@ -40,7 +40,7 @@ import { RecordPage } from "./modules/RecordPage";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
-import { AssistantProvider, Button } from "./ui";
+import { AssistantProvider, Button, InfoTip } from "./ui";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
@@ -310,8 +310,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <div className="page firstrun">
             <div className="card firstrun__card">
               <div className="firstrun__head">
-                <h2>Set Alpha up to start</h2>
-                <span className="muted">Two things, once: the {chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.</span>
+                <h2>
+                  Set up Alpha <InfoTip text={`Two things, once: the ${chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.`} />
+                </h2>
               </div>
               <div className="list">
                 <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />

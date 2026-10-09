@@ -31,9 +31,9 @@
   /* The type scale: every size in the window is one of these seven (CONTRIBUTING §3.8; a test
      fails a raw px). xs meta and badges · sm secondary · md the working size · base reading
      text and inputs · lg small headings · xl section and page-level headings · 2xl the page
-     title and big numbers. Comfortable by default (rulebook §1): every step and space is the 9 Oct value × 1.3 (md 17, base 18); nothing below sm
+     title and big numbers. Spaces are the 9 Oct value × 1.3; type was then cut 30% on the owner's ask (9 Oct: md 12, base 13); nothing below sm
      but chart and map axis text, avatar initials, count badges and the collapsed rail's labels. */
-  --text-xs: 14px; --text-sm: 16px; --text-md: 17px; --text-base: 18px; --text-lg: 21px; --text-xl: 26px; --text-2xl: 34px;
+  --text-xs: 10px; --text-sm: 11px; --text-md: 12px; --text-base: 13px; --text-lg: 15px; --text-xl: 18px; --text-2xl: 24px;
   /* space: the old 4px steps × 1.3, rounded (new code and the kit use these) */
   --space-1: 5px; --space-2: 10px; --space-3: 16px; --space-4: 21px; --space-5: 26px; --space-6: 31px; --space-8: 42px; --space-10: 52px; --space-12: 62px;
   /* corners: controls and sidebar items · cards, tables, panels and menus · chips and the send

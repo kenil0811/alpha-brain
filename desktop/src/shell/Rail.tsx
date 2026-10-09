@@ -458,7 +458,6 @@ export function Rail({
         <div className="rail__scroll">
           {tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
           {branches(tree, 0)}
-          {modules.length === 0 ? <p className="faint rail__none">No projects yet. Ask for one.</p> : null}
           <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New project" title={collapsed ? "New project" : undefined}>
             <span className="navbtn__ico" aria-hidden="true">
               <PlusIcon />

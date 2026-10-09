@@ -52,7 +52,7 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
   4. large metric numbers.
 - Section titles are small, semibold sans-serif.
 - Labels, eyebrows, table headers and metric labels are small, sentence case and stone grey. No tiny letter-spaced capitals.
-- Body text is comfortably large: type and spacing are 30% above the 9 Oct sizes (body 18px, table 17px, labels 16px; spacing on a 5px step). When in doubt, choose the larger step.
+- Type is compact: 30% below the comfortable sizes (body 13px, table 12px, labels 11px); spacing stays on a 5px step.
 - Weights stay between regular and semibold.
 - Digits use tabular figures wherever they line up in a column.
 - Every size comes from one type scale of about seven steps.
