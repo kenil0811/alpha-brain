@@ -447,6 +447,173 @@ are still "not yet" in the menu; that column is the measure of which capability 
 | Differs | The pass starts when the job is known: the turn asks the job's questions first and starts the pass on the answers (the design's "research starts at once and the answers steer the merge" is not built: one mechanism, the person waits for themselves, not for Alpha). The merge is checked by the citable rule (a piece cites only findings whose page answered), not by a second opinion on the plan. |
 | Not built | A piece's buildability feeding what capability to add next (it is data on the plan, nothing reads it yet); a later pass that brings deferred pieces back; the Scout for a specific ask with no card (every build ask goes through the pass, breadth scaled by the lead's judgement). |
 
+### 6.4 Modules as programs: the workspace, the design document, milestones (decided 10 October 2026; Q38)
+
+Why: after the research pass (§6.3) the second car wash build was still one table of 22
+columns, one row, and a recipe in the note that the model re-executes by hand per address. The
+plan was grounded; the build had nowhere to put what the plan described. Alpha's know-how had
+three kinds (a page reader, a site procedure, a pipeline of readers), none of which can hold a
+data layer, a join over thousands of rows, a gate, a formula or a calibration, so the build
+rule itself said to write such things as prose. Kenil's bar is the Waterways site engine a
+friend built with Claude Code over a week (`~/Desktop/dev/project-waterways-main-2`): per-metro
+data layers, gates first then a weighted score calibrated to the client's own site process and
+benchmark stores, a filterable table with saved lists, a map, a per-site report of about
+seventy-five rows each with value, source, method and confidence, a settings page for every
+parameter, exports; and a process (research documents → a PRD → v0 → rebuilt around the
+client's inputs → a depth roadmap) in which the human steered at every stage. "Okay if it's
+not one shot, but it should be like this." He said yes to four things: modules as programs in
+a workspace Alpha codes in; a design document agreed stage by stage; milestones that each end
+in a real result he opens; a module's own settings page. He asked for the prior art first;
+it is in `research/modules-as-programs.md` and every choice below cites it.
+
+**A module is a workspace.** Under Alpha's home, `modules/<id>/`:
+
+- `DESIGN.md`, the design document (below); `milestones.json`, the machine-checked list of what
+  the build delivers, each item with its acceptance steps and a `passes` flag that only the
+  evaluator flips (JSON because a model tampers with it less than Markdown); `PROGRESS.md`,
+  append-only: what each session did, decided and left. The three artifacts Anthropic's and
+  OpenAI's long-running harnesses both converged on, with distinct jobs.
+- `inputs/`, the person's own files (a process document, a scorecard, a store list, data),
+  read-only; `pipeline.py`, plain Python functions wired as a DAG by Hamilton, so what is
+  upstream and downstream of any value is queryable and the code stays ordinary functions;
+  `data/<layer>.parquet` (GeoParquet) with `data/<layer>.provenance.json` in Data Package
+  shape (sources, fetch URL and parameters, fetched at, vintage, licence, rows, hash, the
+  function that made it); `module.duckdb`, the module's database (DuckDB, pinned, its
+  extensions shipped with the app), whose derived tables carry a source and a method column
+  beside every scored value; `settings.json` with meta per parameter (label, unit, range,
+  help), the person's; `pages.yaml`, the declared surfaces; `jobs.yaml`, what runs when (each
+  job is an agent of Q33, with a verdict per run); `selftest.py` and pointblank plans per layer;
+  a git repository, one commit per milestone.
+- The world store keeps the record, never the data: the module row, its pages, its runs and
+  verdicts, the journal, the index of provenance. The person's own tables stay in the world;
+  the module reads them through DuckDB (the world file attached read-only) when the design
+  says so. Removal deletes the workspace; the journal stays (§7).
+
+**The walls.** A build run is Claude Code with its file and shell tools, inside Claude Code's
+own sandbox driven by Alpha's `--settings` JSON (verified on this Mac with the flags Alpha
+already passes): deny-default Seatbelt, writes only inside the workspace (never `.claude`,
+`.git/config`, rc files), reads denied for secrets and for Alpha's own world file,
+credentials denied, no unsandboxed fallback, fail if the sandbox is unavailable, Apple Events
+off. Network only to the hosts the design names for the current milestone, through Alpha's
+own proxy, which journals every request as `saw`; hostnames narrow (`api.census.gov`, not
+`*.gov`). The non-shell tools are walled by policy (`--tools`, reads confined to the
+workspace, `WebFetch` by domain), and an unattended build is wrapped in `srt` so the whole
+process is inside the wall. A blocked operation comes back to the model as a named constraint
+(so it escalates instead of retrying) and to the journal. Acting outward stays one way only:
+through actions with the person's yes (§6.1); a module's code never sends. No Docker, no VMs:
+not practical on a person's Mac today. The sandbox's semantics are re-read at every pinned CLI
+version bump; the two earlier escapes in the prior art both came from allow-default profiles.
+
+**The design document.** Before any build, Alpha and the person agree `DESIGN.md` stage by
+stage; each stage is a page in the app with Accept / Revise, editable by the person, and the
+conversation about it is the stage's thread. The stages, in order:
+
+1. *The job and the user*: who uses it, what decision it serves, what happens today, what
+   would make it a failure (the questions of §6.3, kept as text).
+2. *What Alpha found*: the research pass's findings and pieces (§6.3), now one stage of the
+   document rather than the whole plan.
+3. *Your inputs*: Alpha asks for the person's own process, scorecard, lists and data, reads
+   them in (§6.2) and writes what they say; the Waterways edge was the client's own gates and
+   four benchmark stores, and Alpha asks for the same.
+4. *The data model*: entities, tables, relations, keys.
+5. *Where every value comes from*: per column, the source, the method, the freshness, what
+   needs a key or a file, what cannot be had (and the host list the sandbox will allow).
+6. *The method*: gates first, then a score; the parameters and their defaults; calibration
+   against the person's benchmarks; what is an estimate and says so.
+7. *The surfaces*: which pages, from `pages.yaml` (below).
+8. *The operating loop*: what runs when, what needs the person, what is told and how.
+9. *Milestones*: each a real result the person can open, in order, with its acceptance
+   checks; the first is always small.
+10. *Open questions*: anything unresolved; an open question that changes the shape blocks the
+    stage's acceptance (Spec Kit's markers, BMAD's intent gaps).
+
+Alpha proposes each stage from the research and the inputs; the person discusses, changes,
+skips or defers; nothing is written to the next stage until the current one is accepted. The
+accepted document is frozen for a milestone; a change is a revision the person accepts, never
+a silent edit by the builder.
+
+**Milestones.** One milestone per build session, from a fresh context: the design document,
+`milestones.json`, `PROGRESS.md`, the git log and a smoke check of the previous milestone;
+the builder does the one highest-priority milestone, commits, writes progress; it ends with a
+*stuck* outcome (what it tried, what blocks it) rather than retrying. Done is never the
+builder's word: a separate evaluator run with a skeptical brief runs the module's self-test and
+the milestone's scripted checks (the layer exists with this many rows; the score of the
+benchmark store lands in its band; the page renders in the desktop check), drives the real
+pages, and only it flips `passes`; an LLM opinion is the last check, not the first (three in
+four "done" claims in the prior art were false, and judges barely beat chance). Then the
+person opens the result and accepts or revises before the next milestone starts. The person
+can stop a build at any point, as now; a session that stalls (no tool use, no diff) is
+reported, not retried. Time is measured per milestone and quoted, never promised.
+
+**The surfaces.** `pages.yaml` is a small contract Alpha's shell renders, catalog-only (the
+A2UI rule, the json-render shape: a flat list of pages, each bound to a declared SQL source
+over the module's database), five kinds: `table` (the existing views, saved lists and item
+pages, plus Datasette-style facets and CSV), `map` (MapLibre with PMTiles and an OpenFreeMap
+style, offline; GeoJSON layers from DuckDB `ST_AsGeoJSON`), `report` (sections of rows with
+value, source, method, confidence and, where there is one, the benchmark; rendered in the app
+and exported to PDF through Typst), `settings` (the module's parameters from `settings.json`
+with their meta; saving re-runs the steps downstream of what changed, by the DAG), `export`
+(CSV, Markdown, PDF). Never an iframe per module, never a Python server per module: one shell,
+one theme, one set of filters, offline.
+
+**The data layer's defaults** (the prior art's recommendations, not rules the platform
+imposes): Python with pinned DuckDB and its spatial, httpfs and h3 extensions shipped by
+`just ship` for that version; GeoParquet per layer; Hamilton; `provenance.json` per layer and
+source and method columns on derived values; pointblank plans and a `selftest.py`; reuse
+`census`, `pygris`, `overturemaps`, `esridump`'s pagination strategies and OSMnx rather than
+rewriting them; ArcGIS REST read as GeoJSON through `read_json` with the caller paginating
+(`ST_Read` over a URL does not work). Freshness per source from `fetched_at` and the source's
+vintage; health per layer from its plan; a module's scheduled jobs are Q33 agents with
+verdicts, repaired by the model on breakage.
+
+**What does not change.** Nothing per use case in the platform: the engine is Alpha's build,
+per module, inside walls the platform owns (Q17). Plan first (Q19), now a document and
+milestones instead of one card. Known, assumed or asked (Q20): provenance per value is checked
+by the evaluator, not asserted. Removal deletes everything related, the journal never (§7). No
+caps (Q18): "stuck" and "stalled" are judgements of a failure, named as such; the person stops
+what isn't going anywhere. And one rule is reversed: "modules are tables, know-how is
+pipelines" becomes "modules are programs and data; a reader or a pipeline is the simple
+case".
+
+**The car wash ask, walked through.** "I want to build something similar to growthfactor.ai,
+specifically for car washes."
+
+- *Stage 1.* Alpha asks: who uses it (you, looking at sites for a wash you might buy or
+  build); what it decides (which sites to pursue, in which metro); what happens today
+  (listings by hand); what would make it a failure (a score you can't defend to a lender).
+- *Stage 2.* The research pass (as on 9 Oct): what GrowthFactor, Placer and SiteZeus show;
+  how operators decide (gates: households within 3 mi, density, 10-minute drive population,
+  site and intersection traffic; then a scorecard); the open data (ACS block groups, state DOT
+  counts, Overture places, FEMA, county parcels); your Deal Tracker module.
+- *Stage 3.* Alpha asks for your inputs: a site process or scorecard if you have one, a list
+  of stores or sites you consider good, any metro you want first. If none, it says so and
+  proposes the trade's thresholds as defaults, marked as such.
+- *Stages 4–6.* The data model: metros, block groups, parcels, traffic segments, washes,
+  anchors, candidates, scores, pipeline stages. Per value its source and method. The method:
+  six gates with defaults and your overrides; a 0–100 score over what passes; calibration
+  against your benchmark sites when you give them. What can't be had: foot traffic (paid),
+  zoning outside counties that publish it, your pro forma.
+- *Stage 7.* Pages: a Sites table with facets and saved lists; a map of candidates over
+  parcels, traffic and washes; a per-site report; Settings for gates and weights; a Pipeline
+  board; exports.
+- *Stage 8.* The loop: a monthly refresh of places and counts as an agent; a new metro on
+  request; a flag when a planned wash appears near a candidate.
+- *Stage 9, the milestones.* M0: one metro (the one you name), the block-group and traffic
+  layers built by code with provenance, one scored address you can open, the self-test green
+  (hours, measured). M1: every commercial parcel in that metro screened by the gates, the
+  Sites table and the shortlist with why each near-miss failed. M2: the map and the per-site
+  report. M3: Settings, your gates and benchmarks fitted, the pipeline board. M4: a second
+  metro, the refresh agent, exports. Each ends with you looking at real data.
+- *Stage 10.* Open: which metro first; your thresholds or the trade's; the intersection count
+  method; whether a Census key is yours to get.
+
+Then M0 builds, the evaluator judges it, you open it, and M1 starts when you say.
+
+| Status (10 Oct 2026) | |
+|---|---|
+| Not built | Everything in this section; the design is agreed, the order of work is open (below). |
+| Open engineering questions | The journaling proxy and the `--settings` ports (a CLI pin bump to ≥2.1.285 for proxy ports); `srt` shipped with the app; DuckDB pinned with its extension files in `just ship`; a Range-capable Tauri protocol for PMTiles; git per workspace; the evaluator as a run kind; the desktop's map, report and settings pages; how a module's tables sit beside world tables in the rail; the time and tokens of one real milestone, measured on M0 of the car wash. |
+
 ### 6.1 Acting outward (decided and built 2 October 2026, evening; Q24)
 
 Kenil asked Alpha to draft an email and was refused, and then asked for the write route to open
@@ -698,6 +865,8 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q36** | A plan's questions with their choices (9 Oct 2026; Kenil, on the first plan on the Assistant page: "when there are questions, why give build option? … if there are default, those should be visible"). A plan's questions are part of the plan: text, 2 to 4 choices, Alpha's default; the model puts them on `plan_propose`, and questions it leaves in the text are read out by the core with the seam supplying choices and the plan's own lean. The card shows them with Alpha's pick selected, the button reads "Build with these", and the answers (or the defaults, named as such) go into the brief the build reads. | 9 Oct 2026 (`../log/2026-10-09-plan-questions.md`). |
 | **Q37** | The research pass before a build (9 Oct 2026, after the car wash module: Alpha wrote the spec itself from a one-line ask and four one-word answers, and built a weighted average with no gates in fourteen minutes; Kenil: "it needs to be a proper module… alpha should do a good scan of what all could potentially be helpful for such a product, and how well can it be built, and suggest those to the user so that they can decide"). Decided, with the evidence in `research/research-before-build.md`: the job's questions first, as cards, only the ones not known; every build ask gets a research pass in the background, breadth scaled by rule, each look an independent web run returning findings the core resolves by code; the plan is a menu of pieces (kept for you, your call, not this time) with evidence, how it would be built, whether it can be built now and Alpha's recommendation, decided with keep / skip / defer and one yes; `plan_propose` only inside a research thread; deferred pieces kept on the module's page; findings kept as a `topic:` page. Research first; computed things (gates, scores over rows) are a later slice, and the menu's "not yet" column is the measure of what to add. Kept apart from Q33's agents in name. | 9 Oct 2026 (`../log/2026-10-09-research-pass.md`). §6.3 |
 
+| **Q38** | Modules as programs (10 Oct 2026, after the second car wash build: the research pass worked, the build was still one table and a recipe, because a module had nowhere to hold a program; Kenil: "i dont want a half ass working solution … look at the module built by my friend … it should be like this", and "i dont want to reinvent the wheel"). Decided, four yeses: a module is a workspace Alpha codes in (program, data, declared pages) inside Claude Code's own sandbox driven by Alpha's settings (deny-default, writes in the workspace only, network only to the design's hosts through Alpha's journaling proxy, secrets denied, `srt` for unattended runs); a design document agreed stage by stage (job → findings → the person's inputs → data model → sources per value → method with calibration → surfaces → loop → milestones → open questions), frozen per milestone; milestones one per fresh session, each ending in a real result the person opens, done decided by a separate skeptical evaluator with scripted checks first; a `pages.yaml` contract of five kinds rendered by the shell (table, map, report, settings, export); the data layer's defaults DuckDB + GeoParquet + Hamilton + provenance per layer + pointblank; a module's own settings page is the person's, not a platform knob. Prior art in `research/modules-as-programs.md`. Reverses "modules are tables, know-how is pipelines". | 10 Oct 2026 (`../log/2026-10-10-modules-as-programs.md`). §6.4 |
+
 ---
 
 ### Appendix — research behind this
@@ -707,5 +876,6 @@ Carried over with their tests, and only where the design calls for that exact th
 - `design/research/proactivity-and-standing-things.md` — 17 proactive products, interruption evidence, the four-layer mechanism, the standing-things ladder.
 - `design/research/workspace-ui.md` — 25 second-brain products and 20 agent workspaces compared; the review, approval and explanation evidence; the recommended information architecture.
 - Jev / System One models: TypeSafe docs and cookbooks, arXiv 2609.30216, the Laya comparison (summarised in the chat of 30 Sept 2026).
+- `design/research/modules-as-programs.md` — the prior art behind modules as programs (Q38, 10 Oct 2026): sandboxes for a coding agent on a Mac (Claude Code's own, verified here; Codex and Gemini CLI), declared surfaces (A2UI, json-render, Datasette, Evidence, MapLibre + PMTiles, Typst), the data layer (DuckDB, Hamilton, Data Package provenance, pointblank, reusable public-data libraries), long builds (Anthropic's and OpenAI's harnesses, Spec Kit, BMAD, the Ralph loop, the false-success evidence).
 - `design/research/research-before-build.md` — the evidence behind the research pass (Q37, 9 Oct 2026): agents under-ask and assume silently; research before building helps when checked; when questions are worth asking and how many; how the deep-research products and the builder agents do it; how product people scope from a vague ask.
 - `design/research/competitor-kanu.md` — Kanu (getkanu.com, 2 Oct 2026): the same thesis sold top-down to enterprises with forward-deployed engineers; what Alpha lacks (finished deliverables, enterprise connectors, a feedback-to-behaviour loop), what Kanu doesn't show (a person-sized, local, self-serve product with provenance per value), and what it means for the pitch.

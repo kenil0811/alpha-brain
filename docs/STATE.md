@@ -4,7 +4,10 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 9 October 2026, afternoon.** Last entries: the research pass before a build
+**As of 10 October 2026.** Last entries: modules as programs, the decision
+([`log/2026-10-10-modules-as-programs.md`](log/2026-10-10-modules-as-programs.md), Q38; no code
+changed; the design in §6.4 with the car wash ask walked through, the prior art in
+`design/research/modules-as-programs.md`), the research pass before a build
 ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md), Q37; run for real on a
 copy of Kenil's world), a plan's questions with their choices
 ([`log/2026-10-09-plan-questions.md`](log/2026-10-09-plan-questions.md), Q36), the conversation, closer to Claude
@@ -164,20 +167,21 @@ pending item 6, people for real, and noticing over what Alpha reads.
    runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
    installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
    right-click › Open for now); the friend's own first run, which decides it.
-9. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
+9. **Modules as programs (Q38), the first slice** ([`log/2026-10-10-modules-as-programs.md`](log/2026-10-10-modules-as-programs.md), design §6.4): decide the order of work with Kenil, then build it. The acceptance is M0 of the car wash ask: one metro's layers built by code in a sandboxed workspace with provenance, one scored address he can open, the self-test green, judged by the evaluator, not the builder. Open engineering questions are listed in §6.4's status box (the journaling proxy and a CLI pin bump, `srt` and DuckDB's extensions in `just ship`, PMTiles over a Range-capable protocol, git per workspace, the evaluator run kind, the map/report/settings pages, modules' tables in the rail, one milestone's measured time).
+10. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
    watch the next real asks for the lean core (seven kept on the first); a piece's
    buildability feeding what capability to add next (computed things: a gate over a site's
    values, a score over rows, were the first "not yet"); a later pass that brings "Not this
    time" back; the suite's report keeping the plan's pieces; the time words against the
    measured fourteen minutes.
-10. **The conversation, the rest of Q35:** one automatic retry of a transient failure with a
+11. **The conversation, the rest of Q35:** one automatic retry of a transient failure with a
    Try again card; identical replies collapsed and a stopped build posting once (the loop that
    posted 19 on 2 Oct); long replies folded; copy and edit-and-resend; a plus for files in the
    composer; Kenil to say whether one stream should replace the per-page conversations.
-11. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
+12. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
-12. People for real: readers declare their rows as people; a pass links existing rows.
-13. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
+13. People for real: readers declare their rows as people; a pass links existing rows.
+14. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
    first-run experience on a clean Mac, the smaller
