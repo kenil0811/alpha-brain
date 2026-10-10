@@ -130,3 +130,18 @@ three rows in Sites and a green self-test, and passed it. The Run form is live o
 page. Noted for M1: the traffic gate took a 145,454 AADT count for S Congress, an interstate's
 count within the 2-mile search; the gate must read the road the parcel fronts and exclude
 interstates and ramps, as the Waterways engine does.
+
+**M1 ran for real (17:01–17:49 UTC, 48 minutes):** 7,710 Travis County parcels screened
+(7,570 commercial-zoned Austin parcels from the City's full zoning layer plus 140
+no-zoning-authority parcels near a count), three cached layers with provenance (zoning, AADT,
+competitors), a `parcels_screened` table of 33 columns with a near-miss reason on every parcel
+failing exactly one gate, a second job "Re-screen all of Travis County", and a real server bug
+found and worked around (Travis County's GIS returns `exceededTransferLimit` with zero features
+for some multipoint queries). The evaluator passed it on the one check that ran (a row count)
+and said so: "no independent platform check of near-miss correctness". **Read from the table
+afterwards:** of 2,530 passes, 1,208 pass on a count of 100,000 AADT or more (an interstate's)
+and 1,763 on a count more than 500 m away (median 753 m, max 3.2 km). The traffic gate is
+wrong for the bulk screen, as it was for the single address, and the row count could not
+catch it. The lesson for the mechanism: a milestone's checks must test the method, not the
+volume (a `query` check such as "no pass uses a count more than 200 m away or above 100k").
+Fix proposed as M1B before M2.
