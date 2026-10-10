@@ -121,3 +121,12 @@ listed on the module's page, refused without its input, run with an input that w
 shell injection (it arrives as one argument), writing a row the table shows, journaled, and
 the same job run by a milestone's `job` check. 258 core tests, 85 desktop, lint and
 typecheck clean. The real M0B run is the acceptance.
+
+**M0B ran for real (16:35–16:39 UTC):** the build added `jobs.yaml` with "Screen an address"
+and changed nothing else (the pipeline's `requests` calls honour the proxy's environment); the
+evaluator ran the job on 3301 S Congress Ave through Alpha's proxy (reached
+data.austintexas.gov, geocoding.geo.census.gov, gis.traviscountytx.gov; nothing refused), saw
+three rows in Sites and a green self-test, and passed it. The Run form is live on the module's
+page. Noted for M1: the traffic gate took a 145,454 AADT count for S Congress, an interstate's
+count within the 2-mile search; the gate must read the road the parcel fronts and exclude
+interstates and ramps, as the Waterways engine does.
