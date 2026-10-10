@@ -72,3 +72,21 @@ car wash ask on Kenil's Mac is the acceptance of this slice; the app is rebuilt 
   does not yet ask which existing module it extends.
 - DuckDB's extension files are not yet shipped with the app (`just ship`); a build on a fresh
   Mac would fetch them from `extensions.duckdb.org`, which the walls allow.
+
+## Run for real (10 Oct, 15:28–15:54 UTC, Kenil's Mac)
+
+After a clean removal of the morning's module and its facts, the research pass on "something
+similar to growthfactor.ai for car washes … start with Austin … build it as a program in
+milestones" proposed a program plan in 12 minutes (four looks, 95 findings; the first proposal
+had no milestones and was refused by the new wall, the revision carried M0–M2 and four hosts).
+Kenil approved it at 15:44 with the defaults. **M0 built in ten minutes** in the sandboxed
+workspace: `pipeline.py` (390 lines, three gate functions against live endpoints),
+`run_screen.py`, `selftest.py`, `settings.json`, a `.venv`, a competitors layer as GeoParquet
+(51 Travis County car washes from the Comptroller's NAICS-811192 permits, batch-geocoded) with
+its `provenance.json`, `module.duckdb` with a 35-column `sites` table where every value sits
+beside its source URL and fetch time; four commits; `PROGRESS.md` with what it decided (the
+county code 227 found by query; the zoning radius widened 75→200 m because Socrata's spatial
+index misses polygons; nearest-feature logic). The evaluator passed it with the weakness named
+(one row; the traffic count used lies 1.6 km from the address). The plan stopped as ready to
+look at; M1 waits for Kenil's continue. The walls held: nothing was written outside the
+workspace. Slice 1's acceptance is met.
