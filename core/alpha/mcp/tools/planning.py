@@ -3,6 +3,7 @@ proposes a plan of pieces (Q37); the build after the person's yes."""
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from alpha.context.prepack import when
@@ -27,6 +28,16 @@ def plan_words(plan: dict[str, Any]) -> str:
         "stopped": f"Its build stopped before it finished ({at}); plan_resume if they say to"
                    " carry on.",
     }.get(plan["state"], f"This plan is {plan['state']} ({at}).")
+
+
+STAGE_HEADINGS = re.compile(r"^#{1,3}\s*(the\s+)?(data model|method|milestones|operating loop|"
+                            r"where every value comes from|surfaces)\b", re.I | re.M)
+
+
+def is_program(plan_text: str) -> bool:
+    """A plan written in the design's stages (§6.4) is a program: it needs milestones and
+    hosts, because the build makes it in a workspace, judged by the evaluator."""
+    return bool(STAGE_HEADINGS.search(plan_text or ""))
 
 
 class Planning(Base):
@@ -139,6 +150,18 @@ class Planning(Base):
             return {"error": "A researched plan is a menu of pieces: kept (the lean core), choice"
                     " (their call) and wont (named, not now), each with its evidence from"
                     " research_look or `known`. Give the pieces."}
+        if is_program(plan) and not (milestones or (revising or {}).get("milestones")):
+            return {"error": "This plan is a program (it lays out a data model and a method):"
+                    " give its milestones, in order, the first small (one area, the first"
+                    " layers built with provenance, one real result they can open, the"
+                    " self-test), each with checks the evaluator runs by code, and hosts: every"
+                    " hostname the build must reach. The build makes it in a workspace, one"
+                    " milestone per session; without milestones it cannot be built."}
+        if (milestones or (revising or {}).get("milestones")) \
+                and not (hosts or (revising or {}).get("hosts")):
+            return {"error": "A program's build reaches only the hosts you name: give hosts,"
+                    " every hostname its data comes from (api.census.gov,"
+                    " services.arcgis.com, overpass-api.de, …)."}
         module_id = self.world.modules.get(module)["id"] if module else None
         made = self.world.plans.propose(
             title, plan, module=module_id, turn=self.turn, replaces=replaces, trial=trial,

@@ -111,9 +111,25 @@ def test_a_plan_with_milestones_needs_real_checks_and_clean_hosts(world: World) 
     assert [m["id"] for m in ms] == ["M0", "M1"] and ms[0]["passes"] is False
     assert clean_hosts(["https://A.com/x", "a.com", "nope", "b.org:443"]) == ["a.com", "b.org"]
     t = researching(world, turn="j_1")
-    out = t.plan_propose("P", "Body.", "t t", pieces=PIECES, milestones=[
+    out = t.plan_propose("P", "Body.", "t t", pieces=PIECES, hosts=["a.com"], milestones=[
         {"title": "x", "what": "y", "checks": [{"kind": "rows"}]}])
     assert "names its table" in out["error"]
+
+
+def test_a_plan_in_the_designs_stages_must_carry_milestones_and_hosts(world: World) -> None:
+    t = researching(world, turn="j_1")
+    design = "## What I understood\nA screener.\n## Data model\ncandidates.\n## Method\nGates."
+    out = t.plan_propose("Screener", design, "screen one address", pieces=PIECES)
+    assert "give its milestones" in out["error"]
+    out = t.plan_propose("Screener", design, "screen one address", pieces=PIECES,
+                         milestones=MILESTONES)
+    assert "give hosts" in out["error"]
+    out = t.plan_propose("Screener", design, "screen one address", pieces=PIECES,
+                         milestones=MILESTONES, hosts=["api.census.gov"])
+    assert "plan" in out and world.plans.get(out["plan"])["hosts"] == ["api.census.gov"]
+    # A plain plan (a log, a list kept current) needs none.
+    assert "plan" in t.plan_propose("Runs", "## What I understood\nA log of runs.", "log a run",
+                                    pieces=PIECES)
 
 
 def test_a_workspace_run_is_walled(tmp_path: Path) -> None:
