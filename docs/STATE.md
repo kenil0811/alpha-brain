@@ -43,14 +43,14 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 254, in about 22 s; ruff and mypy strict clean |
+| Core tests | 258, in about 26 s; ruff and mypy strict clean |
 | Desktop tests | 85, in twenty-five files; typecheck clean |
 | Tools the model sees | 74 |
 | Journeys | 24 defined; latest `docs/journeys/2026-10-09-1349.md`, 1 of 1 (the research pass on the car wash ask, 896 s: 3 looks, 58 findings from 37 pages, a plan of 13 pieces, nothing built); `2026-10-09-1347.md` failed rightly (the copy still had the module); `2026-10-09-1157.md`, 1 of 1 (a plan's questions with choices); `2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 149 total; 149 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 152 total; 152 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 16,164 Python; tests 6,044; desktop 10,727 TS/TSX |
 
 ## What is built, against the design's order of work
@@ -168,7 +168,7 @@ pending item 6, people for real, and noticing over what Alpha reads.
    runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
    installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
    right-click › Open for now); the friend's own first run, which decides it.
-9. **Modules as programs (Q38)** ([`log/2026-10-10-workspace-spine.md`](log/2026-10-10-workspace-spine.md), design §6.4): slice 1, the spine, is built and **run for real: M0 of the car wash ask on Austin built in ten minutes in the sandboxed workspace and passed the evaluator** (the log entry has what it made); M1 (every Travis County parcel screened) waits for Kenil's continue, with the traffic gate's 1.6 km nearest-count weakness to raise. Then slice 2 (the staged design pages, inputs read in), slice 3 (report, settings, map pages), slice 4 (jobs as agents, exports, a second metro). Open from slice 1: `srt` shipped; Alpha's own journaling proxy (CLI ≥2.1.285); the model's tools seeing a module's tables; DuckDB's extensions in `just ship`.
+9. **Modules as programs (Q38)** ([`log/2026-10-10-workspace-spine.md`](log/2026-10-10-workspace-spine.md), design §6.4): slice 1, the spine, is built and **run for real: M0 of the car wash ask on Austin built in ten minutes in the sandboxed workspace and passed the evaluator** (the log entry has what it made); then slice 1b the same evening (jobs as forms on the module's page, Alpha's proxy as the one road out, a `job` check): **M0B (screen an address from the page) waits for Kenil's continue**, then M1 (every Travis County parcel), with the traffic gate's 1.6 km nearest-count weakness to raise. Then slice 2 (the staged design pages, inputs read in), slice 3 (report, settings, map pages), slice 4 (jobs as agents, exports, a second metro). Open from slice 1: `srt` shipped; Alpha's own journaling proxy (CLI ≥2.1.285); the model's tools seeing a module's tables; DuckDB's extensions in `just ship`.
 10. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
    watch the next real asks for the lean core (seven kept on the first); a piece's
    buildability feeding what capability to add next (computed things: a gate over a site's

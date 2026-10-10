@@ -99,3 +99,7 @@ class NoteBody(BaseModel):
     body: str
     summary: str | None = None
 
+
+class JobBody(BaseModel):
+    """The inputs of a module's job (Q38), by input name."""
+    inputs: dict[str, Any] | None = None

@@ -119,7 +119,9 @@ class Planning(Base):
         the first small, each {"id": "M0", "title", "what" (a real result they can open),
         "checks": [{"kind": "selftest"} | {"kind": "rows", "table", "min"} | {"kind":
         "query", "sql", "min", "max"} | {"kind": "file", "path"} | {"kind": "provenance",
-        "layer"}]} the evaluator runs by code, and hosts: every hostname the build may reach
+        "layer"} | {"kind": "job", "job", "inputs"}]} the evaluator runs by code (every
+        milestone has a job check: what the person does from the module's page, run as they
+        would), and hosts: every hostname the build may reach
         for its data (api.census.gov, services.arcgis.com, …); nothing else is reachable.
         Nothing is built until they say yes."""
         research = self._researching()

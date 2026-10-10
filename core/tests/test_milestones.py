@@ -266,3 +266,130 @@ def test_the_checks_by_code_say_why(tmp_path: Path) -> None:
     assert not ok and "55" in why
     assert milestones.run_check(ws, {"kind": "query", "sql": "select 1", "max": 1})[0]
     os.environ.pop("ALPHA_HOME", None)
+
+
+# ---- jobs: what the person can do, and the one road out (Q38, slice 1b) ----
+
+JOBS_YAML = """jobs:
+  - id: screen
+    title: Screen an address
+    what: Runs the gates on one address.
+    inputs:
+      - {name: address, label: Address, kind: text, required: true}
+    command: ["python", "job.py", "{address}"]
+"""
+
+
+def test_the_proxy_lets_the_plans_hosts_through_and_refuses_the_rest() -> None:
+    import threading
+    import urllib.error
+    import urllib.request
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    from alpha.runtime.proxy import Proxy, allowed
+
+    assert allowed("api.census.gov", ["census.gov"]) and not allowed("evil.com", ["census.gov"])
+    assert not allowed("notcensus.gov", ["census.gov"])
+
+    class Hello(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = b"hello " + self.path.encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a: Any) -> None:
+            pass
+
+    upstream = HTTPServer(("127.0.0.1", 0), Hello)
+    threading.Thread(target=upstream.serve_forever, daemon=True).start()
+    proxy = Proxy(["localhost"]).start()
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler(
+            {"http": f"http://127.0.0.1:{proxy.port}"}))
+        got = opener.open(f"http://localhost:{upstream.server_address[1]}/x", timeout=10).read()
+        assert got == b"hello /x"
+        with pytest.raises(urllib.error.HTTPError) as e:
+            opener.open("http://example.com/", timeout=10)
+        assert e.value.code == 403
+        assert proxy.reached == {"localhost": 1} and proxy.refused == {"example.com": 1}
+        assert proxy.words() == "reached localhost (1); refused example.com (1)"
+    finally:
+        proxy.stop()
+        upstream.shutdown()
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="sandbox-exec is macOS")
+def test_a_script_with_hosts_reaches_only_them_through_the_proxy(tmp_path: Path,
+                                                                   home: Path) -> None:
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Hello(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *a: Any) -> None:
+            pass
+
+    upstream = HTTPServer(("127.0.0.1", 0), Hello)
+    threading.Thread(target=upstream.serve_forever, daemon=True).start()
+    port = upstream.server_address[1]
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "t.py").write_text(
+        "import urllib.request, urllib.error\n"
+        f"print(urllib.request.urlopen('http://localhost:{port}/a', timeout=10).read())\n"
+        "try:\n    urllib.request.urlopen('http://example.com/', timeout=10); print('OPEN')\n"
+        "except urllib.error.HTTPError as e: print('refused', e.code)\n")
+    try:
+        code, out = workspace_module.run_script(ws, ["python", "t.py"], timeout_s=60,
+                                                hosts=["localhost"])
+    finally:
+        upstream.shutdown()
+    assert code == 0, out
+    assert "b'ok'" in out and "refused 403" in out
+    assert "[network: reached localhost (1); refused example.com (1)]" in out
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="jobs run under sandbox-exec")
+def test_a_job_runs_from_the_modules_page_and_is_what_a_milestone_checks(
+        world: World, home: Path) -> None:
+    plan = program_plan(world)
+    first = build.run_build(world, plan["id"], runner=builder(world.path))
+    module = world.modules.get(first["module"])
+    ws = Path(module["workspace"])
+    c = TestClient(create_app(world, live=False))
+    assert c.get(f"/api/modules/{module['id']}").json()["jobs"] == []
+    (ws / "jobs.yaml").write_text(JOBS_YAML)
+    (ws / "job.py").write_text(
+        "import sys, duckdb\naddr = sys.argv[1]\n"
+        "con = duckdb.connect('module.duckdb')\n"
+        "con.execute(\"INSERT INTO sites VALUES (?, ?, 50.0, 'x', 'y')\", "
+        "[int(con.execute('select max(id)+1 from sites').fetchone()[0]), addr])\n"
+        "print('screened', addr)\n")
+    jobs = c.get(f"/api/modules/{module['id']}").json()["jobs"]
+    assert jobs[0]["title"] == "Screen an address" and jobs[0]["inputs"][0]["name"] == "address"
+    missing = c.post(f"/api/modules/{module['id']}/jobs/screen", json={"inputs": {}})
+    assert missing.status_code == 400 and "Address is needed" in missing.json()["error"]
+    out = c.post(f"/api/modules/{module['id']}/jobs/screen",
+                 json={"inputs": {"address": "2 Elm St; rm -rf /"}}).json()
+    assert out["ok"] and "screened 2 Elm St; rm -rf /" in out["output"]
+    rows = c.get(f"/api/tables/{module['id']}:sites").json()["records"]
+    assert [r["address"] for r in rows] == ["1 Main St", "2 Elm St; rm -rf /"]
+    did = world.journal.recent(1, module=module["id"])[0]
+    assert did["kind"] == "did" and did["text"].startswith("Ran Screen an address (Address")
+    assert "[network:" in out["output"]
+    # The evaluator runs the job as the person would.
+    ok, why = milestones.run_check(ws, {"kind": "job", "job": "screen",
+                                        "inputs": {"address": "3 Oak St"}},
+                                   world=world, module_id=module["id"])
+    assert ok and "ran as the person would" in why
+    ok, why = milestones.run_check(ws, {"kind": "job", "job": "nope", "inputs": {}},
+                                   world=world, module_id=module["id"])
+    assert not ok and "no job" in why
+    assert c.post(f"/api/modules/{module['id']}/jobs/nope", json={}).status_code == 400

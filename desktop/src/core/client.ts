@@ -198,6 +198,15 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   goals: Goal[];
   automations: Automation[];
   sources: Source[];
+  /** What the person can do with a program module (Q38): its declared jobs. */
+  jobs?: Job[];
+}
+
+export interface Job {
+  id: string;
+  title: string;
+  what: string;
+  inputs: { name: string; label: string; kind: "text" | "number"; required: boolean; help?: string }[];
 }
 
 /** A place a module reads from, and whether it works (kept by the platform from what happened). */
@@ -869,6 +878,8 @@ export class Client {
    * out keeps Alpha's default). */
   approvePlan = (id: string, answers?: Record<string, string>, pieces?: Record<string, string>) =>
     this.call<Plan>("POST", `/api/plans/${id}/approve`, answers || pieces ? { answers, pieces } : undefined);
+  runJob = (module: string, job: string, inputs: Record<string, string>) =>
+    this.call<{ job: string; ok: boolean; exit: number; output: string }>("POST", `/api/modules/${encodeURIComponent(module)}/jobs/${encodeURIComponent(job)}`, { inputs });
   stopResearch = (id: string) => this.call<Research>("POST", `/api/research/${id}/stop`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);

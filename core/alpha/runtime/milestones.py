@@ -24,6 +24,7 @@ from alpha.runtime import route, turn
 from alpha.runtime import workspace as workspace_module
 from alpha.runtime.claude_cli import TurnRequest
 from alpha.world import plans as plans_module
+from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.milestones")
@@ -54,6 +55,13 @@ with an error twice is a constraint: write it in PROGRESS.md and in your reply, 
 beyond that or route around it. Nothing leaves this Mac but requests to those hosts.
 - Values are known, estimated or missing, and the data says which: never fill a gap with a \
 guess that looks like a measurement.
+- What the person can do with the module is declared in `jobs.yaml` (jobs: id, title, what, \
+inputs [{name, label, kind text|number, required}], command as a list with {name} for each \
+input): the module's page shows each as a form and runs it; the evaluator runs a milestone's \
+`job` check the same way. Every milestone's user-facing action is a job; a result nobody can \
+produce from the page is not delivered. A job's script reaches the network only through the \
+proxy in HTTPS_PROXY/HTTP_PROXY (urllib and requests honour it; for DuckDB's httpfs `SET \
+http_proxy` to it), to the design's hosts and nothing else.
 - When the milestone's checks pass locally: `git add -A && git commit -m "<milestone>: what"`. \
 Then append to PROGRESS.md a dated section: done, decided, left, and what the person should \
 look at. Alpha's own tools (the `alpha` server) are for reading the person's world and \
@@ -101,8 +109,22 @@ def _git_log(ws: Path) -> str:
 # ---- the checks, by code ----
 
 
-def run_check(ws: Path, check: dict[str, Any]) -> tuple[bool, str]:
+def run_check(ws: Path, check: dict[str, Any], *, world: World | None = None,
+              module_id: str | None = None) -> tuple[bool, str]:
     kind = check["kind"]
+    if kind == "job":
+        if world is None or module_id is None:
+            return False, "A job check needs the module."
+        from alpha.runtime import jobs
+
+        try:
+            ran = jobs.run_job(world, module_id, str(check["job"]), dict(check.get("inputs") or {}))
+        except Problem as e:
+            return False, f"The job could not run: {e}"
+        tail = " ".join(str(ran["output"]).strip().splitlines()[-3:])[:300]
+        return bool(ran["ok"]), (f"Job {check['job']} ran as the person would: {tail}"
+                                 if ran["ok"] else
+                                 f"Job {check['job']} failed (exit {ran['exit']}): {tail}")
     if kind == "selftest":
         if not (ws / "selftest.py").exists():
             return False, "There is no selftest.py in the workspace."
@@ -181,11 +203,12 @@ def judge(world: World, milestone: dict[str, Any], results: list[dict[str, Any]]
 
 
 def evaluate(world: World, milestone: dict[str, Any], ws: Path, reply: str, *,
-             runner: turn.Runner, turn_id: str) -> dict[str, Any]:
+             runner: turn.Runner, turn_id: str, module_id: str | None = None
+             ) -> dict[str, Any]:
     """The checks by code first, the judging run last; pass needs both."""
     results = []
     for check in milestone.get("checks") or []:
-        ok, why = run_check(ws, check)
+        ok, why = run_check(ws, check, world=world, module_id=module_id)
         results.append({"check": check["kind"], "ok": ok, "why": why})
     verdict = judge(world, milestone, results, ws, reply, runner=runner, turn_id=turn_id)
     passed = all(r["ok"] for r in results) and bool(verdict["pass"])
@@ -268,7 +291,8 @@ def run(world: World, plan_id: str, *, runner: turn.Runner = route.run) -> dict[
         return build.stop(world, plan_id, error or "it failed")
     if reply.strip().upper().startswith("STUCK"):
         return build.stop(world, plan_id, f"{milestone['id']} is stuck: {reply.strip()[6:400]}")
-    verdict = evaluate(world, milestone, ws, reply, runner=runner, turn_id=said)
+    verdict = evaluate(world, milestone, ws, reply, runner=runner, turn_id=said,
+                       module_id=module_id)
     summary = words(verdict)
     if verdict["pass"]:
         milestone["passes"], milestone["why"] = True, None

@@ -937,6 +937,10 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .working__partial { margin-top: 10px; color: var(--text); }
 
 /* ---------- a plan's questions on its card (Q36) ---------- */
+/* A program module's jobs (Q38): a form per job on the module's page, and what came back. */
+.job { align-items: flex-start; }
+.job__out { margin: 6px 0 0; padding: 6px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-xs); white-space: pre-wrap; max-height: 160px; overflow: auto; }
+.job__out--failed { border-color: var(--danger, #c33); }
 /* A program plan's milestones (Q38): what the build delivers, ticked by the evaluator. */
 .planm { list-style: none; margin: 6px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); }
 .planm__item--done { opacity: 0.8; }

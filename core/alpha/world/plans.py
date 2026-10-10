@@ -34,7 +34,7 @@ MOST_OPTION_CHARS = 90
 # A program plan's milestones (Q38): what the build delivers, in order, each with the checks
 # the evaluator runs by code; `passes` is flipped only by the evaluator. A milestone that
 # failed its checks this many times is stuck: the build stops and says so.
-CHECK_KINDS = ("selftest", "rows", "query", "file", "provenance")
+CHECK_KINDS = ("selftest", "rows", "query", "file", "provenance", "job")
 MILESTONE_ATTEMPTS = 3
 PIECE_KINDS = ("kept", "choice", "wont")
 PIECE_CANS = ("now", "needs", "not_yet")
@@ -120,7 +120,7 @@ def clean_milestones(milestones: Any) -> list[dict[str, Any]]:
             if not isinstance(c, dict) or str(c.get("kind") or "") not in CHECK_KINDS:
                 raise Problem(f"A check of {title} needs a kind from {', '.join(CHECK_KINDS)}:"
                               " selftest {}, rows {table, min}, query {sql, min?, max?},"
-                              " file {path}, provenance {layer}.")
+                              " file {path}, provenance {layer}, job {job, inputs}.")
             kind = str(c["kind"])
             clean: dict[str, Any] = {"kind": kind}
             if kind == "rows":
@@ -142,6 +142,11 @@ def clean_milestones(milestones: Any) -> list[dict[str, Any]]:
                 if not c.get("layer"):
                     raise Problem(f"A provenance check of {title} names its layer.")
                 clean.update(layer=str(c["layer"]))
+            elif kind == "job":
+                if not c.get("job"):
+                    raise Problem(f"A job check of {title} names the job (its id in jobs.yaml).")
+                clean.update(job=str(c["job"]),
+                             inputs={str(k): v for k, v in (c.get("inputs") or {}).items()})
             checks.append(clean)
         if not checks:
             raise Problem(f"The milestone {title} needs at least one check the evaluator can"

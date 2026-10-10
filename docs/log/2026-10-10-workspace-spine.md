@@ -90,3 +90,34 @@ index misses polygons; nearest-feature logic). The evaluator passed it with the 
 (one row; the traffic count used lies 1.6 km from the address). The plan stopped as ready to
 look at; M1 waits for Kenil's continue. The walls held: nothing was written outside the
 workspace. Slice 1's acceptance is met.
+
+## Slice 1b: what the person can do (10 Oct, evening)
+
+Kenil, after M0: "a user has no way to testing this. What exactly are we even trying to build
+here if nothing works or is testable." Right: M0 ended in a row he could open but nothing he
+could do; the surfaces and jobs were sliced after the engine. Built the same evening:
+
+- **Jobs** (`runtime/jobs.py`): a module declares what the person can do in `jobs.yaml` (id,
+  title, what, inputs with name/label/kind/required, a command as a list with `{name}` for
+  each input, filled as whole arguments, never through a shell). The module's page shows each
+  as a form with Run (`/api/modules/{ref}/jobs/{job}`); the core runs it in the workspace
+  under the profile and journals what ran and what it reached.
+- **Alpha's own proxy** (`runtime/proxy.py`): the one road out for a script the core runs:
+  bound to the loopback for the run, the profile allows outbound only to its port; it lets
+  through the plan's hosts (exact or subdomain), refuses the rest with 403, and counts what
+  was reached and refused, which the run's output ends with. HTTPS as a CONNECT tunnel, HTTP
+  forwarded. `run_script(hosts=…)` sets `HTTPS_PROXY`/`HTTP_PROXY` for the script.
+- **A `job` check** on milestones: the evaluator runs the declared job on a given input as
+  the person would; `MILESTONE_RULES` and the research rules now say every milestone's
+  user-facing action is a job and a result nobody can produce from the page is not delivered.
+- For the live Car Wash Site Screener, milestone **M0B** ("Screen an address from the module's
+  page", checks: the `screen` job on 3301 S Congress Ave, two rows in Sites, the self-test)
+  was inserted before M1 at Kenil's yes, so the next continue delivers the form.
+
+**Checked.** The proxy lets a listed host through and refuses another with 403, counting
+both; a script under the profile reaches a local server through the proxy and is refused
+elsewhere, with the network line at the end of its output; a job declared in `jobs.yaml`
+listed on the module's page, refused without its input, run with an input that would be a
+shell injection (it arrives as one argument), writing a row the table shows, journaled, and
+the same job run by a milestone's `job` check. 258 core tests, 85 desktop, lint and
+typecheck clean. The real M0B run is the acceptance.

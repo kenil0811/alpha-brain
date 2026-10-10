@@ -66,7 +66,8 @@ model: entities, tables, relations; where every value comes from, per column, an
 key or a file; the method: gates first, then a score, the parameters and their defaults, \
 calibration against their benchmarks; the surfaces; the operating loop; open questions), give \
 milestones in order with the checks the evaluator runs by code (the first small: one area, the \
-first layers built with provenance, one real result they can open, the self-test), and hosts: \
+first layers built with provenance, one real result they can open, the self-test, and always a \
+job: what they do from the module's page, run as they would), and hosts: \
 every hostname the build must reach. The pieces still carry the choices.
 A plan of pieces: what such a thing could have, laid out as a \
 product person who read all this would lay it out for someone who answers in one word.

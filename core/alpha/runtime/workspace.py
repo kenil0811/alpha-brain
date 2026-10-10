@@ -133,9 +133,10 @@ def sandbox_settings(workspace: Path, hosts: list[str], world_path: Path) -> dic
 # ---- running a workspace's own script, with no network ----
 
 
-def _profile(workspace: Path, tmp: Path) -> str:
+def _profile(workspace: Path, tmp: Path, proxy_port: int | None = None) -> str:
     """A deny-default Seatbelt profile: read anywhere but the person's secrets and Alpha's
-    world, write only in the workspace and a scratch dir, no network."""
+    world, write only in the workspace and a scratch dir, no network except, when a proxy
+    port is given, the loopback to Alpha's own proxy (runtime/proxy.py)."""
     def sub(p: str) -> str:
         return f'(subpath "{os.path.realpath(os.path.expanduser(p))}")'
     denied = " ".join(sub(p) for p in SECRET_PATHS + [str(alpha_home())]
@@ -155,13 +156,17 @@ def _profile(workspace: Path, tmp: Path) -> str:
 (allow file-read* {sub(str(workspace))})
 (allow file-write* {sub(str(workspace))} {sub(str(tmp))} (literal "/dev/null")
   (regex #"^/dev/tty"))
+{f'(allow network-outbound (remote ip "localhost:{proxy_port}"))' if proxy_port else ''}
 """
 
 
 def run_script(workspace: Path, argv: list[str], *, timeout_s: float = SCRIPT_TIMEOUT_S,
-               env: dict[str, str] | None = None) -> tuple[int, str]:
-    """Run a command in the workspace under the no-network profile; the exit code and the
-    output's tail. The workspace's own `.venv` python is used when `python` is asked for."""
+               env: dict[str, str] | None = None, hosts: list[str] | None = None
+               ) -> tuple[int, str]:
+    """Run a command in the workspace under the profile; the exit code and the output's tail.
+    With `hosts`, the script reaches those hosts and nothing else, through Alpha's own proxy,
+    and the output ends with what was reached and refused. The workspace's own `.venv` python
+    is used when `python` is asked for."""
     if not argv:
         raise Problem("Nothing to run.")
     ws = Path(workspace).resolve()
@@ -169,15 +174,32 @@ def run_script(workspace: Path, argv: list[str], *, timeout_s: float = SCRIPT_TI
         venv = ws / ".venv" / "bin" / "python"
         argv = [str(venv) if venv.exists() else sys.executable, *argv[1:]]
     tmp = Path(tempfile.mkdtemp(prefix="alpha-script-"))
-    profile = _profile(ws, tmp)
     full_env = {**os.environ, **(env or {}), "TMPDIR": str(tmp), "HOME": str(ws),
                 "PYTHONDONTWRITEBYTECODE": "1"}
+    for key in list(full_env):
+        if key.upper() in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"):
+            full_env.pop(key)
+    proxy = None
+    if hosts:
+        from alpha.runtime.proxy import Proxy
+
+        proxy = Proxy(hosts).start()
+        url = f"http://127.0.0.1:{proxy.port}"
+        full_env.update({"HTTP_PROXY": url, "HTTPS_PROXY": url, "http_proxy": url,
+                         "https_proxy": url, "ALPHA_PROXY": url})
+    profile = _profile(ws, tmp, proxy.port if proxy else None)
     try:
         proc = subprocess.run(["/usr/bin/sandbox-exec", "-p", profile, *argv], cwd=ws,
                               capture_output=True, text=True, timeout=timeout_s, env=full_env)
         out = (proc.stdout + proc.stderr)[-4000:]
-        return proc.returncode, out
+        code = proc.returncode
     except subprocess.TimeoutExpired:
-        return 124, f"Timed out after {int(timeout_s)} s: {shlex.join(argv)}"
+        code, out = 124, f"Timed out after {int(timeout_s)} s: {shlex.join(argv)}"
     except FileNotFoundError:
-        return 127, "sandbox-exec is not on this Mac."
+        code, out = 127, "sandbox-exec is not on this Mac."
+    finally:
+        if proxy:
+            proxy.stop()
+    if proxy:
+        out = f"{out}\n[network: {proxy.words()}]"
+    return code, out
