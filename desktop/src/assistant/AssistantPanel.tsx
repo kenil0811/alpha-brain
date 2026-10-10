@@ -165,6 +165,16 @@ export function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Clie
       </h3>
       {pieces.length ? <PlanPieces pieces={pieces} decisions={decisions} onChange={setDecisions} /> : null}
       {questions.length ? <PlanQuestions questions={questions} answers={answers} onChange={setAnswers} /> : null}
+      {plan.milestones?.length ? (
+        <ol className="planm" aria-label="Milestones">
+          {plan.milestones.map((m) => (
+            <li key={m.id} className={`planm__item${m.passes ? " planm__item--done" : ""}`}>
+              <span className="planm__mark">{m.passes ? "✓" : "○"}</span> <b>{m.id}</b> {m.title}
+              <span className="faint"> — {m.what}</span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
       <span className="faint">
         {stopped
           ? "The build stopped before it finished. It can carry on from where it stopped."

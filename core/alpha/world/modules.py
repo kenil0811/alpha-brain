@@ -103,6 +103,13 @@ class Modules:
     def all(self) -> list[dict[str, Any]]:
         return [_row(r) for r in self.store.all("SELECT * FROM modules ORDER BY name")]
 
+    def set_workspace(self, module_id: str, path: str | None) -> dict[str, Any]:
+        """The folder a program module is built in (Q38); None when it is removed."""
+        with self.store.tx() as db:
+            db.execute("UPDATE modules SET workspace = ?, updated_at = ? WHERE id = ?",
+                       (path, now(), module_id))
+        return self.get(module_id)
+
     # ---- threads ----
 
     def open_thread(self, title: str, kind: str, module: str | None = None) -> dict[str, Any]:

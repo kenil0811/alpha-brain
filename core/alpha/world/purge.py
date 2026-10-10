@@ -139,6 +139,11 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         # Research passes about it stop too, and their findings go.
         world.research.remove_module(db, mid)
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
+    # A program module's workspace goes with it (Q38); the journal keeps what it was.
+    from alpha.runtime import workspace as workspace_module
+
+    if workspace_module.remove(mid):
+        counts["workspace"] = 1
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
     what = [plural(len(tables), "table") + (f" ({plural(records, 'row')})" if records else "")]

@@ -4,9 +4,10 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 10 October 2026.** Last entries: modules as programs, the decision
-([`log/2026-10-10-modules-as-programs.md`](log/2026-10-10-modules-as-programs.md), Q38; no code
-changed; the design in §6.4 with the car wash ask walked through, the prior art in
+**As of 10 October 2026, evening.** Last entries: modules as programs, slice 1, the spine
+([`log/2026-10-10-workspace-spine.md`](log/2026-10-10-workspace-spine.md), Q38; proven by tests only,
+M0 of the car wash ask on Austin is the acceptance), the decision and its prior art
+([`log/2026-10-10-modules-as-programs.md`](log/2026-10-10-modules-as-programs.md); §6.4,
 `design/research/modules-as-programs.md`), the research pass before a build
 ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md), Q37; run for real on a
 copy of Kenil's world), a plan's questions with their choices
@@ -38,19 +39,19 @@ fact origins, the module's page and the item pages
 of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
 contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
 
-## Numbers (`just stats`, 9 Oct, 14:15)
+## Numbers (`just stats`, 10 Oct, evening)
 
 | | |
 |---|---|
-| Core tests | 247, in about 19 s; ruff and mypy strict clean |
+| Core tests | 254, in about 22 s; ruff and mypy strict clean |
 | Desktop tests | 85, in twenty-five files; typecheck clean |
 | Tools the model sees | 74 |
 | Journeys | 24 defined; latest `docs/journeys/2026-10-09-1349.md`, 1 of 1 (the research pass on the car wash ask, 896 s: 3 looks, 58 findings from 37 pages, a plan of 13 pieces, nothing built); `2026-10-09-1347.md` failed rightly (the copy still had the module); `2026-10-09-1157.md`, 1 of 1 (a plan's questions with choices); `2026-10-09-0022.md`, 1 of 1 (the deal tracker's run with its verdict); the last full run `docs/journeys/2026-10-03-2022.md`, 14 of 18 |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 147 total; 147 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 15,340 Python; tests 5,792; desktop 10,705 TS/TSX |
+| Commits | 149 total; 149 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 16,164 Python; tests 6,044; desktop 10,727 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -60,7 +61,7 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 | 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) kept only after a real run, health-checked, repaired by Alpha; files in and out (§4.17); calendar read-only. Reading LinkedIn's whole list daily is still the slowest thing (read only what is new: open). |
 | 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an automation's "worth telling". |
 | 4. Entities and bi-temporal facts across sources | **Partial.** Facts bi-temporal; entities with hard keys; a page per person (§4.23); noticing after every turn; entity cards in context. But no table in Kenil's world declares its rows as people, so 1,551 connections are rows, not people (20 entities, 6 facts). |
-| 5. Standing things, promotion from verified runs | **Partial.** Plan → yes → build by mechanism (§4.7); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). Since 9 Oct every automation is an agent's process (Q33): a goal, a page Alpha writes and the person edits (read by the model when it steps in), a row per run with a verdict judged by code, repair at most twice a run, failures in the journal and the companion, the Agents tab and page. Since 9 Oct afternoon a build ask gets a research pass before its plan (Q37, §6.3): the job's questions first, then a pass in the background whose looks return findings the core resolves by code, then a plan of pieces (kept for you, your call, not this time) with evidence and buildability that the person keeps, skips or defers on the card; `plan_propose` only inside a pass; deferred pieces on the module's page; the findings as a `topic:` page. No ladder, no promotion from repetition; no event triggers, no digest; no later pass over a built module. |
+| 5. Standing things, promotion from verified runs | **Partial.** Plan → yes → build by mechanism (§4.7); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). Since 9 Oct every automation is an agent's process (Q33): a goal, a page Alpha writes and the person edits (read by the model when it steps in), a row per run with a verdict judged by code, repair at most twice a run, failures in the journal and the companion, the Agents tab and page. Since 9 Oct afternoon a build ask gets a research pass before its plan (Q37, §6.3): the job's questions first, then a pass in the background whose looks return findings the core resolves by code, then a plan of pieces (kept for you, your call, not this time) with evidence and buildability that the person keeps, skips or defers on the card; `plan_propose` only inside a pass; deferred pieces on the module's page; the findings as a `topic:` page. Since 10 Oct evening (Q38, slice 1) a plan whose thing computes, screens, scores or maps is a program: a workspace Alpha codes in under walls, milestones judged by an evaluator, the module's own tables read-only in the app (proven by tests only). No ladder, no promotion from repetition; no event triggers, no digest; no later pass over a built module. |
 | 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
 | Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
 | Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
@@ -167,7 +168,7 @@ pending item 6, people for real, and noticing over what Alpha reads.
    runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
    installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
    right-click › Open for now); the friend's own first run, which decides it.
-9. **Modules as programs (Q38), the first slice** ([`log/2026-10-10-modules-as-programs.md`](log/2026-10-10-modules-as-programs.md), design §6.4): decide the order of work with Kenil, then build it. The acceptance is M0 of the car wash ask: one metro's layers built by code in a sandboxed workspace with provenance, one scored address he can open, the self-test green, judged by the evaluator, not the builder. Open engineering questions are listed in §6.4's status box (the journaling proxy and a CLI pin bump, `srt` and DuckDB's extensions in `just ship`, PMTiles over a Range-capable protocol, git per workspace, the evaluator run kind, the map/report/settings pages, modules' tables in the rail, one milestone's measured time).
+9. **Modules as programs (Q38)** ([`log/2026-10-10-workspace-spine.md`](log/2026-10-10-workspace-spine.md), design §6.4): slice 1, the spine, is built and proven by tests only; **the acceptance is M0 of the car wash ask on Austin, for real on Kenil's Mac** (one metro's layers built by code in the sandboxed workspace with provenance, one scored address he opens, the self-test green, judged by the evaluator). Then slice 2 (the staged design pages, inputs read in), slice 3 (report, settings, map pages), slice 4 (jobs as agents, exports, a second metro). Open from slice 1: `srt` shipped; Alpha's own journaling proxy (CLI ≥2.1.285); the model's tools seeing a module's tables; DuckDB's extensions in `just ship`.
 10. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
    watch the next real asks for the lean core (seven kept on the first); a piece's
    buildability feeding what capability to add next (computed things: a gate over a site's

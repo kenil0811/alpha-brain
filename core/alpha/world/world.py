@@ -11,6 +11,7 @@ from alpha.world.collections import Collections
 from alpha.world.entities import Entities
 from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
+from alpha.world.modtables import ModuleTables
 from alpha.world.modules import Modules
 from alpha.world.plans import Plans
 from alpha.world.preferences import Preferences
@@ -54,6 +55,7 @@ class World:
         self.sources = Sources(self.store)
         self.plans = Plans(self.store)
         self.research = Research(self.store)
+        self.modtables = ModuleTables(self)
         self.procedures = Procedures(self.store)
         self.actions = Actions(self.store)
         self.permissions = Permissions(self.store)

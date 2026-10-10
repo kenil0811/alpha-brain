@@ -59,7 +59,16 @@ what each holds, whether it is readable, needs a sign-in, or stops automated rea
 - After each round, rewrite the brief with thread_brief: the ask, the job, the looks done and \
 what they found, what is left. If this run is cut off, the next one starts from it.
 
-Then propose, with plan_propose, a plan of pieces: what such a thing could have, laid out as a \
+Then propose, with plan_propose. When what they want computes, screens, scores or maps (more \
+than a log or a list kept current), it is a program (design §6.4): write the plan text as the \
+design in its stages (the job and the user; what you found; their inputs, asked for; the data \
+model: entities, tables, relations; where every value comes from, per column, and what needs a \
+key or a file; the method: gates first, then a score, the parameters and their defaults, \
+calibration against their benchmarks; the surfaces; the operating loop; open questions), give \
+milestones in order with the checks the evaluator runs by code (the first small: one area, the \
+first layers built with provenance, one real result they can open, the self-test), and hosts: \
+every hostname the build must reach. The pieces still carry the choices.
+A plan of pieces: what such a thing could have, laid out as a \
 product person who read all this would lay it out for someone who answers in one word.
 - kind "kept": the table stakes, what every such thing has and they would miss; pre-kept as one \
 block, so make it the lean core, not everything.

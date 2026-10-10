@@ -28,6 +28,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
+from alpha.world.modtables import is_qualified
 from alpha.world.store import Problem
 from alpha.world.world import alpha_home
 
@@ -48,7 +49,8 @@ def routes(app: FastAPI, s: Served) -> None:
         m = world.modules.get(ref)
         ids = world.modules.subtree(m["id"])
         card = module_card(world, m)
-        card["tables"] = [world.collections.describe(t["name"]) for t in card["tables"]]
+        card["tables"] = [world.modtables.describe(t["name"]) if is_qualified(t["name"])
+                          else world.collections.describe(t["name"]) for t in card["tables"]]
         card["inside"] = [module_card(world, c) for c in world.modules.children(m["id"])]
         card["activity"] = list(reversed(world.journal.recent(500, modules=ids)))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
@@ -92,6 +94,11 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/tables/{name}", dependencies=[api])
     def table(name: str, q: str | None = None, order: str | None = None,
               limit: int | None = None) -> dict[str, Any]:
+        if is_qualified(name):
+            # A program module's own table (Q38): read-only, from its module.duckdb.
+            return {"table": world.modtables.describe(name),
+                    "records": world.modtables.query(name, limit), "files": {},
+                    "lists": world.views.for_table(name), "relations": {}}
         # Every row by default: the page filters, sorts and pages them itself.
         desc = world.collections.describe(name)
         records = world.collections.query(name, None, order, limit)
@@ -116,6 +123,9 @@ def routes(app: FastAPI, s: Served) -> None:
     def record(name: str, rid: str) -> dict[str, Any]:
         """One record with its table: what the page shows when a relation is followed into
         another table (a client from a financials row), with a way back."""
+        if is_qualified(name):
+            return {"table": world.modtables.describe(name),
+                    "record": world.modtables.get(name, rid), "relations": {}}
         desc = world.collections.describe(name)
         row = world.collections.get(name, rid)
         return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row])}

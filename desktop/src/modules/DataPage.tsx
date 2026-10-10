@@ -146,6 +146,8 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [removing, setRemoving] = useState(false);
   const [adding, setAdding] = useState(false);
+  // A program module's own table (Q38) is read from its database: no adding, editing or removing here.
+  const readonly = Boolean(table.readonly);
   const [naming, setNaming] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -260,12 +262,14 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
     }
   }
   function commit(row: RecordRow, field: FieldInfo, text: string) {
+    if (readonly) return;
     const value = coerce(text, field.kind);
     const current = row.values[field.name] ?? null;
     if (JSON.stringify(value) === JSON.stringify(current)) return;
     void run(() => client.editRecord(table.name, row.id, { [field.name]: value }, row.revision), "Couldn't save the change");
   }
   function remove(row: RecordRow) {
+    if (readonly) return;
     setOpenId(null);
     void run(() => client.deleteRecord(table.name, row.id, row.revision), "Couldn't remove it");
   }
@@ -382,7 +386,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   return (
     <div className="stack stack--fill" aria-label={table.title}>
       <div className="card card--fill">
-        {onSay ? <QuickEntry table={table} onSay={onSay} /> : null}
+        {onSay && !readonly ? <QuickEntry table={table} onSay={onSay} /> : null}
         <div className="toolbar toolbar--page">
           {searchable.length ? (
             <div className="search">
@@ -440,9 +444,13 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
             </label>
           ) : null}
           <span className="spacer" />
-          <Button size="sm" variant="primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
-            {adding ? "Cancel" : "Add"}
-          </Button>
+          {readonly ? (
+            <span className="faint">Built by the module · read-only</span>
+          ) : (
+            <Button size="sm" variant="primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
+              {adding ? "Cancel" : "Add"}
+            </Button>
+          )}
           <Popover label="Table options" trigger={<IconButton label="More" icon={<MoreHorizontal />} />}>
             <div>
                 <div className="menu__head">Download</div>
@@ -502,7 +510,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
             </div>
           </Popover>
         </div>
-        {adding ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
+        {adding && !readonly ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
         {selected.size ? (
           <div className="selectbar" role="status">
             <b>{count(selected.size)} selected</b>

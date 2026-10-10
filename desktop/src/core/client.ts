@@ -27,6 +27,8 @@ export interface TableDesc {
   fields: Field[];
   records: number;
   created_at?: string;
+  /** A program module's own table (Q38): read from its module.duckdb, never edited here. */
+  readonly?: boolean;
 }
 
 /** The map of Alpha's own work (`/api/graph`): what Intelligence lists, as nodes, and how
@@ -256,6 +258,8 @@ export interface Plan {
   questions?: PlanQuestion[];
   pieces?: PlanPiece[];
   research?: string | null;
+  /** A program plan's milestones (Q38), each flipped to passes by the evaluator. */
+  milestones?: { id: string; title: string; what: string; passes: boolean; attempts?: number; why?: string | null }[];
 }
 
 /** A research pass (Q37): Alpha looking into how a thing is done before it proposes it. */

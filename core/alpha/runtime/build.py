@@ -189,6 +189,12 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = route.run
     """One run of a build. It finishes the plan, stops it, or leaves it building for the next
     run to continue."""
     plan = world.plans.get(plan_id)
+    if plan.get("milestones"):
+        # A program plan (Q38): one milestone per session in its workspace, judged by the
+        # evaluator (runtime/milestones.py).
+        from alpha.runtime import milestones
+
+        return milestones.run(world, plan_id, runner=runner)
     first = plan["state"] == "approved"
     thread = plan["thread"]
     if not thread:

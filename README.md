@@ -62,7 +62,7 @@ just turns          # how long the last turns took: wall, the model's time, step
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in
-`~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles, Alpha's own
+`~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles, `modules/<id>/` for each program module's workspace (Q38: its code, data and `module.duckdb`, under git), Alpha's own
 `files/<module>` for what it fetched or was given, `exports/`, `actions/` screenshots); the CLI on its own defaults to
 `~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and
 acceptance runs use a scratch one so the owner's world stays untouched). Builds are

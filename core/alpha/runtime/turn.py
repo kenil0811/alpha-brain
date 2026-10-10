@@ -209,6 +209,8 @@ def ask(
     on_said: Callable[[str], None] | None = None,
     journal_as: str | None = None,
     conversation: bool = False,
+    workspace: str | None = None,
+    hosts: list[str] | None = None,
 ) -> TurnOutcome:
     """One turn. `actor="alpha"` is a turn Alpha starts itself (an automation run): its prompt is
     journaled as something Alpha did, not as words the person said; `journal_as` is the short
@@ -241,6 +243,8 @@ def ask(
         model=model,
         resume=resume,
         persist=conversation,
+        workspace=workspace,
+        hosts=list(hosts or []),
     )
     result = runner(request)
     if conversation and thread and result.ok and result.session_id:

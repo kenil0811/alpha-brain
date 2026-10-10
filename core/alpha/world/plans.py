@@ -31,6 +31,11 @@ MOST_OPTION_CHARS = 90
 # evidence (findings the research pass read), how it would be built here, whether it can be
 # built now, Alpha's recommendation and the person's decision. Three kinds: kept (table
 # stakes, pre-kept as one block), choice (the person's call), wont (named "not this time").
+# A program plan's milestones (Q38): what the build delivers, in order, each with the checks
+# the evaluator runs by code; `passes` is flipped only by the evaluator. A milestone that
+# failed its checks this many times is stuck: the build stops and says so.
+CHECK_KINDS = ("selftest", "rows", "query", "file", "provenance")
+MILESTONE_ATTEMPTS = 3
 PIECE_KINDS = ("kept", "choice", "wont")
 PIECE_CANS = ("now", "needs", "not_yet")
 DECISIONS = ("keep", "skip", "defer")
@@ -92,6 +97,71 @@ def clean_pieces(pieces: Any, citable: set[str] | None = None) -> list[dict[str,
                     "can": can,
                     "needs": " ".join(str(p.get("needs") or "").split())[:200] or None,
                     "recommend": recommend, "kind": kind, "decision": decision})
+    return out
+
+
+def clean_milestones(milestones: Any) -> list[dict[str, Any]]:
+    """Each {id, title, what, checks:[{kind, …}]}; checks of known kinds with their fields."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for i, m in enumerate(milestones or []):
+        if not isinstance(m, dict):
+            raise Problem("Each milestone is {id, title, what, checks}.")
+        title = " ".join(str(m.get("title") or "").split())[:120]
+        what = " ".join(str(m.get("what") or "").split())[:MOST_PIECE_CHARS * 2]
+        if not title or not what:
+            raise Problem(f"Milestone {i + 1} needs a title and what it delivers.")
+        mid = " ".join(str(m.get("id") or "").split()).upper().replace(" ", "_")[:12] or f"M{i}"
+        if mid in seen:
+            mid = f"M{i}"
+        seen.add(mid)
+        checks: list[dict[str, Any]] = []
+        for c in m.get("checks") or []:
+            if not isinstance(c, dict) or str(c.get("kind") or "") not in CHECK_KINDS:
+                raise Problem(f"A check of {title} needs a kind from {', '.join(CHECK_KINDS)}:"
+                              " selftest {}, rows {table, min}, query {sql, min?, max?},"
+                              " file {path}, provenance {layer}.")
+            kind = str(c["kind"])
+            clean: dict[str, Any] = {"kind": kind}
+            if kind == "rows":
+                if not c.get("table"):
+                    raise Problem(f"A rows check of {title} names its table.")
+                clean.update(table=str(c["table"]), min=int(c.get("min") or 1))
+            elif kind == "query":
+                if not str(c.get("sql") or "").strip():
+                    raise Problem(f"A query check of {title} needs its sql.")
+                clean.update(sql=str(c["sql"]).strip())
+                for key in ("min", "max"):
+                    if c.get(key) is not None:
+                        clean[key] = float(c[key])
+            elif kind == "file":
+                if not c.get("path"):
+                    raise Problem(f"A file check of {title} names its path.")
+                clean.update(path=str(c["path"]))
+            elif kind == "provenance":
+                if not c.get("layer"):
+                    raise Problem(f"A provenance check of {title} names its layer.")
+                clean.update(layer=str(c["layer"]))
+            checks.append(clean)
+        if not checks:
+            raise Problem(f"The milestone {title} needs at least one check the evaluator can"
+                          " run: a selftest, rows in a table, a query in a band, a file, a"
+                          " layer's provenance.")
+        out.append({"id": mid, "title": title, "what": what, "checks": checks,
+                    "passes": bool(m.get("passes")), "attempts": int(m.get("attempts") or 0),
+                    "why": m.get("why")})
+    return out
+
+
+def clean_hosts(hosts: Any) -> list[str]:
+    """Hostnames only, lowercase, no scheme or path; the build's sandbox allows exactly
+    these (plus what a Python build needs)."""
+    out: list[str] = []
+    for h in hosts or []:
+        name = str(h).strip().lower()
+        name = name.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0].strip()
+        if name and "." in name and name not in out and " " not in name:
+            out.append(name)
     return out
 
 
@@ -189,7 +259,7 @@ def decided_words(plan: dict[str, Any]) -> str:
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
     out = {k: row[k] for k in row.keys()}
-    for key in ("questions", "pieces"):
+    for key in ("questions", "pieces", "milestones", "hosts"):
         raw = out.get(key)
         try:
             out[key] = json.loads(raw) if raw else []
@@ -207,8 +277,9 @@ class Plans:
                 replaces: str | None = None, trial: str | None = None,
                 questions: list[dict[str, Any]] | None = None,
                 pieces: list[dict[str, Any]] | None = None,
-                research: str | None = None, citable: set[str] | None = None
-                ) -> dict[str, Any]:
+                research: str | None = None, citable: set[str] | None = None,
+                milestones: list[dict[str, Any]] | None = None,
+                hosts: list[str] | None = None) -> dict[str, Any]:
         """`trial` is the first thing the person will do with what gets built, in their words;
         the finished build tries it and checks the answer against an independent one.
         `questions`: what they decide before the build, each with choices and a default.
@@ -218,6 +289,8 @@ class Plans:
             raise Problem("A plan needs a title and the plan itself.")
         clean = clean_questions(questions)
         clean_p = clean_pieces(pieces, citable)
+        clean_m = clean_milestones(milestones)
+        clean_h = clean_hosts(hosts)
         stamp = now()
         pid = new_id("p")
         with self.store.tx() as db:
@@ -226,13 +299,23 @@ class Plans:
                            " AND state = 'proposed'", (stamp, replaces))
             db.execute(
                 "INSERT INTO plans (id, title, body, state, module, turn, proposal, trial,"
-                " created_at, updated_at, questions, pieces, research)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                " created_at, updated_at, questions, pieces, research, milestones, hosts)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (pid, title.strip(), body.strip(), "proposed", module, turn, proposal,
                  (trial or "").strip() or None, stamp, stamp,
                  json.dumps(clean) if clean else None,
-                 json.dumps(clean_p) if clean_p else None, research),
+                 json.dumps(clean_p) if clean_p else None, research,
+                 json.dumps(clean_m) if clean_m else None,
+                 json.dumps(clean_h) if clean_h else None),
             )
+        return self.get(pid)
+
+    def set_milestones(self, pid: str, milestones: list[dict[str, Any]]) -> dict[str, Any]:
+        """The milestones as the evaluator left them (passes, attempts, why): the core's
+        record; the workspace's milestones.json mirrors it."""
+        with self.store.tx() as db:
+            db.execute("UPDATE plans SET milestones = ?, updated_at = ? WHERE id = ?",
+                       (json.dumps(milestones), now(), pid))
         return self.get(pid)
 
     def decide_pieces(self, pid: str, decisions: dict[str, str]) -> dict[str, Any]:

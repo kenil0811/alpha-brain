@@ -449,6 +449,11 @@ ADDED_COLUMNS = [
     # evidence and the person's decision, and the research pass that produced it (Q37)
     ("plans", "pieces", "TEXT"),
     ("plans", "research", "TEXT"),
+    # a program plan (Q38): its milestones with checks and the hosts its build may reach; a
+    # module's workspace folder once it has one
+    ("plans", "milestones", "TEXT"),
+    ("plans", "hosts", "TEXT"),
+    ("modules", "workspace", "TEXT"),
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
     ("documents", "origin", "TEXT"),

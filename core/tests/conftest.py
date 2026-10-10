@@ -30,7 +30,7 @@ def researching(world: World, *, turn: str | None = None, module: str | None = N
     thread = world.modules.open_thread("Looking into: Test pass", "research", module)
     world.research.begin(made["id"], thread["id"])
     with world.store.tx() as db:
-        db.execute("INSERT INTO findings (id, research, angle, claim, quote, url, title,"
+        db.execute("INSERT OR REPLACE INTO findings (id, research, angle, claim, quote, url, title,"
                    " resolved, at) VALUES ('f_ok', ?, 'products', 'Such things have a list.',"
                    " 'a list', 'https://example.com/a', 'Example', 1, '2026-10-09T00:00:00')",
                    (made["id"],))

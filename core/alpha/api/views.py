@@ -190,7 +190,7 @@ def relation_titles(world: World, desc: dict[str, Any],
 
 
 def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
-    tables = world.collections.overview(m["id"])
+    tables = world.collections.overview(m["id"]) + world.modtables.overview(m["id"])
     last = world.store.one(
         "SELECT at, text FROM journal WHERE module = ? AND kind IN ('did','changed','made','saw')"
         " AND deleted_at IS NULL ORDER BY at DESC LIMIT 1", (m["id"],),

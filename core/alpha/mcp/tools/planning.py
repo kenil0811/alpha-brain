@@ -80,7 +80,9 @@ class Planning(Base):
     def plan_propose(self, title: str, plan: str, trial: str, module: str | None = None,
                      replaces: str | None = None,
                      questions: list[dict[str, Any]] | None = None,
-                     pieces: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                     pieces: list[dict[str, Any]] | None = None,
+                     milestones: list[dict[str, Any]] | None = None,
+                     hosts: list[str] | None = None) -> dict[str, Any]:
         """Propose what you would set up, before anything is made; only inside a research
         pass (research_start from the conversation), or to revise a plan that came from one.
         plan (Markdown, short sections): what you understood they want and why; what you looked
@@ -98,7 +100,17 @@ class Planning(Base):
         of this in the text. trial: their job in their own words, the first thing they will
         do with it, with a checkable answer: the finished build tries it and checks it against
         an independent answer. module: an existing module it extends. replaces: the plan this
-        revises. Nothing is built until they say yes."""
+        revises. For a thing that computes, screens, scores or maps (more than a log or a list
+        kept current) the plan is a program (design §6.4): the plan text is the design in its
+        stages (the job and the user; what you found; their inputs; the data model; where
+        every value comes from; the method: gates first, then a score, calibration; the
+        surfaces; the operating loop; open questions), milestones: the deliveries in order,
+        the first small, each {"id": "M0", "title", "what" (a real result they can open),
+        "checks": [{"kind": "selftest"} | {"kind": "rows", "table", "min"} | {"kind":
+        "query", "sql", "min", "max"} | {"kind": "file", "path"} | {"kind": "provenance",
+        "layer"}]} the evaluator runs by code, and hosts: every hostname the build may reach
+        for its data (api.census.gov, services.arcgis.com, …); nothing else is reachable.
+        Nothing is built until they say yes."""
         research = self._researching()
         revising: dict[str, Any] | None = None
         if replaces:
@@ -131,7 +143,9 @@ class Planning(Base):
         made = self.world.plans.propose(
             title, plan, module=module_id, turn=self.turn, replaces=replaces, trial=trial,
             questions=questions, pieces=pieces or (revising or {}).get("pieces"),
-            research=rid, citable=self.world.research.citable(rid))
+            research=rid, citable=self.world.research.citable(rid),
+            milestones=milestones or (revising or {}).get("milestones"),
+            hosts=hosts or (revising or {}).get("hosts"))
         # The card goes to the conversation that asked, not to the pass's own thread.
         conversation = (research or {}).get("conversation") if research else self.thread
         jid = self.world.journal.append(
@@ -150,7 +164,8 @@ class Planning(Base):
                                                    words="Replaced by a revised plan.",
                                                    plan=replaces, replaced=True)
         return {"plan": made["id"], "state": made["state"],
-                "pieces": [p["id"] for p in made["pieces"]]}
+                "pieces": [p["id"] for p in made["pieces"]],
+                "milestones": [m["id"] for m in made["milestones"]]}
 
     @tool
     def plan_approve(self, plan: str, quote: str, answers: str | None = None,

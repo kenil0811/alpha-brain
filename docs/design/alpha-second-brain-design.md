@@ -609,9 +609,11 @@ specifically for car washes."
 
 Then M0 builds, the evaluator judges it, you open it, and M1 starts when you say.
 
-| Status (10 Oct 2026) | |
+| Status (10 Oct 2026; detail in `../log/2026-10-10-workspace-spine.md`) | |
 |---|---|
-| Not built | Everything in this section; the design is agreed, the order of work is open (below). |
+| Built (slice 1, the spine) | The workspace with its three artifacts under git; the walled build run (Claude Code's sandbox from Alpha's settings, writes in the workspace only, secrets and the world denied, hosts from the design plus a Python build's); `sandbox-exec` with no network for the self-test; plans with milestones (checks of five kinds) and hosts; one milestone per session with `MILESTONE_RULES`; the evaluator (checks by code, then a skeptical judging run), the only thing that flips `passes`; ready-to-look-at between milestones through the existing stop and continue; stuck after three failed checks or a STUCK: reply; the module's own DuckDB tables read-only on its page and in the table views; the milestones on the plan card. Proven by tests only; M0 of the car wash ask (Austin) is the acceptance. |
+| Differs | The design document is the plan's text with its stages, agreed with one yes (the staged pages with Accept / Revise are slice 2); the person's inputs are not yet asked for or read in; the module is made at the first build from the plan's title. Unattended builds are OS-walled for the shell only (`srt` not shipped); the build's requests are journaled as WebFetch lines, not through Alpha's own proxy (a CLI pin bump to ≥2.1.285 first). |
+| Not built | Slice 2: the staged design pages, inputs read in; slice 3: the report, settings and map pages (`pages.yaml`); slice 4: jobs as agents, exports, a second metro; the model's tools seeing a module's own tables; DuckDB's extensions shipped by `just ship`. |
 | Open engineering questions | The journaling proxy and the `--settings` ports (a CLI pin bump to ≥2.1.285 for proxy ports); `srt` shipped with the app; DuckDB pinned with its extension files in `just ship`; a Range-capable Tauri protocol for PMTiles; git per workspace; the evaluator as a run kind; the desktop's map, report and settings pages; how a module's tables sit beside world tables in the rail; the time and tokens of one real milestone, measured on M0 of the car wash. |
 
 ### 6.1 Acting outward (decided and built 2 October 2026, evening; Q24)
