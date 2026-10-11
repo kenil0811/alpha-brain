@@ -7,6 +7,7 @@
  * link to the list (9 Oct, the owner: a page with its address, not a dialog).
  */
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Connection, ConnectionRemoval, Intelligence as Data } from "../core/client";
 import { DataPage } from "../modules/DataPage";
 import { when } from "../modules/format";
@@ -46,7 +47,7 @@ function useRun(onChanged: () => void) {
       onChanged();
       return true;
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
       return false;
     } finally {
       setBusy(null);
@@ -114,7 +115,7 @@ export function ConnectionPage({ client, id, version, onBack, onChanged }: { cli
         setData(d);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -128,7 +129,7 @@ export function ConnectionPage({ client, id, version, onBack, onChanged }: { cli
       .then(setRemoving)
       .catch((e: unknown) => {
         setRemoving(null);
-        setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+        setMessage({ ok: false, text: say(e) });
       });
   }
   const back = <BackLink to="Connections" onClick={onBack} />;

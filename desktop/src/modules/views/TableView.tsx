@@ -20,7 +20,7 @@ import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { editText, isNumeric, showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 import { Link2, ChevronRight, GroupIcon, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClearIcon, CopyIcon, DeleteIcon, EditIcon, FilterIcon, FreezeIcon, HideIcon, HistoryIcon, ICON_SM, OpenIcon, PinIcon, PlusIcon, SortAscIcon, SortDescIcon, TotalIcon, UnpinIcon } from "../../ui/icons";
-import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../../ui";
+import { Badge, Button, Dropdown, IconButton, Tooltip, useContextMenu, type ContextItem } from "../../ui";
 import { ADD_COLUMN_REASON } from "../DataToolbar";
 import { nextSort, summarize, summaryOpsFor, SUMMARY_LABEL, titleText, type ColorTone, type Group, type Sort, type SummaryOp } from "./engine";
 import { Cell, SeenCell, cellEditable } from "./cells";
@@ -191,7 +191,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   };
   const columnMenu = useContextMenu<string>((c) => {
     const at = columns.indexOf(c);
-    const cannot = "Needs Alpha's core; ask Alpha in the panel.";
+    const cannot = "This can't be done from here yet. Ask Alpha in the panel.";
     const items: ContextItem[] = [
       { label: "Edit property", icon: <EditIcon size={ICON_SM} />, onSelect: () => undefined, disabled: cannot },
       { label: "Change type", icon: <EditIcon size={ICON_SM} />, onSelect: () => undefined, disabled: cannot },
@@ -476,10 +476,12 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                       <input type="checkbox" aria-label="Select every record on this page" checked={rows.length > 0 && rows.every((r) => selected.has(r.id))} disabled={!rows.length} onChange={(e) => onSelectAll(e.target.checked)} />
                     </span>
                   ) : null}
-                  <button type="button" className="th__label" title="Sort by this column; drag to move it" onClick={() => onSort(nextSort(sort, c))}>
-                    {label}
-                    {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={ICON_SM} aria-label="ascending" /> : <ArrowDown size={ICON_SM} aria-label="descending" />) : null}
-                  </button>
+                  <Tooltip text={`${label}. Sort by this column; drag to move it`}>
+                    <button type="button" className="th__label" onClick={() => onSort(nextSort(sort, c))}>
+                      {label}
+                      {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={ICON_SM} aria-label="ascending" /> : <ArrowDown size={ICON_SM} aria-label="descending" />) : null}
+                    </button>
+                  </Tooltip>
                   <IconButton size="sm" className="th__menu" label={`Options for ${label}`} icon={<ChevronDown size={ICON_SM} />} onClick={(e) => columnMenu.openFrom(c, e.currentTarget)} />
                   <span
                     className="th__grip"

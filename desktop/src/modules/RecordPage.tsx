@@ -24,6 +24,7 @@
  * Back button named for the project, then the rest of the trail with no name twice ("← Deals · X").
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CoreError, say } from "../core/client";
 import type { Client, JournalEntry, ModuleCard, RecordRow, Relations, TableDesc } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { BackLink } from "../shell/BackLink";
@@ -32,7 +33,8 @@ import { Breadcrumb, Button, Confirm, IconButton, Notice, PageHeader, SectionCar
 import { ChevronRight, CopyIcon, DeleteIcon, FileText, HistoryIcon, ICON, ICON_SM, MoreVertical, PinIcon, UnpinIcon } from "../ui/icons";
 import { dedupeCrumbs } from "./crumbs";
 import { openChoices, titleFieldOf, type FieldInfo } from "./fields";
-import { timeText, when } from "./format";
+import { fieldLabel } from "./FilterUI";
+import { humanize, timeText, when } from "./format";
 import { isEmpty, RecordField } from "./record/RecordField";
 import { changesFrom, entriesAbout, HistoryDialog, type Change } from "./record/RecordHistory";
 import { GovernanceSection, IntelligenceSection, NotesSection } from "./record/RecordSections";
@@ -121,7 +123,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
     const load: Promise<Loaded> = isNew
       ? client.module(module).then((d) => {
           const desc = d.tables.find((t) => t.name === table);
-          if (!desc) throw new Error(`There is no collection ${table} in this project.`);
+          if (!desc) throw new CoreError(`This project has no ${humanize(table).toLowerCase()} collection.`, 404);
           return { desc, row: null, relations: {} };
         })
       : client.record(table, id).then((r) => ({ desc: r.table, row: r.record, relations: r.relations }));
@@ -132,7 +134,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
         setLoaded(l);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -201,7 +203,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
   const row = loaded?.row ?? null;
   const fields: FieldInfo[] = desc?.fields ?? [];
   const titleField = desc ? titleFieldOf(fields, desc.title_field) : undefined;
-  const collection = desc?.title ?? table;
+  const collection = desc?.title ?? mod?.tables.find((t) => t.name === table)?.title ?? humanize(table);
   const base = row?.values ?? (desc ? defaultsFor(fields) : {});
   const valueOf = (f: FieldInfo) => (f.name in draft ? draft[f.name] : base[f.name]);
 
@@ -210,7 +212,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
       <>
         <PageHeader left={<BackLink to={collection} onClick={() => toCollection()} />} />
         <div className="page page--record">
-          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this record: {error}</Trouble> : <p className="faint">Loading the {collection} record…</p>}
+          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't open this record: {error}</Trouble> : <p className="faint">Loading this {singular(collection).toLowerCase()}…</p>}
         </div>
       </>
     );
@@ -265,7 +267,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
         if (!current && mounted.current) onGo({ kind: "record", module, table, id: next.id });
         return true;
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
+        const message = say(e);
         const hit = fields.find((f) => message.includes(`'${f.name}'`))?.name ?? names[0];
         setFieldErrors((prev) => ({ ...prev, [hit]: message }));
         setSavedNames([]);
@@ -280,8 +282,15 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
 
   /** A field was left (or a choice picked): save it if its value changed. */
   function commit(name: string, value: unknown) {
-    setField(name, value);
     const current = rowRef.current;
+    const field = fields.find((f) => f.name === name);
+    if (current && field?.required && isEmpty(value)) {
+      // as the table does: a required field isn't emptied; it goes back to what is saved
+      setField(name, current.values[name]);
+      setFieldErrors((e) => ({ ...e, [name]: `${fieldLabel(field)} can't be empty, so it was left as it was.` }));
+      return;
+    }
+    setField(name, value);
     if (same(value, (current?.values ?? base)[name])) return;
     if (!current && isEmpty(value)) return; // a new record is made by the first field left with a value
     setSteps(null);
@@ -334,7 +343,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
       onChanged();
       onGo({ kind: "record", module, table, id: copy.id });
     } catch (e) {
-      setProblem(`Couldn't duplicate it: ${e instanceof Error ? e.message : String(e)}`);
+      setProblem(`Couldn't duplicate it: ${say(e)}`);
     }
   }
   async function remove() {
@@ -349,7 +358,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
     } catch (e) {
       setAsking(false);
       setCancelling(false);
-      setProblem(`Couldn't delete it: ${e instanceof Error ? e.message : String(e)}`);
+      setProblem(`Couldn't delete it: ${say(e)}`);
     }
   }
   async function togglePin() {

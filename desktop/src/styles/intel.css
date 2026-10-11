@@ -33,7 +33,7 @@
 .brain__node--record circle { fill: var(--k-table); stroke: none; opacity: 0.75; }
 .brain__node--waiting circle { fill: var(--surface); stroke: var(--warn); stroke-dasharray: 2 2; stroke-width: 1.5; }
 .brain__node foreignObject { pointer-events: none; }
-.brain__label { font-size: var(--text-xs); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.brain__label { font-size: var(--text-sm); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .brain__label--more { fill: var(--text-3); font-weight: 400; }
 .brain__node--you .brain__label, .brain__node--module .brain__label, .brain__node--agent .brain__label { font-weight: 600; fill: var(--text); }
 .brain__zoom { display: flex; gap: var(--space-1); align-items: center; }

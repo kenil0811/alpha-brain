@@ -1,7 +1,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Breadcrumb, Button, EmptyCard, HeaderSwitch, IconButton, MetricTile, Notice, PageHeader, SectionCard, Trouble } from ".";
+import { Breadcrumb, Button, Confirm, EmptyCard, HeaderSwitch, IconButton, MetricTile, Notice, PageHeader, SectionCard, Switch, Trouble } from ".";
 import { ActivityIcon, Calendar, Table2, X } from "./icons";
 
 describe("disabled with a reason", () => {
@@ -186,5 +186,22 @@ describe("cards and notices", () => {
     render(<Trouble onRetry={vi.fn()}>Couldn't load Deals.</Trouble>);
     expect(screen.getByRole("alert")).toHaveClass("notice", "trouble");
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+});
+
+describe("Confirm and Switch", () => {
+  it("a confirm focuses Cancel, not the dangerous button", () => {
+    render(<Confirm open title="Remove 3 rows?" action="Remove 3 rows" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  });
+
+  it("the switch says its state and flips it", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<Switch checked={false} label="Glasses" onChange={onChange} />);
+    const sw = screen.getByRole("switch", { name: "Glasses" });
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    await user.click(sw);
+    expect(onChange).toHaveBeenCalledWith(true);
   });
 });

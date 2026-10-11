@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Client, Home as HomeData, ModuleCard } from "../core/client";
+import { CoreError, type Client, type Home as HomeData, type ModuleCard } from "../core/client";
 import { Home } from "./Home";
 
 const quiet: HomeData = { date: "2026-10-09T09:00:00+00:00", needs_you: [], ran_today: 0, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [], brief: null };
@@ -52,9 +52,9 @@ describe("Home", () => {
   });
 
   it("says what failed in the Today card with Try again, while the modules still show", async () => {
-    const homeCall = vi.fn().mockRejectedValueOnce(new Error("the core said no")).mockResolvedValue(quiet);
+    const homeCall = vi.fn().mockRejectedValueOnce(new CoreError("Alpha said no.", 400)).mockResolvedValue(quiet);
     mount({ home: homeCall, modules: vi.fn(async () => [deals]) });
-    expect(await screen.findByText(/Couldn't load today's summary: the core said no/)).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load today's summary: Alpha said no./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Deals" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Nothing needs you right now.")).toBeInTheDocument();
@@ -62,9 +62,9 @@ describe("Home", () => {
   });
 
   it("says what failed in the modules, with Try again, while Today still shows", async () => {
-    mount({ home: vi.fn(async () => quiet), modules: vi.fn().mockRejectedValueOnce(new Error("no modules")).mockResolvedValue([deals]) });
+    mount({ home: vi.fn(async () => quiet), modules: vi.fn().mockRejectedValueOnce(new CoreError("No projects.", 400)).mockResolvedValue([deals]) });
     expect(await screen.findByText("Nothing needs you right now.")).toBeInTheDocument();
-    expect(await screen.findByText(/Couldn't load your projects: no modules/)).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load your projects: No projects./)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("button", { name: "Open Deals" })).toBeInTheDocument();
   });

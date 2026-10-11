@@ -6,6 +6,7 @@
  * a verdict each. The shared page header carries a back link and the serif title (9 Oct, §5).
  */
 import { useEffect, useState } from "react";
+import { say } from "../core/client";
 import type { AutomationDetail, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Badge, Button, Notice, PageHeader, SectionCard, Trouble } from "../ui";
@@ -35,7 +36,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
         setAuto(a);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -57,7 +58,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
       setMessage({ ok: true, text: words });
       onChanged();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     }
   };
   return (
@@ -137,7 +138,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
                     Discard
                   </Button>
                 ) : null}
-                <Button size="sm" variant="primary" disabledReason="Editing an agent needs Alpha's core">
+                <Button size="sm" variant="primary" disabledReason="This can't be saved from here yet. Use Ask Alpha to change this.">
                   Save
                 </Button>
               </>

@@ -5,14 +5,19 @@
  * core afresh on every load, so an edit shows as saved. Only what the core can change is
  * editable: an automation's on/off and a suggested fact's state; the rest says why not.
  */
-import type { Client, Connection, Fact, Intelligence, RecordRow } from "../../core/client";
+import { CoreError, type Client, type Connection, type Fact, type Intelligence, type RecordRow } from "../../core/client";
 import { memorySource, type DataSource } from "../../modules/source";
 import { sourceWords } from "../FactRow";
 import { AgentAvatar } from "../AgentAvatar";
 import { VERDICT } from "../Automations";
 import { ALPHA_AGENT, agentsFrom } from "../agents";
 
-const NEEDS_CORE = "needs Alpha's core";
+const NOT_HERE = "can't be done from here yet";
+/** A refusal the person reads as is (`say` shows a CoreError's own words). */
+const refuse = (words: string) => new CoreError(words, 400);
+const AGENT_FIXED = `Changing an agent ${NOT_HERE}. Open it and ask Alpha.`;
+const ONLY_ON = "Only On changes here. To change the rest, ask Alpha in the panel.";
+const FACT_FIXED = `Changing a decided fact ${NOT_HERE}. Tell Alpha in the panel.`;
 const rec = (id: string, values: Record<string, unknown>, at = ""): RecordRow => ({ id, revision: 1, values, created_at: at, updated_at: at, provenance: {} });
 
 /** An agent's row id in Agents and automations; the rest are automations' ids. */
@@ -54,14 +59,14 @@ export function automationsSource(client: Client, modules: Record<string, string
     },
     edit: async (row, values) => {
       const keys = Object.keys(values);
-      if (row.id.startsWith(AGENT_ROW)) throw new Error(`Changing an agent ${NEEDS_CORE}; open it and ask Alpha.`);
-      if (keys.length !== 1 || keys[0] !== "on") throw new Error(`Only On can change here; changing the rest ${NEEDS_CORE}. Ask Alpha in the panel.`);
+      if (row.id.startsWith(AGENT_ROW)) throw refuse(AGENT_FIXED);
+      if (keys.length !== 1 || keys[0] !== "on") throw refuse(ONLY_ON);
       await client.switchAutomation(row.id, values.on === true || values.on === "true");
       return { ...row, values: { ...row.values, on: values.on === true || values.on === "true" }, revision: row.revision + 1 };
     },
     rowIcon: (row) => <AgentAvatar client={client} agent={row.id.startsWith(AGENT_ROW) ? row.id.slice(AGENT_ROW.length) : row.id} size={20} label={String(row.values.title)} />,
-    editable: (row, field) => (row.id.startsWith(AGENT_ROW) ? `Changing an agent ${NEEDS_CORE}; open it and ask Alpha.` : field.name === "on" ? null : `Only On changes here; the rest ${NEEDS_CORE}.`),
-    reasons: { add: "Use Add agent or Add automation above; Alpha asks you to approve.", remove: `Deleting an agent or automation ${NEEDS_CORE}.` },
+    editable: (row, field) => (row.id.startsWith(AGENT_ROW) ? AGENT_FIXED : field.name === "on" ? null : ONLY_ON),
+    reasons: { add: "Use Add agent or Add automation above; Alpha asks you to approve.", remove: `Deleting an agent or automation ${NOT_HERE}. Ask Alpha in the panel.` },
   });
 }
 
@@ -91,7 +96,7 @@ export function skillsSource(client: Client, modules: Record<string, string>): D
         ...d.hands.map((h) => rec(`${BUILT_IN}${h.name}`, { description: h.description ? `${h.title}: ${h.description}` : h.title, kind: "Built in", used_by: "Alpha", health: "Working", last_run: null, updated: null })),
       ];
     },
-    reasons: { edit: `Editing a skill ${NEEDS_CORE}; open it and ask Alpha to change it.`, add: "Ask Alpha to learn something new.", remove: `Deleting a skill ${NEEDS_CORE}.` },
+    reasons: { edit: `Editing a skill ${NOT_HERE}. Open it and ask Alpha to change it.`, add: "Ask Alpha to learn something new.", remove: `Deleting a skill ${NOT_HERE}. Ask Alpha in the panel.` },
   });
 }
 
@@ -116,7 +121,7 @@ export function connectionsSource(client: Client): DataSource {
       { name: "problem", kind: "text", label: "Problem" },
     ],
     rows: async () => (await client.intelligence()).connections.filter((c) => c.status !== "off").map((c) => rec(c.id, { name: connectionName(c), kind: CONNECTOR_KIND[c.connector] ?? c.connector, state: CONNECTION_STATE[c.status], last_sync: c.last_sync, problem: c.last_error ?? "" })),
-    reasons: { edit: `Changing a connection ${NEEDS_CORE}; open it to read again or delete it.`, add: "Add one below.", remove: "Open it to delete it; it says what goes with it first." },
+    reasons: { edit: "A connection doesn't change here. Open it to read again or delete it.", add: "Add one below.", remove: "Open it to delete it; it says what goes with it first." },
   });
 }
 
@@ -140,13 +145,13 @@ export function factsSource(client: Client): DataSource {
     edit: async (row, values) => {
       const keys = Object.keys(values);
       const to = values.state;
-      if (keys.length !== 1 || keys[0] !== "state") throw new Error("To correct a fact, tell Alpha in the panel.");
-      if (row.values.state !== "suggested") throw new Error(`Changing a decided fact ${NEEDS_CORE}.`);
-      if (to !== "accepted" && to !== "rejected") throw new Error("A fact waiting for you can be accepted or rejected.");
+      if (keys.length !== 1 || keys[0] !== "state") throw refuse("To correct a fact, tell Alpha in the panel.");
+      if (row.values.state !== "suggested") throw refuse(FACT_FIXED);
+      if (to !== "accepted" && to !== "rejected") throw refuse("A fact waiting for you can be accepted or rejected.");
       await client.decideFact(row.id, to === "accepted");
       return { ...row, values: { ...row.values, state: to }, revision: row.revision + 1 };
     },
-    editable: (row, field) => (field.name !== "state" ? "To correct a fact, tell Alpha in the panel." : row.values.state !== "suggested" ? `Changing a decided fact ${NEEDS_CORE}.` : null),
-    reasons: { add: "Tell Alpha in the panel.", remove: `Forgetting a fact here ${NEEDS_CORE}; open it to forget one waiting for you.` },
+    editable: (row, field) => (field.name !== "state" ? "To correct a fact, tell Alpha in the panel." : row.values.state !== "suggested" ? FACT_FIXED : null),
+    reasons: { add: "Tell Alpha in the panel.", remove: `Forgetting a fact ${NOT_HERE}. Open one waiting for you to forget it.` },
   });
 }

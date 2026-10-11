@@ -8,20 +8,22 @@ import "./styles/data.css";
 import "./styles/shell.css";
 import "./styles/intel.css";
 
-/** A window that went blank tells nobody anything: any error that escapes rendering is shown
- *  in the window with a way back. */
-class Guard extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
-  state = { error: null as string | null };
-  static getDerivedStateFromError(error: unknown) {
-    return { error: error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error) };
+/** A window that went blank tells nobody anything: any error that escapes rendering leaves a
+ *  plain sentence and Reload; the error itself goes to the console, not to the person. */
+class Guard extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error("Alpha's window hit a problem", error, info.componentStack);
   }
   render() {
-    if (this.state.error) {
+    if (this.state.failed) {
       return (
-        <section className="page" role="alert" style={{ padding: 24 }}>
+        <section className="page" role="alert">
           <h2>Alpha's window hit a problem</h2>
           <p className="muted">Reload to carry on; nothing you saved is affected.</p>
-          <pre style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-sm)", userSelect: "text" }}>{this.state.error}</pre>
           <Button variant="primary" onClick={() => window.location.reload()}>
             Reload
           </Button>

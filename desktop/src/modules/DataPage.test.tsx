@@ -38,8 +38,8 @@ function fakeClient(rows: RecordRow[], tableDesc: TableDesc = desc) {
       lists = [...lists, made];
       return made;
     }),
-    updateList: vi.fn(async (id: string, change: { title?: string; config?: SavedList["config"] }) => {
-      lists = lists.map((l) => (l.id === id ? { ...l, title: change.title ?? l.title, config: change.config ?? l.config } : l));
+    updateList: vi.fn(async (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => {
+      lists = lists.map((l) => (l.id === id ? { ...l, title: change.title ?? l.title, config: change.config ?? l.config, is_default: change.default ?? l.is_default } : change.default ? { ...l, is_default: false } : l));
       return lists.find((l) => l.id === id);
     }),
     deleteList: vi.fn(async (id: string) => {
@@ -231,13 +231,13 @@ describe("the toolbar", () => {
     const files = catchDownloads();
     await user.click(order[5]);
     expect(await screen.findByRole("menuitem", { name: "Sort" })).toBeInTheDocument();
-    screen.getByRole("menuitem", { name: "Download 1 row" }).focus();
+    screen.getByRole("menuitem", { name: "Download 1 record" }).focus();
     await user.keyboard("{ArrowRight}");
     await screen.findByRole("menuitem", { name: "CSV" });
     await user.keyboard("{Enter}"); // CSV, the first, has the focus
     expect(client.exportTable).not.toHaveBeenCalled(); // what is shown, made in the window
     expect(files.map((f) => f.name)).toEqual(["Deals.csv"]);
-    expect(await screen.findByText("Downloaded 1 row as Deals.csv.")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded 1 record as Deals.csv.")).toBeInTheDocument();
     await user.click(order[5]);
     await user.click(await screen.findByRole("menuitem", { name: "Upload" }));
     expect(onAddFiles).toHaveBeenCalled();
@@ -253,13 +253,13 @@ describe("the toolbar", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
     const files = catchDownloads();
     await user.click(screen.getByRole("button", { name: "More" }));
-    (await screen.findByRole("menuitem", { name: "Download 2 rows" })).focus();
+    (await screen.findByRole("menuitem", { name: "Download 2 records" })).focus();
     await user.keyboard("{ArrowRight}");
     expect(await screen.findByRole("menuitem", { name: "Excel" })).toHaveAttribute("aria-disabled", "true"); // the core's Excel is the whole collection
     await user.keyboard("{Enter}"); // CSV, the first, has the focus
     const text = await files[0].blob.text();
     expect(text).toBe("Title,Price\nBakery,300\nBagels,80\n");
-    expect(await screen.findByText("Downloaded 2 rows as Deals.csv.")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded 2 records as Deals.csv.")).toBeInTheDocument();
   });
 
   it("shows the numbers below the toolbar; their hide arrow sits on the strip", async () => {
@@ -375,6 +375,14 @@ describe("the toolbar", () => {
     expect(await screen.findByLabelText("Active")).toBeInTheDocument(); // the board's column
     expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Pipeline");
     expect(screen.queryByRole("form", { name: "Add list" })).toBeNull();
+    // unticked on a later edit: it stops being the default
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit list" }));
+    const box = await screen.findByRole("checkbox", { name: "Make this the default list" });
+    expect(box).toBeChecked();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Save list" }));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { default: false }));
   });
 
   it("toolbar changes are temporary: a bar saves them to the list or resets, and nothing writes the list before", async () => {

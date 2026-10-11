@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Client } from "./client";
+import { CoreError, type Client } from "./client";
 import { PREF, forgetPreferences, usePreference } from "./preferences";
 
 /** A core that keeps preferences in a map, and can be told to refuse a write. */
 function fakeCore(stored: Record<string, unknown> = {}, refuse = false) {
   const setPreference = vi.fn(async (key: string, value: unknown) => {
-    if (refuse) throw new Error("The core said no.");
+    if (refuse) throw new CoreError("The core said no.", 400);
     stored[key] = value;
     return { key, value };
   });
@@ -58,7 +58,7 @@ describe("preferences", () => {
     await act(async () => {
       problem = await result.current[1]("Elsewhere");
     });
-    expect(problem).toMatch(/isn't running/);
+    expect(problem).toMatch(/isn't answering/);
     expect(result.current[0]).toBe("Alpha");
   });
 });

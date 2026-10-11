@@ -10,6 +10,7 @@
  * Intelligence (the latest with each) and Governance (Allowed and Denied, then what it keeps).
  */
 import { useEffect, useMemo, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Entity, EntityDetail, RecordRow } from "../core/client";
 import { DataFrame } from "../modules/DataFrame";
 import { DataPage } from "../modules/DataPage";
@@ -41,7 +42,7 @@ export function Network({ client, version, onOpen, onChanged = () => undefined, 
         setPeople(rows);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -149,7 +150,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
         setError(null);
         if (!editing) setBody(e.page?.body ?? "");
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -169,7 +170,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
   };
   const attempt = (work: Promise<unknown>) => {
     setProblem(null);
-    work.then(refresh).catch((e: unknown) => setProblem(e instanceof Error ? e.message : String(e)));
+    work.then(refresh).catch((e: unknown) => setProblem(say(e)));
   };
   const save = () => {
     setProblem(null);
@@ -179,7 +180,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
         setEditing(false);
         refresh();
       })
-      .catch((e: unknown) => setProblem(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setProblem(say(e)));
   };
   const first = entity.name.split(" ")[0];
   const accepted = entity.facts.filter((f) => f.state === "accepted");

@@ -7,6 +7,7 @@
  * Shared by Intelligence › Second Brain and a person's page. (9 Oct, the pages phase.)
  */
 import { useId, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Fact } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { Button, ListRow, Notice, Tooltip } from "../ui";
@@ -78,7 +79,7 @@ export function FactRow({ fact, client, onChanged, onAsk }: { fact: Fact; client
       await client.decideFact(fact.id, accept);
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setBusy(false);
     }
@@ -103,7 +104,7 @@ export function FactRow({ fact, client, onChanged, onAsk }: { fact: Fact; client
             <Button size="sm" disabledReason={onAsk ? undefined : "Tell Alpha in a conversation"} onClick={() => onAsk?.(`Correct this fact: ${label.toLowerCase()} is “${fact.value}”, but it should be `)}>
               Correct
             </Button>
-            <Button size="sm" variant="ghost" disabledReason="Forgetting a confirmed fact needs Alpha's core">
+            <Button size="sm" variant="ghost" disabledReason="Forgetting a confirmed fact can't be done from here yet. Tell Alpha in the panel.">
               Forget
             </Button>
           </>

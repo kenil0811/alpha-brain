@@ -1,9 +1,7 @@
 import * as RadixPopover from "@radix-ui/react-popover";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useAssistant } from "./assistant";
-import { Button } from "./Button";
-import { Dialog } from "./Dialog";
+import { DescribeDialog, useAssistant } from "./assistant";
 import { ChevronDown, PlusIcon, Star } from "./icons";
 
 export interface DropdownOption<T extends string = string> {
@@ -102,8 +100,8 @@ function DropdownCore<T extends string>({
   const [open, setOpenState] = useState(Boolean(defaultOpen));
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  // the describe dialog: its words, and whether they went (null: closed)
-  const [asking, setAsking] = useState<{ text: string; sent: boolean } | null>(null);
+  // the describe dialog, kept here only when no assistant provider keeps it (null: closed)
+  const [asking, setAsking] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const uid = useId();
   const assistant = useAssistant();
@@ -139,12 +137,9 @@ function DropdownCore<T extends string>({
   const add = () => {
     setOpen(false);
     if (onAdd) onAdd();
-    else setAsking({ text: query.trim(), sent: false }); // what was searched for starts the description
-  };
-  const send = () => {
-    if (!assistant || !asking?.text.trim()) return;
-    assistant.say(`Add a new option to "${label}": ${asking.text.trim()}`);
-    setAsking({ text: "", sent: true });
+    // what was searched for starts the description; the provider's dialog outlives this dropdown
+    else if (assistant?.describe) assistant.describe(label, query.trim());
+    else setAsking(query.trim());
   };
 
   useEffect(() => {
@@ -259,7 +254,7 @@ function DropdownCore<T extends string>({
                   )}
                 </div>
               ))}
-              {!shown.length ? <div className="dropdown__none">No match. {onAdd ? addLabel : "Add new…"} below adds it.</div> : null}
+              {!shown.length && query.trim() ? <div className="dropdown__none">No match. {onAdd ? addLabel : "Add new…"} below adds it.</div> : null}
             </div>
             {current?.disabled ? (
               <div className="dropdown__hint" role="status">
@@ -273,37 +268,7 @@ function DropdownCore<T extends string>({
           </RadixPopover.Content>
         </RadixPopover.Portal>
       </RadixPopover.Root>
-      <Dialog open={asking !== null} onOpenChange={(o) => !o && setAsking(null)} title={`Add to ${label}`}>
-        {asking?.sent ? (
-          <>
-            <p className="describe__sent" role="status">
-              Sent to Alpha — it will ask you to approve.
-            </p>
-            <div className="row dialog__actions">
-              <Button onClick={() => setAsking(null)}>Close</Button>
-            </div>
-          </>
-        ) : (
-          <div className="dropdown__ask">
-            <textarea
-              autoFocus
-              className="dropdown__askbox"
-              aria-label="Describe what you'd like to add"
-              placeholder="Describe what you'd like to add"
-              value={asking?.text ?? ""}
-              onChange={(e) => setAsking({ text: e.target.value, sent: false })}
-            />
-            <div className="row dialog__actions">
-              <Button variant="ghost" onClick={() => setAsking(null)}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={send} disabled={!asking?.text.trim()} disabledReason={assistant ? undefined : "The assistant isn't reachable here."}>
-                Send to Alpha
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
+      {asking !== null ? <DescribeDialog label={label} initial={asking} onClose={() => setAsking(null)} /> : null}
     </>
   );
 }

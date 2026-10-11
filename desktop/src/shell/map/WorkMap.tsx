@@ -14,6 +14,7 @@
  * Alpha look over the map for links (a cheap model run) before redrawing.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { say } from "../../core/client";
 import type { Client, GraphEdge, GraphKind, GraphNode, WorkGraph } from "../../core/client";
 import type { Surface } from "../Rail";
 import { timeText } from "../../modules/format";
@@ -208,7 +209,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
       seen.current = sig;
       setGraph(g);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }, [client]);
   useEffect(() => {
@@ -220,7 +221,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
       if (kind === "world") await client.connectGraph();
       await fetchGraph(kind);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setBusy(null);
     }
@@ -437,7 +438,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
       await client.decideFact(fact, accept);
       await fetchGraph(kind);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   };
 
@@ -455,7 +456,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
   return (
     <div className="map" ref={box} aria-label={kind === "world" ? "The map of your world" : "The map of Alpha's work"}>
       {!graph.nodes.length ? (
-        <p className="empty" style={{ padding: 24 }}>Nothing to map yet.</p>
+        <p className="empty">Nothing to map yet.</p>
       ) : (
         <svg className={`map__svg${settled ? "" : " map__svg--settling"}`} width={size.width} height={size.height} role="img" aria-label={`${shown.nodes.length} things and ${shown.edges.filter((e) => !MEMBERSHIP.has(e.kind)).length} links`} onPointerDown={(e) => onPointerDown(e, null)} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onWheel={onWheel}>
           <defs>
@@ -530,7 +531,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
         <IconButton size="sm" label="Zoom out" icon={<ZoomOut size={ICON_SM} />} onClick={() => zoomBy(0.77)} />
         <Button size="sm" onClick={() => fit()}>Fit</Button>
         <Button size="sm" onClick={shake} disabled={!worker.current} title="Let every pinned node go and settle again">Shake</Button>
-        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Have Alpha look for links; dashed ones are its guesses" : "Ask the core again"}>Refresh</Button>
+        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Have Alpha look for links; dashed ones are its guesses" : "Ask Alpha again"}>Refresh</Button>
         {asOf ? <span className="map__asof">as of {timeOf(asOf)}</span> : null}
       </div>
       {busy ? <div className="map__busy" role="status">{busy}</div> : null}
@@ -614,7 +615,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
                         <div className="map__think">
                           Alpha thinks: {e.why?.split(":").slice(1).join(":").trim() || e.why}
                           {e.source ? <span className="faint"> — {e.source.replace(/^map:/, "")}</span> : null}
-                          <div className="row" style={{ marginTop: 6 }}>
+                          <div className="row row--below">
                             <Button size="sm" variant="primary" onClick={() => void decide(e.fact!, true)}>Yes, keep it</Button>
                             <Button size="sm" variant="ghost" onClick={() => void decide(e.fact!, false)}>No</Button>
                           </div>
@@ -626,7 +627,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
               </ul>
             </div>
           ) : null}
-          <div className="row" style={{ marginTop: 8 }}>
+          <div className="row row--below">
             {selectedNode.kind === "module" && selectedNode.module && focusHome !== selectedNode.module ? (
               <Button size="sm" onClick={() => focusOn(selectedNode.module!)}>Just this area</Button>
             ) : null}

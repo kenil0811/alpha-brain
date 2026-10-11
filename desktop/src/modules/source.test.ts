@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Client, RecordRow } from "../core/client";
+import { NOT_ANSWERING, type Client, type RecordRow } from "../core/client";
 import { parseCsv, toCsv } from "./csv";
 import { memorySource, reasonFor } from "./source";
 
@@ -37,7 +37,7 @@ describe("a source over rows the window holds", () => {
     expect(src.edit).toBeUndefined();
     expect(src.saveList).toBeUndefined();
     expect(reasonFor(src, "edit")).toBe("Alpha writes skills.");
-    expect(reasonFor(src, "lists")).toBe("Alpha's core isn't running.");
+    expect(reasonFor(src, "lists")).toBe(NOT_ANSWERING);
   });
 });
 

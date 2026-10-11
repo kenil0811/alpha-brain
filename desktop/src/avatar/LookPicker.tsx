@@ -6,9 +6,10 @@
  */
 import { useEffect, useState } from "react";
 import type { Client } from "../core/client";
-import { Tabs } from "../ui";
+import { Switch, Toggle } from "../ui";
 import { ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Size, type Swatch } from "./looks";
 import { Rig } from "./Rig";
+import { say as words } from "../core/client";
 
 const KEY = "companion_look";
 
@@ -40,7 +41,7 @@ export function LookPicker({ client, value, onChange }: { client?: Client; value
     client
       .preference(KEY)
       .then((p) => !cancelled && setLook(normaliseLook(p.value)))
-      .catch((e) => !cancelled && (setLook(DEFAULT_LOOK), setProblem(e instanceof Error ? e.message : String(e))));
+      .catch((e) => !cancelled && (setLook(DEFAULT_LOOK), setProblem(words(e))));
     return () => {
       cancelled = true;
     };
@@ -55,7 +56,7 @@ export function LookPicker({ client, value, onChange }: { client?: Client; value
       return;
     }
     setLook(next);
-    client?.setPreference(KEY, next).catch((e) => setProblem(e instanceof Error ? e.message : String(e)));
+    client?.setPreference(KEY, next).catch((e) => setProblem(words(e)));
   };
 
   if (!look) return <p className="faint">Loading the look…</p>;
@@ -81,18 +82,18 @@ export function LookPicker({ client, value, onChange }: { client?: Client; value
         <Swatches label="Shirt" choices={SHIRTS} value={look.shirt} onPick={(shirt) => shirt && change({ shirt })} />
         <div className="look__row" role="group" aria-label="Neckwear">
           <span className="look__label">Neckwear</span>
-          <Tabs<Neckwear> className="toggle toggle--views" label="Neckwear" value={look.neckwear} onChange={(neckwear) => change({ neckwear })} items={[{ id: "tie", label: "Tie" }, { id: "bow", label: "Bow" }, { id: "none", label: "None" }]} />
+          <Toggle<Neckwear> inBody label="Neckwear" value={look.neckwear} onChange={(neckwear) => change({ neckwear })} items={[{ id: "tie", label: "Tie" }, { id: "bow", label: "Bow" }, { id: "none", label: "None" }]} />
         </div>
         {look.neckwear !== "none" ? <Swatches label={look.neckwear === "bow" ? "Bow" : "Tie"} choices={TIES} value={look.tie} onPick={(tie) => tie && change({ tie })} /> : null}
         {controlled ? null : (
           <div className="look__row" role="group" aria-label="Size">
             <span className="look__label">Size</span>
-            <Tabs<Size> className="toggle toggle--views" label="Size" value={look.size} onChange={(size) => change({ size })} items={[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }]} />
+            <Toggle<Size> inBody label="Size" value={look.size} onChange={(size) => change({ size })} items={[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }]} />
           </div>
         )}
         <div className="look__row">
           <span className="look__label">Glasses</span>
-          <button type="button" className={`switch${look.glasses ? "" : " switch--off"}`} role="switch" aria-checked={look.glasses} aria-label="Glasses" onClick={() => change({ glasses: !look.glasses })} />
+          <Switch checked={look.glasses} label="Glasses" onChange={(glasses) => change({ glasses })} />
         </div>
         {problem ? (
           <p className="notice" role="alert">

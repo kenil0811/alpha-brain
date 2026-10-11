@@ -71,3 +71,45 @@ describe("type and chips", () => {
     expect(css).not.toMatch(/animation:\s*fadein/);
   });
 });
+
+/** The colours a block sets, `--name: #hex`. */
+function palette(block: string): Record<string, string> {
+  return Object.fromEntries([...block.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\b/g)].map((m) => [m[1], m[2]]));
+}
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const ratio = (a: string, b: string) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+describe("contrast (WCAG AA, rulebook §16)", () => {
+  const block = (start: string) => css.slice(css.indexOf(start), css.indexOf("}", css.indexOf(start)));
+  const light = palette(block(":root {"));
+  const dark = { ...light, ...palette(block(':root[data-theme="dark"] {')) };
+  const pairs: [string, string, number][] = [
+    ["--text-3", "--surface", 4.5],
+    ["--text-3", "--surface-2", 4.5],
+    ["--good", "--good-soft", 4.5],
+    ["--warn", "--warn-soft", 4.5],
+    ["--bad", "--bad-soft", 4.5],
+    ["--primary", "--primary-soft", 4.5],
+    ["--border-strong", "--surface", 3],
+  ];
+  for (const [name, theme] of [["light", light], ["dark", dark]] as const) {
+    it.each(pairs)(`${name}: %s on %s is at least %s:1`, (fg, bg, min) => {
+      expect(ratio(theme[fg], theme[bg])).toBeGreaterThanOrEqual(min);
+    });
+  }
+
+  it("the media-query dark theme matches the chosen one", () => {
+    const media = palette(block(':root:not([data-theme="light"]) {'));
+    for (const key of ["--text-3", "--good", "--good-soft", "--primary", "--primary-soft", "--surface-2", "--border-strong"]) expect(media[key]).toBe(dark[key]);
+  });
+
+  it("raises the quiet text and the lines when the Mac asks for more contrast", () => {
+    expect(css).toMatch(/@media \(prefers-contrast: more\) \{[^@]*--text-3:[^@]*--border:/);
+  });
+});

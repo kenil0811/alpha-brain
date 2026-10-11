@@ -20,6 +20,7 @@
  * Selecting rows offers Edit property, Duplicate, Delete and Download as CSV.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { say } from "../core/client";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, TableSummaryData, Relations } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { DATE_KINDS, coerce, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "./fields";
@@ -86,7 +87,6 @@ interface CellEdit {
 }
 
 const word = (n: number) => (n === 1 ? "record" : "records");
-const rowWord = (n: number) => (n === 1 ? "row" : "rows");
 /** Run after a menu has closed and handed the focus back to its button: sooner, the hand-back
  *  would close the popover or dialog this opens (the kit's menu returns focus on a timer). */
 const afterMenu = (fn: () => void) => window.setTimeout(() => window.setTimeout(fn));
@@ -160,7 +160,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     try {
       setStatus({ ok: true, text: await src.exportAs!("xlsx") });
     } catch (e) {
-      setStatus({ ok: false, text: `Couldn't download: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't download: ${say(e)}` });
     }
   }
   async function addFile(row: RecordRow, field: FieldInfo, file: File) {
@@ -169,7 +169,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       load();
       onChanged();
     } catch (e) {
-      setStatus({ ok: false, text: `Couldn't add ${file.name}: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't add ${file.name}: ${say(e)}` });
     }
   }
   const [search, setSearch] = useState("");
@@ -253,7 +253,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
         setLists(result.lists ?? []);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
   }, [src]);
   useEffect(load, [load, version]);
 
@@ -330,7 +330,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       onChanged();
       return true;
     } catch (e) {
-      setStatus({ ok: false, text: `${words}: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `${words}: ${say(e)}` });
       return false;
     }
   }
@@ -347,7 +347,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       onChanged();
       return saved?.revision;
     } catch (e) {
-      setStatus({ ok: false, text: `Couldn't save the change: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't save the change: ${say(e)}` });
       return false;
     }
   }
@@ -405,7 +405,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       const first = titleField && columns.includes(titleField) ? titleField : columns.find((c) => cellEditable(byName.get(c)!));
       if (made?.id && first) setEditRequest({ id: made.id, field: first });
     } catch (e) {
-      setStatus({ ok: false, text: `Couldn't add one: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't add one: ${say(e)}` });
     }
   }
   const editReason = src.edit ? undefined : reasonFor(src, "edit");
@@ -421,7 +421,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
         await src.duplicate!(row);
         done += 1;
       } catch (e) {
-        problem = e instanceof Error ? e.message : String(e);
+        problem = say(e);
         break;
       }
     }
@@ -440,7 +440,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
         await src.remove!(row);
         done += 1;
       } catch (e) {
-        problem = e instanceof Error ? e.message : String(e);
+        problem = say(e);
         break;
       }
     }
@@ -538,11 +538,16 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       const config = { ...before?.config, ...toConfig(state) };
       let made: SavedList = id ? { ...before!, title, config } : await src.saveList!(title, config);
       if (id) await src.updateList!(id, { title, config });
-      if (isDefault && !made.is_default) {
-        await src.updateList!(made.id, { default: true });
-        made = { ...made, is_default: true };
+      // the box ticked or unticked: the list becomes, or stops being, the one the collection opens on
+      if (isDefault !== made.is_default) {
+        await src.updateList!(made.id, { default: isDefault });
+        made = { ...made, is_default: isDefault };
       }
-      setLists((existing) => [...existing.filter((l) => l.id !== made.id).map((l) => (made.is_default ? { ...l, is_default: false } : l)), made]);
+      // an edited list keeps its place; a new one goes at the end
+      setLists((existing) => {
+        const rest = existing.map((l) => (made.is_default && l.id !== made.id ? { ...l, is_default: false } : l));
+        return rest.some((l) => l.id === made.id) ? rest.map((l) => (l.id === made.id ? made : l)) : [...rest, made];
+      });
       const k = `${src.key}:${made.id}`;
       void setKept({ ...kept, [k]: { ...state, core: JSON.stringify(made.config) } });
       setEdited((m) => ({ ...m, [k]: state }));
@@ -652,7 +657,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
         await src.edit!(row, { [field.name]: value });
         done += 1;
       } catch (e) {
-        problem = e instanceof Error ? e.message : String(e);
+        problem = say(e);
         break;
       }
     }
@@ -664,7 +669,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   function downloadCsv(rowsNow: RecordRow[]) {
     const shownFields = columns.map((c) => byName.get(c)!).filter(Boolean);
     downloadText(`${src.title}.csv`, toCsv([shownFields.map((f) => fieldLabel(f)), ...rowsNow.map((r) => shownFields.map((f) => showValue(r.values[f.name], f.kind, f.unit)))]));
-    setStatus({ ok: true, text: `Downloaded ${count(rowsNow.length)} ${rowWord(rowsNow.length)} as ${src.title}.csv.` });
+    setStatus({ ok: true, text: `Downloaded ${count(rowsNow.length)} ${word(rowsNow.length)} as ${src.title}.csv.` });
   }
   function copyLink(row: RecordRow) {
     const link = recordLink(src.key, row.id);
@@ -717,7 +722,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     { label: "Add column", icon: <PlusIcon size={ICON_SM} />, onSelect: () => undefined, disabled: ADD_COLUMN_REASON },
     ...listActions(tabs.find((t) => t.id === listId) ?? tabs[0], tabActions).map((a, i) => (i === 0 ? { ...a, separatorBefore: true } : a)),
     {
-      label: `Download ${count(shownCount)} ${rowWord(shownCount)}`,
+      label: `Download ${count(shownCount)} ${word(shownCount)}`,
       icon: <DownloadIcon size={ICON_SM} />,
       separatorBefore: true,
       disabled: !rows ? `Loading ${src.title}…` : shownCount ? undefined : "Nothing is shown to download.",

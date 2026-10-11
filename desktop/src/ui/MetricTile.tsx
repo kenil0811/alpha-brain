@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
+import { Tooltip } from "./Tooltip";
 
 /** One number and what it is (the UI rulebook §6 and §14): the number in serif with, beside it, a
  *  small label and the "based on" line (a number is never shown without its basis), then an
@@ -31,7 +32,12 @@ export function MetricTile({ icon, label, value, basis, attention, cta, chart, o
       <div className={empty ? "mtile__big mtile__big--none" : "mtile__big num"}>{empty ? "None" : value}</div>
       <div className="mtile__text">
         <div className="mtile__lab">{label}</div>
-        <div className="mtile__basis" title={basis}>{basis}</div>
+        {/* the basis may be cut short: the whole of it on hover and on focus (a tile that opens has its own focus) */}
+        <Tooltip text={basis}>
+          <div className="mtile__basis" tabIndex={onOpen ? undefined : 0}>
+            {basis}
+          </div>
+        </Tooltip>
       </div>
       {chart ? <div className="mtile__chart">{chart}</div> : null}
       {cta ? <div className="mtile__cta">{cta}</div> : null}

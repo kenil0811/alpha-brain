@@ -13,6 +13,7 @@
  * the avatar with "Alpha" under it and the bell below.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { say } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
@@ -36,6 +37,9 @@ function Mark({ client, size = 28 }: { client: Client; size?: number }) {
     </span>
   );
 }
+
+/** The words a finished turn leaves for a screen reader: its reply, or "Done", or that it failed. */
+const heardOf = (final: { state: string; reply?: string }) => (final.state === "failed" ? `Didn't finish. ${final.reply ?? ""}`.trim() : final.reply?.trim() || "Done");
 
 /** What a turn already says about itself (the journal's own fields, nothing guessed): how long it
  *  took and how many steps it ran. Who answered and which records it used are not recorded per
@@ -131,6 +135,9 @@ export function AssistantPanel({
   const [convos, setConvos] = useState<Convo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // What a screen reader hears: only a finished reply (or that it failed), never the steps or a
+  // list being swapped; the conversation itself is not a live region.
+  const [heard, setHeard] = useState("");
   const body = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
@@ -148,7 +155,7 @@ export function AssistantPanel({
         setLoadError(null);
         if (!active && c.conversation) setActive(c.conversation.id);
       })
-      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setLoadError(say(e)));
   }, [client, module?.id, active]);
   useEffect(load, [load, version]);
   // A page change shows that page's live conversation, not the one from the last page.
@@ -209,10 +216,11 @@ export function AssistantPanel({
         }
         const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, conversation }, setPending);
         if (final.conversation && !threadId) setActive(final.conversation.id);
+        setHeard(heardOf(final));
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         // The core stopped answering (or lost the turn): the words come back to the box.
-        setError(`${e instanceof Error ? e.message : String(e)} Your message is back in the box.`);
+        setError(`${say(e)} Your message is back in the box.`);
         setText((current) => current || clean);
       } finally {
         sending.current = false;
@@ -250,9 +258,10 @@ export function AssistantPanel({
       setElapsed(0);
       try {
         const final = await client.waitTurn(turn, setPending);
+        setHeard(heardOf(final));
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
-        setError(`${e instanceof Error ? e.message : String(e)} The turn may still have run; its answer shows here when the core is back.`);
+        setError(`${say(e)} The turn may still have run; its answer shows here when Alpha is back.`);
       }
       setPending(null);
       load();
@@ -299,7 +308,7 @@ export function AssistantPanel({
   const thought = live?.thought ?? null;
   const headline = doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking");
   const workingNote = pending ? (
-    <div className="msg msg--ai msg--working" role="status" aria-live="polite">
+    <div className="msg msg--ai msg--working">
       <div className="working__head">
         <span className="working__pulse" aria-hidden="true" />
         <span className="shimmer">{headline}</span>
@@ -389,7 +398,10 @@ export function AssistantPanel({
           <IconButton size="sm" label="More for this conversation" aria-haspopup="menu" icon={<MoreVertical size={ICON_SM} />} disabledReason={activeConvo ? undefined : "There is no conversation here yet."} onClick={(e) => convoMenu.openFrom(undefined, e.currentTarget)} />
         </div>
       )}
-      <div className="assist__body" ref={body} role="log" aria-live="polite" aria-label="Conversation">
+      <p className="sr-only" aria-live="polite">
+        {heard}
+      </p>
+      <div className="assist__body" ref={body} role="region" aria-label="Conversation">
         {threadView ? (
           <>
             {renderMessages(threadView.journal)}

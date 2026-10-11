@@ -9,6 +9,7 @@
  * put them back and a draft from the window can land in it.
  */
 import { type KeyboardEvent, type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { say } from "../core/client";
 import type { Client, ModuleCard, Turn } from "../core/client";
 import { MicButton } from "../shell/voice";
 import { Dropdown, type DropdownOption, IconButton, Notice } from "../ui";
@@ -18,7 +19,7 @@ import { ArrowUp, AttachIcon } from "../ui/icons";
 export const MENTION_REASON = "Alpha is the only agent today, so there is no one else to address yet.";
 
 /** Why Deep thinking can't be chosen: `client.ask` carries no depth, tier or model. */
-export const DEPTH_REASON = "Choosing depth needs Alpha's core; every answer is a quick overview for now.";
+export const DEPTH_REASON = "Every answer is a quick overview for now; choosing depth isn't possible yet.";
 const DEPTH_DEFAULT_KEY = "alpha.depth.default";
 type Depth = "quick" | "deep";
 const DEPTHS: DropdownOption<Depth>[] = [
@@ -92,7 +93,7 @@ export function Composer({
       setNote({ ok: true, text: `${picked.length === 1 ? "Added 1 file" : `Added ${picked.length} files`}${module ? ` to ${module.name}` : ""}.${out.turn ? " Alpha is reading it." : ""}` });
       onFollow(out.turn);
     } catch (e) {
-      setNote({ ok: false, files: true, text: `Couldn't add the files: ${e instanceof Error ? e.message : String(e)}` });
+      setNote({ ok: false, files: true, text: `Couldn't add the files: ${say(e)}` });
     }
   };
 

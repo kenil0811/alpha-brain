@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Client, JournalEntry, RecordRow, TableDesc } from "../core/client";
+import { CoreError, type Client, type JournalEntry, type RecordRow, type TableDesc } from "../core/client";
 import { forgetPreferences } from "../core/preferences";
 import { TooltipProvider } from "../ui";
 import { RecordPage } from "./RecordPage";
@@ -125,7 +125,7 @@ describe("a record's page", () => {
   it("a field that can't be saved keeps the input and says why beside it", async () => {
     const user = userEvent.setup();
     const { client } = setup();
-    client.editRecord.mockRejectedValueOnce(new Error("'price' must be a number; got 'x'."));
+    client.editRecord.mockRejectedValueOnce(new CoreError("'price' must be a number; got 'x'.", 400));
     const price = await screen.findByLabelText(/^Price/);
     await user.type(price, "5");
     await user.tab();
@@ -134,6 +134,19 @@ describe("a record's page", () => {
     expect(price.closest(".recfield")).toContainElement(alert);
     expect(price).toHaveValue("3,505");
     expect(screen.queryByText("Saved.")).toBeNull();
+  });
+
+  it("refuses emptying a required field: nothing is saved, the value comes back, and it says why beside it", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    const title = await screen.findByLabelText(/^Title/);
+    await user.clear(title);
+    await user.tab();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Title can't be empty, so it was left as it was.");
+    expect(title.closest(".recfield")).toContainElement(alert);
+    expect(title).toHaveValue("Bakery");
+    expect(client.editRecord).not.toHaveBeenCalled();
   });
 
   it("a new record starts with defaults and the first field left with a value adds it, then opens it", async () => {

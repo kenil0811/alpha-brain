@@ -5,6 +5,7 @@
  * shared page header carries a back link to Skills and the serif title (9 Oct, §5).
  */
 import { useEffect, useId, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Intelligence, JournalEntry, SkillDetail } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { Badge, Button, EmptyCard, ListRow, PageHeader, SectionCard, Trouble } from "../ui";
@@ -49,7 +50,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
         setSkill(s);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -75,7 +76,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
         setNotes(null);
         onChanged();
       })
-      .catch((e: unknown) => setProblem(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setProblem(say(e)));
   };
   return (
     <>
@@ -111,7 +112,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
                     Discard
                   </Button>
                 ) : null}
-                <Button size="sm" variant="primary" disabledReason="Editing a skill needs Alpha's core">
+                <Button size="sm" variant="primary" disabledReason="This can't be saved from here yet. Use Ask Alpha to change this.">
                   Save
                 </Button>
               </>
@@ -185,7 +186,7 @@ export function HandPage({ client, name, version, onGo }: { client: Client; name
         setRuns(rows.filter((e) => e.source === `connector:${name}`).slice(0, 20));
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };

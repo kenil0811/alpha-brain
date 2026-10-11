@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Badge, Button, Dialog } from "../ui";
+import { say as words } from "../core/client";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 /** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
@@ -80,7 +81,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
       await fn();
       onDecided(note);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(words(e));
     } finally {
       setBusy(false);
     }
@@ -100,7 +101,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
     <article className={`card need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`}>
       <h3>
         {action.title}
-        <Badge tone={action.state === "failed" ? "bad" : action.state === "done" ? "good" : "warn"} style={{ marginLeft: 8 }}>
+        <Badge tone={action.state === "failed" ? "bad" : action.state === "done" ? "good" : "warn"} className="action__badge">
           {badge}
         </Badge>
       </h3>
@@ -111,7 +112,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         <p className="because">
           <b>Because</b> {moreWhy || why.length <= EVIDENCE_SHORT ? why : `${why.slice(0, EVIDENCE_SHORT).trimEnd()}…`}
           {why.length > EVIDENCE_SHORT ? (
-            <button type="button" className="linkbtn faint" style={{ marginLeft: 6 }} onClick={() => setMoreWhy((v) => !v)}>
+            <button type="button" className="linkbtn faint action__more" onClick={() => setMoreWhy((v) => !v)}>
               {moreWhy ? "less" : "more"}
             </button>
           ) : null}

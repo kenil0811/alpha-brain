@@ -637,10 +637,22 @@ export function plainError(status: number, said: unknown): string {
   return "Something went wrong inside Alpha. Try again.";
 }
 
+/** What a refusal said: its `error`, else a `detail` written as a sentence (the 401 "This window
+ *  isn't signed in…"; FastAPI's bare "Not Found" is not one, so it gets the plain line instead). */
+const said = (data: { error?: unknown; detail?: unknown }): unknown => data.error ?? (typeof data.detail === "string" && /[.!?…]$/.test(data.detail.trim()) ? data.detail : undefined);
+
 export class CoreError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
   }
+}
+
+/** Any caught error as words a person can read: a CoreError is already plain; anything else gets
+ *  one plain sentence, and the raw error goes to the console. */
+export function say(e: unknown): string {
+  if (e instanceof CoreError) return e.message;
+  console.error(e);
+  return "Something went wrong. Try again.";
 }
 
 type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
@@ -665,7 +677,7 @@ export class Client {
       throw new CoreError(NOT_ANSWERING, 0);
     }
     const data = (await response.json().catch(() => ({}))) as { error?: unknown; detail?: unknown };
-    if (!response.ok) throw new CoreError(plainError(response.status, data.error), response.status);
+    if (!response.ok) throw new CoreError(plainError(response.status, said(data)), response.status);
     return data as T;
   }
 
@@ -740,9 +752,11 @@ export class Client {
     if (where.table) form.append("table", where.table);
     if (where.record) form.append("record", where.record);
     if (where.field) form.append("field", where.field);
-    const response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form });
+    const response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form }).catch(() => {
+      throw new CoreError(NOT_ANSWERING, 0);
+    });
     const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string; documents?: DocumentInfo[]; turn?: Turn | null };
-    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    if (!response.ok) throw new CoreError(plainError(response.status, said(data)), response.status);
     return { documents: data.documents ?? [], turn: data.turn ?? null };
   };
   exportTable = (name: string, format: "csv" | "xlsx") => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format });
@@ -812,7 +826,7 @@ export class Client {
   /** A screenshot of an action, as an object URL the caller revokes. */
   actionShot = async (id: string, name: string): Promise<string> => {
     const response = await fetch(`${this.session.baseUrl}/api/actions/${id}/shots/${name}`, { headers: { Authorization: `Bearer ${this.session.token}` } });
-    if (!response.ok) throw new CoreError(`No screenshot (${response.status}).`, response.status);
+    if (!response.ok) throw new CoreError("This screenshot couldn't be shown.", response.status);
     return URL.createObjectURL(await response.blob());
   };
   approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);

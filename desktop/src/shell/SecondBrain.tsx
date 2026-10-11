@@ -9,6 +9,7 @@
  * no call that edits one; Add goal hands Alpha a description to propose (`DescribeAdd`).
  */
 import { useEffect, useMemo, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
@@ -18,6 +19,7 @@ import { BackLink } from "./BackLink";
 import { DescribeAdd } from "./DescribeAdd";
 import { FactRow } from "./FactRow";
 import { factsSource } from "./intel/sources";
+import { RevokeButton } from "./Settings";
 import { BrainEgg } from "./map/BrainEgg";
 import { brainOf } from "./map/egg";
 import { cacheFor, WorkMap } from "./map/WorkMap";
@@ -35,7 +37,7 @@ export function NoteEditor({ client, scope, title, body, summary, onChanged, lab
       setEditing(false);
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }
   return editing ? (
@@ -124,7 +126,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
       setMessage({ ok: true, text: "Revoked." });
       onChanged();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     }
   }
 
@@ -191,7 +193,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
           <SectionCard title="Standing permissions">
             {permissions.length ? (
               permissions.map((p) => (
-                <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<Button size="sm" variant="ghost" onClick={() => void revoke(p.id)}>Revoke</Button>} />
+                <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />
               ))
             ) : (
               <p className="faint">None yet.</p>
@@ -225,7 +227,7 @@ export function FactPage({ client, id, version, onBack, onChanged, onAsk }: { cl
         setData(d);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };

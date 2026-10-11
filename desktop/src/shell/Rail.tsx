@@ -21,7 +21,8 @@
  * its menu has a project's items; Rename and Delete stay disabled, and it never nests.
  */
 import * as RadixPopover from "@radix-ui/react-popover";
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { say } from "../core/client";
 import type { Client, ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { Button, IconButton, Tooltip, useContextMenu, type ContextItem } from "../ui";
@@ -127,7 +128,7 @@ const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is str
 
 /** Network's place among the projects: its id in `PREF.moduleOrder` and the hidden list. */
 export const NETWORK = "network";
-const NETWORK_FIXED = "Network is pre-built; deleting it needs Alpha's core";
+const NETWORK_FIXED = "Network is built in; deleting it can't be done from here. Hide it to take it off the sidebar.";
 const NETWORK_CARD: ModuleCard = { id: NETWORK, name: "Network", goal: null, parent: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" };
 
 type Row = { kind: "module"; module: ModuleCard };
@@ -144,6 +145,7 @@ export function Rail({
   onChanged,
   draftName,
   loading = false,
+  onRetryProjects,
 }: {
   client: Client | null;
   surface: Surface;
@@ -159,12 +161,15 @@ export function Rail({
   draftName?: string;
   /** The projects have not arrived yet: the list shows nothing rather than an empty one. */
   loading?: boolean;
+  /** The projects couldn't be loaded: the list says so, with Try again (never an empty workspace). */
+  onRetryProjects?: () => void;
 }) {
   const [folded, setFolded] = useState<Set<string>>(readFolded);
   const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
   const [logoPref, setLogo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
   const logo = typeof logoPref === "string" ? logoPref : "";
-  // The tile shows the companion the person picked (the assistant panel's face); none picked: the initial.
+  // The tile is the companion the person picked (the owner: the logo is the chosen avatar), over
+  // an uploaded logo or mark; nothing chosen: the logo, else the initial.
   const [companionPref] = usePreference<unknown>(client, PREF.companionLook, null);
   const [looksPref] = usePreference<Record<string, unknown>>(client, PREF.agentLooks, NO_ICONS);
   const face = companionPref || looksPref?.alpha ? <AgentAvatar client={client} agent="alpha" size={36} /> : undefined;
@@ -193,7 +198,8 @@ export function Rail({
   useEffect(() => () => window.clearTimeout(clickTimer.current), []);
 
   const byId = (id: string) => all.find((m) => m.id === id);
-  const fail = (what: string, e: unknown) => setTrouble(`Couldn't ${what}: ${e instanceof Error ? e.message : String(e)}`);
+  // a preference's failed write comes back already in words
+  const fail = (what: string, e: unknown) => setTrouble(`Couldn't ${what}: ${typeof e === "string" ? e : say(e)}`);
   /** A change that worked: said politely, and any earlier problem goes (errors never fade on a timer, §14). */
   const done = (words: string) => {
     setTrouble(null);
@@ -297,7 +303,7 @@ export function Rail({
     { label: "Move…", icon: <MoveIcon />, onSelect: () => setDialog({ kind: "move", module: m }), separatorBefore: true },
     { label: "A new project above it…", icon: <AboveIcon />, onSelect: () => setDialog({ kind: "above", module: m }) },
     { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
-    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "The core can't delete a project from this window yet. Hide it to take it off the sidebar." },
+    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "Deleting a project can't be done from here yet. Hide it to take it off the sidebar." },
     { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }), separatorBefore: true },
   ];
   const rowMenu = useContextMenu<Row>((r) => (r.module.id === NETWORK ? networkItems(r.module) : moduleItems(r.module)));
@@ -407,7 +413,7 @@ export function Rail({
     if (o.module && renamingId === o.module.id && !collapsed) {
       const m = o.module;
       return (
-        <div key={o.key} className="navrow" style={o.depth ? { paddingLeft: o.depth * 14 } : undefined}>
+        <div key={o.key} className={`navrow${o.depth ? " navrow--nested" : ""}`} style={o.depth ? ({ "--depth": o.depth } as CSSProperties) : undefined}>
           <div className="navbtn navbtn--edit">
             <span className="navbtn__ico" aria-hidden="true">
               {o.icon}
@@ -418,7 +424,7 @@ export function Rail({
       );
     }
     return (
-      <div key={o.key} className={`navrow${o.fold ? " navrow--fold" : ""}${o.module && drag === o.module.id ? " navrow--dragging" : ""}${dropHere}`} style={o.depth && !collapsed ? { paddingLeft: o.depth * 14 } : undefined} {...(o.module ? dragProps(o.module) : {})}>
+      <div key={o.key} className={`navrow${o.fold ? " navrow--fold" : ""}${o.module && drag === o.module.id ? " navrow--dragging" : ""}${dropHere}${o.depth && !collapsed ? " navrow--nested" : ""}`} style={o.depth && !collapsed ? ({ "--depth": o.depth } as CSSProperties) : undefined} {...(o.module ? dragProps(o.module) : {})}>
         {o.hint || collapsed ? <Tooltip text={collapsed ? (o.hint ? `${o.label} — ${o.hint}` : o.label) : o.hint!}>{button}</Tooltip> : button}
         {o.fold && !collapsed ? (
           <button type="button" className="navfold" aria-label={o.fold.open ? `Fold ${o.label}` : `Unfold ${o.label}`} aria-expanded={o.fold.open} onClick={o.fold.onToggle}>
@@ -492,8 +498,8 @@ export function Rail({
                 <NameInput name={name} onDone={(v) => void rename(v)} onCancel={() => setRenaming(false)} />
               </div>
             ) : (
-<TipWhen show={collapsed} text={name}>
-              <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
+              <TipWhen show={collapsed} text={name}>
+                <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
                   <WorkspaceTile logo={logo} name={name} face={face} className="wsbtn__tile" />
                   <span className="wsbtn__name">{name}</span>
                   <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
@@ -512,7 +518,16 @@ export function Rail({
         {go({ kind: "home" }, <HomeIcon />, "Home", needs)}
         <div className="rail__scroll">
           {/* While the projects load the list stays quiet: no rows, no "nothing here" words (§14). */}
-          {loading ? null : branches(tree, 0)}
+          {onRetryProjects ? (
+            <div className="rail__unloaded" role="status">
+              {collapsed ? null : <span className="faint">Couldn't load projects.</span>}
+              <Button size="sm" variant="ghost" onClick={onRetryProjects}>
+                Try again
+              </Button>
+            </div>
+          ) : null}
+          {/* Projects that never arrived are not shown as none (an empty workspace) */}
+          {loading || (onRetryProjects && !modules.length) ? null : branches(tree, 0)}
           {surface.kind === "new-project" ? item({ key: "new-project", icon: <ModuleIcon />, label: draftName?.trim() || "New project", current: true, className: "navbtn--draft", onClick: () => undefined }) : null}
           {loading ? null : (
             <TipWhen show={collapsed} text="New project">
@@ -560,13 +575,13 @@ export function Rail({
   );
 }
 
-/** The workspace's tile: its logo (an image, or a letter or emoji the person chose), else the
- *  companion's face when one was picked (`face`, the owner 11 Oct), else the first letter of its
- *  name. Settings shows the same tile. */
+/** The workspace's tile: the companion's face when one was picked (`face`; the owner: the logo IS
+ *  the chosen avatar), else its logo (an image, or a letter or emoji the person chose), else the
+ *  first letter of its name. Settings shows the same tile. */
 export function WorkspaceTile({ logo, name, className, face }: { logo: string; name: string; className: string; face?: ReactNode }) {
   return (
     <span className={className} aria-hidden="true">
-      {logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || face || ([...name][0]?.toUpperCase() ?? "A")}
+      {face || (logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || ([...name][0]?.toUpperCase() ?? "A"))}
     </span>
   );
 }

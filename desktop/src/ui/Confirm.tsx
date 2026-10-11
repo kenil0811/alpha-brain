@@ -9,10 +9,11 @@ export function Confirm({ open, title, children, action, danger = true, onConfir
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()} title={title}>
       {children ? <div className="dialog__body">{children}</div> : null}
       <div className="row dialog__actions">
-        <Button variant="ghost" onClick={onCancel}>
+        {/* Cancel takes the focus, so a stray Enter or Space never does the dangerous thing */}
+        <Button variant="ghost" onClick={onCancel} autoFocus>
           Cancel
         </Button>
-        <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} autoFocus>
+        <Button variant={danger ? "danger" : "primary"} onClick={onConfirm}>
           {action}
         </Button>
       </div>

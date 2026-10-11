@@ -8,7 +8,7 @@
  * New view is not listed: making one lives in the data view's own toolbar, out of reach here.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { moduleWords } from "../core/client";
+import { moduleWords, say } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
@@ -92,7 +92,7 @@ export function CommandMenu({
         .catch((e: unknown) => {
           if (!live) return;
           setHits(null);
-          setTrouble(e instanceof Error ? e.message : String(e));
+          setTrouble(say(e));
         });
     }, 180);
     return () => {
@@ -110,7 +110,7 @@ export function CommandMenu({
       const out = await client.addFiles(picked, scope ? { module: scope } : {});
       setNote({ ok: true, text: `${picked.length === 1 ? "Added 1 file" : `Added ${picked.length} files`}${scopeModule ? ` to ${scopeModule.name}` : ""}.${out.turn ? " Alpha is reading it." : ""}` });
     } catch (e) {
-      setNote({ ok: false, text: `Couldn't add the files: ${e instanceof Error ? e.message : String(e)}` });
+      setNote({ ok: false, text: `Couldn't add the files: ${say(e)}` });
     }
   };
 
@@ -173,8 +173,8 @@ export function CommandMenu({
           }
         }}
       />
-      {note ? <p className={note.ok ? "faint" : "notice"} role="status" style={{ padding: "6px 12px" }}>{note.text}</p> : null}
-      {trouble ? <p className="notice" role="alert" style={{ padding: "6px 12px" }}>Search isn't answering: {trouble}</p> : null}
+      {note ? <p className={`command__note ${note.ok ? "faint" : "notice"}`} role="status">{note.text}</p> : null}
+      {trouble ? <p className="notice command__note" role="alert">Search isn't answering: {trouble}</p> : null}
       <ul id="command-list" className="command__list" role="listbox" aria-label="Results">
         {items.map((item, i) => (
           <li key={item.key} id={`command-${item.key}`} role="option" aria-selected={i === active} className={`command__item${i === active ? " command__item--active" : ""}`} onMouseEnter={() => setActive(i)} onClick={item.go}>

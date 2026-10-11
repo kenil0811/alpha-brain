@@ -7,7 +7,7 @@
  * default), never hidden.
  */
 import type { ReactNode } from "react";
-import type { Client, FileInfo, RecordRow, Relations, SavedList, TableDesc } from "../core/client";
+import { CoreError, NOT_ANSWERING, type Client, type FileInfo, type RecordRow, type Relations, type SavedList, type TableDesc } from "../core/client";
 import { host } from "../core/host";
 import { PREF } from "../core/preferences";
 import { downloadText, toCsv } from "./csv";
@@ -156,7 +156,7 @@ export function memorySource(o: Omit<DataSource, "load" | "saveList" | "updateLi
           const now = new Date().toISOString();
           const next = await write((mine) => mine.map((l) => (l.id === id ? { ...l, title: change.title ?? l.title, config: change.config ?? l.config, is_default: change.default ?? l.is_default, updated_at: now } : change.default ? { ...l, is_default: false } : l)));
           const changed = next.find((l) => l.id === id);
-          if (!changed) throw new Error("That list is gone.");
+          if (!changed) throw new CoreError("That list is gone.", 404);
           return changed;
         },
         deleteList: (id: string) => write((mine) => mine.filter((l) => l.id !== id)),
@@ -166,13 +166,13 @@ export function memorySource(o: Omit<DataSource, "load" | "saveList" | "updateLi
   return {
     ...rest,
     ...lists,
-    reasons: { ...(client ? {} : { lists: "Alpha's core isn't running." }), ...rest.reasons },
+    reasons: { ...(client ? {} : { lists: NOT_ANSWERING }), ...rest.reasons },
     load: async () => {
       loaded = await rows();
       return { records: loaded, lists: client ? ((await read())[o.key] ?? []) : [] };
     },
     exportAs: async (format) => {
-      if (format !== "csv") throw new Error("Excel needs Alpha's core here; download as CSV instead.");
+      if (format !== "csv") throw new CoreError("Excel can't be made from here yet. Download as CSV instead.", 400);
       const head = o.fields.map((f) => f.label ?? humanize(f.name));
       downloadText(`${o.title}.csv`, toCsv([head, ...loaded.map((r) => o.fields.map((f) => showValue(r.values[f.name], f.kind, f.unit)))]));
       return `Downloaded ${loaded.length} ${word(loaded.length)} as ${o.title}.csv.`;

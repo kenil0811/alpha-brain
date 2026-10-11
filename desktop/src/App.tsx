@@ -80,6 +80,8 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>(RAIL_KEY, false));
   const [coreModules, setModules] = useState<ModuleCard[]>([]);
   const [modulesLoaded, setModulesLoaded] = useState(false); // the sidebar stays quiet until the first answer
+  const [modulesFailed, setModulesFailed] = useState(false); // the last load failed: said, never shown as an empty workspace
+  const [modulesTry, setModulesTry] = useState(0);
   const [needs, setNeeds] = useState(0);
   const [restarted, setRestarted] = useState(false);
   // A sentence handed to the panel: put in the composer (an "Ask Alpha…" button), or sent at
@@ -206,15 +208,16 @@ export function App({ client: injected }: { client?: Client } = {}) {
         if (cancelled) return;
         setModules(home.modules);
         setNeeds(home.needs_you.length);
+        setModulesFailed(false);
       })
-      .catch(() => undefined)
+      .catch(() => !cancelled && setModulesFailed(true))
       .finally(() => {
         if (!cancelled) setModulesLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [client, versions.home]);
+  }, [client, versions.home, modulesTry]);
 
   // Whether Alpha can think: checked at start and when the core comes back (Settings checks
   // again while the person signs in).
@@ -307,7 +310,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       className={`app${panelOpen ? "" : " app--assistant-folded"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: panelOpen ? `${panel.width}px` : undefined }}
     >
-      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} draftName={draftName} loading={!modulesLoaded} />
+      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} draftName={draftName} loading={!modulesLoaded} onRetryProjects={modulesFailed ? () => setModulesTry((n) => n + 1) : undefined} />
       {!railCollapsed ? <Resizer side="rail" label="Resize the sidebar" drag={rail} /> : null}
       {panelOpen && client ? <Resizer side="panel" label="Resize the assistant panel" drag={panel} /> : null}
       <EdgeToggle side="rail" folded={railCollapsed} label={railCollapsed ? "Unfold the sidebar" : "Fold the sidebar"} onClick={() => foldRail(!railCollapsed)} />

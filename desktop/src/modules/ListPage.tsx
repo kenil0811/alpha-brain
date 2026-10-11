@@ -6,7 +6,7 @@
  * until Save list; Cancel (or Escape) drops the draft and goes back. Adding, duplicating and
  * editing a list all use this page.
  */
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button, Dropdown, MultiDropdown } from "../ui";
 import { PlusIcon, ICON_SM } from "../ui/icons";
 import type { FieldInfo } from "./fields";
@@ -39,6 +39,7 @@ export function ListPage({ draft, onDraft, fields, order, viewReasons, hasDone, 
   onCancel: () => void;
 }) {
   const form = useRef<HTMLFormElement>(null);
+  const [lastColumn, setLastColumn] = useState(false); // the last column was unticked: refused, and said
   const s = draft.state;
   const set = (p: Partial<ViewState>) => onDraft({ ...draft, state: { ...s, ...p } });
   const label = (name: string) => fieldLabel(fields.find((f) => f.name === name), name);
@@ -93,7 +94,12 @@ export function ListPage({ draft, onDraft, fields, order, viewReasons, hasDone, 
       </div>
       <div className="listpage__row">
         <span className="listpage__lab">Columns shown</span>
-        <MultiDropdown size="sm" label="Columns shown" placeholder="None" values={shown} onChange={(next) => next.length && set({ hidden: order.filter((c) => !next.includes(c)) })} options={order.map((c) => ({ value: c, label: label(c) }))} />
+        <MultiDropdown size="sm" label="Columns shown" placeholder="None" values={shown} onChange={(next) => { setLastColumn(!next.length); if (next.length) set({ hidden: order.filter((c) => !next.includes(c)) }); }} options={order.map((c) => ({ value: c, label: label(c) }))} />
+        {lastColumn ? (
+          <span className="notice" role="alert">
+            Keep at least one column.
+          </span>
+        ) : null}
       </div>
       <div className="listpage__row">
         <span className="listpage__lab">Group by</span>

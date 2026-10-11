@@ -7,6 +7,7 @@
  * change at once; another window sees it when it next reads.
  */
 import { useCallback, useEffect, useState } from "react";
+import { NOT_ANSWERING, say } from "./client";
 import type { Client } from "./client";
 
 /** The keys, one per kind of choice (the core takes letters, digits and underscores). */
@@ -85,7 +86,7 @@ export function usePreference<T>(client: Client | null, key: PrefKey, fallback: 
   }, [client, key]);
   const change = useCallback(
     async (next: T): Promise<string | null> => {
-      if (!client) return "Alpha's core isn't running.";
+      if (!client) return NOT_ANSWERING;
       const before = cache.has(key) ? cache.get(key) : fallback;
       writes.set(key, (writes.get(key) ?? 0) + 1);
       announce(key, next);
@@ -95,7 +96,7 @@ export function usePreference<T>(client: Client | null, key: PrefKey, fallback: 
       } catch (e) {
         writes.set(key, (writes.get(key) ?? 0) + 1);
         announce(key, before);
-        return e instanceof Error ? e.message : String(e);
+        return say(e);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

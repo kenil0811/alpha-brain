@@ -184,7 +184,7 @@ describe("a module's menu", () => {
     expect(rename).not.toHaveAttribute("aria-disabled", "true");
     expect(del).toHaveAttribute("aria-disabled", "true");
     await user.hover(del);
-    expect((await screen.findAllByText(/delete a project from this window yet/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Deleting a project can't be done from here yet/)).length).toBeGreaterThan(0);
     await user.click(rename);
     expect(await screen.findByRole("textbox", { name: "Rename Food" })).toHaveValue("Food");
   });
@@ -357,6 +357,21 @@ describe("the sidebar while loading and when empty", () => {
     await userEvent.click(screen.getByRole("button", { name: "New project" }));
     expect(onNew).toHaveBeenCalled();
     expect(screen.queryByText(/All hidden|No projects|ask for one/i)).toBeNull();
+  });
+
+  it("when the projects couldn't load, says so with Try again rather than showing none", async () => {
+    const retry = vi.fn();
+    const core = fakeCore();
+    render(<Rail client={core.client} surface={{ kind: "home" }} modules={[]} needs={0} collapsed={false} onRetryProjects={retry} onGo={vi.fn()} onNew={vi.fn()} onChanged={vi.fn()} onToggleCollapsed={vi.fn()} />);
+    expect(screen.getByText("Couldn't load projects.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Network" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(retry).toHaveBeenCalled();
+  });
+
+  it("the companion, once picked, wins over an uploaded logo", async () => {
+    const { container } = setup([], { stored: { [PREF.companionLook]: { body: "cat" }, [PREF.workspaceLogo]: "K!" } });
+    await waitFor(() => expect(container.querySelector(".wsbtn__tile .agentface")).not.toBeNull());
   });
 });
 

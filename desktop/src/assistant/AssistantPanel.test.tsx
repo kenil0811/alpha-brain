@@ -156,10 +156,16 @@ describe("the assistant panel", () => {
     await waitFor(() => expect(client.closeConversation).toHaveBeenCalledWith("c1"));
   });
 
-  it("announces new messages politely: the message list is a log", async () => {
-    setup({ turns: [entry("1", "said", "Hello")] });
-    const log = await screen.findByRole("log");
-    expect(log).toHaveAttribute("aria-live", "polite");
-    expect(log).toHaveTextContent("Hello");
+  it("announces only a finished reply, politely; the conversation itself is not a live region", async () => {
+    const user = userEvent.setup();
+    const { client } = setup({ turns: [entry("1", "said", "Hello")] });
+    client.askAndWait = vi.fn(async () => ({ id: "t1", state: "done", text: "", started_at: "", reply: "All set." }));
+    const body = await screen.findByRole("region", { name: "Conversation" });
+    expect(body).not.toHaveAttribute("aria-live");
+    expect(body).toHaveTextContent("Hello");
+    const live = document.querySelector(".sr-only[aria-live=polite]");
+    expect(live).toHaveTextContent("");
+    await user.type(box(), "Hi{Enter}");
+    await waitFor(() => expect(live).toHaveTextContent("All set."));
   });
 });

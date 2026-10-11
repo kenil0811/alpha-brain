@@ -47,7 +47,7 @@ describe("an agent's page", () => {
     const { client } = mount("m1");
     expect(await screen.findByLabelText("Name")).toHaveValue("Deals runner");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    expect(screen.getByText("Editing an agent needs Alpha's core")).toBeInTheDocument();
+    expect(screen.getByText("This can't be saved from here yet. Use Ask Alpha to change this.")).toBeInTheDocument();
     expect(screen.getAllByRole("img", { name: "Deals runner" }).length).toBeGreaterThan(0); // its face in the header
     await userEvent.click(screen.getByRole("button", { name: "Fox" }));
     expect(client.setPreference).toHaveBeenCalledWith("agent_looks", { m1: expect.objectContaining({ animal: "fox" }) });

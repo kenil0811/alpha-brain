@@ -3,16 +3,15 @@ import { InfoTip } from "./Tooltip";
 
 /** A white bordered card for one section (the UI rulebook §14): a small semibold sans title, an
  *  optional (i) beside it that explains on hover and focus (`info`), actions on the right, then
- *  the content. No subtitles (fixed rule 28, 11 Oct): a `subtitle` still passed joins the (i). */
-export function SectionCard({ title, subtitle, info, actions, children }: { title: string; /** @deprecated use `info` (rule 28) */ subtitle?: string; info?: string; actions?: ReactNode; children?: ReactNode }) {
-  const tip = [info, subtitle].filter(Boolean).join(" ");
+ *  the content. No subtitles (fixed rule 28, 11 Oct). */
+export function SectionCard({ title, info, actions, children }: { title: string; info?: string; actions?: ReactNode; children?: ReactNode }) {
   return (
     <section className="card scard" aria-label={title}>
       <header className="scard__head">
         <div className="scard__titles">
           <div className="scard__titleline">
             <h3 className="scard__title">{title}</h3>
-            {tip ? <InfoTip text={tip} /> : null}
+            {info ? <InfoTip text={info} /> : null}
           </div>
         </div>
         {actions ? <div className="scard__actions">{actions}</div> : null}

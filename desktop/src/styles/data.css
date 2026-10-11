@@ -16,7 +16,7 @@
 /* the strip above the data: tiles wrap, each its own width */
 .mstrip { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column dense; grid-auto-columns: max-content; justify-content: start; gap: var(--space-2); overflow-x: auto; }  /* four lines high at most, the whole strip: two-line tiles two high, a split's block spanning both; more runs sideways (the owner, 9 Oct) */
 .mstrip .mtile--tall { grid-row: span 2; align-items: center; }
-.legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: calc(var(--space-12) * 3 + var(--space-4)); overflow: hidden; font-size: var(--text-xs); }
+.legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: calc(var(--space-12) * 3 + var(--space-4)); overflow: hidden; font-size: var(--text-sm); }
 .legend.legend--inline li { gap: var(--space-1); white-space: nowrap; cursor: default; }
 .legend.legend--inline .legend__dot { width: var(--space-2); height: var(--space-2); }
 .mstrip__fold { flex: none; }
@@ -114,7 +114,7 @@
 
 /* a rule: property · condition · value · delete */
 .frule { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-1); }
-.frule__input { width: calc(var(--space-12) * 3); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
+.frule__input { width: calc(var(--space-12) * 3); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
 .fgroup { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); min-width: calc(var(--space-12) * 10); }
 .fgroup--nested { min-width: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
 .fgroup__line { display: flex; align-items: flex-start; gap: var(--space-1); }
@@ -178,7 +178,7 @@
 
 /* the chart's line and donut */
 .chart__svg { display: block; width: 100%; height: calc(var(--space-12) * 3 + var(--space-4)); overflow: visible; }
-.chart__axis { display: flex; justify-content: space-between; font-size: var(--text-xs); }
+.chart__axis { display: flex; justify-content: space-between; font-size: var(--text-sm); }
 .chart__donut { display: flex; align-items: center; gap: var(--space-6); }
 .chart__donut svg { width: calc(var(--space-12) * 3 + var(--space-4)); height: calc(var(--space-12) * 3 + var(--space-4)); flex: none; }
 .chart__keys { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--text-2); }

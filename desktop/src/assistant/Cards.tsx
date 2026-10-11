@@ -4,6 +4,7 @@
  * "Or say it your way". Moved out of the panel so the panel stays about the conversation.
  */
 import { useState } from "react";
+import { say } from "../core/client";
 import type { Ask, Client, Plan, Turn } from "../core/client";
 import { Badge, Button, Rich } from "../ui";
 
@@ -61,7 +62,7 @@ export function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client;
       const out = await client.answerAsk(ask.id, words);
       onAnswered(out.turn);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
       setBusy(false);
     }
   };

@@ -1,6 +1,6 @@
 /**
  * The cards under a record's fields (the UI rulebook §7): Notes, Intelligence, Governance, each a
- * `SectionCard` with a small title and a one-line subtitle. Which show is the person's choice per
+ * `SectionCard` with a small title and its explanation in the (i). Which show is the person's choice per
  * collection (`PREF.recordSections`, set from the data view's ⋮ More). Empty ones say so in one
  * sentence with "yet". (9 Oct, the record pages.)
  *
@@ -19,6 +19,7 @@ import type { FieldInfo } from "../fields";
 import { when } from "../format";
 import { marks, fieldLabel } from "./RecordField";
 import { whoWords } from "./RecordHistory";
+import { say as words } from "../../core/client";
 
 export function NotesSection({ client, table, id, title, version, onChanged }: { client: Client; table: string; id: string; title: string; version: number; onChanged: () => void }) {
   const isNew = id === "new";
@@ -38,7 +39,7 @@ export function NotesSection({ client, table, id, title, version, onChanged }: {
         setNote(i.knowledge.notes.find((n) => n.scope === scope) ?? null);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(words(e)));
     return () => {
       live = false;
     };
@@ -52,11 +53,11 @@ export function NotesSection({ client, table, id, title, version, onChanged }: {
         setError(null);
         onChanged();
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(words(e)));
   return (
     <SectionCard
       title="Notes"
-      subtitle="Yours, about this record only."
+      info="Yours, about this record only."
       actions={
         editing ? (
           <>
@@ -101,7 +102,7 @@ export function IntelligenceSection({ client, row, about, version, onChanged, on
         setEntity(e);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(words(e)));
     return () => {
       live = false;
     };
@@ -109,7 +110,7 @@ export function IntelligenceSection({ client, row, about, version, onChanged, on
   const facts = entity ? [...entity.facts.filter((f) => f.state === "suggested"), ...entity.facts.filter((f) => f.state === "accepted")] : [];
   const nothing = facts.length === 0 && about.length === 0;
   return (
-    <SectionCard title="Intelligence" subtitle="What Alpha knows about this record, and what has acted on it.">
+    <SectionCard title="Intelligence" info="What Alpha knows about this record, and what has acted on it.">
       {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load what Alpha knows: {error}</Trouble> : null}
       {facts.map((f) => (
         <FactRow key={f.id} fact={f} client={client} onChanged={() => { setTick((n) => n + 1); onChanged(); }} onAsk={onAsk} />
@@ -133,7 +134,7 @@ export function IntelligenceSection({ client, row, about, version, onChanged, on
 export function GovernanceSection({ row, fields }: { row: RecordRow | null; fields: FieldInfo[] }) {
   if (!row) {
     return (
-      <SectionCard title="Governance" subtitle="Where this record came from, and when.">
+      <SectionCard title="Governance" info="Where this record came from, and when.">
         <EmptyCard title="Nothing recorded yet">Where each value came from appears here once the record is saved.</EmptyCard>
       </SectionCard>
     );
@@ -149,7 +150,7 @@ export function GovernanceSection({ row, fields }: { row: RecordRow | null; fiel
     ...(row.gone_at ? ([["Gone from its reader", when(row.gone_at)]] as [string, string][]) : []),
   ];
   return (
-    <SectionCard title="Governance" subtitle="Where this record came from, and when. The core keeps it for the whole record, not value by value.">
+    <SectionCard title="Governance" info="Where this record came from, and when. The core keeps it for the whole record, not value by value.">
       <dl className="prov2__body recgov">
         {lines.map(([k, v]) => (
           <div key={k}>

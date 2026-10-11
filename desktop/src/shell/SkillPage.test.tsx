@@ -27,7 +27,7 @@ describe("a skill's page", () => {
     await user.type(screen.getByLabelText("Description"), "!");
     expect(screen.getByLabelText("Description")).toHaveValue("Reads the connections list!");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    expect(screen.getByText("Editing a skill needs Alpha's core")).toBeInTheDocument();
+    expect(screen.getByText("This can't be saved from here yet. Use Ask Alpha to change this.")).toBeInTheDocument();
     expect(screen.getByLabelText("Notes on linkedin_connections")).toHaveValue("Cards rotate their class names.");
     await user.click(screen.getByRole("button", { name: "Ask Alpha to change this" }));
     expect(onAsk).toHaveBeenCalledWith("Change the skill linkedin_connections (Reads the connections list): ");

@@ -11,7 +11,7 @@ export interface TabItem<T extends string> {
 }
 
 /** A row of tabs with a keyboard path: arrow keys move, Home and End jump, the selected tab is
- *  the one in the tab order. `className` picks the look (`subtabs`, `toggle`, `hswitch`). */
+ *  the one in the tab order. `className` picks the look (`subtabs`, `hswitch`). */
 export function Tabs<T extends string>({ items, value, onChange, label, className = "subtabs", style }: { items: TabItem<T>[]; value: T; onChange: (id: T) => void; label?: string; className?: string; style?: React.CSSProperties }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const move = (from: number, to: number) => {

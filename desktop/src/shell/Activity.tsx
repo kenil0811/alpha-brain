@@ -8,6 +8,7 @@
  */
 import { humanize } from "../modules/format";
 import { useEffect, useMemo, useState } from "react";
+import { say } from "../core/client";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { Badge, Trouble, type Tone } from "../ui";
@@ -77,7 +78,7 @@ export function Activity({ client, version, onOpen }: { client: Client; version:
           setRows(r);
           setError(null);
         })
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+        .catch((e: unknown) => setError(say(e)));
     }, 200);
     return () => clearTimeout(t);
   }, [client, q, version, tick]);

@@ -5,9 +5,10 @@
  * Connections (the UI rulebook §12). `bare` drops the card, for a list already in a section card.
  */
 import { useState } from "react";
+import { say } from "../core/client";
 import type { Automation, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Badge, Button, EmptyCard, ListRow, Notice } from "../ui";
+import { Badge, Button, EmptyCard, ListRow, Notice, Switch } from "../ui";
 import { Check, ICON, ICON_SM, X, Zap } from "../ui/icons";
 
 /** A run's verdict, judged by code (Q33), as one of the five chip tones. */
@@ -30,7 +31,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen, bare }
       setMessage({ ok: true, text: words });
       onChanged();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     } finally {
       setBusy(null);
     }
@@ -63,7 +64,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen, bare }
                 <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started.")}>
                   {a.running ? "Running…" : "Run now"}
                 </Button>
-                <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
+                <Switch checked={a.enabled} label={`On: ${a.title}`} disabled={busy === a.id} onChange={(next) => void act(a.id, () => client.switchAutomation(a.id, next), next ? "Switched on." : "Switched off.")} />
               </>
             }
           >

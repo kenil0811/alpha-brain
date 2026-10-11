@@ -11,6 +11,7 @@
  * views, filters, the person's own lists; a row's click opens its page.
  */
 import { useEffect, useMemo, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Intelligence as Data } from "../core/client";
 import { DataFrame } from "../modules/DataFrame";
 import { DataPage } from "../modules/DataPage";
@@ -56,7 +57,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
         setData(d);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     client
       .modules()
       .then((list) => live && setModules(Object.fromEntries(list.map((m) => [m.id, m.name]))))

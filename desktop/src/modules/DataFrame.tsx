@@ -7,7 +7,8 @@
  * project (`module`), or into Alpha's world when the page belongs to none. A page gives only
  * what is its own: the data view, its Intelligence and, when it has more to say, its Governance.
  */
-import { type DragEvent, type ReactNode, useRef, useState } from "react";
+import { type DragEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { say } from "../core/client";
 import type { Client } from "../core/client";
 import { FilesSection, GovernanceCard, type AddedFile } from "./ModuleSections";
 import { Notice, PageHeader } from "../ui";
@@ -45,10 +46,11 @@ export function DataFrame({ client, header, scope, name, module = null, onChange
       setDropNote(`Uploaded ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"}.`);
       onChanged();
     } catch (err) {
-      setDropNote(`Couldn't upload ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
+      setDropNote(`Couldn't upload ${files.map((f) => f.name).join(", ")}: ${say(err)}`);
     }
-    window.setTimeout(() => setDropNote(null), 6000);
   }
+  // the note stays until dismissed, the next upload or leaving (nothing on a timer, §14)
+  useEffect(() => setDropNote(null), [module]);
   async function dropped(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragging(false);
@@ -61,7 +63,11 @@ export function DataFrame({ client, header, scope, name, module = null, onChange
       <div className="page page--wide modpage__body">
         <div className="frame__data">
           {dragging ? <div className="dropnote">Drop to upload to {name}</div> : null}
-          {dropNote ? <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"}>{dropNote}</Notice> : null}
+          {dropNote ? (
+            <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"} onRetry={() => setDropNote(null)} retryLabel="Dismiss">
+              {dropNote}
+            </Notice>
+          ) : null}
           {notice}
           {data(upload)}
         </div>

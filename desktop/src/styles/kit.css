@@ -8,7 +8,7 @@
 .dropdown__chev svg { width: var(--icon-sm); height: var(--icon-sm); }
 .dropdown__trigger[aria-expanded="true"] .dropdown__chev { transform: rotate(180deg); }
 .dropdown__pop { z-index: 65; min-width: max(var(--radix-popover-trigger-width), 200px); max-width: min(360px, calc(100vw - var(--space-4))); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-float); padding: var(--space-1); display: flex; flex-direction: column; gap: var(--space-1); max-height: var(--radix-popover-content-available-height); }
-.dropdown__search { font: inherit; font-size: var(--text-md); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); min-width: 0; }
+.dropdown__search { font: inherit; font-size: var(--text-md); color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); min-width: 0; }
 .dropdown__list { overflow-y: auto; max-height: calc(var(--space-8) * 5); display: flex; flex-direction: column; outline: none; }
 .dropdown__opt { display: flex; align-items: center; gap: var(--space-2); flex: none; height: var(--space-8); padding: 0 var(--space-2); border-radius: var(--radius-control); font-size: var(--text-md); color: var(--text); cursor: default; }
 .dropdown__star { flex: none; display: inline-grid; place-items: center; width: var(--icon); height: var(--icon); padding: 0; border: 0; background: none; color: var(--text-3); opacity: 0; cursor: pointer; }
@@ -28,7 +28,7 @@
 .dropdown__add svg { width: var(--icon); height: var(--icon); }
 .dropdown__tico { display: inline-grid; flex: none; color: var(--text-3); }
 .dropdown__ask { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); padding: var(--space-1); }
-.dropdown__askbox { width: 100%; min-height: 72px; resize: vertical; font-size: var(--text-md); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); }
+.dropdown__askbox { width: 100%; min-height: 72px; resize: vertical; font-size: var(--text-md); color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); }
 
 /* a submenu in the menu (ui/ContextMenu) */
 .menu__chev { margin-left: auto; }
@@ -53,7 +53,7 @@
 .datefield__month { font-size: var(--text-md); font-weight: 600; color: var(--text); }
 .datefield__grid { outline: none; }
 .datefield__week { display: grid; grid-template-columns: repeat(7, var(--space-8)); }
-.datefield__dow { display: grid; place-items: center; height: var(--space-6); font-size: var(--text-xs); color: var(--text-3); }
+.datefield__dow { display: grid; place-items: center; height: var(--space-6); font-size: var(--text-sm); color: var(--text-3); }
 .datefield__day { width: 100%; height: var(--space-8); border: 0; border-radius: var(--radius-control); background: none; color: var(--text); font: inherit; font-size: var(--text-md); font-variant-numeric: tabular-nums; cursor: pointer; }
 .datefield__day:hover { background: var(--hover); }
 .datefield__day:focus-visible { outline: none; box-shadow: var(--focus-ring); }

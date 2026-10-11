@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import { LookPicker } from "../avatar/LookPicker";
+import { say } from "../core/client";
 import type { Client, Intelligence as Data, JournalEntry } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { Badge, Button, EmptyCard, InfoTip, ListRow, Notice, PageHeader, SectionCard, Trouble, type Tone } from "../ui";
@@ -16,6 +17,7 @@ import { ALPHA_AGENT, agentsFrom } from "./agents";
 import { AutomationList } from "./Automations";
 import { BackLink } from "./BackLink";
 import type { Surface } from "./Rail";
+import { RevokeButton } from "./Settings";
 import { Field } from "./SkillPage";
 
 const KIND: Record<string, string> = { read: "Reads a list from a page", act: "Does a task on a site", run: "Runs on its own" };
@@ -42,7 +44,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
         setRuns(rows.filter((e) => RUN_KINDS.has(e.kind)).slice(0, 20));
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -75,7 +77,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
       onChanged();
       setTick((n) => n + 1);
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     }
   }
   const fields = draft ?? { name: agent.name, description: agent.description };
@@ -106,7 +108,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
                     Discard
                   </Button>
                 ) : null}
-                <Button size="sm" variant="primary" disabledReason="Editing an agent needs Alpha's core">
+                <Button size="sm" variant="primary" disabledReason="This can't be saved from here yet. Use Ask Alpha to change this.">
                   Save
                 </Button>
               </>
@@ -168,7 +170,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
 
           <SectionCard title="Standing permissions" actions={<InfoTip text="Shared by every agent; anything that reaches someone asks every time" />}>
             {permissions.length ? (
-              permissions.map((p) => <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<Button size="sm" variant="ghost" onClick={() => void revoke(p.id)}>Revoke</Button>} />)
+              permissions.map((p) => <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />)
             ) : (
               <p className="faint">None yet.</p>
             )}

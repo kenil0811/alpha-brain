@@ -84,6 +84,24 @@ describe("source rules", () => {
     expect(hits, "raw px (use the spacing, radius and type tokens)").toEqual([]);
   });
 
+  it("uses the 11px step only for the folded labels (rulebook §1: 12px is the least for reading)", () => {
+    const allowed = new Set([".rail--collapsed .navbtn__text", ".assist__striplabel"]);
+    const hits = scan(/var\(--text-xs\)/, () => true, (m, t) => {
+      const open = t.lastIndexOf("{", m.index);
+      const selector = t.slice(t.lastIndexOf("}", open) + 1, open).trim();
+      return !allowed.has(selector);
+    });
+    expect(hits, "--text-xs outside the folded rail and assistant labels (use --text-sm)").toEqual([]);
+  });
+
+  it("spaces, rounds and sizes type with tokens in a component's inline style too", () => {
+    // spacing, type and corners as a literal number or "Npx"; width, left, a transform or a colour
+    // computed from state is fine, and so is a token (`"var(--space-4)"`)
+    const props = "padding\\w*|margin\\w*|gap|rowGap|columnGap|fontSize|lineHeight|letterSpacing|borderRadius\\w*";
+    const hits = scan(/style=\{\{[^}]*\}\}/, tsx, (m) => new RegExp(`\\b(?:${props})\\s*:\\s*-?\\d`).test(m[0]) || /["'`][^"'`]*\b\d+(?:\.\d+)?px\b/.test(m[0]));
+    expect(hits, "inline px or numbers for spacing, type or corners (use a class and the tokens)").toEqual([]);
+  });
+
   it("sizes icons with ICON / ICON_SM, not a number", () => {
     // icons: what ui/icons.ts exports, and whatever a file takes from lucide-react directly
     const names = (list: string) => list.split(",").map((s) => s.trim().split(/\s+as\s+/).pop()!).filter(Boolean);

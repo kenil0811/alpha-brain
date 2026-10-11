@@ -10,6 +10,7 @@
  * first collection.)
  */
 import { useEffect, useMemo, useState } from "react";
+import { say } from "../core/client";
 import type { Client, ModuleCard, ModuleDetail, TableSummaryData } from "../core/client";
 import { dedupeCrumbs } from "./crumbs";
 import { DataPage } from "./DataPage";
@@ -46,7 +47,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
         setDetail(d);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
   useEffect(() => {
     void load();
     // the numbers above the table come from the module's summary (the core works them out)

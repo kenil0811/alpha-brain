@@ -9,14 +9,15 @@
  * links there (the Companion section went, 9 Oct).
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
+import { say } from "../core/client";
+import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, Permission, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
 import { host } from "../core/host";
 import { PREF, usePreference } from "../core/preferences";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { DEFAULT_WORKSPACE, WorkspaceTile, type Surface } from "./Rail";
 import { ThemeControl, type Theme } from "./theme";
-import { Badge, Button, Dropdown, InfoTip, ListRow, Notice, PageHeader, SectionCard, Tabs, Trouble } from "../ui";
+import { Badge, Button, Confirm, Dropdown, InfoTip, ListRow, Notice, PageHeader, SectionCard, Switch, Tabs, Trouble } from "../ui";
 import { ICON, PermissionIcon, ThinksIcon } from "../ui/icons";
 
 const WAIT_EVERY_MS = 3000;
@@ -52,7 +53,7 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
     try {
       await onUse();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setTrying(false);
     }
@@ -84,7 +85,7 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
       await work();
       setWaiting(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }
 
@@ -173,7 +174,7 @@ export function BrowserRow({ client, status, onStatus }: { client: Client; statu
     try {
       onStatus(await client.installBrowser());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }
   const words = !status ? "Checking…" : status.installing ? (status.words ?? "Installing…") : status.installed ? null : status.problem;
@@ -267,6 +268,21 @@ function WorkspaceCard({ client, onChanged, onGo }: { client: Client; onChanged?
   );
 }
 
+/** Revoke, after a yes that names what is revoked (Settings, Second Brain and an agent's page). */
+export function RevokeButton({ permission, onRevoke }: { permission: Permission; onRevoke: () => void }) {
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <Button size="sm" variant="ghost" onClick={() => setAsking(true)}>
+        Revoke
+      </Button>
+      <Confirm open={asking} title="Revoke this permission?" action="Revoke" onConfirm={() => { setAsking(false); onRevoke(); }} onCancel={() => setAsking(false)}>
+        “{permission.sentence}” From now on Alpha asks you first, each time.
+      </Confirm>
+    </>
+  );
+}
+
 function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: () => void }) {
   const [data, setData] = useState<IntelData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -281,7 +297,7 @@ function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: ()
         setData(d);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -293,7 +309,7 @@ function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: ()
       setTick((n) => n + 1);
       onChanged?.();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     }
   }
   const permissions = data?.knowledge.permissions ?? [];
@@ -307,7 +323,7 @@ function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: ()
         </p>
       ) : null}
       {permissions.map((p) => (
-        <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Allowed since ${when(p.granted_at)}`} controls={<Button size="sm" variant="ghost" onClick={() => void revoke(p.id)}>Revoke</Button>} />
+        <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Allowed since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />
       ))}
       {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
     </SectionCard>
@@ -375,8 +391,8 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
         setData(d);
         setTrouble(null);
       })
-      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
-    client.claude().then(onClaude).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setTrouble(say(e)));
+    client.claude().then(onClaude).catch((e: unknown) => setTrouble(say(e)));
   }, [client, onClaude, tick]);
 
   const choosePageSize = useCallback((next: PageSize) => {
@@ -403,7 +419,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
       <SectionCard title="Thinks with" info="Which assistant answers, and the model behind Quick overview and Deep thinking. The composer picks the depth, never the model.">
         <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
         <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
-        <ListRow title={<>Quick overview and Deep thinking <InfoTip text="Every answer is a quick overview for now, on the chosen assistant's own model: choosing depth, and a model for each, needs Alpha's core." /></>} description="Quick overview only" />
+        <ListRow title={<>Quick overview and Deep thinking <InfoTip text="Every answer is a quick overview for now, on the chosen assistant's own model. Choosing depth, and a model for each, isn't possible yet." /></>} description="Quick overview only" />
       </SectionCard>
     ),
     reads: (
@@ -421,7 +437,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
           controls={
             <>
               {companion !== null ? (
-                <button type="button" className={`switch${companion ? "" : " switch--off"}`} role="switch" aria-checked={companion} aria-label={companion ? "Hide the companion" : "Show the companion"} onClick={() => void host.setCompanionVisible(!companion).then((v) => setCompanion(v ?? !companion))} />
+                <Switch checked={companion} label="Show the companion" onChange={(next) => void host.setCompanionVisible(next).then((v) => setCompanion(v ?? next))} />
               ) : null}
               <Button size="sm" onClick={onGo ? () => onGo({ kind: "agent", id: "alpha" }) : undefined} disabledReason={onGo ? undefined : "Open it from Intelligence › Agents."}>
                 Companion
@@ -433,7 +449,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
     ),
     notifications: notYet("Notifications", "What may interrupt you, and when. Alpha doesn't send notifications yet."),
     permissions: <PermissionsCard client={client} onChanged={onChanged} />,
-    builder: notYet("Builder rules", "How Alpha makes projects: default views, metrics, naming. Needs the core to keep these rules."),
+    builder: notYet("Builder rules", "How Alpha makes projects: default views, metrics, naming. Alpha can't keep these rules yet."),
     defaults: (
       <SectionCard title="Defaults">
         <ListRow title="Rows per page" controls={<Dropdown size="sm" label="Rows per page" value={String(pageSize)} onChange={(v) => choosePageSize(v === "fit" ? "fit" : Number(v))} options={[{ value: "fit", label: "Fit to window" }, ...PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))]} />} />
@@ -460,14 +476,14 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
           title="Backups"
           description={!data ? (trouble ? "Unknown" : "Loading…") : last ? `Last ${when(last.at)} · ${data.backups.length} kept` : "None yet"}
           controls={
-            <Button size="sm" disabled={busy || !data} onClick={() => { setBusy(true); client.backUp().then(setData).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e))).finally(() => setBusy(false)); }}>
+            <Button size="sm" disabled={busy || !data} onClick={() => { setBusy(true); client.backUp().then(setData).catch((e: unknown) => setTrouble(say(e))).finally(() => setBusy(false)); }}>
               {busy ? "Backing up…" : "Back up now"}
             </Button>
           }
         />
       </SectionCard>
     ),
-    removed: notYet("Removed projects", "Projects removed with their data kept, with Restore. Needs the core to keep them."),
+    removed: notYet("Removed projects", "Projects removed with their data kept, with Restore. Alpha can't keep removed projects yet."),
     help: <HelpCard />,
   };
   const order: Exclude<SectionId, "overview">[] = ["workspace", "thinks", "reads", "appearance", "permissions", "defaults", "data", "notifications", "builder", "removed", "help"];

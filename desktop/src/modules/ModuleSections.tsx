@@ -8,13 +8,13 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { UploadIcon as Upload } from "../ui/icons";
-import { moduleWords } from "../core/client";
+import { moduleWords, say } from "../core/client";
 import type { Client, DocumentInfo, ModuleCard, ModuleDetail, Note, Source } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { AutomationList } from "../shell/Automations";
 import { NewAboveDialog } from "../shell/ModuleDialogs";
 import type { Surface } from "../shell/Rail";
-import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, useAssistant, type Tone, type ToggleItem } from "../ui";
+import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, Tooltip, useAssistant, type Tone, type ToggleItem } from "../ui";
 import { ActivityIcon, AgentIcon, Ban, Check, FileText, Flag, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
 import { downloadText, parseCsv, toCsv } from "./csv";
 import { humanize, recent, when } from "./format";
@@ -49,7 +49,7 @@ export function FilesSection({ added, onPick }: { added: AddedFile[]; onPick: ()
       {added.length ? (
         <div className="lrows">
           {added.map(({ doc, file, at }) => (
-            <ListRow key={doc.id} icon={<FileText size={ICON} />} title={doc.title} description={<span title={recent(at).title}>Added {recent(at).text}</span>}>
+            <ListRow key={doc.id} icon={<FileText size={ICON} />} title={doc.title} description={<Tooltip text={recent(at).title}><span tabIndex={0}>Added {recent(at).text}</span></Tooltip>}>
               {file && /\.csv$/i.test(file.name) ? <CsvGrid file={file} /> : null}
             </ListRow>
           ))}
@@ -75,7 +75,7 @@ function CsvGrid({ file }: { file: File }) {
     let live = true;
     file.text().then(
       (text) => live && setGrid(parseCsv(text)),
-      (e: unknown) => live && setProblem(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => live && setProblem(say(e)),
     );
     return () => {
       live = false;
@@ -106,7 +106,7 @@ function CsvGrid({ file }: { file: File }) {
         <Button size="sm" onClick={() => downloadText(file.name, toCsv(grid))}>
           Download
         </Button>
-        <Button size="sm" disabledReason="Saving back needs Alpha's core; Download keeps your edits.">
+        <Button size="sm" disabledReason="Saving back into Alpha can't be done from here yet. Download keeps your edits.">
           Save
         </Button>
       </div>
@@ -472,7 +472,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
       setMoveNote(`${card.name} now sits ${card.path && card.path.length > 1 ? `inside ${card.path.slice(0, -1).join(" › ")}` : "at the top"}.`);
       onChanged();
     } catch (e) {
-      setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
+      setMoveNote(`Couldn't move it: ${say(e)}`);
     }
   }
   /** A new project above this one: made where this one sits, then this one moves into it
@@ -486,7 +486,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
       onChanged();
     } catch (e) {
       setNaming(false);
-      setMoveNote(`Couldn't make it: ${e instanceof Error ? e.message : String(e)}`);
+      setMoveNote(`Couldn't make it: ${say(e)}`);
     }
   }
   async function moveIn(id: string) {
@@ -495,7 +495,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
       setMoveNote(`${card.name} now sits inside ${detail.name}.`);
       onChanged();
     } catch (e) {
-      setMoveNote(`Couldn't move it in: ${e instanceof Error ? e.message : String(e)}`);
+      setMoveNote(`Couldn't move it in: ${say(e)}`);
     }
   }
   return (

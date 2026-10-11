@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Client } from "../core/client";
@@ -25,11 +25,11 @@ function mount(c: ReturnType<typeof client>, onChanged = vi.fn(), onGo = vi.fn()
 describe("Settings", () => {
   it("lists its sections on the left; Overview, the first, shows every section's card at once", () => {
     mount(client());
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Workspace", "Thinks with", "Reads with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Help"]);
+    expect(within(screen.getByRole("tablist", { name: "Settings sections" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Workspace", "Thinks with", "Reads with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Help"]);
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
     for (const name of ["Workspace", "Thinks with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Help"]) expect(screen.getByRole("region", { name })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Companion" })).toBeNull(); // its look lives on Alpha's agent page
-    expect(screen.getByRole("button", { name: "Match Mac" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Match Mac" })).toHaveAttribute("aria-selected", "true"); // the shared toggle (rule 29)
     expect(screen.getAllByText(/Nothing configured yet/)).toHaveLength(3);
   });
 
@@ -63,6 +63,11 @@ describe("Settings", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeDisabled();
     expect(await screen.findByText("Save drafts in my mail")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Revoke" }));
+    // one click only asks, naming what goes
+    expect(c.revokePermission).not.toHaveBeenCalled();
+    const ask = await screen.findByRole("dialog", { name: "Revoke this permission?" });
+    expect(ask).toHaveTextContent("Save drafts in my mail");
+    await userEvent.click(within(ask).getByRole("button", { name: "Revoke" }));
     expect(c.revokePermission).toHaveBeenCalledWith("perm1");
   });
 });

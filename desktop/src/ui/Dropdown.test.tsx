@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantProvider } from "./assistant";
@@ -216,5 +217,33 @@ describe("the dropdown", () => {
     const send = screen.getByRole("button", { name: "Send to Alpha" });
     expect(send).toBeDisabled();
     expect(send).toHaveAccessibleDescription("The assistant isn't reachable here.");
+  });
+  it("Add new… in a cell editor that unmounts the dropdown as it closes still shows the dialog", async () => {
+    const say = vi.fn();
+    const user = userEvent.setup();
+    function Cell() {
+      const [editing, setEditing] = useState(true);
+      return editing ? <Dropdown label="Stage" value="a" options={[{ value: "a", label: "A" }]} onChange={vi.fn()} defaultOpen onOpenChange={(o) => !o && setEditing(false)} /> : <span>A</span>;
+    }
+    render(
+      <AssistantProvider say={say}>
+        <Cell />
+      </AssistantProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Add new…" }));
+    expect(screen.queryByRole("combobox", { name: "Stage" })).toBeNull(); // the editor is gone
+    const dialog = screen.getByRole("dialog", { name: "Add to Stage" });
+    await user.type(within(dialog).getByRole("textbox"), "Won");
+    await user.click(within(dialog).getByRole("button", { name: "Send to Alpha" }));
+    expect(say).toHaveBeenCalledWith('Add a new option to "Stage": Won');
+  });
+
+  it("says No match only when something was typed and nothing matched", async () => {
+    const user = userEvent.setup();
+    render(<Dropdown label="Empty" value={"" as string} options={[]} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("combobox", { name: "Empty" }));
+    expect(screen.queryByText(/No match/)).toBeNull();
+    await user.type(screen.getByRole("combobox", { name: "Search Empty" }), "x");
+    expect(screen.getByText(/No match/)).toBeInTheDocument();
   });
 });

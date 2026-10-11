@@ -15,6 +15,7 @@
  * the page still shows.
  */
 import { useEffect, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Home as HomeData, JournalEntry, ModuleCard, NeedItem } from "../core/client";
 import { dayLabel, dayText, timeText, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
@@ -41,7 +42,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
       await work();
       onDone(words);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setBusy(false);
     }
@@ -142,7 +143,7 @@ function Failure({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; c
       await client.runAutomation(automation);
       onDone("Running it again; it reports in Activity.");
     } catch (x) {
-      setError(x instanceof Error ? x.message : String(x));
+      setError(say(x));
     } finally {
       setBusy(false);
     }
@@ -207,7 +208,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         setHome(h);
         setHomeError(null);
       })
-      .catch((e: unknown) => live && setHomeError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setHomeError(say(e)));
     return () => {
       live = false;
     };
@@ -221,7 +222,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         setModules(m);
         setModulesError(null);
       })
-      .catch((e: unknown) => live && setModulesError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setModulesError(say(e)));
     return () => {
       live = false;
     };

@@ -32,10 +32,16 @@ export const VIEWS: { id: PageView; label: string; icon: ReactNode }[] = [
 
 /** How far the row has given way: 0 everything with words, 1 icons only, 2 Filter and the
  *  frequent actions inside ⋮. Measured, not guessed: a step is taken while the row overflows,
- *  and a wider row starts again from 0 (before paint, so nothing flickers). */
-function useFit(bar: { current: HTMLDivElement | null }): number {
+ *  and a wider row or new `words` (a list's name, the filter count…) start again from 0 (before
+ *  paint, so nothing flickers). */
+function useFit(bar: { current: HTMLDivElement | null }, words: string): number {
   const [level, setLevel] = useState(0);
+  const measured = useRef(words);
   useLayoutEffect(() => {
+    if (measured.current !== words) {
+      measured.current = words;
+      if (level) return setLevel(0);
+    }
     const el = bar.current;
     if (el && level < 2 && el.scrollWidth > el.clientWidth + 1) setLevel(level + 1);
   });
@@ -56,7 +62,7 @@ function useFit(bar: { current: HTMLDivElement | null }): number {
 }
 
 /** Adding a field is the core's (no route for it yet); Alpha can do it from the panel. */
-export const ADD_COLUMN_REASON = "Needs Alpha's core; ask Alpha in the panel.";
+export const ADD_COLUMN_REASON = "Adding a column can't be done from here yet. Ask Alpha in the panel.";
 
 export interface ViewTab {
   id: string;
@@ -179,11 +185,13 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   more: ContextItem[];
 }) {
   const bar = useRef<HTMLDivElement>(null);
-  const level = useFit(bar);
-  const icons = level >= 1;
-  const folded = level >= 2;
   const [searching, setSearching] = useState(false);
   const f = filter;
+  // what the row's words are: when any changes, the row is measured again from the start
+  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, Boolean(onShowNumbers), searching].join("|");
+  const level = useFit(bar, words);
+  const icons = level >= 1;
+  const folded = level >= 2;
   const filterMenu = useContextMenu(filterItems(f));
   const inMore: ContextItem[] = folded
     ? [

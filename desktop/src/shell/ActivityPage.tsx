@@ -6,6 +6,7 @@
  * recent ones `/api/activity` returns, and says so plainly when it is not among them.
  */
 import { useEffect, useState } from "react";
+import { say } from "../core/client";
 import type { Client, Entity, Intelligence, JournalEntry, ModuleCard } from "../core/client";
 import { dayLabel, humanize, timeText } from "../modules/format";
 import { Badge, Button, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Trouble } from "../ui";
@@ -49,7 +50,7 @@ export function ActivityPage({ client, id, version, onGo, onOpenThread, onChange
         setPeople(ents);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -113,7 +114,7 @@ export function ActivityPage({ client, id, version, onGo, onOpenThread, onChange
       setMessage({ ok: true, text: "Running it again; it reports in Activity." });
       onChanged();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     } finally {
       setBusy(false);
     }
@@ -125,7 +126,7 @@ export function ActivityPage({ client, id, version, onGo, onOpenThread, onChange
         title={entry.text}
         right={
           entry.kind === "failed" ? (
-            <Button size="sm" variant="primary" disabled={busy} disabledReason={automationId ? undefined : "Trying this again needs Alpha's core; ask Alpha in the panel."} onClick={() => void again()}>
+            <Button size="sm" variant="primary" disabled={busy} disabledReason={automationId ? undefined : "Only an automation's run can be tried again from here. Ask Alpha in the panel."} onClick={() => void again()}>
               Try again
             </Button>
           ) : null
