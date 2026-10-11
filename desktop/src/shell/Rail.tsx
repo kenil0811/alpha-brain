@@ -53,9 +53,8 @@ import {
   BuildingIcon,
   X,
 } from "../ui/icons";
-import { AgentAvatar } from "./AgentAvatar";
 import { IconDialog, MoveDialog, NewAboveDialog, ViewOptionsDialog } from "./ModuleDialogs";
-import { iconNamed } from "./moduleIcons";
+import { iconNamed, projectIcon } from "./moduleIcons";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
 
 export type Surface =
@@ -168,11 +167,6 @@ export function Rail({
   const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
   const [logoPref, setLogo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
   const logo = typeof logoPref === "string" ? logoPref : "";
-  // The tile is the companion the person picked (the owner: the logo is the chosen avatar), over
-  // an uploaded logo or mark; nothing chosen: the logo, else the initial.
-  const [companionPref] = usePreference<unknown>(client, PREF.companionLook, null);
-  const [looksPref] = usePreference<Record<string, unknown>>(client, PREF.agentLooks, NO_ICONS);
-  const face = companionPref || looksPref?.alpha ? <AgentAvatar client={client} agent="alpha" size={36} /> : undefined;
   const [orderPref, setOrder] = usePreference<string[]>(client, PREF.moduleOrder, NO_IDS);
   const [hiddenPref, setHidden] = usePreference<string[]>(client, PREF.hiddenModules, NO_IDS);
   const [iconsPref, setIcons] = usePreference<Record<string, string>>(client, PREF.moduleIcons, NO_ICONS);
@@ -447,7 +441,7 @@ export function Rail({
       const open = !folded.has(m.id);
       const row = item({
         key: `module:${m.id}`,
-        icon: iconNamed(icons[m.id], ICON),
+        icon: projectIcon(icons[m.id], m.name, m.goal, ICON),
         label: m.name,
         depth,
         current: sameSurface(surface, { kind: "module", id: m.id }),
@@ -494,13 +488,13 @@ export function Rail({
           <div className="rail__top">
             {renaming ? (
               <div className="wsbtn wsbtn--edit">
-                <WorkspaceTile logo={logo} name={name} face={face} className="wsbtn__tile" />
+                <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
                 <NameInput name={name} onDone={(v) => void rename(v)} onCancel={() => setRenaming(false)} />
               </div>
             ) : (
               <TipWhen show={collapsed} text={name}>
                 <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
-                  <WorkspaceTile logo={logo} name={name} face={face} className="wsbtn__tile" />
+                  <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
                   <span className="wsbtn__name">{name}</span>
                   <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
                 </button>
@@ -575,13 +569,13 @@ export function Rail({
   );
 }
 
-/** The workspace's tile: the companion's face when one was picked (`face`; the owner: the logo IS
- *  the chosen avatar), else its logo (an image, or a letter or emoji the person chose), else the
+/** The workspace's tile: its own mark, never the companion (the owner, 11 Oct: the workspace and
+ *  the avatar look different): its logo (an image, or a letter or emoji the person chose), else the
  *  first letter of its name. Settings shows the same tile. */
-export function WorkspaceTile({ logo, name, className, face }: { logo: string; name: string; className: string; face?: ReactNode }) {
+export function WorkspaceTile({ logo, name, className }: { logo: string; name: string; className: string }) {
   return (
     <span className={className} aria-hidden="true">
-      {face || (logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || ([...name][0]?.toUpperCase() ?? "A"))}
+      {logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || ([...name][0]?.toUpperCase() ?? "A")}
     </span>
   );
 }

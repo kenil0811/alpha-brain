@@ -2,8 +2,9 @@
  * The icon a module wears (the UI rulebook §4 and §8: each module has its own icon). The person
  * picks one from a short curated set (the sidebar's "Change icon"); the choice is kept in the
  * world as `PREF.moduleIcons`, a `{ moduleId: iconName }` map, so the sidebar and Home's cards
- * show the same one. A module with no choice, or an unknown name, wears the generic module icon.
- * (9 Oct, the UI rulebook phase 2.)
+ * show the same one. A module with no choice wears the icon its name and goal suggest, else the
+ * first letter of its name, never a generic table (11 Oct, the owner). (9 Oct, the UI rulebook
+ * phase 2.)
  */
 import type { ReactNode } from "react";
 import { PREF, usePreference } from "../core/preferences";
@@ -85,6 +86,54 @@ export const MODULE_ICON_CHOICES: ModuleIconChoice[] = [
   choice("star", "Favourites", StarIcon),
 ];
 
+/** Words in a project's name or goal that suggest each icon. Plain, common words only: this is how
+ *  a project looks, not what the platform knows about it (the person can change it any time). */
+const WORDS: Record<string, string[]> = {
+  briefcase: ["work", "job", "jobs", "career", "deal", "deals", "client", "clients", "advisory", "business", "sales", "consulting", "company"],
+  checklist: ["task", "tasks", "todo", "todos", "checklist", "queue", "chores"],
+  target: ["goal", "goals", "okr", "okrs", "habit", "habits", "plan", "plans"],
+  idea: ["idea", "ideas", "brainstorm", "notes", "thoughts"],
+  book: ["book", "books", "reading", "read", "library", "articles", "papers"],
+  graduation: ["learn", "learning", "course", "courses", "study", "school", "class", "university"],
+  code: ["code", "coding", "dev", "software", "repo", "engineering", "bugs"],
+  package: ["order", "orders", "inventory", "shipment", "shipments", "stock", "supplies"],
+  cart: ["shop", "shopping", "groceries", "grocery", "purchases", "wishlist"],
+  wallet: ["money", "budget", "expenses", "expense", "spending", "finance", "finances", "bills", "invoices"],
+  savings: ["savings", "investments", "investing", "portfolio", "retirement"],
+  receipt: ["receipt", "receipts", "tax", "taxes"],
+  house: ["home", "house", "household", "apartment", "rent", "renovation"],
+  car: ["car", "cars", "vehicle", "commute"],
+  plane: ["travel", "trip", "trips", "flights", "vacation", "holiday"],
+  calendar: ["calendar", "schedule", "events", "meetings", "appointments"],
+  mail: ["mail", "email", "emails", "newsletter", "newsletters"],
+  inbox: ["inbox", "requests", "leads", "applications"],
+  team: ["people", "contacts", "network", "team", "friends", "family", "crm", "hiring", "candidates"],
+  heart: ["health", "medical", "doctor", "wellbeing", "sleep", "mood"],
+  dumbbell: ["fitness", "gym", "workout", "workouts", "exercise", "running", "training"],
+  food: ["food", "meal", "meals", "recipe", "recipes", "diet", "nutrition", "restaurants", "cooking"],
+  leaf: ["garden", "plants", "nature", "outdoors"],
+  music: ["music", "songs", "playlist", "playlists", "band"],
+  camera: ["photo", "photos", "pictures", "video", "videos"],
+  gift: ["gift", "gifts", "birthdays", "presents"],
+  star: ["favourites", "favorites", "wishes"],
+};
+
+/** The icon a project's own words suggest: the name counts before the goal; null when nothing fits. */
+export function suggestedIcon(name: string, goal?: string | null): string | null {
+  for (const text of [name, goal ?? ""]) {
+    const words = new Set(text.toLowerCase().match(/[a-z]+/g) ?? []);
+    for (const [icon, list] of Object.entries(WORDS)) if (list.some((w) => words.has(w))) return icon;
+  }
+  return null;
+}
+
+/** What a project wears: the person's pick, else what its name and goal suggest, else its first letter. */
+export function projectIcon(picked: string | undefined, name: string, goal: string | null | undefined, size: number): ReactNode {
+  const named = picked && MODULE_ICON_CHOICES.some((c) => c.name === picked) ? picked : suggestedIcon(name, goal);
+  if (named) return iconNamed(named, size);
+  return <span className="modletter" style={{ width: size, height: size }} aria-hidden="true">{[...name.trim()][0]?.toUpperCase() ?? "P"}</span>;
+}
+
 const NONE: Record<string, string> = {};
 
 /** The icon of one choice, or the generic one when the name is not (or no longer) in the set. */
@@ -94,7 +143,7 @@ export function iconNamed(name: string | undefined, size: number): ReactNode {
 
 /** The icon module `id` wears. Reads the shared preference, so a change in the sidebar shows
  *  here at once; it needs no client (the sidebar fetches the preference). */
-export function ModuleGlyph({ id, size = ICON }: { id: string; size?: number }) {
+export function ModuleGlyph({ id, name, goal, size = ICON }: { id: string; name: string; goal?: string | null; size?: number }) {
   const [icons] = usePreference<Record<string, string>>(null, PREF.moduleIcons, NONE);
-  return <>{iconNamed(icons?.[id], size)}</>;
+  return <>{projectIcon(icons?.[id], name, goal, size)}</>;
 }

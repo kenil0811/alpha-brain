@@ -77,7 +77,7 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
 - One thin-line icon family (Lucide), at two sizes: small (16px) and regular (20px).
 - Never use emoji or text symbols as icons.
 - Icons are stone grey by default and steel blue when active.
-- Each project has its own icon, chosen when it is made and changeable later.
+- Each project has its own icon, changeable later. Until the person picks one, it is the icon the project's name, then its purpose, suggests (Deals: a briefcase; Food log: cutlery), else the first letter of its name; never a generic table icon (the owner, 11 Oct).
 
 ### Motion
 
@@ -161,7 +161,7 @@ Every screen lives inside the same three-part frame:
 
 **Contents, top to bottom**
 
-1. **Workspace button:** a logo tile showing the companion avatar the person chose (falling back to the coloured initial when none is chosen) (the owner, 11 Oct), and the workspace name (by default the owner's, "Kenil's workspace", never the assistant's name). Its menu holds the workspaces, **Manage Workspace** and **Sign out**.
+1. **Workspace button:** a logo tile that is the workspace's own mark and never the companion's avatar: the first letter of the workspace's name to begin with, or a logo the person sets (the owner, 11 Oct, reversing the same day's "logo = avatar"), and the workspace name (by default the owner's, "Kenil's workspace", never the assistant's name). Its menu holds the workspaces, **Manage Workspace** and **Sign out**.
 2. **Home**, with a small count of what needs the person.
 3. **The pre-built projects**, Task manager and Network, shipped on install; ordinary projects in every other way (renamed, moved, hidden, edited or deleted like any other).
 4. **The person's other projects,** in their own order. Child projects fold out beneath their parent, indented, behind a chevron.
@@ -516,7 +516,7 @@ The project then appears in the sidebar, gets a Home card, and renders through t
 
 **Presence**
 
-- Always present. When folded, it is a slim strip showing the assistant's avatar (with eyes) and its name beneath, then the bell.
+- Always present. Every avatar shows the whole companion, never a zoomed-in crop of its face (the owner, 11 Oct). When folded, it is a slim strip showing the assistant's avatar (with eyes) and its name beneath, then the bell.
 - By default, it follows the page: a project page opens that project's conversation.
 
 **Header**
@@ -655,7 +655,7 @@ Rows in Agents and automations, Skills and Connections share one layout: an icon
 **Layout**
 
 - A header with the title in serif and an (i) tip; no subtitle.
-- A list of sections on the left. The active section has an accent wash and a small accent dot. The first is **Overview**, which shows every section's cards on one page; each other section shows only its own.
+- A list of sections on the left, at every window size (it never moves above the cards; the owner, 11 Oct). The active section has an accent wash and a small accent dot. The first is **Overview**, which shows every section's cards on one page; each other section shows only its own.
 - Readable cards on the right.
 - Section titles are semibold sans-serif with an (i) tip. Field labels are small and sentence case.
 - **Each row says what is currently so and offers the one thing to do about it.**

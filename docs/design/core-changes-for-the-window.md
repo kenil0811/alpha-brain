@@ -525,6 +525,57 @@ These need the host, which this branch doesn't change.
 
 ---
 
+## G. From the owner's decisions on the audit (11 Oct 2026, Q38)
+
+Nothing below was changed in the core; the window does the nearest honest thing until it is.
+
+### G1. Rename a conversation
+- **Now:** the conversation's ⋮ shows Rename greyed out, with the reason.
+- **Should:** Rename edits the title in place (Enter saves, Escape cancels).
+- **Core needs:** `POST /api/conversations/{id}/rename` taking `{title}`, returning the
+  conversation. Delete is C9; when it exists, ⋮ › Delete… opens the window's confirm dialog.
+
+### G2. "Add new…" reaches the builder
+- **Now:** a dropdown's Add new…, where the window can't add the option itself, sends the
+  person's description into the page's conversation as an ordinary message.
+- **Should:** it goes to the builder agent in that conversation, which proposes the addition.
+- **Core needs:** a way for a turn to name the agent it is for (`ask` with an agent id), or an
+  equivalent route.
+
+### G3. Organizations the person belongs to
+- **Now:** Settings › Organizations reads "Not linked yet", with Open Network.
+- **Should:** it lists the real organisations the person belongs to (Workspace is the account).
+- **Core needs:** a record of the person's own organisations (which Network organisations are
+  theirs) and a route to read and change it.
+
+### G4. Delete a file
+- **Now:** Files has no delete.
+- **Should:** Delete… asks, then removes the document and what was read from it (not the
+  journal).
+- **Core needs:** a route to delete a document.
+
+### G5. Excel of what is shown
+- **Now:** CSV downloads exactly the rows and columns shown (built in the window); Excel gives
+  the whole collection, so it is disabled with the reason whenever a filter, a hidden column or
+  a left-out row makes them differ.
+- **Core needs:** `POST /api/tables/{name}/export` to take record ids (in order) and columns.
+
+### G6. A document's date
+- **Now:** a file added in this visit shows the time it was added from the window's own clock;
+  others show no date.
+- **Core needs:** `created_at` on every document the core returns.
+
+### G7. Errors as sentences
+- **Now:** the window maps every failure to a plain sentence (`client.ts plainError`): no
+  status codes, no server text unless it is a person's sentence from a refusal.
+- **Should / core needs:** every 4xx carries `error` as a sentence written for a person (the
+  `Problem` text), and no 5xx ever carries internal text; the detail goes to the core's log.
+  The 401 in `core/alpha/api/server.py` ("This window isn't signed in to Alpha's core.") now
+  reaches people through `detail`; it should read without "core" (e.g. "This window isn't
+  signed in to Alpha. Restart Alpha.").
+
+---
+
 ## F. Left in the window (no core needed), for completeness
 
 Fixed on 9 Oct (third pass): Calculate and Wrap text now use the standard dropdown and a switch;

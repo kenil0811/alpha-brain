@@ -9,9 +9,10 @@ import { PREF, usePreference } from "../core/preferences";
 import { normaliseLook, type Look } from "../avatar/looks";
 import { Rig } from "../avatar/Rig";
 
-/** The head, in the rig's own units: a square around the face, from the ears to the chin. The
- *  rig draws a 2700 × 2250 view whose top left is (420, 180). */
-const HEAD = { x: 918, y: 210, side: 1700 };
+/** The frame, in the rig's own units: a square around the whole companion, not a crop of its face
+ *  (the owner, 11 Oct: no zoomed-in avatar). The rig draws a 2700 × 2250 view whose top left is
+ *  (420, 180); the square is its width, centred on its height. */
+const HEAD = { x: 420, y: 180 - (2700 - 2250) / 2, side: 2700 };
 const VIEW = { x: 420, y: 180, h: 2250, ratio: 2700 / 2250 };
 
 export function useAgentLook(client: Client | null, agent: string): [Look, (look: Look) => Promise<string | null>] {

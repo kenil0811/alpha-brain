@@ -340,7 +340,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           {top.map((m) => (
             <OpenCard
               key={m.id}
-              icon={<ModuleGlyph id={m.id} size={ICON} />}
+              icon={<ModuleGlyph id={m.id} name={m.name} goal={m.goal} size={ICON} />}
               name={m.name}
               description={m.goal ?? ""}
               meta={[`${m.records} ${m.records === 1 ? "record" : "records"}`, m.children?.length ? `${m.children.length} inside` : ""].filter(Boolean).join(" · ")}

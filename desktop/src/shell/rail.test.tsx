@@ -369,20 +369,17 @@ describe("the sidebar while loading and when empty", () => {
     expect(retry).toHaveBeenCalled();
   });
 
-  it("the companion, once picked, wins over an uploaded logo", async () => {
-    const { container } = setup([], { stored: { [PREF.companionLook]: { body: "cat" }, [PREF.workspaceLogo]: "K!" } });
-    await waitFor(() => expect(container.querySelector(".wsbtn__tile .agentface")).not.toBeNull());
-  });
 });
 
 describe("the workspace button", () => {
-  it("shows the companion the person picked in its tile, and the initial when none is picked", async () => {
+  it("shows the workspace's own mark, never the companion: the first letter, or the logo once chosen", async () => {
     const { container } = setup([], { stored: { [PREF.companionLook]: { body: "cat" } } });
-    await waitFor(() => expect(container.querySelector(".wsbtn__tile .agentface")).not.toBeNull());
+    await waitFor(() => expect(container.querySelector(".wsbtn__tile")!.textContent).toBe("K"));
+    expect(container.querySelector(".wsbtn__tile .agentface")).toBeNull();
     cleanup();
     forgetPreferences();
-    const plain = setup([]);
-    expect(plain.container.querySelector(".wsbtn__tile")!.textContent).toBe("K");
+    const logo = setup([], { stored: { [PREF.workspaceLogo]: "K!" } });
+    await waitFor(() => expect(logo.container.querySelector(".wsbtn__tile")!.textContent).toBe("K!"));
   });
 
   it("keeps an error until the person dismisses it, with no timer", async () => {

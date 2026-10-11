@@ -156,6 +156,8 @@ a { color: var(--primary); }
 /* the whole name fits: up to two lines at the sidebar's width, never a cut "Kenil's workspa…" (the owner, 11 Oct) */
 .wsbtn__name { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: anywhere; }
 .wsbtn__tile:has(.agentface) { background: none; }
+/* a project with no icon of its own: its first letter in a soft square, the size of an icon */
+.modletter { display: inline-grid; place-items: center; flex: none; border-radius: var(--radius-control); background: var(--surface-2); color: var(--text-2); font-size: var(--text-sm); font-weight: 600; line-height: 1; }
 .wsbtn__chev { flex: none; color: var(--text-3); }
 .rail__fold { flex: none; color: var(--text-3); }
 .rail__main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--space-1); }
@@ -968,7 +970,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__h { margin: var(--space-2) 0 2px; font-size: var(--text-sm); }
 .map__addr { overflow-wrap: anywhere; font-size: var(--text-sm); }
 /* one row along the bottom, clear of the glance at its right; scrolls rather than run under it */
-.map__legend { position: absolute; left: var(--space-2); right: var(--space-2); bottom: var(--space-2); display: flex; flex-wrap: nowrap; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+.map__legend { position: absolute; left: var(--space-2); right: var(--space-2); bottom: var(--space-2); display: flex; flex-wrap: wrap; align-content: flex-end; gap: var(--space-2); } /* wraps into rows, never a sideways scroll */
 .map:has(.map__glance) .map__legend { right: calc(var(--space-12) * 5 + var(--space-4)); }
 .map__chip { flex: none; white-space: nowrap; }
 .map__chip { display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); color: var(--text-2); }
@@ -1017,7 +1019,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .hswitch--icons button { padding: var(--space-1) var(--space-3); }
 .hswitch__box { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; overflow: hidden; padding: 2px; margin: -2px; }
 /* the same toggle in a page's body (rule 4, 11 Oct): left-aligned at the top of what it switches; scrolls, never wraps */
-.hswitch__box--body { flex: none; justify-content: flex-start; width: 100%; overflow-x: auto; scrollbar-width: none; }
+.hswitch__box--body { flex: none; justify-content: flex-start; width: max-content; max-width: 100%; padding: 0; margin: 0; overflow-x: auto; scrollbar-width: none; }
 .hswitch__count { color: var(--text-3); font-weight: 400; font-variant-numeric: tabular-nums; }
 .breadcrumb ol { display: flex; align-items: center; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); color: var(--text-2); min-width: 0; }
 .breadcrumb li { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
@@ -1051,12 +1053,12 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .stack--wide { gap: var(--space-4); }
 /* one row for every list of things: icon, title, one-line description, controls on the right (ui/ListRow) */
 .lrows { display: flex; flex-direction: column; }
-.lrow { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+.lrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
 .lrow:last-child { border-bottom: 0; }
 .scard__body > .lrow { padding-left: 0; padding-right: 0; }
 .lrow__icon { display: inline-grid; place-items: center; flex: none; width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); background: var(--surface-2); color: var(--text-2); }
 .lrow__icon svg { width: var(--icon); height: var(--icon); }
-.lrow__body { flex: 1; min-width: 0; }
+.lrow__body { flex: 1; min-width: calc(var(--space-12) * 3); } /* a name never squeezes letter by letter; the controls go below instead */
 .lrow__title { font-size: var(--text-base); font-weight: 500; overflow-wrap: anywhere; }
 .lrow__open { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; }
 .lrow__open:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
@@ -1083,10 +1085,6 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* Settings: the header's tile, the section list on the left, the narrow column of cards on the right */
 .wstile { display: inline-grid; place-items: center; flex: none; width: var(--space-10); height: var(--space-10); border-radius: var(--radius-card); background: var(--primary); color: var(--primary-ink); font-size: var(--text-xl); font-weight: 600; }
 .kbd { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 1px var(--space-2); }
-@media (max-width: 1100px) {
-  .setpage { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
-  .setnav { flex-direction: row; flex-wrap: wrap; position: static; }
-}
 
 /* ---------- the Dashboard view (9 Oct, the UI rulebook §6) ---------- */
 .dash { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); min-width: 0; }

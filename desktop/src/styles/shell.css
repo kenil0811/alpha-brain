@@ -23,7 +23,7 @@
 /* Settings: every section a card, in as many columns as fit. */
 /* Settings: the section list on the left (9 Oct, the owner), Overview's cards in columns, one
    section's card in a readable column */
-.setpage { display: grid; grid-template-columns: calc(var(--space-12) * 4) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.setpage { display: grid; grid-template-columns: calc(var(--space-10) * 4) minmax(0, 1fr); gap: var(--space-6); align-items: start; } /* the list stays on the left at every size (11 Oct, the owner) */
 .setnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--header-h) + var(--space-6)); }
 .setnav button { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
 .setnav button:hover { background: var(--hover); color: var(--text); }
@@ -32,11 +32,7 @@
 .setnav button[aria-selected="true"] .setnav__dot { background: var(--primary); }
 .setone { max-width: calc(var(--space-12) * 14); min-width: 0; }
 .setone .lrow { flex-wrap: wrap; padding: var(--space-2) 0; }
-.setgrid { columns: 340px; column-gap: var(--space-4); }
-@media (max-width: 1100px) {
-  .setpage { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
-  .setnav { flex-direction: row; flex-wrap: wrap; position: static; }
-}
+.setgrid { columns: calc(var(--space-12) * 7); column-gap: var(--space-4); }
 .setgrid > * { break-inside: avoid; margin: 0 0 var(--space-4); }
 /* the workspace row never runs past its card (1100px window, 11 Oct): the name field shrinks first, then Save drops below it */
 .setname { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
