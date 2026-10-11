@@ -441,7 +441,7 @@ What this does not change: computed things (a gate, a weighted score over rows, 
 are still "not yet" in the menu; that column is the measure of which capability to add next.
 "Agents" stays the word for a module's recurring processes (Q33); this is a pass.
 
-| Status (9 Oct 2026; detail in `../log/2026-10-09-research-pass.md`) | |
+| Status (9 Oct 2026; detail in `../log/2026-10-09-research-pass.md`; **the shape is superseded by §12 on 11 Oct**: research becomes a lookup for sources and a few suggestions on the workflow page, the mechanisms stay) | |
 |---|---|
 | Built | The job's questions in the rule; `research_start` from the conversation with the job; the pass as a `research` thread run by the scheduler like a build (no limit, a stop, a continue from the brief, waits when it asks the person, fails after three runs without a plan and says so); `research_look` as an independent web run whose findings the core resolves by code and keeps (`research`, `findings`); `plan_propose` only inside a pass (or a revision of a researched plan), with pieces checked against what was read; the card's three blocks with keep / skip / defer, the sources, whether a piece can be built now, the questions, "Build with these"; the decisions in the brief; "Not this time" on the module's page after the build; the findings as a `topic:` page; a verdict by code per pass; the `research_pass` journey. |
 | Differs | The pass starts when the job is known: the turn asks the job's questions first and starts the pass on the answers (the design's "research starts at once and the answers steer the merge" is not built: one mechanism, the person waits for themselves, not for Alpha). The merge is checked by the citable rule (a piece cites only findings whose page answered), not by a second opinion on the plan. |
@@ -609,7 +609,7 @@ specifically for car washes."
 
 Then M0 builds, the evaluator judges it, you open it, and M1 starts when you say.
 
-| Status (10 Oct 2026; detail in `../log/2026-10-10-workspace-spine.md`) | |
+| Status (10 Oct 2026; detail in `../log/2026-10-10-workspace-spine.md`; **the shape is superseded by §12 on 11 Oct**: no ten-stage document and no milestones as the unit; the workspace, the walls, the proxy, jobs and the evaluator stay as the material) | |
 |---|---|
 | Built (slice 1, the spine) | The workspace with its three artifacts under git; the walled build run (Claude Code's sandbox from Alpha's settings, writes in the workspace only, secrets and the world denied, hosts from the design plus a Python build's); `sandbox-exec` with no network for the self-test; plans with milestones (checks of five kinds) and hosts; one milestone per session with `MILESTONE_RULES`; the evaluator (checks by code, then a skeptical judging run), the only thing that flips `passes`; ready-to-look-at between milestones through the existing stop and continue; stuck after three failed checks or a STUCK: reply; the module's own DuckDB tables read-only on its page and in the table views; the milestones on the plan card. **Run for real** (10 Oct): M0 of the car wash ask on Austin built in ten minutes in the sandboxed workspace (a 390-line pipeline, a competitors layer with provenance, a `sites` table with every value beside its source, a self-test, four commits) and passed the evaluator. Slice 1b the same evening: `jobs.yaml` (what the person can do) as forms on the module's page, run under the profile with Alpha's own proxy as the one road out (the plan's hosts only, reached and refused counted), and a `job` check so a milestone passes only when its user-facing action works; M0B (screen an address from the page) waits for the person's continue, then M1. |
 | Differs | The design document is the plan's text with its stages, agreed with one yes (the staged pages with Accept / Revise are slice 2); the person's inputs are not yet asked for or read in; the module is made at the first build from the plan's title. Unattended builds are OS-walled for the shell only (`srt` not shipped); the build session's own requests go through Claude Code's proxy and are journaled as WebFetch lines; a script the core runs (a job, a check) goes through Alpha's proxy (slice 1b); pointing the build session at Alpha's proxy too needs a CLI pin bump to ≥2.1.285. |
@@ -818,6 +818,115 @@ Carried over with their tests, and only where the design calls for that exact th
 
 ---
 
+## 12. Modules as workflows (decided 11 October 2026; Q39)
+
+Why: three car wash builds in two days. The first (Q36 era) wrote the spec from Alpha's own
+head and built a weighted average with no gates; the second, after the research pass (§6.3),
+had a grounded plan and still built one table and a recipe; the third, as a program in
+milestones (§6.4), built a real engine, screened 7,710 parcels and produced a 33-column table
+whose pass list rested on borrowed interstate counts, with nothing a person could operate until
+a job form was bolted on. Kenil: "such a complicated output is not useful / intuitive for a
+user at all … modules are not just data and tables, they are workflows that are intended to
+automate / help the user with their tasks … dont take baggage from current implementation."
+This section is the module concept afresh; §6.3 and §6.4 keep their mechanisms (the walled
+workspace, the evaluator, provenance, actions) and lose their shape (the research-first menu,
+the ten-stage document, milestones as the unit).
+
+**A module is the person's workflow.** The task they already do, as their own steps, in their
+own words. Nothing about the steps is fixed by the platform: a site search, a bookkeeping
+review and a newsletter have steps that look nothing alike, and Alpha writes whatever parts
+those need. What the platform records about a step is only what it needs to run it and keep
+it safe: *who does it* (Alpha, the person, or both: Alpha prepares, the person decides); *what
+it takes and gives*, so parts connect and a change can be traced; *whether it reaches out*
+(reads a source: journaled, every value with its origin) or *acts outward* (sends, posts,
+changes something outside Alpha: always asks, §6.1); *when it runs* (when something arrives,
+when asked, on a schedule, after another step). The walls hang on these properties, never on a
+step's name. A module may hold several workflows; one at first.
+
+**What a module keeps.**
+- *Its model*: normalized things with relations (for the car wash: a site, its checks, its
+  scores, its notes, its documents, the benchmark stores), never one wide table. Tables and
+  the table views stay the default way to see things; a thing's page shows its parts together.
+- *Documents*: templates and the instances made from them (a memo, a one-pager), editable in
+  Alpha afterwards, exportable, usable from other modules.
+- *Settings*: every threshold, weight and assumption, visible and editable, each with its
+  origin (the person's, the trade's, Alpha's default). No knobs of the platform's (Q18); these
+  are the person's.
+- *Pages* that fit the work: a list, a page per thing, a document, settings, a chart, a map.
+  The shell renders pages from a catalog of parts (table, list, item page with sections, text,
+  document, form, chart, map, …); the catalog is open: when a person asks for something the
+  catalog lacks, Alpha builds the renderer as a part (a self-contained view inside the shell's
+  theme and data, walled like any other part) rather than saying no, and the catalog grows
+  from what people asked. If the person asks for a map, they get a map.
+- *"Your workflow"*: one page in the person's words, written and kept by Alpha: what the
+  workflow is for, its steps, which Alpha does and which they do, what it keeps, what it
+  assumes, what Alpha suggested and what they said. It is the record the build follows and
+  the thing every later change edits. The person never edits it directly: they say what is
+  different in chat and Alpha restructures it, keeping the previous version.
+
+**Parts and the library.** Every step is done by a part with a contract: what it takes, what
+it gives, its settings, and how it proves itself (tried on a real item; its outputs checked
+against the contract: nothing borrowed, nothing unsourced, nothing estimated that was promised
+as measured). Fetchers, computations, intakes (an email read, a dropped file), document
+templates, page parts. Alpha composes a module from parts, writes new ones when none fit,
+repairs them when they break, and keeps every proven part in a library shared across modules
+now and across people later; a part is written to be reused (named inputs, settings, no
+module-specific assumptions) even when it costs a little on the first build. A change to the
+workflow touches the parts concerned; data is re-derived where that is safe and never where it
+is the person's own (their scores, notes, decisions, edited documents); nothing is redone that
+did not change.
+
+**How Alpha builds one.**
+1. *The interview, in chat.* The job and the decision it serves; the procedure today, with
+   the person's own documents asked for and read in (a process, a scorecard, past cases);
+   what enters and how; which steps are the person's judgement; what comes out and for whom.
+   Decisive questions only, a safe default on each, guidelines rather than caps, adjusted
+   when the person pivots; never asked what their documents already say.
+2. *"Your workflow", drafted.* Alpha writes the page from the interview, structured, in their
+   words, and adds its suggestions in a block of their own with accept or skip; sources are
+   kept for every suggestion and every lookup and shown only when asked. The only research is
+   what the workflow needs: which source can supply each lookup, whether an intake is
+   feasible, and a few enhancements a person who does this work would want. The person's yes
+   on this page is the yes (§6, step 2).
+3. *One first version, whole and real.* Every step works end to end on one real item of the
+   person's: thin, never garbage. A part is kept only once it worked on real data and passed
+   its contract; the evaluator (§6.4) runs the workflow as the person would, through the
+   pages, with checks that test the method, not the volume; and the acceptance is the person
+   running their real flow once in the app, never a count of rows.
+4. *Then it changes by conversation.* "Add a lot-size gate", "the memo should open with the
+   verdict", "show them on a map": Alpha updates the page, changes or adds the parts,
+   re-derives what is safe, keeps the rest, and keeps the version before.
+
+**What this keeps and what it drops.** Keeps: the world's tables and views for the model;
+the walled workspace, the proxy and the evaluator as the way parts run and are judged (§6.4);
+actions with the yes for anything outward (§6.1); provenance on every value (§7); the
+journal. Drops: the research-first menu of pieces (§6.3; research becomes a lookup for sources
+and a few suggestions); milestones as the unit of a build (§6.4; the unit is the whole first
+version, then changes); readers, procedures and pipelines as separate kinds of know-how
+(§4.24; they are parts in the library); the ten-stage design document (one workflow page).
+One person per module for now; several roles later.
+
+**The car wash, as the person would see it.** They say they want help picking car wash sites.
+Alpha asks: what decides a site for you today, and do you have it written down (they drop the
+process document and the scorecard); where sites come from (brokers, by email); what you do
+first and what you check; which items are your call; what comes out (a memo to investors). It
+reads the documents and writes "Your workflow": a site arrives (typed as an address now, read
+from the broker's email later); Alpha checks the trade area and the target zone from public
+data (households within 3 miles, density, drive-time population, site and intersection traffic
+on the fronting road, TAQ), every value with its source; you score the fourteen items on the
+site's page with a note each, Alpha showing the evidence beside the ones it can see; you set
+the development priorities; Alpha drafts the memo from your template; you decide; sending it
+asks. Alpha suggests three things in their own block: check thresholds against your four best
+stores; a map of sites and competitors; screen every commercial parcel in an area, not only
+what brokers send. The person accepts two and skips one. The first version is built; they
+add the site they looked at last month, score it, read the memo, decide. A week later they
+say "add a minimum lot size of 0.8 acres", and the page, the check and the site pages change;
+their scores stay.
+
+| Status (11 Oct 2026) | |
+|---|---|
+| Not built | The concept; the first build and its acceptance are STATE's pending item 9. What exists of §6.3–§6.4 (the walled workspace, the proxy, the evaluator, jobs, the research pass, plans with pieces and milestones, module tables in the app) is the material it is built from. |
+
 ## 11. Decisions
 
 **Decided 30 September 2026:** Kenil accepted every recommendation below except Q1. No Apple Developer ID for now; local builds are signed with a self-signed certificate so macOS permission grants survive rebuilds, and a Developer ID is taken up only when the app is distributed.
@@ -868,6 +977,8 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q37** | The research pass before a build (9 Oct 2026, after the car wash module: Alpha wrote the spec itself from a one-line ask and four one-word answers, and built a weighted average with no gates in fourteen minutes; Kenil: "it needs to be a proper module… alpha should do a good scan of what all could potentially be helpful for such a product, and how well can it be built, and suggest those to the user so that they can decide"). Decided, with the evidence in `research/research-before-build.md`: the job's questions first, as cards, only the ones not known; every build ask gets a research pass in the background, breadth scaled by rule, each look an independent web run returning findings the core resolves by code; the plan is a menu of pieces (kept for you, your call, not this time) with evidence, how it would be built, whether it can be built now and Alpha's recommendation, decided with keep / skip / defer and one yes; `plan_propose` only inside a research thread; deferred pieces kept on the module's page; findings kept as a `topic:` page. Research first; computed things (gates, scores over rows) are a later slice, and the menu's "not yet" column is the measure of what to add. Kept apart from Q33's agents in name. | 9 Oct 2026 (`../log/2026-10-09-research-pass.md`). §6.3 |
 
 | **Q38** | Modules as programs (10 Oct 2026, after the second car wash build: the research pass worked, the build was still one table and a recipe, because a module had nowhere to hold a program; Kenil: "i dont want a half ass working solution … look at the module built by my friend … it should be like this", and "i dont want to reinvent the wheel"). Decided, four yeses: a module is a workspace Alpha codes in (program, data, declared pages) inside Claude Code's own sandbox driven by Alpha's settings (deny-default, writes in the workspace only, network only to the design's hosts through Alpha's journaling proxy, secrets denied, `srt` for unattended runs); a design document agreed stage by stage (job → findings → the person's inputs → data model → sources per value → method with calibration → surfaces → loop → milestones → open questions), frozen per milestone; milestones one per fresh session, each ending in a real result the person opens, done decided by a separate skeptical evaluator with scripted checks first; a `pages.yaml` contract of five kinds rendered by the shell (table, map, report, settings, export); the data layer's defaults DuckDB + GeoParquet + Hamilton + provenance per layer + pointblank; a module's own settings page is the person's, not a platform knob. Prior art in `research/modules-as-programs.md`. Reverses "modules are tables, know-how is pipelines". | 10 Oct 2026 (`../log/2026-10-10-modules-as-programs.md`). §6.4 |
+
+| **Q39** | Modules as workflows (11 Oct 2026, after three car wash builds in two days; Kenil: "such a complicated output is not useful / intuitive for a user at all … modules are workflows that are intended to automate / help the user with their tasks … dont take baggage"). A module is the person's own workflow as their steps, nothing fixed by the platform except what a step needs to run safely (who does it, what it takes and gives, whether it reaches out or acts outward, when it runs); it keeps a normalized model, documents (editable, exportable, usable elsewhere), settings with origins, pages from an open catalog (a map when asked), and one "Your workflow" page in the person's words that Alpha keeps and changes only through chat; every step is a part with a contract, proven on real data, from a library shared across modules now and people later; built from an interview and the person's own documents, suggestions alongside with sources kept and shown on ask, one whole first version accepted by the person running their real flow once, then changed by conversation preserving their own data. One person per module for now. Supersedes the shapes of §6.3 (the research-first menu) and §6.4 (the ten-stage document and milestones); keeps their mechanisms. | 11 Oct 2026 (`../log/2026-10-11-modules-as-workflows.md`). §12 |
 
 ---
 
