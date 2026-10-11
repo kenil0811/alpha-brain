@@ -12,7 +12,7 @@ import { moduleWords } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
-import { ActivityIcon, File, HomeIcon, IntelligenceIcon, ModuleIcon, PeopleIcon, PlusIcon, SettingsIcon, UploadIcon } from "../ui/icons";
+import { ActivityIcon, File, HomeIcon, ICON_SM, IntelligenceIcon, ModuleIcon, PeopleIcon, PlusIcon, SettingsIcon, UploadIcon } from "../ui/icons";
 import type { Surface } from "./Rail";
 
 interface Item {
@@ -24,11 +24,11 @@ interface Item {
 }
 
 const PAGES: { label: string; surface: Surface; icon: React.ReactNode }[] = [
-  { label: "Home", surface: { kind: "home" }, icon: <HomeIcon size={14} /> },
-  { label: "Activity", surface: { kind: "activity" }, icon: <ActivityIcon size={14} /> },
-  { label: "Network", surface: { kind: "people" }, icon: <PeopleIcon size={14} /> },
-  { label: "Intelligence", surface: { kind: "intelligence" }, icon: <IntelligenceIcon size={14} /> },
-  { label: "Settings", surface: { kind: "settings" }, icon: <SettingsIcon size={14} /> },
+  { label: "Home", surface: { kind: "home" }, icon: <HomeIcon size={ICON_SM} /> },
+  { label: "Activity", surface: { kind: "activity" }, icon: <ActivityIcon size={ICON_SM} /> },
+  { label: "Network", surface: { kind: "people" }, icon: <PeopleIcon size={ICON_SM} /> },
+  { label: "Intelligence", surface: { kind: "intelligence" }, icon: <IntelligenceIcon size={ICON_SM} /> },
+  { label: "Settings", surface: { kind: "settings" }, icon: <SettingsIcon size={ICON_SM} /> },
 ];
 
 export function CommandMenu({
@@ -179,7 +179,7 @@ export function CommandMenu({
         {items.map((item, i) => (
           <li key={item.key} id={`command-${item.key}`} role="option" aria-selected={i === active} className={`command__item${i === active ? " command__item--active" : ""}`} onMouseEnter={() => setActive(i)} onClick={item.go}>
             <span className="command__ico" aria-hidden="true">
-              {item.kind === "page" ? PAGES.find((p) => p.label === item.label)?.icon : item.kind === "module" ? <ModuleIcon size={14} /> : item.kind === "person" ? <PeopleIcon size={14} /> : item.kind === "document" ? <File size={14} /> : item.kind === "journal" ? <ActivityIcon size={14} /> : item.kind === "ask" ? <IntelligenceIcon size={14} /> : item.kind === "insert" ? <PlusIcon size={14} /> : item.kind === "upload" ? <UploadIcon size={14} /> : <ModuleIcon size={14} />}
+              {item.kind === "page" ? PAGES.find((p) => p.label === item.label)?.icon : item.kind === "module" ? <ModuleIcon size={ICON_SM} /> : item.kind === "person" ? <PeopleIcon size={ICON_SM} /> : item.kind === "document" ? <File size={ICON_SM} /> : item.kind === "journal" ? <ActivityIcon size={ICON_SM} /> : item.kind === "ask" ? <IntelligenceIcon size={ICON_SM} /> : item.kind === "insert" ? <PlusIcon size={ICON_SM} /> : item.kind === "upload" ? <UploadIcon size={ICON_SM} /> : <ModuleIcon size={ICON_SM} />}
             </span>
             <span className="command__label">{item.label}</span>
             {item.hint ? <span className="faint command__hint">{item.hint}</span> : null}

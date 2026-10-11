@@ -18,9 +18,7 @@ function Swatches({ label, choices, value, onPick, none }: { label: string; choi
       <span className="look__label">{label}</span>
       <div className="look__swatches">
         {none ? (
-          <button type="button" className={`look__swatch look__swatch--none${value === null ? " look__swatch--on" : ""}`} aria-pressed={value === null} aria-label={none} title={none} onClick={() => onPick(null)}>
-            ·
-          </button>
+          <button type="button" className={`look__swatch look__swatch--none${value === null ? " look__swatch--on" : ""}`} aria-pressed={value === null} aria-label={none} title={none} onClick={() => onPick(null)} />
         ) : null}
         {choices.map((c) => (
           <button key={c.color} type="button" className={`look__swatch${value === c.color ? " look__swatch--on" : ""}`} style={{ background: c.color }} aria-pressed={value === c.color} aria-label={c.name} title={c.name} onClick={() => onPick(c.color)} />

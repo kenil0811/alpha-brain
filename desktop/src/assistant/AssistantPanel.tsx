@@ -316,7 +316,7 @@ export function AssistantPanel({
       {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
         <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-          {showSteps ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {showSteps ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
           {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
         </button>
       ) : null}
@@ -324,7 +324,7 @@ export function AssistantPanel({
         <ul className="stages">
           {steps.slice(-12).map((s, i) => (
             <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
-              {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
+              {s.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : <Check size={ICON_SM} aria-label="done" />} {s.text}
             </li>
           ))}
         </ul>
@@ -416,7 +416,7 @@ export function AssistantPanel({
                     <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
                     {last ? (
                       <span className="faint thread__last">
-                        {last.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {last.text}
+                        {last.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : <Check size={ICON_SM} aria-label="done" />} {last.text}
                       </span>
                     ) : null}
                   </button>

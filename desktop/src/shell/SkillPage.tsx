@@ -217,7 +217,6 @@ export function HandPage({ client, name, version, onGo }: { client: Client; name
               <ul className="check">
                 {hand.tools.map((t) => (
                   <li key={t.name}>
-                    <span className="m m--y">·</span>
                     <span>{t.description ?? humanize(t.name)}</span>
                   </li>
                 ))}

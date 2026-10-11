@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconButton } from "../ui";
-import { Mic, Circle } from "../ui/icons";
+import { Mic, Circle, ICON_SM } from "../ui/icons";
 
 interface RecognitionResultEvent {
   resultIndex: number;
@@ -105,7 +105,7 @@ export function MicButton({ listening, supported, onToggle, small = false }: { l
       onClick={onToggle}
       icon={
         <>
-          {listening ? <Circle size={12} fill="currentColor" /> : <Mic size={16} />}
+          {listening ? <Circle size={ICON_SM} fill="currentColor" /> : <Mic size={ICON_SM} />}
           {listening ? <span className="live__word">Listening</span> : null}
         </>
       }

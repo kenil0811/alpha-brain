@@ -186,7 +186,6 @@ export function ActivityPage({ client, id, version, onGo, onOpenThread, onChange
               <ul className="check">
                 {lines.map((l) => (
                   <li key={l}>
-                    <span className="m m--y">·</span>
                     <span>{l}</span>
                   </li>
                 ))}
