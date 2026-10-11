@@ -55,12 +55,17 @@ parts/ and its contract in parts.yaml:
       when: arrives | asked | after:<part id>
       reaches: [api.census.gov]
       command: [".venv/bin/python", "parts/households.py"]
-  The core runs the command for one row with JSON on stdin: {"id": …, <the row's fields>, \
-"settings": {<key>: <value>}}, and expects exactly one JSON object on stdout: {"values": \
-{field: value}, "sources": {field: {"source": "<the page or the source's name>", \
+  A part fills the thing it reads, or a thing linked to it (a Score linked to a Site): then it \
+fills one row of that thing per row it reads, which the core makes, links and names after the \
+part. The core runs the command for one row with JSON on stdin: {"id": …, <every field of \
+the row, null when empty; a link field, or the name of a linked thing, comes as a list of the \
+linked rows>, "settings": {<key>: <value>}}, and expects exactly one JSON object on stdout: \
+{"values": {field: value}, "sources": {field: {"source": "<the page or the source's name>", \
 "fetched_at": "<ISO time>"}}, "problems": {field: "<why it could not be filled>"}}. Every \
 value filled has its source. A value you cannot get is a problem, never a guess or a default. \
-Thresholds and choices come from settings in the input; never hard-code them. Use the thing's \
+Thresholds, choices and keys come from settings in the input; never hard-code them, and every \
+settings key a part reads has a row in the Settings table (empty, with why, when the person must \
+provide it, such as an API key). Use the thing's \
 field names exactly as in workflow.json; never add fields of your own for sources or dates \
 (`*_source`, `*_fetched_at`): the core keeps the source and date of every value on the row.
 - Python in .venv (`$ALPHA_PYTHON -m venv .venv`, `.venv/bin/pip install` pinned). The network \

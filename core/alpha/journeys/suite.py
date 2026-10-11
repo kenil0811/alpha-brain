@@ -531,7 +531,8 @@ class Run:
         waiting: list[str] = []
         for p in parts:
             before = by_id.get(p["when"][6:]) if p["when"].startswith("after:") else None
-            if before and not all(row.get(f) is not None for f in before["fills"]["fields"]):
+            if before and not parts_module.ran(
+                    before, parts_module.made_row(self.world, module, before, rid)):
                 waiting += [f for f in p["fills"]["fields"] if row.get(f) is None]
         silent = [f for f in wanted if row.get(f) is None and f not in problems
                   and f not in waiting]

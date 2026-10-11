@@ -33,12 +33,19 @@ PARTS_YAML = """parts:
     when: arrives
     reaches: [api.census.gov]
     command: ["python", "parts/checks.py"]
+  - id: visibility
+    step: score_the_site
+    title: Visibility
+    reads: {thing: site, fields: [address]}
+    fills: {thing: score, fields: [score, note]}
+    when: after:checks
+    command: ["python", "parts/item.py"]
   - id: memo
     step: the_memo
     title: Draft the memo
-    reads: {thing: site, fields: [address, households]}
+    reads: {thing: site, fields: [address, households, score]}
     fills: {thing: site, fields: [memo]}
-    when: after:checks
+    when: after:visibility
     command: ["python", "parts/memo.py"]
   - id: rescore
     step: score_the_site
@@ -64,9 +71,17 @@ else:
                                               "fetched_at": "2026-10-11T10:00:01Z"}},
                       "problems": {}}))
 """
+ITEM_PY = """import json, sys
+row = json.load(sys.stdin)
+print(json.dumps({"values": {"note": f"Seen from the road at {row['address']}"},
+                  "sources": {"note": {"source": "trade practice"}},
+                  "problems": {"score": "needs a drive-by, not a guess"}}))
+"""
 MEMO_PY = """import json, sys
 row = json.load(sys.stdin)
-print(json.dumps({"values": {"memo": f"Memo for {row['address']}: {row['households']} households"},
+items = ", ".join(f"{s['item']}: {s.get('score')} ({s['note']})" for s in row["score"])
+print(json.dumps({"values": {"memo": f"Memo for {row['address']}: {row['households']} households;"
+                                     f" {items}"},
                   "sources": {"memo": {"source": "drafted from the checks"}}, "problems": {}}))
 """
 BODY2: dict[str, Any] = {
@@ -114,6 +129,7 @@ def builder(*, stuck: bool = False, write_parts: bool = True) -> Any:
         if write_parts:
             (ws / "parts.yaml").write_text(PARTS_YAML)
             (ws / "parts" / "checks.py").write_text(CHECKS_PY)
+            (ws / "parts" / "item.py").write_text(ITEM_PY)
             (ws / "parts" / "memo.py").write_text(MEMO_PY)
         (ws / "documents" / "Investor memo.md").write_text("# Memo\n\n{site.address}\n")
         return RunResult(ok=True, reply="Built: add a site and the checks fill in.")
@@ -150,31 +166,48 @@ def test_the_page_becomes_a_module_with_tables_and_parts_that_fill_rows(
     docs = [d for d in world.store.all("SELECT title, origin, module FROM documents")]
     assert [(d["title"], d["origin"]) for d in docs] == [("Investor memo.md", "template")]
     report = world.journal.recent(1, thread=wf["conversation"])[0]
-    assert report["kind"] == "replied" and "Parts: checks, memo, rescore" in report["text"]
+    assert report["kind"] == "replied"
+    assert "Parts: checks, visibility, memo, rescore" in report["text"]
     assert "Steps with no part yet" not in report["text"]  # the person's steps need none
     # A site added through the app: the "arrives" part fills it, then the one after it.
     c = TestClient(create_app(world, live=False))
     rec = c.post("/api/tables/site/records", json={"values": {"address": "1 Main St"}}).json()
     assert parts_module.due(world, module["id"]) == [("checks", rec["id"])]
-    # One call runs the chain: the checks, then the memo that waits on them.
-    assert parts_module.run_due(world, module_id=module["id"]) == 2
+    # One call runs the chain: the checks, the item that waits on them (a row of Score, linked
+    # to the site, named after the part; its score a problem, so tried twice), then the memo,
+    # which reads the site's scores and waits only for the item to have run, not to succeed.
+    assert parts_module.run_due(world, module_id=module["id"]) == 4
     row = world.collections.get("site", rec["id"])
     assert row["households"] == 52000 and row["traffic"] == 31000
     fields = row["_provenance"]["fields"]
     assert fields["households"]["source"].startswith("Census ACS")
     assert fields["households"]["part"] == "checks"
     assert fields["households"]["fetched_at"] == "2026-10-11T10:00:00Z"
-    assert row["memo"] == "Memo for 1 Main St: 52000 households"
+    scores = world.collections.query("score", limit=None)
+    assert len(scores) == 1 and scores[0]["site"] == rec["id"]
+    assert scores[0]["item"] == "Visibility" and scores[0].get("score") is None
+    assert scores[0]["note"] == "Seen from the road at 1 Main St"
+    assert scores[0]["_provenance"]["part"] == "visibility"
+    assert scores[0]["_provenance"]["fields"]["score"]["problem"] == "needs a drive-by, not a guess"
+    assert scores[0]["_provenance"]["fields"]["score"]["attempts"] == 2
+    assert row["memo"] == ("Memo for 1 Main St: 52000 households; Visibility: None"
+                           " (Seen from the road at 1 Main St)")
     assert fields["memo"]["part"] == "memo"
     assert parts_module.due(world, module["id"]) == []
+    # Try again on the item from the score's own page runs it for the site it belongs to.
+    out = c.post(f"/api/modules/{module['id']}/parts/visibility/run",
+                 json={"row": scores[0]["id"]}).json()
+    assert out["ok"] and world.collections.query("score", limit=None)[0]["id"] == scores[0]["id"]
     did = [e for e in world.journal.recent(6, module=module["id"]) if e["kind"] == "did"]
     assert any("Trade area checks on a row of site: households = 52000" in e["text"] for e in did)
     # A row the part cannot fill: the problem on the row, two tries, then left alone.
     bad = c.post("/api/tables/site/records", json={"values": {"address": "fail st"}}).json()
-    # The checks fail twice in the one call (two rounds), the memo never becomes due.
-    assert parts_module.run_due(world, module_id=module["id"]) == 2
+    # The checks fail twice in the one call (two rounds); the parts after them still run, with
+    # the empty fields in as null: the item (twice), then the memo once.
+    assert parts_module.run_due(world, module_id=module["id"]) == 5
     row = world.collections.get("site", bad["id"])
-    assert row.get("households") is None and row.get("memo") is None
+    assert row.get("households") is None
+    assert row["memo"].startswith("Memo for fail st: None households; Visibility: None")
     assert row["_provenance"]["fields"]["households"]["problem"] == "the geocoder found nothing"
     assert row["_provenance"]["fields"]["households"]["attempts"] == 2
     assert parts_module.due(world, module["id"]) == []  # two tries, left alone
@@ -182,7 +215,7 @@ def test_the_page_becomes_a_module_with_tables_and_parts_that_fill_rows(
     out = c.post(f"/api/modules/{module['id']}/parts/rescore/run", json={"row": rec["id"]}).json()
     assert out["ok"] and out["values"] == {"households": 52000}
     assert [p["id"] for p in c.get(f"/api/modules/{module['id']}/parts").json()] == [
-        "checks", "memo", "rescore"]
+        "checks", "visibility", "memo", "rescore"]
     assert c.post(f"/api/modules/{module['id']}/parts/nope/run",
                   json={"row": rec["id"]}).status_code == 400
 
