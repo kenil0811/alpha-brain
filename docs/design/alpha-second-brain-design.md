@@ -930,10 +930,10 @@ add the site they looked at last month, score it, read the memo, decide. A week 
 say "add a minimum lot size of 0.8 acres", and the page, the check and the site pages change;
 their scores stay.
 
-| Status (11 Oct 2026; detail in `../log/2026-10-11-workflow-page.md`) | |
+| Status (11 Oct 2026; detail in `../log/2026-10-11-workflow-page.md` and `../log/2026-10-11-build-from-the-page.md`) | |
 |---|---|
-| Built (piece 1) | The interview in the rules; "Your workflow" as a record with versions (`workflows`, `workflow_versions`), drafted, revised through the conversation (decisions and answers carried, omissions carried, removals named), agreed in words or in the app, declined; the card in the conversation and on Home; the plan and research-pass doors closed in the conversation. Run for real: the interview journey passed on the fifth run. |
-| Not built | Piece 2: the build from the page (the things and relations as tables, pages from a catalog, documents from templates, parts with contracts in the workspace, the evaluator through the pages); the library across modules; the acceptance (Kenil's car wash flow once in the app, then a change that keeps his scores). "Yes, build it" leads nowhere yet. |
+| Built (pieces 1–2) | The interview in the rules; "Your workflow" as a record with versions, drafted, revised through the conversation (omissions carried, removals named), agreed in words or in the app; the card in the conversation and on Home; the build from the page: the module, one table per thing with relations, the settings table, the workspace, one walled session that writes parts with contracts and document templates; parts that fill rows through the core with the source and date of every value per field, when a row arrives, after another part, or when asked from the thing's page, which shows where each value came from or why it is not filled; a stuck build waits for continue. Run for real: both journeys pass (the page in 467 s; the build in 951 s with the traffic gate filled from a TxDOT station a metre away). |
+| Not built | The person's acceptance (their flow once in the app, then a change by chat); documents drafted from templates with their page; the evaluator through the pages; the library across modules; the model's tools seeing a module's things; a key the page asks for as an empty setting. |
 
 ## 11. Decisions
 
