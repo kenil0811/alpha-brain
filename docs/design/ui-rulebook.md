@@ -12,7 +12,7 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
 
 **How the rules work**
 
-- Rules that say **always** or **never** are fixed. They are collected in §17.
+- The **fixed rules** are the numbered list in §17, and only those. Elsewhere, "always" and "never" mark a strong default: follow it unless a fixed rule or the person says otherwise (the owner, 11 Oct).
 - Everything else is a **default**: the starting point, not the only choice. Inside the defaults, use judgement.
 - When a case isn't covered, follow the intent: choose what is most consistent with what already exists and with the principles in §19.
 - **Who we design for:** busy, non-technical professionals who ask an assistant to build and run their work for them. The goal is that the person feels calm, in control and never confused.
@@ -51,18 +51,18 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
   3. the title of a page that has only one section;
   4. large metric numbers.
 - Section titles are small, semibold sans-serif.
-- Labels, eyebrows, table headers and metric labels are small, sentence case and stone grey. No tiny letter-spaced capitals.
-- Type is compact: 30% below the comfortable sizes (body 13px, table 12px, labels 11px); spacing stays on a 5px step.
+- Labels, eyebrows (Home's date included), table headers and metric labels are small, sentence case and stone grey. No tiny letter-spaced capitals.
+- **Sizes follow Notion** (the owner, 11 Oct): 14px is the working size (tables, the sidebar, buttons, menus, inputs), 16px is reading text (notes, messages, a record's long text), 12px labels and metadata; headings 18, 22 and 30px. The readable minimum is 12px; the one exception is the fully folded sidebar's labels at 11px (§4).
 - Weights stay between regular and semibold.
 - Digits use tabular figures wherever they line up in a column.
 - Every size comes from one type scale of about seven steps.
 
 ### Space and shape
 
-- **Spacing:** steps of one base unit. Consistent spacing and alignment count as correctness, not decoration.
+- **Spacing:** a 4px grid (4, 8, 12, 16, 20, 24, 32, 40, 48), as in Notion (the owner, 11 Oct). Consistent spacing and alignment count as correctness, not decoration.
 - **Corners:**
-  - Controls (buttons, inputs, sidebar items) share one radius.
-  - Cards, tables, panels and menus share a slightly larger one.
+  - Controls (buttons, inputs, sidebar items) share one radius (6px).
+  - Cards, tables, panels and menus share a slightly larger one (8px).
   - Chips, tags and the send button are pills.
   - The chat composer is the roundest element.
 
@@ -74,7 +74,7 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
 
 ### Icons
 
-- One thin-line icon family (Lucide by default), at two sizes: small and regular.
+- One thin-line icon family (Lucide), at two sizes: small (16px) and regular (20px).
 - Never use emoji or text symbols as icons.
 - Icons are stone grey by default and steel blue when active.
 - Each project has its own icon, chosen when it is made and changeable later.
@@ -83,7 +83,7 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
 
 - Short, quiet ease-outs for changes of state: hover fades, a panel changing width, a chevron turning, a spinner while working.
 - Never animate something in a way that hides it until the animation finishes.
-- No bounces, no page transitions, no decorative animation.
+- No bounces, no page transitions, no decorative animation. The companion breathes and blinks but never hops (the owner, 11 Oct).
 - Always respect the Mac's reduced-motion and increased-contrast settings.
 
 ---
@@ -96,7 +96,8 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
 
 | Use | Instead of |
 |---|---|
-| Workspace | organization, account |
+| Workspace | account (the space the person signs in to and works in) |
+| Organization | company, firm (a real organization the person is associated with, as in Network; never the person's own workspace) (the owner, 11 Oct) |
 | Project, sub-project | module, sub-module, app, package (in code and the store it stays `module`) |
 | Page, View, List, Section | screen, tab-page |
 | Record, Field, Relation | item, element, entry |
@@ -107,9 +108,9 @@ Alpha is one calm, honest, consistent product. Every screen is built from the sa
 
 A project may rename "Record" to its own word, such as Deal, Task or Application.
 
-**Product names carry their meaning.** Wherever these appear as a title, they carry a one-line plain subtitle:
+**No subtitles** (the owner, 11 Oct). A title never carries a line of explanation under it, however unfamiliar the term. What a product name means sits in an (i) tip beside it:
 
-| Name | Plain subtitle |
+| Name | Its (i) tip |
 |---|---|
 | Second Brain | What Alpha knows about you and your work |
 | Intelligence | What Alpha knows and does across your projects |
@@ -124,7 +125,7 @@ A project may rename "Record" to its own word, such as Deal, Task or Application
 - Labels are in sentence case. Product nouns keep their capitals: Home, Second Brain, Connections, Intelligence.
 - Use real ellipses (…), em dashes (—) and arrows (→) on links.
 - Empty states use "yet": "No files are attached yet."
-- **Dates are always absolute:** "8 Oct 2026" or "8 Oct, 14:30". Never "2 days ago".
+- **Dates:** absolute by default ("8 Oct 2026" or "8 Oct, 14:30"). Recent moments may read relatively ("Today, 14:30", "Yesterday", "5 min ago"); hovering any relative date shows the absolute one (the owner, 11 Oct).
 - A value nobody knows reads **"Unknown"**. Unknown is a valid answer; a guess is never shown as a fact.
 - Never say "Coming soon". Something unavailable is disabled, with a reason (§14).
 - Lead with the point; short sentences; no jargon; assume no prior context. Buttons say what will happen.
@@ -143,7 +144,8 @@ Every screen lives inside the same three-part frame:
 
 **Sidebar | Main area | Assistant panel**
 
-- **One header line.** The sidebar's top row, every page's header and the assistant's header share one height, so their bottom edges form a single line across the window.
+- **One header line.** The sidebar's top row, every page's header and the assistant's header share one height, so their bottom edges form a single line across the window. **Home is exempt:** it has no page header (§11) (the owner, 11 Oct).
+- **Nothing sits above a page's header.** Notices about setup or the runtime go inside the page body or, for setup, on Home only.
 - **No separate title bar.** The sidebar's top row doubles as the Mac's title bar, beside the window controls.
 - **Panel widths.** Each side panel has three widths: normal, wide and folded.
   - Drag the inner edge to resize. The handle appears only on hover or keyboard focus. Dragging all the way in folds the panel to the same strip as its fold button; dragging out has no cap, so the assistant can widen until the middle disappears (it may cover the middle).
@@ -159,7 +161,7 @@ Every screen lives inside the same three-part frame:
 
 **Contents, top to bottom**
 
-1. **Workspace button:** a coloured initial tile and the workspace name (by default the owner's, "Kenil's workspace", never the assistant's name). Its menu holds the workspaces, **Manage Workspace** and **Sign out**.
+1. **Workspace button:** a logo tile showing the companion avatar the person chose (falling back to the coloured initial when none is chosen) (the owner, 11 Oct), and the workspace name (by default the owner's, "Kenil's workspace", never the assistant's name). Its menu holds the workspaces, **Manage Workspace** and **Sign out**.
 2. **Home**, with a small count of what needs the person.
 3. **The pre-built projects**, Task manager and Network, shipped on install; ordinary projects in every other way (renamed, moved, hidden, edited or deleted like any other).
 4. **The person's other projects,** in their own order. Child projects fold out beneath their parent, indented, behind a chevron.
@@ -170,7 +172,8 @@ Every screen lives inside the same three-part frame:
 
 - Only the project list scrolls. The pinned bottom items never move.
 - **Current item:** a soft accent wash, steel text and icon, and a short accent bar on its left edge.
-- **Folded:** each item shows its icon with its name beneath it. Every icon in the window has a visible label.
+- **Names beside icons** (the owner, 11 Oct): every sidebar item shows its name next to its icon. **Fully folded**, each item shows its icon with its name beneath it in the small label size (11px), with room for up to 12 characters; longer names end in an ellipsis and show in full on hover and focus.
+- **No projects yet:** the list shows **New project** (and Home shows the same), never "ask for one". People create; the assistant helps.
 - **Reorder:** drag projects up, down, or into another project.
 - **Double-click** a project's name to rename it in place (Enter or clicking away saves, Escape cancels); double-click its icon to change the icon.
 - **Right-click a project** (or use its ⋮ on hover) for:
@@ -199,10 +202,10 @@ Every screen lives inside the same three-part frame:
 
 **Header** (at the shared height)
 
-- When a surface has several sections, the header holds a centred, pill-shaped switch with one tab per section: small sentence-case labels with icons, and the active tab raised.
+- When a surface has several sections, the header holds a centred **toggle** with one segment per section: small sentence-case labels with icons, and the active segment raised.
 - When there is only one section, the header shows its title in serif.
 - Switches never wrap onto a second line. When space runs short, they drop to icons only, and the labels come back as soon as there is room again (a switch measures the room in the header, never its own width).
-- Section switches always live in the header, never in the page body.
+- **One toggle, two levels** (the owner, 11 Oct): page-level sections switch in the header; sections inside a page (Brain · Facts · Map, a card's tabs such as Allowed · Denied or Intelligence's Activity · Agents · Goals) use the **same toggle** in the body, at the top of what they switch. Two different-looking switches for the same job are a defect.
 
 **One layout for every table page** (the owner, 9 Oct)
 
@@ -218,8 +221,8 @@ Every screen lives inside the same three-part frame:
 
 - The data comes first. As the person keeps scrolling: **Files**, then **Intelligence**, then **Governance**.
   - Intelligence holds what Alpha does here: its activity, its agents and automations (Alpha first among them — Alpha is an agent), its goals (with Add goal, Add agent, Add automation), Alpha's editable page about the project, and **Sub-projects** (the projects inside this one).
-  - Governance holds where things are kept, where they are read from, what runs on its own, and what Alpha may and may not do here, each rule with a one-sentence reason.
-  - Its rules sit under two tabs, **✓ Allowed n** and **⊘ Denied n** (icon, word, count; the active tab accent-underlined). Under each: the rules as editable sentences, "Nothing allowed." / "Nothing denied." when empty, and a dashed **+ Add allowed action** / **+ Add denied action** button.
+  - Governance holds where things are kept, where they are read from, what runs on its own, and what Alpha may and may not do here, each rule with its reason in an (i) tip.
+  - Its rules sit under the toggle **Allowed n · Denied n** (a check and a ban icon, the word, the count). Under each: the rules as editable sentences, "Nothing allowed." / "Nothing denied." when empty, and a dashed **+ Add allowed action** / **+ Add denied action** button.
 - The scroll is never trapped inside the table.
 
 **Never blank**
@@ -252,8 +255,10 @@ One row that never wraps, in this order:
 
 - **A list is a saved view of the collection:** its filters (which rows), its visible columns and their order (which columns), its sorts, grouping and view type. Choosing a list shows exactly the records that qualify; each of them opens its own page, as every record does.
 - **Saved list:** the current list's name ("All") opens a standard dropdown of the lists (search, star for the list the collection opens on, **Add list** at the bottom), as in every dropdown (§14). Editing, duplicating, copying a link to and deleting a list live in ⋮ More.
+  - **Add list and Edit list open a page, not a pop-up** (the owner, 11 Oct): the list's name, its filters, sorts, grouping, visible columns and default view, chosen on that page against a live preview of the records, with **Save list** and **Cancel**. Nothing is saved until Save list.
+  - **Changes in the toolbar are temporary** (the owner, 11 Oct): filtering, sorting or grouping from the toolbar or a column heading changes what you see now, and a small bar offers **Save to this list** and **Reset**. A list never changes by itself.
   - Lists are kept in the workspace, so Alpha can make them too.
-- **View:** a button showing the current view's icon and name ("▦ Table") that picks among the view types in the next section.
+- **View:** a button showing the current view's icon and name (a table icon and "Table") that picks among the view types in the next section.
   - Views the data can't support stay visible but disabled, with the reason, for example "Calendar needs a date field".
 - **Search:** a bordered search box, always visible as one (the owner, 9 Oct: a bare magnifier had no boundary); it quietly narrows the visible rows. Search is never saved as a list.
 - **Filter:** every filtering choice in one place.
@@ -269,9 +274,9 @@ One row that never wraps, in this order:
   - Footer summaries
   - Which sections record pages show
   - **Download ›**, one item whose submenu offers CSV and Excel
-  - Save filters to this list
   - Reset view
-- **Narrow windows:** labels collapse to icons first, then Filter moves inside More.
+- **Narrow windows:** labels collapse to icons first, then Filter moves inside More. The toolbar never runs under the assistant panel; at the window's minimum size every control stays reachable.
+- **Download** gives exactly what is shown (the list's filters and the current search), and says how many.
 
 ### View types
 
@@ -325,8 +330,9 @@ A page of visuals where **every visual is actionable**.
 
 **Opening and editing**
 
-- **A single click anywhere on a row opens that record's page at once,** with no wait.
-- **Editing in place** starts from the keyboard (Enter or F2 on the focused cell) or from a visible edit control on the cell. Clicking away saves; Escape cancels. ⌘Z and ⇧⌘Z undo and redo recent edits.
+- **A single click anywhere on a row opens that record's page,** after the short pause that lets a **double-click edit the cell in place** (the owner, 11 Oct). The row shows it was pressed at once.
+- **No peek.** A record always opens as its full page; there is no side or centre peek (the owner, 11 Oct).
+- **Editing in place** starts from a double-click, from the keyboard (Enter or F2 on the focused cell) or from the pencil on the cell. Clicking away saves; Escape cancels. ⌘Z and ⇧⌘Z undo and redo recent edits.
 - **Provenance marks** are quiet chips in words:
   - **Estimated** for a value Alpha estimated;
   - **Assumed** for a value resting on an assumption.
@@ -344,8 +350,7 @@ A page of visuals where **every visual is actionable**.
 
 **Add row**
 
-- A row at the bottom adds a record, and it is always there.
-- Typing a sentence into it asks Alpha to fill the fields. Alpha keeps the sentence as the record's source and says what it assumed.
+- A row at the bottom, **+ New**, adds a record and is always there; it opens the new record's page. (The sentence bar that asked Alpha to fill the fields was removed by the owner on 9 Oct; asking Alpha happens in the assistant panel.)
 - When adding isn't possible, the row stays visible, disabled, and explains why.
 
 **Footer**
@@ -362,7 +367,7 @@ A page of visuals where **every visual is actionable**.
 
 **Page bar**
 
-- Reads "Showing 1 to 50 of 312".
+- Reads "Showing 1 to 50 of 312". With grouping, each group's count is over the whole result, not the page.
 - A page-size choice, with "Fit to window" as the default.
 - First, Previous, Next and Last.
 - Inline status lines for what just happened.
@@ -376,7 +381,7 @@ A page of visuals where **every visual is actionable**.
 ### Metrics strip
 
 - A collection's headline numbers sit in one strip of metric tiles **below the toolbar**, above the table, **folded by default** so the table is the focus. The Dashboard view shows them in full.
-- Each tile has a tinted icon square, a small sentence-case label, a serif number and what it is based on.
+- Each tile is a plain tile (the owner, 11 Oct): the number with its words beside it, and what it is based on. No icon square.
 - While hidden, a show arrow sits in the toolbar's frequent actions, left of ⋮; while shown, the hide arrow sits at the strip's top-right corner. The choice is remembered.
 - Tiles that need attention get an amber tint (red is only for problems).
 - **Size** (the owner, 9 Oct): the whole strip is four lines high at most. Two-line tiles stack two high (Records over Amount); a split is one block spanning both, its bar with one small line of labels under it and the counts on hover. A number never repeats in its own basis ("all added this week", not "7 records, 7 added this week"). More tiles than fit scroll sideways.
@@ -415,7 +420,8 @@ Every record opens as a full page of its own.
 **The page is the form**
 
 - Every field is editable on the page.
-- Field sizes match the expected answer: short inputs for short values, a text area for long text, date and number inputs for dates and numbers.
+- Field sizes match the expected answer: short inputs for short values, a text area for long text, and the kit's date and number fields, which accept any reasonable form ("13/10", "next friday", "1.2k", "$1,200") and show it back tidied ("13 Oct 2026", "1,200").
+- A required field can't be emptied: leaving it empty keeps the old value and says why beside it.
 - **Changes save as you go,** the same as a table cell: a field saves when you leave it. ⌘Z undoes, and History keeps every change.
 - **And the person always sees it and can act on it.** A new or edited record shows a small bar at the top with **Save** (writes anything still being typed) and, for a record made in this visit, **Cancel** (deletes that new record after a one-line confirm). After a save, "Saved" shows for a moment, then the bar reads "Last saved 14:32". Assist and inform; never leave the person guessing whether it worked.
 - **New records always open their own page,** in every project.
@@ -448,7 +454,7 @@ A forced edit is allowed. It carries a quiet **Overridden** chip in a neutral to
 - **Intelligence:** what Alpha knows about this record, and what acted on it. Remembered facts can be corrected or forgotten, and each has a **Provenance** disclosure showing its source and when it was seen.
 - **Governance:** where each value came from, when, and what Alpha may do with this record.
 - The person chooses which sections each collection shows, from the data view's **⋮ More**.
-- Each section is a card with a small sans-serif title, a one-line grey subtitle saying what it is, and its content.
+- Each section is a card with a small sans-serif title, an (i) tip saying what it is, and its content.
 - Empty sections say so in one sentence: "No notes yet."
 
 ---
@@ -516,7 +522,7 @@ The project then appears in the sidebar, gets a Home card, and renders through t
 **Header**
 
 - The fold control on one side; the assistant's avatar and name centred; the **notifications bell** (Activity) at the right end.
-- Just below sits a compact history picker for conversations, with small actions to start, archive and delete them.
+- Just below sits a compact history picker for conversations, a **+** to start one, and a **⋮** holding Rename, Archive and Delete (Delete confirms) (the owner, 11 Oct).
 - A strip of live conversations lets several run side by side. **Done** closes one; what it learned stays.
 
 **Messages**
@@ -586,12 +592,12 @@ When a request would share data with an outside service, an amber notice asks fi
 
 ## 11. Home
 
-A single centred column with room to breathe, and no page header bar.
+A single centred column with room to breathe, and no page header bar (the one page exempt from the shared header line).
 
+0. **Setting up** (only until it's done; only on Home) (the owner, 11 Oct): a quiet card for what Alpha still needs (the account it thinks with, the browser it reads with), each with its one button. It never appears on any other page.
 1. **Heading block**
-   - a small accent eyebrow with today's date;
-   - a large serif greeting;
-   - one line of supporting text.
+   - a small stone-grey eyebrow with today's date;
+   - a large serif greeting.
 2. **Today card**
    - **Side-by-side tiles:**
      - **Needs you:** the count.
@@ -605,7 +611,7 @@ A single centred column with room to breathe, and no page header bar.
    - **Errors:** if part of the card can't load, that part says what went wrong in plain words and offers **Try again**. The rest of the card still shows.
 3. **Projects grid**
    - Each card shows the project's icon, name, one-line description and **Open →**.
-   - The last card is **New**.
+   - The last card is **New project**. With no projects yet, it is the only card.
 4. **First steps** (a new workspace only)
    - A few one-click starts, such as connecting a folder or a calendar, or making a first project.
    - Each says what will happen.
@@ -621,12 +627,10 @@ The one place for everything Alpha knows and can do across projects. Its header 
   - Facts about the person and their world, shown as a standard data view, with "Waiting for your confirmation" items above it.
   - Every fact can be corrected or forgotten, and has a **Provenance** disclosure.
   - Also holds goals, standing instructions, standing permissions and Alpha's notes, each as an editable sentence.
-- **Agents**
-  - Cards for the assistant and each project's runner, in the same style as Home's project cards.
-  - **Each agent has its own detail page** showing what it does, its skills, its runs and its permissions.
-- **Automations**
-  - Each one is a sentence with its trigger, its next run and an on/off switch.
-  - Each has its own page with **Run now** and its runs.
+- **Agents and automations** (one tab since 9 Oct, owner's third review)
+  - Alpha and every agent, then every automation, in the standard data view.
+  - **Each agent has its own page** showing what it does, its skills, its runs and its permissions.
+  - Each automation is a sentence with its trigger, its next run and an on/off switch, and its own page with **Run now** and its runs.
 - **Skills**
   - What Alpha can do, each in plain words.
   - Each has its own page with how it works, Alpha's notes and its runs.
@@ -642,7 +646,7 @@ The one place for everything Alpha knows and can do across projects. Its header 
   - Suggested links appear dashed until the person decides.
   - It refreshes when asked.
 
-Rows in Automations, Skills and Connections share one layout: an icon, a title, a one-line description and controls aligned to the right.
+Rows in Agents and automations, Skills and Connections share one layout: an icon, a title, a one-line description and controls aligned to the right.
 
 ---
 
@@ -650,18 +654,19 @@ Rows in Automations, Skills and Connections share one layout: an icon, a title, 
 
 **Layout**
 
-- A header with an icon tile, the title and a one-line subtitle.
+- A header with the title in serif and an (i) tip; no subtitle.
 - A list of sections on the left. The active section has an accent wash and a small accent dot. The first is **Overview**, which shows every section's cards on one page; each other section shows only its own.
 - Readable cards on the right.
-- Section titles are semibold sans-serif with a grey subtitle. Field labels are small and sentence case.
+- Section titles are semibold sans-serif with an (i) tip. Field labels are small and sentence case.
 - **Each row says what is currently so and offers the one thing to do about it.**
-- Unconfigured areas show a dashed card with an icon, "Nothing configured yet" and one honest sentence about what will appear there.
+- Unconfigured areas show a dashed card with "Nothing configured yet" and an (i) tip about what will appear there.
 
 **Sections** (default order)
 
 1. **Workspace:** name, initial tile and colour, **Manage Workspace**, **Sign out**.
 2. **Thinks with:** the model route (Claude through Claude Code, or ChatGPT through the Codex CLI), whether it is connected, the one step to connect it, and the model behind Quick overview and Deep thinking.
 3. **Appearance:** Light, Dark or Match Mac. Motion and contrast follow the Mac. A **Companion** link opens Alpha's agent page, where the companion's look and size are chosen (they are not repeated in Settings).
+4. **Reads with:** the browser Alpha reads pages with, whether it is installed, and Install.
 5. **Notifications:** what may interrupt, and when.
 6. **Permissions:** standing permissions and what each allows, with Revoke.
 7. **Builder rules:** how Alpha makes projects (default views, metrics, naming).
@@ -678,6 +683,7 @@ Rows in Automations, Skills and Connections share one layout: an icon, a title, 
 
 - One button family, one input, one dropdown, one menu, one dialog, one card, one chip, one metric tile and one empty state.
 - When something is missing, it is added to the shared kit rather than made as a local variant.
+- **One look per function, many ways in** (the owner, 11 Oct): two visual elements that do the same job (two kinds of tab switch, two empty states, two delete buttons) are a defect. The same task may still be reachable several ways (a ⋮, a right-click, a shortcut, a double-click), as long as each way uses the same element.
 
 **Buttons**
 
@@ -689,11 +695,11 @@ Rows in Automations, Skills and Connections share one layout: an icon, a title, 
 
 **Dropdowns** (one standard dropdown, not the browser's native select)
 
-Every dropdown, without exception, has three things (the owner, 9 Oct):
+Every dropdown, without exception, has three things (the owner, 9 Oct; confirmed 11 Oct):
 
 - **Search** at the top, always.
 - **A star** on hover or focus of each option: ★ marks the person's default; clicking ☆ makes that option the default, and Alpha remembers it. Clicking the star never selects.
-- **Add new…** pinned at the bottom. When adding needs Alpha to build something, it opens a small box where the person describes what they want, and that goes to the assistant.
+- **Add new…** pinned at the bottom of every dropdown (the owner, 11 Oct). Where the window can add the option itself, it does. Where it can't (the list is fixed, or adding needs building), Add new… opens a small pop-up where the person describes the new option, and **Send to Alpha** puts it to the builder agent in **this page's conversation** to resolve; Cancel closes it.
 
 And:
 
@@ -717,7 +723,7 @@ And:
 
 **Deleting**
 
-- Delete is never one click.
+- **Every delete confirms in a dialog** (the owner, 11 Oct): rows, records, lists, rules, conversations, connections, files, everything. The dialog names what goes and what can't be undone, with Cancel and Delete.
 - Delete controls live inside menus or appear on hover; they are never permanently visible.
 - A destructive confirmation says exactly what cannot be undone.
 
@@ -741,7 +747,8 @@ And:
 - A confirmation is a small line of accent text near the action.
 - An error is a small red line near the action, or a pale red banner for bigger problems, always with **Try again** where it applies.
 - A floating dark pill is used only for background jobs that finish.
-- Every click answers at once, even when the work behind it takes longer.
+- Every click answers at once (visibly within 100ms), even when the work behind it takes longer.
+- Errors stay until the person dismisses them or tries again; they never fade on a timer.
 - The assistant and the companion speak only when called, or when something needs the person.
 
 **Loading**
@@ -752,14 +759,14 @@ And:
 
 **Tooltips**
 
-- Short phrases. Longer explanations go in an info tip beside the title or the unfamiliar term.
+- Short phrases. Any explanation goes in an (i) tip beside the title or the unfamiliar term; never a subtitle (§2).
 
 **Honesty**
 
 - Never show made-up data or placeholder content.
 - "Unknown" is a valid answer.
 - Never show a score without what it is based on.
-- Errors say what went wrong in plain words; no stack traces or internal commands.
+- Errors say what went wrong in plain words; no stack traces, status codes, internal words ("core", "502", "Failed to fetch") or commands. While something loads it says so; a load that hasn't finished never reads as empty.
 - Errors sit next to the problem, say how to fix it, and keep the person's input.
 - Inputs accept dates, numbers and names in any reasonable form and tidy them up; where the options are known, offer choices instead of free typing.
 
@@ -785,7 +792,7 @@ And:
 - Contrast stays at AA (4.5:1) or better, in light and dark.
 - Status is never shown by colour alone; colour is always paired with a word.
 - Disabled controls' reasons can be reached by keyboard and screen readers, not only by hovering.
-- Text stays at or above a readable minimum, with no exceptions. The folded sidebar shows icons with their names on hover and focus rather than tiny labels.
+- Text stays at or above the readable minimum (12px). The one exception is the fully folded sidebar's labels (11px, §4), whose full names also show on hover and focus.
 - Live updates, such as new messages and finished work, are announced politely to screen readers.
 
 ---
@@ -794,10 +801,10 @@ And:
 
 Everything elsewhere in this rulebook is a default. These are not.
 
-1. Every screen sits in the three-part frame with one shared header line.
+1. Every screen sits in the three-part frame with one shared header line. Home is exempt from the header line; nothing sits above a page's header.
 2. Settings is always the last sidebar item; New is always the last item in the project list.
 3. Never in the sidebar: group headings, a theme switch, status lines, or extra destinations.
-4. Section switches live in the header and never wrap.
+4. Section switches, in the header or in the body, are one toggle and never wrap.
 5. The toolbar is one row that never wraps, in the standard order, ending at ⋮.
 6. The add row is always present (disabled, with a reason, when adding isn't possible).
 7. Never hide a command. Disabled controls, including unsupported views, show their reason on hover, focus or click.
@@ -806,21 +813,24 @@ Everything elsewhere in this rulebook is a default. These are not.
 10. Every colour, size and space comes from the named design values.
 11. Never animate something in a way that hides it until the animation finishes. Always respect reduced motion.
 12. Never use emoji or text symbols as icons.
-13. Delete is never one click and never permanently visible.
+13. Every delete confirms in a dialog, and delete controls are never permanently visible.
 14. Every assistant action is a proposal the person approves (a plan once, as a whole), unless they set a standing permission for it with Always allow.
 15. Never show made-up data, a guess as a fact, or a score without its basis.
-16. Dates are always absolute.
+16. Dates are absolute by default; a relative date always shows the absolute one on hover.
 17. No pop-up toasts, no skeleton shimmer, and no browser-native dialogs or selects.
 18. Every dashboard visual has a call to action.
 19. Never a blank page: an empty project or tab still shows one empty table. No name repeats twice in a row in one flow.
 20. One "more" glyph (⋮) everywhere.
 21. Red means a problem and nothing else.
-22. No text below the readable minimum, and no tiny letter-spaced capitals.
-23. A row click opens its record at once.
+22. No text below the readable minimum (12px; the fully folded sidebar's labels 11px), and no tiny letter-spaced capitals.
+23. A row click opens its record's full page (no peek) after the short double-click pause; a double-click edits in place.
 24. Everything the assistant makes is saved as a file.
 25. **Every create has a Cancel** (the owner, 9 Oct, explicitly): a page, dialog or inline box that makes something always offers Cancel beside its create button, and Escape does the same; nothing is made until the create button is pressed.
 26. One layout for every table page: the data view over the first screen, then Files, Intelligence and Governance.
 27. A column's width never changes on hover.
+28. No subtitles: explanations live in (i) tips.
+29. One visual element per function; several ways in are fine.
+30. Every dropdown ends in Add new…; what the window can't add goes, described, to the builder agent in this page's conversation.
 
 ---
 
@@ -829,15 +839,16 @@ Everything elsewhere in this rulebook is a default. These are not.
 - [ ] Same frame, same header line, same toolbar order and same table behaviour as every other screen.
 - [ ] No one-off control, colour, size or icon. Everything comes from the kit and the named values.
 - [ ] Serif only in its four places.
+- [ ] The reviewer is not the builder: someone other than whoever built a screen checks it against this list.
 - [ ] Empty, loading and error states are quiet and honest, and the structure stays intact.
 - [ ] Disabled controls are visible, with a reason on hover, focus or click; refusals name the next step.
 - [ ] Grouping, alignment and focus are clear at a glance (§19): one section fills the screen, one primary action per area.
 - [ ] Text is comfortably large, sentence case, and nothing important is tiny.
 - [ ] Assistant-initiated and risky actions wait for Approve.
 - [ ] Every dashboard visual has a call to action, and every number states its basis.
-- [ ] Wording follows §2: workspace, Second Brain, Connections, absolute dates, "Unknown" where unknown, product names with their plain subtitle.
+- [ ] Wording follows §2: workspace, Second Brain, Connections, dates absolute by default, "Unknown" where unknown, no subtitles (explanations in (i) tips).
 - [ ] It passes Nielsen's ten heuristics (§19).
-- [ ] Everything works in light and dark, at the window's smallest size, and from the keyboard.
+- [ ] Everything works in light and dark, at the window's smallest size (1100×560) and default (1240×820), and from the keyboard. `just check-layout` passes.
 - [ ] It feels calm, honest and consistent.
 
 ---
