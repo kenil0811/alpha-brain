@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 11 October 2026, night.** Last entries: questions asked together answered together
+**As of 11 October 2026, night.** Last entries: shipped again with a Python that can make a venv ([`log/2026-10-11-shipped-again.md`](log/2026-10-11-shipped-again.md)), questions asked together answered together
 ([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
 the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
 ([`log/2026-10-11-build-from-the-page.md`](log/2026-10-11-build-from-the-page.md); run for real), piece 1, the interview and the page
@@ -171,7 +171,7 @@ pending item 6, people for real, and noticing over what Alpha reads.
 8. ~~Alpha self-sufficient on a fresh Mac~~ — done 9 Oct
    ([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34): `just ship` carries the
    runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
-   installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
+   installs Claude Code and Alpha's browser; shipped again 11 Oct night with `ensurepip` kept so a module's build can make its venv. Left: notarization (no Apple Developer account:
    right-click › Open for now); the friend's own first run, which decides it.
 9. **Modules as workflows (Q39, design §12)** ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md)): pieces 1–2 built and run for real, the last time in Kenil's own app: the real ask became "Car Wash Site Scorecard — Austin" (module `m_12ac0a8738be`, 16 parts); 1600 S Lamar added; the app's scheduler ran the gates (37,900 AADT, Pass), the fourteen items as linked Score rows (four scored from Austin's and Travis County's open data, five flagged for a look, the Census ones waiting on the key) and the memo ("Needs more info"). Found by running: parts had to fill a linked thing, "after" had to mean ran, and the profile broke a workspace inside Alpha's home. Later that night Kenil's first try ("didnt work") found two more: the Census key refused until activated (theirs), and nothing in Alpha retrying when a setting or a row changes, with an edit wiping the row's provenance (ours); built: a change tries the parts again, an edit keeps provenance, a part after another reruns when that one fills later. **Next: Kenil's acceptance** (the Census fields filled in the app, then one change by chat preserving his rows), then documents drafted from templates with a page, the evaluator through the pages, the library across modules.
 10. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
