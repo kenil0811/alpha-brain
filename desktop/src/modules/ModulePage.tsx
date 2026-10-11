@@ -13,7 +13,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { Client, ModuleCard, ModuleDetail, TableSummaryData } from "../core/client";
 import { dedupeCrumbs } from "./crumbs";
 import { DataPage } from "./DataPage";
-import { RecordPage } from "./RecordPage";
 import { DataFrame } from "./DataFrame";
 import { GovernanceSection, IntelligenceSection } from "./ModuleSections";
 import { emptySource } from "./source";
@@ -82,7 +81,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
   // lands on data: the remembered collection if it is still there, else the first
   const table = d.tables.find((t) => t.name === tab) ?? d.tables[0] ?? null;
   const several = d.tables.length > 1;
-  const crumbs: Crumb[] = dedupeCrumbs([...(d.path ?? []).slice(0, -1).map((name, i) => ({ label: name, onClick: () => onGo({ kind: "module", id: pathIds[i] }) })), { label: d.name }]);
+  const crumbs: Crumb[] = dedupeCrumbs([...(d.path ?? []).slice(0, -1).map((name, i) => ({ label: name, onClick: () => onGo({ kind: "module", id: pathIds[i] }) })), { label: d.name }], several ? table?.title : undefined);
   // with one collection or none the name is the title, so the breadcrumb holds only where it sits
   const where = several ? crumbs : crumbs.slice(0, -1).filter((c) => c.label !== d.name);
   return (
@@ -101,7 +100,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
       }
       data={(upload) =>
         table ? (
-          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={(t, id) => onOpenRecord?.(t, id)} onAddFiles={upload} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} />} />
+          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={(t, id) => onOpenRecord?.(t, id)} onAddFiles={upload} summary={summary.find((s) => s.name === table.name) ?? null} />
         ) : (
           <DataPage client={client} source={empty} version={version} onChanged={onChanged} onAsk={onAsk} onAddFiles={upload} onOpenRecord={() => undefined} />
         )

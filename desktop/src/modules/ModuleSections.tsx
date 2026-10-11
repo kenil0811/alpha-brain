@@ -17,7 +17,7 @@ import type { Surface } from "../shell/Rail";
 import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, useAssistant, type Tone, type ToggleItem } from "../ui";
 import { ActivityIcon, AgentIcon, Ban, Check, FileText, Flag, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
 import { downloadText, parseCsv, toCsv } from "./csv";
-import { humanize, when } from "./format";
+import { humanize, recent, when } from "./format";
 
 const word = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -26,6 +26,8 @@ const word = (n: number, one: string, many: string) => (n === 1 ? one : many);
 export interface AddedFile {
   doc: DocumentInfo;
   file?: File;
+  /** when it was added in this visit (the core gives documents no date) */
+  at: string;
 }
 
 /** Files, always its own section: what was added in this visit, a CSV as a grid that can be
@@ -46,8 +48,8 @@ export function FilesSection({ added, onPick }: { added: AddedFile[]; onPick: ()
     >
       {added.length ? (
         <div className="lrows">
-          {added.map(({ doc, file }) => (
-            <ListRow key={doc.id} icon={<FileText size={ICON} />} title={doc.title} description="Added just now">
+          {added.map(({ doc, file, at }) => (
+            <ListRow key={doc.id} icon={<FileText size={ICON} />} title={doc.title} description={<span title={recent(at).title}>Added {recent(at).text}</span>}>
               {file && /\.csv$/i.test(file.name) ? <CsvGrid file={file} /> : null}
             </ListRow>
           ))}

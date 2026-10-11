@@ -41,7 +41,7 @@ export function DataFrame({ client, header, scope, name, module = null, onChange
     try {
       const out = await client.addFiles(files, { module });
       // the core answers with one document per file, in order
-      setAdded((now) => [...out.documents.map((doc, i) => ({ doc, file: files[i] })), ...now]);
+      setAdded((now) => [...out.documents.map((doc, i) => ({ doc, file: files[i], at: new Date().toISOString() })), ...now]);
       setDropNote(`Uploaded ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"}.`);
       onChanged();
     } catch (err) {

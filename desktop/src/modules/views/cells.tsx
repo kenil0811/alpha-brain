@@ -167,7 +167,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
       title={locked ?? (rests ? `${rests} Double-click to correct it.` : "Double-click to edit")}
     >
       {adornment}
-      {words === "" ? <span className="faint">{empty}</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <Badge tone={field.done_choices?.includes(String(value)) ? "good" : "gray"}>{words}</Badge> : field.kind === "bool" ? (value ? <Check size={ICON_SM} aria-label="Yes" /> : <span className="faint">—</span>) : words}
+      {words === "" ? <span className="faint">{empty}</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <Badge tone="gray">{words}</Badge> : field.kind === "bool" ? (value ? <Check size={ICON_SM} aria-label="Yes" /> : <span className="faint">—</span>) : words}
       {estimate || (assumed && numeric) ? (
         <Tooltip text={`${rests} Double-click the cell to correct it.`}>
           <Badge tone="gray" className="provchip" tabIndex={0} aria-label={`${estimate ? "Estimated" : "Assumed"}: ${rests}`}>
