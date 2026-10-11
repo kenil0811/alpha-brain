@@ -65,9 +65,23 @@ class Live:
     def note(self, keys: list[str], **what: Any) -> None:
         with self.lock:
             for key in keys:
-                current = self.progress.setdefault(key, {"thought": None, "doing": None,
-                                                         "tools": 0, "at": None})
+                current = self.progress.setdefault(key, self._fresh())
                 current.update({k: v for k, v in what.items() if v is not None})
+                current["at"] = time.time()
+
+    @staticmethod
+    def _fresh() -> dict[str, Any]:
+        return {"thought": None, "doing": None, "tools": 0, "at": None, "partial": None,
+                "first_text_at": None}
+
+    def add_text(self, keys: list[str], text: str) -> None:
+        """A piece of the reply as the model writes it: the window shows it growing."""
+        with self.lock:
+            for key in keys:
+                current = self.progress.setdefault(key, self._fresh())
+                current["partial"] = ((current.get("partial") or "") + text)[-PARTIAL_CHARS:]
+                if current.get("first_text_at") is None:
+                    current["first_text_at"] = time.time()
                 current["at"] = time.time()
 
     def progress_for(self, key: str | None) -> dict[str, Any] | None:
@@ -123,6 +137,8 @@ class Live:
 
 
 LIVE = Live()
+# The most of a reply kept while it is written (the whole reply lands in the journal after).
+PARTIAL_CHARS = 20_000
 
 
 @dataclass
@@ -135,6 +151,8 @@ class RunResult:
     cost_estimate: float | None = None
     error: str | None = None
     raw: dict[str, Any] = field(default_factory=dict)
+    # When the first words of the reply appeared, from the run's start (the person's wait).
+    first_text_ms: int | None = None
     # The run ended before its work did (Claude Code's own step ceiling), not because of a
     # problem: work can carry on from where it got to.
     cut_off: bool = False
@@ -231,6 +249,7 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--output-format",
         "stream-json",  # events as they happen: the person watches, not waits
         "--verbose",
+        "--include-partial-messages",  # the reply's text as it is written (9 Oct, Q35)
         "--append-system-prompt",
         req.system,
     ]
@@ -278,6 +297,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
         config_path = Path(tmp) / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(req)))
+        started_at = time.time()
         try:
             proc = subprocess.Popen(
                 argv(req, config_path, binary or claude_account.binary() or "claude"),
@@ -328,6 +348,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                     count_tools(event, tools)
                     _watch(keys, event)
             proc.wait()
+            first_text_at = (LIVE.progress_for(keys[0]) or {}).get("first_text_at")
         finally:
             done.set()
             stopped = LIVE.remove(keys, proc)
@@ -337,8 +358,11 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     if stalled.is_set() and not final:
         log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
         return RunResult(reply="", ok=False, error=STALLED)
-    return tools_verdict(parse_result(final, "".join(errors) or "".join(tail), proc.returncode),
-                         tools["called"], tools["failed"], tools["first"])
+    out = tools_verdict(parse_result(final, "".join(errors) or "".join(tail), proc.returncode),
+                        tools["called"], tools["failed"], tools["first"])
+    if first_text_at:
+        out.first_text_ms = int((first_text_at - started_at) * 1000)
+    return out
 
 
 def _event(line: str) -> dict[str, Any] | None:
@@ -353,15 +377,29 @@ def _event(line: str) -> dict[str, Any] | None:
 
 
 def _watch(keys: list[str], event: dict[str, Any]) -> None:
-    """Turn a stream event into what the run is doing, in plain words."""
-    if event.get("type") != "assistant":
+    """Turn a stream event into what the run is doing, in plain words, and the reply's text as
+    it is written (`stream_event` deltas, from `--include-partial-messages`)."""
+    kind = event.get("type")
+    if kind == "stream_event":
+        inner = event.get("event") or {}
+        if inner.get("type") == "content_block_start" \
+                and (inner.get("content_block") or {}).get("type") == "text":
+            LIVE.note(keys, partial="")
+        elif inner.get("type") == "content_block_delta":
+            delta = inner.get("delta") or {}
+            if delta.get("type") == "text_delta" and delta.get("text"):
+                LIVE.add_text(keys, str(delta["text"]))
+        return
+    if kind != "assistant":
         return
     for block in (event.get("message") or {}).get("content") or []:
         if block.get("type") == "text" and str(block.get("text", "")).strip():
             LIVE.note(keys, thought=str(block["text"]).strip()[:400])
         elif block.get("type") == "tool_use":
-            LIVE.note(keys, doing=plain_tool(str(block.get("name", "")),
-                                             block.get("input") or {}),
+            # The text so far was a thought before a step, not the reply: it goes back to
+            # the headline and the reply starts afresh after the step.
+            LIVE.note(keys, partial="", doing=plain_tool(str(block.get("name", "")),
+                                                         block.get("input") or {}),
                       tools=(LIVE.progress_for(keys[0]) or {}).get("tools", 0) + 1)
 
 

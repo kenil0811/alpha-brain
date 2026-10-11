@@ -1,0 +1,10 @@
+name: question_card
+title: A question Alpha asks in prose becomes a card the person answers in place
+why: "Q35: in a week of use, 23 replies ended with a question in prose against 2 cards. A
+  question must be a card whatever the model did; an open one with no choices still gets its
+  answer box."
+steps:
+  - say: "Log my lunch"
+checks:
+  - ask: {}
+  - reply: {matches: "\\?"}

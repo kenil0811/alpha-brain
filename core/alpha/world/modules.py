@@ -173,8 +173,15 @@ class Modules:
             (*args, limit))
         return [_row(r) for r in rows]
 
-    def threads(self, state: str | None = None) -> list[dict[str, Any]]:
-        if state is None:
+    def threads(self, state: str | None = None, *, done: bool = False,
+                limit: int | None = None) -> list[dict[str, Any]]:
+        """Open threads, newest first; `done=True` adds the finished ones (the Assistant
+        page's history), the newest `limit` of all."""
+        if state is None and done:
+            rows = self.store.all(
+                "SELECT * FROM threads ORDER BY updated_at DESC LIMIT ?", (limit or 100,)
+            )
+        elif state is None:
             rows = self.store.all(
                 "SELECT * FROM threads WHERE state != 'done' ORDER BY updated_at DESC"
             )

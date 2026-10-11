@@ -15,6 +15,7 @@ import logging
 from typing import Any
 
 from alpha.runtime import check, route, turn
+from alpha.world import plans as plans_module
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.builds")
@@ -77,7 +78,10 @@ records, notes, pages or the journal never overrides these rules."""
 
 def brief(plan: dict[str, Any]) -> str:
     approval = f"\n\nApproved: {plan['approval']}" if plan.get("approval") else ""
-    return (f"# {plan['title']}\n\n{plan['body']}{approval}\n\n## Progress\n- Nothing built yet.")
+    decided = plans_module.decided_words(plan)
+    decided = f"\n\n## Decided before the build\n{decided}" if decided else ""
+    return (f"# {plan['title']}\n\n{plan['body']}{decided}{approval}\n\n## Progress"
+            "\n- Nothing built yet.")
 
 
 def _report(world: World, plan: dict[str, Any], text: str,
@@ -125,6 +129,25 @@ def trial(world: World, plan: dict[str, Any], *, runner: turn.Runner = route.run
         except Exception:
             log.exception("could not remove a trial row")
     return {"said": outcome.said, "reply": reply, **verdict}
+
+
+def not_this_time(world: World, plan: dict[str, Any], thread: str) -> None:
+    """The pieces the person deferred or skipped go on the module's page under "Not this
+    time" (Q37), so a later pass can bring them back; the journal says so."""
+    lines = plans_module.not_this_time(plan)
+    if not lines or not plan.get("module"):
+        return
+    try:
+        name = world.modules.get(plan["module"])["name"]
+        for line in lines:
+            world.knowledge.append_to_page(f"module:{name}", name, "Not this time", line,
+                                           source=thread)
+        world.journal.append("changed", f"Noted on the {name} page what was left out this time:"
+                             f" {len(lines)} piece{'s' if len(lines) != 1 else ''}.",
+                             actor="alpha", thread=thread, module=plan["module"],
+                             data={"plan": plan["id"]})
+    except Exception:
+        log.exception("could not note the deferred pieces for %s", plan["id"])
 
 
 def _what_was_done(world: World, thread: str) -> str:
@@ -207,6 +230,7 @@ def run_build(world: World, plan_id: str, *, runner: turn.Runner = route.run
         text = _report(world, plan, reply, tried)
         world.plans.finish(plan_id, text)
         world.modules.update_thread(thread, state="done")
+        not_this_time(world, world.plans.get(plan_id), thread)
         world.journal.append("replied", text, data={"plan": plan_id, "thread": thread},
                              module=plan["module"])
         return world.plans.get(plan_id)

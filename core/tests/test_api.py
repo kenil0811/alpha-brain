@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from conftest import building
+from conftest import PIECES, building, researching
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -199,8 +199,8 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
 def test_a_refused_decline_leaves_no_answer_and_starts_nothing(world: World) -> None:
     """The panel once fired resume and decline together on "Leave it": the decline must be
     refused on a building plan without journaling a No."""
-    t = Tools(world, turn=world.journal.append("said", "track x", actor="person"))
-    pid = t.plan_propose("Track x", "A plan.", "show me x")["plan"]
+    t = researching(world, turn=world.journal.append("said", "track x", actor="person"))
+    pid = t.plan_propose("Track x", "A plan.", "show me x", pieces=PIECES)["plan"]
     plan = world.plans.get(pid)
     world.plans.approve(pid, "yes")
     thread = world.modules.open_thread("Build: Track x", "build", None)
@@ -333,3 +333,31 @@ def test_an_automations_page_has_its_runs_with_verdicts_its_page_and_a_good_run(
     assert page["good_run"].startswith("it ends with its line")
     listed = c.get("/api/intelligence").json()["automations"][0]
     assert listed["last_verdict"] == "partial"
+
+
+def test_the_conversations_list_adds_the_finished_ones_when_asked(world: World) -> None:
+    from alpha.runtime import conversations as convs
+
+    c = client(world)
+    open_one = convs.open_conversation(world, "Open one", None)
+    done_one = convs.open_conversation(world, "Done one", None)
+    world.modules.update_thread(done_one["id"], state="done")
+    live = [x["id"] for x in c.get("/api/conversations").json()]
+    assert open_one["id"] in live and done_one["id"] not in live
+    everything = [x["id"] for x in c.get("/api/conversations?done=true").json()]
+    assert open_one["id"] in everything and done_one["id"] in everything
+
+
+def test_approving_a_plan_in_the_app_carries_the_answers(world: World) -> None:
+    t = building(world, turn="j_1")
+    plan = world.plans.propose("P", "Body.", questions=[
+        {"text": "Daily or weekly?", "options": ["Daily", "Weekly"], "default": "Daily"}])
+    c = client(world)
+    home = c.get("/api/home").json()
+    shown = [i for lst in home.values() if isinstance(lst, list)
+             for i in lst if isinstance(i, dict) and i.get("plan") == plan["id"]]
+    assert not shown  # no proposal entry: this plan was made straight in the store
+    out = c.post(f"/api/plans/{plan['id']}/approve", json={"answers": {"0": "Weekly"}}).json()
+    assert out["state"] == "approved" and out["questions"][0]["answer"] == "Weekly"
+    assert "Weekly (their choice)" in out["approval"]
+    assert t  # the building tools fixture is unused here, kept for the world's shape

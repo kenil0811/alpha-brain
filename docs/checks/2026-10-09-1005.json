@@ -1,0 +1,36 @@
+{
+ "began": "2026-10-09T09:05:38.602Z",
+ "ended": "2026-10-09T09:05:43.206Z",
+ "pages": [
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 900,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 900,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 905,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

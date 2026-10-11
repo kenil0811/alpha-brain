@@ -106,7 +106,7 @@ Each item: **Now** (what the window does today) · **Should** (exact behaviour) 
 - **Core needs:** a route to rename a field, updating saved lists that refer to it.
 
 ### B3. Reset to the computed value, and forced edits
-*(Forced edits were set aside in Q35 because the core refuses such values; listed here so the decision can be revisited.)*
+*(Forced edits were set aside in Q39 because the core refuses such values; listed here so the decision can be revisited.)*
 - **Now:** "Reset to computed value" is disabled; the core refuses a value that isn't one of a
   field's choices or doesn't match its type.
 - **Should:** a person may type a value that departs from the norm (overrides a computed value,
@@ -525,7 +525,7 @@ These need the host, which this branch doesn't change.
 
 ---
 
-## G. From the owner's decisions on the audit (11 Oct 2026, Q38)
+## G. From the owner's decisions on the audit (11 Oct 2026, Q42)
 
 Nothing below was changed in the core; the window does the nearest honest thing until it is.
 

@@ -81,7 +81,7 @@ describe("the assistant panel", () => {
     const user = userEvent.setup();
     const { client } = setup({ plans: [PLAN] });
     await user.click(await screen.findByRole("button", { name: "Approve" }));
-    expect(client.approvePlan).toHaveBeenCalledWith("p1");
+    expect(client.approvePlan).toHaveBeenCalledWith("p1", undefined, undefined); // no questions or pieces to carry
     await user.click(screen.getByRole("button", { name: "Decline" }));
     expect(client.declinePlan).toHaveBeenCalledWith("p1");
     expect(client.approvePlan).toHaveBeenCalledTimes(1);

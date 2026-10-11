@@ -20,6 +20,27 @@ def building(world: World, *, turn: str | None = None, module: str | None = None
     return Tools(world, turn=turn, thread=thread["id"], module=module)
 
 
+def researching(world: World, *, turn: str | None = None, module: str | None = None,
+                conversation: str | None = None, ask: str = "i want a tracker") -> Tools:
+    """Tools acting inside a running research pass (Q37): the only place a plan is proposed.
+    The pass has one resolved finding, `f_ok`, a piece can cite."""
+    made = world.research.start("Test pass", ask, job="For the person; to decide things;"
+                                " nothing today.", conversation=conversation, module=module,
+                                turn=turn)
+    thread = world.modules.open_thread("Looking into: Test pass", "research", module)
+    world.research.begin(made["id"], thread["id"])
+    with world.store.tx() as db:
+        db.execute("INSERT INTO findings (id, research, angle, claim, quote, url, title,"
+                   " resolved, at) VALUES ('f_ok', ?, 'products', 'Such things have a list.',"
+                   " 'a list', 'https://example.com/a', 'Example', 1, '2026-10-09T00:00:00')",
+                   (made["id"],))
+    return Tools(world, turn=turn, thread=thread["id"], module=module)
+
+
+PIECES = [{"title": "A list", "what": "The things, one row each.", "evidence": ["f_ok"],
+           "kind": "kept", "build": "One table."}]
+
+
 @pytest.fixture
 def world(tmp_path: Path) -> Iterator[World]:
     w = World(tmp_path / "world.sqlite")

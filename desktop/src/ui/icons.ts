@@ -15,6 +15,7 @@ export {
   Table2,
   Ban,
   Sparkles as IntelligenceIcon,
+  MessageSquare as AssistantIcon,
   Settings as SettingsIcon,
   Plus as PlusIcon,
   GripVertical as GripIcon,

@@ -8,6 +8,7 @@ describe("addresses", () => {
       { kind: "module", id: "m_de9c" }, { kind: "record", module: "m_de9c", table: "deals", id: "r_1" }, { kind: "record", module: "m_de9c", table: "deals", id: "new" }, { kind: "intelligence" }, { kind: "intelligence", tab: "skills" }, { kind: "activity" }, { kind: "settings" },
       { kind: "skill", name: "linkedin_connections" }, { kind: "automation", id: "a_1" }, { kind: "agent", id: "ag_1" },
       { kind: "connection", id: "c_1" }, { kind: "fact", id: "f_1" }, { kind: "new-project" }, { kind: "entry", id: "j_1" },
+      { kind: "assistant" }, { kind: "assistant", id: "t_1" },
     ] as const) {
       expect(surfaceFromPath(`#${pathFor(s)}`)).toEqual(s);
     }

@@ -1,0 +1,21 @@
+name: research_pass
+title: A product ask is looked into before it is planned; the plan is a menu of pieces with evidence
+why: "Q37: the car wash module of 9 Oct was planned in two minutes from Alpha's own head and
+  built as a weighted average with no gates. A build ask gets a research pass: the job first,
+  then looks whose findings the core resolves by code, then a plan of pieces (kept for you,
+  your call, not this time) the person decides on. Nothing is built before the yes."
+steps:
+  - remove_module: "Car Wash Site Scoring"   # the 9 Oct module; the ask is made afresh
+  - say: "I want to build something similar to growthfactor.ai, for car washes in the US,
+      scoring sites from public data. It's for me, looking at sites for a car wash I might buy
+      or build; it should help me pick which sites to pursue; today I look at listings by hand
+      and I have no scorecard or site process. Look into it and propose it."
+checks:
+  - research: {state: done, looks_min: 2}
+  - plan: {state: proposed, pieces_min: 4, kinds: [kept, choice, wont], evidence_min: 3}
+  - no_new_tables: {}
+  - no_new_modules: {}
+steps_after:
+  - decline_plan: latest
+checks_after:
+  - plan: declined

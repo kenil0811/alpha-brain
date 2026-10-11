@@ -1,0 +1,57 @@
+[
+ {
+  "name": "plan_questions",
+  "title": "A plan's questions are on its card with their choices, or were asked as cards first",
+  "steps": [
+   {
+    "say": "I want to keep track of my runs: distance, time and how I felt, and see my weekly totals",
+    "ok": true,
+    "reply": "I've proposed a plan for a simple **Running** tracker — one table for date, distance, duration, how you felt, and notes, with weekly totals computed on request (or after every run, your call). Two quick choices on the card: miles vs. km, and whether I surface the weekly total automatically after each log or only when you ask. Say \"go ahead\" once you've picked, and I'll build it.",
+    "steps": 3,
+    "seconds": 65.0
+   },
+   {
+    "say": "Kilometres, and a short scale for how I felt. Go on and propose it.",
+    "ok": true,
+    "reply": "I've revised the plan: distance in km, and \"how I felt\" as a 5-word scale (Great/Good/Okay/Tough/Rough) rather than free text — let me know if you'd rather use numbers instead. One thing still open: should I show weekly totals automatically after each run, or only when you ask?",
+    "steps": 2,
+    "seconds": 58.7
+   },
+   {
+    "decline_plan": "Running Tracker",
+    "ok": true,
+    "state": "declined",
+    "seconds": 2.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "plan",
+    "arg": {
+     "state": "proposed",
+     "questions_min": 1,
+     "or_asked": true
+    },
+    "ok": true,
+    "why": "Plans: Running Tracker (replaced), Running Tracker (proposed). Questions on the plan: After you log a run, should I show the week's totals automat → ['Show totals automatically after each run', 'Only when I ask'] (pick Only when I ask).",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "plan",
+    "arg": "declined",
+    "ok": true,
+    "why": "Plans: Running Tracker (replaced), Running Tracker (declined).",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 125.9,
+  "error": null
+ }
+]

@@ -1216,3 +1216,46 @@ button.dash__seg:hover { background: var(--hover); }
 /* a chart's legend */
 .chart__legend { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm); color: var(--text-2); }
 .chart__swatch { width: 13px; height: 13px; border-radius: var(--radius-control); background: var(--primary); flex: none; }
+
+/* ---------- the Assistant page and the reply as it is written (main's Q35, 9 Oct; tokens on merge, 11 Oct) ---------- */
+.assistpage { display: grid; grid-template-columns: 280px minmax(0, 1fr); height: 100%; min-height: 100vh; }
+.assistpage__list { border-right: 1px solid var(--border); overflow: auto; padding: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
+.assistpage__head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) var(--space-2) var(--space-3); }
+.assistpage__head h2 { margin: 0; font-size: var(--text-md); }
+.assistpage__empty { padding: var(--space-1) var(--space-2); }
+.convrow { display: flex; gap: var(--space-2); align-items: flex-start; text-align: left; padding: var(--space-2); border-radius: var(--radius-control); border: 0; background: transparent; color: inherit; cursor: pointer; width: 100%; font: inherit; }
+.convrow:hover { background: var(--hover); }
+.convrow--active { background: var(--primary-soft); }
+.convrow__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.convrow__body b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convrow__last { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the page's conversation: a reading column of 860px centred in the space (the measure is a custom property, so the paddings stay tokens) */
+.assist--page { --assist-measure: 860px; border-left: 0; position: static; height: 100%; min-height: 100vh; }
+.assist--page .assist__body { padding: var(--space-6) max(var(--space-6), calc((100% - var(--assist-measure)) / 2)); gap: var(--space-3); }
+.assist--page .composer { padding: var(--space-3) max(var(--space-6), calc((100% - var(--assist-measure)) / 2)) var(--space-4); }
+.assist--page .msg { max-width: 100%; }
+.assist--page .msg--user { max-width: 80%; }
+.stepline { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--text-2); }
+.stepline li { display: flex; align-items: center; gap: var(--space-2); }
+.stepline__done svg { color: var(--good); flex: none; }
+.stepline__failed { color: var(--bad); }
+.working__partial { margin-top: var(--space-3); color: var(--text); }
+
+/* ---------- a plan's questions (main's Q36) and a researched plan's pieces (main's Q37) on its card ---------- */
+.planp { display: flex; flex-direction: column; gap: var(--space-3); margin: var(--space-2) 0 2px; }
+.planp__group { display: flex; flex-direction: column; gap: var(--space-2); }
+.planp__head { margin: 0; font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: var(--space-1); }
+.planp__item { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); }
+.planp__title { font-weight: 500; }
+.planp__what { font-weight: 400; }
+.planp__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-sm); align-items: center; }
+.planp__can { padding: 1px var(--space-2); border-radius: var(--radius-control); border: 1px solid var(--border); white-space: nowrap; }
+.planp__can--not_yet, .planp__can--needs { opacity: 0.8; }
+.planp__src { color: inherit; }
+.planp__opts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: 2px; }
+.planq { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.planq__item { display: flex; flex-direction: column; gap: var(--space-2); }
+.planq__text { font-weight: 500; }
+.planq__opts { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.planq__pick { font-weight: 400; opacity: 0.75; font-size: var(--text-sm); }
+.planq__other { flex: 1; min-width: 160px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); font: inherit; font-size: var(--text-sm); }

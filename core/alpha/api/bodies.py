@@ -15,6 +15,14 @@ class AskBody(BaseModel):
     conversation: str | None = None
 
 
+class ApprovePlanBody(BaseModel):
+    """The person's answers to a plan's questions, by number from 0; a question left out
+    keeps Alpha's default. `pieces`: keep / skip / defer by piece id (Q37); a piece left out
+    stands on Alpha's recommendation."""
+    answers: dict[str, str] | None = None
+    pieces: dict[str, str] | None = None
+
+
 class ConversationBody(BaseModel):
     module: str | None = None
     title: str | None = None

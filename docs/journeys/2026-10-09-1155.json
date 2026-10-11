@@ -1,0 +1,69 @@
+[
+ {
+  "name": "plan_questions",
+  "title": "A plan's questions are on its card with their choices, never only in prose",
+  "steps": [
+   {
+    "say": "I want to keep track of my runs: distance, time and how I felt, and see my weekly totals",
+    "ok": true,
+    "reply": "I've set up the question as a quick card — once you tell me a run's distance, time, and how it felt (or just confirm miles vs. km), I'll create the runs table and you'll be able to ask me for weekly totals anytime.",
+    "steps": 5,
+    "seconds": 78.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "plan",
+    "arg": {
+     "state": "proposed",
+     "questions_min": 1
+    },
+    "ok": false,
+    "why": "No plan was proposed.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 79.0,
+  "error": "Problem: No plan was proposed in this journey to build."
+ },
+ {
+  "name": "question_card",
+  "title": "A question Alpha asks in prose becomes a card the person answers in place",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "What did you have for lunch? Once you tell me, I'll look up the nutrition info and log it.",
+    "steps": 2,
+    "seconds": 6.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {},
+    "ok": true,
+    "why": "\"What did you have for lunch?\" with no options (the model's own)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\?"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 6.5,
+  "error": null
+ }
+]

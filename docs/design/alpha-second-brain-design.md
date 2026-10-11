@@ -381,9 +381,238 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `plan_propose` with a trial, `plan_approve` on the person's words or the card, `plan_resume`, `plan_decline`; the gate (`Tools._gate`) refuses making projects, tables, readers and automations outside a building plan; builds in the background from the brief with no limit, a stop, a resume, a trial and a coverage line; sources with statuses; pipelines. Agents, schedule first (Q33, 9 Oct): every automation is an agent's process with a goal, a page Alpha writes and the person edits (`agent:<id>`, read by the model when it steps into a run or a repair), a row per run in `runs` with a verdict judged by code (succeeded, partial, failed, and why), the model's time and the repairs counted, a broken reader repaired at most twice in a run, a failed run in the journal and the companion, the window's Agents tab and page. |
-| Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap; the only counter is two trial send-backs. |
-| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, deepen-in-background, the junk rules; of agents (Q33): event triggers, escalation to the person as a question, the digest, a brief per agent. (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
+| Built | `plan_propose` with a trial and its questions (choices and Alpha's default, on the card, answered before the yes and carried into the brief; Q36), `plan_approve` on the person's words or the card, `plan_resume`, `plan_decline`; the gate (`Tools._gate`) refuses making projects, tables, readers and automations outside a building plan; builds in the background from the brief with no limit, a stop, a resume, a trial and a coverage line; sources with statuses; pipelines. Agents, schedule first (Q33, 9 Oct): every automation is an agent's process with a goal, a page Alpha writes and the person edits (`agent:<id>`, read by the model when it steps into a run or a repair), a row per run in `runs` with a verdict judged by code (succeeded, partial, failed, and why), the model's time and the repairs counted, a broken reader repaired at most twice in a run, a failed run in the journal and the companion, the window's Agents tab and page. |
+| Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap; the only counter is two trial send-backs. Since 9 Oct (Q37, §6.3) step 1 is a research pass in the background, not one turn: the job's questions first, then `research_start`, and `plan_propose` works only inside the pass; the plan is a menu of pieces the person keeps, skips or defers. |
+| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, the junk rules; of agents (Q33): event triggers, escalation to the person as a question, the digest, a brief per agent. (Deepen-in-background became the research pass before the build, §6.3; a later pass over a built module is not built.) (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
+
+### 6.3 The research pass before a build (decided 9 October 2026; Q37)
+
+Why: the "Car Wash Site Scoring" module of 9 October. The ask was "something similar to
+growthfactor.ai" and four one-word answers; Alpha wrote the spec itself in two chat turns,
+planned in two minutes and built in fourteen: five tables, one worked example, a recipe in the
+note, no skill and no automation, and a weighted average with no gates that called a site with
+nine washes within 2.7 miles "Favorable". The person said yes to Alpha's own proposal. Compared
+with a site engine a friend built over a week from the client's own process documents (gates
+first, trade areas, a map, a per-site report), the gap was in kind, not polish. Kenil: Alpha
+should scan what could help, how well each piece can be built, suggest it, and let the person
+decide; not time-boxed deliveries, and not the friend's everything-list either. The evidence is
+in `research/research-before-build.md`: silent assumption is the default failure (models fill
+unspecified requirements silently 41% of the time); research before building measurably helps
+only when its output is checked; goal questions are worth asking only before the work; people
+tolerate a round of about 4–7 specific questions with choices; no builder on the market
+researches alternatives before proposing; good product people pre-keep the table stakes, offer
+the differentiators as a few choices with a recommended default, and name the won't-haves.
+
+**The job, first.** Step 1 of §6 begins with the questions research cannot answer and that
+change the goal: who uses it, what decision it serves, what happens today, what already exists
+(a process, a scorecard, files, a module of Alpha's). Asked as cards with choices, only the ones
+not already known, before any work; never during a build.
+
+**Alpha looks into it, in the background.** Every build ask gets a research pass, its breadth
+scaled to the ask by rule (a simple log: one look; a product-like thing: what the products in
+this space have, what the trade's own practice says, what open data and open-source tools exist,
+and what the person's own world already holds). It is a thread of kind `research` with its own
+session, started by `research_start` from the conversation and run by the scheduler like a
+build, with no limit and a stop. A lead run plans the looks; each look (`research_look`) is an
+independent run with web search only that reads sources and returns findings, each a claim with
+the quote and the page it came from; the core resolves every page by code, keeps the findings
+with the research, and journals what was looked at. The lead merges; a plan may only cite
+findings Alpha actually read, and a piece whose evidence did not resolve is refused, because the
+merge is where research errors come from. The person is told it takes a few minutes and can
+stop it; a plan is never proposed on a timeout.
+
+**The menu is the plan, one yes.** `plan_propose` works only inside a research thread (or for a
+revision of a researched plan), and a researched plan carries **pieces**, each with what it is,
+why it matters for the job, its evidence, how it would be built here, whether it can be built
+now (now; needs a sign-in, a file or a key; not yet, and why), Alpha's recommendation, and its
+kind: *kept for you* (table stakes, pre-kept as one block), *your call* (the differentiators, a
+few, each with why you might and might not), *not this time* (named and kept). The card shows
+the three blocks with keep / skip / defer on each piece and the questions as before, only where
+the products genuinely differ and the answer depends on the person; the button reads "Build
+with these"; the decisions go into the brief the build reads. The trial is the person's job in
+their own words from the first step, not one Alpha invented. The pieces deferred or skipped go
+on the module's page under "Not this time" when the build finishes, so a later pass can bring
+them back; the findings become a page of the wiki for that kind of thing (`topic:`), Alpha-built
+know-how for the next similar ask. A research pass has a verdict judged by code: succeeded
+(every piece's evidence resolved and the plan proposed), partial (some evidence dropped), failed
+(no plan).
+
+What this does not change: computed things (a gate, a weighted score over rows, a report page)
+are still "not yet" in the menu; that column is the measure of which capability to add next.
+"Agents" stays the word for a module's recurring processes (Q33); this is a pass.
+
+| Status (9 Oct 2026; detail in `../log/2026-10-09-research-pass.md`) | |
+|---|---|
+| Built | The job's questions in the rule; `research_start` from the conversation with the job; the pass as a `research` thread run by the scheduler like a build (no limit, a stop, a continue from the brief, waits when it asks the person, fails after three runs without a plan and says so); `research_look` as an independent web run whose findings the core resolves by code and keeps (`research`, `findings`); `plan_propose` only inside a pass (or a revision of a researched plan), with pieces checked against what was read; the card's three blocks with keep / skip / defer, the sources, whether a piece can be built now, the questions, "Build with these"; the decisions in the brief; "Not this time" on the module's page after the build; the findings as a `topic:` page; a verdict by code per pass; the `research_pass` journey. |
+| Differs | The pass starts when the job is known: the turn asks the job's questions first and starts the pass on the answers (the design's "research starts at once and the answers steer the merge" is not built: one mechanism, the person waits for themselves, not for Alpha). The merge is checked by the citable rule (a piece cites only findings whose page answered), not by a second opinion on the plan. |
+| Not built | A piece's buildability feeding what capability to add next (it is data on the plan, nothing reads it yet); a later pass that brings deferred pieces back; the Scout for a specific ask with no card (every build ask goes through the pass, breadth scaled by the lead's judgement). |
+
+### 6.4 Modules as programs: the workspace, the design document, milestones (decided 10 October 2026; Q38)
+
+Why: after the research pass (§6.3) the second car wash build was still one table of 22
+columns, one row, and a recipe in the note that the model re-executes by hand per address. The
+plan was grounded; the build had nowhere to put what the plan described. Alpha's know-how had
+three kinds (a page reader, a site procedure, a pipeline of readers), none of which can hold a
+data layer, a join over thousands of rows, a gate, a formula or a calibration, so the build
+rule itself said to write such things as prose. Kenil's bar is the Waterways site engine a
+friend built with Claude Code over a week (`~/Desktop/dev/project-waterways-main-2`): per-metro
+data layers, gates first then a weighted score calibrated to the client's own site process and
+benchmark stores, a filterable table with saved lists, a map, a per-site report of about
+seventy-five rows each with value, source, method and confidence, a settings page for every
+parameter, exports; and a process (research documents → a PRD → v0 → rebuilt around the
+client's inputs → a depth roadmap) in which the human steered at every stage. "Okay if it's
+not one shot, but it should be like this." He said yes to four things: modules as programs in
+a workspace Alpha codes in; a design document agreed stage by stage; milestones that each end
+in a real result he opens; a module's own settings page. He asked for the prior art first;
+it is in `research/modules-as-programs.md` and every choice below cites it.
+
+**A module is a workspace.** Under Alpha's home, `modules/<id>/`:
+
+- `DESIGN.md`, the design document (below); `milestones.json`, the machine-checked list of what
+  the build delivers, each item with its acceptance steps and a `passes` flag that only the
+  evaluator flips (JSON because a model tampers with it less than Markdown); `PROGRESS.md`,
+  append-only: what each session did, decided and left. The three artifacts Anthropic's and
+  OpenAI's long-running harnesses both converged on, with distinct jobs.
+- `inputs/`, the person's own files (a process document, a scorecard, a store list, data),
+  read-only; `pipeline.py`, plain Python functions wired as a DAG by Hamilton, so what is
+  upstream and downstream of any value is queryable and the code stays ordinary functions;
+  `data/<layer>.parquet` (GeoParquet) with `data/<layer>.provenance.json` in Data Package
+  shape (sources, fetch URL and parameters, fetched at, vintage, licence, rows, hash, the
+  function that made it); `module.duckdb`, the module's database (DuckDB, pinned, its
+  extensions shipped with the app), whose derived tables carry a source and a method column
+  beside every scored value; `settings.json` with meta per parameter (label, unit, range,
+  help), the person's; `pages.yaml`, the declared surfaces; `jobs.yaml`, what runs when (each
+  job is an agent of Q33, with a verdict per run); `selftest.py` and pointblank plans per layer;
+  a git repository, one commit per milestone.
+- The world store keeps the record, never the data: the module row, its pages, its runs and
+  verdicts, the journal, the index of provenance. The person's own tables stay in the world;
+  the module reads them through DuckDB (the world file attached read-only) when the design
+  says so. Removal deletes the workspace; the journal stays (§7).
+
+**The walls.** A build run is Claude Code with its file and shell tools, inside Claude Code's
+own sandbox driven by Alpha's `--settings` JSON (verified on this Mac with the flags Alpha
+already passes): deny-default Seatbelt, writes only inside the workspace (never `.claude`,
+`.git/config`, rc files), reads denied for secrets and for Alpha's own world file,
+credentials denied, no unsandboxed fallback, fail if the sandbox is unavailable, Apple Events
+off. Network only to the hosts the design names for the current milestone, through Alpha's
+own proxy, which journals every request as `saw`; hostnames narrow (`api.census.gov`, not
+`*.gov`). The non-shell tools are walled by policy (`--tools`, reads confined to the
+workspace, `WebFetch` by domain), and an unattended build is wrapped in `srt` so the whole
+process is inside the wall. A blocked operation comes back to the model as a named constraint
+(so it escalates instead of retrying) and to the journal. Acting outward stays one way only:
+through actions with the person's yes (§6.1); a module's code never sends. No Docker, no VMs:
+not practical on a person's Mac today. The sandbox's semantics are re-read at every pinned CLI
+version bump; the two earlier escapes in the prior art both came from allow-default profiles.
+
+**The design document.** Before any build, Alpha and the person agree `DESIGN.md` stage by
+stage; each stage is a page in the app with Accept / Revise, editable by the person, and the
+conversation about it is the stage's thread. The stages, in order:
+
+1. *The job and the user*: who uses it, what decision it serves, what happens today, what
+   would make it a failure (the questions of §6.3, kept as text).
+2. *What Alpha found*: the research pass's findings and pieces (§6.3), now one stage of the
+   document rather than the whole plan.
+3. *Your inputs*: Alpha asks for the person's own process, scorecard, lists and data, reads
+   them in (§6.2) and writes what they say; the Waterways edge was the client's own gates and
+   four benchmark stores, and Alpha asks for the same.
+4. *The data model*: entities, tables, relations, keys.
+5. *Where every value comes from*: per column, the source, the method, the freshness, what
+   needs a key or a file, what cannot be had (and the host list the sandbox will allow).
+6. *The method*: gates first, then a score; the parameters and their defaults; calibration
+   against the person's benchmarks; what is an estimate and says so.
+7. *The surfaces*: which pages, from `pages.yaml` (below).
+8. *The operating loop*: what runs when, what needs the person, what is told and how.
+9. *Milestones*: each a real result the person can open, in order, with its acceptance
+   checks; the first is always small.
+10. *Open questions*: anything unresolved; an open question that changes the shape blocks the
+    stage's acceptance (Spec Kit's markers, BMAD's intent gaps).
+
+Alpha proposes each stage from the research and the inputs; the person discusses, changes,
+skips or defers; nothing is written to the next stage until the current one is accepted. The
+accepted document is frozen for a milestone; a change is a revision the person accepts, never
+a silent edit by the builder.
+
+**Milestones.** One milestone per build session, from a fresh context: the design document,
+`milestones.json`, `PROGRESS.md`, the git log and a smoke check of the previous milestone;
+the builder does the one highest-priority milestone, commits, writes progress; it ends with a
+*stuck* outcome (what it tried, what blocks it) rather than retrying. Done is never the
+builder's word: a separate evaluator run with a skeptical brief runs the module's self-test and
+the milestone's scripted checks (the layer exists with this many rows; the score of the
+benchmark store lands in its band; the page renders in the desktop check), drives the real
+pages, and only it flips `passes`; an LLM opinion is the last check, not the first (three in
+four "done" claims in the prior art were false, and judges barely beat chance). Then the
+person opens the result and accepts or revises before the next milestone starts. The person
+can stop a build at any point, as now; a session that stalls (no tool use, no diff) is
+reported, not retried. Time is measured per milestone and quoted, never promised.
+
+**The surfaces.** `pages.yaml` is a small contract Alpha's shell renders, catalog-only (the
+A2UI rule, the json-render shape: a flat list of pages, each bound to a declared SQL source
+over the module's database), five kinds: `table` (the existing views, saved lists and item
+pages, plus Datasette-style facets and CSV), `map` (MapLibre with PMTiles and an OpenFreeMap
+style, offline; GeoJSON layers from DuckDB `ST_AsGeoJSON`), `report` (sections of rows with
+value, source, method, confidence and, where there is one, the benchmark; rendered in the app
+and exported to PDF through Typst), `settings` (the module's parameters from `settings.json`
+with their meta; saving re-runs the steps downstream of what changed, by the DAG), `export`
+(CSV, Markdown, PDF). Never an iframe per module, never a Python server per module: one shell,
+one theme, one set of filters, offline.
+
+**The data layer's defaults** (the prior art's recommendations, not rules the platform
+imposes): Python with pinned DuckDB and its spatial, httpfs and h3 extensions shipped by
+`just ship` for that version; GeoParquet per layer; Hamilton; `provenance.json` per layer and
+source and method columns on derived values; pointblank plans and a `selftest.py`; reuse
+`census`, `pygris`, `overturemaps`, `esridump`'s pagination strategies and OSMnx rather than
+rewriting them; ArcGIS REST read as GeoJSON through `read_json` with the caller paginating
+(`ST_Read` over a URL does not work). Freshness per source from `fetched_at` and the source's
+vintage; health per layer from its plan; a module's scheduled jobs are Q33 agents with
+verdicts, repaired by the model on breakage.
+
+**What does not change.** Nothing per use case in the platform: the engine is Alpha's build,
+per module, inside walls the platform owns (Q17). Plan first (Q19), now a document and
+milestones instead of one card. Known, assumed or asked (Q20): provenance per value is checked
+by the evaluator, not asserted. Removal deletes everything related, the journal never (§7). No
+caps (Q18): "stuck" and "stalled" are judgements of a failure, named as such; the person stops
+what isn't going anywhere. And one rule is reversed: "modules are tables, know-how is
+pipelines" becomes "modules are programs and data; a reader or a pipeline is the simple
+case".
+
+**The car wash ask, walked through.** "I want to build something similar to growthfactor.ai,
+specifically for car washes."
+
+- *Stage 1.* Alpha asks: who uses it (you, looking at sites for a wash you might buy or
+  build); what it decides (which sites to pursue, in which metro); what happens today
+  (listings by hand); what would make it a failure (a score you can't defend to a lender).
+- *Stage 2.* The research pass (as on 9 Oct): what GrowthFactor, Placer and SiteZeus show;
+  how operators decide (gates: households within 3 mi, density, 10-minute drive population,
+  site and intersection traffic; then a scorecard); the open data (ACS block groups, state DOT
+  counts, Overture places, FEMA, county parcels); your Deal Tracker module.
+- *Stage 3.* Alpha asks for your inputs: a site process or scorecard if you have one, a list
+  of stores or sites you consider good, any metro you want first. If none, it says so and
+  proposes the trade's thresholds as defaults, marked as such.
+- *Stages 4–6.* The data model: metros, block groups, parcels, traffic segments, washes,
+  anchors, candidates, scores, pipeline stages. Per value its source and method. The method:
+  six gates with defaults and your overrides; a 0–100 score over what passes; calibration
+  against your benchmark sites when you give them. What can't be had: foot traffic (paid),
+  zoning outside counties that publish it, your pro forma.
+- *Stage 7.* Pages: a Sites table with facets and saved lists; a map of candidates over
+  parcels, traffic and washes; a per-site report; Settings for gates and weights; a Pipeline
+  board; exports.
+- *Stage 8.* The loop: a monthly refresh of places and counts as an agent; a new metro on
+  request; a flag when a planned wash appears near a candidate.
+- *Stage 9, the milestones.* M0: one metro (the one you name), the block-group and traffic
+  layers built by code with provenance, one scored address you can open, the self-test green
+  (hours, measured). M1: every commercial parcel in that metro screened by the gates, the
+  Sites table and the shortlist with why each near-miss failed. M2: the map and the per-site
+  report. M3: Settings, your gates and benchmarks fitted, the pipeline board. M4: a second
+  metro, the refresh agent, exports. Each ends with you looking at real data.
+- *Stage 10.* Open: which metro first; your thresholds or the trade's; the intersection count
+  method; whether a Census key is yours to get.
+
+Then M0 builds, the evaluator judges it, you open it, and M1 starts when you say.
+
+| Status (10 Oct 2026) | |
+|---|---|
+| Not built | Everything in this section; the design is agreed, the order of work is open (below). |
+| Open engineering questions | The journaling proxy and the `--settings` ports (a CLI pin bump to ≥2.1.285 for proxy ports); `srt` shipped with the app; DuckDB pinned with its extension files in `just ship`; a Range-capable Tauri protocol for PMTiles; git per workspace; the evaluator as a run kind; the desktop's map, report and settings pages; how a module's tables sit beside world tables in the rail; the time and tokens of one real milestone, measured on M0 of the car wash. |
 
 ### 6.1 Acting outward (decided and built 2 October 2026, evening; Q24)
 
@@ -537,11 +766,11 @@ The workspace is where the person *works* — their tables, their flows, their c
 
 | Status (9 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | The window by `ui-rulebook.md` (Q35): one frame with a shared header line, panels that fold to strips; the sidebar (workspace with its name and logo edited in place and Activity's bell, Home, Network with People and Organizations, projects in the person's order with their icons, New, Intelligence, Settings); project pages with Files, Intelligence and Governance (Always and Never rules, saved only); one data view after Notion's database (view tabs, advanced filters, sorts, groups, properties, layouts, peeks, a footer calculation per column, bulk edit, grid keys, conditional colour, nine views including the Dashboard) used by projects and by Intelligence's lists alike; a page per record with Save and Discard and History; Home's Today card (Needs you with Approve and Veto, Alpha is working on, Coming up); Intelligence's Second Brain (an egg-shaped graph, with Facts and Map as its other views), Agents (Q33's agents, each wearing a companion), Skills, Connections; Settings as a grid; the panel with its picker and composer; the companion with presence, its looks and moods. |
-| Differs | Activity is a bell beside the workspace name, not a rail item or a tab. Approval is per proposal, Approve or Veto; plans and actions do not yet carry an expected outcome or success criteria. Record notes are wiki pages with a per-record topic. The window's minimum is 1100×560. |
+| Built | The window by `ui-rulebook.md` (Q39): one frame with a shared header line, panels that fold to strips; the sidebar (workspace with its name and logo edited in place and Activity's bell, Home, Network with People and Organizations, projects in the person's order with their icons, New, Intelligence, Settings); project pages with Files, Intelligence and Governance (Always and Never rules, saved only); one data view after Notion's database (view tabs, advanced filters, sorts, groups, properties, layouts, peeks, a footer calculation per column, bulk edit, grid keys, conditional colour, nine views including the Dashboard) used by projects and by Intelligence's lists alike; a page per record with Save and Discard and History; Home's Today card (Needs you with Approve and Veto, Alpha is working on, Coming up); Intelligence's Second Brain (an egg-shaped graph, with Facts and Map as its other views), Agents (Q33's agents, each wearing a companion), Skills, Connections; Settings as a grid; the panel with its picker and composer; the companion with presence, its looks and moods. From main (Q35–Q37, 9 Oct): the Assistant page (`#/assistant[/<id>]`, from ⌘K; the conversation at full width with every conversation down the left, the side panel folded while it is open); the reply shows as it is written, with the steps so far; a question left in prose becomes a card with choices, by mechanism; a plan's questions (Q36) and a researched plan's pieces (Q37) on its card and on Home's proposal, carried with Approve. |
+| Differs | Activity is a bell beside the workspace name, not a rail item or a tab. Approval is per proposal, Approve or Veto; plans and actions do not yet carry an expected outcome or success criteria. Record notes are wiki pages with a per-record topic. The window's minimum is 1100×560. The Assistant page is not in the sidebar (rulebook rule 3: no extra destinations); main put it above Intelligence. Hidden windows keep polling (checkpoint). |
 | Not built | The digest; decide-once; Undo of Alpha's actions; the checklist; per-source forget; launch at login; speech out. From the rulebook, needing the core: project rename and delete, removed projects, several workspaces, conversation delete, adding a field, the data-sharing notice, editing a skill or an agent's fields, a file's content (a CSV's edits saved back), Governance's rules read by the runtime. By decision: forced edits, the Task manager as the first project, the Mac title bar. |
 
-**Layout and look stay as they are today** — superseded by Q35 (9 October): the window follows `ui-rulebook.md`. (Kenil, 1 October, after seeing a lighter redesign: "keep it similar to current alpha"): the 224px rail with the brand mark, Home, Activity, projects, projects, New and the theme control; serif headings and metric numbers; the project page with its App · Activity · Settings toggle and subtabs; the table toolbar with view toggles and the record drawer; the 380px assistant panel with its header and "uses your Claude subscription" footer; the blob companion with its bubble. The new content (Needs you, the brief, People, threads, provenance, undo, Knowledge) is placed inside that structure. Prototype: https://claude.ai/artifact/5xNamEYxSyYRoGtnX7bQyQ.
+**Layout and look stay as they are today** — superseded by Q39 (9 October): the window follows `ui-rulebook.md`. (Kenil, 1 October, after seeing a lighter redesign: "keep it similar to current alpha"): the 224px rail with the brand mark, Home, Activity, projects, projects, New and the theme control; serif headings and metric numbers; the project page with its App · Activity · Settings toggle and subtabs; the table toolbar with view toggles and the record drawer; the 380px assistant panel with its header and "uses your Claude subscription" footer; the blob companion with its bubble. The new content (Needs you, the brief, People, threads, provenance, undo, Knowledge) is placed inside that structure. Prototype: https://claude.ai/artifact/5xNamEYxSyYRoGtnX7bQyQ.
 
 ---
 
@@ -628,14 +857,18 @@ Carried over with their tests, and only where the design calls for that exact th
 | **Q28** | Ideas from a contributor's pull request come in as concepts rebuilt on main in Alpha's conventions, never as code copied over; the pull request is credited in the log. The first set (the table views, the UI kit, self-hosted fonts, resizable panes, addresses for pages, ⌘K on search, Intelligence item pages read-only for know-how, fact provenance, the project's page on its tab, quick entry, a desktop acceptance check, the UI rules) is §8 of that review. A knowledge graph is wanted but designed first. | 3 Oct, with Kenil. |
 | **Q29** | A graph, in two steps (3 Oct 2026, from `knowledge-graph-proposal.md`): first a map of Alpha's own work (projects, tables, skills, automations, sources, connections; the world's own kinds of relation, each with its source), computed on each ask and drawn with a force layout in a worker (`d3-force`, the one library); the graph of the person's world (people, documents, pages) only after readers declare their rows as people, because measured on 3 Oct it would have been twenty dots and seven lines. Edges never come from similarity or embeddings: facts with a source, as everything here. |
 | **Q30** | The map of the brain (3 Oct 2026, after the map of work was built): what Kenil wants from a map is "what my brain is, what's concentrated, what's important, what's not linked", so the default view is the person's world (themselves, their areas weighted by what happened, tables, documents, pages, goals, people and organisations, and the links between them), with the map of work kept as a toggle. Links Alpha infers are allowed as a trial, as suggested `related_to` facts with a reason and a source, dashed until the person says yes, never from similarity, dropped unless grounded in the evidence. The map asks the core only on first open and on Refresh, never on a clock; Refresh also runs the link-finding pass. |
-| **Q31** | Projects nest (3 Oct 2026, night, Kenil: "nested projects/modules", like Job holding a Search project and a Resume project). One concept, not two: a project may sit inside a project, to any depth, by a `parent` (nothing per level). What a project owns stays its own; a parent is the place that holds its children: its page shows them, its summary, activity, automations and sources roll them up, a conversation on it reaches the whole subtree, the pack lists the tree with the sentence's own branch first, the maps draw the nesting, removal takes the subtree. Alpha makes a project inside another (`module_create` with `parent`) or moves one (`module_move`); the person moves one in its Settings ("Where it sits"). Revises the conversations round's "no projects above projects" (the `project` column stays unused; since Q37 the person's word for a project is "project"). | 3 Oct night, when the areas Kenil keeps turned out to have parts. |
+| **Q31** | Projects nest (3 Oct 2026, night, Kenil: "nested projects/modules", like Job holding a Search project and a Resume project). One concept, not two: a project may sit inside a project, to any depth, by a `parent` (nothing per level). What a project owns stays its own; a parent is the place that holds its children: its page shows them, its summary, activity, automations and sources roll them up, a conversation on it reaches the whole subtree, the pack lists the tree with the sentence's own branch first, the maps draw the nesting, removal takes the subtree. Alpha makes a project inside another (`module_create` with `parent`) or moves one (`module_move`); the person moves one in its Settings ("Where it sits"). Revises the conversations round's "no projects above projects" (the `project` column stays unused; since Q41 the person's word for a project is "project"). | 3 Oct night, when the areas Kenil keeps turned out to have parts. |
 | **Q32** | A second way to think: ChatGPT through the Codex CLI on the person's own subscription, beside Claude through Claude Code (3 Oct 2026, night, Kenil: "similar to using claude subscription, can we add chatgpt subscription route as well?"). One route (`runtime/route.py`) in front of two runners with the same request; the person chooses in Settings (Thinks with), Claude when unset; the model tier is one alias the runner translates. Each runner keeps its own guard: Claude's allowed tools, Codex's read-only sandbox with approvals never and Alpha's rules as its standing instructions. The same caveat as Q1 for anyone but Kenil: a third-party app signing in to ChatGPT needs OpenAI's say, as claude.ai needs Anthropic's. | 3 Oct night; his Codex sign-in had lapsed, so the route is proven by tests until he signs in. **8 Oct:** Codex refuses Alpha's tool calls under its own approval gate ("user cancelled MCP tool call", seven of seven in Kenil's 8 Oct conversation; only bypassing its approvals and sandbox lets one through), and the model talked over the refusals; the route is off until it passes a real tool call, and switching routes will run one first. |
 | **Q33** | Agents (8 Oct 2026, after four days in which the schedules ran only when the laptop woke, the ChatGPT route cut Alpha off from its own tools, and a project build was claimed approved that never was). Intelligence stays with the model; recurring standard work is code Alpha manages, the model repairs it. An automation whose procedure only reads into tables must be steps. An **agent** owns one recurring process of a project: a goal and scope, triggers (schedule first, events later), tools (its workflows, Alpha's reading tools in its project, acting only through actions with the yes), a guidelines page Alpha writes and the person edits, memory (brief, page, runs, facts), success and failure declared and judged by code with a verdict per run, a failure policy in code (retry, repair, escalate), and reporting (a line per run, the digest, the companion). The loop runs the workflow with no model and calls the model only on breakage, novelty, judgement or the person's ask. One agent per process; Alpha orchestrates; agents share the world and do not talk to each other yet. Built schedule-first on 9 Oct (`../log/2026-10-09-agents.md`): goal, page, runs with verdicts by code, the repair policy, reporting; triggers by event, escalation as a question and the digest left. | 8 Oct 2026 (`../log/2026-10-08-what-went-wrong-and-agents.md`). |
 | **Q34** | Alpha on another Mac (9 Oct 2026, after Kenil shared the app with a friend and it didn't work: the bundle held only the window, the core ran from the repository's uv environment at a path compiled into the binary, and nothing Alpha needs was installed by Alpha). A shipped Alpha (`just ship`) carries its runtime inside the bundle: uv's standalone Python with the core and its locked packages, the official Node binary, the connectors with the browser driver and Playwright's installer; the host uses that runtime when it finds one in its own resources, the repository otherwise, and clears macOS's quarantine mark from its runtime itself. What the person must have is asked for inside the window on first run: Claude Code (Install, Sign in with their own subscription) and Alpha's own browser (Install: Chromium, about 250 MB); sign-in windows open in their Chrome when they have it, else in that Chromium. Not notarized: Kenil has no Apple Developer account and is fine with right-click › Open for now; Apple silicon only, macOS 14+. | 9 Oct 2026 (`../log/2026-10-09-fresh-mac.md`). |
-| **Q35** | The UI rulebook (9 Oct 2026, Vikas): the window follows `ui-rulebook.md` — one frame with a shared header line, the sidebar's fixed order, one standard data view (toolbar order, table menus, the add row, a Dashboard view whose every visual has a call to action), full record pages with Save and Discard, Approve and Veto on every proposal, serif in four places, absolute dates. It supersedes §8's "layout and look stay as they are today" (1 Oct). Built in the window only: nothing in the core, the host or the store changes, and a rule that needs the core shows its control disabled with the reason. Not adopted, by decision: forced edits (the core refuses a value outside a field's choices or type), "Task manager is always the first project" (the platform knows no domain), the Mac title bar (the host is not touched). People & Companies stays a destination of its own, drawn as a project in the sidebar. |
-| **Q36** | The UX guidelines v2 folded into the rulebook (9 Oct 2026, Vikas, from `Exploration/UX_Guidelines_Platform.md`): Notion is the reference product; one section fills the screen (Files, Intelligence and Governance move from below the table into header tabs; the metrics strip folds by default); comfortable rows and buttons and larger text; sentence case, no tiny capitals; ⋯ everywhere; a row click opens at once (edit by Enter, F2 or a visible control); record pages save as you go; a star default on every dropdown; footer summaries by column type; the assistant confirms the goal when unclear, offers Quick overview and Deep thinking (model choice to Settings), saves every output as a file, approves a plan once and suggests Always allow; plain subtitles for product names; Decline for Veto; Estimated and Assumed as words; disabled reasons on focus and click; red only for problems; the principles as §19. Rulebook text only; the window still follows the earlier text until built. | 9 Oct, after the rulebook was built and compared with the guidelines: stacked sections, compact density and tiny capitals worked against calm and readable. |
-| **Q37** | The owner's second review of the window (9 Oct 2026, Vikas): projects are called **projects** and sub-projects **sub-projects** in every word a person reads and in the docs (the code, the store and the build plan keep `module`; logs keep the word they were written with); Files, Intelligence and Governance go back **below the table** (reverses Q36's header tabs) and an empty project or Network tab still shows one empty table; **⋮** (vertical) is the one more glyph (reverses Q36's ⋯); the toolbar puts Filter on the right beside ⋮ with frequent actions between and Sort inside ⋮; every dropdown has search, a star for the default and Add new (which asks the assistant when building is needed), and highlights the selection instead of a tick; record pages save as you go **and** show Save, Cancel for a new record, and "Last saved"; no name repeats twice in one flow; New project opens a page and asks the assistant to build; Settings gets its section list back with Overview first; the bell moves to the assistant's header; the workspace defaults to "Kenil's workspace". Window only. | 9 Oct, after using the Q36 window: the tabs hid the sections he expected, dropdowns mixed ticks and stars, a new record couldn't be cancelled, "Deals › Deals" repeated. |
-| **Q38** | The owner's decisions on the UX audit of the window (11 Oct 2026, Vikas, from `ux-audit-pr5/README.md`): Notion-sized type and spacing on a 4px grid (body 14px, nothing under 12px for reading); no subtitles anywhere, explanations under (i); one shared toggle for page- and section-level switches (rule 4); double-click edits a cell (rule 23); relative dates allowed with the absolute one on hover (rule 16); every delete confirms in a dialog, a conversation's Delete sits in its ⋮; Add list is a page with Save and Cancel, and toolbar changes stay temporary until saved to the list; Download exports what is shown; every dropdown has Add new…, which asks the builder in the page's conversation when the window can't add it itself; the setup card on Home only; the workspace logo is its own mark (its first letter, or a logo), never the avatar, and avatars show the whole companion, not a zoomed face; a project's icon comes from its name and purpose, never a generic table; Settings keeps its section list on the left at every size; an empty sidebar offers New project; the folded sidebar names each icon below it in small type; no peek panel, no companion hop, metric tiles plain; one visual element per function; Workspace is the account in use and Organizations are real organisations; Home is exempt from rule 1. Window only; what needs the core is in `core-changes-for-the-window.md` §G. | 11 Oct, after the audit found 53 lapses the builder's own review had passed: tiny type at real sizes, one-click deletes, subtitles, switches that wrapped letter by letter, raw server errors. |
+| **Q35** | The conversation, closer to Claude (9 Oct 2026; Kenil: "questions are often just asked, there are no multiple choice options, it's flaky, i want the chat interface to be really seamless like claude", and a full-screen Assistant page above Intelligence). Measured first on his world: in a week, 23 replies ending with a question in prose against 2 ask cards, though the card and the rule existed. Decided: the reply's text shows as it is written (`--include-partial-messages`), with the steps so far inline and the first words' time measured per turn; a question left in prose becomes a card by mechanism, with options from the reply's own list, else from the System One seam when it is a choice, none when it is open (the rule to the model stands, the mechanism does not depend on it); the Assistant page is the same conversation at full width with every conversation, live and finished, down the left. Left for later from the same discussion: one automatic retry of a transient failure with a Try again card, identical replies collapsed and a stopped build posting once, long replies folded, copy and edit-and-resend, a plus for files in the composer, whether one stream should replace the per-page conversations. | 9 Oct 2026 (`../log/2026-10-09-chat.md`). |
+| **Q36** | A plan's questions with their choices (9 Oct 2026; Kenil, on the first plan on the Assistant page: "when there are questions, why give build option? … if there are default, those should be visible"). A plan's questions are part of the plan: text, 2 to 4 choices, Alpha's default; the model puts them on `plan_propose`, and questions it leaves in the text are read out by the core with the seam supplying choices and the plan's own lean. The card shows them with Alpha's pick selected, the button reads "Build with these", and the answers (or the defaults, named as such) go into the brief the build reads. | 9 Oct 2026 (`../log/2026-10-09-plan-questions.md`). |
+| **Q37** | The research pass before a build (9 Oct 2026, after the car wash module: Alpha wrote the spec itself from a one-line ask and four one-word answers, and built a weighted average with no gates in fourteen minutes; Kenil: "it needs to be a proper module… alpha should do a good scan of what all could potentially be helpful for such a product, and how well can it be built, and suggest those to the user so that they can decide"). Decided, with the evidence in `research/research-before-build.md`: the job's questions first, as cards, only the ones not known; every build ask gets a research pass in the background, breadth scaled by rule, each look an independent web run returning findings the core resolves by code; the plan is a menu of pieces (kept for you, your call, not this time) with evidence, how it would be built, whether it can be built now and Alpha's recommendation, decided with keep / skip / defer and one yes; `plan_propose` only inside a research thread; deferred pieces kept on the module's page; findings kept as a `topic:` page. Research first; computed things (gates, scores over rows) are a later slice, and the menu's "not yet" column is the measure of what to add. Kept apart from Q33's agents in name. | 9 Oct 2026 (`../log/2026-10-09-research-pass.md`). §6.3 |
+| **Q38** | Modules as programs (10 Oct 2026, after the second car wash build: the research pass worked, the build was still one table and a recipe, because a module had nowhere to hold a program; Kenil: "i dont want a half ass working solution … look at the module built by my friend … it should be like this", and "i dont want to reinvent the wheel"). Decided, four yeses: a module is a workspace Alpha codes in (program, data, declared pages) inside Claude Code's own sandbox driven by Alpha's settings (deny-default, writes in the workspace only, network only to the design's hosts through Alpha's journaling proxy, secrets denied, `srt` for unattended runs); a design document agreed stage by stage (job → findings → the person's inputs → data model → sources per value → method with calibration → surfaces → loop → milestones → open questions), frozen per milestone; milestones one per fresh session, each ending in a real result the person opens, done decided by a separate skeptical evaluator with scripted checks first; a `pages.yaml` contract of five kinds rendered by the shell (table, map, report, settings, export); the data layer's defaults DuckDB + GeoParquet + Hamilton + provenance per layer + pointblank; a module's own settings page is the person's, not a platform knob. Prior art in `research/modules-as-programs.md`. Reverses "modules are tables, know-how is pipelines". | 10 Oct 2026 (`../log/2026-10-10-modules-as-programs.md`). §6.4 |
+| **Q39** | The UI rulebook (9 Oct 2026, Vikas): the window follows `ui-rulebook.md` — one frame with a shared header line, the sidebar's fixed order, one standard data view (toolbar order, table menus, the add row, a Dashboard view whose every visual has a call to action), full record pages with Save and Discard, Approve and Veto on every proposal, serif in four places, absolute dates. It supersedes §8's "layout and look stay as they are today" (1 Oct). Built in the window only: nothing in the core, the host or the store changes, and a rule that needs the core shows its control disabled with the reason. Not adopted, by decision: forced edits (the core refuses a value outside a field's choices or type), "Task manager is always the first project" (the platform knows no domain), the Mac title bar (the host is not touched). People & Companies stays a destination of its own, drawn as a project in the sidebar. |
+| **Q40** | The UX guidelines v2 folded into the rulebook (9 Oct 2026, Vikas, from `Exploration/UX_Guidelines_Platform.md`): Notion is the reference product; one section fills the screen (Files, Intelligence and Governance move from below the table into header tabs; the metrics strip folds by default); comfortable rows and buttons and larger text; sentence case, no tiny capitals; ⋯ everywhere; a row click opens at once (edit by Enter, F2 or a visible control); record pages save as you go; a star default on every dropdown; footer summaries by column type; the assistant confirms the goal when unclear, offers Quick overview and Deep thinking (model choice to Settings), saves every output as a file, approves a plan once and suggests Always allow; plain subtitles for product names; Decline for Veto; Estimated and Assumed as words; disabled reasons on focus and click; red only for problems; the principles as §19. Rulebook text only; the window still follows the earlier text until built. | 9 Oct, after the rulebook was built and compared with the guidelines: stacked sections, compact density and tiny capitals worked against calm and readable. |
+| **Q41** | The owner's second review of the window (9 Oct 2026, Vikas): projects are called **projects** and sub-projects **sub-projects** in every word a person reads and in the docs (the code, the store and the build plan keep `module`; logs keep the word they were written with); Files, Intelligence and Governance go back **below the table** (reverses Q40's header tabs) and an empty project or Network tab still shows one empty table; **⋮** (vertical) is the one more glyph (reverses Q40's ⋯); the toolbar puts Filter on the right beside ⋮ with frequent actions between and Sort inside ⋮; every dropdown has search, a star for the default and Add new (which asks the assistant when building is needed), and highlights the selection instead of a tick; record pages save as you go **and** show Save, Cancel for a new record, and "Last saved"; no name repeats twice in one flow; New project opens a page and asks the assistant to build; Settings gets its section list back with Overview first; the bell moves to the assistant's header; the workspace defaults to "Kenil's workspace". Window only. | 9 Oct, after using the Q40 window: the tabs hid the sections he expected, dropdowns mixed ticks and stars, a new record couldn't be cancelled, "Deals › Deals" repeated. |
+| **Q42** | The owner's decisions on the UX audit of the window (11 Oct 2026, Vikas, from `ux-audit-pr5/README.md`): Notion-sized type and spacing on a 4px grid (body 14px, nothing under 12px for reading); no subtitles anywhere, explanations under (i); one shared toggle for page- and section-level switches (rule 4); double-click edits a cell (rule 23); relative dates allowed with the absolute one on hover (rule 16); every delete confirms in a dialog, a conversation's Delete sits in its ⋮; Add list is a page with Save and Cancel, and toolbar changes stay temporary until saved to the list; Download exports what is shown; every dropdown has Add new…, which asks the builder in the page's conversation when the window can't add it itself; the setup card on Home only; the workspace logo is its own mark (its first letter, or a logo), never the avatar, and avatars show the whole companion, not a zoomed face; a project's icon comes from its name and purpose, never a generic table; Settings keeps its section list on the left at every size; an empty sidebar offers New project; the folded sidebar names each icon below it in small type; no peek panel, no companion hop, metric tiles plain; one visual element per function; Workspace is the account in use and Organizations are real organisations; Home is exempt from rule 1. Window only; what needs the core is in `core-changes-for-the-window.md` §G. | 11 Oct, after the audit found 53 lapses the builder's own review had passed: tiny type at real sizes, one-click deletes, subtitles, switches that wrapped letter by letter, raw server errors. |
 
 ---
 
@@ -646,4 +879,6 @@ Carried over with their tests, and only where the design calls for that exact th
 - `design/research/proactivity-and-standing-things.md` — 17 proactive products, interruption evidence, the four-layer mechanism, the standing-things ladder.
 - `design/research/workspace-ui.md` — 25 second-brain products and 20 agent workspaces compared; the review, approval and explanation evidence; the recommended information architecture.
 - Jev / System One models: TypeSafe docs and cookbooks, arXiv 2609.30216, the Laya comparison (summarised in the chat of 30 Sept 2026).
+- `design/research/modules-as-programs.md` — the prior art behind modules as programs (Q38, 10 Oct 2026): sandboxes for a coding agent on a Mac (Claude Code's own, verified here; Codex and Gemini CLI), declared surfaces (A2UI, json-render, Datasette, Evidence, MapLibre + PMTiles, Typst), the data layer (DuckDB, Hamilton, Data Package provenance, pointblank, reusable public-data libraries), long builds (Anthropic's and OpenAI's harnesses, Spec Kit, BMAD, the Ralph loop, the false-success evidence).
+- `design/research/research-before-build.md` — the evidence behind the research pass (Q37, 9 Oct 2026): agents under-ask and assume silently; research before building helps when checked; when questions are worth asking and how many; how the deep-research products and the builder agents do it; how product people scope from a vague ask.
 - `design/research/competitor-kanu.md` — Kanu (getkanu.com, 2 Oct 2026): the same thesis sold top-down to enterprises with forward-deployed engineers; what Alpha lacks (finished deliverables, enterprise connectors, a feedback-to-behaviour loop), what Kanu doesn't show (a person-sized, local, self-serve product with provenance per value), and what it means for the pitch.

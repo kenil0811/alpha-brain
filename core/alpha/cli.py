@@ -203,7 +203,9 @@ def main(argv: list[str] | None = None) -> int:
                 print("No turns with timings yet.")
                 return 0
             print(_table([{"when": r["at"][5:16].replace("T", " "), "wall s": r["wall_s"],
-                           "model s": r["model_s"], "steps": r["steps"],
+                           "model s": r["model_s"],
+                           "first s": r["first_s"] if r["first_s"] is not None else "",
+                           "steps": r["steps"],
                            "session": "resumed" if r["resumed"] else "fresh",
                            "said": r["text"]} for r in rows],
                          ["when", "wall s", "model s", "steps", "session", "said"]))

@@ -34,7 +34,7 @@ the open engineering questions (§6).
 
 **CLI flags that exist in 2.1.278 and matter to us** (from `claude --help` and the old harness
 `services/core/alpha/builds/harness_claude_cli.py`, which runs in production today):
-`-p/--print`, `--output-format json|stream-json`, `--mcp-config <files…>`, `--strict-mcp-config`,
+`-p/--print`, `--output-format json|stream-json`, `--include-partial-messages` (text deltas as `stream_event`s, used since 9 Oct for the reply as it is written), `--mcp-config <files…>`, `--strict-mcp-config`,
 `--append-system-prompt <text>`, `--system-prompt`, `--allowedTools <tools…>`,
 `--disallowedTools`, `--permission-mode`, `--permission-prompts none` (anything that would prompt
 is denied), `--setting-sources ""` (ignore user settings, CLAUDE.md and hooks), `--restricted`,

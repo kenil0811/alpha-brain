@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { say } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Thread, Turn } from "../core/client";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Research, Thread, Turn } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { Activity } from "../shell/Activity";
@@ -24,10 +24,12 @@ import { unfoldOnEmpty } from "../shell/Rail";
 import { Badge, Button, Dropdown, IconButton, PageHeader, Popover, Rich, Trouble, useContextMenu } from "../ui";
 import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, DeleteIcon, ICON_SM, MoreVertical, NotificationIcon, PlusIcon, RenameIcon, RetryIcon, X } from "../ui/icons";
 import { AskCard, PlanCard } from "./Cards";
+// The plan cards live in Cards.tsx; main's callers (Home, the tests) import them from here.
+export { PlanCard, PlanPieces, PlanQuestions, defaultAnswers, defaultDecisions } from "./Cards";
 import { Composer } from "./Composer";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
-const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
+export const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
 
 /** Alpha's mark: its companion face, the same one Intelligence › Agents shows for it. */
 function Mark({ client, size = 28 }: { client: Client; size?: number }) {
@@ -51,18 +53,57 @@ function provenance(e: JournalEntry): string {
   return parts.join(" · ");
 }
 
+/** A reply that proposed a plan whose questions the core read out of it (Q36) shows without
+ *  those numbered questions and their lead-in line: the plan card carries them with choices. */
+export function withoutPlanQuestions(text: string, plans: Plan[], turn: unknown): string {
+  const plan = plans.find((p) => p.turn === turn && p.state === "proposed" && (p.questions ?? []).length && (p.questions ?? []).every((q) => q.derived));
+  if (!plan) return text;
+  const lines = text.trimEnd().split("\n");
+  let i = lines.length - 1;
+  while (i >= 0 && !lines[i].trim()) i--;
+  let removed = 0;
+  while (i >= 0 && /^\s*(?:[-*•]|\d+[.)])\s+.*\?\s*$/.test(lines[i])) {
+    i--;
+    removed++;
+  }
+  if (!removed) return text;
+  while (i >= 0 && !lines[i].trim()) i--;
+  if (i >= 0 && /:\s*$/.test(lines[i]) && lines[i].length < 160) i--;
+  const rest = lines.slice(0, i + 1).join("\n").trimEnd();
+  return rest.length ? rest : text;
+}
+
+/** A reply whose trailing question became a card (Q35) shows without that question: the card
+ *  carries it, so the person reads it once. A reply that was only the question shows nothing. */
+export function withoutCarded(text: string, asks: Ask[], turn: unknown): string | null {
+  const carded = asks.find((a) => a.derived && a.turn === turn);
+  if (!carded) return text;
+  const question = carded.text.trim();
+  const plain = text.trim();
+  const at = plain.lastIndexOf(question.replace(/\?$/, ""));
+  if (at < 0) return text;
+  const rest = plain.slice(0, at).replace(/[*_\s]+$/, "").trim();
+  return rest.length ? rest : null;
+}
+
 /** One message: the person's on the right in ink; Alpha's on the left, light, with a tiny grey
- *  provenance line, status tags and Retry (which sends the person's last sentence again) under it. */
-function Message({ e, onRetry }: { e: JournalEntry; onRetry?: () => void }) {
+ *  provenance line, status tags and Retry (which sends the person's last sentence again) under it.
+ *  A reply whose questions became cards (Q35, Q36) shows without them; one that was only the
+ *  question shows nothing. */
+function Message({ e, onRetry, asks, plans }: { e: JournalEntry; onRetry?: () => void; asks?: Ask[]; plans?: Plan[] }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
+  let text: string | null = e.text;
+  if (e.kind === "replied" && asks) text = withoutCarded(e.text, asks, e.data.turn);
+  if (text !== null && e.kind === "replied" && plans) text = withoutPlanQuestions(text, plans, e.data.turn);
+  if (text === null) return null;
   const failed = e.kind === "failed";
   const prov = provenance(e);
   return (
     <div className="turn">
       <div className={`msg msg--ai${failed ? " msg--failed" : ""}`}>
         {fromThread ? <div className="msg__label">From the thread · {fromThread}</div> : null}
-        <Rich text={e.text} />
+        <Rich text={text} />
       </div>
       {prov || failed || onRetry ? (
         <div className="turn__meta">
@@ -79,10 +120,33 @@ function Message({ e, onRetry }: { e: JournalEntry; onRetry?: () => void }) {
   );
 }
 
-export function AssistantPanel({
+export interface ConversationProps {
+  client: Client;
+  scopeName: string;
+  module: ModuleCard | null;
+  version: number;
+  onChanged: () => void;
+  draft: { text: string; send: boolean } | null;
+  onDraftTaken: () => void;
+  focusThread?: { id: string; at: number } | null;
+  focusConversation?: { id: string; at: number } | null;
+}
+
+/** The side panel: the conversation of the page the person is on; folded, a slim strip. */
+export function AssistantPanel(props: Omit<Parameters<typeof Conversation>[0], "layout"> & { open: boolean; onOpen: (open: boolean) => void }) {
+  return <Conversation layout="panel" {...props} />;
+}
+
+/** A conversation with Alpha: its messages, the cards (a plan, an action, a question with
+ *  choices), what Alpha is doing now with the reply as it is written, and the composer. The same
+ *  thing in the side panel ("panel") and on the Assistant page ("page", wide: the page's own list
+ *  picks the conversation, so the header has no picker or New there; rule 29). */
+export function Conversation({
   client,
-  open,
+  layout,
+  open = true,
   onOpen,
+  openReason,
   scopeName,
   module,
   version,
@@ -94,18 +158,13 @@ export function AssistantPanel({
   openActivity = 0,
   activityVersion = 0,
   onOpenEntry,
-}: {
-  client: Client;
-  open: boolean;
-  onOpen: (open: boolean) => void;
-  scopeName: string;
-  module: ModuleCard | null;
-  version: number;
-  onChanged: () => void;
-  draft: { text: string; send: boolean } | null;
-  onDraftTaken: () => void;
-  focusThread?: { id: string; at: number } | null;
-  focusConversation?: { id: string; at: number } | null;
+}: ConversationProps & {
+  layout: "panel" | "page";
+  /** Panel only: unfolded or folded to the strip. */
+  open?: boolean;
+  onOpen?: (open: boolean) => void;
+  /** Panel only: why the folded strip can't open here (the Assistant page holds the conversation). */
+  openReason?: string;
   /** Set (to a new time) to open the bell's Activity from elsewhere: an old address, ⌘K. */
   openActivity?: number;
   /** When Activity has something new to show. */
@@ -125,6 +184,7 @@ export function AssistantPanel({
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [research, setResearch] = useState<Research[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
   const [showSteps, setShowSteps] = useState(false);
@@ -149,6 +209,7 @@ export function AssistantPanel({
         setTurns(c.turns);
         setThreads(c.threads);
         setPlans(c.plans ?? []);
+        setResearch(c.research ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
         setConvos(c.conversations ?? []);
@@ -182,9 +243,15 @@ export function AssistantPanel({
   }, [client, threadView?.id, threadView?.state]);
   // Alpha works on its own too (a build, a folder that changed): `version` moves when the
   // window's one poll sees a change (core/changes.ts); the panel keeps no clock of its own.
+  // The view follows the newest words unless the person scrolled up to read something.
+  const stick = useRef(true);
   useEffect(() => {
-    body.current?.scrollTo?.({ top: body.current.scrollHeight });
+    if (stick.current) body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
+  const onScroll = () => {
+    const el = body.current;
+    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
   const pendingId = pending?.id ?? null;
   useEffect(() => {
     // Keyed on the turn's id, not the polled object: the clock must not restart every second.
@@ -214,7 +281,7 @@ export function AssistantPanel({
           conversation = (await client.newConversation(module?.id ?? null, clean.slice(0, 60))).id;
           setActive(conversation);
         }
-        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, conversation }, setPending);
+        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, conversation }, setPending, 500);
         if (final.conversation && !threadId) setActive(final.conversation.id);
         setHeard(heardOf(final));
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
@@ -257,7 +324,7 @@ export function AssistantPanel({
       setPending(turn);
       setElapsed(0);
       try {
-        const final = await client.waitTurn(turn, setPending);
+        const final = await client.waitTurn(turn, setPending, 8, 500);
         setHeard(heardOf(final));
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
@@ -290,10 +357,11 @@ export function AssistantPanel({
     setText(final || interim);
   });
   // The panel is always present: folded, it is a slim strip with Alpha's avatar that opens it.
-  if (!open) {
+  if (layout === "panel" && !open) {
+    const unfold = () => { if (!openReason) onOpen?.(true); };
     return (
-      <aside className="assist assist--folded" aria-label="Assistant, folded" onDoubleClick={unfoldOnEmpty(true, () => onOpen(true))}>
-        <button type="button" className="assist__strip" aria-label="Open the assistant" onClick={() => onOpen(true)}>
+      <aside className="assist assist--folded" aria-label="Assistant, folded" onDoubleClick={unfoldOnEmpty(true, unfold)}>
+        <button type="button" className="assist__strip" aria-label={openReason ? `Open the assistant. ${openReason}` : "Open the assistant"} aria-disabled={openReason ? true : undefined} title={openReason} onClick={unfold}>
           <Mark client={client} />
           <span className="assist__striplabel">Alpha</span>
         </button>
@@ -306,7 +374,9 @@ export function AssistantPanel({
   const latest = steps.length ? steps[steps.length - 1].text : null;
   const doing = live?.doing ?? null;
   const thought = live?.thought ?? null;
-  const headline = doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking");
+  const partial = live?.partial?.trim() ? live.partial : null;
+  const headline = partial ? "Writing" : (doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking"));
+  const shown = showSteps ? steps : steps.slice(-3);
   const workingNote = pending ? (
     <div className="msg msg--ai msg--working">
       <div className="working__head">
@@ -322,21 +392,28 @@ export function AssistantPanel({
           Stop
         </Button>
       </div>
-      {thought ? <p className="working__thought">{thought}</p> : null}
       {steps.length ? (
-        <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-          {showSteps ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />} {steps.length} {steps.length === 1 ? "step" : "steps"}
-          {!showSteps && latest ? <span className="faint"> · {latest}</span> : null}
-        </button>
-      ) : null}
-      {showSteps && steps.length ? (
-        <ul className="stages">
-          {steps.slice(-12).map((s, i) => (
-            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : "stages__done"}>
+        <ul className="stepline" aria-label="Steps so far">
+          {shown.map((s, i) => (
+            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "stepline__failed" : "stepline__done"}>
               {s.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : <Check size={ICON_SM} aria-label="done" />} {s.text}
             </li>
           ))}
+          {steps.length > 3 ? (
+            <li>
+              <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
+                {showSteps ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />} {showSteps ? "fewer" : `all ${steps.length} steps`}
+              </button>
+            </li>
+          ) : null}
         </ul>
+      ) : null}
+      {partial ? (
+        <div className="working__partial">
+          <Rich text={partial} />
+        </div>
+      ) : thought ? (
+        <p className="working__thought">{thought}</p>
       ) : null}
     </div>
   ) : null;
@@ -355,12 +432,12 @@ export function AssistantPanel({
         );
       const before = e.kind === "said" ? undefined : [...said.slice(0, said.indexOf(e))].reverse().find((x) => x.kind === "said");
       const retry = before && !pending && (e.kind === "failed" || e === lastAi) ? () => void send(before.text) : undefined;
-      return <Message key={e.id} e={e} onRetry={retry} />;
+      return <Message key={e.id} e={e} onRetry={retry} asks={openAsks} plans={plans} />;
     });
   };
 
   return (
-    <aside className="assist" aria-label="Assistant">
+    <aside className={layout === "page" ? "assist assist--page" : "assist"} aria-label="Assistant">
       <PageHeader
         centre={
           <div className="assist__who">
@@ -371,7 +448,7 @@ export function AssistantPanel({
             </div>
           </div>
         }
-        right={bell}
+        right={layout === "panel" ? bell : undefined}
       />
       {threadView ? (
         <div className="assist__history">
@@ -385,7 +462,9 @@ export function AssistantPanel({
         </div>
       ) : (
         <div className="assist__history">
-          <Dropdown
+          {layout === "panel" ? (
+            <>
+              <Dropdown
             size="sm"
             className="assist__pick"
             label="Conversations"
@@ -393,15 +472,21 @@ export function AssistantPanel({
             value={active ?? ""}
             options={chats.map((c) => ({ value: c.id, label: chatLabel(c) }))}
             onChange={(id) => { setThreadView(null); setActive(id); }}
-          />
-          <IconButton size="sm" label="New conversation" title="Start a new conversation here" icon={<PlusIcon />} onClick={startNew} />
+              />
+              <IconButton size="sm" label="New conversation" title="Start a new conversation here" icon={<PlusIcon />} onClick={startNew} />
+            </>
+          ) : (
+            <div className="assist__thread">
+              <b>{activeConvo ? activeConvo.title : "New conversation"}</b>
+            </div>
+          )}
           <IconButton size="sm" label="More for this conversation" aria-haspopup="menu" icon={<MoreVertical size={ICON_SM} />} disabledReason={activeConvo ? undefined : "There is no conversation here yet."} onClick={(e) => convoMenu.openFrom(undefined, e.currentTarget)} />
         </div>
       )}
       <p className="sr-only" aria-live="polite">
         {heard}
       </p>
-      <div className="assist__body" ref={body} role="region" aria-label="Conversation">
+      <div className="assist__body" ref={body} role="region" aria-label="Conversation" onScroll={onScroll}>
         {threadView ? (
           <>
             {renderMessages(threadView.journal)}
@@ -415,9 +500,12 @@ export function AssistantPanel({
         ) : (
           <>
             {threads.filter((t) => t.kind !== "chat").map((t) => {
-              // A build has no time limit: the person stops it when it isn't going anywhere.
+              // A build or a research pass has no time limit: the person stops it when it
+              // isn't going anywhere.
               const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
               const last = t.state === "working" && t.steps?.length ? t.steps[t.steps.length - 1] : null;
+              const pass = t.kind === "research" ? research.find((r) => r.thread === t.id) : undefined;
+              const stop = build ? () => client.stopPlan(build.id) : pass ? () => client.stopResearch(pass.id) : null;
               return (
                 <div key={t.id} className="creation-wrap">
                   <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
@@ -425,15 +513,25 @@ export function AssistantPanel({
                       {t.title}
                       <Badge tone={t.state === "waiting" ? "warn" : "info"}>{THREAD_STATE[t.state] ?? t.state}</Badge>
                     </h3>
-                    <span className="faint">{t.kind === "build" && t.state === "working" ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch` : t.state === "working" ? "Alpha is working on this now" : t.state === "waiting" ? "Waiting for your answer · open it to reply here" : "Its own thread · open it to talk about this work"}</span>
+                    <span className="faint">
+                      {t.kind === "build" && t.state === "working"
+                        ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch`
+                        : t.kind === "research" && t.state === "working"
+                          ? `Looking into how this is done · a few minutes · ${t.step_count ?? 0} steps · the plan comes here as a card`
+                          : t.state === "working"
+                            ? "Alpha is working on this now"
+                            : t.state === "waiting"
+                              ? "Waiting for your answer · open it to reply here"
+                              : "Its own thread · open it to talk about this work"}
+                    </span>
                     {last ? (
                       <span className="faint thread__last">
                         {last.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : <Check size={ICON_SM} aria-label="done" />} {last.text}
                       </span>
                     ) : null}
                   </button>
-                  {build ? (
-                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void client.stopPlan(build.id).catch(() => undefined).finally(() => { load(); onChanged(); })}>
+                  {stop ? (
+                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void stop().catch(() => undefined).finally(() => { load(); onChanged(); })}>
                       Stop
                     </Button>
                   ) : null}

@@ -79,6 +79,7 @@ export function pagesFor(world: WorldPages): PageAddress[] {
     { path: "/home", title: "Home" },
     { path: "/activity", title: "Activity" },
     { path: "/people", title: "People" },
+    { path: "/assistant", title: "Assistant" },
     ...world.people.map((e) => ({ path: `/people/${enc(e.id)}`, title: `Person: ${e.name ?? e.id}` })),
     ...world.modules.map((m) => ({ path: `/m/${enc(m.id)}`, title: `Module: ${m.name ?? m.id}` })),
     { path: "/intelligence", title: "Intelligence" },

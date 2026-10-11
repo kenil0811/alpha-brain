@@ -15,6 +15,7 @@
  * the page still shows.
  */
 import { useEffect, useState } from "react";
+import { PlanPieces, PlanQuestions, defaultAnswers, defaultDecisions } from "../assistant/AssistantPanel";
 import { say } from "../core/client";
 import type { Client, Home as HomeData, JournalEntry, ModuleCard, NeedItem } from "../core/client";
 import { dayLabel, dayText, timeText, when } from "../modules/format";
@@ -34,6 +35,8 @@ function greeting(): string {
 function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>(() => defaultAnswers(item.kind === "proposal" ? (item.questions ?? []) : []));
+  const [decisions, setDecisions] = useState<Record<string, string>>(() => defaultDecisions(item.kind === "proposal" ? (item.pieces ?? []) : []));
   const [error, setError] = useState<string | null>(null);
   async function act(work: () => Promise<unknown>, words: string) {
     setBusy(true);
@@ -79,6 +82,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
     );
   }
   if (item.kind === "proposal") {
+    const questions = item.questions ?? [];
+    const pieces = item.pieces ?? [];
+    const decided = questions.length || pieces.length;
     return (
       <article className="today__item">
         <h4 className="today__ask">{item.text}</h4>
@@ -87,8 +93,10 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
             <b>Because</b> {item.why}
           </p>
         ) : null}
+        {pieces.length ? <PlanPieces pieces={pieces} decisions={decisions} onChange={setDecisions} /> : null}
+        {questions.length ? <PlanQuestions questions={questions} answers={answers} onChange={setAnswers} /> : null}
         <div className="row">
-          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), item.plan ? "Approved. Building it now; it reports in the conversation." : "Approved. Alpha is doing that now.")}>
+          <Button variant="primary" disabled={busy} onClick={() => void act(() => (item.plan && decided ? client.approvePlan(item.plan, questions.length ? answers : undefined, pieces.length ? decisions : undefined) : client.decideProposal(item.id, true)), item.plan ? "Approved. Building it now; it reports in the conversation." : "Approved. Alpha is doing that now.")}>
             Approve
           </Button>
           <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Declined. It won't come back.")}>

@@ -1,4 +1,4 @@
-# The owner's decisions on the UX audit, built in the window (11 Oct 2026, Q38)
+# The owner's decisions on the UX audit, built in the window (11 Oct 2026, Q42)
 
 Branch `feat/ui-audit-fixes` (worktree `alpha-brain-audit-fixes`), from `feat/ui-rulebook` at
 285f4b3 plus the fourth review (355bb5b), pushed back to `feat/ui-rulebook` (PR #5). Window only:
@@ -8,7 +8,7 @@ the core is `design/core-changes-for-the-window.md` §G (and C9).
 ## What was decided
 
 Vikas answered the audit (`ux-audit-pr5/README.md`, U1–U53, R1–R20); the rulebook carries every
-decision (§0–§18, fixed rules 1, 4, 13, 16, 22, 23 changed and 28–30 added) and Q38 records it.
+decision (§0–§18, fixed rules 1, 4, 13, 16, 22, 23 changed and 28–30 added) and Q42 records it.
 The reversals are marked in `Exploration/UX_Guidelines_Platform.md` (outside the repo).
 
 ## What was built

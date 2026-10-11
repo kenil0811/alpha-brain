@@ -20,12 +20,12 @@ main into the branch first.
   in the branch's grid; first run asks for both as on main. The branch had removed the "Ask Alpha"
   button (the panel folds to a strip); it stays removed.
 - **Numbering.** The branch's decisions were Q33 (the UI rulebook) and Q34 (the UX guidelines v2),
-  clashing with main's. They are **Q35** and **Q36** now, in the design, STATE and the branch's
+  clashing with main's. They are **Q39** and **Q40** now (Q35 and Q36 until main's own Q35–Q38 arrived in the merge of 11 Oct), in the design, STATE and the branch's
   log entries (each says what it was).
 - **The design doc.** The branch's docs commit 2f427a5 (9 Oct) had cut
   `design/alpha-second-brain-design.md` from 644 lines to 132 by mistake. Restored from main and
   the branch's own changes put back: §8's status box (now with the owner's review and the merged
-  Agents), the "superseded" note on layout, the Q35 and Q36 rows.
+  Agents), the "superseded" note on layout, the Q39 and Q40 rows.
 
 **What ran.** `just stats` after the merge: core 223 passed; desktop 278 in 42 files (1
 skipped), typecheck clean; lint clean. The window looked at in a browser against a scratch core

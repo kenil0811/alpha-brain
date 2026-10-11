@@ -31,6 +31,7 @@ import time
 from typing import Any
 
 from alpha.runtime import build, pipeline, route, turn
+from alpha.runtime import research as research_runtime
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -167,7 +168,8 @@ class Scheduler:
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()
-        self.crashes: dict[str, int] = {}  # a building plan's crashed runs in a row
+        self.researching: set[str] = set()
+        self.crashes: dict[str, int] = {}  # a building plan's (or pass's) crashed runs in a row
         self.stop_event = threading.Event()
         self.clock = clock
         self._last_tick: float | None = None
@@ -283,6 +285,52 @@ class Scheduler:
             self.crashes.pop(pid, None)
         self.builds()
 
+    def researches(self) -> None:
+        """Start or continue every research pass that is waiting or running (Q37)."""
+        for research in self.world.research.waiting():
+            if self.stop_event.is_set():
+                return
+            with self.lock:
+                if research["id"] in self.researching:
+                    continue
+                self.researching.add(research["id"])
+            threading.Thread(target=self._research, args=(research["id"],), daemon=True,
+                             name=f"research-{research['id']}").start()
+
+    def _research(self, rid: str) -> None:
+        self._hold()
+        crashed = False
+        try:
+            research_runtime.run(self.world, rid, runner=self.runner)
+        except Exception:
+            crashed = True
+            log.exception("research run failed")
+        finally:
+            self._release()
+            with self.lock:
+                self.researching.discard(rid)
+        research = self.world.research.get(rid)
+        if research["state"] != "running" or self.stop_event.is_set():
+            self.crashes.pop(rid, None)
+            return
+        thread = research["thread"]
+        if thread and self.world.modules.thread(thread)["state"] == "waiting":
+            return  # it asked the person; their answer carries it on
+        if crashed:
+            n = self.crashes.get(rid, 0) + 1
+            self.crashes[rid] = n
+            if self.stop_event.wait(backoff_s(n)):
+                return
+        else:
+            self.crashes.pop(rid, None)
+        self.researches()
+
+    def kick(self) -> None:
+        """What a turn starts at once rather than at the next tick: a plan approved in it, a
+        research pass started in it."""
+        self.builds()
+        self.researches()
+
     def acts(self) -> None:
         """Perform every action the person approved that hasn't run (the app was closed in
         between, say). The approval route runs them at once; this is the catch-up."""
@@ -311,6 +359,7 @@ class Scheduler:
             # Just woke, or only in a maintenance wake: nothing starts yet.
             return
         self.builds()
+        self.researches()
         self.acts()
         for auto in self.world.automations.due():
             if self.stop_event.is_set():

@@ -213,6 +213,35 @@ export interface Source {
 }
 
 /** What Alpha proposed to set up, and its way from the person's yes to a finished build. */
+/** A question a plan asks before its build (Q36): its choices and the one Alpha would take. */
+export interface PlanQuestion {
+  text: string;
+  options: string[];
+  default: string | null;
+  answer: string | null;
+  /** The core read it out of the reply; the model didn't put it on the plan itself. */
+  derived?: boolean;
+}
+
+/** A researched plan's piece (Q37): what such a thing could have, with its evidence (the
+ *  findings' titles and pages), how it would be built here, whether it can be built now,
+ *  Alpha's recommendation and the person's decision. */
+export interface PlanPiece {
+  id: string;
+  title: string;
+  what: string;
+  why: string | null;
+  evidence: string[];
+  known: string | null;
+  build: string | null;
+  can: "now" | "needs" | "not_yet";
+  needs: string | null;
+  recommend: "keep" | "skip" | "defer";
+  kind: "kept" | "choice" | "wont";
+  decision: "keep" | "skip" | "defer" | null;
+  sources?: { title: string | null; url: string | null }[];
+}
+
 export interface Plan {
   id: string;
   title: string;
@@ -220,9 +249,24 @@ export interface Plan {
   state: "proposed" | "approved" | "building" | "done" | "stopped" | "declined" | "replaced";
   module: string | null;
   thread: string | null;
+  turn?: string | null;
   proposal: string | null;
   report: string | null;
   created_at: string;
+  questions?: PlanQuestion[];
+  pieces?: PlanPiece[];
+  research?: string | null;
+}
+
+/** A research pass (Q37): Alpha looking into how a thing is done before it proposes it. */
+export interface Research {
+  id: string;
+  title: string;
+  ask: string;
+  state: "waiting" | "running" | "done" | "stopped" | "failed";
+  thread: string | null;
+  conversation: string | null;
+  module: string | null;
 }
 
 export interface TableSummaryData {
@@ -297,6 +341,8 @@ export interface NeedItem {
   options?: string[];
   module?: string | null;
   plan?: string | null;
+  questions?: PlanQuestion[];
+  pieces?: PlanPiece[];
   action?: Action;
 }
 
@@ -542,6 +588,9 @@ export interface Live {
   doing: string | null;
   tools: number;
   at: number | null;
+  /** The reply's text as the model writes it (Q35); the whole reply lands when the turn ends. */
+  partial?: string | null;
+  first_text_at?: number | null;
 }
 
 export interface Ask {
@@ -551,6 +600,10 @@ export interface Ask {
   options: string[];
   thread: string | null;
   module: string | null;
+  /** The turn whose reply asked it; `derived` when the core made the card from a question
+   * the model left in prose (Q35). */
+  turn?: string | null;
+  derived?: boolean;
 }
 
 export interface Turn {
@@ -576,6 +629,7 @@ export interface Conversation {
   threads: Thread[];
   running: Turn[];
   plans: Plan[];
+  research?: Research[];
   actions?: Action[];
   asks?: Ask[];
   conversation?: Convo | null;
@@ -768,7 +822,14 @@ export class Client {
     const q = qs.toString();
     return this.call<Conversation>("GET", `/api/conversation${q ? `?${q}` : ""}`);
   };
-  conversations = (module?: string | null) => this.call<Convo[]>("GET", `/api/conversations${module ? `?module=${encodeURIComponent(module)}` : ""}`);
+  /** Live conversations and work items; `done` adds the finished ones (the Assistant page's history). */
+  conversations = (module?: string | null, done = false) => {
+    const qs = new URLSearchParams();
+    if (module) qs.set("module", module);
+    if (done) qs.set("done", "true");
+    const q = qs.toString();
+    return this.call<Convo[]>("GET", `/api/conversations${q ? `?${q}` : ""}`);
+  };
   newConversation = (module?: string | null, title?: string) => this.call<Convo>("POST", "/api/conversations", { module: module ?? null, title: title ?? null });
   closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
   focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
@@ -781,20 +842,21 @@ export class Client {
   turn = (id: string) => this.call<Turn>("GET", `/api/turns/${id}`);
   thread = (id: string) => this.call<Thread & { journal: JournalEntry[] }>("GET", `/api/threads/${id}`);
 
-  /** Ask and wait for the answer, polling once a second. */
-  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void): Promise<Turn> {
+  /** Ask and wait for the answer, polling every `every` ms (a second; the conversation asks
+   * twice a second so the reply's text shows as it is written). */
+  async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void, every = 1000): Promise<Turn> {
     const turn = await this.ask(text, opts);
-    return this.waitTurn(turn, onTick);
+    return this.waitTurn(turn, onTick, 8, every);
   }
   /** Follow a started turn to its end (a routing question comes back as is). A poll the core
    * does not answer is tried again for a while before the turn counts as lost: one missed poll
    * used to end the turn in the window while the core kept working (3 Oct). A core that says
    * it knows no such turn (it restarted) ends the wait at once. */
-  async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8): Promise<Turn> {
+  async waitTurn(turn: Turn, onTick?: (t: Turn) => void, patience = 8, every = 1000): Promise<Turn> {
     let current = turn;
     let misses = 0;
     while ((current.state === "running" || current.state === "routing") && current.id) {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, every));
       try {
         current = await this.turn(current.id);
         misses = 0;
@@ -829,7 +891,11 @@ export class Client {
     if (!response.ok) throw new CoreError("This screenshot couldn't be shown.", response.status);
     return URL.createObjectURL(await response.blob());
   };
-  approvePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/approve`);
+  /** The person's yes, with their answers to the plan's questions by number (a question left
+   * out keeps Alpha's default). */
+  approvePlan = (id: string, answers?: Record<string, string>, pieces?: Record<string, string>) =>
+    this.call<Plan>("POST", `/api/plans/${id}/approve`, answers || pieces ? { answers, pieces } : undefined);
+  stopResearch = (id: string) => this.call<Research>("POST", `/api/research/${id}/stop`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
   stopPlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/stop`);

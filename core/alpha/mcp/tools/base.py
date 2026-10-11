@@ -116,6 +116,12 @@ class Base:
         plan = self.world.plans.of_thread(self.thread)
         return plan if plan and plan["state"] == "building" else None
 
+    def _researching(self) -> dict[str, Any] | None:
+        """The research pass this turn is part of, if it is one (Q37): the only place a plan
+        is proposed."""
+        research = self.world.research.of_thread(self.thread)
+        return research if research and research["state"] == "running" else None
+
     def _gate(self, what: str) -> dict[str, Any] | None:
         """Lasting things are made only in the build of a plan the person said yes to."""
         if self._building():
