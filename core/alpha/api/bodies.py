@@ -73,6 +73,11 @@ class AnswerBody(BaseModel):
     text: str
 
 
+class AnswersBody(BaseModel):
+    """Several questions asked in one turn, answered at once: ask id → the person's words."""
+    answers: dict[str, str]
+
+
 class FolderBody(BaseModel):
     path: str
 

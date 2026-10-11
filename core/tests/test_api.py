@@ -87,6 +87,51 @@ def test_decisions(world: World) -> None:
     assert c.get("/api/home").json()["needs_you"] == []
 
 
+def test_questions_asked_together_are_answered_together_or_one_by_one(world: World) -> None:
+    """Three questions in one turn (11 Oct, "I want a personal trainer"): the form answers
+    two at once in one turn; the third, answered on its own card, does not close the rest."""
+    seeded(world)
+    said = world.journal.append("said", "I want a personal trainer", actor="person")
+    asks = [world.journal.append("asked", q, data={"options": o, "turn": said})
+            for q, o in [("What should it do?", ["A program", "Logging", "Both"]),
+                         ("Where do you train?", ["Gym", "Home"]),
+                         ("Any program already?", [])]]
+    def runner(req: TurnRequest) -> RunResult:
+        return RunResult(reply="Noted.", ok=True, duration_ms=1)
+
+    c = client(world, runner=runner)
+    out = c.post("/api/asks/answer", json={"answers": {asks[0]: "Both", asks[1]: "Gym",
+                                                       asks[2]: ""}}).json()
+    assert len(out["answered"]) == 2 and out["turn"]
+    for _ in range(100):
+        if c.get(f"/api/turns/{out['turn']['id']}").json()["state"] == "done":
+            break
+        time.sleep(0.05)
+    sent = world.journal.recent(1, kinds=["said"])[0]["text"]
+    assert sent == "What should it do? — Both\nWhere do you train? — Gym"
+    assert [a["id"] for a in world.journal.open_asks() if a["data"].get("turn") == said] == [
+        asks[2]]
+    # The last one answered on its card: its own answer, nothing else closed.
+    c.post(f"/api/asks/{asks[2]}/answer", json={"text": "No"})
+    assert [a for a in world.journal.open_asks() if a["data"].get("turn") == said] == []
+    assert c.post("/api/asks/answer", json={"answers": {asks[0]: ""}}).status_code == 400
+
+
+def test_a_tap_on_one_card_leaves_the_cards_beside_it(world: World) -> None:
+    from alpha.runtime.turn import close_answered_asks
+    said = world.journal.append("said", "a trainer", actor="person")
+    asks = [world.journal.append("asked", q, data={"turn": said})
+            for q in ["What?", "Where?", "Already?"]]
+    world.journal.append("answered", "Both", actor="person", data={"ask": asks[0]})
+    close_answered_asks(world, "Both", None)  # the card's answer, as the next turn's words
+    assert [a["id"] for a in world.journal.open_asks()] == asks[1:]
+    # Words typed with nothing answered on a card answer every question of the turn.
+    said2 = world.journal.append("said", "a trainer", actor="person")
+    more = [world.journal.append("asked", q, data={"turn": said2}) for q in ["A?", "B?"]]
+    close_answered_asks(world, "gym, three days, nothing yet", None)
+    assert not [a for a in world.journal.open_asks() if a["id"] in more]
+
+
 def test_an_ask_can_be_dismissed_without_running_anything(world: World) -> None:
     ask = world.journal.append("asked", "A window is open on example.com: sign in there.")
     c = client(world)

@@ -400,6 +400,80 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
 
 /** A reply that proposed a plan whose questions the core read out of it (Q36) shows without
  *  those numbered questions and their lead-in line: the plan card carries them with choices. */
+/** Questions Alpha asked together (one turn, several `ask_person` calls) are one form: each
+ *  with its choices to tap or words to type, one Answer for all of them, so the person is
+ *  never sent on after the first tap (11 Oct: "after i selected one, it submitted"). What is
+ *  left blank stays open as its own card. */
+export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Client; onAnswered: (turn: Turn | null) => void }) {
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [typed, setTyped] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const answerOf = (a: Ask) => (typed[a.id] ?? "").trim() || picked[a.id] || "";
+  const answered = asks.filter((a) => answerOf(a));
+  const send = async () => {
+    if (!answered.length) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const out = await client.answerAsks(Object.fromEntries(answered.map((a) => [a.id, answerOf(a)])));
+      onAnswered(out.turn);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="askcard askcard--group" role="group" aria-label="Alpha asks" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+      {asks.map((a, i) => (
+        <fieldset className="askcard__one" key={a.id} aria-label={a.text}>
+          <p className="askcard__q">
+            <span className="askcard__n">{i + 1}.</span> {a.text}
+          </p>
+          {a.options.length ? (
+            <div className="askcard__options">
+              {a.options.map((o) => (
+                <Button className={`askcard__opt${picked[a.id] === o ? " askcard__opt--on" : ""}`} key={o} disabled={busy} aria-pressed={picked[a.id] === o} onClick={() => { setPicked({ ...picked, [a.id]: picked[a.id] === o ? "" : o }); setTyped({ ...typed, [a.id]: "" }); }}>
+                  {o}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+          <input className="askcard__input" value={typed[a.id] ?? ""} onChange={(e) => { setTyped({ ...typed, [a.id]: e.target.value }); if (e.target.value.trim()) setPicked({ ...picked, [a.id]: "" }); }} placeholder={a.options.length ? "Or say it your way" : "Your answer"} aria-label={`Your answer: ${a.text}`} disabled={busy} />
+        </fieldset>
+      ))}
+      <div className="askcard__other">
+        <Button size="sm" variant="primary" type="submit" disabled={busy || !answered.length}>
+          {answered.length && answered.length < asks.length ? `Answer ${answered.length} of ${asks.length}` : "Answer"}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void Promise.all(asks.map((a) => client.dismissAsk(a.id))).then(() => onAnswered(null)).catch(() => undefined)}>
+          Skip all
+        </Button>
+        {answered.length && answered.length < asks.length ? <span className="faint">The rest stay open.</span> : null}
+      </div>
+      {error ? <p className="notice">{error}</p> : null}
+    </form>
+  );
+}
+
+/** Open questions grouped by the turn that asked them: one form per turn with several, a
+ *  card for a question on its own. */
+export function groupAsks(asks: Ask[]): Ask[][] {
+  const groups: Ask[][] = [];
+  const byTurn = new Map<string, Ask[]>();
+  asks.forEach((a) => {
+    const key = a.turn && !a.derived ? a.turn : `one:${a.id}`;
+    const found = byTurn.get(key);
+    if (found) found.push(a);
+    else {
+      const group = [a];
+      byTurn.set(key, group);
+      groups.push(group);
+    }
+  });
+  return groups;
+}
+
 export function withoutPlanQuestions(text: string, plans: Plan[], turn: unknown): string {
   const plan = plans.find((p) => p.turn === turn && p.state === "proposed" && (p.questions ?? []).length && (p.questions ?? []).every((q) => q.derived));
   if (!plan) return text;
@@ -755,9 +829,13 @@ export function Conversation({
             )}
             {!threadView.journal.length ? <p className="muted">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
             {!pending
-              ? openAsks.map((a) => (
-                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                ))
+              ? groupAsks(openAsks).map((group) =>
+                  group.length > 1 ? (
+                    <AskGroup key={group[0].id} asks={group} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ) : (
+                    <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ),
+                )
               : null}
           </>
         ) : (
@@ -821,9 +899,13 @@ export function Conversation({
                 <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
             {!pending
-              ? openAsks.map((a) => (
-                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                ))
+              ? groupAsks(openAsks).map((group) =>
+                  group.length > 1 ? (
+                    <AskGroup key={group[0].id} asks={group} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ) : (
+                    <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ),
+                )
               : null}
           </>
         )}

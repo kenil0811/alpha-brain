@@ -776,6 +776,11 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .askcard__q { margin: 0 0 8px; font-weight: 500; }
 .askcard__options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .askcard__opt { border-radius: 999px; }
+.askcard__opt--on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.askcard--group { display: flex; flex-direction: column; gap: 10px; }
+.askcard__one { border: 0; margin: 0; padding: 0; min-width: 0; }
+.askcard__n { color: var(--muted); margin-right: 2px; }
+.askcard__input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
 .askcard__other { display: flex; gap: 6px; align-items: center; }
 .askcard__other input { flex: 1; min-width: 120px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
 

@@ -4,13 +4,34 @@
  * to answer or open.
  */
 import { useEffect, useState } from "react";
-import { PlanPieces, PlanQuestions, WorkflowCard, defaultAnswers, defaultDecisions } from "../assistant/AssistantPanel";
-import type { Client, Home as HomeData, NeedItem } from "../core/client";
+import { AskGroup, PlanPieces, PlanQuestions, WorkflowCard, defaultAnswers, defaultDecisions } from "../assistant/AssistantPanel";
+import type { Ask, Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 import { Badge, Button } from "../ui";
 import { ModuleIcon, ArrowRight, Check, X, Eye } from "../ui/icons";
+
+/** Questions asked in one turn are one card with one Answer; everything else stands alone. */
+export function groupNeeds(items: NeedItem[]): NeedItem[][] {
+  const groups: NeedItem[][] = [];
+  const byTurn = new Map<string, NeedItem[]>();
+  items.forEach((item) => {
+    const key = item.kind === "ask" && item.turn ? item.turn : null;
+    const found = key ? byTurn.get(key) : undefined;
+    if (found) found.push(item);
+    else {
+      const group = [item];
+      if (key) byTurn.set(key, group);
+      groups.push(group);
+    }
+  });
+  return groups;
+}
+
+function askOf(item: NeedItem): Ask {
+  return { id: item.id, text: item.text, at: item.at, options: item.options ?? [], thread: null, module: item.module ?? null, turn: item.turn ?? null };
+}
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -181,9 +202,19 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             <span className="faint">Alpha never sends anything or acts for you without a yes</span>
           </div>
           <div className="needs">
-            {home.needs_you.map((item) => (
-              <Need key={item.id} item={item} client={client} onDone={(words) => { setToast(words); onChanged(); }} />
-            ))}
+            {groupNeeds(home.needs_you).map((group) =>
+              group.length > 1 ? (
+                <article key={group[0].id} className="card need">
+                  <h3>Alpha asked {group.length} questions</h3>
+                  <p className="because">
+                    <b>Asked</b> {when(group[0].at)}, because the answers change what it builds.
+                  </p>
+                  <AskGroup asks={group.map(askOf)} client={client} onAnswered={() => { setToast("Answered."); onChanged(); }} />
+                </article>
+              ) : (
+                <Need key={group[0].id} item={group[0]} client={client} onDone={(words) => { setToast(words); onChanged(); }} />
+              ),
+            )}
           </div>
         </div>
       ) : null}

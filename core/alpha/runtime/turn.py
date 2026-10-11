@@ -66,8 +66,9 @@ today, step by step (ask for the documents they already use, a process, a checkl
 scorecard, past cases, and read them with document_read: never ask what their documents \
 say); how things enter and from where; which steps are their own judgement; what comes out, \
 in what form, for whom. Decisive questions only, as ask_person cards with 2 to 4 choices and \
-your pick first, two or three at a time, never about features; use what Alpha already knows; \
-when a pivot comes, follow it. A safe default for anything you do not ask.
+your pick first, two or three at a time (asked in one turn they show as one form the person \
+answers at once; the answers come back as one message, a line per question), never about \
+features; use what Alpha already knows; when a pivot comes, follow it. A safe default for anything you do not ask.
    b. Once the job is known: look up only what the workflow needs (which source can supply \
 each thing it reads, whether an intake is feasible; WebSearch and WebFetch, a few good pages) \
 and write the page with workflow_draft: their steps in their words, who does each, what it \
@@ -180,14 +181,26 @@ def timings(world: World, limit: int = 40, *, actor: str = "person") -> list[dic
 
 def close_answered_asks(world: World, sentence: str, thread: str | None) -> None:
     """The person's next message in the same conversation answers what Alpha asked in its
-    previous turn there."""
+    previous turn there: words typed answer every question of that turn; an answer given on
+    a question's own card answers that question alone (found 11 Oct: one tap closed the two
+    cards beside it), so the siblings stay open until each has its answer."""
     previous = world.journal.recent(1, thread=thread, stream=thread is None, kinds=["said"])
     if not previous:
         return
-    for a in world.journal.open_asks():
-        if a["thread"] == thread and a["data"].get("turn") == previous[-1]["id"]:
-            world.journal.append("answered", sentence, actor="person", data={"ask": a["id"]},
-                                 thread=thread, module=a["module"])
+    turn = previous[-1]["id"]
+    asked = [a for a in world.journal.open_asks()
+             if a["thread"] == thread and a["data"].get("turn") == turn]
+    if not asked:
+        return
+    answered_on_cards = world.store.one(
+        "SELECT 1 AS one FROM journal b JOIN journal a ON json_extract(b.data, '$.ask') = a.id"
+        " WHERE b.kind = 'answered' AND a.kind = 'asked' AND json_extract(a.data, '$.turn') = ?"
+        " AND b.deleted_at IS NULL", (turn,))
+    if answered_on_cards:
+        return
+    for a in asked:
+        world.journal.append("answered", sentence, actor="person", data={"ask": a["id"]},
+                             thread=thread, module=a["module"])
 
 
 def threads_opened_by(world: World, turn_id: str) -> list[str]:

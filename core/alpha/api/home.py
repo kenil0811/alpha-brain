@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from alpha.api.bodies import (
     AgreeWorkflowBody,
     AnswerBody,
+    AnswersBody,
     ApprovePlanBody,
     AskBody,
     DecideBody,
@@ -75,6 +76,26 @@ def routes(app: FastAPI, s: Served) -> None:
         started = running.start(AskBody(text=body.text, module=asked["module"],
                                         thread=asked["thread"]))
         return {"answered": jid, "turn": started}
+
+    @app.post("/api/asks/answer", dependencies=[api])
+    def answer_many(body: AnswersBody) -> dict[str, Any]:
+        """Questions asked together are answered together: each answer is journaled on its
+        own question, and one turn carries them all, in the conversation that asked."""
+        answers = {k: v.strip() for k, v in body.answers.items() if v and v.strip()}
+        if not answers:
+            raise Problem("Nothing answered yet.")
+        asked = [world.journal.read(ask_id) for ask_id in answers]
+        if len({(a["thread"], a["module"]) for a in asked}) != 1:
+            raise Problem("These questions were asked in different conversations;"
+                          " answer them where each was asked.")
+        answered = [world.journal.append("answered", answers[a["id"]], actor="person",
+                                         data={"ask": a["id"]}, module=a["module"],
+                                         thread=a["thread"]) for a in asked]
+        text = (answers[asked[0]["id"]] if len(asked) == 1 else
+                "\n".join(f"{a['text']} — {answers[a['id']]}" for a in asked))
+        started = running.start(AskBody(text=text, module=asked[0]["module"],
+                                        thread=asked[0]["thread"]))
+        return {"answered": answered, "turn": started}
 
     @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
     def dismiss(ask_id: str) -> dict[str, Any]:

@@ -400,6 +400,8 @@ export interface NeedItem {
   why?: string | null;
   at: string;
   options?: string[];
+  /** The turn that asked it: questions asked together are answered together. */
+  turn?: string | null;
   module?: string | null;
   plan?: string | null;
   questions?: PlanQuestion[];
@@ -916,6 +918,8 @@ export class Client {
   runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
+  /** Questions asked together, answered together: ask id → words; one turn carries them. */
+  answerAsks = (answers: Record<string, string>) => this.call<{ answered: string[]; turn: Turn | null }>("POST", "/api/asks/answer", { answers });
   dismissAsk = (id: string) => this.call<{ dismissed: string }>("POST", `/api/asks/${id}/dismiss`);
   approveAction = (id: string, always: boolean) => this.call<Action>("POST", `/api/actions/${id}/approve`, { always });
   declineAction = (id: string) => this.call<Action>("POST", `/api/actions/${id}/decline`);
