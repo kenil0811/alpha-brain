@@ -176,6 +176,28 @@ def test_a_script_runs_with_no_network_and_writes_only_in_the_workspace(tmp_path
     assert code == 3
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="scripts run under sandbox-exec")
+def test_a_workspace_inside_alphas_home_can_resolve_its_own_venv(home: Path) -> None:
+    """Alpha's home is denied to scripts, and the workspace lives inside it: the venv's
+    python resolves its own symlink through the home (found 11 Oct: every part failed with
+    "realpath: .venv/bin/: Operation not permitted"); the home's contents stay denied."""
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "world.sqlite").write_text("secret")
+    ws = workspace_module.root() / "m_test"
+    (ws / ".venv" / "bin").mkdir(parents=True)
+    link = ws / ".venv" / "bin" / "python"
+    link.symlink_to(sys.executable)
+    # The C library's realpath, which python.org's launcher calls on its own path.
+    resolve = ("import ctypes, os; libc = ctypes.CDLL(None, use_errno=True);"
+               " libc.realpath.restype = ctypes.c_char_p;"
+               f" r = libc.realpath({str(link).encode()!r}, None);"
+               " print(r.decode() if r else 'EPERM ' + os.strerror(ctypes.get_errno()))")
+    code, out = workspace_module.run_script(ws, ["python", "-c", resolve])
+    assert code == 0 and out.strip() == os.path.realpath(sys.executable), out
+    code, out = workspace_module.run_script(ws, ["/bin/cat", str(home / "world.sqlite")])
+    assert code != 0 and "secret" not in out
+
+
 @pytest.mark.skipif(sys.platform != "darwin", reason="the self-test runs under sandbox-exec")
 def test_a_milestone_is_built_then_judged_and_the_person_looks_before_the_next(
         world: World, home: Path) -> None:

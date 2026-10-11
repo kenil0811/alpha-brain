@@ -139,8 +139,15 @@ def _profile(workspace: Path, tmp: Path, proxy_port: int | None = None) -> str:
     port is given, the loopback to Alpha's own proxy (runtime/proxy.py)."""
     def sub(p: str) -> str:
         return f'(subpath "{os.path.realpath(os.path.expanduser(p))}")'
-    denied = " ".join(sub(p) for p in SECRET_PATHS + [str(alpha_home())]
-                      if os.path.exists(os.path.expanduser(p)))
+    roots = [os.path.realpath(os.path.expanduser(p)) for p in SECRET_PATHS + [str(alpha_home())]
+             if os.path.exists(os.path.expanduser(p))]
+    denied = " ".join(f'(subpath "{r}")' for r in roots)
+    # The workspace lives inside Alpha's home, which is denied: a path lookup through the
+    # home (a venv's python resolving its own symlink with realpath, found 11 Oct) needs
+    # the metadata of the directories above the workspace, never their contents.
+    real_ws = os.path.realpath(str(workspace))
+    above = " ".join(f'(literal "{a}")' for a in _ancestors(real_ws)
+                     if any(a == r or a.startswith(r + "/") for r in roots))
     return f"""(version 1)
 (deny default)
 (allow process-exec*)
@@ -153,11 +160,22 @@ def _profile(workspace: Path, tmp: Path, proxy_port: int | None = None) -> str:
 (allow file-ioctl)
 (allow file-read*)
 {f'(deny file-read* {denied})' if denied else ''}
+{f'(allow file-read-metadata {above})' if above else ''}
 (allow file-read* {sub(str(workspace))})
 (allow file-write* {sub(str(workspace))} {sub(str(tmp))} (literal "/dev/null")
   (regex #"^/dev/tty"))
 {f'(allow network-outbound (remote ip "localhost:{proxy_port}"))' if proxy_port else ''}
 """
+
+
+def _ancestors(path: str) -> list[str]:
+    """The directories above a path, nearest first, up to but not including the root."""
+    out: list[str] = []
+    parent = os.path.dirname(path)
+    while parent and parent != "/" and parent != path:
+        out.append(parent)
+        path, parent = parent, os.path.dirname(parent)
+    return out
 
 
 def run_script(workspace: Path, argv: list[str], *, timeout_s: float = SCRIPT_TIMEOUT_S,
