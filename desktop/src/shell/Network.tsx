@@ -5,17 +5,19 @@
  * (accepted, or suggested with a yes or no), who else might be the same, and everything in the
  * journal that involves them. Both pages open with the shared page header (the UI rulebook §5):
  * the serif title, and a back link on a person's page; sections are cards (9 Oct, the pages phase).
- * Each side is a table even when empty (header row, blank rows, "+ New"), never a blank screen,
- * with Intelligence (the latest with each) and Governance (Allowed and Denied, then what it keeps) below
- * (9 Oct, Vikas). No Files: no route ties a file to Network.
+ * Each side is the one data view in the one page layout (`DataFrame`, 9 Oct, the owner): the table
+ * fills the first screen, then Files (into Alpha's world: no route ties a file to Network),
+ * Intelligence (the latest with each) and Governance (Allowed and Denied, then what it keeps).
  */
-import { useEffect, useState } from "react";
-import type { Client, Entity, EntityDetail } from "../core/client";
+import { useEffect, useMemo, useState } from "react";
+import type { Client, Entity, EntityDetail, RecordRow } from "../core/client";
+import { DataFrame } from "../modules/DataFrame";
+import { DataPage } from "../modules/DataPage";
+import { memorySource } from "../modules/source";
 import { initials, when } from "../modules/format";
 import { BackLink } from "./BackLink";
 import { FactRow } from "./FactRow";
 import { GovernanceCard } from "../modules/ModuleSections";
-import { SimpleTable } from "../modules/NewProjectPage";
 import { Button, Badge, HeaderSwitch, PageHeader, SectionCard, Trouble } from "../ui";
 import { BuildingIcon, ICON_SM, PeopleIcon } from "../ui/icons";
 
@@ -25,16 +27,15 @@ const SIDES = [
   { id: "orgs" as const, label: "Organizations", icon: <BuildingIcon size={ICON_SM} /> },
 ];
 
-export function Network({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
+export function Network({ client, version, onOpen, onChanged = () => undefined, onAsk }: { client: Client; version: number; onOpen: (id: string) => void; onChanged?: () => void; onAsk?: (text: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
-  const [q, setQ] = useState("");
   const [side, setSide] = useState<Side>("people");
   useEffect(() => {
     let live = true;
     client
-      .people(q.trim() || undefined)
+      .people()
       .then((rows) => {
         if (!live) return;
         setPeople(rows);
@@ -44,72 +45,84 @@ export function Network({ client, version, onOpen }: { client: Client; version: 
     return () => {
       live = false;
     };
-  }, [client, q, version, tick]);
+  }, [client, version, tick]);
+  const source = useMemo(() => networkSource(client, side), [client, side]);
   const rows = (people ?? []).filter((e) => (side === "people") === (e.kind === "person"));
   const noun = side === "people" ? "people" : "organizations";
   return (
-    <>
-      <PageHeader
-        centre={<HeaderSwitch label="Network" items={SIDES} value={side} onChange={setSide} />}
-        right={
-          <div className="search people__search">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find…" aria-label={`Find ${noun}`} />
-          </div>
-        }
-      />
-      <div className="page page--column">
-        <div className="stack stack--wide">
-          {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Network: {error}</Trouble> : null}
-          {people === null && !error ? <p className="faint">Loading Network…</p> : null}
-          {people ? (
-            <>
-              <SimpleTable label={side === "people" ? "People" : "Organizations"} columns={["Name", "About", "Last heard"]} addReason={`Alpha adds ${noun} as it meets them in what it reads.`} note={q && !rows.length ? "Nothing by that name." : undefined}>
-                {rows.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <button type="button" className="linkbtn people__name" onClick={() => onOpen(e.id)}>
-                        <span className="people__avatar" aria-hidden="true">
-                          {initials(e.name)}
-                        </span>{" "}
-                        {e.name}
-                      </button>
-                    </td>
-                    <td className="muted">{e.summary || keysLine(e)}</td>
-                    <td className="faint">{e.last_at ? when(e.last_at) : ""}</td>
-                  </tr>
-                ))}
-              </SimpleTable>
-              {rows.some((e) => e.last_text) ? (
-                <SectionCard title="Intelligence" info={`The latest Alpha has with each of these ${noun}.`}>
-                  <div className="list">
-                    {rows.filter((e) => e.last_text).map((e) => (
-                      <div key={e.id} className="list__row">
-                        <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
-                        <span className="people__name">{e.name}</span>
-                        <span className="people__line">{e.last_text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </SectionCard>
-              ) : null}
-              <GovernanceCard client={client} moduleId="network">
-                <div className="subsecs">
-                  <div className="subsec">
-                    <div className="subsec__head">
-                      <h4 className="subsec__title">What it keeps</h4>
-                    </div>
-                    <p className="faint">
-                      {people.filter((e) => e.kind === "person").length} people and {people.filter((e) => e.kind !== "person").length} organizations{q ? " by that name" : ""}, in Alpha's world on this Mac.
-                    </p>
-                  </div>
+    <DataFrame
+      client={client}
+      scope={NETWORK_SCOPE}
+      name="Network"
+      onChanged={onChanged}
+      header={<PageHeader centre={<HeaderSwitch label="Network" items={SIDES} value={side} onChange={setSide} />} />}
+      notice={error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Network: {error}</Trouble> : null}
+      data={(upload) => <DataPage key={side} client={client} source={source} version={version + tick} onChanged={onChanged} onAsk={onAsk} onAddFiles={upload} onOpenRecord={(_k, id) => onOpen(id)} />}
+      intelligence={
+        <SectionCard title="Intelligence" info={`The latest Alpha has with each of these ${noun}.`}>
+          {rows.some((e) => e.last_text) ? (
+            <div className="list">
+              {rows.filter((e) => e.last_text).map((e) => (
+                <div key={e.id} className="list__row">
+                  <span className="faint people__when">{e.last_at ? when(e.last_at) : ""}</span>
+                  <button type="button" className="linkbtn people__name" onClick={() => onOpen(e.id)}>
+                    {e.name}
+                  </button>
+                  <span className="people__line">{e.last_text}</span>
                 </div>
-              </GovernanceCard>
-            </>
-          ) : null}
-        </div>
-      </div>
-    </>
+              ))}
+            </div>
+          ) : (
+            <p className="faint">Nothing heard yet.</p>
+          )}
+        </SectionCard>
+      }
+      governance={
+        <GovernanceCard client={client} moduleId={NETWORK_SCOPE}>
+          <div className="subsecs">
+            <div className="subsec">
+              <div className="subsec__head">
+                <h4 className="subsec__title">What it keeps</h4>
+              </div>
+              <p className="faint">
+                {people ? `${people.filter((e) => e.kind === "person").length} people and ${people.filter((e) => e.kind !== "person").length} organizations, in Alpha's world on this Mac.` : "Loading…"}
+              </p>
+            </div>
+          </div>
+        </GovernanceCard>
+      }
+    />
   );
+}
+
+const NETWORK_SCOPE = "network";
+const NETWORK_FIXED = "Alpha adds people and organizations as it meets them in what it reads; ask in the panel to add or change one.";
+
+/** People or Organizations as the one data view's source (9 Oct, the owner: the same table as
+ *  every project, with every view, filter and dropdown). Read only: entities change through Alpha. */
+function networkSource(client: Client, side: Side) {
+  return memorySource({
+    client,
+    key: `network.${side}`,
+    title: side === "people" ? "People" : "Organizations",
+    titleField: "name",
+    fields: [
+      { name: "name", kind: "text", label: "Name" },
+      { name: "about", kind: "text", label: "About" },
+      { name: "last_heard", kind: "datetime", label: "Last heard" },
+    ],
+    rows: async () =>
+      (await client.people())
+        .filter((e) => (side === "people") === (e.kind === "person"))
+        .map((e): RecordRow => ({ id: e.id, revision: 1, created_at: e.last_at ?? "", updated_at: e.last_at ?? "", provenance: {}, values: { name: e.name, about: e.summary || keysLine(e), last_heard: e.last_at ?? null } })),
+    rowIcon: (row) => (
+      <span className="people__avatar" aria-hidden="true">
+        {initials(String(row.values.name ?? ""))}
+      </span>
+    ),
+    editable: () => NETWORK_FIXED,
+    reasons: { add: NETWORK_FIXED, edit: NETWORK_FIXED, remove: NETWORK_FIXED },
+  });
 }
 
 function keysLine(e: Entity): string {

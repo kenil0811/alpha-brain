@@ -9,46 +9,23 @@
  * the header tabs for Files, Intelligence and Governance; a remembered "@…" tab falls back to the
  * first collection.)
  */
-import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Client, ModuleCard, ModuleDetail, TableSummaryData } from "../core/client";
 import { dedupeCrumbs } from "./crumbs";
 import { DataPage } from "./DataPage";
 import { RecordPage } from "./RecordPage";
-import { FilesSection, GovernanceSection, IntelligenceSection, type AddedFile } from "./ModuleSections";
-import { SimpleTable } from "./NewProjectPage";
+import { DataFrame } from "./DataFrame";
+import { GovernanceSection, IntelligenceSection } from "./ModuleSections";
+import { emptySource } from "./source";
 import type { Surface } from "../shell/Rail";
-import { Breadcrumb, HeaderSwitch, Notice, PageHeader, Trouble, type Crumb } from "../ui";
+import { Breadcrumb, HeaderSwitch, PageHeader, Trouble, type Crumb } from "../ui";
 import { ICON_SM, Table2 } from "../ui/icons";
 
 export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, onAsk, onOpenRecord, modules = [] }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void; modules?: ModuleCard[] }) {
-  const [detail, setDetail] = useState<ModuleDetail | null>(null);
+  const [loaded, setDetail] = useState<ModuleDetail | null>(null);
+  let detail = loaded;
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<TableSummaryData[]>([]);
-  const [dragging, setDragging] = useState(false);
-  const [dropNote, setDropNote] = useState<string | null>(null);
-  const [added, setAdded] = useState<AddedFile[]>([]);
-  // Files come in by Upload (the Mac's picker) or by dropping them anywhere on
-  // the page; both take the same route (3 Oct: with only the drop, an empty attachments table
-  // had no visible way in).
-  const picker = useRef<HTMLInputElement>(null);
-  async function addFiles(files: File[]) {
-    if (!files.length) return;
-    try {
-      const out = await client.addFiles(files, { module: moduleId });
-      // the core answers with one document per file, in order
-      setAdded((now) => [...out.documents.map((doc, i) => ({ doc, file: files[i] })), ...now]);
-      setDropNote(`Uploaded ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"}.`);
-      onChanged();
-    } catch (err) {
-      setDropNote(`Couldn't upload ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    window.setTimeout(() => setDropNote(null), 6000);
-  }
-  async function dropped(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragging(false);
-    await addFiles(Array.from(e.dataTransfer.files ?? []));
-  }
   const [tab, setTab] = useState<string>(() => {
     try {
       return localStorage.getItem(`alpha.module.${moduleId}.tab`) ?? "";
@@ -77,6 +54,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     client.moduleSummary(moduleId).then((s) => setSummary(s.tables)).catch(() => setSummary([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, moduleId, version]);
+  const empty = useMemo(() => emptySource(client, `empty:${moduleId}`, "First table", "Alpha fills this in as the project is built: ask in the panel, or upload files."), [client, moduleId]);
 
   // The ids behind the path's names, from the rail's cards (the page itself knows the names).
   const pathIds = useMemo(() => {
@@ -97,32 +75,39 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
       </>
     );
   }
+  // the name the person gave it in the window, when they did (the sidebar's rename)
+  const shownName = modules.find((m) => m.id === moduleId)?.name;
+  if (shownName && shownName !== detail.name) detail = { ...detail, name: shownName, path: detail.path ? [...detail.path.slice(0, -1), shownName] : detail.path };
+  const d = detail;
   // lands on data: the remembered collection if it is still there, else the first
-  const table = detail.tables.find((t) => t.name === tab) ?? detail.tables[0] ?? null;
-  const several = detail.tables.length > 1;
-  const crumbs: Crumb[] = dedupeCrumbs([...(detail.path ?? []).slice(0, -1).map((name, i) => ({ label: name, onClick: () => onGo({ kind: "module", id: pathIds[i] }) })), { label: detail.name }]);
+  const table = d.tables.find((t) => t.name === tab) ?? d.tables[0] ?? null;
+  const several = d.tables.length > 1;
+  const crumbs: Crumb[] = dedupeCrumbs([...(d.path ?? []).slice(0, -1).map((name, i) => ({ label: name, onClick: () => onGo({ kind: "module", id: pathIds[i] }) })), { label: d.name }]);
   // with one collection or none the name is the title, so the breadcrumb holds only where it sits
-  const where = several ? crumbs : crumbs.slice(0, -1).filter((c) => c.label !== detail.name);
+  const where = several ? crumbs : crumbs.slice(0, -1).filter((c) => c.label !== d.name);
   return (
-    <div className={dragging ? "modpage page--drop" : "modpage"} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
-      <PageHeader
-        left={where.length ? <Breadcrumb items={where} /> : undefined}
-        centre={several && table ? <HeaderSwitch label="Collections" value={table.name} onChange={setTab} items={detail.tables.map((t) => ({ id: t.name, label: t.title, icon: <Table2 size={ICON_SM} /> }))} /> : undefined}
-        title={several ? undefined : detail.name}
-      />
-      <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void addFiles(files); }} />
-      <div className="page page--wide modpage__body">
-        {dragging ? <div className="dropnote">Drop to upload to {detail.name}</div> : null}
-        {dropNote ? <Notice tone={dropNote.startsWith("Couldn") ? "bad" : "ok"}>{dropNote}</Notice> : null}
-        {table ? (
-          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={(t, id) => onOpenRecord?.(t, id)} onAddFiles={() => picker.current?.click()} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} />} />
+    <DataFrame
+      client={client}
+      scope={d.id}
+      name={d.name}
+      module={moduleId}
+      onChanged={onChanged}
+      header={
+        <PageHeader
+          left={where.length ? <Breadcrumb items={where} /> : undefined}
+          centre={several && table ? <HeaderSwitch label="Collections" value={table.name} onChange={setTab} items={d.tables.map((t) => ({ id: t.name, label: t.title, icon: <Table2 size={ICON_SM} /> }))} /> : undefined}
+          title={several ? undefined : d.name}
+        />
+      }
+      data={(upload) =>
+        table ? (
+          <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onAsk={onAsk} onOpenRecord={(t, id) => onOpenRecord?.(t, id)} onAddFiles={upload} summary={summary.find((s) => s.name === table.name) ?? null} renderPeek={(t, id) => <RecordPage key={`${t}/${id}`} client={client} module={moduleId} table={t} id={id} version={version} modules={modules} onGo={onGo} onChanged={onChanged} onAsk={onAsk} />} />
         ) : (
-          <SimpleTable label={`${detail.name}'s first table`} columns={["Name"]} addReason="There's no table here yet to add to." note="Alpha fills this in as the project is built: ask in the panel, or upload files." />
-        )}
-        <FilesSection added={added} onPick={() => picker.current?.click()} />
-        <IntelligenceSection client={client} detail={detail} version={version} onChanged={onChanged} onGo={onGo} />
-        <GovernanceSection client={client} detail={detail} modules={modules} onChanged={onChanged} />
-      </div>
-    </div>
+          <DataPage client={client} source={empty} version={version} onChanged={onChanged} onAsk={onAsk} onAddFiles={upload} onOpenRecord={() => undefined} />
+        )
+      }
+      intelligence={<IntelligenceSection client={client} detail={d} version={version} onChanged={onChanged} onGo={onGo} />}
+      governance={<GovernanceSection client={client} detail={d} modules={modules} onChanged={onChanged} />}
+    />
   );
 }

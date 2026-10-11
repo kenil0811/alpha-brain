@@ -12,6 +12,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { Client, Intelligence as Data } from "../core/client";
+import { DataFrame } from "../modules/DataFrame";
 import { DataPage } from "../modules/DataPage";
 import { Activity } from "./Activity";
 import { Connections } from "./Connections";
@@ -19,7 +20,7 @@ import { DescribeAdd } from "./DescribeAdd";
 import { AGENT_ROW, automationsSource, skillsSource } from "./intel/sources";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
-import { HeaderSwitch, PageHeader, Trouble, type HeaderSwitchItem } from "../ui";
+import { HeaderSwitch, PageHeader, SectionCard, Trouble, type HeaderSwitchItem } from "../ui";
 import { AgentIcon, BrainIcon, ConnectionIcon, ICON_SM, SkillIcon } from "../ui/icons";
 import { SUBTITLES } from "../ui/subtitles";
 
@@ -94,9 +95,30 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
   })();
   const shown = current === "map" ? "second-brain" : current;
   const subtitle = TABS.find((t) => t.id === shown)?.hint; // the active tab's plain subtitle (rulebook §2)
+  const header = <PageHeader centre={<HeaderSwitch label="Intelligence" items={TABS} value={shown} onChange={onTab} />} />;
+  // A list (agents, skills, connections) is a table page like any project's: the one layout, the
+  // table over the first screen, then Files, Intelligence (what Alpha did) and Governance (9 Oct, the owner).
+  if (data && (current === "agents" || current === "skills" || current === "connections")) {
+    return (
+      <DataFrame
+        client={client}
+        scope={`intelligence.${current}`}
+        name="Intelligence"
+        onChanged={onChanged}
+        header={header}
+        notice={subtitle ? <p className="scard__sub intel__sub">{subtitle}</p> : null}
+        data={() => body}
+        intelligence={
+          <SectionCard title="Intelligence" info="Everything Alpha did and you did, newest first.">
+            <Activity client={client} version={version} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "entry", id }) : undefined} />
+          </SectionCard>
+        }
+      />
+    );
+  }
   return (
     <>
-      <PageHeader centre={<HeaderSwitch label="Intelligence" items={TABS} value={shown} onChange={onTab} />} />
+      {header}
       <div className={`page ${current === "activity" ? "page--column" : "page--wide"}`}>
         {subtitle ? <p className="scard__sub intel__sub">{subtitle}</p> : null}
         {body}

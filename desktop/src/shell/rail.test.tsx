@@ -82,12 +82,12 @@ describe("the sidebar's order", () => {
     await waitFor(() => expect(labels()).toEqual(["Home", "Network", "Job", "Food", "Alpha plans", "Notes", "New project", "Intelligence", "Settings"]));
   });
 
-  it("draws Network as a project: a project's menu, Rename and Delete disabled with the reason", async () => {
+  it("draws Network as a project: a project's menu, Delete disabled with the reason", async () => {
     const user = userEvent.setup();
     const { onGo } = setup([]);
     await user.click(screen.getByRole("button", { name: "More for Network" }));
     expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "Hide", "Delete", "View options"]);
-    expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: "Rename" })).not.toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveAttribute("aria-disabled", "true");
     await user.click(screen.getByRole("menuitem", { name: "Open" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "people" });
@@ -175,18 +175,28 @@ describe("a module's menu", () => {
     expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "A new project above it…", "Hide", "Delete", "View options"]);
   });
 
-  it("shows Rename and Delete disabled, and says why on hover", async () => {
+  it("shows Delete disabled, and says why on hover; Rename edits the name in place", async () => {
     const user = userEvent.setup();
     setup([card("m_f", "Food")]);
     await user.click(screen.getByRole("button", { name: "More for Food" }));
     const rename = await screen.findByRole("menuitem", { name: "Rename" });
     const del = screen.getByRole("menuitem", { name: "Delete" });
-    expect(rename).toHaveAttribute("aria-disabled", "true");
+    expect(rename).not.toHaveAttribute("aria-disabled", "true");
     expect(del).toHaveAttribute("aria-disabled", "true");
-    await user.hover(rename);
-    expect((await screen.findAllByText(/can do yet/)).length).toBeGreaterThan(0);
     await user.hover(del);
     expect((await screen.findAllByText(/delete a project from this window yet/)).length).toBeGreaterThan(0);
+    await user.click(rename);
+    expect(await screen.findByRole("textbox", { name: "Rename Food" })).toHaveValue("Food");
+  });
+
+  it("renames a project on a double-click of its name, kept as the person's own name", async () => {
+    const user = userEvent.setup();
+    const { setPreference } = setup([card("m_f", "Food")]);
+    await user.dblClick(screen.getByRole("button", { name: "Food" }).querySelector(".navbtn__text")!);
+    const box = await screen.findByRole("textbox", { name: "Rename Food" });
+    await user.clear(box);
+    await user.type(box, "Meals{Enter}");
+    await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleNames, { m_f: "Meals" }));
   });
 
   it("hides a module (kept in preferences), and View options brings it back", async () => {
@@ -320,7 +330,6 @@ describe("the folded sidebar", () => {
     const { labels, container } = setup([card("m_f", "Food")], { collapsed: true });
     expect(labels()).toEqual(["Home", "Network", "Food", "New project", "Intelligence", "Settings"]);
     expect(container.querySelector(".rail--collapsed")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Unfold the sidebar" })).toBeInTheDocument();
   });
 });
 

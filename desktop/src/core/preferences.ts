@@ -14,6 +14,8 @@ export const PREF = {
   workspaceName: "workspace_name",
   moduleOrder: "module_order",
   moduleIcons: "module_icons",
+  /** Per module id: the name the person gave it in the window (the core has no rename route yet). */
+  moduleNames: "module_names",
   hiddenModules: "hidden_modules",
   pinnedRecords: "pinned_records",
   footerSummaries: "footer_summaries",

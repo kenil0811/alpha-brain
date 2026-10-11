@@ -19,8 +19,9 @@ import { ActionCard } from "../shell/ActionCard";
 import { Activity } from "../shell/Activity";
 import { AgentAvatar } from "../shell/AgentAvatar";
 import { useSpeech } from "../shell/voice";
+import { unfoldOnEmpty } from "../shell/Rail";
 import { Badge, Button, Dropdown, IconButton, PageHeader, Popover, Rich, Trouble } from "../ui";
-import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronsRight, DeleteIcon, ICON_SM, NotificationIcon, PlusIcon, RetryIcon, X } from "../ui/icons";
+import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, DeleteIcon, ICON_SM, NotificationIcon, PlusIcon, RetryIcon, X } from "../ui/icons";
 import { AskCard, PlanCard } from "./Cards";
 import { Composer } from "./Composer";
 
@@ -266,7 +267,7 @@ export function AssistantPanel({
   // The panel is always present: folded, it is a slim strip with Alpha's avatar that opens it.
   if (!open) {
     return (
-      <aside className="assist assist--folded" aria-label="Assistant, folded">
+      <aside className="assist assist--folded" aria-label="Assistant, folded" onDoubleClick={unfoldOnEmpty(true, () => onOpen(true))}>
         <button type="button" className="assist__strip" aria-label="Open the assistant" onClick={() => onOpen(true)}>
           <Mark client={client} />
           <span className="assist__striplabel">Alpha</span>
@@ -344,7 +345,6 @@ export function AssistantPanel({
   return (
     <aside className="assist" aria-label="Assistant">
       <PageHeader
-        left={<IconButton label="Fold the assistant" icon={<ChevronsRight />} onClick={() => onOpen(false)} />}
         centre={
           <div className="assist__who">
             <Mark client={client} />

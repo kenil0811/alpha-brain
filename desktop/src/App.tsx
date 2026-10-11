@@ -13,7 +13,8 @@
  * it to the strip, as its fold button does. Any part may hand the assistant a sentence to send
  * (`AssistantProvider`, `useAssistant().say`).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PREF, usePreference } from "./core/preferences";
 import { Client, moduleWords } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
@@ -41,6 +42,7 @@ import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
 import { AssistantProvider, Button, InfoTip } from "./ui";
+import { ChevronsLeft, ChevronsRight } from "./ui/icons";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
@@ -76,7 +78,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   // `panelOpen` false is the assistant panel folded to its strip, never gone.
   const [panelOpen, setPanelOpen] = useState<boolean>(() => remembered<boolean>(PANEL_KEY, true));
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>(RAIL_KEY, false));
-  const [modules, setModules] = useState<ModuleCard[]>([]);
+  const [coreModules, setModules] = useState<ModuleCard[]>([]);
   const [needs, setNeeds] = useState(0);
   const [restarted, setRestarted] = useState(false);
   // A sentence handed to the panel: put in the composer (an "Ask Alpha…" button), or sent at
@@ -90,12 +92,19 @@ export function App({ client: injected }: { client?: Client } = {}) {
 
   const surfaceRef = useRef(surface);
   surfaceRef.current = surface;
+  // where the person was before the New project page, for its Cancel
+  const beforeNew = useRef<Surface>({ kind: "home" });
+  const [draftName, setDraftName] = useState("");
   const setSurface = useCallback((next: Surface) => {
     const place = knownSurface(next);
     if (place.kind === "activity") {
       setActivityAt(Date.now());
       pushAddress(surfaceRef.current, true); // the address names the page, not the bell
       return;
+    }
+    if (place.kind === "new-project" && surfaceRef.current.kind !== "new-project") {
+      beforeNew.current = surfaceRef.current;
+      setDraftName("");
     }
     setSurfaceState(place);
     remember(SURFACE_KEY, place);
@@ -178,6 +187,10 @@ export function App({ client: injected }: { client?: Client } = {}) {
   }, [runtime, injected]);
 
   const client = runtime.kind === "connected" ? runtime.client : null;
+  // The names the person gave projects in the window (the sidebar renames by double-click; the
+  // core has no rename route yet): every part of the window shows them.
+  const [namesPref] = usePreference<Record<string, string>>(client, PREF.moduleNames, {});
+  const modules = useMemo(() => coreModules.map((m) => (namesPref?.[m.id] ? { ...m, name: namesPref[m.id], path: m.path ? [...m.path.slice(0, -1), namesPref[m.id]] : m.path } : m)), [coreModules, namesPref]);
   const moduleOf = useCallback((table: string) => modules.find((m) => m.tables.some((t) => t.name === table))?.id, [modules]);
   const { versions, down, bump, poll } = useChanges(client, moduleOf);
   const changed = bump;
@@ -282,7 +295,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const scopeId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : null;
   const scopeModule = scopeId ? (modules.find((m) => m.id === scopeId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? "Network" : surface.kind === "entry" ? "Activity" : "Intelligence";
+    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? (namesPref?.network || "Network") : surface.kind === "entry" ? "Activity" : "Intelligence";
 
   return (
     <AssistantProvider say={say}>
@@ -290,9 +303,11 @@ export function App({ client: injected }: { client?: Client } = {}) {
       className={`app${panelOpen ? "" : " app--assistant-folded"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: panelOpen ? `${panel.width}px` : undefined }}
     >
-      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} />
+      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} draftName={draftName} />
       {!railCollapsed ? <Resizer side="rail" label="Resize the sidebar" drag={rail} /> : null}
       {panelOpen && client ? <Resizer side="panel" label="Resize the assistant panel" drag={panel} /> : null}
+      <EdgeToggle side="rail" folded={railCollapsed} label={railCollapsed ? "Unfold the sidebar" : "Fold the sidebar"} onClick={() => foldRail(!railCollapsed)} />
+      {client ? <EdgeToggle side="panel" folded={!panelOpen} label={panelOpen ? "Fold the assistant" : "Open the assistant"} onClick={() => togglePanel(!panelOpen)} /> : null}
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
@@ -347,13 +362,13 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "new-project" ? (
-          <NewProjectPage client={runtime.client} onSay={say} onGo={setSurface} onOpenChat={() => togglePanel(true)} />
+          <NewProjectPage client={runtime.client} onSay={say} onGo={setSurface} onOpenChat={() => togglePanel(true)} onName={setDraftName} onCancel={() => setSurface(beforeNew.current)} />
         ) : surface.kind === "connection" ? (
           <ConnectionPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "connections" })} onChanged={changed} />
         ) : surface.kind === "fact" ? (
           <FactPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "second-brain" })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "people" ? (
-          <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
+          <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "entity" ? (
           <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "skill" && surface.name.startsWith(BUILT_IN) ? (
@@ -376,6 +391,18 @@ export function App({ client: injected }: { client?: Client } = {}) {
       ) : null}
     </div>
     </AssistantProvider>
+  );
+}
+
+/** A side panel's fold button (9 Oct, the owner): a round button on the panel's edge that faces
+ *  the middle, half over the seam at mid-height, shown while the pointer is over that panel (or on
+ *  keyboard focus). The same on both sides; the arrows point the way the panel will go. */
+function EdgeToggle({ side, folded, label, onClick }: { side: "rail" | "panel"; folded: boolean; label: string; onClick: () => void }) {
+  const left = (side === "rail") !== folded; // folding the sidebar or opening the assistant goes left
+  return (
+    <button type="button" className={`edgetog edgetog--${side}`} aria-label={label} title={label} aria-expanded={!folded} onClick={onClick}>
+      {left ? <ChevronsLeft size={14} aria-hidden="true" /> : <ChevronsRight size={14} aria-hidden="true" />}
+    </button>
   );
 }
 

@@ -53,3 +53,9 @@
 
 /* ---------- An Activity entry's own page (`ActivityPage`) ---------- */
 .actpage__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-4); align-items: baseline; }
+/* a project renamed in place in the sidebar (a double-click on its name) */
+.navbtn--edit { cursor: default; }
+.navbtn--edit:hover { background: none; }
+.navbtn__input { flex: 1; min-width: 0; height: 28px; margin: -4px 0; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
+/* the project being made: in the sidebar while its page is open, its name as typed (or "New project") */
+.navbtn--draft .navbtn__text { font-style: italic; }
