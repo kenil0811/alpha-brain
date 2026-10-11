@@ -74,9 +74,19 @@ function FieldOrigin({ origin }: { origin: NonNullable<Provenance["fields"]>[str
   );
 }
 
-export function RecordPanel({ row, fields, titleField, relations, tableTitle, onClose, onCommit, onRemove, onOpenRelated, back }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; tableTitle?: string; onClose: () => void; onCommit: (field: FieldInfo, text: string) => void; onRemove?: () => void; onOpenRelated?: (collection: string, id: string) => void; back?: { to: string; onBack: () => void } }) {
+/** What Alpha can do with this thing (§12): the parts that run when asked, and a run again
+ *  for a part that could not fill its fields. */
+export interface ThingAction {
+  id: string;
+  title: string;
+  again?: boolean;
+}
+
+export function RecordPanel({ row, fields, titleField, relations, tableTitle, onClose, onCommit, onRemove, onOpenRelated, back, actions, onRun }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; tableTitle?: string; onClose: () => void; onCommit: (field: FieldInfo, text: string) => void; onRemove?: () => void; onOpenRelated?: (collection: string, id: string) => void; back?: { to: string; onBack: () => void }; actions?: ThingAction[]; onRun?: (part: string) => Promise<unknown> }) {
   const title = titleField ? String(row.values[titleField] ?? "") : "";
   const [asking, setAsking] = useState(false);
+  const [running, setRunning] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   return (
     <section className="drawer" aria-label={title || "Details"}>
       <Confirm open={asking} title={`Remove ${title || "this row"}?`} action="Remove it" onConfirm={() => { setAsking(false); onRemove?.(); }} onCancel={() => setAsking(false)}>
@@ -96,6 +106,16 @@ export function RecordPanel({ row, fields, titleField, relations, tableTitle, on
         ) : null}
         <IconButton size="sm" label="Close details" icon={<X />} onClick={onClose} />
       </div>
+      {actions?.length && onRun ? (
+        <div className="row thing__actions" role="group" aria-label="What Alpha can do">
+          {actions.map((a) => (
+            <Button key={a.id} size="sm" disabled={running !== null} onClick={() => { setRunning(a.id); setNote(null); void onRun(a.id).then(() => setNote(`${a.title}: done.`)).catch((e: unknown) => setNote(e instanceof Error ? e.message : String(e))).finally(() => setRunning(null)); }}>
+              {running === a.id ? "Running…" : a.again ? `Try again: ${a.title}` : a.title}
+            </Button>
+          ))}
+          {note ? <span className="faint" role="status">{note}</span> : null}
+        </div>
+      ) : null}
       <RecordFields row={row} fields={fields} titleField={titleField} relations={relations} onCommit={onCommit} onOpenRelated={onOpenRelated} />
     </section>
   );

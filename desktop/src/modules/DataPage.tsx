@@ -5,7 +5,7 @@
  * and are journaled as theirs.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
+import type { Client, FileInfo, Part, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
@@ -20,7 +20,7 @@ import { BoardView } from "./views/BoardView";
 import { CalendarView } from "./views/CalendarView";
 import { ChartView } from "./views/ChartView";
 import { ListView } from "./views/ListView";
-import { RecordPanel } from "./views/RecordPanel";
+import { RecordPanel, type ThingAction } from "./views/RecordPanel";
 import { FormView } from "./views/FormView";
 import { TableView } from "./views/TableView";
 
@@ -148,6 +148,20 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   const [adding, setAdding] = useState(false);
   // A program module's own table (Q38) is read from its database: no adding, editing or removing here.
   const readonly = Boolean(table.readonly);
+  // The parts of the module this table belongs to (§12): run when asked from a thing's page.
+  const [parts, setParts] = useState<Part[]>([]);
+  useEffect(() => {
+    if (!table.module) { setParts([]); return; }
+    client.parts(table.module).then(setParts).catch(() => setParts([]));
+  }, [client, table.module, version]);
+  const actionsFor = (row: RecordRow): ThingAction[] => {
+    const mine = parts.filter((p) => p.fills.thing === table.name || table.name.endsWith(`_${p.fills.thing}`));
+    const asked = mine.filter((p) => p.when === "asked").map((p) => ({ id: p.id, title: p.title }));
+    const failed = new Set(Object.values(row.provenance.fields ?? {}).filter((o) => o.problem && o.part).map((o) => o.part as string));
+    const again = mine.filter((p) => failed.has(p.id) && p.when !== "asked").map((p) => ({ id: p.id, title: p.title, again: true }));
+    return [...asked, ...again];
+  };
+  const runPart = (row: RecordRow, part: string) => (table.module ? client.runPart(table.module, part, row.id).then(() => { onChanged(); }) : Promise.resolve());
   const [naming, setNaming] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -582,7 +596,7 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
             back={{ to: backTo(related, openRow, titleField, table.title), onBack: () => setRelated((stack) => stack.slice(0, -1)) }}
           />
         ) : openRow ? (
-          <RecordPanel row={openRow} fields={fields} titleField={titleField} relations={relations} onClose={() => setOpenId(null)} onCommit={(field, text) => commit(openRow, field, text)} onRemove={() => remove(openRow)} onOpenRelated={openRelated} />
+          <RecordPanel row={openRow} fields={fields} titleField={titleField} relations={relations} onClose={() => setOpenId(null)} onCommit={(field, text) => commit(openRow, field, text)} onRemove={() => remove(openRow)} onOpenRelated={openRelated} actions={actionsFor(openRow)} onRun={(part) => runPart(openRow, part)} />
         ) : null}
         {view !== "form" ? (
         <div className="pager">

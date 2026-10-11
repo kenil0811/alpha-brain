@@ -204,6 +204,16 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   jobs?: Job[];
 }
 
+export interface Part {
+  id: string;
+  step: string;
+  title: string;
+  reads: { thing: string; fields: string[] };
+  fills: { thing: string; fields: string[] };
+  when: string;
+  reaches: string[];
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -779,6 +789,10 @@ export class Client {
   home = () => this.call<Home>("GET", "/api/home");
   modules = () => this.call<ModuleCard[]>("GET", "/api/modules");
   module = (ref: string) => this.call<ModuleDetail>("GET", `/api/modules/${encodeURIComponent(ref)}`);
+  /** The parts a program module declared (§12): the steps Alpha does, each with when it runs. */
+  parts = (module: string) => this.call<Part[]>("GET", `/api/modules/${encodeURIComponent(module)}/parts`);
+  runPart = (module: string, part: string, row: string) =>
+    this.call<{ ok: boolean; exit: number; values?: Record<string, unknown>; problems?: Record<string, string>; output: string }>("POST", `/api/modules/${encodeURIComponent(module)}/parts/${encodeURIComponent(part)}/run`, { row });
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
   /** Put a module inside another (or at the top with null); everything in it moves with it. */
   moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
