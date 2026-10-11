@@ -4,7 +4,7 @@
  * to answer or open.
  */
 import { useEffect, useState } from "react";
-import { PlanPieces, PlanQuestions, defaultAnswers, defaultDecisions } from "../assistant/AssistantPanel";
+import { PlanPieces, PlanQuestions, WorkflowCard, defaultAnswers, defaultDecisions } from "../assistant/AssistantPanel";
 import type { Client, Home as HomeData, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
@@ -41,6 +41,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   }
   if (item.kind === "action" && item.action) {
     return <ActionCard action={item.action} client={client} onDecided={(note) => { onDone(note); }} />;
+  }
+  if (item.kind === "workflow" && item.workflow) {
+    return <WorkflowCard workflow={item.workflow} client={client} onDecided={() => onDone("Noted.")} />;
   }
   if (item.kind === "ask") {
     return (

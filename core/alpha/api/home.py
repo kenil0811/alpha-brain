@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from alpha.api.bodies import (
+    AgreeWorkflowBody,
     AnswerBody,
     ApprovePlanBody,
     AskBody,
@@ -140,6 +141,37 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/turns/{key}/stop", dependencies=[api])
     def stop_turn(key: str) -> dict[str, Any]:
         return running.stop(key)
+
+    @app.get("/api/workflows", dependencies=[api])
+    def workflows() -> list[dict[str, Any]]:
+        return list(reversed(world.workflows.all()))[:50]
+
+    @app.get("/api/workflows/{wid}", dependencies=[api])
+    def workflow(wid: str) -> dict[str, Any]:
+        return {**world.workflows.get(wid), "versions": world.workflows.versions(wid)}
+
+    @app.post("/api/workflows/{wid}/agree", dependencies=[api])
+    def agree_workflow(wid: str, body: AgreeWorkflowBody | None = None) -> dict[str, Any]:
+        """The yes on the page (§12): suggestions decided, answers kept, then agreed; the
+        build follows in the background (its wiring is the next slice)."""
+        if body:
+            for sid, decision in (body.suggestions or {}).items():
+                world.workflows.decide_suggestion(wid, sid, decision)
+            if body.answers:
+                world.workflows.answer(wid, body.answers)
+        agreed = world.workflows.agree(wid, "Agreed in the app")
+        world.journal.append("did", f"You agreed your workflow: {agreed['title']}.",
+                             actor="person", thread=agreed.get("conversation"),
+                             data={"workflow": wid})
+        return agreed
+
+    @app.post("/api/workflows/{wid}/decline", dependencies=[api])
+    def decline_workflow(wid: str) -> dict[str, Any]:
+        declined = world.workflows.decline(wid)
+        world.journal.append("did", f"Set aside the workflow {declined['title']}.",
+                             actor="person", thread=declined.get("conversation"),
+                             data={"workflow": wid})
+        return declined
 
     @app.post("/api/research/{rid}/stop", dependencies=[api])
     def stop_research(rid: str) -> dict[str, Any]:

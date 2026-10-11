@@ -5,7 +5,7 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, PlanPiece, PlanQuestion, Research, Thread, Turn } from "../core/client";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, PlanPiece, PlanQuestion, Research, Thread, Turn, Workflow } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
@@ -198,6 +198,154 @@ export function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Clie
   );
 }
 
+const WHO_WORDS: Record<string, string> = { alpha: "Alpha", you: "You", both: "Alpha prepares, you decide" };
+
+/** "Your workflow" (§12): the page Alpha drafted from the interview, in the person's words.
+ *  The steps with who does each, what it keeps, documents, settings with their origin, Alpha's
+ *  suggestions (accept or skip), the questions; "Yes, build it". The person changes it by
+ *  saying what is different in the conversation, never by editing it here. */
+export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workflow; client: Client; onDecided: () => void }) {
+  const b = workflow.body;
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [decisions, setDecisions] = useState<Record<string, string>>(() => Object.fromEntries(b.suggestions.map((s) => [s.id, s.decision ?? "accept"])));
+  const [answers, setAnswers] = useState<Record<string, string>>(() => defaultAnswers(b.questions ?? []));
+  const [showSources, setShowSources] = useState<Record<string, boolean>>({});
+  const drafted = workflow.state === "drafted";
+  const decide = (yes: boolean) => {
+    setBusy(true);
+    void (yes ? client.agreeWorkflow(workflow.id, b.suggestions.length ? decisions : undefined, b.questions.length ? answers : undefined) : client.declineWorkflow(workflow.id)).finally(() => {
+      setBusy(false);
+      onDecided();
+    });
+  };
+  return (
+    <div className="creation wfcard" aria-label={`Your workflow: ${workflow.title}`}>
+      <h3 className="creation__title">
+        {workflow.title}
+        <span className="badge badge--waiting">{drafted ? `Your workflow · v${workflow.version}` : workflow.state}</span>
+      </h3>
+      <p className="wf__purpose">{b.purpose}</p>
+      <section className="wf__section" aria-label="How it goes">
+        <h4 className="wf__head">How it goes</h4>
+        <ol className="wf__steps">
+          {b.steps.map((s) => (
+            <li key={s.id} className="wf__step">
+              <b>{s.title}</b> <span className={`wf__who wf__who--${s.who}`}>{WHO_WORDS[s.who] ?? s.who}</span>
+              {s.outward ? <span className="wf__who wf__who--asks">asks you first</span> : null}
+              <div>{s.what}</div>
+              <div className="faint">
+                {s.when}
+                {s.reaches.length ? ` · reads ${s.reaches.join(", ")}` : ""}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+      {b.keeps.length ? (
+        <section className="wf__section" aria-label="What it keeps">
+          <h4 className="wf__head">What it keeps</h4>
+          <ul className="wf__list">
+            {b.keeps.map((k) => (
+              <li key={k.key}>
+                <b>{k.thing}</b>
+                {k.what ? ` — ${k.what}` : ""}
+                {k.fields.length ? <span className="faint"> · {k.fields.map((f) => f.label).join(", ")}</span> : null}
+                {k.relates_to.length ? <span className="faint"> · linked to {k.relates_to.join(", ")}</span> : null}
+              </li>
+            ))}
+            {b.documents.map((d) => (
+              <li key={d.name}>
+                <b>{d.name}</b> <span className="faint">document{d.for ? ` for ${d.for}` : ""}{d.from ? ` · from ${d.from}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {b.settings.length || b.assumptions.length ? (
+        <section className="wf__section" aria-label="Settings and assumptions">
+          <h4 className="wf__head">
+            Settings and assumptions{" "}
+            <button type="button" className="linklike" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+              {open ? "hide" : `show ${b.settings.length + b.assumptions.length}`}
+            </button>
+          </h4>
+          {open ? (
+            <ul className="wf__list">
+              {b.settings.map((st) => (
+                <li key={st.key}>
+                  {st.label}: <b>{String(st.value ?? "")}{st.unit ? ` ${st.unit}` : ""}</b> <span className="faint">· {st.origin}{st.why ? ` · ${st.why}` : ""}</span>
+                </li>
+              ))}
+              {b.assumptions.map((a) => (
+                <li key={a} className="faint">assumed: {a}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+      {b.suggestions.length ? (
+        <section className="wf__section" aria-label="Alpha suggests">
+          <h4 className="wf__head">Alpha suggests</h4>
+          <ul className="wf__list">
+            {b.suggestions.map((sg) => (
+              <li key={sg.id} className="wf__suggest">
+                <div>
+                  <b>{sg.title}</b> — {sg.what}
+                  {sg.why ? <span className="faint"> {sg.why}</span> : null}
+                  {sg.sources.length ? (
+                    <>
+                      {" "}
+                      <button type="button" className="linklike" onClick={() => setShowSources({ ...showSources, [sg.id]: !showSources[sg.id] })}>
+                        {showSources[sg.id] ? "hide sources" : "why?"}
+                      </button>
+                      {showSources[sg.id] ? (
+                        <span className="faint">
+                          {" "}
+                          {sg.sources.map((u, i) => (
+                            <a key={u} className="planp__src" href={u} target="_blank" rel="noreferrer">
+                              {i ? ", " : ""}source {i + 1}
+                            </a>
+                          ))}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+                {drafted ? (
+                  <div className="planp__opts" role="group" aria-label={`Decide: ${sg.title}`}>
+                    {(["accept", "skip"] as const).map((d) => (
+                      <Button key={d} size="sm" variant={decisions[sg.id] === d ? "primary" : undefined} aria-pressed={decisions[sg.id] === d} onClick={() => setDecisions({ ...decisions, [sg.id]: d })}>
+                        {d === "accept" ? "Add it" : "Skip"}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {drafted && b.questions.length ? <PlanQuestions questions={b.questions} answers={answers} onChange={setAnswers} /> : null}
+      {drafted ? (
+        <>
+          <span className="faint">Nothing is built until you say yes. To change anything, say what's different here; Alpha rewrites the page and keeps the version before.</span>
+          <div className="row" style={{ marginTop: 8 }}>
+            <Button size="sm" variant="primary" disabled={busy} onClick={() => decide(true)}>
+              Yes, build it
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
+              Not now
+            </Button>
+          </div>
+        </>
+      ) : (
+        <span className="faint">{workflow.state === "agreed" ? "Agreed. The build starts in the background and reports here." : workflow.state === "building" ? "Being built now." : `This workflow is ${workflow.state}.`}</span>
+      )}
+    </div>
+  );
+}
+
 /** A question Alpha asked, as choices to tap (or words to type); the answer starts the next
  *  turn, so the person never has to repeat the question. */
 function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnswered: (turn: Turn | null) => void }) {
@@ -328,6 +476,7 @@ export function Conversation({
   const [threads, setThreads] = useState<Thread[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [research, setResearch] = useState<Research[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
   const [showSteps, setShowSteps] = useState(false);
@@ -350,6 +499,7 @@ export function Conversation({
         setThreads(c.threads);
         setPlans(c.plans ?? []);
         setResearch(c.research ?? []);
+        setWorkflows(c.workflows ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
         setConvos(c.conversations ?? []);
@@ -645,6 +795,9 @@ export function Conversation({
             {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
             {turns.map((e) => (
               <Message key={e.id} e={e} asks={openAsks} plans={plans} />
+            ))}
+            {workflows.map((w) => (
+              <WorkflowCard key={w.id} workflow={w} client={client} onDecided={() => { load(); onChanged(); }} />
             ))}
             {plans
               .filter((p) => p.state === "proposed" || p.state === "stopped")

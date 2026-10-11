@@ -111,6 +111,7 @@ def routes(app: FastAPI, s: Served) -> None:
                 "threads": thread_views(world), "running": running.running(),
                 "plans": [plan_view(world, p) for p in world.plans.recent()],
                 "research": world.research.all(("waiting", "running")),
+                "workflows": world.workflows.recent(),
                 "actions": [action_view(world, a) for a in world.actions.all(limit=20)],
                 "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
                           "options": a["data"].get("options", []), "thread": a["thread"],

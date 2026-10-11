@@ -74,6 +74,10 @@ def needs_you(world: World) -> list[dict[str, Any]]:
             items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
                           "why": p["data"].get("why"), "at": p["at"], "module": p["module"],
                           "plan": plan_id, "questions": questions, "pieces": pieces})
+    for wf in world.workflows.all(("drafted",)):
+        items.append({"kind": "workflow", "id": wf["id"], "text": f"Your workflow: {wf['title']}",
+                      "why": wf["body"].get("purpose"), "at": wf["created_at"],
+                      "module": wf.get("module"), "workflow": wf})
     for f in world.knowledge.facts("person", states=("suggested",)):
         items.append({"kind": "fact", "id": f["id"], "text": f"{f['predicate']}: {f['value']}",
                       "why": f["why"], "at": f["recorded_at"]})
@@ -81,7 +85,14 @@ def needs_you(world: World) -> list[dict[str, Any]]:
         items.append({"kind": "action", "id": a["id"], "text": a["title"], "why": a["evidence"],
                       "at": a["created_at"], "module": a["module"],
                       "action": action_view(world, a)})
-    return [i for i in items if i["kind"] != "proposal" or not _is_action_proposal(world, i)]
+    return [i for i in items if i["kind"] != "proposal"
+            or not (_is_action_proposal(world, i) or _is_workflow_proposal(world, i))]
+
+
+def _is_workflow_proposal(world: World, item: dict[str, Any]) -> bool:
+    """A workflow's own `proposed` entry is shown as its page, not as a plain proposal."""
+    entry = world.journal.read(item["id"])
+    return bool(entry["data"].get("workflow"))
 
 
 def _is_action_proposal(world: World, item: dict[str, Any]) -> bool:

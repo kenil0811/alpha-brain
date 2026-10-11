@@ -22,6 +22,7 @@ from alpha.world.skills import Skills
 from alpha.world.sources import Sources
 from alpha.world.store import Store
 from alpha.world.views import Views
+from alpha.world.workflows import Workflows
 
 
 def alpha_home() -> Path:
@@ -56,6 +57,7 @@ class World:
         self.plans = Plans(self.store)
         self.research = Research(self.store)
         self.modtables = ModuleTables(self)
+        self.workflows = Workflows(self.store)
         self.procedures = Procedures(self.store)
         self.actions = Actions(self.store)
         self.permissions = Permissions(self.store)

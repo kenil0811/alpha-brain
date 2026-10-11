@@ -271,6 +271,42 @@ export interface Plan {
   milestones?: { id: string; title: string; what: string; passes: boolean; attempts?: number; why?: string | null }[];
 }
 
+/** A module as the person's workflow (§12, Q39): the page Alpha drafts from the interview and
+ *  changes only through the conversation; the person says yes to it. */
+export interface WorkflowStep {
+  id: string;
+  title: string;
+  what: string;
+  who: "alpha" | "you" | "both";
+  takes: string | null;
+  gives: string | null;
+  reaches: string[];
+  outward: boolean;
+  when: string;
+}
+export interface WorkflowBody {
+  purpose: string;
+  steps: WorkflowStep[];
+  keeps: { key: string; thing: string; what: string | null; fields: { name: string; label: string; kind: string; unit: string | null }[]; relates_to: string[] }[];
+  documents: { name: string; from: string; for: string | null; what: string | null }[];
+  settings: { key: string; label: string; value: unknown; unit: string | null; origin: string; why: string | null }[];
+  assumptions: string[];
+  suggestions: { id: string; title: string; what: string; why: string | null; sources: string[]; decision: "accept" | "skip" | null }[];
+  questions: PlanQuestion[];
+}
+export interface Workflow {
+  id: string;
+  title: string;
+  body: WorkflowBody;
+  words: string | null;
+  state: "drafted" | "agreed" | "building" | "built" | "declined" | "removed";
+  version: number;
+  conversation: string | null;
+  module: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** A research pass (Q37): Alpha looking into how a thing is done before it proposes it. */
 export interface Research {
   id: string;
@@ -346,7 +382,7 @@ export interface Permission {
 }
 
 export interface NeedItem {
-  kind: "ask" | "proposal" | "fact" | "action";
+  kind: "ask" | "proposal" | "fact" | "action" | "workflow";
   id: string;
   text: string;
   why?: string | null;
@@ -357,6 +393,7 @@ export interface NeedItem {
   questions?: PlanQuestion[];
   pieces?: PlanPiece[];
   action?: Action;
+  workflow?: Workflow;
 }
 
 export interface CalendarItem {
@@ -643,6 +680,7 @@ export interface Conversation {
   running: Turn[];
   plans: Plan[];
   research?: Research[];
+  workflows?: Workflow[];
   actions?: Action[];
   asks?: Ask[];
   conversation?: Convo | null;
@@ -880,6 +918,9 @@ export class Client {
     this.call<Plan>("POST", `/api/plans/${id}/approve`, answers || pieces ? { answers, pieces } : undefined);
   runJob = (module: string, job: string, inputs: Record<string, string>) =>
     this.call<{ job: string; ok: boolean; exit: number; output: string }>("POST", `/api/modules/${encodeURIComponent(module)}/jobs/${encodeURIComponent(job)}`, { inputs });
+  agreeWorkflow = (id: string, suggestions?: Record<string, string>, answers?: Record<string, string>) =>
+    this.call<Workflow>("POST", `/api/workflows/${id}/agree`, suggestions || answers ? { suggestions, answers } : undefined);
+  declineWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`);
   stopResearch = (id: string) => this.call<Research>("POST", `/api/research/${id}/stop`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);

@@ -126,10 +126,10 @@ class Base:
         """Lasting things are made only in the build of a plan the person said yes to."""
         if self._building():
             return None
-        return {"error": f"{what} happens only in the build of a plan the person approved."
-                " Understand what they want, look into it, and propose it with plan_propose;"
-                " the build starts after their yes. For a plain log with nowhere to keep it,"
-                " use table_start."}
+        return {"error": f"{what} happens only in a build the person said yes to. Understand"
+                " their workflow first (the interview), write it with workflow_draft, and the"
+                " build starts after their yes on the page. For a plain log with nowhere to"
+                " keep it, use table_start."}
 
     def _module_of(self, collection: str) -> str | None:
         module: str | None = self.world.collections.describe(collection)["module"]

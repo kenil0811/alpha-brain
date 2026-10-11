@@ -937,6 +937,18 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .working__partial { margin-top: 10px; color: var(--text); }
 
 /* ---------- a plan's questions on its card (Q36) ---------- */
+/* "Your workflow" (§12): the page in the person's words, as a card. */
+.wf__purpose { margin: 4px 0 8px; }
+.wf__section { margin-top: 10px; }
+.wf__head { margin: 0 0 6px; font-size: var(--text-sm); font-weight: 600; }
+.wf__steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.wf__list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); }
+.wf__who { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border); font-size: var(--text-xs); }
+.wf__who--alpha { opacity: 0.85; }
+.wf__who--you { font-weight: 600; }
+.wf__who--asks { border-style: dashed; }
+.wf__suggest { display: flex; flex-direction: column; gap: 4px; }
+.linklike { background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; font-size: var(--text-xs); opacity: 0.8; }
 /* A program module's jobs (Q38): a form per job on the module's page, and what came back. */
 .job { align-items: flex-start; }
 .job__out { margin: 6px 0 0; padding: 6px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-xs); white-space: pre-wrap; max-height: 160px; overflow: auto; }

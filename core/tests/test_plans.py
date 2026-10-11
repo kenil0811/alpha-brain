@@ -32,7 +32,7 @@ def test_lasting_things_are_refused_outside_an_approved_build(world: World) -> N
     for out in (t.module_create("Deals"), t.collection_create("deals", "Deals", FIELDS),
                 t.automation_create("Daily", "daily 07:00", "read it"),
                 t.source_add("A broker", "https://example.com/listings")):
-        assert "approved" in out["error"] and "plan_propose" in out["error"]
+        assert "said yes" in out["error"] and "workflow_draft" in out["error"]
     assert world.collections.names() == [] and world.modules.all() == []
 
 

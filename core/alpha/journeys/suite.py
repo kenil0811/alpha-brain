@@ -244,6 +244,13 @@ class Run:
             self.last_action = self.world.actions.get(action["id"])
             record = {"approve_action": action["title"], "ok": bool(done.get("ok")),
                       "detail": done.get("text") or done.get("why")}
+        elif "decline_workflow" in spec:
+            new = [w for w in self.world.workflows.all(("drafted", "agreed"))
+                   if w["created_at"] >= self.mark.at]
+            if not new:
+                raise Problem("No workflow was drafted in this journey to decline.")
+            out = self.world.workflows.decline(new[-1]["id"])
+            record = {"decline_workflow": out["title"], "ok": out["state"] == "declined"}
         elif "decline_plan" in spec:
             from fastapi.testclient import TestClient
 
@@ -430,6 +437,28 @@ class Run:
                                  or (bool(arg.get("or_asked")) and bool(asked)))
             return ok, f"{words} Questions on the plan: {shown or 'none'}.{cards}"
         return bool(hits), words
+
+    def check_workflow(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A workflow page drafted in this journey (§12), in the state asked, with at least
+        `steps_min` steps, `keeps_min` things kept, `suggestions_min` suggestions, and, when
+        given, `version`."""
+        new = [w for w in self.world.workflows.all() if w["created_at"] >= self.mark.at]
+        if not new:
+            return False, "No workflow page was drafted."
+        wf = new[-1]
+        b = wf["body"]
+        ok = (wf["state"] == arg.get("state", "drafted")
+              and len(b["steps"]) >= int(arg.get("steps_min") or 0)
+              and len(b["keeps"]) >= int(arg.get("keeps_min") or 0)
+              and len(b["suggestions"]) >= int(arg.get("suggestions_min") or 0)
+              and (not arg.get("version") or wf["version"] == int(arg["version"])))
+        steps = "; ".join(f"{s['title']} ({s['who']}{', asks' if s['outward'] else ''})"
+                          for s in b["steps"])
+        return ok, (f"'{wf['title']}' v{wf['version']} is {wf['state']}: {len(b['steps'])} steps:"
+                    f" {steps}. Keeps {', '.join(k['thing'] for k in b['keeps']) or 'nothing'}."
+                    f" {len(b['suggestions'])} suggestions:"
+                    f" {'; '.join(sg['title'] for sg in b['suggestions']) or 'none'}."
+                    f" Settings {len(b['settings'])}, questions {len(b['questions'])}.")
 
     def check_research(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A research pass this journey started (Q37), in the state asked, with at least

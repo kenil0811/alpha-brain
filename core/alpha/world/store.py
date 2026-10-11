@@ -293,6 +293,34 @@ CREATE TABLE IF NOT EXISTS findings (
 );
 CREATE INDEX IF NOT EXISTS findings_research ON findings(research, at);
 
+-- a module as the person's own workflow (§12, Q39): one page in their words, structured, with
+-- its versions kept; Alpha writes it and changes it only through the conversation
+CREATE TABLE IF NOT EXISTS workflows (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    words TEXT,
+    state TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    conversation TEXT,
+    module TEXT,
+    thread TEXT,
+    turn TEXT,
+    agreement TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS workflow_versions (
+    workflow TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    body TEXT NOT NULL,
+    words TEXT,
+    state TEXT,
+    why TEXT,
+    at TEXT NOT NULL,
+    PRIMARY KEY (workflow, version)
+);
+
 -- everything a module reads from outside Alpha, and whether it works
 CREATE TABLE IF NOT EXISTS sources (
     id TEXT PRIMARY KEY,

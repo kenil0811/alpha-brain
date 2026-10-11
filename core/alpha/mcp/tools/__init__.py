@@ -30,9 +30,11 @@ from alpha.mcp.tools.modules import Modules
 from alpha.mcp.tools.planning import Planning
 from alpha.mcp.tools.reading import Reading
 from alpha.mcp.tools.tables import Tables
+from alpha.mcp.tools.workflows import WorkflowTools
 
 
-class Tools(Finding, Tables, Knowledge, Modules, Reading, Automating, Acting, Planning):
+class Tools(Finding, Tables, Knowledge, Modules, Reading, Automating, Acting, Planning,
+            WorkflowTools):
     """Every tool of the world, bound to one World (and the turn, thread and module it runs
     in)."""
 
