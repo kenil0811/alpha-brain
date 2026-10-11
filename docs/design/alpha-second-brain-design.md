@@ -870,8 +870,15 @@ against the contract: nothing borrowed, nothing unsourced, nothing estimated tha
 as measured). Fetchers, computations, intakes (an email read, a dropped file), document
 templates, page parts. Alpha composes a module from parts, writes new ones when none fit,
 repairs them when they break, and keeps every proven part in a library shared across modules
-now and across people later; a part is written to be reused (named inputs, settings, no
-module-specific assumptions) even when it costs a little on the first build. A change to the
+now and across people later. **Where the line falls** (Kenil, 11 Oct: "basic standard
+abstraction practices"): a library part knows a *system or a source* another module would use
+(the LinkedIn connector with its sign-in and navigation, a Census lookup, an ArcGIS layer
+reader, an email intake, a document template engine) and is written with named inputs and
+settings; a module's *own logic* (which fields it keeps, its gates and thresholds, how it
+scores, what its memo says) stays in the module and is never generalized because it could be:
+"read this one detail about my connections" is a line in the module that uses the LinkedIn
+part, not a part of its own. A module's own code becomes a library part only when a second
+module actually needs it, never speculatively. A change to the
 workflow touches the parts concerned; data is re-derived where that is safe and never where it
 is the person's own (their scores, notes, decisions, edited documents); nothing is redone that
 did not change.
