@@ -299,7 +299,7 @@ export interface Workflow {
   title: string;
   body: WorkflowBody;
   words: string | null;
-  state: "drafted" | "agreed" | "building" | "built" | "declined" | "removed";
+  state: "drafted" | "agreed" | "building" | "built" | "stopped" | "declined" | "removed";
   version: number;
   conversation: string | null;
   module: string | null;
@@ -921,6 +921,7 @@ export class Client {
   agreeWorkflow = (id: string, suggestions?: Record<string, string>, answers?: Record<string, string>) =>
     this.call<Workflow>("POST", `/api/workflows/${id}/agree`, suggestions || answers ? { suggestions, answers } : undefined);
   declineWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`);
+  resumeWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/resume`);
   stopResearch = (id: string) => this.call<Research>("POST", `/api/research/${id}/stop`);
   declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
   resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);

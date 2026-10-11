@@ -163,7 +163,16 @@ def routes(app: FastAPI, s: Served) -> None:
         world.journal.append("did", f"You agreed your workflow: {agreed['title']}.",
                              actor="person", thread=agreed.get("conversation"),
                              data={"workflow": wid})
+        if live:
+            scheduler.builds()
         return agreed
+
+    @app.post("/api/workflows/{wid}/resume", dependencies=[api])
+    def resume_workflow(wid: str) -> dict[str, Any]:
+        out = world.workflows.resume(wid)
+        if live:
+            scheduler.builds()
+        return out
 
     @app.post("/api/workflows/{wid}/decline", dependencies=[api])
     def decline_workflow(wid: str) -> dict[str, Any]:

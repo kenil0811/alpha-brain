@@ -16,7 +16,9 @@ class WorkflowTools(Base):
         what decision it serves, what happens today). title: the task in their words.
         workflow: {"purpose": what it is for; "steps": [{"title", "what" (plain words), "who":
         "alpha" | "you" | "both" (Alpha prepares, they decide), "takes", "gives", "reaches":
-        [the sources or systems it reads, e.g. "Census ACS", "the broker's email"], "outward":
+        [the sources or systems it reads, each with its host when it is on the web, e.g.
+        "Census ACS (api.census.gov)", "TxDOT counts (gis.traviscountytx.gov)", "the broker's
+        email"; the build reaches exactly those hosts], "outward":
         true when it sends, posts or changes something outside Alpha (it will always ask),
         "when": "when a site arrives" | "when asked" | "every Monday" | "after <step>"}];
         "keeps": [{"thing", "what", "fields": [{"name", "kind", "unit"}], "relates_to":
@@ -91,3 +93,15 @@ class WorkflowTools(Base):
         declined = self.world.workflows.decline(workflow)
         self._did("did", f"Set aside the workflow {declined['title']}.", {"workflow": workflow})
         return {"workflow": workflow, "state": declined["state"]}
+
+    @tool
+    def workflow_resume(self, workflow: str, quote: str) -> dict[str, Any]:
+        """The person wants a build that stopped to carry on ("continue"): quote their words
+        from this message. It picks up in the background from the workspace."""
+        problem = self._persons_words(quote) if len(quote.split()) >= 3 else (
+            None if self._said_contains(quote) else "quote must be the person's own words.")
+        if problem:
+            return {"error": problem}
+        out = self.world.workflows.resume(workflow)
+        return {"workflow": workflow, "state": out["state"],
+                "note": "The build carries on in the background and reports here."}

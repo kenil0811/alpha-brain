@@ -339,8 +339,17 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
             </Button>
           </div>
         </>
+      ) : workflow.state === "stopped" ? (
+        <>
+          <span className="faint">The build stopped before it finished; it can carry on from where it stopped.</span>
+          <div className="row" style={{ marginTop: 8 }}>
+            <Button size="sm" variant="primary" disabled={busy} onClick={() => { setBusy(true); void client.resumeWorkflow(workflow.id).finally(() => { setBusy(false); onDecided(); }); }}>
+              Continue building
+            </Button>
+          </div>
+        </>
       ) : (
-        <span className="faint">{workflow.state === "agreed" ? "Agreed. The build starts in the background and reports here." : workflow.state === "building" ? "Being built now." : `This workflow is ${workflow.state}.`}</span>
+        <span className="faint">{workflow.state === "agreed" ? "Agreed. The build starts in the background and reports here." : workflow.state === "building" ? "Being built now." : workflow.state === "built" ? "Built. Open the module to use it." : `This workflow is ${workflow.state}.`}</span>
       )}
     </div>
   );

@@ -15,13 +15,14 @@ questions the person decides. Nothing about the steps is fixed by the platform; 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from typing import Any
 
 from alpha.world.plans import clean_questions
 from alpha.world.store import Problem, Store, new_id, now
 
-STATES = ("drafted", "agreed", "building", "built", "declined", "removed")
+STATES = ("drafted", "agreed", "building", "built", "stopped", "declined", "removed")
 WHO = ("alpha", "you", "both")
 ORIGINS = ("you", "your document", "the trade", "Alpha's default")
 DECISIONS = ("accept", "skip")
@@ -273,6 +274,18 @@ class Workflows:
     def start_build(self, wid: str, thread: str) -> dict[str, Any]:
         return self._move(wid, "building", when=("agreed", "building"), thread=thread)
 
+    def stop_build(self, wid: str) -> dict[str, Any]:
+        """A build that stopped waits for the person's continue; the scheduler leaves it."""
+        return self._move(wid, "stopped", when=("building",))
+
+    def resume(self, wid: str) -> dict[str, Any]:
+        return self._move(wid, "agreed", when=("stopped",))
+
+    def waiting(self) -> list[dict[str, Any]]:
+        """Workflows the scheduler should build now: agreed, or building (a run that ended
+        before its work did, or the core restarted)."""
+        return self.all(("agreed", "building"))
+
     def built(self, wid: str, module: str) -> dict[str, Any]:
         return self._move(wid, "built", when=("building",), module=module)
 
@@ -296,8 +309,8 @@ class Workflows:
         return [_view(r) for r in rows]
 
     def recent(self) -> list[dict[str, Any]]:
-        """Workflows the person may still act on or is watching: drafted, agreed, building."""
-        return self.all(("drafted", "agreed", "building"))
+        """Workflows the person may still act on or is watching."""
+        return self.all(("drafted", "agreed", "building", "stopped"))
 
     def of_module(self, module: str) -> dict[str, Any] | None:
         row = self.store.one("SELECT * FROM workflows WHERE module = ? AND state != 'removed'"
@@ -321,3 +334,20 @@ class Workflows:
         return int(db.execute("UPDATE workflows SET state = 'removed', updated_at = ?"
                               " WHERE module = ? AND state != 'removed'",
                               (now(), module)).rowcount)
+
+
+HOST = re.compile(r"(?:https?://)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)(?:[/:?#]|\b)", re.I)
+
+
+def hosts_of(body: dict[str, Any]) -> list[str]:
+    """The hostnames the page's steps reach, read out of what they name ("Census ACS
+    (api.census.gov)", a URL): the build's sandbox allows exactly these."""
+    out: list[str] = []
+    for step in body.get("steps") or []:
+        for r in step.get("reaches") or []:
+            for m in HOST.finditer(str(r)):
+                host = m.group(1).lower()
+                if host not in out and not host.endswith((".md", ".py", ".json", ".yaml")):
+                    out.append(host)
+    # A suggestion's sources are for the person, not the build.
+    return out

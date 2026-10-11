@@ -110,3 +110,8 @@ class AgreeWorkflowBody(BaseModel):
     suggestions ({id: "accept" | "skip"}) and their answers to the questions, by number."""
     suggestions: dict[str, str] | None = None
     answers: dict[str, str] | None = None
+
+
+class RunPartBody(BaseModel):
+    """The row a part runs on (§12)."""
+    row: str

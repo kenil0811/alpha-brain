@@ -161,8 +161,8 @@ def _profile(workspace: Path, tmp: Path, proxy_port: int | None = None) -> str:
 
 
 def run_script(workspace: Path, argv: list[str], *, timeout_s: float = SCRIPT_TIMEOUT_S,
-               env: dict[str, str] | None = None, hosts: list[str] | None = None
-               ) -> tuple[int, str]:
+               env: dict[str, str] | None = None, hosts: list[str] | None = None,
+               stdin: str | None = None) -> tuple[int, str]:
     """Run a command in the workspace under the profile; the exit code and the output's tail.
     With `hosts`, the script reaches those hosts and nothing else, through Alpha's own proxy,
     and the output ends with what was reached and refused. The workspace's own `.venv` python
@@ -190,7 +190,8 @@ def run_script(workspace: Path, argv: list[str], *, timeout_s: float = SCRIPT_TI
     profile = _profile(ws, tmp, proxy.port if proxy else None)
     try:
         proc = subprocess.run(["/usr/bin/sandbox-exec", "-p", profile, *argv], cwd=ws,
-                              capture_output=True, text=True, timeout=timeout_s, env=full_env)
+                              capture_output=True, text=True, timeout=timeout_s, env=full_env,
+                              input=stdin)
         out = (proc.stdout + proc.stderr)[-4000:]
         code = proc.returncode
     except subprocess.TimeoutExpired:

@@ -30,7 +30,8 @@ import threading
 import time
 from typing import Any
 
-from alpha.runtime import build, pipeline, route, turn
+from alpha.runtime import build, pipeline, route, turn, workflow_build
+from alpha.runtime import parts as parts_module
 from alpha.runtime import research as research_runtime
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -248,7 +249,16 @@ class Scheduler:
                              name=f"auto-{aid}").start()
 
     def builds(self) -> None:
-        """Start or continue every approved plan's build."""
+        """Start or continue every approved plan's build, and every agreed workflow's."""
+        for wf in self.world.workflows.waiting():
+            if self.stop_event.is_set():
+                return
+            with self.lock:
+                if wf["id"] in self.building:
+                    continue
+                self.building.add(wf["id"])
+            threading.Thread(target=self._build_workflow, args=(wf["id"],), daemon=True,
+                             name=f"workflow-{wf['id']}").start()
         for plan in self.world.plans.all(("approved", "building")):
             if self.stop_event.is_set():
                 return
@@ -284,6 +294,38 @@ class Scheduler:
         else:
             self.crashes.pop(pid, None)
         self.builds()
+
+    def _build_workflow(self, wid: str) -> None:
+        self._hold()
+        crashed = False
+        try:
+            workflow_build.run(self.world, wid, runner=self.runner)
+        except Exception:
+            crashed = True
+            log.exception("workflow build failed")
+        finally:
+            self._release()
+            with self.lock:
+                self.building.discard(wid)
+        wf = self.world.workflows.get(wid)
+        if wf["state"] != "building" or self.stop_event.is_set():
+            self.crashes.pop(wid, None)
+            return
+        if crashed:
+            n = self.crashes.get(wid, 0) + 1
+            self.crashes[wid] = n
+            if self.stop_event.wait(backoff_s(n)):
+                return
+        else:
+            self.crashes.pop(wid, None)
+        self.builds()
+
+    def parts(self) -> None:
+        """Run every part that is due on every row (a row that arrived, a part after another)."""
+        try:
+            parts_module.run_due(self.world)
+        except Exception:
+            log.exception("parts due")
 
     def researches(self) -> None:
         """Start or continue every research pass that is waiting or running (Q37)."""
@@ -330,6 +372,7 @@ class Scheduler:
         research pass started in it."""
         self.builds()
         self.researches()
+        self.parts()
 
     def acts(self) -> None:
         """Perform every action the person approved that hasn't run (the app was closed in
@@ -360,6 +403,7 @@ class Scheduler:
             return
         self.builds()
         self.researches()
+        self.parts()
         self.acts()
         for auto in self.world.automations.due():
             if self.stop_event.is_set():

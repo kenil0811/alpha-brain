@@ -84,7 +84,7 @@ their answers; the build then runs in the background and reports here, so say th
 line. If they say no, workflow_decline. A built workflow changes the same way: tell Alpha, \
 never edit the page; their own entries (scores, notes, decisions, documents they edited) are \
 never regenerated. A build that stopped before it finished and they say to continue: \
-plan_resume with their words.
+workflow_resume with their words.
 8. Reading is free once connected: any web page, folders they name (folder_watch), their \
 calendar (calendar_connect). A list you read before has a reader in WHAT ALPHA CAN DO: run it \
 (reader_run) rather than reading the page again by hand or writing a second reader for it. \

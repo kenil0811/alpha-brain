@@ -54,7 +54,8 @@ from typing import Any
 import yaml
 
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn
+from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn, workflow_build
+from alpha.runtime import parts as parts_module
 from alpha.runtime import research as research_runtime
 from alpha.world import purge
 from alpha.world.store import Problem, now
@@ -167,6 +168,7 @@ class Run:
         self.exchanges: list[tuple[str, str]] = []  # (said, reply) in order, this journey
         self.last_automation: dict[str, Any] | None = None
         self.last_action: dict[str, Any] | None = None
+        self.last_row: tuple[str, str] | None = None
         self.mark = mark(world)
 
     # steps
@@ -244,6 +246,25 @@ class Run:
             self.last_action = self.world.actions.get(action["id"])
             record = {"approve_action": action["title"], "ok": bool(done.get("ok")),
                       "detail": done.get("text") or done.get("why")}
+        elif "agree_workflow" in spec:
+            # The person's yes on the page, through the app's route; then the build runs to
+            # its end as the scheduler would (§12).
+            new = [w for w in self.world.workflows.all(("drafted",))
+                   if w["created_at"] >= self.mark.at]
+            if not new:
+                raise Problem("No workflow was drafted in this journey to agree.")
+            agreed = self.world.workflows.agree(new[-1]["id"], "Agreed by the journey suite")
+            final = self._settle_workflows()
+            record = {"agree_workflow": agreed["title"], "ok": final.get("state") == "built",
+                      "state": final.get("state")}
+        elif "add_row" in spec:
+            # A thing added as the person would, then the parts that run when it arrives.
+            a = spec["add_row"]
+            table = self._table(a["table"])
+            row = self.world.collections.add(table, a["values"], {"by": "person"})
+            ran = parts_module.run_due(self.world)
+            self.last_row = (table, str(row["id"]))
+            record = {"add_row": table, "ok": True, "parts_ran": ran}
         elif "decline_workflow" in spec:
             new = [w for w in self.world.workflows.all(("drafted", "agreed"))
                    if w["created_at"] >= self.mark.at]
@@ -287,6 +308,26 @@ class Run:
                 break
             for research in pending:
                 research_runtime.run(self.world, research["id"], runner=self.runner)
+
+    def _settle_workflows(self) -> dict[str, Any]:
+        last: dict[str, Any] = {}
+        for _ in range(20):
+            pending = [w for w in self.world.workflows.waiting()
+                       if w["created_at"] >= self.mark.at]
+            if not pending:
+                break
+            for wf in pending:
+                last = workflow_build.run(self.world, wf["id"], runner=self.runner)
+        return last
+
+    def _table(self, name: str) -> str:
+        names = self.world.collections.names()
+        if name in names:
+            return name
+        hits = [n for n in names if n.endswith("_" + name)]
+        if len(hits) != 1:
+            raise Problem(f"{len(hits)} tables match '{name}'.")
+        return hits[0]
 
     def _settle_builds(self) -> dict[str, Any]:
         """Run every approved or building plan to its end, as the scheduler would."""
@@ -437,6 +478,40 @@ class Run:
                                  or (bool(arg.get("or_asked")) and bool(asked)))
             return ok, f"{words} Questions on the plan: {shown or 'none'}.{cards}"
         return bool(hits), words
+
+    def check_module(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """A module made in this journey with at least `tables_min` tables and `parts_min`
+        parts declared in its workspace."""
+        new = [m for m in self.world.modules.all() if m["id"] not in self.mark.modules]
+        if not new:
+            return False, "No module was made."
+        m = new[-1]
+        tables = self.world.collections.overview(m["id"])
+        parts = parts_module.parts_of(m.get("workspace"))
+        ok = (len(tables) >= int(arg.get("tables_min") or 0)
+              and len(parts) >= int(arg.get("parts_min") or 0))
+        return ok, (f"{m['name']}: tables {', '.join(t['name'] for t in tables) or 'none'};"
+                    " parts "
+                    + (", ".join(p["id"] + " (" + p["when"] + ")" for p in parts) or "none")
+                    + ".")
+
+    def check_row_filled(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The row the last add_row made has values, each with a source, in `fields`."""
+        if self.last_row is None:
+            return False, "No row was added in this journey."
+        table, rid = self.last_row
+        row = self.world.collections.get(table, rid)
+        fields = (row.get("_provenance") or {}).get("fields") or {}
+        shown = []
+        ok = True
+        for f in arg.get("fields") or []:
+            value = row.get(f)
+            src = (fields.get(f) or {}).get("source")
+            problem = (fields.get(f) or {}).get("problem")
+            shown.append(f"{f} = {str(value)[:40]} ({src or problem or 'no source'})")
+            if value is None or not src:
+                ok = False
+        return ok, f"Row {rid} of {table}: " + "; ".join(shown)
 
     def check_workflow(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A workflow page drafted in this journey (§12), in the state asked, with at least

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import tempfile
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from alpha.api.bodies import (
     ListBody,
     MoveModuleBody,
     RecordBody,
+    RunPartBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -29,7 +31,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
-from alpha.runtime import jobs
+from alpha.runtime import jobs, parts
 from alpha.world.modtables import is_qualified
 from alpha.world.store import Problem
 from alpha.world.world import alpha_home
@@ -61,6 +63,18 @@ def routes(app: FastAPI, s: Served) -> None:
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
         card["jobs"] = jobs.jobs_of(m.get("workspace"))
         return card
+
+    @app.post("/api/modules/{ref}/parts/{part}/run", dependencies=[api])
+    def run_part(ref: str, part: str, body: RunPartBody) -> dict[str, Any]:
+        """A part run when asked, from a thing's page (§12): the row's values go in, what it
+        fills comes back into the row with its sources."""
+        m = world.modules.get(ref)
+        return parts.run_part(world, m["id"], part, body.row)
+
+    @app.get("/api/modules/{ref}/parts", dependencies=[api])
+    def list_parts(ref: str) -> list[dict[str, Any]]:
+        m = world.modules.get(ref)
+        return parts.parts_of(m.get("workspace"))
 
     @app.post("/api/modules/{ref}/jobs/{job}", dependencies=[api])
     def run_job(ref: str, job: str, body: JobBody | None = None) -> dict[str, Any]:
@@ -255,6 +269,12 @@ def routes(app: FastAPI, s: Served) -> None:
         rec = world.collections.add(name, body.values, {"by": "person"})
         person_did("did", f"You added a row to {world.collections.describe(name)['title']}.",
                    name, {"record": rec["id"]})
+        module_id = world.collections.describe(name)["module"]
+        if live and module_id and scheduler is not None:
+            # A part that runs when a row arrives runs now, in the background (§12).
+            threading.Thread(target=parts.run_due, args=(world,),
+                             kwargs={"module_id": module_id}, daemon=True,
+                             name=f"parts-{module_id}").start()
         return rec
 
     @app.patch("/api/tables/{name}/records/{rid}", dependencies=[api])
