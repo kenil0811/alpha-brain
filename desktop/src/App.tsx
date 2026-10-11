@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PREF, usePreference } from "./core/preferences";
-import { Client, moduleWords } from "./core/client";
+import { Client, NOT_ANSWERING, moduleWords } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
 import { resolveSession } from "./core/session";
@@ -42,7 +42,7 @@ import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
 import { AssistantProvider, Button, InfoTip } from "./ui";
-import { ChevronsLeft, ChevronsRight } from "./ui/icons";
+import { ChevronsLeft, ChevronsRight, ICON_SM } from "./ui/icons";
 
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
@@ -311,17 +311,17 @@ export function App({ client: injected }: { client?: Client } = {}) {
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
-            <span>Alpha's core isn't answering ({down}). The host starts it again on its own; this clears when it is back.</span>
+            <span>Alpha isn't answering right now. It starts again on its own; this clears when it's back.</span>
             <Button size="sm" onClick={() => void poll()}>
               Try now
             </Button>
           </div>
         ) : restarted ? (
           <div className="corenote corenote--ok" role="status">
-            Alpha's core started again. Anything that was running is open to ask again.
+            Alpha is back. Anything that was running can be asked again.
           </div>
         ) : null}
-        {runtime.kind === "connected" && chosen && needsSetup && surface.kind !== "settings" ? (
+        {runtime.kind === "connected" && chosen && needsSetup && !down && surface.kind === "home" ? (
           <div className="page firstrun">
             <div className="card firstrun__card">
               <div className="firstrun__head">
@@ -337,22 +337,24 @@ export function App({ client: injected }: { client?: Client } = {}) {
           </div>
         ) : null}
         {runtime.kind !== "connected" ? (
-          <div className="page">
-            <h1>{runtime.kind === "connecting" ? "Starting Alpha…" : "Alpha's core isn't running"}</h1>
-            {runtime.kind === "connecting" ? (
-              <p className="muted" style={{ marginTop: 8 }}>
-                This takes a second or two. If macOS is asking whether Alpha may access a folder, allow it and Alpha carries on.
-              </p>
-            ) : null}
+          // The frame stays whole while Alpha starts or is away (the UI rulebook §3): a slim notice,
+          // a quiet line, and the assistant's place kept on the right.
+          <>
             {runtime.kind === "unavailable" ? (
-              <p className="muted" style={{ marginTop: 8 }}>
-                {runtime.reason}{" "}
+              <div className="corenote" role="alert">
+                <span>{NOT_ANSWERING} This clears when it's back.</span>
                 <Button size="sm" onClick={() => setAttempt((n) => n + 1)}>
-                  Try again
+                  Try now
                 </Button>
-              </p>
+              </div>
             ) : null}
-          </div>
+            <div className="page">
+              <p className="muted" role="status">
+                {runtime.kind === "connecting" ? "Starting Alpha…" : "Waiting for Alpha…"}
+                {runtime.kind === "connecting" ? <InfoTip text="This takes a second or two. If macOS asks whether Alpha may open a folder, allow it and Alpha carries on." /> : null}
+              </p>
+            </div>
+          </>
         ) : surface.kind === "home" ? (
           <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
@@ -388,7 +390,14 @@ export function App({ client: injected }: { client?: Client } = {}) {
       {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} insert={inserting} surface={surface} onNewModule={startNew} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (
         <AssistantPanel client={client} open={panelOpen} onOpen={togglePanel} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} openActivity={activityAt} activityVersion={versions.intelligence} onOpenEntry={(id) => setSurface({ kind: "entry", id })} />
-      ) : null}
+      ) : (
+        <aside className="assist assist--away" aria-label="Assistant">
+          <div className="pagehead">
+            <span className="assist__name"><b>Alpha</b></span>
+          </div>
+          <p className="faint assist__away">The assistant is here as soon as Alpha is back.</p>
+        </aside>
+      )}
     </div>
     </AssistantProvider>
   );
@@ -401,7 +410,7 @@ function EdgeToggle({ side, folded, label, onClick }: { side: "rail" | "panel"; 
   const left = (side === "rail") !== folded; // folding the sidebar or opening the assistant goes left
   return (
     <button type="button" className={`edgetog edgetog--${side}`} aria-label={label} title={label} aria-expanded={!folded} onClick={onClick}>
-      {left ? <ChevronsLeft size={14} aria-hidden="true" /> : <ChevronsRight size={14} aria-hidden="true" />}
+      {left ? <ChevronsLeft size={ICON_SM} aria-hidden="true" /> : <ChevronsRight size={ICON_SM} aria-hidden="true" />}
     </button>
   );
 }

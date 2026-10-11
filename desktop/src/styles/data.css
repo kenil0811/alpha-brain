@@ -103,7 +103,7 @@
 .vtab__ico { display: inline-grid; place-items: center; }
 .toolbar--icons .vtab__ico + .vtab__label { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; }
 /* search: a magnifier that opens into a box */
-.toolbar--page .search--open, .toolbar--page .search--closed { flex: 0 1 220px; min-width: 120px; padding: 3px var(--space-2); }
+.toolbar--page .search--open, .toolbar--page .search--closed { flex: 0 1 220px; min-width: 120px; padding: 2px var(--space-2); }
 .search--closed { font: inherit; font-size: var(--text-sm); text-align: left; cursor: text; }
 .search--closed:hover { border-color: var(--text-3); }
 .toolbar--icons .search--closed { flex: none; min-width: 0; }
@@ -114,7 +114,7 @@
 
 /* a rule: property · condition · value · delete */
 .frule { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-1); }
-.frule__input { width: calc(var(--space-12) * 3); padding: 3px var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
+.frule__input { width: calc(var(--space-12) * 3); padding: 2px var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
 .fgroup { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); min-width: calc(var(--space-12) * 10); }
 .fgroup--nested { min-width: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
 .fgroup__line { display: flex; align-items: flex-start; gap: var(--space-1); }
@@ -222,11 +222,11 @@
 .mtile__split { display: flex; flex-direction: column; gap: var(--space-1); }
 .spark--live { cursor: crosshair; }
 /* a chart's tooltip: at the pointer, over everything */
-.charttip { position: fixed; z-index: 1000; pointer-events: none; padding: 3px var(--space-2); border-radius: var(--radius-control); background: var(--navy); color: var(--surface); font-size: var(--text-sm); white-space: nowrap; box-shadow: var(--shadow-float); }
+.charttip { position: fixed; z-index: 1000; pointer-events: none; padding: 2px var(--space-2); border-radius: var(--radius-control); background: var(--navy); color: var(--surface); font-size: var(--text-sm); white-space: nowrap; box-shadow: var(--shadow-float); }
 /* a split's legend: swatch, label, count */
 .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
 .legend li { display: flex; align-items: center; gap: var(--space-2); }
-.legend__dot { flex: none; width: 10px; height: 10px; border-radius: 3px; }
+.legend__dot { flex: none; width: 10px; height: 10px; border-radius: var(--radius-control); }
 .legend__lab { color: var(--text-2); }
 .legend__n { margin-left: auto; padding-left: var(--space-3); color: var(--text); }
 .dialog--metric { width: min(560px, calc(100vw - 62px)); }

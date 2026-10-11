@@ -25,7 +25,7 @@
    section's card in a readable column */
 .setpage { display: grid; grid-template-columns: calc(var(--space-12) * 4) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
 .setnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--header-h) + var(--space-6)); }
-.setnav button { display: flex; align-items: center; gap: var(--space-2); padding: 6px var(--space-3); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
+.setnav button { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
 .setnav button:hover { background: var(--hover); color: var(--text); }
 .setnav button[aria-selected="true"] { background: var(--primary-soft); color: var(--text); font-weight: 500; }
 .setnav__dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; flex: none; }
@@ -56,6 +56,6 @@
 /* a project renamed in place in the sidebar (a double-click on its name) */
 .navbtn--edit { cursor: default; }
 .navbtn--edit:hover { background: none; }
-.navbtn__input { flex: 1; min-width: 0; height: 28px; margin: -4px 0; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
+.navbtn__input { flex: 1; min-width: 0; height: 28px; margin: calc(-1 * var(--space-1)) 0; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
 /* the project being made: in the sidebar while its page is open, its name as typed (or "New project") */
 .navbtn--draft .navbtn__text { font-style: italic; }

@@ -621,6 +621,22 @@ export interface SearchResult {
   journal: JournalEntry[];
 }
 
+/** What the person reads when Alpha doesn't answer at all (11 Oct: no "core", no browser text). */
+export const NOT_ANSWERING = "Alpha isn't answering right now. It starts again on its own.";
+
+/** The one place an error from Alpha becomes words (the UI rulebook §14: plain words, no status
+ *  codes, stack traces or internal text). A refusal (4xx) carries the core's own sentence, which
+ *  is written for people (`Problem`); anything else gets one plain sentence, and the detail stays
+ *  in the core's log. */
+export function plainError(status: number, said: unknown): string {
+  const text = typeof said === "string" ? said.trim() : "";
+  const readable = text && text.length < 400 && !/traceback|exception|error:|\bat \w+\.|\n\s+at |sqlite|keyerror|typeerror/i.test(text);
+  if (status >= 400 && status < 500 && readable) return text;
+  if (status === 404) return "That isn't there any more.";
+  if (status >= 400 && status < 500) return "Alpha couldn't take that request.";
+  return "Something went wrong inside Alpha. Try again.";
+}
+
 export class CoreError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -645,11 +661,11 @@ export class Client {
         headers: { Authorization: `Bearer ${this.session.token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
-    } catch (e) {
-      throw new CoreError(`Alpha's core isn't answering (${e instanceof Error ? e.message : String(e)}).`, 0);
+    } catch {
+      throw new CoreError(NOT_ANSWERING, 0);
     }
-    const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string };
-    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    const data = (await response.json().catch(() => ({}))) as { error?: unknown; detail?: unknown };
+    if (!response.ok) throw new CoreError(plainError(response.status, data.error), response.status);
     return data as T;
   }
 

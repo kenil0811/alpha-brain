@@ -4,8 +4,8 @@
  */
 /** The two icon sizes (the UI rulebook §1): small, inside chips, switches and dropdown rows, and
  *  regular everywhere else. The same two are `--icon-sm` and `--icon` in the stylesheet. */
-export const ICON_SM = 18;
-export const ICON = 21;
+export const ICON_SM = 16;
+export const ICON = 20;
 
 export {
   Home as HomeIcon,
