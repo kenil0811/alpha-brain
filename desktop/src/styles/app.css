@@ -937,6 +937,9 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .working__partial { margin-top: 10px; color: var(--text); }
 
 /* ---------- a plan's questions on its card (Q36) ---------- */
+/* Where a value came from, beside it on a thing's page (§12). */
+.origin { font-size: var(--text-xs); opacity: 0.75; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.origin--problem { opacity: 1; color: var(--danger, #c33); white-space: normal; }
 /* "Your workflow" (§12): the page in the person's words, as a card. */
 .wf__purpose { margin: 4px 0 8px; }
 .wf__section { margin-top: 10px; }

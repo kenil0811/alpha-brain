@@ -93,6 +93,8 @@ export interface Provenance {
   estimated?: boolean;
   source?: string;
   assumed?: string;
+  /** Per value, what a part wrote (§12): where it came from and when, or why it could not. */
+  fields?: Record<string, { source?: string; fetched_at?: string; problem?: string; part?: string; attempts?: number }>;
 }
 
 /** A saved list: a named way of looking at a table, kept in the world (the person's or Alpha's). */
