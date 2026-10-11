@@ -5,23 +5,35 @@ import type { Client } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { NewProjectPage } from "./NewProjectPage";
 
-function page(onSay = vi.fn(), onOpenChat?: () => void) {
+const client = { preference: vi.fn().mockResolvedValue({ value: null }), setPreference: vi.fn().mockResolvedValue(undefined) } as unknown as Client;
+
+function page(onSay = vi.fn(), onOpenChat?: () => void, onCancel = vi.fn()) {
   render(
     <TooltipProvider>
-      <NewProjectPage client={{} as Client} onSay={onSay} onGo={vi.fn()} onOpenChat={onOpenChat} />
+      <NewProjectPage client={client} onSay={onSay} onGo={vi.fn()} onOpenChat={onOpenChat} onCancel={onCancel} />
     </TooltipProvider>,
   );
   return onSay;
 }
 
 describe("a new project", () => {
-  it("asks for a name, shows its one empty table, and Create project waits for a name", () => {
+  it("asks for a name, shows its one empty table in the data view, and Create project waits for a name", async () => {
     page();
     expect(screen.getByRole("heading", { level: 1, name: "New project" })).toBeInTheDocument();
-    const table = screen.getByRole("table", { name: "The new project's first table" });
-    expect(within(table).getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
-    expect(within(table).getByRole("button", { name: "New" })).toBeDisabled();
+    const table = await screen.findByRole("table");
+    expect(within(table).getByRole("columnheader", { name: /Name/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create project" })).toBeDisabled();
+  });
+
+  it("has a Cancel that leaves without making anything (every create has one)", async () => {
+    const user = userEvent.setup();
+    const onSay = vi.fn();
+    const onCancel = vi.fn();
+    page(onSay, undefined, onCancel);
+    await user.type(screen.getByLabelText("Name"), "Deals");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalled();
+    expect(onSay).not.toHaveBeenCalled();
   });
 
   it("sends the sentence with its purpose, then says Alpha is building it and links to the conversation", async () => {

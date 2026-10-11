@@ -14,8 +14,11 @@
 .spark { display: block; overflow: visible; }
 
 /* the strip above the data: tiles wrap, each its own width */
-.mstrip { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
-.mstrip .mtile { flex: 0 1 auto; }
+.mstrip { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column dense; grid-auto-columns: max-content; justify-content: start; gap: var(--space-2); overflow-x: auto; }  /* four lines high at most, the whole strip: two-line tiles two high, a split's block spanning both; more runs sideways (the owner, 9 Oct) */
+.mstrip .mtile--tall { grid-row: span 2; align-items: center; }
+.legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: 160px; overflow: hidden; font-size: var(--text-xs); }
+.legend.legend--inline li { gap: var(--space-1); white-space: nowrap; cursor: default; }
+.legend.legend--inline .legend__dot { width: 8px; height: 8px; }
 .mstrip__fold { flex: none; }
 
 /* the Dashboard view: tiles wrap at their own width; a chart or a list takes more, its chart under the number */
@@ -100,7 +103,10 @@
 .vtab__ico { display: inline-grid; place-items: center; }
 .toolbar--icons .vtab__ico + .vtab__label { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; }
 /* search: a magnifier that opens into a box */
-.toolbar--page .search--open { flex: 0 1 220px; min-width: 120px; padding: 3px var(--space-2); }
+.toolbar--page .search--open, .toolbar--page .search--closed { flex: 0 1 220px; min-width: 120px; padding: 3px var(--space-2); }
+.search--closed { font: inherit; font-size: var(--text-sm); text-align: left; cursor: text; }
+.search--closed:hover { border-color: var(--text-3); }
+.toolbar--icons .search--closed { flex: none; min-width: 0; }
 
 /* the property picker (Filter, Sort) */
 .ppick { display: flex; flex-direction: column; max-height: calc(var(--space-12) * 6); overflow-y: auto; }
@@ -205,3 +211,27 @@
 .askalpha { display: inline-flex; align-items: center; gap: var(--space-2); }
 .askbox { display: flex; flex-direction: column; gap: var(--space-2); flex-basis: 100%; }
 .askbox__bar { display: flex; gap: var(--space-1); }
+
+/* columns keep their resting widths (the owner, 9 Oct): measured, then laid out fixed, so hover never widens one */
+.table--fixed { table-layout: fixed; }
+
+/* a tile opens its details on a click (the owner, 9 Oct) */
+.mtile--open { cursor: pointer; transition: border-color var(--dur-quick) var(--ease-out); }
+.mtile--open:hover { border-color: var(--primary); }
+.mtile--tall { align-items: flex-start; }
+.mtile__split { display: flex; flex-direction: column; gap: var(--space-1); }
+.spark--live { cursor: crosshair; }
+/* a chart's tooltip: at the pointer, over everything */
+.charttip { position: fixed; z-index: 1000; pointer-events: none; padding: 3px var(--space-2); border-radius: var(--radius-control); background: var(--navy); color: var(--surface); font-size: var(--text-sm); white-space: nowrap; box-shadow: var(--shadow-float); }
+/* a split's legend: swatch, label, count */
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
+.legend li { display: flex; align-items: center; gap: var(--space-2); }
+.legend__dot { flex: none; width: 10px; height: 10px; border-radius: 3px; }
+.legend__lab { color: var(--text-2); }
+.legend__n { margin-left: auto; padding-left: var(--space-3); color: var(--text); }
+.dialog--metric { width: min(560px, calc(100vw - 62px)); }
+.mdetail { display: flex; flex-direction: column; gap: var(--space-3); }
+.mdetail .muted { margin: 0; }
+.mdetail__chart { padding: var(--space-2) 0; }
+.mdetail__chart svg { width: 100%; height: auto; }
+.charttable td, .charttable th { padding: var(--space-1) var(--space-3); height: auto; }

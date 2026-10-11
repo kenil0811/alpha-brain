@@ -13,21 +13,21 @@ function client(rows: Entity[]) {
 }
 
 describe("Network", () => {
-  it("shows People's table even when empty: a header row, blank rows and + New, with Governance below", async () => {
+  it("shows People in the one data view even when empty, then Files, Intelligence and Governance below", async () => {
     render(
       <TooltipProvider>
         <Network client={client([])} version={0} onOpen={vi.fn()} />
       </TooltipProvider>,
     );
-    const table = await screen.findByRole("table", { name: "People" });
-    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Name", "About", "Last heard"]);
-    expect(within(table).getByRole("button", { name: "New" })).toBeDisabled();
-    expect(table.querySelectorAll("tr.row--blank").length).toBeGreaterThan(0);
+    const view = await screen.findByLabelText("People");
+    const table = await within(view).findByRole("table");
+    for (const h of ["Name", "About", "Last heard"]) expect(within(table).getByRole("columnheader", { name: new RegExp(h) })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Files" })).toBeInTheDocument();
     const governance = screen.getByRole("region", { name: "Governance" });
     expect(within(governance).getByRole("tab", { name: "Allowed 0", selected: true })).toBeInTheDocument();
     expect(within(governance).getByRole("tab", { name: "Denied 0" })).toBeInTheDocument();
     expect(within(governance).getByRole("button", { name: "Add allowed action" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Intelligence" })).toBeNull(); // nothing to show yet
+    expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Nothing heard yet.")).toBeInTheDocument();
   });
 
   it("lists each side in its table, opens a page, and shows the latest with each in Intelligence", async () => {
@@ -42,13 +42,14 @@ describe("Network", () => {
         <Network client={client(rows)} version={0} onOpen={onOpen} />
       </TooltipProvider>,
     );
-    const people = await screen.findByRole("table", { name: "People" });
-    expect(within(people).getByText("Owner of the bakery")).toBeInTheDocument();
+    const people = await screen.findByLabelText("People");
+    expect(await within(people).findByText("Owner of the bakery")).toBeInTheDocument();
     expect(within(people).queryByText("RestoPros")).toBeNull();
-    expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Sent the P&L")).toBeInTheDocument();
-    await user.click(within(people).getByRole("button", { name: /Ana Ruiz/ }));
+    const intel = screen.getByRole("region", { name: "Intelligence" });
+    expect(await within(intel).findByText("Sent the P&L")).toBeInTheDocument();
+    await user.click(within(intel).getByRole("button", { name: "Ana Ruiz" }));
     expect(onOpen).toHaveBeenCalledWith("e1");
     await user.click(screen.getByRole("tab", { name: "Organizations" }));
-    expect(within(screen.getByRole("table", { name: "Organizations" })).getByText("RestoPros")).toBeInTheDocument();
+    expect(await within(await screen.findByLabelText("Organizations")).findByText("RestoPros")).toBeInTheDocument();
   });
 });

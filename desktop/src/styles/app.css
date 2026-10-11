@@ -16,6 +16,8 @@
   --border: #e3e6ea; --line: #f1f3f5; --hover: #eef1f4; --primary: #3f6f99; --primary-ink: #ffffff; --primary-soft: #e4edf5;
   --good: #4f7a52; --good-soft: #e5eee5; --warn: #8a5f2c; --warn-soft: #f6eee2; --bad: #b4413a; --bad-soft: #f6e5e3; --bad-ink: #ffffff;
   --navy: #1a2b3c; --chart: #4d7ea8; --chart-2: #c4955a; --chart-3: #6b7c65;
+  /* chart series, in fixed order (9 Oct): the dataviz reference palette, validated for colour-blind separation on these surfaces; light labels ride with every mark */
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
   --white: #ffffff; --scrim: rgba(0, 0, 0, 0.55);
   /* shadows: a whisper on a card, a clear one on what floats, a soft seam between the three
      columns, a hairline under a raised segment */
@@ -61,6 +63,7 @@
     --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
     --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220; --bad-ink: #1a0e0d;
     --navy: #e6ebf0; --chart: #7fa5c5; --chart-2: #d9b07a; --chart-3: #9cb39a;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
     --shadow-seam: 0 0 12px rgba(0, 0, 0, 0.35);
@@ -75,6 +78,7 @@
   --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
   --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220; --bad-ink: #1a0e0d;
   --navy: #e6ebf0; --chart: #7fa5c5; --chart-2: #d9b07a; --chart-3: #9cb39a;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-seam: 0 0 12px rgba(0, 0, 0, 0.35);
@@ -130,6 +134,14 @@ a { color: var(--primary); }
 .resizer--rail { left: calc(var(--rail-w) - 5px); }
 .resizer--panel { right: calc(var(--panel-w) - 5px); }
 .app--resizing { user-select: none; cursor: col-resize; }
+/* each side panel's fold button: round, on the edge that faces the middle, at mid-height, shown
+   while the pointer is over that panel (the owner, 9 Oct); the same on both sides */
+.edgetog { position: absolute; top: 50%; z-index: 6; display: grid; place-items: center; width: 28px; height: 28px; margin-top: -14px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text-2); box-shadow: var(--shadow-raised); opacity: 0; pointer-events: none; transition: opacity var(--dur-quick) var(--ease-out); }
+.edgetog:hover { color: var(--text); background: var(--hover); }
+.edgetog--rail { left: calc(var(--rail-w) - 14px); }
+.edgetog--panel { right: calc(var(--panel-w) - 14px); }
+.app:has(.rail:hover) .edgetog--rail, .app:has(> .assist:hover) .edgetog--panel, .edgetog:hover, .edgetog:focus-visible { opacity: 1; pointer-events: auto; }
+.app--resizing .edgetog { opacity: 0; pointer-events: none; }
 
 /* ---------- the sidebar (9 Oct, the UI rulebook §4) ---------- */
 .rail { background: var(--surface); box-shadow: var(--shadow-seam); display: flex; flex-direction: column; padding: 0 13px 13px; position: sticky; top: 0; height: 100vh; overflow: hidden; z-index: 2; min-width: 0; }
@@ -982,7 +994,10 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* the sides share what the centre leaves and never shrink below their content; the centre shrinks, and its switch drops its labels */
 .pagehead__left, .pagehead__right { flex: 1 1 0; min-width: min-content; display: flex; align-items: center; gap: var(--space-2); }
 .pagehead__right { justify-content: flex-end; }
-.pagehead__centre { flex: 0 1 auto; display: flex; justify-content: center; min-width: 0; }
+/* the centre grows with the sides (they still split the rest evenly, so it stays centred): a switch
+   inside measures the room there is, not its own width, and its labels come back when there is
+   room again (they stayed icons-only after one narrow moment, the owner's screenshot, 9 Oct) */
+.pagehead__centre { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; }
 .pagehead__title { margin: 0; font-size: var(--text-xl); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hswitch { display: inline-flex; flex-wrap: nowrap; flex: none; gap: 2px; padding: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-pill); }
 .hswitch button { display: inline-flex; align-items: center; gap: 8px; padding: 6px var(--space-3); border: 0; border-radius: var(--radius-pill); background: none; color: var(--text-2); font-size: var(--text-sm); font-weight: 600; white-space: nowrap; transition: background-color var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out); }
@@ -990,7 +1005,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .hswitch button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-raised); }
 .hswitch button svg { width: var(--icon-sm); height: var(--icon-sm); flex: none; }
 .hswitch--icons button { padding: 6px var(--space-3); }
-.hswitch__box { display: flex; justify-content: center; min-width: 0; overflow: hidden; padding: 2px; margin: -2px; }
+.hswitch__box { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; overflow: hidden; padding: 2px; margin: -2px; }
 .breadcrumb ol { display: flex; align-items: center; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); color: var(--text-2); min-width: 0; }
 .breadcrumb li { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .breadcrumb li > span, .breadcrumb li > button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1128,6 +1143,10 @@ button.dash__seg:hover { background: var(--hover); }
 
 /* ---------- the data view and the module page (9 Oct, the UI rulebook §5, §6) ---------- */
 .modpage__body { display: flex; flex-direction: column; gap: var(--space-6); }
+/* the data fills the whole first screen; Files, Intelligence and Governance start below the fold
+   (the owner, 9 Oct): the window's height less the header, the page's top padding and the gap */
+.frame__data { display: flex; flex-direction: column; gap: var(--space-3); min-height: calc(100vh - var(--header-h) - 29px - var(--space-6)); }
+.frame__data > .datapage { flex: 1 1 auto; }
 .datapage { display: flex; flex-direction: column; gap: var(--space-3); }
 /* the numbers above the table */
 /* the toolbar: one row that never wraps */

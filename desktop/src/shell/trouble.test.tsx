@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client } from "../core/client";
 import { Activity } from "./Activity";
 import { Network } from "./Network";
+import { TooltipProvider } from "../ui";
 
 describe("a page whose load failed", () => {
   it("says so and offers to try again, instead of an empty list", async () => {
@@ -16,7 +17,8 @@ describe("a page whose load failed", () => {
 
   it("does the same for Network", async () => {
     const people = vi.fn(() => Promise.reject(new Error("gone")));
-    render(<Network client={{ people } as unknown as Client} version={0} onOpen={vi.fn()} />);
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load Network: gone"));
+    const preference = vi.fn(async (key: string) => ({ key, value: null }));
+    render(<TooltipProvider><Network client={{ people, preference, setPreference: vi.fn() } as unknown as Client} version={0} onOpen={vi.fn()} /></TooltipProvider>);
+    await waitFor(() => expect(screen.getAllByRole("alert").some((a) => a.textContent?.includes("Couldn't load Network: gone"))).toBe(true));
   });
 });

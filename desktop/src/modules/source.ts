@@ -179,3 +179,9 @@ export function memorySource(o: Omit<DataSource, "load" | "saveList" | "updateLi
     },
   };
 }
+
+/** An empty table with one Name column, drawn by the same data view (every dropdown there), for a
+ *  project with no collection yet and the New project page: never a blank screen (9 Oct, the owner). */
+export function emptySource(client: Client | null, key: string, title: string, addReason: string): DataSource {
+  return memorySource({ client, key, title, titleField: "name", fields: [{ name: "name", kind: "text", label: "Name" }], rows: () => [], reasons: { add: addReason, edit: addReason, remove: addReason, upload: addReason } });
+}

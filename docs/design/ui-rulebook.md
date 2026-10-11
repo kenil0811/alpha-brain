@@ -147,7 +147,8 @@ Every screen lives inside the same three-part frame:
 - **No separate title bar.** The sidebar's top row doubles as the Mac's title bar, beside the window controls.
 - **Panel widths.** Each side panel has three widths: normal, wide and folded.
   - Drag the inner edge to resize. The handle appears only on hover or keyboard focus. Dragging all the way in folds the panel to the same strip as its fold button; dragging out has no cap, so the assistant can widen until the middle disappears (it may cover the middle).
-  - A folded panel never disappears. It shrinks to a narrow strip; clicking the strip opens it again.
+  - A folded panel never disappears. It shrinks to a narrow strip; clicking the strip opens it again, and so does a double-click anywhere on its empty space.
+  - **Fold button** (the owner, 9 Oct): a small round button with a double arrow, on the panel's edge that faces the middle, at mid-height, half over the seam. It shows while the pointer is over that panel (or on keyboard focus), and it is the same on both sides, folded or not, so a folded panel always has a visible way back. No fold button sits in either panel's header.
   - Escape steps a panel back one level: wide → normal → folded.
   - Sizes and folded states are remembered.
 - **Connection problems.** When Alpha's core stops answering, a slim notice at the top of the main area says what is wrong and offers **Try now**. When the core comes back, a quiet line says so. Otherwise nothing about the runtime is shown.
@@ -162,7 +163,7 @@ Every screen lives inside the same three-part frame:
 2. **Home**, with a small count of what needs the person.
 3. **The pre-built projects**, Task manager and Network, shipped on install; ordinary projects in every other way (renamed, moved, hidden, edited or deleted like any other).
 4. **The person's other projects,** in their own order. Child projects fold out beneath their parent, indented, behind a chevron.
-5. **New project**, always the last item in the list. It opens a New project page (a name, what it is for, one empty table); **Create project** asks the assistant to build it.
+5. **New project**, always the last item in the list. It opens a New project page (a name, what it is for, one empty table in the standard data view) with **Create project** and **Cancel**. While that page is open the sidebar shows the project being made, above New project, under the name as typed; Cancel (or Escape) goes back where the person was and removes it. **Create project** asks the assistant to build it.
 6. Pinned to the bottom: **Intelligence**, then **Settings**. Settings is always the very last item.
 
 **Behaviour**
@@ -171,6 +172,7 @@ Every screen lives inside the same three-part frame:
 - **Current item:** a soft accent wash, steel text and icon, and a short accent bar on its left edge.
 - **Folded:** each item shows its icon with its name beneath it. Every icon in the window has a visible label.
 - **Reorder:** drag projects up, down, or into another project.
+- **Double-click** a project's name to rename it in place (Enter or clicking away saves, Escape cancels); double-click its icon to change the icon.
 - **Right-click a project** (or use its ⋮ on hover) for:
   - Open
   - Rename (edits the name in place)
@@ -199,12 +201,16 @@ Every screen lives inside the same three-part frame:
 
 - When a surface has several sections, the header holds a centred, pill-shaped switch with one tab per section: small sentence-case labels with icons, and the active tab raised.
 - When there is only one section, the header shows its title in serif.
-- Switches never wrap onto a second line. When space runs short, they drop to icons only.
+- Switches never wrap onto a second line. When space runs short, they drop to icons only, and the labels come back as soon as there is room again (a switch measures the room in the header, never its own width).
 - Section switches always live in the header, never in the page body.
+
+**One layout for every table page** (the owner, 9 Oct)
+
+- Every page whose subject is a table (a project, Network's People and Organizations, Intelligence's lists, New project) is drawn by one shared layout, never by hand: the standard data view (§6) with every dropdown, then Files, Intelligence and Governance. A new project gets all of it with nothing designed.
 
 **Body**
 
-- On data pages, the collection fills the first screen.
+- On data pages, the collection fills the whole first screen; Files, Intelligence and Governance start below the fold.
 - Opening a project lands on its data, never on a description of the project.
 - By default, the first tab is the first collection; for Task manager, it is the Queue.
 
@@ -218,7 +224,7 @@ Every screen lives inside the same three-part frame:
 
 **Never blank**
 
-- A project or a Network tab with no records still shows one empty table (its header, a few blank rows and **+ New**), never an empty page. Alpha fills it in as it builds.
+- A project or a Network tab with no records still shows one empty table in the standard data view (its toolbar, its header, a few blank rows and **+ New**), never an empty page. Alpha fills it in as it builds.
 
 **No repeated names in one flow**
 
@@ -249,7 +255,7 @@ One row that never wraps, in this order:
   - Lists are kept in the workspace, so Alpha can make them too.
 - **View:** a button showing the current view's icon and name ("▦ Table") that picks among the view types in the next section.
   - Views the data can't support stay visible but disabled, with the reason, for example "Calendar needs a date field".
-- **Search:** quietly narrows the visible rows. Search is never saved as a list.
+- **Search:** a bordered search box, always visible as one (the owner, 9 Oct: a bare magnifier had no boundary); it quietly narrows the visible rows. Search is never saved as a list.
 - **Filter:** every filtering choice in one place.
   - Active filters appear as small removable pills under the toolbar, with **Clear all**.
   - The **Hide done** and **Show gone** toggles live in Filter.
@@ -363,6 +369,7 @@ A page of visuals where **every visual is actionable**.
 
 **Selection**
 
+- **Column widths never change on hover** (the owner, 9 Oct). The handle, checkbox and pencil that appear on hover move the cell's text slightly toward the middle within its fixed width; when there is no room the text is clipped under them, as little as possible.
 - Selecting rows shows a slim bar above the table with the count, plus actions such as Duplicate, Delete and Cancel.
 - Delete confirms in a dialog that says what happens.
 
@@ -372,6 +379,10 @@ A page of visuals where **every visual is actionable**.
 - Each tile has a tinted icon square, a small sentence-case label, a serif number and what it is based on.
 - While hidden, a show arrow sits in the toolbar's frequent actions, left of ⋮; while shown, the hide arrow sits at the strip's top-right corner. The choice is remembered.
 - Tiles that need attention get an amber tint (red is only for problems).
+- **Size** (the owner, 9 Oct): the whole strip is four lines high at most. Two-line tiles stack two high (Records over Amount); a split is one block spanning both, its bar with one small line of labels under it and the counts on hover. A number never repeats in its own basis ("all added this week", not "7 records, 7 added this week"). More tiles than fit scroll sideways.
+- **Only what means something.** A trend line only when there are values in at least two weeks; a split only with two or more categories; "open" and "done" only when some choices mean done. Otherwise the element is not shown.
+- **Interactive.** Every chart answers the pointer: a line shows the point's week and value, a split's part its category, count and share. Categories are colour-coded in the fixed series order and always labelled in a legend, so colour never stands alone.
+- **Click for details.** A click (or Enter) on a tile opens a dialog with the chart larger and a table of its values.
 
 ### Files
 
@@ -807,6 +818,9 @@ Everything elsewhere in this rulebook is a default. These are not.
 22. No text below the readable minimum, and no tiny letter-spaced capitals.
 23. A row click opens its record at once.
 24. Everything the assistant makes is saved as a file.
+25. **Every create has a Cancel** (the owner, 9 Oct, explicitly): a page, dialog or inline box that makes something always offers Cancel beside its create button, and Escape does the same; nothing is made until the create button is pressed.
+26. One layout for every table page: the data view over the first screen, then Files, Intelligence and Governance.
+27. A column's width never changes on hover.
 
 ---
 

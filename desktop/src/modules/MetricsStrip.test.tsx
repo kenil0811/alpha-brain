@@ -67,3 +67,29 @@ describe("the fold", () => {
     expect(screen.queryByText("Records")).toBeNull();
   });
 });
+
+describe("meaning and details", () => {
+  const show = (counts: Record<string, number>, done: string[] = []) => {
+    const summary: TableSummaryData = { name: "deals", title: "Deals", rows: 1, added_this_week: 1, amounts: [], split: { field: "kind", label: "kind", counts, done } };
+    render(
+      <TooltipProvider>
+        <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} onHide={() => undefined} />
+      </TooltipProvider>,
+    );
+  };
+
+  it("hides a split of one category: one colour says nothing", () => {
+    show({ broker: 1 });
+    expect(screen.queryByText(/Kind/)).toBeNull();
+  });
+
+  it("labels each category, says open only when some choices mean done, and opens its details on a click", async () => {
+    const user = userEvent.setup();
+    show({ broker: 3, buyer: 1 });
+    expect(screen.getByText("Kind")).toBeInTheDocument(); // no done choices: no "open"
+    expect(screen.getByText("Broker")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Kind: 2/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Kind" });
+    expect(dialog).toHaveTextContent("3 · 75%");
+  });
+});

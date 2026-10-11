@@ -2,7 +2,7 @@
  * The data view's toolbar (9 Oct, the owner's decisions): one row that never wraps. On the left,
  * the list picker (All and each saved list, a standard dropdown with ★ for the list the collection
  * opens on and Add list at the bottom), the View button (the view type's icon and name, which
- * opens the view types), then Search (a magnifier that opens a box). Right-aligned: Filter, the
+ * opens the view types), then Search (a bordered box, typed into once clicked). Right-aligned: Filter, the
  * frequent actions (Upload when the collection has a file field; the numbers' show arrow when they
  * are folded), and ⋮ at the far right, which holds Sort, the view's settings, the list's own
  * actions and Download. A right-click on the list picker gives the list's actions too. When the
@@ -192,7 +192,11 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
             />
           </div>
         ) : (
-          <IconButton size="sm" label="Search" icon={<SearchIcon size={ICON_SM} />} onClick={() => setSearching(true)} />
+          // closed, it is still a bordered search box (the owner, 9 Oct: a bare magnifier had no boundary)
+          <button type="button" className="search search--closed" aria-label="Search" onClick={() => setSearching(true)}>
+            <SearchIcon size={ICON_SM} aria-hidden="true" />
+            <span className="tb__label">Search</span>
+          </button>
         )
       ) : null}
       <span className="spacer" />

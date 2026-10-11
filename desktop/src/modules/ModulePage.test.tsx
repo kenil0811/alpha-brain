@@ -38,10 +38,8 @@ describe("adding files to a module", () => {
       </TooltipProvider>,
     );
     // no collection yet: one empty table, never an empty screen, and the sections below it
-    const empty = await screen.findByRole("table", { name: "Advisory's first table" });
-    expect(within(empty).getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
-    expect(within(empty).getByRole("button", { name: "New" })).toBeDisabled();
-    expect(screen.getByText(/Alpha fills this in as the project is built/)).toBeInTheDocument();
+    const empty = await within(await screen.findByLabelText("First table")).findByRole("table");
+    expect(within(empty).getByRole("columnheader", { name: /Name/ })).toBeInTheDocument();
     expect(screen.queryByText("Nothing is kept here yet")).toBeNull();
     expect(screen.getByRole("heading", { name: "Advisory" })).toBeInTheDocument();
     for (const n of ["Intelligence", "Governance"]) expect(screen.getByRole("region", { name: n })).toBeInTheDocument();
@@ -95,7 +93,7 @@ describe("a module's page", () => {
     expect(screen.queryByRole("tab", { name: "Files" })).toBeNull();
     // the numbers sit above the table, folded until asked for, each with what it is based on
     await user.click(screen.getByRole("button", { name: "Show the numbers" }));
-    expect(await screen.findByText("1 added this week")).toBeInTheDocument();
+    expect(await screen.findByText("all added this week")).toBeInTheDocument();
     expect(screen.queryByText("At a glance")).toBeNull();
     await user.click(within(switcher).getByRole("tab", { name: "Clients" }));
     expect(await screen.findByText("No records yet.")).toBeInTheDocument();

@@ -151,6 +151,29 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
     }
     setLefts((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next));
   });
+  // Columns keep the widths they had at rest (the owner, 9 Oct): measured once per load, columns
+  // and window width, then the table lays out fixed, so a hover's handle and pencil move the text
+  // inside its cell (clipping it if they must) and never widen a column.
+  const [natural, setNatural] = useState<{ key: string; w: Record<string, number> } | null>(null);
+  const [vw, setVw] = useState(() => (typeof window === "undefined" ? 0 : window.innerWidth));
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const rowsSeen = useRef<{ rows: RecordRow[]; n: number }>({ rows, n: 0 });
+  if (rowsSeen.current.rows !== rows) rowsSeen.current = { rows, n: rowsSeen.current.n + 1 };
+  const measureKey = `${columns.join("|")}:${rowsSeen.current.n}:${vw}:${JSON.stringify(widths)}`;
+  const fixedW = natural?.key === measureKey ? natural.w : null;
+  useLayoutEffect(() => {
+    if (fixedW) return;
+    const w: Record<string, number> = {};
+    for (const c of columns) {
+      const th = heads.current[c];
+      if (th) w[c] = Math.round(th.getBoundingClientRect().width);
+    }
+    setNatural({ key: measureKey, w });
+  }, [measureKey, fixedW, columns]);
   const place = (c: string, extra = "") => {
     const frozenHere = columns.indexOf(c) < frozen;
     return { className: [extra, frozenHere ? "col--frozen" : "", wrapped.has(c) ? "col--wrap" : ""].filter(Boolean).join(" ") || undefined, style: frozenHere ? { left: lefts[c] ?? 0 } : undefined };
@@ -419,7 +442,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
 
   return (
     <div className={`tablewrap${tall || rowHeight === "tall" ? " tablewrap--tall" : rowHeight === "medium" ? " tablewrap--medium" : ""}${selected.size ? " tablewrap--selecting" : ""}${lines ? " tablewrap--lines" : ""}`}>
-      <table className="table" ref={tableRef} onKeyDown={onGridKey} onFocus={(e) => { const t = e.target as HTMLElement; if (t.tagName === "TD" && t.dataset.r !== undefined) focused.current = { r: Number(t.dataset.r), c: Number(t.dataset.c) }; }}>
+      <table className={fixedW ? "table table--fixed" : "table"} ref={tableRef} onKeyDown={onGridKey} onFocus={(e) => { const t = e.target as HTMLElement; if (t.tagName === "TD" && t.dataset.r !== undefined) focused.current = { r: Number(t.dataset.r), c: Number(t.dataset.c) }; }}>
         <thead>
           <tr>
             {columns.map((c, i) => {
@@ -432,7 +455,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                   key={c}
                   ref={(el) => { heads.current[c] = el; }}
                   className={at.className}
-                  style={{ ...(widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : {}), ...at.style }}
+                  style={{ ...(widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : fixedW?.[c] ? { width: fixedW[c] } : {}), ...at.style }}
                   aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}
                   draggable
                   onDragStart={(e) => { dragging.current = c; e.dataTransfer.setData("text/plain", c); e.dataTransfer.effectAllowed = "move"; }}
