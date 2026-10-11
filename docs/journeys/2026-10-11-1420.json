@@ -1,0 +1,93 @@
+[
+ {
+  "name": "workflow_interview",
+  "title": "A module ask is interviewed, then drafted as \"Your workflow\" in the person's words",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Screener — Austin, gates-first",
+    "ok": true,
+    "removed": {
+     "tables": 0,
+     "rows": 0,
+     "readers": 0,
+     "automations": 0,
+     "threads": 0,
+     "notes": 0,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "I found the previous work and flagged the removal — I've put the question to you as a card so you can pick how to proceed (resume with revenue ranges added, restart differently, or just restore M0+M1 as they were). I'll move as soon as you answer.",
+    "steps": 5,
+    "seconds": 68.6
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles, density, drive-time population, the traffic on the road and at the main intersection, then I score fourteen things like visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've written up the revised plan as a card — it replaces the earlier gates-first build with what you actually described today. Highlights:\n\n- **Households within 3 miles** (Census block groups + buffer, free), **drive-time population** (free isochrone service + Census overlay), **road AADT** (reused from the earlier build), and **intersection traffic** where it exists — flagged as \"no data\" where it doesn't, since there's no single public intersection-count layer.\n- Gates at your thresholds: **45,000 households**, **30,000 cars/day** on the road — shown with reasons, not auto-rejects, since yo",
+    "steps": 11,
+    "seconds": 268.0
+   },
+   {
+    "say": "Add a minimum lot size of 0.8 acres as one of the checks.",
+    "ok": true,
+    "reply": "Added the 0.8-acre minimum lot size as a new gate (parcel data, same as the other checks) and re-proposed the plan — it's on the card as a new version, replacing the one from a few minutes ago. Everything else (households, drive-time population, road AADT, intersection traffic, the 14-point scoring, the memo) stayed the same. Let me know when you're ready to approve it.",
+    "steps": 5,
+    "seconds": 99.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 3,
+     "keeps_min": 2,
+     "suggestions_min": 1
+    },
+    "ok": false,
+    "why": "No workflow page was drafted.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version": 2
+    },
+    "ok": false,
+    "why": "No workflow page was drafted.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 436.1,
+  "error": null
+ }
+]

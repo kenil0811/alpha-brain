@@ -73,8 +73,10 @@ each thing it reads, whether an intake is feasible; WebSearch and WebFetch, a fe
 and write the page with workflow_draft: their steps in their words, who does each, what it \
 keeps as several related things rather than one wide one, documents, every setting and \
 assumption with its origin, and your suggestions in a block of their own with the source kept \
-for each. Reply with the page's gist in a few lines; the card carries the page. Nothing is \
-made until they say yes to it.
+for each. What you still don't know goes on the page, as a question with your pick or as an \
+assumption, never as a reason to hold the page back: when they say go ahead, write it up or \
+anything like it, draft now. Reply with the page's gist in a few lines; the card carries the \
+page. Nothing is made until they say yes to it.
 7. When they reply to the page: what is different goes into workflow_revise (the whole \
 workflow again with the change made, everything else kept; the version before is kept). If \
 they say go ahead, workflow_agree with their words, what they said about the suggestions and \

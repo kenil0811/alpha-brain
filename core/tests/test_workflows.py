@@ -109,8 +109,23 @@ def test_the_page_is_drafted_revised_with_the_version_kept_and_agreed_in_words(
     assert rev["version"] == 2 and wf["version"] == 2
     assert wf["body"]["steps"][-1]["title"] == "Lot size check"
     assert wf["body"]["suggestions"][0]["decision"] == "skip"  # carried over by title
+    assert "removed" not in rev
+    # A revision that leaves the suggestions and questions out altogether keeps them, and one
+    # that drops a thing, a step or a setting says so.
+    thinner = {**BODY, "steps": BODY["steps"][:3], "keeps": BODY["keeps"][:2],
+               "settings": BODY["settings"][:1], "suggestions": [], "questions": []}
+    rev = later.workflow_revise(wf["id"], "shorter", thinner)
+    assert rev["version"] == 3 and rev["removed"] == [
+        "the thing Score", "the step The memo", "the step Send it", "the step Lot size check",
+        "the setting Site traffic floor"]
+    body = world.workflows.get(wf["id"])["body"]
+    assert len(body["suggestions"]) == 1 and body["suggestions"][0]["decision"] == "skip"
+    assert body["questions"][0]["text"] == "Which metro first?"
+    assert "It also removed the thing Score" in world.journal.recent(1)[0]["text"]
+    rev = later.workflow_revise(wf["id"], "back", changed)
+    assert rev["version"] == 4
     versions = world.workflows.versions(wf["id"])
-    assert len(versions) == 1 and versions[0]["version"] == 1
+    assert len(versions) == 3 and versions[0]["version"] == 1
     assert versions[0]["why"] == "add a minimum lot size of 0.8 acres"
     assert len(versions[0]["body"]["steps"]) == 5
     yes = Tools(world, turn=said(world, "Yes, build it, Austin first"), thread=chat["id"])
@@ -121,7 +136,7 @@ def test_the_page_is_drafted_revised_with_the_version_kept_and_agreed_in_words(
     wf = world.workflows.get(wf["id"])
     assert wf["agreement"].startswith('"Yes, build it"') and "Austin first" in wf["agreement"]
     assert wf["body"]["suggestions"][0]["decision"] == "accept"
-    assert world.workflows.revise(wf["id"], BODY)["version"] == 3  # agreed: still revisable
+    assert world.workflows.revise(wf["id"], BODY)["version"] == 5  # agreed: still revisable
     assert world.workflows.decline(wf["id"])["state"] == "declined"
     with pytest.raises(Problem):
         world.workflows.revise(wf["id"], BODY)

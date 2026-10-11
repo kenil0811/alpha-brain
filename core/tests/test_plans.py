@@ -55,7 +55,7 @@ def test_a_plain_log_with_no_home_still_gets_the_simplest_table(world: World) ->
 def test_a_plan_needs_the_persons_yes_after_it_was_proposed(world: World) -> None:
     ask = said(world, "i want a live daily tracker of all deals from my list")
     # A plan comes out of a research pass (Q37): never straight from the turn.
-    assert "research_start" in Tools(world, turn=ask).plan_propose(
+    assert "workflow_draft" in Tools(world, turn=ask).plan_propose(
         "Daily deal tracker", "The plan.", "which deals are new today", pieces=PIECES)["error"]
     t = researching(world, turn=ask)
     assert "trial" in t.plan_propose("Daily deal tracker", "The plan.", "", pieces=PIECES)["error"]

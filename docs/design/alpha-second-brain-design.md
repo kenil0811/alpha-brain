@@ -930,9 +930,10 @@ add the site they looked at last month, score it, read the memo, decide. A week 
 say "add a minimum lot size of 0.8 acres", and the page, the check and the site pages change;
 their scores stay.
 
-| Status (11 Oct 2026) | |
+| Status (11 Oct 2026; detail in `../log/2026-10-11-workflow-page.md`) | |
 |---|---|
-| Not built | The concept; the first build and its acceptance are STATE's pending item 9. What exists of §6.3–§6.4 (the walled workspace, the proxy, the evaluator, jobs, the research pass, plans with pieces and milestones, module tables in the app) is the material it is built from. |
+| Built (piece 1) | The interview in the rules; "Your workflow" as a record with versions (`workflows`, `workflow_versions`), drafted, revised through the conversation (decisions and answers carried, omissions carried, removals named), agreed in words or in the app, declined; the card in the conversation and on Home; the plan and research-pass doors closed in the conversation. Run for real: the interview journey passed on the fifth run. |
+| Not built | Piece 2: the build from the page (the things and relations as tables, pages from a catalog, documents from templates, parts with contracts in the workspace, the evaluator through the pages); the library across modules; the acceptance (Kenil's car wash flow once in the app, then a change that keeps his scores). "Yes, build it" leads nowhere yet. |
 
 ## 11. Decisions
 

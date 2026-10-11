@@ -40,8 +40,11 @@ def _slug(text: str, fallback: str) -> str:
 
 
 def clean_body(body: Any, previous: dict[str, Any] | None = None) -> dict[str, Any]:
-    """The workflow as the model gave it, checked; decisions on suggestions and answers to
-    questions carried over from `previous` by title when a revision leaves them out."""
+    """The workflow as the model gave it, checked. On a revision (`previous` given): decisions
+    on suggestions and answers to questions carry over by title; suggestions and questions
+    left out altogether carry over whole (an omission, not a removal: the first real revision
+    dropped them all while adding one check); things kept, steps and settings that vanished
+    are listed in `dropped`, so the journal says what the change took away."""
     if not isinstance(body, dict):
         raise Problem("A workflow is {purpose, steps, keeps, documents, settings,"
                       " assumptions, suggestions, questions}.")
@@ -145,9 +148,24 @@ def clean_body(body: Any, previous: dict[str, Any] | None = None) -> dict[str, A
     for q in questions:
         if not q.get("answer") and q["text"] in before:
             q["answer"] = before[q["text"]].get("answer")
+    dropped: list[str] = []
+    if previous:
+        if not suggestions and previous.get("suggestions"):
+            suggestions = [dict(sg) for sg in previous["suggestions"]]
+        if not questions and previous.get("questions"):
+            questions = [dict(q) for q in previous["questions"]]
+        gone_things = [k["thing"] for k in previous.get("keeps") or [] if k["key"] not in names]
+        step_titles = {st["title"].lower() for st in steps}
+        gone_steps = [st["title"] for st in previous.get("steps") or []
+                      if st["title"].lower() not in step_titles]
+        setting_keys = {st["key"] for st in settings}
+        gone_settings = [st["label"] for st in previous.get("settings") or []
+                         if st["key"] not in setting_keys]
+        dropped = ([f"the thing {t}" for t in gone_things] + [f"the step {t}" for t in gone_steps]
+                   + [f"the setting {t}" for t in gone_settings])
     return {"purpose": purpose, "steps": steps, "keeps": keeps, "documents": documents,
             "settings": settings, "assumptions": assumptions, "suggestions": suggestions,
-            "questions": questions}
+            "questions": questions, "dropped": dropped}
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -169,6 +187,7 @@ class Workflows:
         if not _words(title, 120):
             raise Problem("A workflow needs a title: the task, in the person's words.")
         clean = clean_body(body)
+        clean.pop("dropped", None)
         wid = new_id("wf")
         stamp = now()
         with self.store.tx() as db:
@@ -186,6 +205,7 @@ class Workflows:
         if current["state"] in ("declined", "removed"):
             raise Problem(f"The workflow '{current['title']}' is {current['state']}.")
         clean = clean_body(body, previous=current["body"])
+        dropped = clean.pop("dropped", [])
         stamp = now()
         with self.store.tx() as db:
             db.execute(
@@ -197,7 +217,9 @@ class Workflows:
                 "UPDATE workflows SET body = ?, words = COALESCE(?, words), version = version + 1,"
                 " turn = COALESCE(?, turn), updated_at = ? WHERE id = ?",
                 (json.dumps(clean), _words(words, 4000) or None, turn, stamp, wid))
-        return self.get(wid)
+        out = self.get(wid)
+        out["dropped"] = dropped
+        return out
 
     def decide_suggestion(self, wid: str, sid: str, decision: str) -> dict[str, Any]:
         wf = self.get(wid)

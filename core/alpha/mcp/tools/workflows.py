@@ -49,10 +49,14 @@ class WorkflowTools(Base):
         questions carry over."""
         made = self.world.workflows.revise(workflow, new_workflow, turn=self.turn, words=words,
                                            why=change)
+        dropped = made.get("dropped") or []
+        took = (" It also removed " + ", ".join(dropped) + ".") if dropped else ""
         self._did("changed", f"Changed your workflow ({made['title']}, version"
-                  f" {made['version']}): {change[:200]}",
-                  {"workflow": workflow, "version": made["version"]})
-        return {"workflow": workflow, "version": made["version"], "state": made["state"]}
+                  f" {made['version']}): {change[:200]}{took}",
+                  {"workflow": workflow, "version": made["version"], "dropped": dropped})
+        return {"workflow": workflow, "version": made["version"], "state": made["state"],
+                **({"removed": dropped, "note": "Say so to the person if that was not what"
+                    " they asked; revise again to put them back."} if dropped else {})}
 
     @tool
     def workflow_agree(self, workflow: str, quote: str,

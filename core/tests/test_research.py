@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import PIECES, building, researching
+from conftest import PIECES, researching
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -47,28 +47,18 @@ def said(world: World, text: str) -> str:
 # ---- the gate and the start ----
 
 
-def test_a_plan_comes_only_out_of_a_research_pass(world: World) -> None:
+def test_the_research_pass_is_no_longer_started_from_the_conversation(world: World) -> None:
+    """§12: a module starts with the interview and the workflow page; the pass's mechanisms
+    stay as material (the tests below drive them through the world directly)."""
     t = Tools(world, turn=said(world, "build me a site scorer"))
-    out = t.plan_propose("Scorer", "Plan.", "score a site", pieces=PIECES)
-    assert "research_start" in out["error"] and world.plans.all() == []
+    assert "workflow_draft" in t.plan_propose("Scorer", "Plan.", "score a site",
+                                              pieces=PIECES)["error"]
     assert "research pass" in t.research_look("products", "what do they have")["error"]
-    assert "job" in t.research_start("Scorer", "build me a site scorer", "")["error"]
-    started = t.research_start("Scorer", "build me a site scorer", JOB)
-    rs = world.research.get(started["research"])
-    assert rs["state"] == "waiting" and rs["job"] == JOB and rs["turn"] == t.turn
-    assert rs["conversation"] is None  # the stream asked, not a conversation
-    assert [e["text"] for e in world.journal.recent(1)] == [
-        "Looking into how this is done: Scorer."]
-    assert [r["id"] for r in world.research.waiting()] == [rs["id"]]
-
-
-def test_a_pass_started_in_a_conversation_remembers_it_and_not_from_a_build(world: World) -> None:
+    assert "workflow_draft" in t.research_start("Scorer", "build me a site scorer", JOB)["error"]
+    assert world.research.all() == []
     chat = world.modules.open_thread("New conversation", "chat", None)
-    t = Tools(world, turn=said(world, "track x"), thread=chat["id"])
-    out = t.research_start("Tracker", "track x", JOB)
-    assert world.research.get(out["research"])["conversation"] == chat["id"]
-    assert "conversation" in building(world).research_start("T", "ask", JOB)["error"]
-    assert "conversation" in researching(world).research_start("T", "ask", JOB)["error"]
+    rs = world.research.start("Tracker", "track x", job=JOB, conversation=chat["id"])
+    assert rs["state"] == "waiting" and world.research.waiting()[0]["id"] == rs["id"]
 
 
 # ---- a look ----
@@ -271,8 +261,8 @@ def test_a_pass_runs_its_looks_and_proposes_the_plan_in_the_conversation(
     runner = lead_runner(world.path)
     monkeypatch.setattr(route, "run", runner)
     chat = world.modules.open_thread("New conversation", "chat", None)
-    t = Tools(world, turn=said(world, "build me a site scorer"), thread=chat["id"])
-    rid = t.research_start("Site Scorer", "build me a site scorer", JOB)["research"]
+    rid = world.research.start("Site Scorer", "build me a site scorer", job=JOB,
+                               conversation=chat["id"])["id"]
     done = research_runtime.run(world, rid, runner=runner)
     assert done["state"] == "done" and done["verdict"] == "partial"  # one page did not answer
     assert "1 findings dropped" in done["why"] and done["model_ms"] == 3800
@@ -294,7 +284,7 @@ def test_a_pass_runs_its_looks_and_proposes_the_plan_in_the_conversation(
     # Once done, it is no longer a running pass: nothing more is looked at or proposed in it.
     later = Tools(world, thread=done["thread"])
     assert "research pass" in later.research_look("x", "y")["error"]
-    assert "research_start" in later.plan_propose("P", "B.", "t t", pieces=PIECES)["error"]
+    assert "workflow_draft" in later.plan_propose("P", "B.", "t t", pieces=PIECES)["error"]
 
 
 def test_a_pass_that_never_proposes_fails_and_says_so(world: World,
@@ -303,8 +293,8 @@ def test_a_pass_that_never_proposes_fails_and_says_so(world: World,
     runner = lead_runner(world.path, propose=False)
     monkeypatch.setattr(route, "run", runner)
     chat = world.modules.open_thread("New conversation", "chat", None)
-    t = Tools(world, turn=said(world, "build me a site scorer"), thread=chat["id"])
-    rid = t.research_start("Site Scorer", "build me a site scorer", JOB)["research"]
+    rid = world.research.start("Site Scorer", "build me a site scorer", job=JOB,
+                               conversation=chat["id"])["id"]
     for n in (1, 2):
         rs = research_runtime.run(world, rid, runner=runner)
         assert rs["state"] == "running" and rs["attempts"] == n
@@ -313,8 +303,7 @@ def test_a_pass_that_never_proposes_fails_and_says_so(world: World,
     assert world.journal.recent(1, thread=chat["id"])[0]["text"].startswith(
         "I couldn't finish looking into Site Scorer")
     # A run cut off leaves it running; a run that errors fails it with the error.
-    rid2 = Tools(world, turn=said(world, "again"), thread=chat["id"]).research_start(
-        "Again", "again", JOB)["research"]
+    rid2 = world.research.start("Again", "again", job=JOB, conversation=chat["id"])["id"]
     cut = research_runtime.run(world, rid2, runner=lambda req: RunResult(
         ok=False, reply="", error="Reached the step ceiling", cut_off=True))
     assert cut["state"] == "running"
@@ -390,7 +379,7 @@ def test_the_suite_settles_a_pass_and_checks_the_plans_pieces(
             # The conversation's turn: the job is in the ask, so the pass starts at once.
             w = World(world.path)
             try:
-                Tools(w, turn=req.turn_id).research_start("Site Scorer", req.sentence, JOB)
+                w.research.start("Site Scorer", req.sentence, job=JOB, turn=req.turn_id)
             finally:
                 w.close()
             return RunResult(ok=True, reply="I'll look into how this is done; a few minutes.")

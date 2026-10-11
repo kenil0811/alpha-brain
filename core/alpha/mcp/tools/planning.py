@@ -54,6 +54,12 @@ class Planning(Base):
         card of pieces in this conversation. Tell them in one or two lines what you will look
         at, that it takes a few minutes, and that they can stop it. module: an existing module
         it would extend."""
+        # §12 (11 Oct): a module starts with the interview and the workflow page, not with a
+        # research pass; the pass's mechanisms stay as material for later.
+        return {"error": "A module starts with the interview (the job, their procedure, their"
+                " documents) and the page written with workflow_draft; there is no research"
+                " pass to start. Look up what the workflow needs in this turn (WebSearch,"
+                " WebFetch) and put it on the page."}
         if self._building() or self._researching() or self._in_automation():
             return {"error": "A research pass starts from the conversation, not from a build,"
                     " a pass or a run."}
@@ -126,19 +132,16 @@ class Planning(Base):
         Nothing is built until they say yes."""
         research = self._researching()
         revising: dict[str, Any] | None = None
+        if not research:
+            # §12: a module ask is a workflow (workflow_draft), never a plan written in the
+            # conversation, and an old plan is not revised into one either.
+            return {"error": "Plans are not written in the conversation. What the person"
+                    " wants is a workflow: understand it (the interview), then write it with"
+                    " workflow_draft; a change to an existing page goes through"
+                    " workflow_revise."}
         if replaces:
             revising = self.world.plans.get(replaces)
-            if not revising.get("research"):
-                revising = None
-        if research:
-            rid = str(research["id"])
-        elif revising:
-            rid = str(revising["research"])
-        else:
-            return {"error": "A plan comes out of a research pass: ask the job (who it is for,"
-                    " what it decides, what happens today, what exists already), then"
-                    " research_start; the pass looks into how this is done and proposes the"
-                    " plan here. Never write the plan yourself in the conversation."}
+        rid = str(research["id"])
         if not trial or len(trial.split()) < 2:
             return {"error": "A plan needs a trial: the first thing the person will do with it,"
                     " in their words, so the build can be checked against an independent"
