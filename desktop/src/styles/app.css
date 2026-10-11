@@ -15,9 +15,9 @@
   --bg: #fafbfc; --surface: #ffffff; --surface-2: #f3f5f7; --text: #1a2b3c; --text-2: #4b5a6a; --text-3: #5f6b78;
   --border: #e3e6ea; --line: #f1f3f5; --hover: #eef1f4; --primary: #3f6f99; --primary-ink: #ffffff; --primary-soft: #e4edf5;
   --good: #4f7a52; --good-soft: #e5eee5; --warn: #8a5f2c; --warn-soft: #f6eee2; --bad: #b4413a; --bad-soft: #f6e5e3; --bad-ink: #ffffff;
-  --navy: #1a2b3c; --chart: #4d7ea8; --chart-2: #c4955a; --chart-3: #6b7c65;
-  /* chart series, in fixed order (9 Oct): the dataviz reference palette, validated for colour-blind separation on these surfaces; light labels ride with every mark */
-  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+  --navy: #1a2b3c; --chart: var(--primary); --chart-2: #6b7785; --chart-3: #a3adb8;
+  /* chart series, in fixed order: neutrals plus the one accent and its tints (11 Oct, U11: no second hue); every mark carries its label, so colour never stands alone */
+  --series-1: var(--primary); --series-2: #1a2b3c; --series-3: #8fb0cc; --series-4: #6b7785; --series-5: #2d5072; --series-6: #a3adb8; --series-7: #c9d8e6; --series-8: #3d4a57;
   --white: #ffffff; --scrim: rgba(0, 0, 0, 0.55);
   /* shadows: a whisper on a card, a clear one on what floats, a soft seam between the three
      columns, a hairline under a raised segment */
@@ -49,9 +49,10 @@
   --header-line: 1px solid var(--border);
   /* icons come in two sizes (ui/icons.ts: ICON_SM, ICON) */
   --icon-sm: 16px; --icon: 20px;
-  /* the map of work's kinds (shell/map) */
-  --k-module: var(--navy); --k-table: var(--primary); --k-read: var(--good); --k-act: var(--warn); --k-run: #8a6d3b; --k-automation: #7a5c8a; --k-source: var(--chart-3); --k-connection: #5f6b78;
-  --k-you: #b8485c; --k-person: #2f6b73; --k-organisation: #4e6a8a; --k-document: #8a6d3b; --k-page: #5a7a52; --k-goal: #a7542b;
+  /* the map's and the brain's kinds (shell/map): neutrals plus the one accent and its tints (11 Oct, U11) */
+  --k-module: var(--navy); --k-table: var(--primary); --k-read: var(--primary); --k-act: #4b5a6a; --k-run: #8b96a2; --k-automation: #4b5a6a; --k-source: #a3adb8; --k-connection: #8b96a2;
+  --k-you: var(--text-2);  /* "You" is neutral, never a hue (the owner, 11 Oct) */
+  --k-person: #2d5072; --k-organisation: #6b7785; --k-document: #a3adb8; --k-page: #8b96a2; --k-goal: #8fb0cc;
   /* the companion's default colours (avatar/looks.ts holds the person's own choices) */
   --avatar-hi: #9dbbff; --avatar-lo: #3b5fd0;
   --focus-ring: 0 0 0 2px var(--primary-soft), 0 0 0 4px var(--primary);
@@ -62,14 +63,14 @@
     --bg: #0f151c; --surface: #161e27; --surface-2: #1c2530; --text: #e6ebf0; --text-2: #b4bec9; --text-3: #7c8894;
     --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
     --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220; --bad-ink: #1a0e0d;
-    --navy: #e6ebf0; --chart: #7fa5c5; --chart-2: #d9b07a; --chart-3: #9cb39a;
-    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+    --navy: #e6ebf0; --chart: var(--primary); --chart-2: #9aa6b2; --chart-3: #65717d;
+    --series-1: var(--primary); --series-2: #e6ebf0; --series-3: #4d7ea8; --series-4: #9aa6b2; --series-5: #b8d0e4; --series-6: #65717d; --series-7: #2f5878; --series-8: #c3cad2;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
     --shadow-seam: 0 0 12px rgba(0, 0, 0, 0.35);
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-node: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-    --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
+    --k-module: var(--navy); --k-act: #b4bec9; --k-run: #7c8894; --k-automation: #b4bec9; --k-source: #65717d; --k-connection: #7c8894; --k-person: #b8d0e4; --k-organisation: #9aa6b2; --k-document: #65717d; --k-page: #7c8894; --k-goal: #2f5878;
   }
 }
 :root[data-theme="dark"] {
@@ -77,14 +78,14 @@
   --bg: #0f151c; --surface: #161e27; --surface-2: #1c2530; --text: #e6ebf0; --text-2: #b4bec9; --text-3: #7c8894;
   --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
   --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220; --bad-ink: #1a0e0d;
-  --navy: #e6ebf0; --chart: #7fa5c5; --chart-2: #d9b07a; --chart-3: #9cb39a;
-    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+  --navy: #e6ebf0; --chart: var(--primary); --chart-2: #9aa6b2; --chart-3: #65717d;
+    --series-1: var(--primary); --series-2: #e6ebf0; --series-3: #4d7ea8; --series-4: #9aa6b2; --series-5: #b8d0e4; --series-6: #65717d; --series-7: #2f5878; --series-8: #c3cad2;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-seam: 0 0 12px rgba(0, 0, 0, 0.35);
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-node: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-  --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
+  --k-module: var(--navy); --k-act: #b4bec9; --k-run: #7c8894; --k-automation: #b4bec9; --k-source: #65717d; --k-connection: #7c8894; --k-person: #b8d0e4; --k-organisation: #9aa6b2; --k-document: #65717d; --k-page: #7c8894; --k-goal: #2f5878;
 }
 /* more contrast when the Mac asks for it; after the themes so it wins in both */
 @media (prefers-contrast: more) {
@@ -121,7 +122,7 @@ a { color: var(--primary); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- frame ---------- */
-.app { --rail-w: 224px; --panel-w: 380px; --rail-folded-w: 72px; --panel-folded-w: 48px; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--panel-w); height: 100%; min-height: 100vh; position: relative; }
+.app { --rail-w: 224px; --panel-w: 380px; --rail-folded-w: 96px; --panel-folded-w: 48px; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--panel-w); height: 100%; min-height: 100vh; position: relative; }
 /* A folded panel is a narrow strip, never gone (the UI rulebook §3). The columns are apart by a soft seam, not a line. */
 .app--rail-collapsed { --rail-w: var(--rail-folded-w); }
 .app--assistant-folded { --panel-w: var(--panel-folded-w); }
@@ -151,15 +152,18 @@ a { color: var(--primary); }
 .wsbtn { display: flex; align-items: center; gap: var(--space-2); flex: 1 1 auto; min-width: 0; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border: 0; border-radius: var(--radius-control); background: none; color: var(--text); font-weight: 600; text-align: left; }
 .wsbtn:hover { background: var(--hover); }
 .wsbtn__tile { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: var(--radius-control); background: var(--primary); color: var(--primary-ink); font-size: var(--text-md); font-weight: 600; }
-.wsbtn__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the whole name fits: up to two lines at the sidebar's width, never a cut "Kenil's workspa…" (the owner, 11 Oct) */
+.wsbtn__name { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: anywhere; }
+.wsbtn__tile:has(.agentface) { background: none; }
 .wsbtn__chev { flex: none; color: var(--text-3); }
 .rail__fold { flex: none; color: var(--text-3); }
 .rail__main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 /* Only the module list scrolls; Home and People above it, Intelligence and Settings below, stay (at the smallest window the whole rail once scrolled and hid them, found by the desktop check, 3 Oct). */
 .rail__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-1); margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); }
 .rail__bottom { flex: none; display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); }
-.rail__none { margin: 0; padding: var(--space-1) var(--space-2); }
-.rail__trouble { flex: none; margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-control); background: var(--bad-soft); color: var(--bad); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.rail__trouble { flex: none; display: flex; align-items: flex-start; gap: var(--space-1); margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-control); background: var(--bad-soft); color: var(--bad); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.rail__trouble > span { flex: 1; min-width: 0; }  /* stays until dismissed or the next success (§14) */
+.rail__dismiss { flex: none; color: inherit; }
 .navbtn { position: relative; display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-2); border-radius: var(--radius-control); text-align: left; color: var(--text-2); background: none; border: 0; }
 .navbtn:hover { background: var(--hover); color: var(--text); }
 /* the current item: a soft accent wash, steel text and icon, a short accent bar on its left edge */
@@ -185,14 +189,14 @@ a { color: var(--primary); }
 .navrow--drop-before::before, .navrow--drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; border-radius: var(--radius-pill); background: var(--primary); z-index: 1; }
 .navrow--drop-before::before { top: -2px; }
 .navrow--drop-after::after { bottom: -2px; }
-/* folded: each item is its icon with a tiny label under it (the one place text may be this small, §16) */
+/* folded: each item is its icon with its name under it, 11px, 12 characters (Rail.tsx foldedLabel), the one place text may be this small (§4, §16) */
 .rail--collapsed { padding: 0 var(--space-2) var(--space-2); }
 .rail--collapsed .rail__top { margin: 0 calc(-1 * var(--space-2)) var(--space-2); padding: 0 var(--space-2); gap: 0; justify-content: center; }
 .rail--collapsed .wsbtn { flex: none; padding: 0; }
-.rail--collapsed .wsbtn__name, .rail--collapsed .wsbtn__chev, .rail--collapsed .rail__none { display: none; }
+.rail--collapsed .wsbtn__name, .rail--collapsed .wsbtn__chev { display: none; }
 .rail--collapsed .rail__scroll { margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); }
 .rail--collapsed .navbtn { flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-1) 2px; text-align: center; }
-.rail--collapsed .navbtn__text { flex: none; max-width: 100%; font-size: var(--text-xs); line-height: 1.2; }
+.rail--collapsed .navbtn__text { flex: none; max-width: 100%; font-size: var(--text-xs); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail--collapsed .navbtn__count { position: absolute; top: 2px; right: var(--space-2); }
 .rail--collapsed .navbtn--current::before { top: var(--space-2); bottom: var(--space-2); }
 .iconpick { display: grid; grid-template-columns: repeat(6, var(--space-10)); gap: var(--space-1); }
@@ -466,7 +470,7 @@ a { color: var(--primary); }
 .example:hover { background: var(--hover); color: var(--text); }
 .composer { position: relative; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .composer__box { display: flex; flex-direction: column; gap: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-composer); padding: var(--space-3) var(--space-2) var(--space-2) var(--space-4); background: var(--surface); }
-.composer__box:focus-within { border-color: var(--primary); }
+.composer__box:focus-within { border-color: var(--primary); box-shadow: var(--focus-ring); }  /* focus always visible (§16) */
 .composer textarea { border: 0; background: transparent; resize: none; min-height: 31px; max-height: 160px; outline: none; box-shadow: none; padding: 0; font-size: var(--text-base); line-height: 1.45; color: var(--text); }
 .composer__row { display: flex; align-items: center; gap: var(--space-1); }
 .composer__gap { flex: 1; }
@@ -588,15 +592,14 @@ body.avatar-window #root { height: 100vh; }
 .character { display: block; }
 /* The rig (avatar/Rig.tsx). A mood is a pose (avatar/Rig.tsx POSES): the groups below carry
    its transforms inline and ease between moods here; breath, blinks and the nod are
-   animations timed by the pose (--breath, --blink-every, --blink-speed); a happy arrival hops
-   once. Still when hidden, rested, or when the Mac asks for reduced motion. */
+   animations timed by the pose (--breath, --blink-every, --blink-speed); no hop (the owner,
+   11 Oct). Still when hidden, rested, or when the Mac asks for reduced motion. */
 .rig { display: block; overflow: hidden; }  /* the bust: what is below the view box stays out */
 /* Every moving group sits inside a translate to its pivot (Rig.tsx Pivot), so its CSS transform
    turns about its local origin; no transform-box, no transform-origin, the same in WebKit and Chromium. */
 .rig__body, .rig__squash, .rig__head, .rig__ear, .rig__lids, .rig__eyes, .rig__pupils, .rig__pupil, .rig__brow, .rig__mouth, .rig__whisker { transform-box: view-box; transform-origin: 0 0; }
 .rig__body { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite; }
 .rig__squash { transition: transform 420ms ease; }
-.rig__body--hop { animation: rig-breath var(--breath, 3.6s) ease-in-out infinite, rig-hop 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) 1; }
 .rig__head { transition: transform 380ms ease; }
 .rig__ear { transition: transform 320ms ease; }
 .rig__lids { transition: transform 260ms ease; }
@@ -611,7 +614,6 @@ body.avatar-window #root { height: 100vh; }
 @keyframes rig-breath { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
 @keyframes rig-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.06); } }
 @keyframes rig-nod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(2.5deg); } }
-@keyframes rig-hop { 0% { transform: translateY(0); } 35% { transform: translateY(-90px) scale(0.98, 1.03); } 70% { transform: translateY(14px) scale(1.03, 0.97); } 100% { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .character *, .character { animation: none !important; } }
 
 /* ---------- derived pages ---------- */
@@ -953,7 +955,10 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__label { font-size: var(--text-sm); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .map__node--module .map__label { font-weight: 600; fill: var(--text); font-size: var(--text-md); }
 .map__svg--settling .map__node { transition: none; }
-.map__tools { position: absolute; top: var(--space-2); right: var(--space-2); display: flex; gap: var(--space-2); align-items: center; }
+/* one row that never wraps (rule 5): it spans the map and scrolls sideways when the window is narrow (1100px, 11 Oct) */
+.map__tools { position: absolute; top: var(--space-2); left: var(--space-2); right: var(--space-2); display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: var(--space-2); align-items: center; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.map__tools > * { flex: none; white-space: nowrap; }
+.map__tools .hswitch__box { width: auto; margin-right: auto; }
 .map__search { width: 150px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--bg); color: var(--text); font-size: var(--text-sm); }
 .map__focus { position: absolute; top: var(--space-12); right: var(--space-2); display: flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-1) 2px var(--space-2); border-radius: var(--radius-pill); background: var(--primary-soft); color: var(--primary); font-size: var(--text-sm); }
 .map__pin { fill: var(--surface); stroke: var(--text-2); stroke-width: 1.5; }
@@ -961,11 +966,14 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__sub { font-size: var(--text-xs); fill: var(--text-3); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .map__h { margin: var(--space-2) 0 2px; font-size: var(--text-sm); }
 .map__addr { overflow-wrap: anywhere; font-size: var(--text-sm); }
-.map__legend { position: absolute; left: var(--space-2); bottom: var(--space-2); display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* one row along the bottom, clear of the glance at its right; scrolls rather than run under it */
+.map__legend { position: absolute; left: var(--space-2); right: var(--space-2); bottom: var(--space-2); display: flex; flex-wrap: nowrap; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+.map:has(.map__glance) .map__legend { right: calc(var(--space-12) * 5 + var(--space-4)); }
+.map__chip { flex: none; white-space: nowrap; }
 .map__chip { display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); color: var(--text-2); }
 .map__chip i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .map__chip--off { opacity: 0.45; text-decoration: line-through; }
-.map__card { position: absolute; top: var(--space-2); left: var(--space-2); width: 300px; max-height: calc(100% - 60px); overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-float); padding: var(--space-3) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.map__card { position: absolute; top: var(--space-12); left: var(--space-2); width: 300px; max-width: calc(100% - var(--space-4)); max-height: calc(100% - var(--space-12) * 2); overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-float); padding: var(--space-3) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .map__card-head { display: flex; align-items: center; gap: var(--space-2); }
 .map__card-head b { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .map__dot { width: 16px; height: 16px; border-radius: 50%; flex: none; }
@@ -978,11 +986,11 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__edge--suggested { stroke-dasharray: 3 5; opacity: 0.8; }
 .map__node--lonely circle { stroke: var(--text-3); stroke-dasharray: 3 3; }
 .map__asof { font-size: var(--text-sm); color: var(--text-3); margin-left: var(--space-1); }
-.map__glance { position: absolute; right: var(--space-2); bottom: var(--space-2); width: 250px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-float); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); color: var(--text-2); display: flex; flex-direction: column; gap: var(--space-1); }
+.map__glance { position: absolute; right: var(--space-2); bottom: var(--space-2); width: calc(var(--space-12) * 5); max-height: calc(100% - var(--space-12) * 2); overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-float); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); color: var(--text-2); display: flex; flex-direction: column; gap: var(--space-1); }
 .map__glance b { color: var(--text); }
 .map__glance .linkbtn { text-align: left; padding: 0; }
 .map__think { background: var(--primary-soft); border-radius: var(--radius-control); padding: var(--space-2) var(--space-2); font-size: var(--text-md); }
-.map__busy { position: absolute; left: 50%; top: var(--space-3); transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow-float); }
+.map__busy { position: absolute; left: 50%; top: var(--space-12); transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); color: var(--text-2); box-shadow: var(--shadow-float); }
 
 /* ---------- the kit, phase 1 (9 Oct, the UI rulebook §14): one of each part ---------- */
 /* disabled with a reason: a focusable wrapper so the reason shows on hover and on keyboard focus */
@@ -1007,6 +1015,9 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .hswitch button svg { width: var(--icon-sm); height: var(--icon-sm); flex: none; }
 .hswitch--icons button { padding: var(--space-1) var(--space-3); }
 .hswitch__box { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; overflow: hidden; padding: 2px; margin: -2px; }
+/* the same toggle in a page's body (rule 4, 11 Oct): left-aligned at the top of what it switches; scrolls, never wraps */
+.hswitch__box--body { flex: none; justify-content: flex-start; width: 100%; overflow-x: auto; scrollbar-width: none; }
+.hswitch__count { color: var(--text-3); font-weight: 400; font-variant-numeric: tabular-nums; }
 .breadcrumb ol { display: flex; align-items: center; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); color: var(--text-2); min-width: 0; }
 .breadcrumb li { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .breadcrumb li > span, .breadcrumb li > button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

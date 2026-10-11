@@ -1,4 +1,4 @@
-import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toRow, type Client, type ModuleCard } from "../core/client";
@@ -326,10 +326,67 @@ describe("reordering", () => {
 });
 
 describe("the folded sidebar", () => {
-  it("keeps every item, each with its label (drawn tiny under the icon by CSS)", () => {
-    const { labels, container } = setup([card("m_f", "Food")], { collapsed: true });
-    expect(labels()).toEqual(["Home", "Network", "Food", "New project", "Intelligence", "Settings"]);
+  it("keeps every item with its name under the icon: up to 12 characters, then an ellipsis, the full name on focus", async () => {
+    const { labels, container } = setup([card("m_f", "Food"), card("m_l", "Leads and prospects")], { collapsed: true });
+    expect(labels()).toEqual(["Home", "Network", "Food", "Leads and prospects", "New project", "Intelligence", "Settings"]);
     expect(container.querySelector(".rail--collapsed")).not.toBeNull();
+    const text = (name: string) => screen.getByRole("button", { name }).querySelector(".navbtn__text")!.textContent;
+    expect(text("Food")).toBe("Food");
+    expect(text("Intelligence")).toBe("Intelligence"); // exactly 12: whole
+    expect(text("Leads and prospects")).toBe("Leads and pr…");
+    screen.getByRole("button", { name: "Leads and prospects" }).focus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Leads and prospects");
+  });
+
+  it("open, every name sits whole beside its icon", () => {
+    setup([card("m_l", "Leads and prospects")]);
+    expect(screen.getByRole("button", { name: "Leads and prospects" }).querySelector(".navbtn__text")!.textContent).toBe("Leads and prospects");
+  });
+});
+
+describe("the sidebar while loading and when empty", () => {
+  it("shows no project rows and no 'nothing here' words while the projects load", () => {
+    const core = fakeCore({ [PREF.hiddenModules]: ["network"] });
+    const { container } = render(<Rail client={core.client} surface={{ kind: "home" }} modules={[]} needs={0} collapsed={false} loading onGo={vi.fn()} onNew={vi.fn()} onChanged={vi.fn()} onToggleCollapsed={vi.fn()} />);
+    expect(container.querySelector(".rail__scroll")!.children).toHaveLength(0);
+    expect(screen.queryByText(/hidden|No projects|ask for one/i)).toBeNull();
+  });
+
+  it("with no projects shows New project, never text asking for one", async () => {
+    const { onNew } = setup([], { stored: { [PREF.hiddenModules]: ["network"] } });
+    await userEvent.click(screen.getByRole("button", { name: "New project" }));
+    expect(onNew).toHaveBeenCalled();
+    expect(screen.queryByText(/All hidden|No projects|ask for one/i)).toBeNull();
+  });
+});
+
+describe("the workspace button", () => {
+  it("shows the companion the person picked in its tile, and the initial when none is picked", async () => {
+    const { container } = setup([], { stored: { [PREF.companionLook]: { body: "cat" } } });
+    await waitFor(() => expect(container.querySelector(".wsbtn__tile .agentface")).not.toBeNull());
+    cleanup();
+    forgetPreferences();
+    const plain = setup([]);
+    expect(plain.container.querySelector(".wsbtn__tile")!.textContent).toBe("K");
+  });
+
+  it("keeps an error until the person dismisses it, with no timer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const core = fakeCore();
+      core.setPreference.mockRejectedValueOnce(new Error("the disk is full"));
+      render(<Rail client={core.client} surface={{ kind: "home" }} modules={[card("m_f", "Food")]} needs={0} collapsed={false} onGo={vi.fn()} onNew={vi.fn()} onChanged={vi.fn()} onToggleCollapsed={vi.fn()} />);
+      fireEvent.contextMenu(screen.getByRole("button", { name: "Food" }));
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Hide" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Couldn't hide Food");
+      vi.advanceTimersByTime(60_000);
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      fireEvent.click(within(alert).getByRole("button", { name: "Dismiss" }));
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

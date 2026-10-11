@@ -20,8 +20,8 @@ import { Activity } from "../shell/Activity";
 import { AgentAvatar } from "../shell/AgentAvatar";
 import { useSpeech } from "../shell/voice";
 import { unfoldOnEmpty } from "../shell/Rail";
-import { Badge, Button, Dropdown, IconButton, PageHeader, Popover, Rich, Trouble } from "../ui";
-import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, DeleteIcon, ICON_SM, NotificationIcon, PlusIcon, RetryIcon, X } from "../ui/icons";
+import { Badge, Button, Dropdown, IconButton, PageHeader, Popover, Rich, Trouble, useContextMenu } from "../ui";
+import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, DeleteIcon, ICON_SM, MoreVertical, NotificationIcon, PlusIcon, RenameIcon, RetryIcon, X } from "../ui/icons";
 import { AskCard, PlanCard } from "./Cards";
 import { Composer } from "./Composer";
 
@@ -261,6 +261,22 @@ export function AssistantPanel({
     [client, load, onChanged],
   );
 
+  const chats = convos.filter((c) => c.kind === "chat");
+  const activeConvo = chats.find((c) => c.id === active) ?? null;
+  const chatLabel = (c: Convo) => `${c.scope} · ${c.title}${c.state === "waiting" ? " (needs you)" : c.state === "working" ? " (working)" : ""}`;
+  const archiveReason = !activeConvo ? "There is no conversation to archive yet." : activeConvo.state === "working" ? "Alpha is working in it. Stop it, or wait, then archive." : undefined;
+  const archive = () => {
+    if (activeConvo) void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); });
+  };
+  const startNew = () => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); });
+  // The conversation's ⋮ (the owner, 11 Oct): Rename, Archive, Delete…; the trash left the header.
+  // The core has no rename or delete route for a conversation yet, so those two say so.
+  const convoMenu = useContextMenu<void>(() => [
+    { label: "Rename", icon: <RenameIcon />, disabled: "Conversations can't be renamed yet; its title comes from its first message." },
+    { label: "Archive", icon: <ArchiveIcon />, onSelect: archive, disabled: archiveReason },
+    { label: "Delete…", icon: <DeleteIcon />, danger: true, separatorBefore: true, disabled: "Conversations can't be deleted yet. Archive closes it and keeps what it learned." },
+  ]);
+
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
   });
@@ -316,14 +332,6 @@ export function AssistantPanel({
     </div>
   ) : null;
   const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : active ? a.thread === active : a.thread === null));
-  const chats = convos.filter((c) => c.kind === "chat");
-  const activeConvo = chats.find((c) => c.id === active) ?? null;
-  const chatLabel = (c: Convo) => `${c.scope} · ${c.title}${c.state === "waiting" ? " (needs you)" : c.state === "working" ? " (working)" : ""}`;
-  const archiveReason = !activeConvo ? "There is no conversation to archive yet." : activeConvo.state === "working" ? "Alpha is working in it. Stop it, or wait, then archive." : undefined;
-  const archive = () => {
-    if (activeConvo) void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); });
-  };
-  const startNew = () => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); });
   // Retry sends the person's last sentence before a turn again, through the same send; offered on
   // a turn that failed and on the latest one.
   const renderMessages = (list: JournalEntry[]) => {
@@ -378,11 +386,10 @@ export function AssistantPanel({
             onChange={(id) => { setThreadView(null); setActive(id); }}
           />
           <IconButton size="sm" label="New conversation" title="Start a new conversation here" icon={<PlusIcon />} onClick={startNew} />
-          <IconButton size="sm" label="Archive" title="Archive this conversation: it closes, and what it learned stays" icon={<ArchiveIcon />} disabledReason={archiveReason} onClick={archive} />
-          <IconButton size="sm" label="Delete" icon={<DeleteIcon />} disabledReason="Deleting a conversation isn't possible yet. Archive closes it and keeps what it learned." />
+          <IconButton size="sm" label="More for this conversation" aria-haspopup="menu" icon={<MoreVertical size={ICON_SM} />} disabledReason={activeConvo ? undefined : "There is no conversation here yet."} onClick={(e) => convoMenu.openFrom(undefined, e.currentTarget)} />
         </div>
       )}
-      <div className="assist__body" ref={body}>
+      <div className="assist__body" ref={body} role="log" aria-live="polite" aria-label="Conversation">
         {threadView ? (
           <>
             {renderMessages(threadView.journal)}
@@ -449,6 +456,7 @@ export function AssistantPanel({
           </p>
         ) : null}
       </div>
+      {convoMenu.menu}
       <Composer
         client={client}
         module={module}

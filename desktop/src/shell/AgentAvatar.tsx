@@ -17,7 +17,7 @@ const VIEW = { x: 420, y: 180, h: 2250, ratio: 2700 / 2250 };
 export function useAgentLook(client: Client | null, agent: string): [Look, (look: Look) => Promise<string | null>] {
   const [looks, setLooks] = usePreference<Record<string, unknown>>(client, PREF.agentLooks, {});
   const [companion] = usePreference<unknown>(client, PREF.companionLook, null);
-  return [normaliseLook(looks[agent] ?? companion), (look) => setLooks({ ...looks, [agent]: look })];
+  return [normaliseLook(looks?.[agent] ?? companion), (look) => setLooks({ ...looks, [agent]: look })];
 }
 
 export function AgentAvatar({ client, agent = "alpha", size = 28, label }: { client: Client | null; agent?: string; size?: number; label?: string }) {

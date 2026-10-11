@@ -79,6 +79,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [panelOpen, setPanelOpen] = useState<boolean>(() => remembered<boolean>(PANEL_KEY, true));
   const [railCollapsed, setRailCollapsed] = useState<boolean>(() => remembered<boolean>(RAIL_KEY, false));
   const [coreModules, setModules] = useState<ModuleCard[]>([]);
+  const [modulesLoaded, setModulesLoaded] = useState(false); // the sidebar stays quiet until the first answer
   const [needs, setNeeds] = useState(0);
   const [restarted, setRestarted] = useState(false);
   // A sentence handed to the panel: put in the composer (an "Ask Alpha…" button), or sent at
@@ -157,7 +158,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const drawn = useRef({ rail: 0, panel: 0 });
   const rail = useDragWidth("alpha.rail.width", { initial: 224, min: 160, max: () => window.innerWidth - drawn.current.panel, wide: 288, grow: "right", onFold: () => foldRail(true) });
   const panel = useDragWidth("alpha.panel.width", { initial: 380, min: 280, max: () => window.innerWidth - drawn.current.rail, wide: 500, grow: "left", onFold: () => togglePanel(false) });
-  drawn.current = { rail: railCollapsed ? 72 : rail.width, panel: panelOpen ? panel.width : 48 };
+  drawn.current = { rail: railCollapsed ? 96 : rail.width, panel: panelOpen ? panel.width : 48 };
 
   useEffect(() => {
     if (injected) return;
@@ -206,7 +207,10 @@ export function App({ client: injected }: { client?: Client } = {}) {
         setModules(home.modules);
         setNeeds(home.needs_you.length);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setModulesLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -303,7 +307,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       className={`app${panelOpen ? "" : " app--assistant-folded"}${railCollapsed ? " app--rail-collapsed" : ""}${rail.active || panel.active ? " app--resizing" : ""}`}
       style={{ ["--rail-w" as string]: railCollapsed ? undefined : `${rail.width}px`, ["--panel-w" as string]: panelOpen ? `${panel.width}px` : undefined }}
     >
-      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} draftName={draftName} />
+      <Rail client={client} surface={surface} modules={modules} needs={needs} onGo={setSurface} onNew={startNew} collapsed={railCollapsed} onToggleCollapsed={() => foldRail(!railCollapsed)} onChanged={changed} draftName={draftName} loading={!modulesLoaded} />
       {!railCollapsed ? <Resizer side="rail" label="Resize the sidebar" drag={rail} /> : null}
       {panelOpen && client ? <Resizer side="panel" label="Resize the assistant panel" drag={panel} /> : null}
       <EdgeToggle side="rail" folded={railCollapsed} label={railCollapsed ? "Unfold the sidebar" : "Fold the sidebar"} onClick={() => foldRail(!railCollapsed)} />

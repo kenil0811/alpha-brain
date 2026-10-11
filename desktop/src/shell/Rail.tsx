@@ -13,7 +13,8 @@
  * A module is dragged to reorder it or dropped on the middle of another to move it inside;
  * Alt+↑/↓ reorder from the keyboard, Alt+→ moves it inside the one above, Alt+← out. The order
  * is `PREF.moduleOrder`; a move into another module is the core's `moveModule`. Right-click a
- * module (or its ⋯) for its menu. Folded, each item is its icon with a tiny label under it.
+ * module (or its ⋮) for its menu. Folded, each item is its icon with its name under it (11px,
+ * up to 12 characters, the full name on hover and focus; the owner, 11 Oct).
  *
  * Network is shipped pre-built but sits among the projects like one (9 Oct, the owner): it is
  * reordered with them (its place is the id `network` in the same order, first until moved), and
@@ -49,7 +50,9 @@ import {
   SignOutIcon,
   ViewOptionsIcon,
   BuildingIcon,
+  X,
 } from "../ui/icons";
+import { AgentAvatar } from "./AgentAvatar";
 import { IconDialog, MoveDialog, NewAboveDialog, ViewOptionsDialog } from "./ModuleDialogs";
 import { iconNamed } from "./moduleIcons";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
@@ -140,6 +143,7 @@ export function Rail({
   onToggleCollapsed,
   onChanged,
   draftName,
+  loading = false,
 }: {
   client: Client | null;
   surface: Surface;
@@ -153,11 +157,17 @@ export function Rail({
   onChanged: () => void;
   /** The name typed on the New project page, shown on its sidebar item while that page is open. */
   draftName?: string;
+  /** The projects have not arrived yet: the list shows nothing rather than an empty one. */
+  loading?: boolean;
 }) {
   const [folded, setFolded] = useState<Set<string>>(readFolded);
   const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
   const [logoPref, setLogo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
   const logo = typeof logoPref === "string" ? logoPref : "";
+  // The tile shows the companion the person picked (the assistant panel's face); none picked: the initial.
+  const [companionPref] = usePreference<unknown>(client, PREF.companionLook, null);
+  const [looksPref] = usePreference<Record<string, unknown>>(client, PREF.agentLooks, NO_ICONS);
+  const face = companionPref || looksPref?.alpha ? <AgentAvatar client={client} agent="alpha" size={36} /> : undefined;
   const [orderPref, setOrder] = usePreference<string[]>(client, PREF.moduleOrder, NO_IDS);
   const [hiddenPref, setHidden] = usePreference<string[]>(client, PREF.hiddenModules, NO_IDS);
   const [iconsPref, setIcons] = usePreference<Record<string, string>>(client, PREF.moduleIcons, NO_ICONS);
@@ -173,7 +183,7 @@ export function Rail({
 
   const [dialog, setDialog] = useState<{ kind: "move" | "above" | "icon"; module: ModuleCard } | { kind: "options" } | null>(null);
   const [said, setSaid] = useState(""); // announced politely to a screen reader
-  const [trouble, setTrouble] = useState<string | null>(null); // what failed, for a few seconds
+  const [trouble, setTrouble] = useState<string | null>(null); // what failed, until dismissed or the next success
   const [drag, setDrag] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; zone: "before" | "inside" | "after" } | null>(null);
   const refocus = useRef<string | null>(null);
@@ -184,11 +194,11 @@ export function Rail({
 
   const byId = (id: string) => all.find((m) => m.id === id);
   const fail = (what: string, e: unknown) => setTrouble(`Couldn't ${what}: ${e instanceof Error ? e.message : String(e)}`);
-  useEffect(() => {
-    if (!trouble) return;
-    const timer = setTimeout(() => setTrouble(null), 8000);
-    return () => clearTimeout(timer);
-  }, [trouble]);
+  /** A change that worked: said politely, and any earlier problem goes (errors never fade on a timer, §14). */
+  const done = (words: string) => {
+    setTrouble(null);
+    setSaid(words);
+  };
   // after a keyboard move the row is a new element: give it the focus again
   useEffect(() => {
     if (!refocus.current) return;
@@ -231,7 +241,7 @@ export function Rail({
     const err = await setOrder(withPlace(order, siblingsOf(all, order, parent).map((s) => s.id), id, target, after));
     if (err) return fail(`save the order of ${m.name}`, err);
     refocus.current = id;
-    setSaid(`Moved ${m.name} ${target ? `${after ? "below" : "above"} ${byId(target)?.name ?? "it"}` : parent ? `inside ${byId(parent)?.name ?? "it"}` : "to the top level"}.`);
+    done(`Moved ${m.name} ${target ? `${after ? "below" : "above"} ${byId(target)?.name ?? "it"}` : parent ? `inside ${byId(parent)?.name ?? "it"}` : "to the top level"}.`);
   }
 
   /** A project's new name, kept as the person's own (PREF.moduleNames); empty or the same keeps the old. */
@@ -241,18 +251,18 @@ export function Rail({
     if (!clean || clean === m.name) return;
     const err = await setNames({ ...names, [m.id]: clean });
     if (err) return fail(`rename ${m.name}`, err);
-    setSaid(`Renamed to ${clean}.`);
+    done(`Renamed to ${clean}.`);
     onChanged();
   }
   async function hide(m: ModuleCard) {
     const err = await setHidden([...hidden.filter((h) => h !== m.id), m.id]);
     if (err) return fail(`hide ${m.name}`, err);
-    setSaid(`${m.name} hidden. View options brings it back.`);
+    done(`${m.name} hidden. View options brings it back.`);
   }
   async function show(id: string) {
     const err = await setHidden(hidden.filter((h) => h !== id));
     if (err) return fail("show it again", err);
-    setSaid(`${byId(id)?.name ?? "It"} is back on the sidebar.`);
+    done(`${byId(id)?.name ?? "It"} is back on the sidebar.`);
   }
   async function makeParent(m: ModuleCard, newName: string) {
     if (!client) return;
@@ -260,7 +270,7 @@ export function Rail({
     try {
       const made = await client.createModule(newName, null, m.parent ?? null);
       await client.moveModule(m.id, made.id);
-      setSaid(`${m.name} now sits inside ${made.name}.`);
+      done(`${m.name} now sits inside ${made.name}.`);
       onChanged();
     } catch (e) {
       fail(`make ${newName}`, e);
@@ -374,7 +384,6 @@ export function Rail({
         className={`navbtn${o.current ? " navbtn--current" : ""}${o.className ? ` ${o.className}` : ""}`}
         aria-current={o.current ? "page" : undefined}
         aria-label={o.label}
-        title={collapsed && !o.hint ? o.label : undefined}
         data-module-id={o.module?.id}
         onClick={o.onClick}
         onDoubleClick={o.module && !collapsed ? (e) => {
@@ -391,7 +400,7 @@ export function Rail({
         <span className="navbtn__ico" aria-hidden="true">
           {o.icon}
         </span>
-        <span className="navbtn__text">{o.label}</span>
+        <span className="navbtn__text">{collapsed ? foldedLabel(o.label) : o.label}</span>
         {o.count ? <span className="navbtn__count">{o.count}</span> : null}
       </button>
     );
@@ -410,7 +419,7 @@ export function Rail({
     }
     return (
       <div key={o.key} className={`navrow${o.fold ? " navrow--fold" : ""}${o.module && drag === o.module.id ? " navrow--dragging" : ""}${dropHere}`} style={o.depth && !collapsed ? { paddingLeft: o.depth * 14 } : undefined} {...(o.module ? dragProps(o.module) : {})}>
-        {o.hint ? <Tooltip text={collapsed ? `${o.label} — ${o.hint}` : o.hint}>{button}</Tooltip> : button}
+        {o.hint || collapsed ? <Tooltip text={collapsed ? (o.hint ? `${o.label} — ${o.hint}` : o.label) : o.hint!}>{button}</Tooltip> : button}
         {o.fold && !collapsed ? (
           <button type="button" className="navfold" aria-label={o.fold.open ? `Fold ${o.label}` : `Unfold ${o.label}`} aria-expanded={o.fold.open} onClick={o.fold.onToggle}>
             {o.fold.open ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />}
@@ -464,11 +473,13 @@ export function Rail({
     if (!clean || clean === name) return;
     const err = await setWorkspace(clean);
     if (err) fail("rename the workspace", err);
+    else done(`Workspace renamed to ${clean}.`);
   }
   async function saveLogo(next: string | null) {
     setLogoOpen(false);
     const err = await setLogo(next);
     if (err) fail("change the logo", err);
+    else done(next ? "The workspace has a new logo." : "The workspace logo is removed.");
   }
   return (
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha" onDoubleClick={unfoldOnEmpty(collapsed, onToggleCollapsed)}>
@@ -477,15 +488,17 @@ export function Rail({
           <div className="rail__top">
             {renaming ? (
               <div className="wsbtn wsbtn--edit">
-                <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
+                <WorkspaceTile logo={logo} name={name} face={face} className="wsbtn__tile" />
                 <NameInput name={name} onDone={(v) => void rename(v)} onCancel={() => setRenaming(false)} />
               </div>
             ) : (
-              <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" title={collapsed ? name : undefined} onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
-                <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
-                <span className="wsbtn__name">{name}</span>
-                <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
-              </button>
+<TipWhen show={collapsed} text={name}>
+              <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
+                  <WorkspaceTile logo={logo} name={name} face={face} className="wsbtn__tile" />
+                  <span className="wsbtn__name">{name}</span>
+                  <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
+                </button>
+              </TipWhen>
             )}
           </div>
         </RadixPopover.Anchor>
@@ -498,21 +511,26 @@ export function Rail({
       <div className="rail__main">
         {go({ kind: "home" }, <HomeIcon />, "Home", needs)}
         <div className="rail__scroll">
-          {tree.length === 0 ? <p className="faint rail__none">All hidden. View options brings them back.</p> : null}
-          {branches(tree, 0)}
+          {/* While the projects load the list stays quiet: no rows, no "nothing here" words (§14). */}
+          {loading ? null : branches(tree, 0)}
           {surface.kind === "new-project" ? item({ key: "new-project", icon: <ModuleIcon />, label: draftName?.trim() || "New project", current: true, className: "navbtn--draft", onClick: () => undefined }) : null}
-          <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New project" title={collapsed ? "New project" : undefined}>
-            <span className="navbtn__ico" aria-hidden="true">
-              <PlusIcon />
-            </span>
-            <span className="navbtn__text">New project</span>
-          </button>
+          {loading ? null : (
+            <TipWhen show={collapsed} text="New project">
+              <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New project">
+                <span className="navbtn__ico" aria-hidden="true">
+                  <PlusIcon />
+                </span>
+                <span className="navbtn__text">New project</span>
+              </button>
+            </TipWhen>
+          )}
         </div>
       </div>
       {trouble ? (
-        <p className="rail__trouble" role="alert">
-          {trouble}
-        </p>
+        <div className="rail__trouble" role="alert">
+          <span>{trouble}</span>
+          <IconButton size="sm" className="rail__dismiss" label="Dismiss" icon={<X size={ICON_SM} />} onClick={() => setTrouble(null)} />
+        </div>
       ) : null}
       <div className="rail__bottom">
         {go({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence", undefined, SUBTITLES.intelligence)}
@@ -533,7 +551,7 @@ export function Rail({
           onPick={(pick) => {
             const target = dialog.module;
             setDialog(null);
-            void setIcons({ ...icons, [target.id]: pick }).then((err) => (err ? fail(`change the icon of ${target.name}`, err) : setSaid(`${target.name} has a new icon.`)));
+            void setIcons({ ...icons, [target.id]: pick }).then((err) => (err ? fail(`change the icon of ${target.name}`, err) : done(`${target.name} has a new icon.`)));
           }}
         />
       ) : null}
@@ -543,13 +561,25 @@ export function Rail({
 }
 
 /** The workspace's tile: its logo (an image, or a letter or emoji the person chose), else the
- *  first letter of its name. Settings shows the same tile. */
-export function WorkspaceTile({ logo, name, className }: { logo: string; name: string; className: string }) {
+ *  companion's face when one was picked (`face`, the owner 11 Oct), else the first letter of its
+ *  name. Settings shows the same tile. */
+export function WorkspaceTile({ logo, name, className, face }: { logo: string; name: string; className: string; face?: ReactNode }) {
   return (
     <span className={className} aria-hidden="true">
-      {logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || ([...name][0]?.toUpperCase() ?? "A")}
+      {logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || face || ([...name][0]?.toUpperCase() ?? "A")}
     </span>
   );
+}
+
+/** A folded sidebar item's name: room for 12 characters, then an ellipsis (§4). */
+export function foldedLabel(label: string): string {
+  const chars = [...label];
+  return chars.length > 12 ? `${chars.slice(0, 12).join("").trimEnd()}…` : label;
+}
+
+/** The full name on hover and focus, only where it is needed. */
+function TipWhen({ show, text, children }: { show: boolean; text: string; children: ReactNode }) {
+  return show ? <Tooltip text={text}>{children}</Tooltip> : <>{children}</>;
 }
 
 /** The workspace's name, edited in place: Enter or clicking away saves, Escape cancels. */

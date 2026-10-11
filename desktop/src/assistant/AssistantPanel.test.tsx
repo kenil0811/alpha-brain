@@ -136,4 +136,30 @@ describe("the assistant panel", () => {
     expect(client.askAndWait.mock.calls[0][0]).toBe("Add a deal");
   });
 
+  it("the conversation's ⋮ holds Rename, Archive and Delete…; no trash in the header; Escape gives the focus back", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    client.closeConversation = vi.fn(async () => CHAT);
+    // disabled until the conversation has arrived; the enabled button is a new element
+    await waitFor(() => expect(screen.getByRole("button", { name: "More for this conversation" })).toBeEnabled());
+    const more = screen.getByRole("button", { name: "More for this conversation" });
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
+    await user.click(more);
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((i) => i.textContent)).toEqual(["Rename", "Archive", "Delete…"]);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(more).toHaveFocus();
+    await user.click(more);
+    await user.click(await screen.findByRole("menuitem", { name: "Archive" }));
+    await waitFor(() => expect(client.closeConversation).toHaveBeenCalledWith("c1"));
+  });
+
+  it("announces new messages politely: the message list is a log", async () => {
+    setup({ turns: [entry("1", "said", "Hello")] });
+    const log = await screen.findByRole("log");
+    expect(log).toHaveAttribute("aria-live", "polite");
+    expect(log).toHaveTextContent("Hello");
+  });
 });
