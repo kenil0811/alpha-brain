@@ -54,12 +54,56 @@ traffic Pass), the fourteen items with their scores or dashes and their notes. T
 has every run with what each filled and could not. The thing's pages show it in the app;
 Kenil's run is the acceptance.
 
+## Later the same night: Kenil's first try, and what it took
+
+Kenil got a Census key, put it into the Settings row and pressed Try again on the two
+Census items: "didnt work". Two reasons, one his, one ours.
+
+- The Census Bureau refused the key (`invalid_key.html` behind a 302, checked from the shell
+  with the key as stored): a new key works only once the activation link in their email is
+  clicked, and the request lapses after 48 hours. The part's problem said "missing or
+  invalid"; true, and not enough. He activated it.
+- Nothing in Alpha would have moved even with a good key. The items he pressed wait on the
+  gates, which had given up after two tries; nothing asked the gates again. And a person's
+  edit of a row (`PATCH /api/tables/{name}/records/{rid}`) replaced the row's provenance with
+  `{"by": "person"}`, dropping every field's source and problem, so the row looked
+  silently empty afterwards.
+
+Built, by mechanism:
+
+- **A change tries again** (`parts.retry`): a changed setting of the module tries again every
+  field of the module's rows that could not be filled (attempts back to zero, the problem
+  kept until the next try); a changed row tries again that row and the rows linked to it. The
+  app's edit route calls it and runs what is due in the background, like a row arriving.
+- **An edit keeps the other fields' provenance** and makes the person the source of the
+  fields they changed ("you", with the time).
+- **A part after another reruns when that one fills later** (`_stale`): every field now
+  keeps the core's own stamp of when its part last wrote it (`at`, beside the source's own
+  `fetched_at`); a part after another is stale when that one filled a value after this one
+  last wrote, so the memo written before the gates filled is written again once they do, and
+  the households item scores once the gate has a number. A failed try of the part before is
+  not news (else a failing predecessor would rerun its dependents every round).
+
+Checked by the fixture (a changed setting makes the failed checks due; a changed row makes
+its checks and its score's item due and keeps its households problem; backdated item and
+memo rerun after the checks). The first version of the test stamped the predecessor with a
+future date and found what that does: a dependent stale forever; hence the core's own stamps
+on both sides. 267 core tests, lint and typecheck clean.
+
+**Run for real, from the app** (his key activated; the setting change predates the code, so
+the retry was triggered once by hand, 17 fields): on the scheduler's next tick the gates
+filled 91,299 households within 3 miles (Pass; traffic 37,900, Pass); every item after the
+gates ran again, being stale: households in the trade area scored 5.0, the four scored
+before kept their scores, the five flagged kept their notes, income and car ownership stayed
+a problem (the ACS returned no usable income for that block group: the module's own code,
+not the key), parcel and price as before; then the memo was written again: "Overall call:
+Pursue". Forty seconds from the retry to the memo.
+
 ## Left
 
-- Kenil's acceptance: the Census key in Settings, Try again on the households gate and the
-  two Census items, then one change by chat preserving his rows.
-- A part after a failed part runs once; a later success of the first does not rerun it (the
-  memo written before the key arrives stays until Try again).
+- Kenil's acceptance: the Census fields in the app, then one change by chat preserving his rows.
+- The part's problem for a refused key should say what to do (activate it); that is the
+  module's own code, which the build's rules can ask for ("a problem names the fix").
 - The same list as the last entry: documents drafted from templates with a page, the
   evaluator through the pages, the library across modules, the model's tools seeing a
   module's things.
