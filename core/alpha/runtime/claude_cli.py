@@ -22,6 +22,7 @@ import tempfile
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -217,6 +218,9 @@ class TurnRequest:
     # by Claude Code's own sandbox to this folder and these hosts (runtime/workspace.py).
     workspace: str | None = None
     hosts: list[str] = field(default_factory=list)
+    # Told of every step the model takes (a file written, a command run), in plain words, so
+    # the build's card shows what is happening while it happens (§12).
+    on_step: Callable[[str], Any] | None = None
 
 
 WORKSPACE_TOOLS = ["Bash", "Read", "Edit", "Write", "Glob", "Grep"]
@@ -371,6 +375,12 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                 else:
                     count_tools(event, tools)
                     _watch(keys, event)
+                    if req.on_step is not None:
+                        for words in _steps(event):
+                            try:
+                                req.on_step(words)
+                            except Exception:
+                                log.exception("on_step")
             proc.wait()
             first_text_at = (LIVE.progress_for(keys[0]) or {}).get("first_text_at")
         finally:
@@ -398,6 +408,15 @@ def _event(line: str) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return data if isinstance(data, dict) else None
+
+
+def _steps(event: dict[str, Any]) -> list[str]:
+    """The tool calls in an assistant event, in plain words."""
+    if event.get("type") != "assistant":
+        return []
+    return [plain_tool(str(b.get("name", "")), b.get("input") or {})
+            for b in (event.get("message") or {}).get("content") or []
+            if b.get("type") == "tool_use"]
 
 
 def _watch(keys: list[str], event: dict[str, Any]) -> None:
@@ -453,6 +472,16 @@ def plain_tool(name: str, inputs: dict[str, Any]) -> str:
     short = name.removeprefix("mcp__alpha__")
     if short == "ToolSearch":
         return "Finding the right tool"
+    if short == "Bash":
+        cmd = " ".join(str(inputs.get("command", "")).split())
+        return f"Running: {cmd[:90]}".rstrip() if cmd else "Running a command"
+    if short in ("Write", "Edit", "MultiEdit"):
+        path = str(inputs.get("file_path", "")).rsplit("/modules/", 1)[-1].split("/", 1)[-1]
+        return f"{'Writing' if short == 'Write' else 'Changing'} {path[:80]}".rstrip()
+    if short in ("Read", "Glob", "Grep"):
+        path = str(inputs.get("file_path") or inputs.get("pattern") or "")
+        path = path.rsplit("/modules/", 1)[-1].split("/", 1)[-1]
+        return f"Reading {path[:80]}".rstrip() if path else "Reading the workspace"
     if short == "WebSearch":
         return f"Searching the web for {str(inputs.get('query', ''))[:60]}".rstrip()
     if short == "WebFetch":

@@ -249,6 +249,9 @@ def ask(
         persist=conversation,
         workspace=workspace,
         hosts=list(hosts or []),
+        on_step=(lambda words: world.journal.append(
+            "did", words, actor="alpha", module=module_id, thread=thread,
+            data={"turn": said, "step": True})) if workspace else None,
     )
     result = runner(request)
     if conversation and thread and result.ok and result.session_id:

@@ -786,7 +786,7 @@ export function Conversation({
                               ? "Waiting for your answer · open it to reply here"
                               : "Its own thread · open it to talk about this work"}
                     </span>
-                    {t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
+                    {t.state === "working" && t.live?.doing ? <span className="faint thread__last">… {t.live.doing}</span> : t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
                   {stop ? (
                     <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void stop().catch(() => undefined).finally(() => { load(); onChanged(); })}>
