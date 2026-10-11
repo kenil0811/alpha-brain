@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 11 October 2026, night.** Last entries: modules as workflows, piece 2b, parts on linked things and
+**As of 11 October 2026, night.** Last entries: questions asked together answered together
+([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
 the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
 ([`log/2026-10-11-build-from-the-page.md`](log/2026-10-11-build-from-the-page.md); run for real), piece 1, the interview and the page
 ([`log/2026-10-11-workflow-page.md`](log/2026-10-11-workflow-page.md); run for real), the rethink
@@ -47,14 +48,14 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 267, in about 31 s; ruff and mypy strict clean |
-| Desktop tests | 87, in twenty-seven files; typecheck clean |
+| Core tests | 269, in about 40 s; ruff and mypy strict clean |
+| Desktop tests | 89, in twenty-eight files; typecheck clean |
 | Tools the model sees | 79 |
 | Journeys | 25 defined; latest `docs/journeys/2026-10-11-1635.md`, 1 of 1 (the build from the page, 951 s); `2026-10-11-1457.md`, 1 of 1 (the interview and the page, 467 s) |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 167 total; 167 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 172 total; 172 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 18,049 Python; tests 6,630; desktop 11,154 TS/TSX |
 
 ## What is built, against the design's order of work
@@ -179,7 +180,9 @@ pending item 6, people for real, and noticing over what Alpha reads.
    values, a score over rows, were the first "not yet"); a later pass that brings "Not this
    time" back; the suite's report keeping the plan's pieces; the time words against the
    measured fourteen minutes.
-11. **The conversation, the rest of Q35:** one automatic retry of a transient failure with a
+11. **The conversation, the rest of Q35** (questions of one turn are one form since 11 Oct
+   night, [`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md), to
+   be seen on the next interview in the app): one automatic retry of a transient failure with a
    Try again card; identical replies collapsed and a stopped build posting once (the loop that
    posted 19 on 2 Oct); long replies folded; copy and edit-and-resend; a plus for files in the
    composer; Kenil to say whether one stream should replace the per-page conversations.
