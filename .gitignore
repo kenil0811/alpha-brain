@@ -17,3 +17,4 @@ desktop/src-tauri/runtime/
 desktop/src-tauri/.runtime-cache/
 desktop/src-tauri/gen/
 desktop/.check/
+desktop/test-results/

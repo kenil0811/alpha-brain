@@ -34,6 +34,14 @@ journeys *ARGS:
 check-desktop *ARGS:
     caffeinate -i uv run alpha check-desktop {{ARGS}}
 
+# The layout check: the window at 1100x560 and 1240x820, light and dark, in a real browser,
+# for truncation, wrapped controls, squeezed text, sideways overflow, covered controls and
+# misaligned headers (desktop/scripts/layout-check.mjs). Starts its own core (an empty world,
+# or `--world <path>` backed up) and Vite unless ALPHA_WINDOW_URL names a running window.
+# Report and screenshots in desktop/test-results/layout/.
+check-layout *ARGS:
+    export PATH=/opt/homebrew/opt/node@24/bin:$PATH && cd desktop && caffeinate -i node scripts/layout-check.mjs {{ARGS}}
+
 # The desktop app: the workspace and the companion, hosting the core. Builds are signed with
 # the local "Alpha Local Signing" certificate so macOS keeps Alpha's permissions across rebuilds;
 # /usr/bin comes first because a python.org xattr without -r shadows the system one.
