@@ -158,7 +158,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   // app.css's --rail-folded-w and --panel-folded-w).
   // Each panel's width as drawn, so the other knows how far it may go (set just below).
   const drawn = useRef({ rail: 0, panel: 0 });
-  const rail = useDragWidth("alpha.rail.width", { initial: 224, min: 160, max: () => window.innerWidth - drawn.current.panel, wide: 288, grow: "right", onFold: () => foldRail(true) });
+  const rail = useDragWidth("alpha.rail.width", { initial: 240, min: 160, max: () => window.innerWidth - drawn.current.panel, wide: 288, grow: "right", onFold: () => foldRail(true) });
   const panel = useDragWidth("alpha.panel.width", { initial: 380, min: 280, max: () => window.innerWidth - drawn.current.rail, wide: 500, grow: "left", onFold: () => togglePanel(false) });
   drawn.current = { rail: railCollapsed ? 96 : rail.width, panel: panelOpen ? panel.width : 48 };
 

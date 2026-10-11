@@ -3,7 +3,7 @@
  * default 1240x820), light and dark, with `/api/browser` mocked to installed and left real,
  * opened in a real browser and judged for what jsdom can't see (UX audit, ux-audit-pr5 §5, §7.8):
  *
- *   ELLIPSIS     text cut with an ellipsis (unless inside [data-truncate-ok])
+ *   ELLIPSIS     text cut with an ellipsis (unless inside [data-truncate-ok] or a table cell: rows are one line)
  *   WRAP         text in a button, tab or chip on more than one line
  *   SQUEEZED     text squeezed to under 3 characters a line (one letter per line)
  *   OVERFLOW     an element past the edge of `main` or the window, outside a scroller made for it
@@ -61,6 +61,8 @@ function detect() {
   const R = (r) => [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
   const scrollsX = (e) => { const s = getComputedStyle(e).overflowX; return s === "auto" || s === "scroll"; };
   const inScrollerX = (e, stop) => { for (let a = e.parentElement; a && a !== stop && a !== document.body; a = a.parentElement) if (scrollsX(a) && a.scrollWidth > a.clientWidth + 1) return true; return false; };
+  // a point outside an ancestor that clips (a table scrolled sideways) is hidden, not covered
+  const clippedAt = (e, x, y) => { for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { if (getComputedStyle(a).overflowX === "visible" && getComputedStyle(a).overflowY === "visible") continue; const b = a.getBoundingClientRect(); if (x < b.left || x > b.right || y < b.top || y > b.bottom) return true; } return false; };
   const lineCount = (n) => {
     const rg = document.createRange(); rg.selectNodeContents(n);
     const tops = [];
@@ -75,7 +77,7 @@ function detect() {
     if (r.bottom < 0 || r.top > vh) continue; // only what is on screen
     const cs = getComputedStyle(e);
     const txt = ownText(e);
-    if (txt && cs.textOverflow === "ellipsis" && e.scrollWidth > e.clientWidth + 1 && !e.closest("[data-truncate-ok]"))
+    if (txt && cs.textOverflow === "ellipsis" && e.scrollWidth > e.clientWidth + 1 && !e.closest("[data-truncate-ok], td"))
       out.push({ k: "ELLIPSIS", d: desc(e), full: txt.slice(0, 80), r: R(r) });
     if (e.matches(CTRL)) {
       const tw = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
@@ -92,8 +94,11 @@ function detect() {
         out.push({ k: "OVERFLOW", d: desc(e), r: R(r), edge: pastMain ? "main" : "window" });
     }
     if (e.matches("button,[role=button],[role=tab],a,input,select,textarea,[role=combobox]") && r.top >= 0 && r.bottom <= vh && r.left >= 0 && r.right <= vw) {
-      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const hit = clippedAt(e, cx, cy) ? null : document.elementFromPoint(cx, cy);
       if (hit && hit !== e && !e.contains(hit) && !hit.contains(e)) {
+        // scrolled up under the sticky page header: hidden by scrolling, not covered
+        if (hit.closest(".pagehead") && !e.closest(".pagehead")) continue;
         const hitOver = hit.closest(OVER);
         if (!(hitOver && hitOver !== e.closest(OVER))) out.push({ k: "COVERED", d: desc(e), by: desc(hit), r: R(r) });
       }

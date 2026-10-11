@@ -152,7 +152,7 @@ a { color: var(--primary); }
 .rail__top { display: flex; align-items: center; gap: var(--space-1); flex: none; height: var(--header-h); margin: 0 calc(-1 * var(--space-2)) var(--space-2); padding: 0 var(--space-3); border-bottom: var(--header-line); }
 .wsbtn { display: flex; align-items: center; gap: var(--space-2); flex: 1 1 auto; min-width: 0; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border: 0; border-radius: var(--radius-control); background: none; color: var(--text); font-weight: 600; text-align: left; }
 .wsbtn:hover { background: var(--hover); }
-.wsbtn__tile { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: var(--radius-control); background: var(--primary); color: var(--primary-ink); font-size: var(--text-md); font-weight: 600; }
+.wsbtn__tile { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--radius-control); background: var(--primary); color: var(--primary-ink); font-size: var(--text-md); font-weight: 600; }
 /* the whole name fits: up to two lines at the sidebar's width, never a cut "Kenil's workspa…" (the owner, 11 Oct) */
 .wsbtn__name { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: anywhere; }
 .wsbtn__tile:has(.agentface) { background: none; }
@@ -193,6 +193,7 @@ a { color: var(--primary); }
 .rail--collapsed { padding: 0 var(--space-2) var(--space-2); }
 .rail--collapsed .rail__top { margin: 0 calc(-1 * var(--space-2)) var(--space-2); padding: 0 var(--space-2); gap: 0; justify-content: center; }
 .rail--collapsed .wsbtn { flex: none; padding: 0; }
+.rail--collapsed .wsbtn__tile { width: 36px; height: 36px; }
 .rail--collapsed .wsbtn__name, .rail--collapsed .wsbtn__chev { display: none; }
 .rail--collapsed .rail__scroll { margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); }
 .rail--collapsed .navbtn { flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-1) 2px; text-align: center; }
@@ -474,7 +475,7 @@ a { color: var(--primary); }
 .composer textarea { border: 0; background: transparent; resize: none; min-height: 31px; max-height: 160px; outline: none; box-shadow: none; padding: 0; font-size: var(--text-base); line-height: 1.45; color: var(--text); }
 .composer__row { display: flex; align-items: center; gap: var(--space-1); }
 .composer__gap { flex: 1; }
-.composer__model { max-width: 120px; border-color: transparent; background: none; color: var(--text-2); }
+.composer__model { flex: none; max-width: none; border-color: transparent; background: none; color: var(--text-2); }
 .composer__send { border-radius: var(--radius-pill); background: var(--primary); color: var(--primary-ink); }
 .composer__send:hover:not(:disabled) { background: var(--primary); color: var(--primary-ink); filter: brightness(1.08); }
 .composer__send:disabled { background: var(--surface-2); color: var(--text-3); opacity: 1; }
@@ -955,7 +956,8 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__node--module .map__label { font-weight: 600; fill: var(--text); font-size: var(--text-md); }
 .map__svg--settling .map__node { transition: none; }
 /* one row that never wraps (rule 5): it spans the map and scrolls sideways when the window is narrow (1100px, 11 Oct) */
-.map__tools { position: absolute; top: var(--space-2); left: var(--space-2); right: var(--space-2); display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: var(--space-2); align-items: center; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+/* the tools sit on the map in whole buttons: they wrap to a second row when narrow, never letter by letter, and the drawing passes under them */
+.map__tools { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); align-items: center; padding: var(--space-2); background: var(--surface); border-bottom: 1px solid var(--line); }
 .map__tools > * { flex: none; white-space: nowrap; }
 .map__tools .hswitch__box { width: auto; margin-right: auto; }
 .map__search { width: 150px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: var(--bg); color: var(--text); font-size: var(--text-sm); }
@@ -1183,14 +1185,14 @@ button.dash__seg:hover { background: var(--hover); }
 .more__name { font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu__arrows { display: inline-flex; }
 /* the table */
-.table th { position: relative; }
+.table th { position: relative; padding-right: var(--space-10); } /* room for the column menu, so it never sits on the name */
 .table th.col--frozen, .table td.col--frozen { position: sticky; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--border); }
 .table th.col--frozen { background: var(--surface-2); z-index: 3; }
 .table tbody tr:hover td.col--frozen { background: var(--hover); }
 .table th + th, .table td + td { border-left: 1px solid var(--line); }
 .table th .th__label { display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer; }
 /* compact rows (§6): the heading's menu sits over the heading's end, on hover and focus, so it never makes the row taller */
-.table th .th__menu { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); opacity: 0; width: 29px; height: 29px; background: var(--surface-2); }
+.table th .th__menu { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); opacity: 0; width: 28px; height: 28px; background: var(--surface-2); }
 .table th:hover .th__menu, .table th:focus-within .th__menu { opacity: 1; }
 .table th .th__menu:hover { background: var(--hover); }
 .table th.r { text-align: right; }
