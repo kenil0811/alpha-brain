@@ -61,7 +61,8 @@ parts/ and its contract in parts.yaml:
 "fetched_at": "<ISO time>"}}, "problems": {field: "<why it could not be filled>"}}. Every \
 value filled has its source. A value you cannot get is a problem, never a guess or a default. \
 Thresholds and choices come from settings in the input; never hard-code them. Use the thing's \
-field names exactly as in workflow.json.
+field names exactly as in workflow.json; never add fields of your own for sources or dates \
+(`*_source`, `*_fetched_at`): the core keeps the source and date of every value on the row.
 - Python in .venv (`$ALPHA_PYTHON -m venv .venv`, `.venv/bin/pip install` pinned). The network \
 reaches only the hosts the page named, through the proxy in HTTPS_PROXY/HTTP_PROXY (requests \
 and urllib honour it); a refused host is a constraint: write it down, never route around it.

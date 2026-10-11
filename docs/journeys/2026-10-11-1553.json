@@ -1,0 +1,80 @@
+[
+ {
+  "name": "workflow_build",
+  "title": "The page the person said yes to becomes a module whose parts fill a thing they add",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Screener — Austin, gates-first",
+    "ok": true,
+    "removed": {
+     "tables": 0,
+     "rows": 0,
+     "readers": 0,
+     "automations": 0,
+     "threads": 0,
+     "notes": 0,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open. It's for me, to decide which sites to pursue. Sites come from brokers by email, but for now I'll type the address. Today I check households within 3 miles (at least 45,000) and the traffic on the road (at least 30,000 cars a day), then I score the site and write a short memo. Start with Austin, Texas. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted the workflow page: one screen per address — geocode it, sum households within 3 miles from Census block-group data, pull the nearest road's AADT from Travis County's TxDOT layer, score it 0–100 against your 45,000/30,000 thresholds, and write a short memo with a Pursue/Maybe/Pass verdict. It's on the card now — just say go ahead there or here and I'll build it.\n\nOne thing worth flagging: this replaces the earlier \"gates-first\" Austin screener (zoning + traffic + competitor count, no demographics, pass/fail only) that we planned together but never built — this new version adds hous",
+    "steps": 7,
+    "seconds": 228.0
+   },
+   {
+    "agree_workflow": "Car wash site screener — households + traffic, Austin",
+    "ok": true,
+    "state": "built",
+    "seconds": 486.5
+   },
+   {
+    "add_row": "candidate_sites",
+    "ok": true,
+    "parts_ran": 1,
+    "seconds": 0.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "built",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": true,
+    "why": "'Car wash site screener — households + traffic, Austin' v1 is built: 6 steps: Give Alpha the address (you); Geocode it (alpha); Look up households within 3 miles (alpha); Look up the traffic count on the nearest road (alpha); Score the site and write the memo (alpha); Decide which to pursue (you). Keeps candidate_sites. 3 suggestions: Read the address straight from broker emails; Add the zoning and competitor-density checks already researched for Austin; Extend past Austin. Settings 6, questions 1.",
+    "seconds": 0.0
+   },
+   {
+    "check": "module",
+    "arg": {
+     "tables_min": 1,
+     "parts_min": 1
+    },
+    "ok": true,
+    "why": "Car wash site screener — households + traffic, Austin: tables candidate_sites, settings; parts geocode (arrives), households (after:geocode), traffic (after:households), score (after:traffic).",
+    "seconds": 0.0
+   },
+   {
+    "check": "row_filled",
+    "arg": {
+     "fields": [
+      "households"
+     ]
+    },
+    "ok": false,
+    "why": "Row r_279fa456f213 of candidate_sites: households = None (no source)",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 715.1,
+  "error": null
+ }
+]

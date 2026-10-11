@@ -241,16 +241,23 @@ def due(world: World, module_id: str) -> list[tuple[str, str]]:
 
 
 def run_due(world: World, *, module_id: str | None = None) -> int:
-    """Run every due part on every row, for one module or all; how many ran."""
+    """Run every due part on every row, for one module or all, round after round until
+    nothing more is due (a part after another becomes due once that one filled its fields);
+    how many ran."""
     ran = 0
     modules = [world.modules.get(module_id)] if module_id else world.modules.all()
     for m in modules:
         if not m.get("workspace") or not (Path(m["workspace"]) / "parts.yaml").exists():
             continue
-        for part_id, row_id in due(world, m["id"]):
-            try:
-                run_part(world, m["id"], part_id, row_id)
-            except Exception:
-                log.exception("part %s on %s", part_id, row_id)
-            ran += 1
+        rounds = len(parts_of(m["workspace"])) + 1
+        for _ in range(rounds):
+            pending = due(world, m["id"])
+            if not pending:
+                break
+            for part_id, row_id in pending:
+                try:
+                    run_part(world, m["id"], part_id, row_id)
+                except Exception:
+                    log.exception("part %s on %s", part_id, row_id)
+                ran += 1
     return ran

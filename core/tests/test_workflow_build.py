@@ -156,28 +156,27 @@ def test_the_page_becomes_a_module_with_tables_and_parts_that_fill_rows(
     c = TestClient(create_app(world, live=False))
     rec = c.post("/api/tables/site/records", json={"values": {"address": "1 Main St"}}).json()
     assert parts_module.due(world, module["id"]) == [("checks", rec["id"])]
-    assert parts_module.run_due(world, module_id=module["id"]) == 1
+    # One call runs the chain: the checks, then the memo that waits on them.
+    assert parts_module.run_due(world, module_id=module["id"]) == 2
     row = world.collections.get("site", rec["id"])
-    assert row["households"] == 52000 and row["traffic"] == 31000 and row.get("memo") is None
+    assert row["households"] == 52000 and row["traffic"] == 31000
     fields = row["_provenance"]["fields"]
     assert fields["households"]["source"].startswith("Census ACS")
     assert fields["households"]["part"] == "checks"
     assert fields["households"]["fetched_at"] == "2026-10-11T10:00:00Z"
-    assert parts_module.due(world, module["id"]) == [("memo", rec["id"])]
-    assert parts_module.run_due(world, module_id=module["id"]) == 1
-    row = world.collections.get("site", rec["id"])
     assert row["memo"] == "Memo for 1 Main St: 52000 households"
+    assert fields["memo"]["part"] == "memo"
     assert parts_module.due(world, module["id"]) == []
     did = [e for e in world.journal.recent(6, module=module["id"]) if e["kind"] == "did"]
     assert any("Trade area checks on a row of site: households = 52000" in e["text"] for e in did)
     # A row the part cannot fill: the problem on the row, two tries, then left alone.
     bad = c.post("/api/tables/site/records", json={"values": {"address": "fail st"}}).json()
-    assert parts_module.run_due(world, module_id=module["id"]) == 1
+    # The checks fail twice in the one call (two rounds), the memo never becomes due.
+    assert parts_module.run_due(world, module_id=module["id"]) == 2
     row = world.collections.get("site", bad["id"])
-    assert row.get("households") is None
+    assert row.get("households") is None and row.get("memo") is None
     assert row["_provenance"]["fields"]["households"]["problem"] == "the geocoder found nothing"
-    assert row["_provenance"]["fields"]["households"]["attempts"] == 1
-    assert parts_module.run_due(world, module_id=module["id"]) == 1
+    assert row["_provenance"]["fields"]["households"]["attempts"] == 2
     assert parts_module.due(world, module["id"]) == []  # two tries, left alone
     # When asked, from the page.
     out = c.post(f"/api/modules/{module['id']}/parts/rescore/run", json={"row": rec["id"]}).json()

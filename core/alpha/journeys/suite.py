@@ -259,8 +259,10 @@ class Run:
                       "state": final.get("state")}
         elif "add_row" in spec:
             # A thing added as the person would, then the parts that run when it arrives.
+            # `table` names it; `field` finds the newest module's table that has that field
+            # (the page names things in its own words).
             a = spec["add_row"]
-            table = self._table(a["table"])
+            table = self._table(a["table"]) if a.get("table") else self._table_with(a["field"])
             row = self.world.collections.add(table, a["values"], {"by": "person"})
             ran = parts_module.run_due(self.world)
             self.last_row = (table, str(row["id"]))
@@ -328,6 +330,15 @@ class Run:
         if len(hits) != 1:
             raise Problem(f"{len(hits)} tables match '{name}'.")
         return hits[0]
+
+    def _table_with(self, field: str) -> str:
+        new = [m for m in self.world.modules.all() if m["id"] not in self.mark.modules]
+        for m in reversed(new):
+            for t in self.world.collections.overview(m["id"]):
+                desc = self.world.collections.describe(t["name"])
+                if any(f["name"] == field for f in desc["fields"]):
+                    return str(t["name"])
+        raise Problem(f"No table of a module made in this journey has a field '{field}'.")
 
     def _settle_builds(self) -> dict[str, Any]:
         """Run every approved or building plan to its end, as the scheduler would."""
@@ -496,22 +507,48 @@ class Run:
                     + ".")
 
     def check_row_filled(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        """The row the last add_row made has values, each with a source, in `fields`."""
+        """The row the last add_row made, after the parts: at least `min_filled` fields with
+        a value and its source; with `no_silent_gaps`, every field a part fills has a value
+        or a named problem (never silently empty); `fields` names ones that must be filled."""
         if self.last_row is None:
             return False, "No row was added in this journey."
         table, rid = self.last_row
         row = self.world.collections.get(table, rid)
         fields = (row.get("_provenance") or {}).get("fields") or {}
-        shown = []
-        ok = True
+        module = self.world.collections.describe(table)["module"]
+        wanted: list[str] = []
+        parts = (parts_module.parts_of(self.world.modules.get(module).get("workspace"))
+                 if module else [])
+        for p in parts:
+            if parts_module.table_of(self.world, module, p["fills"]["thing"]) == table:
+                wanted += [f for f in p["fills"]["fields"] if f not in wanted]
+        filled = [f for f in wanted
+                  if row.get(f) is not None and (fields.get(f) or {}).get("source")]
+        problems = {f: (fields.get(f) or {}).get("problem") for f in wanted
+                    if row.get(f) is None and (fields.get(f) or {}).get("problem")}
+        # A field of a part that waits on another part's fields is waiting, not silent.
+        by_id = {p["id"]: p for p in parts}
+        waiting: list[str] = []
+        for p in parts:
+            before = by_id.get(p["when"][6:]) if p["when"].startswith("after:") else None
+            if before and not all(row.get(f) is not None for f in before["fills"]["fields"]):
+                waiting += [f for f in p["fills"]["fields"] if row.get(f) is None]
+        silent = [f for f in wanted if row.get(f) is None and f not in problems
+                  and f not in waiting]
+        ok = len(filled) >= int(arg.get("min_filled") or 0)
+        if arg.get("no_silent_gaps") and silent:
+            ok = False
         for f in arg.get("fields") or []:
-            value = row.get(f)
-            src = (fields.get(f) or {}).get("source")
-            problem = (fields.get(f) or {}).get("problem")
-            shown.append(f"{f} = {str(value)[:40]} ({src or problem or 'no source'})")
-            if value is None or not src:
+            if f not in filled:
                 ok = False
-        return ok, f"Row {rid} of {table}: " + "; ".join(shown)
+        shown = "; ".join(f"{f} = {str(row.get(f))[:40]}"
+                          f" ({(fields.get(f) or {}).get('source')})" for f in filled)
+        return ok, (f"Row {rid} of {table}: filled {len(filled)} of {len(wanted)}:"
+                    f" {shown or 'none'}."
+                    + (" Problems: " + "; ".join(f"{f}: {w}" for f, w in problems.items()) + "."
+                       if problems else "")
+                    + (f" Waiting on an earlier part: {', '.join(waiting)}." if waiting else "")
+                    + (f" Silently empty: {', '.join(silent)}." if silent else ""))
 
     def check_workflow(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A workflow page drafted in this journey (§12), in the state asked, with at least
@@ -787,6 +824,8 @@ def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
         [o.__dict__ for o in outcomes], indent=1, ensure_ascii=False, default=str))
     text = report(outcomes, source=source, home=home, began=began)
     (folder / f"{stamp}.md").write_text(text)
-    if not keep:
+    failed = sum(1 for o in outcomes if not o.passed)
+    if not keep and not failed:
+        # A failed run keeps its copy: the world and the workspaces are what explains it.
         shutil.rmtree(home, ignore_errors=True)
-    return sum(1 for o in outcomes if not o.passed), folder / f"{stamp}.md"
+    return failed, folder / f"{stamp}.md"

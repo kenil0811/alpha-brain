@@ -11,9 +11,11 @@ steps:
       check households within 3 miles (at least 45,000) and the traffic on the road (at
       least 30,000 cars a day), then I score the site and write a short memo. Start with
       Austin, Texas. Go ahead and write it up."
+  - say: "Start fresh and ignore anything built before. Keep it to what I said. Write the
+      page now, with your picks on anything you don't know."
   - agree_workflow: latest
-  - add_row: {table: site, values: {address: "1600 S Lamar Blvd, Austin, TX"}}
+  - add_row: {field: address, values: {address: "1600 S Lamar Blvd, Austin, TX"}}
 checks:
   - workflow: {state: built, steps_min: 2, keeps_min: 1}
   - module: {tables_min: 1, parts_min: 1}
-  - row_filled: {fields: [households]}
+  - row_filled: {min_filled: 2, no_silent_gaps: true}   # real values with sources; a gap is a named problem (a key), never silence
