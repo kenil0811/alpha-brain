@@ -3,7 +3,8 @@ import type { KeyboardEvent, ReactNode } from "react";
 /** One number and what it is (the UI rulebook §6 and §14): the number in serif with, beside it, a
  *  small label and the "based on" line (a number is never shown without its basis), then an
  *  optional small chart of its trend or split and an optional call to action. A tile is as wide
- *  as what it holds. No icon unless one is given; `attention` marks what needs the person. */
+ *  as what it holds. No icon unless one is given; `attention` marks what needs the person.
+ *  An empty value ("None", or nothing) reads as a word in the muted sans, never as a serif number (11 Oct). */
 export function MetricTile({ icon, label, value, basis, attention, cta, chart, onOpen, tall }: { icon?: ReactNode; label: string; value: ReactNode; basis: string; attention?: boolean; cta?: ReactNode; chart?: ReactNode; /** A click (or Enter) opens the tile's details. */ onOpen?: () => void; /** A four-line block (a split with its legend) instead of a two-line tile. */ tall?: boolean }) {
   const open = onOpen
     ? {
@@ -19,6 +20,7 @@ export function MetricTile({ icon, label, value, basis, attention, cta, chart, o
         },
       }
     : {};
+  const empty = value === null || value === undefined || value === "" || value === "None";
   return (
     <div className={`card mtile${attention ? " mtile--attention" : ""}${chart ? " mtile--chart" : ""}${onOpen ? " mtile--open" : ""}${tall ? " mtile--tall" : ""}`} {...open}>
       {icon ? (
@@ -26,7 +28,7 @@ export function MetricTile({ icon, label, value, basis, attention, cta, chart, o
           {icon}
         </span>
       ) : null}
-      <div className="mtile__big num">{value}</div>
+      <div className={empty ? "mtile__big mtile__big--none" : "mtile__big num"}>{empty ? "None" : value}</div>
       <div className="mtile__text">
         <div className="mtile__lab">{label}</div>
         <div className="mtile__basis" title={basis}>{basis}</div>

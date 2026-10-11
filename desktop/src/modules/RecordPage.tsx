@@ -29,7 +29,7 @@ import { PREF, usePreference } from "../core/preferences";
 import { BackLink } from "../shell/BackLink";
 import type { Surface } from "../shell/Rail";
 import { Breadcrumb, Button, Confirm, IconButton, Notice, PageHeader, SectionCard, Trouble, useContextMenu, type ContextItem } from "../ui";
-import { CopyIcon, DeleteIcon, FileText, HistoryIcon, ICON, MoreVertical, PinIcon, UnpinIcon } from "../ui/icons";
+import { ChevronRight, CopyIcon, DeleteIcon, FileText, HistoryIcon, ICON, ICON_SM, MoreVertical, PinIcon, UnpinIcon } from "../ui/icons";
 import { dedupeCrumbs } from "./crumbs";
 import { openChoices, titleFieldOf, type FieldInfo } from "./fields";
 import { timeText, when } from "./format";
@@ -376,7 +376,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
         left={
           <>
             <BackLink to={first.label} onClick={() => toCollection()} />
-            {trail.length ? <span className="crumb__dot" aria-hidden="true">·</span> : null}
+            {trail.length ? <span className="crumb__dot" aria-hidden="true"><ChevronRight size={ICON_SM} /></span> : null}
             {trail.length ? <Breadcrumb items={trail} /> : null}
           </>
         }
@@ -410,7 +410,7 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
               <h1 className="serif">{titleText}</h1>
             </div>
           </div>
-          <SectionCard title="Details" subtitle="Every field can be edited here, and saves when you leave it.">
+          <SectionCard title="Details" info="Every field can be edited here, and saves when you leave it.">
             <div className="recform">
               {fields.map((f) => {
                 const v = valueOf(f);

@@ -245,7 +245,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
           </SectionCard>
 
           {entity.maybe_same.length ? (
-            <SectionCard title="Might be the same" subtitle="Same name, nothing else shared; never merged on a name alone.">
+            <SectionCard title="Might be the same" info="Same name, nothing else shared; never merged on a name alone.">
               <div className="list">
                 {entity.maybe_same.map((m) => (
                   <div key={m.id} className="list__row">
@@ -264,7 +264,8 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
             </SectionCard>
           ) : null}
 
-          <SectionCard title={`Everything with ${first}`} subtitle={entity.timeline.length ? String(entity.timeline.length) : "None yet"}>
+          <SectionCard title={`Everything with ${first}`} actions={entity.timeline.length ? <Badge tone="gray">{entity.timeline.length}</Badge> : undefined}>
+            {entity.timeline.length ? null : <p className="faint">None yet.</p>}
             <div className="list">
               {entity.timeline.map((e) => (
                 <div key={e.id} className="list__row">

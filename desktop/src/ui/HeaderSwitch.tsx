@@ -2,27 +2,32 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Tooltip } from "./Tooltip";
 
-export interface HeaderSwitchItem<T extends string> {
+export interface ToggleItem<T extends string> {
   id: T;
   label: string;
-  icon: ReactNode;
+  /** Shown before the label; when the room runs short only the icons stay. A segment without one
+   *  keeps its label, and the row scrolls instead of wrapping. */
+  icon?: ReactNode;
+  /** A count after the label ("Allowed 2"), part of the segment's name. */
+  count?: number;
   /** A product name's plain subtitle (the UI rulebook §2, `subtitles.ts`): the tab's accessible
    *  description and its tooltip on hover and keyboard focus. */
   hint?: string;
 }
 
-/** The centred pill switch for a page's sections (the UI rulebook §5): small uppercase labels with
- *  icons, the active segment raised, never wrapping. When the header is too narrow the labels
+/** The one toggle (the UI rulebook §5 and fixed rule 4, 11 Oct): the same pill switch for a page's
+ *  sections in the header and for a section's parts in the body (`inBody`: left-aligned, at the
+ *  top of what it switches). Small labels with icons, the active segment raised, never wrapping. When the header is too narrow the labels
  *  drop and only the icons show; each label stays as the segment's accessible name and tooltip.
  *  The keyboard path is `Tabs`' (arrow keys, Home, End), drawn here because a tab's tooltip may
  *  say its hint while its name stays its label. (9 Oct, phase 1; hints the same day.) */
-export function HeaderSwitch<T extends string>({ items, value, onChange, label }: { items: HeaderSwitchItem<T>[]; value: T; onChange: (id: T) => void; label: string }) {
+export function Toggle<T extends string>({ items, value, onChange, label, inBody = false }: { items: ToggleItem<T>[]; value: T; onChange: (id: T) => void; label: string; inBody?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const fullWidth = useRef(0); // the width with labels, measured while they show
   const [iconsOnly, setIconsOnly] = useState(false);
   const uid = useId();
-  const words = items.map((i) => i.label).join("|");
+  const words = items.map((i) => `${i.label}${i.count ?? ""}`).join("|");
 
   // new labels: forget the width and show them again, so the next pass measures them
   useLayoutEffect(() => {
@@ -53,11 +58,13 @@ export function HeaderSwitch<T extends string>({ items, value, onChange, label }
   };
 
   return (
-    <div className="hswitch__box" ref={box}>
+    <div className={`hswitch__box${inBody ? " hswitch__box--body" : ""}`} ref={box}>
       <div className={`hswitch${iconsOnly ? " hswitch--icons" : ""}`} role="tablist" aria-label={label}>
         {items.map((t, i) => {
           const hintId = t.hint ? `${uid}-${t.id}` : undefined;
-          const tip = [iconsOnly ? t.label : null, t.hint].filter(Boolean).join(" — ");
+          const name = t.count === undefined ? t.label : `${t.label} ${t.count}`;
+          const bare = iconsOnly && t.icon; // the label dropped for its icon
+          const tip = [bare ? name : null, t.hint].filter(Boolean).join(" — ");
           const tab = (
             <button
               key={t.id}
@@ -66,7 +73,7 @@ export function HeaderSwitch<T extends string>({ items, value, onChange, label }
               }}
               type="button"
               role="tab"
-              aria-label={iconsOnly ? t.label : undefined}
+              aria-label={bare ? name : undefined}
               aria-describedby={hintId}
               aria-selected={value === t.id}
               tabIndex={value === t.id ? 0 : -1}
@@ -80,10 +87,18 @@ export function HeaderSwitch<T extends string>({ items, value, onChange, label }
                 e.preventDefault();
               }}
             >
-              <span aria-hidden="true" className="hswitch__ico">
-                {t.icon}
-              </span>
-              {iconsOnly ? null : t.label}
+              {t.icon ? (
+                <span aria-hidden="true" className="hswitch__ico">
+                  {t.icon}
+                </span>
+              ) : null}
+              {bare ? null : t.label}
+              {t.count === undefined ? null : (
+                <>
+                  {" "}
+                  <span className="hswitch__count">{t.count}</span>
+                </>
+              )}
             </button>
           );
           return tip ? (
@@ -105,3 +120,7 @@ export function HeaderSwitch<T extends string>({ items, value, onChange, label }
     </div>
   );
 }
+
+/** The header's name for the one toggle, kept for the pages that import it. */
+export const HeaderSwitch = Toggle;
+export type HeaderSwitchItem<T extends string> = ToggleItem<T>;

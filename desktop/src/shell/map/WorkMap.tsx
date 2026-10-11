@@ -17,8 +17,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Client, GraphEdge, GraphKind, GraphNode, WorkGraph } from "../../core/client";
 import type { Surface } from "../Rail";
 import { timeText } from "../../modules/format";
-import { Button, IconButton } from "../../ui";
-import { ActivityIcon, BookOpen, Building2, Eye, FileText, Flag, FolderOpen, Globe, IntelligenceIcon, Layers, Link2, Play, Table2, User, X, Zap } from "../../ui/icons";
+import { Button, IconButton, Toggle } from "../../ui";
+import { ActivityIcon, BookOpen, Building2, Eye, FileText, Flag, FolderOpen, Globe, IntelligenceIcon, Layers, Link2, Play, Table2, User, X, Zap, ZoomIn, ZoomOut, ICON_SM } from "../../ui/icons";
 import { anchorsFor, makeSimulation, positionsOf, settle, toMapEdges, toMapNodes, type Anchors, type Positions } from "./layout";
 import type { FromWorker, ToWorker } from "./layout.worker";
 import { shape, signature, type ShapedNode } from "./shape";
@@ -524,13 +524,10 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
         </svg>
       )}
       <div className="map__tools">
-        <div className="toggle toggle--views" role="tablist" aria-label="Which map">
-          <button type="button" role="tab" aria-selected={kind === "world"} onClick={() => switchKind("world")}>World</button>
-          <button type="button" role="tab" aria-selected={kind === "work"} onClick={() => switchKind("work")}>Work</button>
-        </div>
+        <Toggle<GraphKind> inBody label="Which map" value={kind} onChange={switchKind} items={[{ id: "world", label: "World", icon: <Globe size={ICON_SM} /> }, { id: "work", label: "Work", icon: <IntelligenceIcon size={ICON_SM} /> }]} />
         <input className="map__search" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && matches?.size) goTo([...matches][0]); if (e.key === "Escape") setQuery(""); }} placeholder="Find…" aria-label="Find on the map" />
-        <IconButton size="sm" label="Zoom in" icon={<span aria-hidden="true">+</span>} onClick={() => zoomBy(1.3)} />
-        <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(0.77)} />
+        <IconButton size="sm" label="Zoom in" icon={<ZoomIn size={ICON_SM} />} onClick={() => zoomBy(1.3)} />
+        <IconButton size="sm" label="Zoom out" icon={<ZoomOut size={ICON_SM} />} onClick={() => zoomBy(0.77)} />
         <Button size="sm" onClick={() => fit()}>Fit</Button>
         <Button size="sm" onClick={shake} disabled={!worker.current} title="Let every pinned node go and settle again">Shake</Button>
         <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Have Alpha look for links; dashed ones are its guesses" : "Ask the core again"}>Refresh</Button>

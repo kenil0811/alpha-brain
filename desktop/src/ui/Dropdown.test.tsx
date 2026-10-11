@@ -159,7 +159,7 @@ describe("the dropdown", () => {
     expect(trigger).toHaveTextContent("3 selected");
   });
 
-  it("without onAdd, Add new… asks the assistant, with the dropdown's name for context", async () => {
+  it("without onAdd, Add new… opens a dialog whose Send to Alpha asks the builder in this page's conversation", async () => {
     const say = vi.fn();
     const user = userEvent.setup();
     render(
@@ -169,21 +169,51 @@ describe("the dropdown", () => {
     );
     await user.click(screen.getByRole("combobox", { name: "Stage" }));
     await user.click(screen.getByRole("button", { name: "Add new…" }));
-    const box = screen.getByRole("textbox", { name: "Describe what you'd like to add" });
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    const dialog = screen.getByRole("dialog", { name: "Add to Stage" });
+    expect(screen.queryByRole("listbox")).toBeNull(); // the list closed for the dialog
+    const box = within(dialog).getByRole("textbox", { name: "Describe what you'd like to add" });
+    expect(within(dialog).getByRole("button", { name: "Send to Alpha" })).toBeDisabled();
     await user.type(box, "Negotiation");
-    await user.click(screen.getByRole("button", { name: "Send" }));
-    expect(say).toHaveBeenCalledWith('In "Stage", add: Negotiation');
-    expect(screen.queryByRole("textbox")).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Send to Alpha" }));
+    expect(say).toHaveBeenCalledWith('Add a new option to "Stage": Negotiation');
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Sent to Alpha");
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("without an assistant, Send is disabled and says why", async () => {
+  it("Cancel closes the describe dialog and sends nothing", async () => {
+    const say = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <AssistantProvider say={say}>
+        <Dropdown label="Stage" value="a" options={[{ value: "a", label: "A" }]} onChange={vi.fn()} />
+      </AssistantProvider>,
+    );
+    await user.click(screen.getByRole("combobox", { name: "Stage" }));
+    await user.click(screen.getByRole("button", { name: "Add new…" }));
+    await user.type(screen.getByRole("textbox"), "Negotiation");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(say).not.toHaveBeenCalled();
+  });
+
+  it("with no match, points at Add new…, which starts from what was searched for", async () => {
+    const user = userEvent.setup();
+    render(<Dropdown label="Conversation" value="a" options={[{ value: "a", label: "Deals chat" }]} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("combobox", { name: "Conversation" }));
+    await user.type(screen.getByRole("combobox", { name: "Search Conversation" }), "Hiring");
+    expect(screen.getByText(/No match/)).toHaveTextContent("No match. Add new… below adds it.");
+    await user.click(screen.getByRole("button", { name: "Add new…" }));
+    expect(screen.getByRole("textbox", { name: "Describe what you'd like to add" })).toHaveValue("Hiring");
+  });
+
+  it("without an assistant, Send to Alpha is disabled and says why", async () => {
     const user = userEvent.setup();
     render(<Dropdown label="Stage" value="a" options={[{ value: "a", label: "A" }]} onChange={vi.fn()} />);
     await user.click(screen.getByRole("combobox", { name: "Stage" }));
     await user.click(screen.getByRole("button", { name: "Add new…" }));
     await user.type(screen.getByRole("textbox"), "Negotiation");
-    const send = screen.getByRole("button", { name: "Send" });
+    const send = screen.getByRole("button", { name: "Send to Alpha" });
     expect(send).toBeDisabled();
     expect(send).toHaveAccessibleDescription("The assistant isn't reachable here.");
   });

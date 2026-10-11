@@ -3,7 +3,7 @@ export { Button } from "./Button";
 export { IconButton } from "./IconButton";
 export { Badge, type Tone } from "./Badge";
 export { Tabs, type TabItem } from "./Tabs";
-export { HeaderSwitch, type HeaderSwitchItem } from "./HeaderSwitch";
+export { Toggle, HeaderSwitch, type ToggleItem, type HeaderSwitchItem } from "./HeaderSwitch";
 export { PageHeader, Breadcrumb, type Crumb } from "./PageHeader";
 export { Menu, MenuHeading, MenuItem } from "./Menu";
 export { ContextMenu, useContextMenu, type ContextItem } from "./ContextMenu";

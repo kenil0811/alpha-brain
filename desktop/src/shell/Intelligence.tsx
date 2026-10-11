@@ -94,7 +94,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
     }
   })();
   const shown = current === "map" ? "second-brain" : current;
-  const subtitle = TABS.find((t) => t.id === shown)?.hint; // the active tab's plain subtitle (rulebook §2)
+  // no subtitle under the switch (rule 28): each tab's plain words are its tooltip and description
   const header = <PageHeader centre={<HeaderSwitch label="Intelligence" items={TABS} value={shown} onChange={onTab} />} />;
   // A list (agents, skills, connections) is a table page like any project's: the one layout, the
   // table over the first screen, then Files, Intelligence (what Alpha did) and Governance (9 Oct, the owner).
@@ -106,7 +106,6 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
         name="Intelligence"
         onChanged={onChanged}
         header={header}
-        notice={subtitle ? <p className="scard__sub intel__sub">{subtitle}</p> : null}
         data={() => body}
         intelligence={
           <SectionCard title="Intelligence" info="Everything Alpha did and you did, newest first.">
@@ -120,7 +119,6 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
     <>
       {header}
       <div className={`page ${current === "activity" ? "page--column" : "page--wide"}`}>
-        {subtitle ? <p className="scard__sub intel__sub">{subtitle}</p> : null}
         {body}
       </div>
     </>

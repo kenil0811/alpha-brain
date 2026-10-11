@@ -12,8 +12,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
-import { Badge, Button, EmptyCard, IconButton, ListRow, Notice, PageHeader, SectionCard, Tabs, Trouble } from "../ui";
-import { BrainIcon, ICON, ICON_SM, PermissionIcon, X } from "../ui/icons";
+import { Badge, Button, EmptyCard, IconButton, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble } from "../ui";
+import { BookOpen, BrainIcon, ICON, ICON_SM, MapIcon, PermissionIcon, X } from "../ui/icons";
 import { BackLink } from "./BackLink";
 import { DescribeAdd } from "./DescribeAdd";
 import { FactRow } from "./FactRow";
@@ -128,7 +128,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
     }
   }
 
-  const switcher = <Tabs<BrainView> className="toggle toggle--views" style={{ alignSelf: "flex-start" }} label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain" }, { id: "facts", label: "Facts" }, { id: "map", label: "Map" }]} />;
+  const switcher = <Toggle<BrainView> inBody label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain", icon: <BrainIcon size={ICON_SM} /> }, { id: "facts", label: "Facts", icon: <BookOpen size={ICON_SM} /> }, { id: "map", label: "Map", icon: <MapIcon size={ICON_SM} /> }]} />;
   if (view === "map") {
     return (
       <div className="stack stack--wide">
@@ -200,7 +200,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
           </SectionCard>
 
           {others.map((n) => (
-            <SectionCard key={n.id} title={n.title} subtitle={scopeWords(n)}>
+            <SectionCard key={n.id} title={n.title} info={scopeWords(n)}>
               <NoteEditor client={client} scope={n.scope} title={n.title} body={n.body} summary={n.summary} onChanged={onChanged} label={`Edit ${n.title}`} />
             </SectionCard>
           ))}

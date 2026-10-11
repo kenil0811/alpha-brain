@@ -72,6 +72,8 @@ export {
   Lightbulb as ThinksIcon,
   PawPrint as CompanionIcon,
   Pencil,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 /** The icons a module can be given (shell/moduleIcons.tsx), and the few the sidebar adds. */

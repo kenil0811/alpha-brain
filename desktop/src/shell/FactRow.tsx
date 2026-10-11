@@ -35,7 +35,6 @@ export function Provenance({ fact }: { fact: Fact }) {
       <span id={hint} hidden>
         {SUBTITLES.provenance}
       </span>
-      {open ? <p className="scard__sub">{SUBTITLES.provenance}</p> : null}
       {open ? (
         <dl className="prov2__body">
           <div>

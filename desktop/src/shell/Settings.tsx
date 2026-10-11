@@ -214,10 +214,12 @@ const SHORTCUTS: { keys: string; does: string }[] = [
   { keys: "Shift+F10", does: "Open the context menu of what is focused" },
 ];
 
-/** The workspace's name: kept with the person's other choices about their world, then every
- *  place that shows it (the sidebar's workspace button) hears it at once. The sidebar also
- *  renames it, and changes its logo, on a double-click. */
-function WorkspaceCard({ client, onChanged }: { client: Client; onChanged?: () => void }) {
+/** The Workspace is the account in use (R16, the owner, 11 Oct): its name, kept with the person's
+ *  other choices about their world, then every place that shows it (the sidebar's workspace
+ *  button) hears it at once; the sidebar also renames it, and changes its logo, on a
+ *  double-click. **Organizations** are the real organizations the person belongs to (as in
+ *  Network), never the workspace itself. */
+function WorkspaceCard({ client, onChanged, onGo }: { client: Client; onChanged?: () => void; onGo?: (s: Surface) => void }) {
   const [stored, change] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
   const [logo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
   const name = typeof stored === "string" && stored.trim() ? stored : DEFAULT_WORKSPACE;
@@ -234,7 +236,7 @@ function WorkspaceCard({ client, onChanged }: { client: Client; onChanged?: () =
     onChanged?.();
   }
   return (
-    <SectionCard title="Workspace">
+    <SectionCard title="Workspace" info="The account you are using now. It lives on this Mac.">
       <form className="setname" onSubmit={(e) => { e.preventDefault(); if (draft.trim() && draft.trim() !== name) void save(); }}>
         <WorkspaceTile logo={typeof logo === "string" ? logo : ""} name={draft.trim() || name} className="wstile" />
         <input className="textfield setname__input" aria-label="Name" value={draft} onChange={(e) => { setDraft(e.target.value); setSaved(null); }} />
@@ -252,6 +254,15 @@ function WorkspaceCard({ client, onChanged }: { client: Client; onChanged?: () =
           Sign out
         </Button>
       </div>
+      <ListRow
+        title={<>Organizations <InfoTip text="The real organizations you belong to, such as the company you work at. They are kept in Network, never as your workspace." /></>}
+        description="Not linked yet"
+        controls={
+          <Button size="sm" onClick={onGo ? () => onGo({ kind: "people" }) : undefined} disabledReason={onGo ? undefined : "Open Network from the sidebar."}>
+            Open Network
+          </Button>
+        }
+      />
     </SectionCard>
   );
 }
@@ -387,12 +398,12 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
   );
 
   const cards: Record<Exclude<SectionId, "overview">, ReactNode> = {
-    workspace: <WorkspaceCard client={client} onChanged={onChanged} />,
+    workspace: <WorkspaceCard client={client} onChanged={onChanged} onGo={onGo} />,
     thinks: (
-      <SectionCard title="Thinks with" subtitle="Which assistant answers, and the model behind Quick overview and Deep thinking. The composer picks the depth, never the model.">
+      <SectionCard title="Thinks with" info="Which assistant answers, and the model behind Quick overview and Deep thinking. The composer picks the depth, never the model.">
         <ThinkerRow which="claude" client={client} status={thinking?.claude ?? claude} onStatus={(s) => { onClaude(s); if (thinking && onThinking) onThinking({ ...thinking, claude: s }); }} inUse={(thinking?.route ?? "claude") === "claude"} onUse={() => client.setThinking("claude").then((t) => onThinking?.(t))} />
         <ThinkerRow which="codex" client={client} status={thinking?.codex ?? null} onStatus={(s) => { if (thinking && onThinking) onThinking({ ...thinking, codex: s }); }} inUse={thinking?.route === "codex"} onUse={() => client.setThinking("codex").then((t) => onThinking?.(t))} />
-        <ListRow title="Quick overview and Deep thinking" description="Every answer is a quick overview for now, on the chosen assistant's own model: choosing depth, and a model for each, needs Alpha's core." />
+        <ListRow title={<>Quick overview and Deep thinking <InfoTip text="Every answer is a quick overview for now, on the chosen assistant's own model: choosing depth, and a model for each, needs Alpha's core." /></>} description="Quick overview only" />
       </SectionCard>
     ),
     reads: (
@@ -405,8 +416,8 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
         <ListRow title="Theme" controls={<ThemeControl theme={theme} onChange={onTheme} />} />
         <ListRow title="Motion and contrast" description="Follow your Mac" />
         <ListRow
-          title="Companion"
-          description="Its look and size are Alpha's, on Alpha's agent page."
+          title={<>Companion <InfoTip text="Its look and size are Alpha's, on Alpha's agent page." /></>}
+          description={companion === null ? undefined : companion ? "Shown" : "Hidden"}
           controls={
             <>
               {companion !== null ? (
@@ -463,7 +474,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
 
   return (
     <>
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" info="Only what you decide: who Alpha thinks with, what it reads with, how it looks, and where your data lives." />
       <div className="page setpage">
         <Tabs<SectionId>
           className="setnav"

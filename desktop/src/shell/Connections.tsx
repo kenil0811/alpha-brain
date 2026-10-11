@@ -12,8 +12,8 @@ import { DataPage } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { BackLink } from "./BackLink";
 import { connectionName, connectionsSource } from "./intel/sources";
-import { Badge, Button, Confirm, EmptyCard, InfoTip, ListRow, Notice, PageHeader, SectionCard, Trouble, type Tone } from "../ui";
-import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON } from "../ui/icons";
+import { Badge, Button, Confirm, EmptyCard, IconButton, InfoTip, ListRow, Menu, MenuItem, Notice, PageHeader, SectionCard, Trouble, type Tone } from "../ui";
+import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON, MoreVertical } from "../ui/icons";
 
 const CONNECTOR: Record<string, { icon: ReactNode; reach: string }> = {
   files: { icon: <FolderOpen size={ICON} />, reach: "Reads the documents in this folder as they change; never changes your files" },
@@ -134,7 +134,20 @@ export function ConnectionPage({ client, id, version, onBack, onChanged }: { cli
   const back = <BackLink to="Connections" onClick={onBack} />;
   return (
     <>
-      <PageHeader left={back} title={open ? connectionName(open) : "Connection"} />
+      <PageHeader
+        left={back}
+        title={open ? connectionName(open) : "Connection"}
+        right={
+          open ? (
+            // Delete lives in ⋮, never as a standing button (rule 13), and asks first
+            <Menu trigger={<IconButton label="More" icon={<MoreVertical />} />}>
+              <MenuItem danger onSelect={askRemove}>
+                Delete…
+              </MenuItem>
+            </Menu>
+          ) : undefined
+        }
+      />
       <div className="page page--narrow">
         {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load the connection: {error}</Trouble> : null}
         {!data && !error ? <p className="faint">Loading…</p> : null}
@@ -151,9 +164,6 @@ export function ConnectionPage({ client, id, version, onBack, onChanged }: { cli
                   <Badge tone={STATUS[open.status].tone}>{STATUS[open.status].words}</Badge>
                   <Button size="sm" disabled={busy !== null} onClick={() => void run(open.id, () => client.syncConnection(open.id), "Read again.")}>
                     {open.connector === "browser" ? "Check" : "Read now"}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={askRemove}>
-                    Delete…
                   </Button>
                 </>
               }

@@ -17,6 +17,7 @@ import type { Client } from "../../core/client";
 import { AgentAvatar } from "../AgentAvatar";
 import type { Surface } from "../Rail";
 import { Button, IconButton } from "../../ui";
+import { ICON_SM, ZoomIn, ZoomOut } from "../../ui/icons";
 import { EGG, EGG_PATH, LABEL_AT, layEgg, RECORDS_ALL_AT, stepToward, type Arrow, type Brain, type BrainKind, type BrainNode, type Placed, type TableRecords, withRecords } from "./egg";
 
 const KIND_WORD: Record<BrainKind, string> = { you: "you", module: "project", collection: "collection", record: "record", agent: "agent", skill: "skill", person: "person", organisation: "organisation", goal: "goal", fact: "fact" };
@@ -273,8 +274,8 @@ export function BrainEgg({ client, brain: given, selected, onGo, onSelect }: { c
         {said}
       </div>
       <div className="brain__zoom">
-        <IconButton size="sm" label="Zoom in" icon={<span aria-hidden="true">+</span>} onClick={() => zoomBy(1.5)} disabledReason={view.k >= MAX_ZOOM ? "As close as it goes" : undefined} />
-        <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(1 / 1.5)} disabledReason={view.k <= 1 ? "The whole egg is in view" : undefined} />
+        <IconButton size="sm" label="Zoom in" icon={<ZoomIn size={ICON_SM} />} onClick={() => zoomBy(1.5)} disabledReason={view.k >= MAX_ZOOM ? "As close as it goes" : undefined} />
+        <IconButton size="sm" label="Zoom out" icon={<ZoomOut size={ICON_SM} />} onClick={() => zoomBy(1 / 1.5)} disabledReason={view.k <= 1 ? "The whole egg is in view" : undefined} />
         <Button size="sm" onClick={() => setView({ x: 0, y: 0, k: 1 })} disabled={view.k === 1}>
           Fit
         </Button>

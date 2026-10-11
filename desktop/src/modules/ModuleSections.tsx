@@ -14,8 +14,8 @@ import { PREF, usePreference } from "../core/preferences";
 import { AutomationList } from "../shell/Automations";
 import { NewAboveDialog } from "../shell/ModuleDialogs";
 import type { Surface } from "../shell/Rail";
-import { Badge, Button, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Tabs, useAssistant, type Tone } from "../ui";
-import { AgentIcon, Ban, Check, FileText, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
+import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, useAssistant, type Tone, type ToggleItem } from "../ui";
+import { ActivityIcon, AgentIcon, Ban, Check, FileText, Flag, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
 import { downloadText, parseCsv, toCsv } from "./csv";
 import { humanize, when } from "./format";
 
@@ -253,17 +253,17 @@ type IntelTab = "activity" | "agents" | "goals" | "page" | "inside";
 export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [tab, setTab] = useState<IntelTab>("activity");
   const inside = detail.inside ?? [];
-  const tabs: { id: IntelTab; label: string }[] = [
-    { id: "activity", label: "Activity" },
+  const tabs: ToggleItem<IntelTab>[] = [
+    { id: "activity", label: "Activity", icon: <ActivityIcon size={ICON_SM} /> },
     // Alpha, the assistant that works here, is the first agent
-    { id: "agents", label: `Agents and automations · ${detail.automations.length + 1}` },
-    { id: "goals", label: `Goals${detail.goals.length ? ` · ${detail.goals.length}` : ""}` },
-    { id: "page", label: "Alpha's page" },
-    ...(inside.length ? [{ id: "inside" as const, label: `Sub-projects · ${inside.length}` }] : []),
+    { id: "agents", label: "Agents and automations", icon: <AgentIcon size={ICON_SM} />, count: detail.automations.length + 1 },
+    { id: "goals", label: "Goals", icon: <Flag size={ICON_SM} />, count: detail.goals.length || undefined },
+    { id: "page", label: "Alpha's page", icon: <FileText size={ICON_SM} /> },
+    ...(inside.length ? [{ id: "inside" as const, label: "Sub-projects", icon: <ModuleIcon size={ICON_SM} />, count: inside.length }] : []),
   ];
   return (
     <SectionCard title="Intelligence">
-      <Tabs label="Intelligence" items={tabs} value={tab} onChange={setTab} />
+      <Toggle inBody label="Intelligence" items={tabs} value={tab} onChange={setTab} />
       {tab === "page" ? <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} /> : null}
       {tab === "goals" ? (
         <div className="stack">
@@ -329,16 +329,7 @@ export function GovernanceCard({ client, moduleId, children }: { client: Client;
   const [side, setSide] = useState<"always" | "never">("always");
   const mine = { always: all[moduleId]?.always ?? [], never: all[moduleId]?.never ?? [] };
   const save = async (next: string[]) => setProblem(await setAll({ ...all, [moduleId]: { ...mine, [side]: next } }));
-  const tab = (id: "always" | "never", icon: ReactNode, label: string) => ({
-    id,
-    label: (
-      <>
-        {icon}
-        {label}{" "}
-        <span className="govtabs__count">{mine[id].length}</span>
-      </>
-    ),
-  });
+  const tab = (id: "always" | "never", icon: ReactNode, label: string): ToggleItem<"always" | "never"> => ({ id, label, icon, count: mine[id].length });
   return (
     <section className="card scard" aria-label="Governance">
       <header className="scard__head">
@@ -350,7 +341,7 @@ export function GovernanceCard({ client, moduleId, children }: { client: Client;
         </div>
       </header>
       <div className="scard__body">
-        <Tabs label="What Alpha may do here" className="subtabs govtabs" items={[tab("always", <Check size={ICON_SM} aria-hidden="true" />, "Allowed"), tab("never", <Ban size={ICON_SM} aria-hidden="true" />, "Denied")]} value={side} onChange={setSide} />
+        <Toggle inBody label="What Alpha may do here" items={[tab("always", <Check size={ICON_SM} />, "Allowed"), tab("never", <Ban size={ICON_SM} />, "Denied")]} value={side} onChange={setSide} />
         <RuleList key={side} noun={side === "always" ? "allowed" : "denied"} rules={mine[side]} onChange={(next) => void save(next)} />
         {problem ? <Notice tone="bad">Couldn't save the rules: {problem}</Notice> : null}
         {children}
@@ -364,10 +355,13 @@ function RuleList({ noun, rules, onChange }: { noun: string; rules: string[]; on
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<number | null>(null);
   const [text, setText] = useState("");
+  // the rule waiting for a yes before it goes: its × or its text cleared (every delete confirms, rule 13)
+  const [doomed, setDoomed] = useState<number | null>(null);
   const finish = (keep: boolean) => {
     if (editing === null) return;
     const clean = text.trim();
-    if (keep) onChange(clean ? rules.map((r, i) => (i === editing ? clean : r)) : rules.filter((_, i) => i !== editing));
+    if (keep && clean) onChange(rules.map((r, i) => (i === editing ? clean : r)));
+    else if (keep) setDoomed(editing);
     setEditing(null);
   };
   const add = (keep: boolean) => {
@@ -390,7 +384,10 @@ function RuleList({ noun, rules, onChange }: { noun: string; rules: string[]; on
                   onChange={(e) => setText(e.target.value)}
                   onBlur={() => finish(true)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") finish(true);
+                    if (e.key === "Enter") {
+                      e.preventDefault(); // the Enter must not also press the confirm that may open
+                      finish(true);
+                    }
                     if (e.key === "Escape") finish(false);
                   }}
                 />
@@ -399,7 +396,7 @@ function RuleList({ noun, rules, onChange }: { noun: string; rules: string[]; on
                   <button type="button" className="linkbtn govrules__text" onClick={() => { setText(r); setEditing(i); }}>
                     {r}
                   </button>
-                  <IconButton size="sm" className="govrules__del" label={`Delete rule: ${r}`} icon={<X size={ICON_SM} />} onClick={() => onChange(rules.filter((_, j) => j !== i))} />
+                  <IconButton size="sm" className="govrules__del" label={`Delete rule: ${r}`} icon={<X size={ICON_SM} />} onClick={() => setDoomed(i)} />
                 </>
               )}
             </li>
@@ -408,6 +405,18 @@ function RuleList({ noun, rules, onChange }: { noun: string; rules: string[]; on
       ) : (
         <p className="faint">Nothing {noun}.</p>
       )}
+      <Confirm
+        open={doomed !== null && doomed < rules.length}
+        title="Delete this rule?"
+        action="Delete rule"
+        onCancel={() => setDoomed(null)}
+        onConfirm={() => {
+          onChange(rules.filter((_, j) => j !== doomed));
+          setDoomed(null);
+        }}
+      >
+        “{doomed !== null ? rules[doomed] : ""}” goes from what Alpha may {noun === "allowed" ? "do" : "not do"} here. This can't be undone.
+      </Confirm>
       {adding ? (
         <input
           className="govrules__input"

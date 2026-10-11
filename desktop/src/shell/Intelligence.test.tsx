@@ -31,9 +31,21 @@ describe("Intelligence", () => {
   it("has the tabs in the header; Map is a view of Second Brain and Activity is not a tab", async () => {
     const onTab = vi.fn();
     mount("second-brain", onTab);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Second Brain", "Agents and automations", "Skills", "Connections"]);
-    await userEvent.click(screen.getByRole("tab", { name: "Agents and automations" }));
+    const header = screen.getByRole("tablist", { name: "Intelligence" });
+    expect(within(header).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Second Brain", "Agents and automations", "Skills", "Connections"]);
+    await userEvent.click(within(header).getByRole("tab", { name: "Agents and automations" }));
     expect(onTab).toHaveBeenCalledWith("agents");
+  });
+
+  it("switches Brain, Facts and Map in the body with the same toggle as the header (rule 4)", async () => {
+    mount("second-brain");
+    const body = await screen.findByRole("tablist", { name: "Second Brain view" });
+    const header = screen.getByRole("tablist", { name: "Intelligence" });
+    expect(body).toHaveClass("hswitch");
+    expect(body.className).toBe(header.className); // one look, two levels
+    expect(within(body).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Brain", "Facts", "Map"]);
+    expect(body.parentElement).toHaveClass("hswitch__box--body");
+    expect(document.querySelector(".toggle")).toBeNull(); // no hand-made switch left
   });
 
   it("puts what waits for a yes above the facts, opens a fact's provenance, and switches to the Map", async () => {

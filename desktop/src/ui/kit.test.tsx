@@ -144,10 +144,17 @@ describe("cards and notices", () => {
     expect(within(tile).getByRole("button", { name: "Review" })).toBeInTheDocument();
   });
 
-  it("a section card has a title, a one-line subtitle, actions and content; an empty card says so plainly", () => {
+  it("an empty metric reads None in the muted sans, not as a serif number", () => {
+    render(<MetricTile label="Coming up" value="None" basis="Calendar empty or not connected" />);
+    const none = screen.getByText("None");
+    expect(none).toHaveClass("mtile__big--none");
+    expect(none).not.toHaveClass("num");
+  });
+
+  it("a section card has a title, its explanation in an (i) and never a subtitle (rule 28), actions and content; an empty card says so plainly", () => {
     render(
       <>
-        <SectionCard title="Sources" subtitle="Where this module reads from" actions={<Button size="sm">Add</Button>}>
+        <SectionCard title="Sources" info="Where this module reads from" actions={<Button size="sm">Add</Button>}>
           <p>Inside</p>
         </SectionCard>
         <EmptyCard icon={<X />} title="Nothing configured yet">Add a source and Alpha will read it.</EmptyCard>
@@ -155,7 +162,8 @@ describe("cards and notices", () => {
     );
     const card = screen.getByRole("region", { name: "Sources" });
     expect(within(card).getByRole("heading", { level: 3, name: "Sources" })).toBeInTheDocument();
-    expect(within(card).getByText("Where this module reads from")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Where this module reads from" })).toHaveClass("infotip");
+    expect(within(card).queryByText("Where this module reads from")).toBeNull(); // no visible sub-line
     expect(within(card).getByRole("button", { name: "Add" })).toBeInTheDocument();
     expect(within(card).getByText("Inside")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Nothing configured yet" }).closest(".ecard")).toHaveTextContent("Add a source and Alpha will read it.");

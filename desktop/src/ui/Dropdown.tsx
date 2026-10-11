@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import type { KeyboardEvent, ReactNode } from "react";
 import { useAssistant } from "./assistant";
 import { Button } from "./Button";
+import { Dialog } from "./Dialog";
 import { ChevronDown, PlusIcon, Star } from "./icons";
 
 export interface DropdownOption<T extends string = string> {
@@ -20,7 +21,9 @@ interface DropdownBase<T extends string> {
   /** What this chooses, for assistive technology ("Group by"), and the context of "Add new…". */
   label: string;
   placeholder?: string;
-  /** Adds an option the caller's own way; without it "Add new…" asks the assistant. */
+  /** Adds an option the caller's own way (inline); without it "Add new…" opens a small dialog
+   *  where the person describes it, and Send to Alpha puts it to the builder in this page's
+   *  conversation (fixed rule 30, 11 Oct). */
   onAdd?: () => void;
   addLabel?: string;
   size?: "md" | "sm";
@@ -99,7 +102,8 @@ function DropdownCore<T extends string>({
   const [open, setOpenState] = useState(Boolean(defaultOpen));
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  const [adding, setAdding] = useState<string | null>(null);
+  // the describe dialog: its words, and whether they went (null: closed)
+  const [asking, setAsking] = useState<{ text: string; sent: boolean } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const uid = useId();
   const assistant = useAssistant();
@@ -124,7 +128,6 @@ function DropdownCore<T extends string>({
     if (next) {
       setQuery("");
       setActive(0);
-      setAdding(null);
     }
     onOpenChange?.(next);
   };
@@ -134,24 +137,24 @@ function DropdownCore<T extends string>({
     if (!multiple) setOpen(false);
   };
   const add = () => {
-    if (!onAdd) return setAdding("");
     setOpen(false);
-    onAdd();
+    if (onAdd) onAdd();
+    else setAsking({ text: query.trim(), sent: false }); // what was searched for starts the description
   };
   const send = () => {
-    if (!assistant || !adding?.trim()) return;
-    assistant.say(`In "${label}", add: ${adding.trim()}`);
-    setOpen(false);
+    if (!assistant || !asking?.text.trim()) return;
+    assistant.say(`Add a new option to "${label}": ${asking.text.trim()}`);
+    setAsking({ text: "", sent: true });
   };
 
   useEffect(() => {
-    if (open && adding === null) document.getElementById(optionId(active))?.scrollIntoView?.({ block: "nearest" });
+    if (open) document.getElementById(optionId(active))?.scrollIntoView?.({ block: "nearest" });
   });
 
   const move = (to: number) => setActive(Math.max(0, Math.min(rows - 1, to)));
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation(); // a row or a cell behind this must not hear the keys
-    if (adding !== null || (e.target as HTMLElement).closest?.(".dropdown__star")) return; // the add box and a star hear their own keys
+    if ((e.target as HTMLElement).closest?.(".dropdown__star")) return; // a star hears its own keys
     if (e.key === "ArrowDown") move(active + 1);
     else if (e.key === "ArrowUp") move(active - 1);
     else if (e.key === "Enter") {
@@ -166,126 +169,141 @@ function DropdownCore<T extends string>({
   const listId = `${uid}-list`;
   const shownValue = chosen.length > 2 ? `${chosen.length} selected` : chosen.map((o) => o.label).join(", ");
   return (
-    <RadixPopover.Root open={open} onOpenChange={setOpen}>
-      <RadixPopover.Trigger asChild>
-        <button type="button" id={id} role="combobox" aria-haspopup="listbox" aria-label={label} aria-describedby={valueId} className={(display !== undefined ? [className] : ["btn", size === "sm" ? "btn--sm" : "", "dropdown__trigger", className]).filter(Boolean).join(" ")} onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setOpen(true); } }}>
-          {display !== undefined ? (
-            <span id={valueId}>{display}</span>
-          ) : (
-            <>
-              {icon ? (
-                <span className="dropdown__tico" aria-hidden="true">
-                  {icon}
+    <>
+      <RadixPopover.Root open={open} onOpenChange={setOpen}>
+        <RadixPopover.Trigger asChild>
+          <button type="button" id={id} role="combobox" aria-haspopup="listbox" aria-label={label} aria-describedby={valueId} className={(display !== undefined ? [className] : ["btn", size === "sm" ? "btn--sm" : "", "dropdown__trigger", className]).filter(Boolean).join(" ")} onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setOpen(true); } }}>
+            {display !== undefined ? (
+              <span id={valueId}>{display}</span>
+            ) : (
+              <>
+                {icon ? (
+                  <span className="dropdown__tico" aria-hidden="true">
+                    {icon}
+                  </span>
+                ) : null}
+                <span id={valueId} className={`dropdown__value${chosen.length ? "" : " dropdown__value--placeholder"}`}>
+                  {shownValue || placeholder}
                 </span>
-              ) : null}
-              <span id={valueId} className={`dropdown__value${chosen.length ? "" : " dropdown__value--placeholder"}`}>
-                {shownValue || placeholder}
-              </span>
-              <span className="dropdown__chev" aria-hidden="true">
-                <ChevronDown />
-              </span>
-            </>
-          )}
-        </button>
-      </RadixPopover.Trigger>
-      <RadixPopover.Portal>
-        <RadixPopover.Content
-          className="dropdown__pop"
-          align="start"
-          sideOffset={4}
-          collisionPadding={8}
-          onKeyDown={onKeyDown}
-          onOpenAutoFocus={(e) => {
-            e.preventDefault();
-            searchRef.current?.focus();
-          }}
-        >
-          {adding !== null ? (
-            <div className="dropdown__ask">
-              <textarea
-                autoFocus
-                className="dropdown__askbox"
-                aria-label="Describe what you'd like to add"
-                placeholder="Describe what you'd like to add"
-                value={adding}
-                onChange={(e) => setAdding(e.target.value)}
-              />
-              <Button variant="primary" size="sm" onClick={send} disabled={!adding.trim()} disabledReason={assistant ? undefined : "The assistant isn't reachable here."}>
-                Send
+                <span className="dropdown__chev" aria-hidden="true">
+                  <ChevronDown />
+                </span>
+              </>
+            )}
+          </button>
+        </RadixPopover.Trigger>
+        <RadixPopover.Portal>
+          <RadixPopover.Content
+            className="dropdown__pop"
+            align="start"
+            sideOffset={4}
+            collisionPadding={8}
+            onKeyDown={onKeyDown}
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              searchRef.current?.focus();
+            }}
+          >
+            <input
+              ref={searchRef}
+              className="dropdown__search"
+              role="combobox"
+              aria-expanded="true"
+              aria-controls={listId}
+              aria-activedescendant={optionId(active)}
+              aria-label={`Search ${label}`}
+              placeholder="Search…"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActive(0);
+              }}
+            />
+            <div id={listId} className="dropdown__list" role="listbox" aria-label={label} aria-multiselectable={multiple || undefined} tabIndex={-1}>
+              {shown.map((o, i) => (
+                <div
+                  key={o.value}
+                  id={optionId(i)}
+                  role="option"
+                  aria-selected={values.includes(o.value)}
+                  aria-disabled={o.disabled ? true : undefined}
+                  data-active={i === active ? "" : undefined}
+                  className="dropdown__opt"
+                  onMouseMove={() => active !== i && setActive(i)}
+                  onClick={() => pick(o)}
+                >
+                  {o.icon ? (
+                    <span className="dropdown__ico" aria-hidden="true">
+                      {o.icon}
+                    </span>
+                  ) : null}
+                  <span className="dropdown__label">{o.label}</span>
+                  {o.value === theDefault ? (
+                    <span className="dropdown__star" data-on="" role="img" aria-label={`${o.label} is the default`}>
+                      <Star fill="currentColor" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="dropdown__star"
+                      aria-label={`Make ${o.label} the default`}
+                      title={o.disabled ? o.disabled : `Make ${o.label} the default`}
+                      disabled={Boolean(o.disabled)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // the star sets the default; it does not choose
+                        setDefault(o.value);
+                      }}
+                    >
+                      <Star aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!shown.length ? <div className="dropdown__none">No match. {onAdd ? addLabel : "Add new…"} below adds it.</div> : null}
+            </div>
+            {current?.disabled ? (
+              <div className="dropdown__hint" role="status">
+                {current.disabled}
+              </div>
+            ) : null}
+            <button type="button" id={optionId(shown.length)} className="dropdown__add" data-active={active === shown.length ? "" : undefined} tabIndex={-1} onMouseMove={() => active !== shown.length && setActive(shown.length)} onClick={add}>
+              <PlusIcon aria-hidden="true" />
+              {addLabel}
+            </button>
+          </RadixPopover.Content>
+        </RadixPopover.Portal>
+      </RadixPopover.Root>
+      <Dialog open={asking !== null} onOpenChange={(o) => !o && setAsking(null)} title={`Add to ${label}`}>
+        {asking?.sent ? (
+          <>
+            <p className="describe__sent" role="status">
+              Sent to Alpha — it will ask you to approve.
+            </p>
+            <div className="row dialog__actions">
+              <Button onClick={() => setAsking(null)}>Close</Button>
+            </div>
+          </>
+        ) : (
+          <div className="dropdown__ask">
+            <textarea
+              autoFocus
+              className="dropdown__askbox"
+              aria-label="Describe what you'd like to add"
+              placeholder="Describe what you'd like to add"
+              value={asking?.text ?? ""}
+              onChange={(e) => setAsking({ text: e.target.value, sent: false })}
+            />
+            <div className="row dialog__actions">
+              <Button variant="ghost" onClick={() => setAsking(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={send} disabled={!asking?.text.trim()} disabledReason={assistant ? undefined : "The assistant isn't reachable here."}>
+                Send to Alpha
               </Button>
             </div>
-          ) : (
-            <>
-              <input
-                ref={searchRef}
-                className="dropdown__search"
-                role="combobox"
-                aria-expanded="true"
-                aria-controls={listId}
-                aria-activedescendant={optionId(active)}
-                aria-label={`Search ${label}`}
-                placeholder="Search…"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setActive(0);
-                }}
-              />
-              <div id={listId} className="dropdown__list" role="listbox" aria-label={label} aria-multiselectable={multiple || undefined} tabIndex={-1}>
-                {shown.map((o, i) => (
-                  <div
-                    key={o.value}
-                    id={optionId(i)}
-                    role="option"
-                    aria-selected={values.includes(o.value)}
-                    aria-disabled={o.disabled ? true : undefined}
-                    data-active={i === active ? "" : undefined}
-                    className="dropdown__opt"
-                    onMouseMove={() => active !== i && setActive(i)}
-                    onClick={() => pick(o)}
-                  >
-                    {o.icon ? (
-                      <span className="dropdown__ico" aria-hidden="true">
-                        {o.icon}
-                      </span>
-                    ) : null}
-                    <span className="dropdown__label">{o.label}</span>
-                    {o.value === theDefault ? (
-                      <span className="dropdown__star" data-on="" role="img" aria-label={`${o.label} is the default`}>
-                        <Star fill="currentColor" aria-hidden="true" />
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="dropdown__star"
-                        aria-label={`Make ${o.label} the default`}
-                        title={o.disabled ? o.disabled : `Make ${o.label} the default`}
-                        disabled={Boolean(o.disabled)}
-                        onClick={(e) => {
-                          e.stopPropagation(); // the star sets the default; it does not choose
-                          setDefault(o.value);
-                        }}
-                      >
-                        <Star aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {!shown.length ? <div className="dropdown__none">No match</div> : null}
-              </div>
-              {current?.disabled ? (
-                <div className="dropdown__hint" role="status">
-                  {current.disabled}
-                </div>
-              ) : null}
-              <button type="button" id={optionId(shown.length)} className="dropdown__add" data-active={active === shown.length ? "" : undefined} tabIndex={-1} onMouseMove={() => active !== shown.length && setActive(shown.length)} onClick={add}>
-                <PlusIcon aria-hidden="true" />
-                {addLabel}
-              </button>
-            </>
-          )}
-        </RadixPopover.Content>
-      </RadixPopover.Portal>
-    </RadixPopover.Root>
+          </div>
+        )}
+      </Dialog>
+    </>
   );
 }

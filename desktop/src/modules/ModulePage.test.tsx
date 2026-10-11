@@ -112,10 +112,10 @@ describe("a module's page", () => {
     expect(regions.filter((n) => ["Files", "Intelligence", "Governance"].includes(n ?? ""))).toEqual(["Files", "Intelligence", "Governance"]);
     expect(within(screen.getByRole("region", { name: "Files" })).getByText(/Drop files here/)).toBeInTheDocument();
     const intelligence = screen.getByRole("region", { name: "Intelligence" });
-    await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
+    await user.click(within(intelligence).getByRole("tab", { name: "Goals 1" }));
     expect(within(intelligence).getByText("Close three deals")).toBeInTheDocument();
     // agents and automations live in Intelligence, not Governance
-    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations · 2" }));
+    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations 2" }));
     expect(within(intelligence).getByText("Chase late invoices")).toBeInTheDocument();
     expect(within(intelligence).getAllByRole("button")[0]).toHaveTextContent(/^Alpha/); // Alpha is the first agent
     const governance = screen.getByRole("region", { name: "Governance" });
@@ -142,7 +142,7 @@ describe("a module's page", () => {
     expect(screen.getByRole("tab", { name: "Deals", selected: true })).toBeInTheDocument();
   });
 
-  it("Governance keeps Allowed and Denied rules per module: the dashed button adds, a click edits, × deletes", async () => {
+  it("Governance keeps Allowed and Denied rules per module: the dashed button adds, a click edits, × deletes after a yes", async () => {
     const user = userEvent.setup();
     const setPreference = vi.fn(async (key: string, value: unknown) => ({ key, value }));
     render(
@@ -165,7 +165,23 @@ describe("a module's page", () => {
     await user.clear(edit);
     await user.type(edit, "Email anyone{Enter}");
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: ["Email anyone"] } }));
+    // the shared toggle switches the sides (rule 4)
+    expect(within(governance).getByRole("tablist", { name: "What Alpha may do here" })).toHaveClass("hswitch");
+    // × asks first (rule 13); Cancel keeps the rule
+    const calls = setPreference.mock.calls.length;
     await user.click(within(denied).getByRole("button", { name: "Delete rule: Email anyone" }));
+    let ask = await screen.findByRole("dialog", { name: "Delete this rule?" });
+    expect(ask).toHaveTextContent("Email anyone");
+    await user.click(within(ask).getByRole("button", { name: "Cancel" }));
+    expect(setPreference).toHaveBeenCalledTimes(calls);
+    expect(within(denied).getByRole("button", { name: "Email anyone" })).toBeInTheDocument();
+    // clearing a rule's words is a delete, and asks too
+    await user.click(within(denied).getByRole("button", { name: "Email anyone" }));
+    await user.clear(within(denied).getByRole("textbox", { name: "Edit rule: Email anyone" }));
+    await user.keyboard("{Enter}");
+    ask = await screen.findByRole("dialog", { name: "Delete this rule?" });
+    expect(setPreference).toHaveBeenCalledTimes(calls);
+    await user.click(within(ask).getByRole("button", { name: "Delete rule" }));
     await waitFor(() => expect(setPreference).toHaveBeenLastCalledWith("governance_rules", { m_1: { always: [], never: [] } }));
     // the rest of Governance sits below the tabs
     expect(within(governance).getByText("What it keeps")).toBeInTheDocument();
@@ -184,10 +200,10 @@ describe("a module's page", () => {
     );
     await screen.findByText("Bakery");
     const intelligence = screen.getByRole("region", { name: "Intelligence" });
-    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations · 1" }));
+    await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations 1" }));
     await user.click(within(intelligence).getByRole("button", { name: /^Alpha/ }));
     expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" });
-    await user.click(within(intelligence).getByRole("tab", { name: "Goals · 1" }));
+    await user.click(within(intelligence).getByRole("tab", { name: "Goals 1" }));
     await user.click(within(intelligence).getByRole("button", { name: "Add goal" }));
     await user.type(within(intelligence).getByRole("textbox", { name: "Describe the goal you want" }), "Close five deals");
     await user.click(within(intelligence).getByRole("button", { name: "Send" }));
@@ -232,7 +248,7 @@ describe("a module's page", () => {
     await screen.findByText("Bakery");
     await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("button", { name: "Avilo" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_0" });
-    await user.click(screen.getByRole("tab", { name: "Sub-projects · 1" }));
+    await user.click(screen.getByRole("tab", { name: "Sub-projects 1" }));
     expect(screen.getByLabelText("What you ask here reaches them all.")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Leads")).toBeInTheDocument();
   });

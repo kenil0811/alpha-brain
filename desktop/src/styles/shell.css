@@ -38,8 +38,10 @@
   .setnav { flex-direction: row; flex-wrap: wrap; position: static; }
 }
 .setgrid > * { break-inside: avoid; margin: 0 0 var(--space-4); }
-.setname { display: flex; align-items: center; gap: var(--space-2); }
-.setname__input { flex: 1; min-width: 0; }
+/* the workspace row never runs past its card (1100px window, 11 Oct): the name field shrinks first, then Save drops below it */
+.setname { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.setname .setname__input { flex: 1 1 calc(var(--space-12) * 3); min-width: 0; }
+.setname > :not(.setname__input) { flex: none; }
 .setname .wstile { width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); font-size: var(--text-md); }
 .setkeys { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-1) var(--space-3); margin: 0 0 var(--space-2); }
 .setkeys > div { display: contents; }

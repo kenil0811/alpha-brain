@@ -16,9 +16,9 @@
 /* the strip above the data: tiles wrap, each its own width */
 .mstrip { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column dense; grid-auto-columns: max-content; justify-content: start; gap: var(--space-2); overflow-x: auto; }  /* four lines high at most, the whole strip: two-line tiles two high, a split's block spanning both; more runs sideways (the owner, 9 Oct) */
 .mstrip .mtile--tall { grid-row: span 2; align-items: center; }
-.legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: 160px; overflow: hidden; font-size: var(--text-xs); }
+.legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: calc(var(--space-12) * 3 + var(--space-4)); overflow: hidden; font-size: var(--text-xs); }
 .legend.legend--inline li { gap: var(--space-1); white-space: nowrap; cursor: default; }
-.legend.legend--inline .legend__dot { width: 8px; height: 8px; }
+.legend.legend--inline .legend__dot { width: var(--space-2); height: var(--space-2); }
 .mstrip__fold { flex: none; }
 
 /* the Dashboard view: tiles wrap at their own width; a chart or a list takes more, its chart under the number */
@@ -35,12 +35,12 @@
 /* ---------- the table (modules/views/TableView) ---------- */
 /* the row's handle and checkbox sit over its first cell's left edge on hover (Notion's way), for every row while any is selected */
 .table td.col--first:not(.col--frozen), .table th.col--first:not(.col--frozen) { position: relative; }
-.rowctl { position: absolute; left: 0; top: 0; bottom: 0; display: inline-flex; align-items: center; gap: 2px; padding-left: 2px; padding-right: var(--space-1); background: inherit; z-index: 2; opacity: 0; pointer-events: none; }
+.rowctl { position: absolute; left: 0; top: 0; bottom: 0; display: inline-flex; align-items: center; gap: var(--space-1); padding-left: var(--space-1); padding-right: var(--space-1); background: inherit; z-index: 2; opacity: 0; pointer-events: none; }
 .table .rowctl input { width: auto; min-width: 0; margin: 0; padding: 0; border: 0; }
-.rowctl__grip { width: 18px; height: 22px; color: var(--text-3); cursor: grab; }
+.rowctl__grip { width: var(--space-4); height: var(--space-6); color: var(--text-3); cursor: grab; }
 .table tbody tr:hover .rowctl, .table tbody tr:focus-within .rowctl, .table thead tr:hover .rowctl, .rowctl:focus-within, .tablewrap--selecting .rowctl { opacity: 1; pointer-events: auto; }
 .tablewrap--selecting .table td.col--first, .tablewrap--selecting .table th.col--first { padding-left: var(--space-10); }
-.rowctl--head { padding-left: calc(var(--space-5) + 2px); }  /* under the rows' checkboxes, past their handles */
+.rowctl--head { padding-left: var(--space-6); }  /* under the rows' checkboxes, past their handles */
 .tablewrap--selecting .rowctl--head .rowctl__grip { display: none; }
 .table td.col--wrap { white-space: normal; overflow-wrap: anywhere; }
 /* nothing covers text on hover (the owner, 9 Oct): the first cell's text slides right by the handle
@@ -95,7 +95,7 @@
 
 /* ---------- Notion parity (9 Oct): view tabs, filters, sorts, settings, groups, colours, peeks ---------- */
 /* the views as tabs, at the toolbar's left; they scroll sideways rather than wrap */
-.vtabs { display: flex; align-items: center; gap: 2px; flex: 0 1 auto !important; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.vtabs { display: flex; align-items: center; gap: var(--space-1); flex: 0 1 auto !important; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .vtabs::-webkit-scrollbar { display: none; }
 .vtab { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-3); font-size: var(--text-md); white-space: nowrap; }
 .vtab:hover { background: var(--hover); color: var(--text); }
@@ -103,7 +103,7 @@
 .vtab__ico { display: inline-grid; place-items: center; }
 .toolbar--icons .vtab__ico + .vtab__label { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; }
 /* search: a magnifier that opens into a box */
-.toolbar--page .search--open, .toolbar--page .search--closed { flex: 0 1 220px; min-width: 120px; padding: 2px var(--space-2); }
+.toolbar--page .search--open, .toolbar--page .search--closed { flex: 0 1 calc(var(--space-12) * 4 + var(--space-6)); min-width: calc(var(--space-12) * 2); padding: var(--space-1) var(--space-2); }
 .search--closed { font: inherit; font-size: var(--text-sm); text-align: left; cursor: text; }
 .search--closed:hover { border-color: var(--text-3); }
 .toolbar--icons .search--closed { flex: none; min-width: 0; }
@@ -114,7 +114,7 @@
 
 /* a rule: property · condition · value · delete */
 .frule { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-1); }
-.frule__input { width: calc(var(--space-12) * 3); padding: 2px var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
+.frule__input { width: calc(var(--space-12) * 3); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
 .fgroup { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); min-width: calc(var(--space-12) * 10); }
 .fgroup--nested { min-width: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
 .fgroup__line { display: flex; align-items: flex-start; gap: var(--space-1); }
@@ -129,20 +129,14 @@
 /* the view's settings (⋮): a short list that opens pages */
 .vset { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); width: calc(var(--space-12) * 6 + var(--space-4)); max-height: calc(var(--radix-popover-content-available-height, 80vh) - var(--space-4)); overflow-y: auto; }
 .vset--wide { width: calc(var(--space-12) * 10); }
-.vset__head { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-1); border-bottom: 1px solid var(--line); font-size: var(--text-md); }
-.vset__nav { justify-content: space-between; gap: var(--space-2); }
-.vset__nav > span:first-child { flex: 1; }
-.vset__val { color: var(--text-3); font-size: var(--text-sm); }
 .vset__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--space-8); }
 .vset__lab { font-size: var(--text-md); color: var(--text-2); }
 .vset label.check { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
-.vset__prop { display: flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-1); border-radius: var(--radius-control); }
+.vset__prop { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1); border-radius: var(--radius-control); }
 .vset__prop:hover { background: var(--hover); }
 .vset__name { flex: 1; min-width: 0; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vset__color { padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
 .vset__note { margin: 0; padding: var(--space-1); font-size: var(--text-sm); }
-/* Download › CSV, Excel: the formats open beneath it on hover or focus (the panel scrolls, so not beside it) */
-.vset__subchev { margin-left: auto; }
 
 /* the toolbar's list picker; the numbers below the toolbar, their hide arrow at the top-right corner */
 .tb__lists { display: inline-flex; }
@@ -152,11 +146,13 @@
 
 /* the record page's save bar: a quiet line, Cancel and Save */
 .savebar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-1) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); font-size: var(--text-sm); }
-.crumb__dot { color: var(--text-3); }
+.crumb__dot { display: inline-flex; align-items: center; color: var(--text-3); }
 
 /* table layout: vertical lines, row heights, a selected range */
 .tablewrap--lines .table th, .tablewrap--lines .table td { border-right: 1px solid var(--line); }
-.tablewrap--medium .table td { height: 39px; }
+.tablewrap--medium .table td { height: var(--space-10); }
+/* the header row on the 4px grid (app.css draws it 43px) */
+.table th { height: calc(var(--space-10) + var(--space-1)); }
 .table td.cell--range { box-shadow: inset 0 0 0 1px var(--primary); background: var(--primary-soft); }
 .table td:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .rowicon { display: inline-flex; vertical-align: middle; margin-right: var(--space-1); }
@@ -164,7 +160,7 @@
 /* groups: a header with its chevron, label and count; a footer of its own */
 .table tr.row--group td { padding: var(--space-2) var(--space-2) var(--space-1); background: none; border-bottom: 1px solid var(--border); max-width: none; }
 .table tr.row--group:hover td { background: none; }
-.grouphead { display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-1); border: 0; border-radius: var(--radius-control); background: none; font: inherit; color: var(--text); }
+.grouphead { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1); border: 0; border-radius: var(--radius-control); background: none; font: inherit; color: var(--text); }
 .grouphead:hover { background: var(--hover); }
 .grouphead__chev { color: var(--text-3); transition: transform var(--dur-quick) var(--ease-out); }
 .grouphead__chev--open { transform: rotate(90deg); }
@@ -192,20 +188,10 @@
 .loadmore { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--line); }
 .bulkedit { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); min-width: calc(var(--space-12) * 5); }
 
-/* a record in a peek: at the side, or in the centre, over the page */
-.dialog.peek { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
-.dialog.peek--side { top: 0; bottom: 0; left: auto; right: 0; transform: none; width: min(calc(var(--space-12) * 16), 92vw); max-width: none; max-height: none; border-radius: var(--radius-card) 0 0 var(--radius-card); }
-.dialog.peek--center { width: min(calc(var(--space-12) * 18), 92vw); max-width: none; height: calc(100vh - var(--space-12) * 2); }
-.peek__bar { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--line); }
-.peek__bar .spacer { flex: 1; }
-.peek__body { flex: 1; overflow-y: auto; }
 .frule__name { font-size: var(--text-md); font-weight: 600; padding: 0 var(--space-1); }
 
 /* governance tabs */
-.govtabs button { display: inline-flex; align-items: center; gap: var(--space-1); }
-.govtabs button[aria-selected="true"] { color: var(--primary); }
-.govtabs__count { color: var(--text-3); font-weight: 400; }
-.govtabs ~ .subsecs { margin-top: var(--space-6); }
+.scard__body > .hswitch__box ~ .subsecs { margin-top: var(--space-6); }
 .govadd { display: flex; align-items: center; justify-content: center; gap: var(--space-1); width: 100%; margin-top: var(--space-2); padding: var(--space-2); border: 1px dashed var(--border); border-radius: var(--radius-card); background: transparent; color: var(--primary); font: inherit; font-size: var(--text-md); cursor: pointer; }
 .govadd:hover { background: var(--surface-2); }
 .askalpha { display: inline-flex; align-items: center; gap: var(--space-2); }
@@ -222,16 +208,37 @@
 .mtile__split { display: flex; flex-direction: column; gap: var(--space-1); }
 .spark--live { cursor: crosshair; }
 /* a chart's tooltip: at the pointer, over everything */
-.charttip { position: fixed; z-index: 1000; pointer-events: none; padding: 2px var(--space-2); border-radius: var(--radius-control); background: var(--navy); color: var(--surface); font-size: var(--text-sm); white-space: nowrap; box-shadow: var(--shadow-float); }
+.charttip { position: fixed; z-index: 1000; pointer-events: none; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--navy); color: var(--surface); font-size: var(--text-sm); white-space: nowrap; box-shadow: var(--shadow-float); }
 /* a split's legend: swatch, label, count */
-.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
 .legend li { display: flex; align-items: center; gap: var(--space-2); }
-.legend__dot { flex: none; width: 10px; height: 10px; border-radius: var(--radius-control); }
+.legend__dot { flex: none; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-control); }
 .legend__lab { color: var(--text-2); }
 .legend__n { margin-left: auto; padding-left: var(--space-3); color: var(--text); }
-.dialog--metric { width: min(560px, calc(100vw - 62px)); }
+.dialog--metric { width: min(calc(var(--space-12) * 11 + var(--space-8)), calc(100vw - var(--space-12) - var(--space-4))); }
 .mdetail { display: flex; flex-direction: column; gap: var(--space-3); }
 .mdetail .muted { margin: 0; }
 .mdetail__chart { padding: var(--space-2) 0; }
 .mdetail__chart svg { width: 100%; height: auto; }
 .charttable td, .charttable th { padding: var(--space-1) var(--space-3); height: auto; }
+
+/* ---------- lists (the owner, 11 Oct): the list's page, the unsaved bar, a narrow toolbar ---------- */
+/* the data view may be narrower than its toolbar's words: the toolbar gives way (DataToolbar), never the page */
+.datapage, .datacard, .toolbar--page, .tb__lists { min-width: 0; }
+.datacard__trouble { padding: var(--space-3); }
+/* the list's page, in place of the toolbar; the records below are its preview */
+.listpage { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-bottom: 1px solid var(--border); }
+.listpage__row { display: flex; align-items: center; gap: var(--space-3); min-height: var(--space-8); }
+.listpage__row--top { align-items: flex-start; }
+.listpage__lab { flex: none; width: calc(var(--space-12) * 2 + var(--space-4)); font-size: var(--text-md); color: var(--text-2); }
+.listpage__row--top .listpage__lab { padding-top: var(--space-2); }
+.listpage__name { width: calc(var(--space-12) * 6); }
+.listpage__stack { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.listpage__line { display: flex; align-items: center; gap: var(--space-3); }
+.listpage label.check { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
+.listpage__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+/* what the toolbar changed, not yet in the list: Reset or Save to this list */
+.listbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--line); background: var(--surface-2); font-size: var(--text-sm); color: var(--text-2); }
+.listbar .spacer { flex: 1; }
+/* a required value refused, beside its cell */
+.cellerr { display: block; margin-top: var(--space-1); font-size: var(--text-sm); color: var(--bad); white-space: normal; }

@@ -3,7 +3,7 @@
  * review the same day): a trend line and one stacked bar for a split. Plain SVG; every mark
  * answers the pointer with its own x and y in a tooltip (a week and its value, a category and its
  * count and share), and a split always comes with its legend, so colour never stands alone. The
- * series colours are `--series-1…8` (app.css), checked for colour-blind separation in both themes.
+ * series colours are `--series-1…8` (app.css): the one accent, its tints and neutrals (11 Oct, U11).
  */
 import { useState, type ReactNode } from "react";
 import type { RecordRow } from "../core/client";

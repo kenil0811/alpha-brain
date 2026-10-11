@@ -1028,6 +1028,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .breadcrumb [aria-current="page"] { color: var(--text); font-weight: 500; }
 
 .mtile__big { font-family: var(--font-ed); font-size: var(--text-xl); line-height: 1.1; color: var(--navy); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mtile__big--none, .mtile--attention .mtile__big--none { font-family: var(--font-ui); font-size: var(--text-base); font-weight: 400; color: var(--text-3); }
 /* a metric tile, a section card and an empty card (ui/MetricTile, ui/SectionCard); the tile's number above, the rest of the tile in data.css */
 .scard { box-shadow: var(--shadow-card); }
 .scard__head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4) 0; }
