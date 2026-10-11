@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 11 October 2026, evening.** Last entries: modules as workflows, piece 2, the build from the page
+**As of 11 October 2026, night.** Last entries: modules as workflows, piece 2b, parts on linked things and
+the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
 ([`log/2026-10-11-build-from-the-page.md`](log/2026-10-11-build-from-the-page.md); run for real), piece 1, the interview and the page
 ([`log/2026-10-11-workflow-page.md`](log/2026-10-11-workflow-page.md); run for real), the rethink
 ([`log/2026-10-11-modules-as-workflows.md`](log/2026-10-11-modules-as-workflows.md), Q39, §12; no code changed), modules as programs, slice 1, the spine
@@ -42,19 +43,19 @@ fact origins, the module's page and the item pages
 of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
 contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
 
-## Numbers (`just stats`, 10 Oct, evening)
+## Numbers (`just stats`, 11 Oct, night)
 
 | | |
 |---|---|
-| Core tests | 266, in about 29 s; ruff and mypy strict clean |
+| Core tests | 267, in about 31 s; ruff and mypy strict clean |
 | Desktop tests | 87, in twenty-seven files; typecheck clean |
 | Tools the model sees | 79 |
 | Journeys | 25 defined; latest `docs/journeys/2026-10-11-1635.md`, 1 of 1 (the build from the page, 951 s); `2026-10-11-1457.md`, 1 of 1 (the interview and the page, 467 s) |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 163 total; 163 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 16,164 Python; tests 6,044; desktop 10,727 TS/TSX |
+| Commits | 167 total; 167 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 18,049 Python; tests 6,630; desktop 11,154 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -171,7 +172,7 @@ pending item 6, people for real, and noticing over what Alpha reads.
    runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
    installs Claude Code and Alpha's browser. Left: notarization (no Apple Developer account:
    right-click › Open for now); the friend's own first run, which decides it.
-9. **Modules as workflows (Q39, design §12)** ([`log/2026-10-11-build-from-the-page.md`](log/2026-10-11-build-from-the-page.md)): pieces 1–2 built and run for real (the page; the module and parts from it; a thing's page with its sources). **Next: Kenil's acceptance in the app** (ask for the car wash workflow, say yes to the page, add a site, put the Census key in Settings, see the gates fill, then one change by chat), then documents drafted from templates, the evaluator through the pages, the library across modules. The Car Wash Site Screener module of Q38 should be removed before the real ask so Alpha starts fresh.
+9. **Modules as workflows (Q39, design §12)** ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md)): pieces 1–2 built and run for real, the last time in Kenil's own app: the real ask became "Car Wash Site Scorecard — Austin" (module `m_12ac0a8738be`, 16 parts); 1600 S Lamar added; the app's scheduler ran the gates (37,900 AADT, Pass), the fourteen items as linked Score rows (four scored from Austin's and Travis County's open data, five flagged for a look, the Census ones waiting on the key) and the memo ("Needs more info"). Found by running: parts had to fill a linked thing, "after" had to mean ran, and the profile broke a workspace inside Alpha's home. **Next: Kenil's acceptance** (the free Census key into the module's Settings row `census_api_key`, Try again on the households gate and the two Census items, then one change by chat preserving his rows), then documents drafted from templates with a page, the evaluator through the pages, the library across modules; a part after a failed part is not rerun when the first later succeeds.
 10. **The research pass, the rest of Q37** ([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md)):
    watch the next real asks for the lean core (seven kept on the first); a piece's
    buildability feeding what capability to add next (computed things: a gate over a site's
