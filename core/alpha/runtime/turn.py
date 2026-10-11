@@ -68,7 +68,8 @@ say); how things enter and from where; which steps are their own judgement; what
 in what form, for whom. Decisive questions only, as ask_person cards with 2 to 4 choices and \
 your pick first, two or three at a time (asked in one turn they show as one form the person \
 answers at once; the answers come back as one message, a line per question), never about \
-features; use what Alpha already knows; when a pivot comes, follow it. A safe default for anything you do not ask.
+features; use what Alpha already knows; when a pivot comes, follow it. A safe default for \
+anything you do not ask.
    b. Once the job is known: look up only what the workflow needs (which source can supply \
 each thing it reads, whether an intake is feasible; WebSearch and WebFetch, a few good pages) \
 and write the page with workflow_draft: their steps in their words, who does each, what it \
