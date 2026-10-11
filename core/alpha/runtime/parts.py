@@ -26,8 +26,11 @@ part can read what earlier parts filled on them.
 
 A part that runs "when a row arrives" is run by the scheduler for every row whose fields it
 fills are still empty; "when asked" from the thing's page; "after <part>" once that part has
-run on the row (every field it fills has a value or a recorded problem). A row a part failed
-on twice is left alone, with the problem on the row.
+run on the row (every field it fills has a value or a recorded problem), and again whenever
+that part writes on the row after it did (a memo written before the gates filled). A row a
+part failed on twice is left alone, with the problem on the row, until something changes: a
+setting of the module, or the row itself (or a row it is linked to); then the fields that
+could not be filled are tried again (`retry`).
 """
 
 from __future__ import annotations
@@ -190,7 +193,7 @@ def run_part(world: World, module_id: str, part_id: str, row_id: str, *,
             src = answer["sources"].get(f) or {}
             entry.update({"source": str(src.get("source") or part["title"]),
                           "fetched_at": str(src.get("fetched_at") or stamp), "part": part_id,
-                          "attempts": 0})
+                          "attempts": 0, "at": stamp})
         elif f in answer["problems"]:
             entry.update({"problem": str(answer["problems"][f])[:300],
                           "attempts": int(entry.get("attempts") or 0) + 1, "at": stamp,
@@ -361,12 +364,40 @@ def due(world: World, module_id: str) -> list[tuple[str, str]]:
                 continue
         for row in world.collections.query(read_table, limit=None):
             rid = str(row["id"])
-            if _done(part, made(row)):
-                continue
-            if before and before_made is not None and not ran(before, before_made(row)):
+            mine = made(row)
+            earlier = before_made(row) if before and before_made is not None else None
+            if before and not ran(before, earlier):
                 continue  # the part before it has not run on this row (yet)
+            if _done(part, mine) and not (before and _stale(part, mine, before, earlier)):
+                continue
             out.append((part["id"], rid))
     return out
+
+
+def _stamp(part: dict[str, Any], made: dict[str, Any] | None, *, values_only: bool) -> str:
+    """When the part last wrote on the row (the core's own clock, `at`): a value it filled,
+    or, unless `values_only`, a problem it recorded."""
+    if made is None:
+        return ""
+    fields = (made.get("_provenance") or {}).get("fields") or {}
+    stamps = []
+    for f in part["fills"]["fields"]:
+        e = fields.get(f) or {}
+        if made.get(f) is not None:
+            stamps.append(str(e.get("at") or e.get("fetched_at") or ""))
+        elif not values_only:
+            stamps.append(str(e.get("at") or ""))
+    return max(stamps, default="")
+
+
+def _stale(part: dict[str, Any], made: dict[str, Any] | None, before: dict[str, Any],
+           earlier: dict[str, Any] | None) -> bool:
+    """The part before it filled a value on the row after this part last wrote: a memo
+    written before the gates filled, a score waiting on a value that has since arrived. A
+    failed try of the part before is not news."""
+    mine = _stamp(part, made, values_only=False)
+    theirs = _stamp(before, earlier, values_only=True)
+    return bool(theirs) and theirs > mine
 
 
 def _lands(world: World, table: str, read_table: str, part: dict[str, Any]
@@ -380,6 +411,51 @@ def _lands(world: World, table: str, read_table: str, part: dict[str, Any]
         return None
     made = _made_rows(world, table, link, part["id"])
     return lambda row: made.get(str(row["id"]))
+
+
+def retry(world: World, module_id: str, *, row: tuple[str, str] | None = None) -> int:
+    """Something changed: try again the fields that could not be filled. With `row` (a table
+    and a row the person changed), on that row and the rows linked to it; without (a setting
+    changed), on every row of the module. How many fields will be tried again."""
+    tables = [str(t["name"]) for t in world.collections.overview(module_id)]
+    settings = table_of(world, module_id, "settings")
+    rows: list[tuple[str, dict[str, Any]]] = []
+    if row is None:
+        for t in tables:
+            if t != settings:
+                rows += [(t, r) for r in world.collections.query(t, limit=None)]
+    else:
+        table, rid = row
+        try:
+            rows.append((table, world.collections.get(table, rid)))
+        except Problem:
+            return 0
+        for t in tables:
+            link = _link_field(world, t, table)
+            if link:
+                rows += [(t, r) for r in world.collections.query(t, {link: rid}, limit=None)]
+    count = 0
+    for table, r in rows:
+        prov = dict(r.get("_provenance") or {})
+        fields = dict(prov.get("fields") or {})
+        stale = [f for f, e in fields.items()
+                 if e.get("problem") and r.get(f) is None and int(e.get("attempts") or 0) > 0]
+        if not stale:
+            continue
+        for f in stale:
+            fields[f] = {**fields[f], "attempts": 0}
+        prov["fields"] = fields
+        try:
+            world.collections.update(table, str(r["id"]), {}, r["revision"], prov)
+        except Problem:
+            continue  # changed under us; the next change tries again
+        count += len(stale)
+    if count:
+        world.journal.append("did", f"Trying again the {count} field{'s' if count != 1 else ''}"
+                             " that could not be filled, since something they depend on"
+                             " changed.", actor="alpha", module=module_id,
+                             data={"fields": count, "row": list(row) if row else None})
+    return count
 
 
 def run_due(world: World, *, module_id: str | None = None) -> int:

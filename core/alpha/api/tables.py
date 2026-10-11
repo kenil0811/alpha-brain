@@ -33,7 +33,7 @@ from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
 from alpha.runtime import jobs, parts
 from alpha.world.modtables import is_qualified
-from alpha.world.store import Problem
+from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
 
 
@@ -282,11 +282,27 @@ def routes(app: FastAPI, s: Served) -> None:
         if body.revision is None:
             raise Problem("An edit needs the record's revision.")
         before = world.collections.get(name, rid)
-        rec = world.collections.update(name, rid, body.values, body.revision, {"by": "person"})
+        # The person's edit is the source of the fields they changed; the other fields keep
+        # theirs (a part's source and date, or its problem).
+        prov = dict(before.get("_provenance") or {})
+        fields = dict(prov.get("fields") or {})
+        for key in body.values:
+            fields[key] = {"source": "you", "fetched_at": now()}
+        prov.update({"by": "person", "fields": fields})
+        rec = world.collections.update(name, rid, body.values, body.revision, prov)
         person_did("changed", f"You changed {', '.join(body.values)} in "
                    f"{world.collections.describe(name)['title']}.", name,
                    {"record": rid, "before": {k: before.get(k) for k in body.values},
                     "after": body.values})
+        module_id = world.collections.describe(name)["module"]
+        if module_id and parts.parts_of(world.modules.get(module_id).get("workspace")):
+            # A changed setting, or a changed row, is a reason to try the parts again (§12).
+            is_setting = parts.table_of(world, module_id, "settings") == name
+            parts.retry(world, module_id, row=None if is_setting else (name, rid))
+            if live and scheduler is not None:
+                threading.Thread(target=parts.run_due, args=(world,),
+                                 kwargs={"module_id": module_id}, daemon=True,
+                                 name=f"parts-{module_id}").start()
         return rec
 
     @app.delete("/api/tables/{name}/records/{rid}", dependencies=[api])

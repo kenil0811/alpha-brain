@@ -203,17 +203,54 @@ def test_the_page_becomes_a_module_with_tables_and_parts_that_fill_rows(
     # A row the part cannot fill: the problem on the row, two tries, then left alone.
     bad = c.post("/api/tables/site/records", json={"values": {"address": "fail st"}}).json()
     # The checks fail twice in the one call (two rounds); the parts after them still run, with
-    # the empty fields in as null: the item (twice), then the memo once.
-    assert parts_module.run_due(world, module_id=module["id"]) == 5
+    # the empty fields in as null: the item (twice), then the memo once (and the first site's
+    # memo again when the item's Try again above landed a second after it).
+    assert parts_module.run_due(world, module_id=module["id"]) in (5, 6)
     row = world.collections.get("site", bad["id"])
     assert row.get("households") is None
     assert row["memo"].startswith("Memo for fail st: None households; Visibility: None")
     assert row["_provenance"]["fields"]["households"]["problem"] == "the geocoder found nothing"
     assert row["_provenance"]["fields"]["households"]["attempts"] == 2
     assert parts_module.due(world, module["id"]) == []  # two tries, left alone
+    # A changed setting is a reason to try again: the checks on the failed row become due;
+    # a changed row too, on that row and the score rows linked to it.
+    setting = world.collections.query("settings", where={"key": "min_households"})[0]
+    c.patch(f"/api/tables/settings/records/{setting['id']}",
+            json={"values": {"value": "40000"}, "revision": setting["revision"]})
+    assert ("checks", bad["id"]) in parts_module.due(world, module["id"])
+    assert parts_module.run_due(world, module_id=module["id"]) >= 2
+    assert parts_module.due(world, module["id"]) == []
+    row = world.collections.get("site", bad["id"])
+    c.patch(f"/api/tables/site/records/{bad['id']}",
+            json={"values": {"address": "2 fail st"}, "revision": row["revision"]})
+    due = parts_module.due(world, module["id"])
+    row = world.collections.get("site", bad["id"])
+    assert row["_provenance"]["fields"]["address"]["source"] == "you"
+    assert row["_provenance"]["fields"]["households"]["problem"]  # kept through the edit
+    assert ("checks", bad["id"]) in due and ("visibility", bad["id"]) in due
+    assert ("checks", rec["id"]) not in due
+    assert "Trying again the" in world.journal.recent(1, module=module["id"])[0]["text"]
+    parts_module.run_due(world, module_id=module["id"])
     # When asked, from the page.
     out = c.post(f"/api/modules/{module['id']}/parts/rescore/run", json={"row": rec["id"]}).json()
     assert out["ok"] and out["values"] == {"households": 52000}
+    # A part after another runs again when that one writes on the row after it did: the
+    # checks filled (a key arrived) after the item and the memo last ran → both are stale.
+    row = world.collections.get("site", rec["id"])
+    prov = row["_provenance"]
+    prov["fields"]["memo"]["at"] = "2000-01-01T00:00:00+00:00"
+    world.collections.update("site", rec["id"], {}, row["revision"], prov)
+    score = world.collections.query("score", where={"site": rec["id"]})[0]
+    prov = score["_provenance"]
+    for f in prov["fields"].values():
+        f["at"] = "2000-01-01T00:00:00+00:00"
+    world.collections.update("score", score["id"], {}, score["revision"], prov)
+    assert ("visibility", rec["id"]) in parts_module.due(world, module["id"])
+    assert ("memo", rec["id"]) not in parts_module.due(world, module["id"])  # after the item
+    assert parts_module.run_due(world, module_id=module["id"]) >= 2  # the item, then the memo
+    assert parts_module.due(world, module["id"]) == []
+    memo_at = world.collections.get("site", rec["id"])["_provenance"]["fields"]["memo"]
+    assert memo_at["at"] > "2026-01-01"
     assert [p["id"] for p in c.get(f"/api/modules/{module['id']}/parts").json()] == [
         "checks", "visibility", "memo", "rescore"]
     assert c.post(f"/api/modules/{module['id']}/parts/nope/run",
