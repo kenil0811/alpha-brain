@@ -19,4 +19,6 @@ export { MetricTile } from "./MetricTile";
 export { SectionCard, EmptyCard } from "./SectionCard";
 export { Rich } from "./Rich";
 export { ListRow } from "./ListRow";
+export { DateField } from "./DateField";
+export { NumberField } from "./NumberField";
 export { useWidth } from "./useWidth";

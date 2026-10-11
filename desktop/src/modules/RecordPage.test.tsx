@@ -55,9 +55,9 @@ describe("a record's page", () => {
     expect(await screen.findByRole("heading", { name: "Bakery" })).toBeInTheDocument();
     expect(screen.getByText("Deal")).toBeInTheDocument(); // the eyebrow
     expect(screen.getByLabelText(/^Title/)).toHaveValue("Bakery");
-    expect(screen.getByLabelText(/^Price/)).toHaveValue(350);
+    expect(screen.getByLabelText(/^Price/)).toHaveValue("350");
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent("Active");
-    expect(screen.getByLabelText(/^Opened/)).toHaveValue("2026-09-01");
+    expect(screen.getByLabelText(/^Opened/)).toHaveValue("1 Sep 2026");
     expect(screen.getByLabelText("What happened")).toHaveValue("");
     expect(screen.getByLabelText("What happened")).toHaveAttribute("placeholder", "Unknown");
     expect(screen.getAllByText("Last changed").length).toBeGreaterThan(0);
@@ -107,6 +107,21 @@ describe("a record's page", () => {
     expect(client.editRecord).toHaveBeenNthCalledWith(2, "deals", "r1", { price: 3505 }, 4);
   });
 
+  it("a date is typed day first and saved as the day; text it can't read stays, saying so", async () => {
+    const user = userEvent.setup();
+    const { client } = setup();
+    const opened = await screen.findByLabelText(/^Opened/);
+    await user.clear(opened);
+    await user.type(opened, "next friday please{Enter}");
+    expect(within(opened.closest(".recfield") as HTMLElement).getByRole("alert")).toHaveTextContent("Couldn't read that as a date");
+    expect(opened).toHaveValue("next friday please");
+    await user.clear(opened);
+    await user.type(opened, "13/10/2026{Enter}");
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { opened: "2026-10-13" }, 3));
+    expect(opened).toHaveValue("13 Oct 2026");
+    expect(client.editRecord).toHaveBeenCalledTimes(1);
+  });
+
   it("a field that can't be saved keeps the input and says why beside it", async () => {
     const user = userEvent.setup();
     const { client } = setup();
@@ -117,7 +132,7 @@ describe("a record's page", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("'price' must be a number");
     expect(price.closest(".recfield")).toContainElement(alert);
-    expect(price).toHaveValue(3505);
+    expect(price).toHaveValue("3,505");
     expect(screen.queryByText("Saved.")).toBeNull();
   });
 
@@ -185,7 +200,7 @@ describe("a record's page", () => {
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 300 }, 3));
     expect(await within(dialog).findByText("Undone")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Done" }));
-    expect(screen.getByLabelText(/^Price/)).toHaveValue(300);
+    expect(screen.getByLabelText(/^Price/)).toHaveValue("300");
   });
 
   it("⌘Z undoes the last change and ⇧⌘Z redoes it, each saved", async () => {

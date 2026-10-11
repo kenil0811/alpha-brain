@@ -226,7 +226,7 @@ describe("the toolbar", () => {
     // a number rule, then Clear all
     await user.click(screen.getByRole("button", { name: "Filter" }));
     await user.click(within(screen.getByRole("group", { name: "Filter by" })).getByRole("button", { name: "Price" }));
-    await user.type(await screen.findByRole("spinbutton", { name: "Value for Price" }), "200");
+    await user.type(await screen.findByRole("textbox", { name: "Value for Price" }), "200{Enter}");
     await waitFor(() => expect(screen.queryByText("Cafe")).toBeNull());
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Clear all" }));
@@ -317,7 +317,7 @@ describe("editing a cell", () => {
     const client = page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
     await user.dblClick(within(rowOf("Bakery")).getByText("300"));
-    let input = screen.getByRole("spinbutton", { name: "Price" });
+    let input = screen.getByRole("textbox", { name: "Price" });
     await user.clear(input);
     await user.type(input, "350");
     await user.click(document.body); // clicking away
@@ -326,10 +326,10 @@ describe("editing a cell", () => {
 
     await within(rowOf("Bakery")).findByText("350");
     await user.dblClick(within(rowOf("Bakery")).getByText("350"));
-    input = screen.getByRole("spinbutton", { name: "Price" });
+    input = screen.getByRole("textbox", { name: "Price" });
     await user.clear(input);
     await user.type(input, "999{Escape}");
-    expect(screen.queryByRole("spinbutton")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Price" })).toBeNull();
     expect(client.editRecord).toHaveBeenCalledTimes(1);
     expect(within(rowOf("Bakery")).getByText("350")).toBeInTheDocument();
   });
@@ -340,7 +340,7 @@ describe("editing a cell", () => {
     await screen.findByText("Bakery");
     within(rowOf("Bakery")).getByText("300").focus();
     await user.keyboard("{F2}");
-    const input = screen.getByRole("spinbutton", { name: "Price" });
+    const input = screen.getByRole("textbox", { name: "Price" });
     await user.clear(input);
     await user.type(input, "310{Enter}");
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 310 }, 3));
@@ -351,7 +351,7 @@ describe("editing a cell", () => {
     const client = page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
     await user.dblClick(within(rowOf("Bakery")).getByText("300"));
-    const input = screen.getByRole("spinbutton", { name: "Price" });
+    const input = screen.getByRole("textbox", { name: "Price" });
     await user.clear(input);
     await user.type(input, "350{Enter}");
     await within(rowOf("Bakery")).findByText("350");
@@ -375,7 +375,7 @@ describe("editing a cell", () => {
     const { rerender } = render(ui(0));
     await screen.findByText("Bakery");
     await user.dblClick(within(rowOf("Bakery")).getByText("300"));
-    const input = screen.getByRole("spinbutton", { name: "Price" });
+    const input = screen.getByRole("textbox", { name: "Price" });
     await user.clear(input);
     await user.type(input, "350{Enter}");
     await within(rowOf("Bakery")).findByText("350");
@@ -677,7 +677,7 @@ describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
     await user.click(screen.getByRole("button", { name: "Edit property" }));
     await user.click(screen.getByRole("combobox", { name: "Property to change" }));
     await user.click(screen.getByRole("option", { name: "Price" }));
-    await user.type(screen.getByRole("spinbutton", { name: "New value" }), "5");
+    await user.type(screen.getByRole("textbox", { name: "New value" }), "5");
     await user.click(screen.getByRole("button", { name: "Apply to 2" }));
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledTimes(2));
     expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 5 }, 3);
@@ -712,7 +712,7 @@ describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
     const runs = within(screen.getByRole("row", { name: "Open Alpha" })).getByText("4").closest("td")!;
     expect(runs).toHaveAttribute("title", "Counted by Alpha.");
     await user.dblClick(runs);
-    expect(screen.queryByRole("spinbutton")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Runs" })).toBeNull();
     await user.dblClick(screen.getByText("Alpha"));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
   });

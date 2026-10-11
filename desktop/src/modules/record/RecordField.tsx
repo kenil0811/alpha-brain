@@ -1,6 +1,6 @@
 /**
  * One field of a record page, labelled and editable, sized to the answer it expects (the UI
- * rulebook §7 and §15): a short input for a short value, a text area for long text, number, date
+ * rulebook §7 and §15): a short input for a short value, a text area for long text, kit number and date
  * and date-time inputs, a dropdown for a choice or a status, the multiple dropdown for several choices, a pill
  * that opens the related record (with a dropdown to point it elsewhere), a file that opens or is
  * shown in Finder. Nothing here writes: typing reports the value to the page (`onChange`), and
@@ -12,10 +12,11 @@
 import { useEffect, useState } from "react";
 import type { Client, DocumentInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
-import { Badge, Button, Dropdown, IconButton, Notice, type DropdownOption } from "../../ui";
+import { Badge, Button, DateField, Dropdown, IconButton, Notice, NumberField, type DropdownOption } from "../../ui";
 import { MultiDropdown } from "../../ui/Dropdown";
 import { FolderOpen } from "../../ui/icons";
-import { coerce, editText, isNumeric, titleFieldOf, type FieldInfo } from "../fields";
+import { coerce, editText, inputType, isNumeric, titleFieldOf, type FieldInfo } from "../fields";
+import { parseDate, parseNumber } from "../parse";
 import { humanize } from "../format";
 
 export const fieldLabel = (f: FieldInfo) => f.label || humanize(f.name);
@@ -31,11 +32,8 @@ export function marks(row: RecordRow | null, field: FieldInfo): { mark: "Estimat
   return out;
 }
 
-/** What a stored value looks like in a field's input (a date-time input wants no seconds). */
-function inputText(value: unknown, field: FieldInfo): string {
-  const text = editText(value, field.kind);
-  return field.kind === "datetime" ? text.slice(0, 16) : text;
-}
+/** What a stored value looks like in a field's input. */
+const inputText = (value: unknown, field: FieldInfo) => editText(value, field.kind);
 
 function RelationField({ client, field, value, relations, relatedTitle, open, onChange }: { client: Client; field: FieldInfo; value: unknown; relations?: Relations; relatedTitle?: string; open: (() => void) | null; onChange: (v: unknown) => void }) {
   const target = field.relation ?? "";
@@ -106,7 +104,7 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
   const short = kind === "number" || kind === "date" || kind === "datetime" || kind === "bool" || kind === "choice" || kind === "status";
   const choices = field.choices ?? [];
   const text = (type: string) => (
-    <input id={inputId} className="textfield" type={type} step={kind === "number" ? "any" : undefined} value={inputText(value, field)} placeholder="Unknown" aria-invalid={error ? true : undefined} onChange={(e) => onChange(coerce(e.target.value, kind))} onBlur={(e) => onCommit(coerce(e.target.value, kind))} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
+    <input id={inputId} className="textfield" type={type} value={inputText(value, field)} placeholder="Unknown" aria-invalid={error ? true : undefined} onChange={(e) => onChange(coerce(e.target.value, kind))} onBlur={(e) => onCommit(coerce(e.target.value, kind))} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
   );
   let control;
   if (kind === "long_text") {
@@ -122,8 +120,14 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
     control = <RelationField client={client} field={field} value={value} relations={relations} relatedTitle={relatedTitle} open={open} onChange={onCommit} />;
   } else if (kind === "file") {
     control = <FileField client={client} id={isEmpty(value) ? "" : String(value)} />;
+  } else if (isNumeric(kind)) {
+    // Typing marks the page unsaved once the text reads as a number; leaving or Enter saves.
+    control = <NumberField id={inputId} unit={field.unit} value={typeof value === "number" ? value : null} placeholder="Unknown" aria-invalid={error ? true : undefined} onInput={(e) => { const n = parseNumber(e.currentTarget.value, field.unit); if (n !== null) onChange(n); }} onChange={onCommit} />;
+  } else if (kind === "date" || kind === "datetime") {
+    const withTime = kind === "datetime";
+    control = <DateField id={inputId} label={label} withTime={withTime} value={isEmpty(value) ? null : String(value)} placeholder="Unknown" aria-invalid={error ? true : undefined} onInput={(e) => { const d = parseDate(e.currentTarget.value, new Date()); if (d) onChange(withTime ? (d.hasTime ? d.iso : `${d.iso}T00:00`) : d.iso.slice(0, 10)); }} onChange={onCommit} />;
   } else {
-    control = text(kind === "number" ? "number" : kind === "date" ? "date" : kind === "datetime" ? "datetime-local" : kind === "url" ? "url" : "text");
+    control = text(inputType(kind));
   }
   return (
     <div className={`recfield${short ? " recfield--short" : ""}${error ? " recfield--bad" : ""}`}>

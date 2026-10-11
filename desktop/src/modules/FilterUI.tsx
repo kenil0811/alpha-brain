@@ -9,7 +9,7 @@
 import { useState } from "react";
 import type { FieldInfo } from "./fields";
 import { humanize } from "./format";
-import { Badge, Button, Dropdown, IconButton, Popover } from "../ui";
+import { Badge, Button, DateField, Dropdown, IconButton, NumberField, Popover } from "../ui";
 import { ArrowDown, ArrowUp, DeleteIcon, GripIcon, ICON_SM, PlusIcon, X } from "../ui/icons";
 import { isGroup, needsValue, opsFor, OP_LABEL, RELATIVE_DAYS, WITHIN, type FilterGroup, type FilterOp, type FilterRule, type Sort } from "./views/engine";
 
@@ -40,11 +40,12 @@ function ValueEditor({ field, rule, onChange }: { field: FieldInfo | undefined; 
     return (
       <>
         <Dropdown size="sm" label={`${label}: when`} value={exact ? "exact" : value} onChange={(v) => onChange(v === "exact" ? "" : v)} options={[...Object.entries(RELATIVE_DAYS).map(([v, l]) => ({ value: v, label: l })), { value: "exact", label: "Exact date" }]} />
-        {exact ? <input className="frule__input" type="date" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} /> : null}
+        {exact ? <DateField className="frule__input" label={label} value={value || null} onChange={(iso) => onChange(iso ?? "")} /> : null}
       </>
     );
   }
-  return <input className="frule__input" type={kind === "number" ? "number" : "text"} aria-label={label} placeholder="Value" value={value} onChange={(e) => onChange(e.target.value)} />;
+  if (kind === "number") return <NumberField className="frule__input" label={label} unit={field?.unit} placeholder="Value" value={value === "" ? null : Number(value)} onChange={(n) => onChange(n === null ? "" : String(n))} />;
+  return <input className="frule__input" type="text" aria-label={label} placeholder="Value" value={value} onChange={(e) => onChange(e.target.value)} />;
 }
 
 /** One rule: [property] · operator · value · delete. */

@@ -3,6 +3,7 @@
  * every derived page, table cell and form in the shell.
  */
 import { formatDay, formatNumber, humanize, when } from "./format";
+import { parseDate, parseNumber } from "./parse";
 
 export interface FieldInfo {
   name: string;
@@ -37,12 +38,19 @@ export function showValue(value: unknown, kind: string, unit?: string | null): s
   return String(value);
 }
 
-/** Typed text back into a stored value. Empty text clears the field. */
-export function coerce(text: string, kind: string): unknown {
+/** Typed text back into a stored value, read generously ("1.2k", "13/10", "next friday").
+ *  Empty text clears the field; text that can't be read is passed on as typed, for the core to
+ *  refuse with its reason. */
+export function coerce(text: string, kind: string, unit?: string | null): unknown {
   if (isNumeric(kind)) {
     if (text.trim() === "") return null;
-    const n = Number(text);
-    return Number.isFinite(n) ? n : text;
+    return parseNumber(text, unit) ?? text;
+  }
+  if (DATE_KINDS.has(kind)) {
+    if (text.trim() === "") return null;
+    const read = parseDate(text, new Date());
+    if (!read) return text;
+    return kind === "date" ? read.iso.slice(0, 10) : read.hasTime ? read.iso : `${read.iso}T00:00`;
   }
   if (kind === "bool") return text === "true";
   if (kind === "multichoice") {
@@ -55,10 +63,10 @@ export function coerce(text: string, kind: string): unknown {
   return text === "" ? null : text;
 }
 
+/** The native input type for a kind that has no kit field of its own. Numbers and dates are
+ *  typed as text and read by `NumberField` and `DateField` (native number and date inputs
+ *  silently drop "1.2k" or "13/10"). */
 export function inputType(kind: string): string {
-  if (isNumeric(kind)) return "number";
-  if (kind === "date") return "date";
-  if (kind === "datetime") return "datetime-local";
   if (kind === "url") return "url";
   return "text";
 }

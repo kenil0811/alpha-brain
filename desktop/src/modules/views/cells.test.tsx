@@ -45,4 +45,30 @@ describe("a cell", () => {
     show("Readers fill this.");
     expect(screen.queryByRole("button", { name: /^Edit/ })).toBeNull();
   });
+
+  it("an edited number reads 1.2k, and keeps text it can't read open with the reason", async () => {
+    const user = userEvent.setup();
+    const onCommit = vi.fn();
+    const onEditing = vi.fn();
+    render(
+      <TooltipProvider>
+        <table>
+          <tbody>
+            <tr>
+              <Cell row={row} field={{ name: "price", kind: "number" }} onCommit={onCommit} editing onEditing={onEditing} />
+            </tr>
+          </tbody>
+        </table>
+      </TooltipProvider>,
+    );
+    const box = screen.getByRole("textbox", { name: "Price" });
+    await user.clear(box);
+    await user.type(box, "320 kcal{Enter}");
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't read that as a number.");
+    expect(onCommit).not.toHaveBeenCalled();
+    await user.clear(box);
+    await user.type(box, "1.2k{Enter}");
+    expect(onCommit).toHaveBeenCalledWith("1200");
+    expect(onEditing).toHaveBeenCalledWith(false);
+  });
 });

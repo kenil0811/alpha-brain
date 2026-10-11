@@ -8,7 +8,7 @@ import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { dayText, humanize } from "../format";
-import { Badge, Dropdown, IconButton, Tooltip } from "../../ui";
+import { Badge, DateField, Dropdown, IconButton, NumberField, Tooltip } from "../../ui";
 import { Check, FolderOpen, ICON_SM, Pencil } from "../../ui/icons";
 
 /** When a reader-fed row came and went, as dates: "New · 9 Oct" (first seen today), "Since 2 Oct",
@@ -74,7 +74,18 @@ function CellEditor({ field, value, onDone }: { field: FieldInfo; value: unknown
   if (field.kind === "long_text") {
     return <textarea autoFocus rows={3} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} />;
   }
-  return <input autoFocus type={inputType(field.kind)} step={field.kind === "number" ? "any" : undefined} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />;
+  // A number or a date is saved when it can be read; text it can't read stays, saying so.
+  const cancel = (e: KeyboardEvent) => {
+    e.stopPropagation();
+    if (e.key === "Escape") finish(null);
+  };
+  if (isNumeric(field.kind)) {
+    return <NumberField autoFocus className="" unit={field.unit} label={label} value={typeof value === "number" ? value : null} onChange={(n) => finish(n === null ? "" : String(n))} onFocus={(e) => e.currentTarget.select()} onKeyDown={cancel} />;
+  }
+  if (field.kind === "date" || field.kind === "datetime") {
+    return <DateField autoFocus className="" withTime={field.kind === "datetime"} label={label} value={typeof value === "string" ? value : null} onChange={(iso) => finish(iso ?? "")} onFocus={(e) => e.currentTarget.select()} onKeyDown={cancel} />;
+  }
+  return <input autoFocus type={inputType(field.kind)} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />;
 }
 
 /** Whether a cell can be edited in place: relations and files change another way. */
