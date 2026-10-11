@@ -22,7 +22,7 @@ import { humanize } from "../format";
 import { Link2, ChevronRight, GroupIcon, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClearIcon, CopyIcon, DeleteIcon, EditIcon, FilterIcon, FreezeIcon, HideIcon, HistoryIcon, ICON_SM, OpenIcon, PinIcon, PlusIcon, SortAscIcon, SortDescIcon, TotalIcon, UnpinIcon } from "../../ui/icons";
 import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../../ui";
 import { ADD_COLUMN_REASON } from "../DataToolbar";
-import { nextSort, summarize, summaryOpsFor, SUMMARY_LABEL, type ColorTone, type Group, type Sort, type SummaryOp } from "./engine";
+import { nextSort, summarize, summaryOpsFor, SUMMARY_LABEL, titleText, type ColorTone, type Group, type Sort, type SummaryOp } from "./engine";
 import { Cell, SeenCell, cellEditable } from "./cells";
 
 /** How long a click waits to see whether it is the first half of a double-click (which edits a
@@ -124,7 +124,8 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   }, [editRequest]);
   const openTimer = useRef<number | undefined>(undefined);
   const pinnedSet = new Set(pinned);
-  const titleOf = (row: RecordRow) => String(row.values[titleField ?? fields[0]?.name] ?? row.id);
+  const titleKey = titleField ?? fields[0]?.name;
+  const titleOf = (row: RecordRow) => titleText(row, titleKey);
   const wide = columns.length + (seen ? 1 : 0) + 1;
   const canEdit = (f: FieldInfo) => !editReason && cellEditable(f);
   const canEditCell = (row: RecordRow, f: FieldInfo) => canEdit(f) && !lockedFor?.(row, f);
@@ -182,6 +183,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   // the footer's calculation dropdown, also opened from a heading's Calculate…: once the heading's
   // menu has closed and handed the focus back to the heading (sooner, the hand-back would close it)
   const calcNext = useRef<string | null>(null);
+  const [footAsked, setFootAsked] = useState(false);
   const calcAfterFocus = (c: string) => {
     if (calcNext.current !== c) return;
     calcNext.current = null;
@@ -198,7 +200,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
       { label: "Sort descending", icon: <SortDescIcon size={ICON_SM} />, onSelect: () => onSort({ field: c, direction: "desc" }) },
       ...(sort?.field === c ? [{ label: "Clear sort", onSelect: () => onSort(null) }] : []),
       { label: "Group by this", icon: <GroupIcon size={ICON_SM} />, onSelect: () => columnActions.group?.(c), disabled: columnActions.group ? undefined : "This view can't be grouped." },
-      { label: "Calculate…", icon: <TotalIcon size={ICON_SM} />, onSelect: () => { calcNext.current = c; } },
+      { label: "Calculate…", icon: <TotalIcon size={ICON_SM} />, onSelect: () => { calcNext.current = c; setFootAsked(true); } },
       { label: "Hide", icon: <HideIcon size={ICON_SM} />, separatorBefore: true, onSelect: () => columnActions.hide(c), disabled: columns.length <= 1 ? "A table keeps at least one column." : undefined },
       { label: at < frozen ? "Unfreeze columns" : "Freeze up to here", icon: <FreezeIcon size={ICON_SM} />, onSelect: () => columnActions.freeze(c) },
       { label: "Wrap text", icon: <WrapText size={ICON_SM} />, on: wrapped.has(c), onSelect: () => columnActions.wrap(c), disabled: wrapAll ? "Wrap all columns is on in Layout." : undefined },
@@ -365,6 +367,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                 if (!on) window.setTimeout(() => focusCell(r, i)); // back to the cell, for the keyboard
               }}
               locked={editReason ? null : lockedFor?.(row, field)}
+              empty={c === titleKey ? "Untitled" : undefined}
               relations={relations}
               onOpenRelated={onOpenRelated}
               files={files}
@@ -413,6 +416,9 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
         </td>
       );
     });
+  // a footer only when some column sums something up: never an empty band (U24); "Calculate…" is
+  // also on every column's menu
+  const sums = columns.some((c) => (summaries[c] ?? "none") !== "none");
   const body = groups
     ? groups.map((g) => {
         const shut = collapsed.includes(g.key);
@@ -422,16 +428,16 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
               <button type="button" className="grouphead" aria-expanded={!shut} onClick={() => onCollapse?.(g.key)}>
                 <ChevronRight size={ICON_SM} className={shut ? "grouphead__chev" : "grouphead__chev grouphead__chev--open"} aria-hidden="true" />
                 <Badge tone="gray">{g.label}</Badge>
-                <span className="faint num">{g.rows.length}</span>
+                <span className="faint num">{(g.every ?? g.rows).length}</span>
               </button>
             </td>
           </tr>,
           ...(shut ? [] : g.rows.map(renderRow)),
-          ...(shut || !g.rows.length || !columns.some((c) => (summaries[c] ?? "none") !== "none")
+          ...(shut || !g.rows.length || !sums
             ? []
             : [
                 <tr key={`gf-${g.key}`} className="row--groupfoot">
-                  {footCells(g.rows, g.label)}
+                  {footCells(g.every ?? g.rows, g.label)}
                   {seen ? <td /> : null}
                   <td />
                 </tr>,
@@ -472,7 +478,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                   ) : null}
                   <button type="button" className="th__label" title="Sort by this column; drag to move it" onClick={() => onSort(nextSort(sort, c))}>
                     {label}
-                    {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : null}
+                    {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={ICON_SM} aria-label="ascending" /> : <ArrowDown size={ICON_SM} aria-label="descending" />) : null}
                   </button>
                   <IconButton size="sm" className="th__menu" label={`Options for ${label}`} icon={<ChevronDown size={ICON_SM} />} onClick={(e) => columnMenu.openFrom(c, e.currentTarget)} />
                   <span
@@ -525,13 +531,15 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
             </td>
           </tr>
         </tbody>
-        <tfoot>
-          <tr>
-            {footCells(summaryRows)}
-            {seen ? <td /> : null}
-            <td />
-          </tr>
-        </tfoot>
+        {sums || footAsked ? (
+          <tfoot>
+            <tr>
+              {footCells(summaryRows)}
+              {seen ? <td /> : null}
+              <td />
+            </tr>
+          </tfoot>
+        ) : null}
       </table>
       {columnMenu.menu}
       {cellMenu.menu}

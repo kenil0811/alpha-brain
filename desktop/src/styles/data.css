@@ -242,3 +242,4 @@
 .listbar .spacer { flex: 1; }
 /* a required value refused, beside its cell */
 .cellerr { display: block; margin-top: var(--space-1); font-size: var(--text-sm); color: var(--bad); white-space: normal; }
+.board__empty { padding: var(--space-3); }

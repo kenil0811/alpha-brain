@@ -53,26 +53,35 @@ export function RelationCell({ row, field, relations, onOpenRelated, tdProps, ad
  *  once (`done`), because a removed input may still blur. */
 function CellEditor({ field, value, onDone }: { field: FieldInfo; value: unknown; onDone: (text: string | null) => void }) {
   const [text, setText] = useState(() => editText(value, field.kind));
+  const [refused, setRefused] = useState<string | null>(null);
   const done = useRef(false);
+  const label = humanize(field.name);
   const finish = (next: string | null) => {
     if (done.current) return;
+    // a required field is never emptied: refused beside it, in plain words, and left as it was (U24)
+    if (next !== null && field.required && !next.trim()) return setRefused(`${field.label ?? label} can't be empty. Type a value, or press Escape.`);
     done.current = true;
     onDone(next);
   };
-  const label = humanize(field.name);
+  const refusal = refused ? <span className="cellerr" role="alert">{refused}</span> : null;
   const key = (e: KeyboardEvent) => {
     e.stopPropagation(); // the row and the page behind must not hear it
     if (e.key === "Enter" && field.kind !== "long_text") finish(text);
     if (e.key === "Escape") finish(null);
   };
   if (field.kind === "choice" || field.kind === "status") {
-    return <Dropdown defaultOpen size="sm" label={label} value={text} onChange={(v) => finish(v)} onOpenChange={(o) => !o && finish(null)} placeholder="—" options={[{ value: "", label: "—" }, ...(field.choices ?? []).map((c) => ({ value: c, label: humanize(c) }))]} />;
+    return <Dropdown defaultOpen size="sm" label={label} value={text} onChange={(v) => finish(v)} onOpenChange={(o) => !o && finish(null)} placeholder="—" options={[...(field.required ? [] : [{ value: "", label: "—" }]), ...(field.choices ?? []).map((c) => ({ value: c, label: humanize(c) }))]} />;
   }
   if (field.kind === "bool") {
     return <Dropdown defaultOpen size="sm" label={label} value={text || "false"} onChange={(v) => finish(v)} onOpenChange={(o) => !o && finish(null)} options={[{ value: "false", label: "No" }, { value: "true", label: "Yes" }]} />;
   }
   if (field.kind === "long_text") {
-    return <textarea autoFocus rows={3} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} />;
+    return (
+      <>
+        <textarea autoFocus rows={3} value={text} onChange={(e) => { setText(e.target.value); setRefused(null); }} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} />
+        {refusal}
+      </>
+    );
   }
   // A number or a date is saved when it can be read; text it can't read stays, saying so.
   const cancel = (e: KeyboardEvent) => {
@@ -80,12 +89,17 @@ function CellEditor({ field, value, onDone }: { field: FieldInfo; value: unknown
     if (e.key === "Escape") finish(null);
   };
   if (isNumeric(field.kind)) {
-    return <NumberField autoFocus className="" unit={field.unit} label={label} value={typeof value === "number" ? value : null} onChange={(n) => finish(n === null ? "" : String(n))} onFocus={(e) => e.currentTarget.select()} onKeyDown={cancel} />;
+    return <NumberField autoFocus className="" required={field.required} unit={field.unit} label={label} value={typeof value === "number" ? value : null} onChange={(n) => finish(n === null ? "" : String(n))} onFocus={(e) => e.currentTarget.select()} onKeyDown={cancel} />;
   }
   if (field.kind === "date" || field.kind === "datetime") {
-    return <DateField autoFocus className="" withTime={field.kind === "datetime"} label={label} value={typeof value === "string" ? value : null} onChange={(iso) => finish(iso ?? "")} onFocus={(e) => e.currentTarget.select()} onKeyDown={cancel} />;
+    return <DateField autoFocus className="" required={field.required} withTime={field.kind === "datetime"} label={label} value={typeof value === "string" ? value : null} onChange={(iso) => finish(iso ?? "")} onFocus={(e) => e.currentTarget.select()} onKeyDown={cancel} />;
   }
-  return <input autoFocus type={inputType(field.kind)} value={text} onChange={(e) => setText(e.target.value)} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />;
+  return (
+    <>
+      <input autoFocus type={inputType(field.kind)} value={text} onChange={(e) => { setText(e.target.value); setRefused(null); }} onFocus={(e) => e.currentTarget.select()} onBlur={() => finish(text)} onKeyDown={key} aria-label={label} aria-invalid={refused ? true : undefined} placeholder={field.kind === "multichoice" ? (field.choices ?? []).join(", ") : undefined} />
+      {refusal}
+    </>
+  );
 }
 
 /** Whether a cell can be edited in place: relations and files change another way. */
@@ -101,7 +115,7 @@ export function cellEditable(field: FieldInfo): boolean {
  * table puts on every cell (its context menu, a frozen column's place); `adornment` is a small
  * mark before the value (the pin).
  */
-export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, editing: editingProp, onEditing, tdProps, adornment, locked }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; editing?: boolean; onEditing?: (on: boolean) => void; tdProps?: TdProps; adornment?: ReactNode; /** Why this cell can't change, if it can't: shown on hover, and it never opens for editing. */ locked?: string | null }) {
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, editing: editingProp, onEditing, tdProps, adornment, locked, empty = "—" }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; editing?: boolean; onEditing?: (on: boolean) => void; tdProps?: TdProps; adornment?: ReactNode; /** Why this cell can't change, if it can't: shown on hover, and it never opens for editing. */ locked?: string | null; /** What an empty value shows: "—", or "Untitled" in the title column. */ empty?: string }) {
   const [own, setOwn] = useState(false);
   const editing = editingProp ?? own;
   const setEditing = onEditing ?? setOwn;
@@ -153,7 +167,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
       title={locked ?? (rests ? `${rests} Double-click to correct it.` : "Double-click to edit")}
     >
       {adornment}
-      {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <Badge tone={field.done_choices?.includes(String(value)) ? "good" : "gray"}>{words}</Badge> : field.kind === "bool" ? (value ? <Check size={ICON_SM} aria-label="Yes" /> : <span className="faint">—</span>) : words}
+      {words === "" ? <span className="faint">{empty}</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <Badge tone={field.done_choices?.includes(String(value)) ? "good" : "gray"}>{words}</Badge> : field.kind === "bool" ? (value ? <Check size={ICON_SM} aria-label="Yes" /> : <span className="faint">—</span>) : words}
       {estimate || (assumed && numeric) ? (
         <Tooltip text={`${rests} Double-click the cell to correct it.`}>
           <Badge tone="gray" className="provchip" tabIndex={0} aria-label={`${estimate ? "Estimated" : "Assumed"}: ${rests}`}>

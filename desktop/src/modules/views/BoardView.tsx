@@ -4,7 +4,7 @@
 import { type DragEvent, type ReactNode, useState } from "react";
 import type { RecordRow } from "../../core/client";
 import { showValue, type FieldInfo } from "../fields";
-import { groupRows, type ColorTone } from "./engine";
+import { groupRows, titleText, type ColorTone } from "./engine";
 
 function Board({ rows, field, titleField, extras, onOpen, onMove, hideEmpty, order, toneOf, rowIcon }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; extras: FieldInfo[]; onOpen: (id: string) => void; onMove?: (row: RecordRow, value: string) => void; hideEmpty?: boolean; order?: "manual" | "asc" | "desc"; toneOf?: (row: RecordRow) => ColorTone | undefined; rowIcon?: (row: RecordRow) => ReactNode }) {
   const [over, setOver] = useState<string | null>(null);
@@ -31,7 +31,7 @@ function Board({ rows, field, titleField, extras, onOpen, onMove, hideEmpty, ord
                 <button key={row.id} type="button" className={`board__card${tone ? ` tone--${tone}` : ""}`} draggable={Boolean(onMove)} onDragStart={(e) => e.dataTransfer.setData("text/plain", row.id)} onClick={() => onOpen(row.id)}>
                   <b>
                     {rowIcon?.(row)}
-                    {titleField ? String(row.values[titleField] ?? "Untitled") : row.id}
+                    {titleText(row, titleField)}
                   </b>
                   {extras.map((f) => (
                     <span key={f.name} className="faint">
@@ -41,7 +41,7 @@ function Board({ rows, field, titleField, extras, onOpen, onMove, hideEmpty, ord
                 </button>
               );
             })}
-            {!cards.length ? <p className="empty" style={{ padding: 12 }}>Nothing here</p> : null}
+            {!cards.length ? <p className="empty board__empty">Nothing here</p> : null}
           </div>
         );
       })}

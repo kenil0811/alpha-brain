@@ -184,6 +184,15 @@ export function defaultSummary(kind: string): SummaryOp {
 }
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length);
+
+/** A record with no value at all: a blank left behind, never shown as if it were a real row (U24). */
+export const isBlank = (row: RecordRow) => !Object.values(row.values).some(present);
+
+/** What a record is called: its title, or "Untitled" when it has none (never its id, U24). */
+export function titleText(row: RecordRow, titleField: string | undefined): string {
+  const v = titleField ? row.values[titleField] : undefined;
+  return present(v) && String(v).trim() ? String(v) : "Untitled";
+}
 const DAY_MS = 86_400_000;
 
 /** The footer's words for one column over the records the view shows (not only the page), or
@@ -409,7 +418,11 @@ export function sortRows(rows: RecordRow[], sorts: Sort[], byName: Map<string, F
 export interface Group {
   key: string;
   label: string;
+  /** The group's rows on this page. */
   rows: RecordRow[];
+  /** The group's rows in the whole filtered result, when the view pages (its count and footer
+   *  are over these, not the page: U18). */
+  every?: RecordRow[];
 }
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

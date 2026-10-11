@@ -2,7 +2,7 @@
  *  than scanning. */
 import type { ReactNode } from "react";
 import type { RecordRow } from "../../core/client";
-import type { ColorTone } from "./engine";
+import { titleText, type ColorTone } from "./engine";
 import { showValue, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 
@@ -13,7 +13,7 @@ export function GalleryView({ rows, fields, titleField, onOpen, toneOf, rowIcon 
     <div className="gallery">
       {rows.map((row) => (
         <button key={row.id} type="button" className={`gallery__card${toneOf?.(row) ? ` tone--${toneOf(row)}` : ""}`} onClick={() => onOpen(row.id)}>
-          <b>{rowIcon?.(row)}{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
+          <b>{rowIcon?.(row)}{titleText(row, titleField)}</b>
           {shown.map((f) => {
             const words = showValue(row.values[f.name], f.kind, f.unit);
             if (!words) return null;

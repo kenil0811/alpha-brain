@@ -4,7 +4,7 @@ import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { IconButton } from "../../ui";
 import { ChevronLeft, ChevronRight } from "../../ui/icons";
-import { byDay } from "./engine";
+import { byDay, titleText } from "./engine";
 
 export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; month: { y: number; m: number }; onMonth: (m: { y: number; m: number }) => void; onOpen: (id: string) => void }) {
   const first = new Date(month.y, month.m, 1);
@@ -36,7 +36,7 @@ export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }
               {day ? <span className="calendar__num">{day}</span> : null}
               {(all === iso ? items : items.slice(0, 3)).map((row) => (
                 <button key={row.id} type="button" className="calendar__chip" onClick={() => onOpen(row.id)}>
-                  {titleField ? String(row.values[titleField] ?? "Untitled") : row.id}
+                  {titleText(row, titleField)}
                 </button>
               ))}
               {items.length > 3 && all !== iso ? (

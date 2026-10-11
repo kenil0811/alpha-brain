@@ -34,3 +34,13 @@ describe("dates", () => {
     expect(when("soon")).toBe("soon");
   });
 });
+
+describe("recent", () => {
+  it("says a near moment the near way and keeps the exact one for the hover", async () => {
+    const { recent } = await import("./format");
+    const now = new Date(2026, 9, 11, 15, 0);
+    expect(recent(new Date(2026, 9, 11, 14, 57).toISOString(), now)).toEqual({ text: "3 min ago", title: "11 Oct 2026, 14:57" });
+    expect(recent(new Date(2026, 9, 11, 9, 5).toISOString(), now).text).toBe("09:05");
+    expect(recent(new Date(2026, 9, 2, 9, 5).toISOString(), now).text).toBe("2 Oct, 09:05");
+  });
+});

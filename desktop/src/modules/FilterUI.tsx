@@ -166,14 +166,14 @@ export function FilterBar({ fields, rules, onRules, advanced, onAdvanced, sorts,
         text
       )}
       <button type="button" className="fpill__x" aria-label={`Remove filter: ${text}`} onClick={(e) => { e.stopPropagation(); onOpenChip(null); remove(); }}>
-        <X size={12} aria-hidden="true" />
+        <X size={ICON_SM} aria-hidden="true" />
       </button>
     </Badge>
   );
   return (
     <div className="fpills" aria-label="Active filters">
       {sorts.length ? (
-        <Popover label="Sort" align="start" open={openChip === "sort"} onOpenChange={opener("sort")} trigger={<span>{chip(sorts.map((s) => `${s.direction === "asc" ? "↑" : "↓"} ${fieldLabel(byName.get(s.field), s.field)}`).join(", "), () => onSorts([]), () => onOpenChip("sort"))}</span>}>
+        <Popover label="Sort" align="start" open={openChip === "sort"} onOpenChange={opener("sort")} trigger={<span>{chip(sorts.map((s) => `${fieldLabel(byName.get(s.field), s.field)} ${s.direction === "asc" ? "ascending" : "descending"}`).join(", "), () => onSorts([]), () => onOpenChip("sort"))}</span>}>
           <SortEditor fields={fields} sorts={sorts} onChange={onSorts} />
         </Popover>
       ) : null}

@@ -65,12 +65,31 @@ function page(rows: RecordRow[], props: Partial<Parameters<typeof DataPage>[0]> 
   );
   return client;
 }
-/** ⋮ › Layout › Layout: pick a view type for the open tab. */
-async function pickLayout(user: ReturnType<typeof userEvent.setup>, name: string) {
+/** ⋮ › a view setting: it opens in its dialog once the menu has handed the focus back. */
+async function openSetting(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(screen.getByRole("button", { name: "More" }));
-  await user.click(screen.getByRole("button", { name: /^Layout/ }));
+  await user.click(await screen.findByRole("menuitem", { name }));
+  return screen.findByRole("dialog", { name });
+}
+/** ⋮ › Layout › Layout: pick a view type for the open list. */
+async function pickLayout(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await openSetting(user, "Layout");
   await user.click(screen.getByRole("combobox", { name: "Layout" }));
   await user.click(screen.getByRole("option", { name }));
+}
+/** What the window hands over as a download: the file's text, by name. */
+function catchDownloads() {
+  const files: { name: string; blob: Blob }[] = [];
+  let blob: Blob | null = null;
+  URL.createObjectURL = vi.fn((b: Blob) => {
+    blob = b;
+    return "blob:alpha";
+  });
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+    if (blob) files.push({ name: this.download, blob });
+  });
+  return files;
 }
 const rowOf = (name: string) => screen.getByRole("row", { name: new RegExp(`^(Open )?${name}$`) });
 
@@ -97,13 +116,64 @@ describe("the table page", () => {
     expect(screen.getByRole("combobox", { name: "Records per page" })).toBeInTheDocument();
   });
 
-  it("a click opens the record's page", async () => {
-    const user = userEvent.setup();
+  it("a click opens the record's page after the double-click pause; a double-click does not", async () => {
     const onOpenRecord = vi.fn();
     page([row("r1", "Bakery", 300)], { onOpenRecord });
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("row", { name: "Open Bakery" }));
-    await waitFor(() => expect(onOpenRecord).toHaveBeenCalledWith("deals", "r1"));
+    vi.useFakeTimers();
+    try {
+      const bakery = screen.getByRole("row", { name: "Open Bakery" });
+      fireEvent.click(bakery, { detail: 1 });
+      expect(onOpenRecord).not.toHaveBeenCalled(); // not yet: it may be the first half of a double-click
+      vi.advanceTimersByTime(250);
+      expect(onOpenRecord).toHaveBeenCalledWith("deals", "r1");
+      onOpenRecord.mockClear();
+      fireEvent.click(bakery, { detail: 1 });
+      fireEvent.click(bakery, { detail: 2 });
+      fireEvent.doubleClick(bakery);
+      vi.advanceTimersByTime(250);
+      expect(onOpenRecord).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves out a record with no value at all, says so, and shows a nameless one as Untitled", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "", null, { values: { title: null, price: null, status: null } }), row("r3", "", 50)]);
+    await screen.findByText("Bakery");
+    expect(screen.getByRole("row", { name: "Open Untitled" })).toBeInTheDocument(); // r3: a price, no name; never its id
+    expect(screen.queryByRole("row", { name: /r2|r3/ })).toBeNull();
+    expect(screen.getAllByRole("row", { name: /^Open / })).toHaveLength(2);
+    expect(screen.getByText(/1 empty record left out/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show" }));
+    expect(screen.getAllByRole("row", { name: "Open Untitled" })).toHaveLength(2);
+  });
+
+  it("never empties a required field: refused beside the cell, in plain words", async () => {
+    const user = userEvent.setup();
+    const strict = { ...desc, fields: [{ name: "title", kind: "text", required: true }, ...desc.fields.slice(1)] } as unknown as TableDesc;
+    const client = fakeClient([row("r1", "Bakery", 300)], strict);
+    page([], { table: strict }, client);
+    await screen.findByText("Bakery");
+    await user.dblClick(within(rowOf("Bakery")).getByText("Bakery"));
+    const input = screen.getByRole("textbox", { name: "Title" });
+    await user.clear(input);
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("alert")).toHaveTextContent("Title can't be empty.");
+    await user.keyboard("{Escape}");
+    expect(client.editRecord).not.toHaveBeenCalled();
+  });
+
+  it("counts each group over the whole result, not the page", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("alpha.rows-per-page", "25");
+    page(Array.from({ length: 30 }, (_, i) => row(`r${i}`, `Shop ${i}`, i)));
+    await screen.findByText("Showing 1 to 25 of 30");
+    await user.click(screen.getByRole("button", { name: "Options for Status" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Group by this" }));
+    expect(await screen.findByRole("button", { name: /Active\s*30/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("row", { name: /^Open Shop/ })).toHaveLength(25);
   });
 
   it("selected records are deleted together, after a yes that says what happens", async () => {
@@ -157,13 +227,39 @@ describe("the toolbar", () => {
     expect(screen.queryByRole("button", { name: "Upload" })).toBeNull(); // no file field: Upload is in ⋮
     await user.click(order[2]); // the magnifier opens a box
     expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    const files = catchDownloads();
     await user.click(order[5]);
-    expect(screen.getByRole("button", { name: /^Sort/ })).toBeInTheDocument();
-    await user.hover(screen.getByRole("button", { name: "Download" }));
-    await user.click(screen.getByRole("menuitem", { name: "CSV" }));
-    expect(client.exportTable).toHaveBeenCalledWith("deals", "csv");
-    await user.click(screen.getByRole("button", { name: "Upload" }));
+    expect(await screen.findByRole("menuitem", { name: "Sort" })).toBeInTheDocument();
+    screen.getByRole("menuitem", { name: "Download 1 row" }).focus();
+    await user.keyboard("{ArrowRight}");
+    await screen.findByRole("menuitem", { name: "CSV" });
+    await user.keyboard("{Enter}"); // CSV, the first, has the focus
+    expect(client.exportTable).not.toHaveBeenCalled(); // what is shown, made in the window
+    expect(files.map((f) => f.name)).toEqual(["Deals.csv"]);
+    expect(await screen.findByText("Downloaded 1 row as Deals.csv.")).toBeInTheDocument();
+    await user.click(order[5]);
+    await user.click(await screen.findByRole("menuitem", { name: "Upload" }));
     expect(onAddFiles).toHaveBeenCalled();
+  });
+
+  it("downloads exactly what is shown: the matching rows, in the columns shown, and says how many", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Bagels", 80)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.type(screen.getByRole("textbox", { name: "Search" }), "Ba");
+    await user.click(screen.getByRole("button", { name: "Options for Status" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
+    const files = catchDownloads();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    (await screen.findByRole("menuitem", { name: "Download 2 rows" })).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(await screen.findByRole("menuitem", { name: "Excel" })).toHaveAttribute("aria-disabled", "true"); // the core's Excel is the whole collection
+    await user.keyboard("{Enter}"); // CSV, the first, has the focus
+    const text = await files[0].blob.text();
+    expect(text).toBe("Title,Price\nBakery,300\nBagels,80\n");
+    expect(await screen.findByText("Downloaded 2 rows as Deals.csv.")).toBeInTheDocument();
   });
 
   it("shows the numbers below the toolbar; their hide arrow sits on the strip", async () => {
@@ -195,8 +291,7 @@ describe("the toolbar", () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(screen.getByRole("button", { name: /^Layout/ }));
+    await openSetting(user, "Layout");
     await user.click(screen.getByRole("combobox", { name: "Layout" }));
     const calendar = screen.getByRole("option", { name: "Calendar" });
     expect(calendar).toHaveAttribute("aria-disabled", "true");
@@ -212,8 +307,8 @@ describe("the toolbar", () => {
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { values: { title: "Cafe", price: 120, status: "Sold" } })]);
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("button", { name: "Filter" }));
-    expect(screen.getByRole("checkbox", { name: /Hide done/ })).toBeInTheDocument();
-    await user.click(within(screen.getByRole("group", { name: "Filter by" })).getByRole("button", { name: "Status" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: /Hide done/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Status" }));
     await user.click(await screen.findByRole("combobox", { name: "Value for Status" }));
     await user.click(screen.getByRole("option", { name: "Sold" }));
     await waitFor(() => expect(screen.queryByText("Bakery")).toBeNull());
@@ -225,7 +320,7 @@ describe("the toolbar", () => {
     expect(screen.getByText("Bakery")).toBeInTheDocument();
     // a number rule, then Clear all
     await user.click(screen.getByRole("button", { name: "Filter" }));
-    await user.click(within(screen.getByRole("group", { name: "Filter by" })).getByRole("button", { name: "Price" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Price" }));
     await user.type(await screen.findByRole("textbox", { name: "Value for Price" }), "200{Enter}");
     await waitFor(() => expect(screen.queryByText("Cafe")).toBeNull());
     await user.keyboard("{Escape}");
@@ -248,53 +343,113 @@ describe("the toolbar", () => {
     expect(screen.getByText("Bakery")).toBeInTheDocument();
   });
 
-  it("lists: the list dropdown adds one to name, View changes its type, ⋮ and a right-click rename and delete it", async () => {
+  it("lists: Add list opens the list's page over a live preview, saving nothing until Save list", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { values: { title: "Cafe", price: 120, status: "Sold" } })]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Add list" }));
+    const form = await screen.findByRole("form", { name: "Add list" });
+    expect(screen.queryByRole("dialog")).toBeNull(); // a page, not a pop-up
+    await user.click(within(form).getByRole("button", { name: "Add filter" }));
+    await user.click(within(form).getByRole("combobox", { name: "Property" }));
+    await user.click(screen.getByRole("option", { name: "Status" }));
+    await user.click(within(form).getByRole("combobox", { name: "Value for Status" }));
+    await user.click(screen.getByRole("option", { name: "Sold" }));
+    await waitFor(() => expect(screen.queryByText("Bakery")).toBeNull()); // the preview follows the draft
+    expect(within(form).getByRole("button", { name: "Save list" })).toBeDisabled(); // no name yet
+    // Cancel drops it all
+    await user.click(within(form).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("Bakery")).toBeInTheDocument();
+    expect(client.saveList).not.toHaveBeenCalled();
+    // again, named and saved
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Add list" }));
+    await user.type(await screen.findByRole("textbox", { name: "List name" }), "Pipeline");
+    await user.click(screen.getByRole("combobox", { name: "Default view" }));
+    await user.click(screen.getByRole("option", { name: "Board" }));
+    await user.click(screen.getByRole("checkbox", { name: "Make this the default list" }));
+    await user.click(screen.getByRole("button", { name: "Save list" }));
+    await waitFor(() => expect(client.saveList).toHaveBeenCalledWith("deals", "Pipeline", expect.objectContaining({ view: "board" })));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { default: true }));
+    expect(await screen.findByLabelText("Active")).toBeInTheDocument(); // the board's column
+    expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Pipeline");
+    expect(screen.queryByRole("form", { name: "Add list" })).toBeNull();
+  });
+
+  it("toolbar changes are temporary: a bar saves them to the list or resets, and nothing writes the list before", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Add list" }));
+    await user.type(await screen.findByRole("textbox", { name: "List name" }), "Cheap first{Enter}");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Cheap first"));
+    expect(screen.queryByRole("button", { name: "Save to this list" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Options for Price" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Sort ascending" }));
+    const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
+    expect(names()).toEqual(["Open Cafe", "Open Bakery"]);
+    expect(client.updateList).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(names()).toEqual(["Open Bakery", "Open Cafe"]);
+    expect(screen.queryByRole("button", { name: "Save to this list" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Options for Price" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Sort ascending" }));
+    await user.click(screen.getByRole("button", { name: "Save to this list" }));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { title: "Cheap first", config: expect.objectContaining({ sort: { field: "price", direction: "asc" } }) }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Save to this list" })).toBeNull());
+  });
+
+  it("a list's ⋮ edits it on the same page; All can't be deleted; a right-click deletes one after a yes", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("combobox", { name: "List" }));
     await user.click(screen.getByRole("button", { name: "Add list" }));
-    await waitFor(() => expect(client.saveList).toHaveBeenCalledWith("deals", "New list", expect.objectContaining({ view: "table" })));
-    const name = within(await screen.findByRole("dialog", { name: "Rename view" })).getByRole("textbox", { name: "View name" });
-    await user.clear(name);
-    await user.type(name, "Pipeline{Enter}");
-    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { title: "Pipeline" }));
+    await user.type(await screen.findByRole("textbox", { name: "List name" }), "Pipeline{Enter}");
     await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Pipeline"));
-    await user.click(screen.getByRole("combobox", { name: "View" }));
-    await user.click(screen.getByRole("option", { name: "Board" }));
-    expect(screen.getByRole("combobox", { name: "View" })).toHaveTextContent("Board");
-    expect(screen.getByLabelText("Active")).toBeInTheDocument(); // the board's column
-    // All keeps its table
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit list" }));
+    const name = await screen.findByRole("textbox", { name: "List name" });
+    expect(name).toHaveValue("Pipeline");
+    await user.clear(name);
+    await user.type(name, "Deals to call{Enter}");
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", expect.objectContaining({ title: "Deals to call" })));
+    // All keeps its table, and can't be deleted
     await user.click(screen.getByRole("combobox", { name: "List" }));
     await user.click(screen.getByRole("option", { name: /^All/ }));
     expect(screen.getByRole("table")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More" }));
-    expect(screen.getByRole("button", { name: "Delete list" })).toBeDisabled();
+    expect(await screen.findByRole("menuitem", { name: "Delete list" })).toHaveAttribute("aria-disabled", "true");
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("combobox", { name: "List" }));
-    await user.click(screen.getByRole("option", { name: /^Pipeline/ }));
+    await user.click(screen.getByRole("option", { name: /^Deals to call/ }));
     fireEvent.contextMenu(screen.getByRole("combobox", { name: "List" }));
     await user.click(await screen.findByRole("menuitem", { name: "Delete list" }));
-    await user.click(within(screen.getByRole("dialog", { name: "Delete this view?" })).getByRole("button", { name: "Delete view" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Delete Deals to call?" })).getByRole("button", { name: "Delete list" }));
     await waitFor(() => expect(client.deleteList).toHaveBeenCalledWith("v1"));
     await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("All"));
   });
 
-  it("keeps several sorts, and a view's settings in the window's preference", async () => {
+  it("keeps several sorts from ⋮ › Sort, for now, with Save as list and Reset on All", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Deli", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(screen.getByRole("button", { name: /^Sort/ }));
+    await openSetting(user, "Sort");
     await user.click(within(screen.getByRole("group", { name: "Sort by" })).getByRole("button", { name: "Price" }));
     await user.click(screen.getByRole("combobox", { name: "Direction" }));
     await user.click(screen.getByRole("option", { name: "Descending" }));
     await user.click(screen.getByRole("button", { name: "Add sort" }));
     await user.click(screen.getAllByRole("combobox", { name: "Direction" })[1]);
     await user.click(screen.getByRole("option", { name: "Descending" }));
+    await user.click(screen.getByRole("button", { name: "Done" }));
     const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
     expect(names()).toEqual(["Open Deli", "Open Bakery", "Open Cafe"]);
-    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("view_settings", expect.objectContaining({ "deals:all": expect.objectContaining({ sorts: [{ field: "price", direction: "desc" }, { field: "title", direction: "desc" }] }) })));
+    expect(screen.getByRole("button", { name: "Save as list" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(names()).toEqual(["Open Bakery", "Open Cafe", "Open Deli"]);
+    expect(client.setPreference).not.toHaveBeenCalledWith("view_settings", expect.objectContaining({ "deals:all": expect.objectContaining({ sorts: expect.anything() }) }));
   });
 
   it("groups the table by a field, each group collapsible with its count", async () => {
@@ -524,19 +679,18 @@ describe("the + New row and an empty table", () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(screen.getByRole("button", { name: /^Conditional colour/ }));
+    await openSetting(user, "Conditional colour");
     await user.click(screen.getByRole("button", { name: "Add rule" }));
-    expect(rowOf("Bakery")).toHaveClass("tone--info"); // Status is Active, the first choice
     expect(screen.getAllByText("Rows coloured by Status.").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(rowOf("Bakery")).toHaveClass("tone--info"); // Status is Active, the first choice
   });
 
   it("a hidden property keeps its place in Properties, its eye shut", async () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(screen.getByRole("button", { name: /^Properties/ }));
+    await openSetting(user, "Properties");
     const names = () => [...document.querySelectorAll(".vset__prop .vset__name")].map((n) => n.textContent);
     const before = names();
     await user.click(screen.getByRole("button", { name: "Hide Price" }));
@@ -649,11 +803,13 @@ describe("any source", () => {
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull(); // no edit given: cells stay as they are
     await user.click(screen.getByRole("combobox", { name: "List" }));
     await user.click(screen.getByRole("button", { name: "Add list" }));
-    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("window_lists", { agents: [expect.objectContaining({ title: "New list" })] }));
+    await user.type(await screen.findByRole("textbox", { name: "List name" }), "Busy ones");
+    await user.click(screen.getByRole("button", { name: "Save list" }));
+    await waitFor(() => expect(client.setPreference).toHaveBeenCalledWith("window_lists", { agents: [expect.objectContaining({ title: "Busy ones" })] }));
   });
 });
 
-describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
+describe("Notion's grid, bulk edit and per-row abilities", () => {
   it("arrows move between cells, ⇧↓ selects down a column and ⌘D fills it from the top", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
@@ -683,19 +839,12 @@ describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
     expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 5 }, 3);
   });
 
-  it("opens a record in a side peek when the view says so, with next and previous", async () => {
+  it("has no peek: records open as their page, and Layout offers nowhere else", async () => {
     const user = userEvent.setup();
-    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)], { onOpenRecord: vi.fn(), renderPeek: (_t, id) => <p>peek of {id}</p> });
+    page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(screen.getByRole("button", { name: /^Layout/ }));
-    await user.click(screen.getByRole("combobox", { name: "Open records in" }));
-    await user.click(screen.getByRole("option", { name: "Side peek" }));
-    await user.keyboard("{Escape}");
-    await user.click(rowOf("Open Bakery"));
-    expect(await screen.findByText("peek of r1")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Next record" }));
-    expect(screen.getByText("peek of r2")).toBeInTheDocument();
+    await openSetting(user, "Layout");
+    expect(screen.queryByRole("combobox", { name: "Open records in" })).toBeNull();
   });
 
   it("a source's row icon sits on the title, and a cell it can't change says why and never opens", async () => {
@@ -715,5 +864,13 @@ describe("Notion's grid, bulk edit, peeks and per-row abilities", () => {
     expect(screen.queryByRole("textbox", { name: "Runs" })).toBeNull();
     await user.dblClick(screen.getByText("Alpha"));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
+  });
+});
+
+describe("the breadcrumb", () => {
+  it("drops a last crumb named as the tab after it (no 'Deals · Deals')", async () => {
+    const { dedupeCrumbs } = await import("./crumbs");
+    expect(dedupeCrumbs([{ label: "Avilo" }, { label: "Deals" }], "Deals").map((c) => c.label)).toEqual(["Avilo"]);
+    expect(dedupeCrumbs([{ label: "Avilo" }, { label: "Deals" }], "Leads").map((c) => c.label)).toEqual(["Avilo", "Deals"]);
   });
 });

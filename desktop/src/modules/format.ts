@@ -40,6 +40,17 @@ export function when(iso: string | null | undefined): string {
   return date.getFullYear() === new Date().getFullYear() ? `${dayText(date)}, ${timeText(date)}` : dayText(date);
 }
 
+/** A moment said the near way, with the exact one for its hover (rule 16): "3 min ago" within the
+ *  hour, "14:32" otherwise today (and in the first minute), else as `when`; `title` is always "11 Oct 2026, 14:32". */
+export function recent(iso: string, now = new Date()): { text: string; title: string } {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { text: iso, title: iso };
+  const title = `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}, ${timeText(date)}`;
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+  if (minutes >= 1 && minutes < 60) return { text: `${minutes} min ago`, title };
+  return { text: date.toDateString() === now.toDateString() ? timeText(date) : when(iso), title };
+}
+
 /** A heading for a day: "Thursday 8 October", with the year when it is another year. */
 export function dayLabel(iso: string): string {
   const date = new Date(iso);

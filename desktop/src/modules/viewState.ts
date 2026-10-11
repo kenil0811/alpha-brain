@@ -9,7 +9,6 @@ import type { ColorRule, FilterGroup, FilterRule, Sort } from "./views/engine";
 import type { PageView } from "./DataToolbar";
 
 export type RowHeight = "compact" | "medium" | "tall";
-export type OpenIn = "page" | "side" | "center";
 export interface ChartSettings {
   type: "bar" | "line" | "donut";
   /** The field along the x axis (a date per day, anything else per group); the date field by default. */
@@ -34,7 +33,6 @@ export interface ViewState {
   lines: boolean;
   wrapAll: boolean;
   rowHeight: RowHeight;
-  openIn: OpenIn;
   /** Records loaded before "Load more"; null pages instead. */
   loadLimit: number | null;
   colors: ColorRule[];
@@ -60,11 +58,30 @@ export const DEFAULT_VIEW: ViewState = {
   lines: false,
   wrapAll: false,
   rowHeight: "medium",
-  openIn: "page",
   loadLimit: null,
   colors: [],
   chart: { type: "bar", agg: "count" },
 };
+
+/** What a list is (the rulebook §6): which rows, their order, grouping, which columns and the view
+ *  type. Changing these from the toolbar is temporary until "Save to this list" (the owner, 11 Oct);
+ *  the rest of a view (row height, lines, colours…) is kept as the person goes. "All" is no saved
+ *  list, so its view type is simply remembered. */
+const LIST_KEYS = ["rules", "advanced", "hideDone", "sorts", "groupBy", "hidden", "view"] as const;
+export type ListKey = (typeof LIST_KEYS)[number];
+export const listKeys = (listId: string): ListKey[] => (listId === "all" ? LIST_KEYS.filter((k) => k !== "view") : [...LIST_KEYS]);
+
+/** Whether a view's list part differs from what is saved. */
+export function differs(now: ViewState, saved: ViewState, listId: string): boolean {
+  return listKeys(listId).some((k) => JSON.stringify(now[k]) !== JSON.stringify(saved[k]));
+}
+
+/** A view without its list part: what is kept as the person goes. */
+export function withoutList(s: ViewState, listId: string): Partial<ViewState> {
+  const out: Partial<ViewState> = { ...s };
+  for (const k of listKeys(listId)) delete out[k];
+  return out;
+}
 
 /** The part of a view the core's list holds. */
 export function toConfig(s: ViewState): SavedList["config"] {
@@ -90,7 +107,7 @@ function fromConfig(c: SavedList["config"]): Partial<ViewState> {
 
 /** A view as it opens: the defaults, what the window kept, and the core's list where it changed
  *  since the window last saved it (or where the window kept nothing). `starred` are the person's
- *  ★ defaults from the dropdowns (row height, where records open), under what the view keeps. */
+ *  ★ defaults from the dropdowns (row height), under what the view keeps. */
 export function stateFor(config: SavedList["config"] | undefined, kept: KeptView | undefined, fallbackView: PageView = "table", starred: Partial<ViewState> = {}): ViewState {
   const { core, ...mine } = kept ?? {};
   const base: ViewState = { ...DEFAULT_VIEW, view: fallbackView, ...starred, ...mine };
