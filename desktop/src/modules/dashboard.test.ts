@@ -35,9 +35,9 @@ describe("availability", () => {
 });
 
 describe("the default tiles", () => {
-  it("are chosen from field kinds, four to seven", () => {
+  it("are chosen from field kinds, four to seven, the numbers first", () => {
     const ids = defaultTiles(fields).map((t) => t.id);
-    expect(ids).toEqual(["metric:count", "metric:sum:amount", "metric:avg:amount", "breakdown:stage", "overtime:count:due", "attention", "metric:estimated"]);
+    expect(ids).toEqual(["metric:count", "metric:sum:amount", "metric:avg:amount", "metric:estimated", "overtime:count:due", "breakdown:stage", "attention"]);
     for (const only of [[{ name: "n", kind: "number" }], [{ name: "d", kind: "date" }], [{ name: "s", kind: "status" }]]) {
       const count = defaultTiles(only).length;
       expect(count).toBeGreaterThanOrEqual(4);

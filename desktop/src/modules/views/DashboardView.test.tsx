@@ -6,6 +6,7 @@ import { forgetPreferences } from "../../core/preferences";
 import { TooltipProvider } from "../../ui";
 import type { FieldInfo } from "../fields";
 import { DashboardView, dashboardAvailable } from "./DashboardView";
+import { weekOverWeek } from "../dashboard";
 
 const fields: FieldInfo[] = [
   { name: "title", kind: "text" },
@@ -84,7 +85,8 @@ describe("the dashboard", () => {
   it("edit mode removes a tile and keeps the layout for this list", async () => {
     const user = userEvent.setup();
     const { client } = setup();
-    await user.click(screen.getByRole("button", { name: "Edit dashboard" }));
+    await user.click(screen.getByRole("button", { name: "Dashboard options" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Edit dashboard" }));
     await user.click(screen.getByRole("button", { name: "Remove Needs attention" }));
     await waitFor(() => expect(client.setPreference).toHaveBeenCalled());
     const [key, value] = client.setPreference.mock.calls[0] as [string, Record<string, { id: string }[]>];
@@ -97,7 +99,8 @@ describe("the dashboard", () => {
   it("edit mode makes a tile wide and resets to the default layout", async () => {
     const user = userEvent.setup();
     const { client } = setup();
-    await user.click(screen.getByRole("button", { name: "Edit dashboard" }));
+    await user.click(screen.getByRole("button", { name: "Dashboard options" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Edit dashboard" }));
     await user.click(screen.getByRole("button", { name: "Make Records by stage wide" }));
     await waitFor(() => expect(client.setPreference).toHaveBeenCalledTimes(1));
     expect(document.querySelectorAll(".dash__cell--wide")).toHaveLength(1);
@@ -118,5 +121,25 @@ describe("the dashboard", () => {
     const charts = [...document.querySelectorAll("svg.dchart")];
     expect(charts.length).toBeGreaterThan(0);
     for (const c of charts) expect(c.getAttribute("viewBox")).toMatch(/^0 0 620 /);
+  });
+
+  it("puts the numbers first with their change on the week before, and a period that applies to every tile", async () => {
+    const user = userEvent.setup();
+    setup();
+    const cells = [...document.querySelectorAll(".dash__cell")].map((c) => c.className.match(/dash__cell--(\w+)/)?.[1]);
+    expect(cells.slice(0, cells.lastIndexOf("metric") + 1).every((c) => c === "metric")).toBe(true); // no chart before a number
+    expect(screen.getByText(/^As of /)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "7 days" }));
+    expect(screen.getByRole("tab", { name: "7 days" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Alpha's read" })).toBeInTheDocument();
+  });
+});
+
+describe("week over week", () => {
+  it("says what was added in the last 7 days against the 7 before", () => {
+    const now = new Date("2026-10-12T12:00:00Z");
+    const at = (days: number) => ({ id: String(days), revision: 1, values: {}, created_at: new Date(now.getTime() - days * 86_400_000).toISOString(), updated_at: "", provenance: {} });
+    expect(weekOverWeek([at(1), at(2), at(9)], () => 1, now)).toBe("+1 vs the week before");
+    expect(weekOverWeek([at(30)], () => 1, now)).toBeUndefined();
   });
 });

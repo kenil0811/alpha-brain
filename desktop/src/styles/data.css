@@ -22,10 +22,14 @@
 
 /* the Dashboard view: tiles wrap at their own width; a chart or a list takes more, its chart under the number */
 .dash__top { justify-content: flex-end; }
-.dash__grid { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start; }
-.dash__cell { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 1 auto; min-width: 0; }
-.dash__cell--breakdown, .dash__cell--overtime, .dash__cell--attention { flex: 1 1 calc(var(--space-12) * 7); }
-.dash__cell--wide { flex-basis: 100%; }
+/* Home's card grid (12 Oct): one row unit, a number S, a chart M, the attention list L */
+.dash__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr)); grid-auto-rows: var(--card-row); grid-auto-flow: dense; gap: var(--space-3); }
+.dash__cell { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow: hidden; grid-row: span 1; }
+.dash__cell > * { flex: 1; min-height: 0; }
+.dash__cell--breakdown, .dash__cell--overtime, .dash__cell--read { grid-row: span 2; }
+.dash__cell--attention { grid-row: span 3; }
+.dash__cell--wide { grid-column: span 2; }
+.dash__asof { font-size: var(--text-sm); color: var(--text-3); white-space: nowrap; }
 .dash__cell .mtile__chart { flex-basis: 100%; display: block; }
 
 /* a section card's title with its (i) */
@@ -243,3 +247,4 @@
 .rowbtns { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); display: flex; gap: var(--space-1); opacity: 0; transition: opacity var(--dur-quick) var(--ease-out); }
 .table tr:hover .rowbtns, .table tr:focus-within .rowbtns { opacity: 1; }
 .hypo { display: inline-flex; gap: var(--space-1); background: var(--surface); border-radius: var(--radius-control); }
+.dash__cell > .dash__edit { flex: none; order: -1; }

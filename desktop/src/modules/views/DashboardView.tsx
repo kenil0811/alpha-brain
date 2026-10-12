@@ -9,16 +9,25 @@
  * button with a label, and its count is written beside it so colour never stands alone. A chart
  * is drawn at the tile's real pixel width (`useWidth`; viewBox = pixels) so its text stays at the
  * type scale whatever the tile's width, and drops labels that would collide. "Edit
- * dashboard" adds, removes, moves and resizes tiles; the layout is kept per list in
- * `PREF.dashboards`.
+ * dashboard" (in the dashboard's ⋮) adds, removes, moves and resizes tiles; the layout is kept per
+ * list in `PREF.dashboards`.
+ *
+ * Aligned with ChatGPT's dashboards (12 Oct, the owner): the numbers first, each count and total
+ * with its change against the week before; "As of" says how fresh it is; a period (all time, 30 or
+ * 7 days) applies to every tile; Ask Alpha changes the dashboard or explains it (Alpha's read);
+ * "Tell me when…" asks Alpha for an alert, which it proposes as an automation; Download gives the
+ * tiles' numbers as CSV. Tiles sit on Home's card grid: a number one row high, a chart two, the
+ * attention list three.
  */
 import { useMemo, useState } from "react";
+import { toCsv, downloadText } from "../csv";
+import { timeText } from "../format";
 import type { KeyboardEvent, ReactNode } from "react";
 import type { Client, RecordRow, TableDesc } from "../../core/client";
 import { PREF, usePreference } from "../../core/preferences";
-import { Button, Dropdown, IconButton, InfoTip, MetricTile, SectionCard, useWidth } from "../../ui";
-import { ArrowDown, ArrowUp, Maximize2, Minimize2, Pencil, X } from "../../ui/icons";
-import { availableTiles, computeTile, defaultTiles, type Cta, type Segment, type Tile, type TileData } from "../dashboard";
+import { Button, Dropdown, IconButton, InfoTip, MetricTile, SectionCard, Toggle, useContextMenu, useWidth } from "../../ui";
+import { ArrowDown, ArrowUp, Maximize2, Minimize2, MoreVertical, X } from "../../ui/icons";
+import { availableTiles, computeTile, defaultTiles, inPeriod, type Cta, type Period, type Segment, type Tile, type TileData } from "../dashboard";
 import type { FieldInfo } from "../fields";
 
 export { dashboardAvailable } from "../dashboard";
@@ -37,15 +46,26 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   const [saved, setSaved] = usePreference<Record<string, Tile[]>>(client, PREF.dashboards, {});
   const [editing, setEditing] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>("all");
   const layout = saved?.[listKey];
+  // as fresh as the rows it was worked out from
+  const asOf = useMemo(() => new Date(), [rows]);
+  const inScope = useMemo(() => inPeriod(rows, fields, period, asOf), [rows, fields, period, asOf]);
   // a saved tile whose field has gone is dropped the next time the layout is saved
   const shown = useMemo(() => {
-    const ctx = { fields, rows, titleField: table.title_field };
+    const ctx = { fields, rows: inScope, titleField: table.title_field, now: asOf };
     return (layout ?? defaultTiles(fields)).flatMap((t) => {
       const data = computeTile(t, ctx);
       return data ? [{ tile: t, data }] : [];
     });
-  }, [layout, fields, rows, table.title_field]);
+  }, [layout, fields, inScope, table.title_field, asOf]);
+  const scope = period === "all" ? "" : ` over the last ${period} days`;
+  const numbers = shown.map(({ data }) => (data.type === "metric" ? `${data.title}: ${data.value}${data.change ? ` (${data.change})` : ""}` : data.type === "attention" ? `${data.total} need attention` : `${data.title}: ${data.basis}`)).join("; ");
+  const menu = useContextMenu([
+    { label: "Edit dashboard", on: editing, onSelect: () => setEditing(!editing) },
+    { label: "Tell me when…", onSelect: () => onAsk(`On the ${table.title} dashboard, tell me when `) },
+    { label: "Download as CSV", onSelect: () => downloadText(`${table.title} dashboard.csv`, toCsv([["Tile", "Value", "Basis"], ...shown.map(({ data }) => [data.title, data.type === "metric" ? data.value : data.type === "attention" ? String(data.total) : "", data.basis])])) },
+  ]);
 
   async function save(next: Tile[] | null) {
     const all = { ...(saved ?? {}) };
@@ -71,7 +91,7 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   );
 
   function body(d: TileData) {
-    if (d.type === "metric") return <MetricTile label={d.title} value={d.value} basis={d.basis} cta={button(d.cta, d.title)} />;
+    if (d.type === "metric") return <MetricTile label={d.title} value={d.value} basis={d.change ? `${d.basis} · ${d.change}` : d.basis} cta={button(d.cta, d.title)} />;
     // a chart tile: its total with the label and basis beside it, the chart under them
     if (d.type === "breakdown" || d.type === "overtime") {
       const total = d.type === "breakdown" ? d.total : d.buckets.reduce((a, b) => a + b.ids.length, 0);
@@ -108,7 +128,11 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   return (
     <section className="dash" aria-label="Dashboard">
       <div className="dash__top">
-        <InfoTip text="The list, search and filters above apply to every tile." />
+        <div className="dash__tools">
+          <span className="dash__asof">As of {timeText(asOf)}</span>
+          <Toggle<Period> inBody label="Period" value={period} onChange={setPeriod} items={[{ id: "all", label: "All time" }, { id: "30", label: "30 days" }, { id: "7", label: "7 days" }]} />
+          <InfoTip text="The period, and the list, search and filters above, apply to every tile." />
+        </div>
         <div className="dash__tools">
           {editing ? (
             <>
@@ -124,9 +148,17 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
               </Button>
             </>
           ) : null}
-          <Button size="sm" icon={editing ? undefined : <Pencil />} onClick={() => setEditing(!editing)}>
-            {editing ? "Done" : "Edit dashboard"}
-          </Button>
+          {editing ? (
+            <Button size="sm" variant="primary" onClick={() => setEditing(false)}>
+              Done
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => onAsk(`Change the ${table.title} dashboard: `)}>
+              Ask Alpha
+            </Button>
+          )}
+          <IconButton size="sm" label="Dashboard options" icon={<MoreVertical />} aria-haspopup="menu" onClick={(e) => menu.openFrom(undefined, e.currentTarget)} />
+          {menu.menu}
         </div>
       </div>
       {problem ? (
@@ -149,9 +181,19 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
               ) : null}
             </div>
           ))}
+          <div className="dash__cell dash__cell--read">
+            <SectionCard title="Alpha's read" info="Alpha explains what changed and why, from these numbers.">
+              <p className="dash__none">{numbers}{scope}.</p>
+              <div className="dash__cta">
+                <Button size="sm" onClick={() => onAsk(`On the ${table.title} dashboard${scope}: ${numbers}. What changed, and why?`)}>
+                  Ask what changed
+                </Button>
+              </div>
+            </SectionCard>
+          </div>
         </div>
       ) : (
-        <p className="empty">No tiles on this dashboard. Choose Edit dashboard to add one.</p>
+        <p className="empty">No tiles on this dashboard. Choose ⋮ › Edit dashboard to add one.</p>
       )}
     </section>
   );

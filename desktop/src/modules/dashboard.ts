@@ -66,7 +66,7 @@ export interface AttentionItem {
 }
 
 export type TileData =
-  | { id: string; type: "metric"; title: string; icon: "count" | "sum" | "avg" | "flag"; value: string; basis: string; cta: Cta }
+  | { id: string; type: "metric"; title: string; icon: "count" | "sum" | "avg" | "flag"; value: string; basis: string; cta: Cta; change?: string }
   | { id: string; type: "breakdown"; title: string; basis: string; segments: Segment[]; total: number; empty?: string; cta: Cta }
   | { id: string; type: "overtime"; title: string; basis: string; legend: string; buckets: Bucket[]; period: "week" | "month"; empty?: string; cta: Cta }
   | { id: string; type: "attention"; title: string; basis: string; items: AttentionItem[]; total: number; empty?: string; cta: Cta };
@@ -120,7 +120,8 @@ export function availableTiles(fields: FieldInfo[]): { tile: Tile; label: string
   return out;
 }
 
-/** The layout a list opens with: 4 to 7 tiles, picked by field kind. */
+/** The layout a list opens with: 4 to 7 tiles, picked by field kind; the numbers first, then
+ *  the charts, then what needs attention (ChatGPT's dashboards, 12 Oct: KPIs on top). */
 export function defaultTiles(fields: FieldInfo[]): Tile[] {
   const number = firstOfKind(fields, NUMERIC_KINDS);
   const choice = fields.find((f) => f.kind === "status") ?? firstOfKind(fields, CHOICE_KINDS);
@@ -128,10 +129,10 @@ export function defaultTiles(fields: FieldInfo[]): Tile[] {
   return [
     tile("metric", undefined, "count"),
     ...(number ? [tile("metric", number.name, "sum"), tile("metric", number.name, "avg")] : []),
-    ...(choice ? [tile("breakdown", choice.name)] : []),
-    ...(date ? [tile("overtime", date.name, "count")] : []),
-    tile("attention"),
     tile("metric", undefined, "estimated"),
+    ...(date ? [tile("overtime", date.name, "count")] : []),
+    ...(choice ? [tile("breakdown", choice.name)] : []),
+    tile("attention"),
   ];
 }
 
@@ -160,14 +161,14 @@ function disabled(text: string, label: string, reason: string): Cta {
 }
 const noRecords = "There are no records yet.";
 
-function metric(t: Tile, { fields, rows }: Ctx): TileData {
+function metric(t: Tile, { fields, rows, now: ctxNow = new Date() }: Ctx): TileData {
   const f = fields.find((x) => x.name === t.field);
   const all = rows.map((r) => r.id);
   if (t.measure === "estimated") {
     const ids = rows.filter((r) => r.provenance?.estimated || r.provenance?.assumed).map((r) => r.id);
     return { id: t.id, type: "metric", title: "Estimated by Alpha", icon: "flag", value: formatNumber(ids.length), basis: `of ${records(rows.length)} rest on a value Alpha estimated or assumed`, cta: ids.length ? { text: `Show these ${ids.length}`, ids, label: `Estimated · ${ids.length}` } : disabled("Show these", "", rows.length ? "No record rests on an estimate or an assumption." : noRecords) };
   }
-  if (!f || !isNumeric(f.kind)) return { id: t.id, type: "metric", title: "Records", icon: "count", value: formatNumber(rows.length), basis: "In this view", cta: all.length ? { text: `Show these ${all.length}`, ids: all, label: `Records · ${all.length}` } : disabled("Show these", "", noRecords) };
+  if (!f || !isNumeric(f.kind)) return { id: t.id, type: "metric", title: "Records", icon: "count", value: formatNumber(rows.length), basis: "In this view", change: weekOverWeek(rows, () => 1, ctxNow), cta: all.length ? { text: `Show these ${all.length}`, ids: all, label: `Records · ${all.length}` } : disabled("Show these", "", noRecords) };
   const withValue = rows.filter((r) => typeof r.values[f.name] === "number");
   const sum = withValue.reduce((s, r) => s + (r.values[f.name] as number), 0);
   const avg = t.measure === "avg";
@@ -181,7 +182,37 @@ function metric(t: Tile, { fields, rows }: Ctx): TileData {
     value: withValue.length ? formatNumber(avg ? sum / withValue.length : sum, f.unit) : "Unknown",
     basis: withValue.length ? `${withValue.length} of ${records(rows.length)} have a value in ${nameOf(f)}` : rows.length ? `No record has a value in ${nameOf(f)} yet` : "No records yet",
     cta: ids.length ? { text: `Show these ${ids.length}`, ids, label: `${title} · ${ids.length}` } : disabled("Show these", "", rows.length ? `No record has a value in ${nameOf(f)} yet.` : noRecords),
+    change: avg ? undefined : weekOverWeek(withValue, (r) => r.values[f.name] as number, ctxNow, f.unit),
   };
+}
+
+/** What was added in the last 7 days against the 7 before (by when each record was made), as
+ *  "+3 vs the week before"; none when nothing was added in either. */
+export function weekOverWeek(rows: RecordRow[], value: (r: RecordRow) => number, now = new Date(), unit?: string | null): string | undefined {
+  const t = now.getTime();
+  let a = 0;
+  let b = 0;
+  for (const r of rows) {
+    const at = Date.parse(r.created_at);
+    if (Number.isNaN(at)) continue;
+    if (at > t - 7 * DAY && at <= t) a += value(r);
+    else if (at > t - 14 * DAY && at <= t - 7 * DAY) b += value(r);
+  }
+  if (!a && !b) return undefined;
+  const d = a - b;
+  return `${d > 0 ? "+" : d < 0 ? "−" : "±"}${formatNumber(Math.abs(d), unit)} vs the week before`;
+}
+
+export type Period = "all" | "30" | "7";
+/** The rows inside the last 30 or 7 days, by the first date field, else by when each was made. */
+export function inPeriod(rows: RecordRow[], fields: FieldInfo[], period: Period, now = new Date()): RecordRow[] {
+  if (period === "all") return rows;
+  const date = firstOfKind(fields, DATE_KINDS);
+  const from = now.getTime() - Number(period) * DAY;
+  return rows.filter((r) => {
+    const at = Date.parse(String((date ? r.values[date.name] : r.created_at) ?? ""));
+    return !Number.isNaN(at) && at >= from && at <= now.getTime() + DAY;
+  });
 }
 
 function breakdown(t: Tile, { fields, rows }: Ctx): TileData | null {
