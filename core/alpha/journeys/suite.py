@@ -221,9 +221,13 @@ class Run:
         elif "remove_module" in spec:
             # The world as it would be without something the person already has, for a
             # journey that asks for it afresh; not the journey's own work, so the mark moves.
-            counts = purge.remove_module(self.world, spec["remove_module"])
-            record = {"remove_module": spec["remove_module"], "ok": True,
-                      "removed": {k: v for k, v in counts.items() if k != "module"}}
+            # A world that never had it is already that world.
+            try:
+                counts = purge.remove_module(self.world, spec["remove_module"])
+                removed: dict[str, Any] = {k: v for k, v in counts.items() if k != "module"}
+            except Problem:
+                removed = {"already absent": True}
+            record = {"remove_module": spec["remove_module"], "ok": True, "removed": removed}
             self.mark = mark(self.world)
         elif "approve_action" in spec:
             from alpha.runtime import acting
@@ -452,7 +456,8 @@ class Run:
     def check_workflow(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A workflow page drafted in this journey (§12), in the state asked, with at least
         `steps_min` steps, `keeps_min` things kept, `suggestions_min` suggestions, and, when
-        given, `version`."""
+        given, `version` (exactly) or `version_min` (a change landed, however many revisions
+        the model took to get it right)."""
         new = [w for w in self.world.workflows.all() if w["created_at"] >= self.mark.at]
         if not new:
             return False, "No workflow page was drafted."
@@ -462,7 +467,8 @@ class Run:
               and len(b["steps"]) >= int(arg.get("steps_min") or 0)
               and len(b["keeps"]) >= int(arg.get("keeps_min") or 0)
               and len(b["suggestions"]) >= int(arg.get("suggestions_min") or 0)
-              and (not arg.get("version") or wf["version"] == int(arg["version"])))
+              and (not arg.get("version") or wf["version"] == int(arg["version"]))
+              and wf["version"] >= int(arg.get("version_min") or 0))
         steps = "; ".join(f"{s['title']} ({s['who']}{', asks' if s['outward'] else ''})"
                           for s in b["steps"])
         return ok, (f"'{wf['title']}' v{wf['version']} is {wf['state']}: {len(b['steps'])} steps:"
