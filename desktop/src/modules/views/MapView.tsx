@@ -125,15 +125,22 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
     setView((v) => ({ ...v, x: d.vx + (e.clientX - d.x) * u, y: d.vy + (e.clientY - d.y) * u }));
   };
 
-  // dots close together on screen at this zoom merge (a grid as wide as MERGE_PX)
+  // dots nearer than MERGE_PX on screen at this zoom join the first circle they reach (a grid
+  // splits neighbours across its lines and draws them overlapping)
+  // ponytail: O(dots × circles); a spatial index if a table has tens of thousands of places
   const clusters = useMemo(() => {
-    const cell = (MERGE_PX * unitsPerPixel()) / view.k;
-    const bins = new Map<string, Dot[]>();
+    const near = (MERGE_PX * unitsPerPixel()) / view.k;
+    const out: Cluster[] = [];
     for (const d of dots) {
-      const key = `${Math.floor(d.x / cell)}:${Math.floor(d.y / cell)}`;
-      bins.set(key, [...(bins.get(key) ?? []), d]);
+      const c = out.find((o) => Math.hypot(o.x - d.x, o.y - d.y) < near);
+      if (!c) out.push({ x: d.x, y: d.y, dots: [d] });
+      else {
+        c.dots.push(d);
+        c.x += (d.x - c.x) / c.dots.length;
+        c.y += (d.y - c.y) / c.dots.length;
+      }
     }
-    return [...bins.values()].map((ds): Cluster => ({ x: ds.reduce((s, d) => s + d.x, 0) / ds.length, y: ds.reduce((s, d) => s + d.y, 0) / ds.length, dots: ds }));
+    return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the drawing's scale is read as it is now
   }, [dots, view.k, size]);
   const [focus, setFocus] = useState(0);
