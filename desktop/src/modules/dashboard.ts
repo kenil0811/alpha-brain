@@ -200,7 +200,7 @@ export function weekOverWeek(rows: RecordRow[], value: (r: RecordRow) => number,
   }
   if (!a && !b) return undefined;
   const d = a - b;
-  return `${d > 0 ? "+" : d < 0 ? "−" : "±"}${formatNumber(Math.abs(d), unit)} vs the week before`;
+  return d === 0 ? "the same as the week before" : `${formatNumber(Math.abs(d), unit)} ${d > 0 ? "more" : "less"} than the week before`;
 }
 
 export type Period = "all" | "30" | "7";

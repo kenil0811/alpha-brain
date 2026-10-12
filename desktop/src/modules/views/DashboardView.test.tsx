@@ -139,7 +139,7 @@ describe("week over week", () => {
   it("says what was added in the last 7 days against the 7 before", () => {
     const now = new Date("2026-10-12T12:00:00Z");
     const at = (days: number) => ({ id: String(days), revision: 1, values: {}, created_at: new Date(now.getTime() - days * 86_400_000).toISOString(), updated_at: "", provenance: {} });
-    expect(weekOverWeek([at(1), at(2), at(9)], () => 1, now)).toBe("+1 vs the week before");
+    expect(weekOverWeek([at(1), at(2), at(9)], () => 1, now)).toBe("1 more than the week before");
     expect(weekOverWeek([at(30)], () => 1, now)).toBeUndefined();
   });
 });
