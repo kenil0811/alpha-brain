@@ -77,6 +77,10 @@ export type Surface =
   /** A connection's or a fact's own page, inside Intelligence (9 Oct, the owner: pages, not dialogs). */
   | { kind: "connection"; id: string }
   | { kind: "fact"; id: string }
+  /** A goal's, a standing permission's or a note's own page (12 Oct, the owner: every element has a page). */
+  | { kind: "goal"; id: string }
+  | { kind: "permission"; id: string }
+  | { kind: "note"; id: string }
   /** The New project page (9 Oct, the owner). */
   | { kind: "new-project" }
   | { kind: "module"; id: string }
@@ -87,7 +91,7 @@ export type Surface =
 export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "home" && a.kind === "needs") return true; // Needs you is Home's card, in full
   if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside Network
-  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent" || a.kind === "connection" || a.kind === "fact")) return true; // item pages live under Intelligence
+  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent" || a.kind === "connection" || a.kind === "fact" || a.kind === "goal" || a.kind === "permission" || a.kind === "note")) return true; // item pages live under Intelligence
   if (b.kind === "module" && a.kind === "record") return a.module === b.id; // a record's page is inside its module
   if (b.kind === "assistant" && a.kind === "assistant") return true; // any conversation open on the page
   if (a.kind !== b.kind) return false;
@@ -123,7 +127,7 @@ export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
   if (s && s.kind === "intelligence" && s.tab === "activity") return { kind: "activity" };
   if (s && s.kind === "intelligence" && s.tab === "map") return { kind: "intelligence", tab: "second-brain" };
-  if (s && (s.kind === "home" || s.kind === "needs" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "new-project" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "entry" || s.kind === "automation" || s.kind === "agent" || s.kind === "connection" || s.kind === "fact") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "needs" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "new-project" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "entry" || s.kind === "automation" || s.kind === "agent" || s.kind === "connection" || s.kind === "fact" || s.kind === "goal" || s.kind === "permission" || s.kind === "note") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 

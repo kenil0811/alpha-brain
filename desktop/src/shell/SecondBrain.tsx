@@ -11,7 +11,7 @@ import { say } from "../core/client";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
-import { Button, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble } from "../ui";
+import { Button, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble, useAssistant } from "../ui";
 import { BrainIcon, ICON, ICON_SM, PermissionIcon, Table2 } from "../ui/icons";
 import { BackLink } from "./BackLink";
 import { cachedWorld } from "./brain/model";
@@ -113,7 +113,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
       {view === "graph" ? (
         <GraphView client={client} data={data} onGo={onGo} onChanged={onChanged} />
       ) : (
-        <DataPage client={client} source={table} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => (id.startsWith(GOAL_ROW) ? undefined : onGo?.({ kind: "fact", id }))} />
+        <DataPage client={client} source={table} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.(id.startsWith(GOAL_ROW) ? { kind: "goal", id: id.slice(GOAL_ROW.length) } : { kind: "fact", id })} />
       )}
       <div className="brain__keeps">
         <SectionCard title="Standing instructions">
@@ -123,7 +123,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
         <SectionCard title="Standing permissions">
           {permissions.length ? (
             permissions.map((p) => (
-              <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />
+              <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} onOpen={onGo ? () => onGo({ kind: "permission", id: p.id }) : undefined} description={`Since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />
             ))
           ) : (
             <p className="faint">None yet.</p>
@@ -132,7 +132,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
         </SectionCard>
 
         {others.map((n) => (
-          <SectionCard key={n.id} title={n.title} info={scopeWords(n)}>
+          <SectionCard key={n.id} title={n.title} info={scopeWords(n)} actions={onGo ? <Button size="sm" variant="ghost" onClick={() => onGo({ kind: "note", id: n.id })}>Open</Button> : undefined}>
             <NoteEditor client={client} scope={n.scope} title={n.title} body={n.body} summary={n.summary} onChanged={onChanged} label={`Edit ${n.title}`} />
           </SectionCard>
         ))}
@@ -172,6 +172,84 @@ export function FactPage({ client, id, version, onBack, onChanged, onAsk }: { cl
         {fact ? (
           <SectionCard title="Fact">
             <FactRow fact={fact} client={client} onChanged={() => { onChanged(); setTick((n) => n + 1); }} onAsk={onAsk} />
+          </SectionCard>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+/** One of what Alpha keeps, on a page of its own (12 Oct, the owner: every element has a page): a
+ *  goal (its state and project; changing it asks Alpha, the core has no call for it), a standing
+ *  permission (Revoke, confirmed) or a note (edited in place). */
+export function KeptPage({ client, kind, id, version, onBack, onChanged, onGo }: { client: Client; kind: "goal" | "permission" | "note"; id: string; version: number; onBack: () => void; onChanged: () => void; onGo: (s: Surface) => void }) {
+  const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const assistant = useAssistant();
+  useEffect(() => {
+    let live = true;
+    client
+      .intelligence()
+      .then((d) => live && (setData(d), setError(null)))
+      .catch((e: unknown) => live && setError(say(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, version, tick]);
+  const k = data?.knowledge;
+  const goal = kind === "goal" ? k?.goals.find((g) => g.id === id) : undefined;
+  const permission = kind === "permission" ? k?.permissions?.find((p) => p.id === id) : undefined;
+  const note = kind === "note" ? k?.notes.find((n) => n.id === id) : undefined;
+  const title = goal?.text ?? permission?.sentence ?? note?.title ?? { goal: "Goal", permission: "Permission", note: "Note" }[kind];
+  const changed = () => {
+    onChanged();
+    setTick((n) => n + 1);
+  };
+  const tell = (words: string) => {
+    assistant?.say(words);
+    setMessage({ ok: true, text: "Asked Alpha; it confirms in the panel." });
+  };
+  async function revoke(pid: string) {
+    try {
+      await client.revokePermission(pid);
+      setMessage({ ok: true, text: "Revoked." });
+      changed();
+    } catch (e) {
+      setMessage({ ok: false, text: say(e) });
+    }
+  }
+  return (
+    <>
+      <PageHeader left={<BackLink to="Second Brain" onClick={onBack} />} title={title.length > 60 ? `${title.slice(0, 59)}…` : title} />
+      <div className="page page--narrow">
+        {error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load it: {error}</Trouble> : null}
+        {!data && !error ? <p className="faint">Loading…</p> : null}
+        {data && !goal && !permission && !note ? <EmptyCard icon={<BrainIcon size={ICON} />} title="It's gone" /> : null}
+        {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
+        {goal ? (
+          <SectionCard title="Goal">
+            <ListRow title={goal.text} description={`${goal.state === "active" ? "Active" : humanize(goal.state)} · since ${when(goal.since)}`} />
+            <div className="row">
+              {goal.module ? <Button size="sm" onClick={() => onGo({ kind: "module", id: goal.module! })}>Open its project</Button> : null}
+              {goal.state === "active" ? (
+                <>
+                  <Button size="sm" variant="primary" disabledReason={assistant ? undefined : "Open the assistant first."} onClick={() => tell(`Mark my goal "${goal.text}" as done.`)}>Mark done</Button>
+                  <Button size="sm" variant="ghost" disabledReason={assistant ? undefined : "Open the assistant first."} onClick={() => tell(`Drop my goal "${goal.text}".`)}>Drop</Button>
+                </>
+              ) : null}
+            </div>
+          </SectionCard>
+        ) : null}
+        {permission ? (
+          <SectionCard title="Standing permission">
+            <ListRow icon={<PermissionIcon size={ICON} />} title={permission.sentence} description={`Since ${when(permission.granted_at)}`} controls={<RevokeButton permission={permission} onRevoke={() => void revoke(permission.id)} />} />
+          </SectionCard>
+        ) : null}
+        {note ? (
+          <SectionCard title={note.title} info={scopeWords(note)}>
+            <NoteEditor client={client} scope={note.scope} title={note.title} body={note.body} summary={note.summary} onChanged={changed} label={`Edit ${note.title}`} />
           </SectionCard>
         ) : null}
       </div>

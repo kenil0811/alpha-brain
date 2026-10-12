@@ -379,7 +379,7 @@ export function Home({ setup, client, version, onGo, onChanged, onAsk, onNew, on
         return (
           <ul className="hcard__items">
             {card.items.map((g) => (
-              <Item key={g.id} title={g.text} detail={g.module ? (modules ?? []).find((m) => m.id === g.module)?.name : undefined}>
+              <Item key={g.id} title={g.text} detail={g.module ? (modules ?? []).find((m) => m.id === g.module)?.name : undefined} onOpen={() => onGo({ kind: "goal", id: g.id })}>
                 <Button size="sm" onClick={() => onAsk(`What's the next step toward my goal "${g.text}"?`)}>
                   Next step
                 </Button>

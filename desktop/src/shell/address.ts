@@ -3,7 +3,7 @@
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
  * rebuilt on main's Surface). `#/home`, `#/needs` (Needs you in full), `#/network`, `#/network/<id>`, `#/m/<id>`, `#/m/<id>/<table>/<record>` (a record's page; `new` for one not made yet),
  * `#/intelligence/<tab>`, `#/intelligence/agents/<id>`, `#/intelligence/connections/<id>`,
- * `#/intelligence/facts/<id>`, `#/assistant`, `#/assistant/<conversation>`, `#/new-project`, `#/settings`, `#/activity/<id>` (one entry's
+ * `#/intelligence/facts/<id>` (and `goals`, `permissions`, `notes`), `#/assistant`, `#/assistant/<conversation>`, `#/new-project`, `#/settings`, `#/activity/<id>` (one entry's
  * page), and `#/activity`, which opens the assistant panel's bell over the page that is open. Old addresses still work: `#/people…`
  * is Network, `#/intelligence/activity` the bell, `#/intelligence/map` Second Brain (9 Oct).
  * Nothing else is in the address: what is open inside a page stays where it was.
@@ -42,6 +42,12 @@ export function pathFor(surface: Surface): string {
       return `/intelligence/connections/${encodeURIComponent(surface.id)}`;
     case "fact":
       return `/intelligence/facts/${encodeURIComponent(surface.id)}`;
+    case "goal":
+      return `/intelligence/goals/${encodeURIComponent(surface.id)}`;
+    case "permission":
+      return `/intelligence/permissions/${encodeURIComponent(surface.id)}`;
+    case "note":
+      return `/intelligence/notes/${encodeURIComponent(surface.id)}`;
     case "new-project":
       return "/new-project";
     case "settings":
@@ -66,6 +72,9 @@ export function surfaceFromPath(path: string): Surface | null {
     if (rest === "agents" && third) return { kind: "agent", id: third };
     if (rest === "connections" && third) return { kind: "connection", id: third };
     if (rest === "facts" && third) return { kind: "fact", id: third };
+    if (rest === "goals" && third) return { kind: "goal", id: third };
+    if (rest === "permissions" && third) return { kind: "permission", id: third };
+    if (rest === "notes" && third) return { kind: "note", id: third };
     return knownSurface(rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" });
   }
   return null;

@@ -57,7 +57,7 @@ export function graphOf(world: WorkGraph | null, data: Pick<Intelligence, "knowl
   const worldGoals = new Map((world?.nodes ?? []).filter((n) => n.kind === "goal").map((n) => [n.id, n]));
   for (const g of data.knowledge.goals) {
     const id = `goal:${g.id}`; // the world names a goal the same way
-    if (!nodes.has(id)) nodes.set(id, { id, kind: "goal", title: g.text, detail: g.state });
+    nodes.set(id, { ...nodes.get(id), id, kind: "goal", title: g.text, detail: g.state, open: { kind: "goal", id: g.id } });
     link(id, home(g.module));
   }
   for (const [id, n] of worldGoals) {

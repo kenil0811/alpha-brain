@@ -30,7 +30,7 @@ import { CommandMenu } from "./shell/CommandMenu";
 import { HandPage, SkillPage } from "./shell/SkillPage";
 import { BUILT_IN } from "./shell/intel/sources";
 import { ConnectionPage } from "./shell/Connections";
-import { FactPage } from "./shell/SecondBrain";
+import { FactPage, KeptPage } from "./shell/SecondBrain";
 import { NewProjectPage } from "./modules/NewProjectPage";
 import { EntityPage, Network } from "./shell/Network";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
@@ -387,6 +387,8 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <ConnectionPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "connections" })} onChanged={changed} />
         ) : surface.kind === "fact" ? (
           <FactPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "second-brain" })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
+        ) : surface.kind === "goal" || surface.kind === "permission" || surface.kind === "note" ? (
+          <KeptPage key={`${surface.kind}/${surface.id}`} client={runtime.client} kind={surface.kind} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "second-brain" })} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "people" ? (
           <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "entity" ? (
