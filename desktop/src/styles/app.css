@@ -46,6 +46,7 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1); --dur-quick: 120ms; --dur-state: 200ms;
   /* the one header height: the sidebar's top row, every page's header and the assistant's */
   --header-h: 52px;
+  --window-controls-w: 84px; /* the Mac's three window controls and their margin, in the sidebar's top row */
   /* Home's and the dashboard's cards (12 Oct): one row unit (S = 1, M = 2, L = 3 rows) and the
      narrowest a card may be (240px: two side by side in the middle at 1100), so a line stays easy to read */
   --card-row: 128px; --card-min: 240px;
@@ -197,6 +198,14 @@ a { color: var(--primary); }
 /* folded: each item is its icon with its name under it, 11px, 12 characters (Rail.tsx foldedLabel), the one place text may be this small (§4, §16) */
 .rail--collapsed { padding: 0 var(--space-2) var(--space-2); }
 .rail--collapsed .rail__top { margin: 0 calc(-1 * var(--space-2)) var(--space-2); padding: 0 var(--space-2); gap: 0; justify-content: center; }
+/* The Mac's window controls sit in the sidebar's top row (rulebook §3); only in the app, so a browser keeps the row as it was. */
+.titlebar:not(.titlebar--full) .rail:not(.rail--collapsed) .rail__top { padding-left: var(--window-controls-w); }
+.rail__ws { display: flex; justify-content: center; flex: none; margin-bottom: var(--space-2); }
+/* in full screen the controls are gone: the folded workspace goes back up into the header line */
+.titlebar--full .rail__top:empty { display: none; }
+.titlebar--full .rail__ws { align-items: center; height: var(--header-h); margin: 0 calc(-1 * var(--space-2)) var(--space-2); border-bottom: var(--header-line); }
+/* the header line is a title bar: a press drags the window, so it selects no text */
+.titlebar .pagehead, .titlebar .rail__top { -webkit-user-select: none; user-select: none; }
 .rail--collapsed .wsbtn { flex: none; padding: 0; }
 .rail--collapsed .wsbtn__tile { width: 36px; height: 36px; }
 .rail--collapsed .wsbtn__name, .rail--collapsed .wsbtn__chev { display: none; }

@@ -5,6 +5,9 @@ import { toRow, type Client, type ModuleCard } from "../core/client";
 import { PREF, forgetPreferences } from "../core/preferences";
 import { Rail, knownSurface, sameSurface, treeOf } from "./Rail";
 
+let onMac = false;
+vi.mock("./titleBar", async (original) => ({ ...(await original<typeof import("./titleBar")>()), macTitleBar: () => onMac }));
+
 const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
 
 /** A core that keeps preferences in a map and records the module moves asked of it. */
@@ -116,6 +119,22 @@ describe("the sidebar's order", () => {
 });
 
 describe("the workspace button", () => {
+  it("on the Mac, a folded sidebar leaves its top row to the window controls and keeps the workspace just below", () => {
+    onMac = true;
+    try {
+      const folded = setup([], { collapsed: true });
+      const top = folded.container.querySelector(".rail__top")!;
+      expect(top.childElementCount).toBe(0);
+      expect(folded.container.querySelector(".rail__ws")?.contains(screen.getByRole("button", { name: "Kenil's workspace" }))).toBe(true);
+      cleanup();
+      const open = setup([]);
+      expect(open.container.querySelector(".rail__top")?.contains(screen.getByRole("button", { name: "Kenil's workspace" }))).toBe(true);
+      expect(open.container.querySelector(".rail__ws")).toBeNull();
+    } finally {
+      onMac = false;
+    }
+  });
+
   it("opens a menu whose Manage Workspace and Sign out are disabled, each with its reason", async () => {
     const user = userEvent.setup();
     setup([]);

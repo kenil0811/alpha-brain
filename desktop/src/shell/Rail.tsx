@@ -56,6 +56,7 @@ import {
 import { NewAboveDialog } from "./ModuleDialogs";
 import { iconNamed, MODULE_ICON_CHOICES, projectIcon } from "./moduleIcons";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
+import { ACTIVE, macTitleBar } from "./titleBar";
 
 export type Surface =
   | { kind: "home" }
@@ -103,7 +104,7 @@ export function sameSurface(a: Surface, b: Surface): boolean {
  *  one of its buttons stays that button's. */
 export function unfoldOnEmpty(folded: boolean, unfold: () => void) {
   return (e: { target: EventTarget }) => {
-    if (folded && !(e.target as Element).closest?.("button, a, input, textarea, select, [role='button'], [role='menu']")) unfold();
+    if (folded && !(e.target as Element).closest?.(ACTIVE)) unfold();
   };
 }
 
@@ -512,11 +513,14 @@ export function Rail({
     if (err) fail("change the logo", err);
     else done(next ? "The workspace has a new logo." : "The workspace logo is removed.");
   }
+  const underLights = collapsed && macTitleBar();
   return (
     <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha" onDoubleClick={unfoldOnEmpty(collapsed, onToggleCollapsed)}>
+      {/* Folded on the Mac, the top row is all window controls: the workspace moves below it. */}
+      {underLights ? <div className="rail__top" /> : null}
       <RadixPopover.Root open={logoOpen} onOpenChange={setLogoOpen}>
         <RadixPopover.Anchor asChild>
-          <div className="rail__top">
+          <div className={underLights ? "rail__ws" : "rail__top"}>
             {renaming ? (
               <div className="wsbtn wsbtn--edit">
                 <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />

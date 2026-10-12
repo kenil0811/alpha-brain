@@ -3,6 +3,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AvatarBoot, isAvatarWindow } from "./avatar/boot";
+import { macTitleBar, startTitleBar } from "./shell/titleBar";
 import "./styles/app.css";
 import "./styles/data.css";
 import "./styles/shell.css";
@@ -38,6 +39,7 @@ const container = document.getElementById("root");
 if (!container) throw new Error("missing #root");
 const root = createRoot(container);
 void isAvatarWindow().then((avatar) => {
+  if (!avatar && macTitleBar()) startTitleBar();
   root.render(
     <React.StrictMode>
       <TooltipProvider>
