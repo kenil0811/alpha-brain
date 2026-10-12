@@ -74,6 +74,8 @@ export type TileData =
 export interface Ctx {
   fields: FieldInfo[];
   rows: RecordRow[];
+  /** Every row, before the dashboard's period: the change on the week before needs the week before. */
+  allRows?: RecordRow[];
   /** The field that names a record (`TableDesc.title_field`). */
   titleField?: string | null;
   /** Today, for "overdue" and "this week". */
@@ -161,14 +163,14 @@ function disabled(text: string, label: string, reason: string): Cta {
 }
 const noRecords = "There are no records yet.";
 
-function metric(t: Tile, { fields, rows, now: ctxNow = new Date() }: Ctx): TileData {
+function metric(t: Tile, { fields, rows, allRows = rows, now: ctxNow = new Date() }: Ctx): TileData {
   const f = fields.find((x) => x.name === t.field);
   const all = rows.map((r) => r.id);
   if (t.measure === "estimated") {
     const ids = rows.filter((r) => r.provenance?.estimated || r.provenance?.assumed).map((r) => r.id);
     return { id: t.id, type: "metric", title: "Estimated by Alpha", icon: "flag", value: formatNumber(ids.length), basis: `of ${records(rows.length)} rest on a value Alpha estimated or assumed`, cta: ids.length ? { text: `Show these ${ids.length}`, ids, label: `Estimated · ${ids.length}` } : disabled("Show these", "", rows.length ? "No record rests on an estimate or an assumption." : noRecords) };
   }
-  if (!f || !isNumeric(f.kind)) return { id: t.id, type: "metric", title: "Records", icon: "count", value: formatNumber(rows.length), basis: "In this view", change: weekOverWeek(rows, () => 1, ctxNow), cta: all.length ? { text: `Show these ${all.length}`, ids: all, label: `Records · ${all.length}` } : disabled("Show these", "", noRecords) };
+  if (!f || !isNumeric(f.kind)) return { id: t.id, type: "metric", title: "Records", icon: "count", value: formatNumber(rows.length), basis: "In this view", change: weekOverWeek(allRows, () => 1, ctxNow), cta: all.length ? { text: `Show these ${all.length}`, ids: all, label: `Records · ${all.length}` } : disabled("Show these", "", noRecords) };
   const withValue = rows.filter((r) => typeof r.values[f.name] === "number");
   const sum = withValue.reduce((s, r) => s + (r.values[f.name] as number), 0);
   const avg = t.measure === "avg";
@@ -182,12 +184,13 @@ function metric(t: Tile, { fields, rows, now: ctxNow = new Date() }: Ctx): TileD
     value: withValue.length ? formatNumber(avg ? sum / withValue.length : sum, f.unit) : "Unknown",
     basis: withValue.length ? `${withValue.length} of ${records(rows.length)} have a value in ${nameOf(f)}` : rows.length ? `No record has a value in ${nameOf(f)} yet` : "No records yet",
     cta: ids.length ? { text: `Show these ${ids.length}`, ids, label: `${title} · ${ids.length}` } : disabled("Show these", "", rows.length ? `No record has a value in ${nameOf(f)} yet.` : noRecords),
-    change: avg ? undefined : weekOverWeek(withValue, (r) => r.values[f.name] as number, ctxNow, f.unit),
+    change: avg ? undefined : weekOverWeek(allRows.filter((r) => typeof r.values[f.name] === "number"), (r) => r.values[f.name] as number, ctxNow, f.unit),
   };
 }
 
-/** What was added in the last 7 days against the 7 before (by when each record was made), as
- *  "+3 vs the week before"; none when nothing was added in either. */
+/** What was added in the last 7 days against the 7 before (by when each record was made, so the
+ *  period chosen on the dashboard doesn't hide the week before), as "3 more added than the week
+ *  before"; none when nothing was added in either. */
 export function weekOverWeek(rows: RecordRow[], value: (r: RecordRow) => number, now = new Date(), unit?: string | null): string | undefined {
   const t = now.getTime();
   let a = 0;
@@ -200,7 +203,7 @@ export function weekOverWeek(rows: RecordRow[], value: (r: RecordRow) => number,
   }
   if (!a && !b) return undefined;
   const d = a - b;
-  return d === 0 ? "the same as the week before" : `${formatNumber(Math.abs(d), unit)} ${d > 0 ? "more" : "less"} than the week before`;
+  return d === 0 ? "As much added as the week before" : `${formatNumber(Math.abs(d), unit)} ${d > 0 ? "more" : "less"} added than the week before`;
 }
 
 export type Period = "all" | "30" | "7";

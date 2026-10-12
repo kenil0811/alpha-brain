@@ -14,7 +14,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { say } from "../../core/client";
 import type { Client, Intelligence, WorkGraph } from "../../core/client";
 import { Button, IconButton, Notice, Toggle, ZoomControls, useContextMenu } from "../../ui";
-import { Check, FilterIcon, ICON_SM, MoreVertical, SearchIcon, X } from "../../ui/icons";
+import { FilterIcon, ICON_SM, MoreVertical, SearchIcon, X } from "../../ui/icons";
+import { HypothesisButtons } from "../intel/Hypothesis";
 import type { TableRecords } from "./collect";
 import type { Surface } from "../Rail";
 import { KINDS, around, cachedWorld, graphOf, keepWorld, neighbours, place, search, visible, type GNode, type GraphKind, type Placed } from "./model";
@@ -83,7 +84,16 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
     return c;
   }, [graph]);
   const node = selected ? graph.nodes.find((n) => n.id === selected) : undefined;
+  // a node that went (a rejected hypothesis) takes its selection and local graph with it
+  useEffect(() => {
+    if (selected && !node) {
+      setSelected(null);
+      setDepth("all");
+    }
+  }, [selected, node]);
   const lit = hover ?? selected;
+  // the graph's one tab stop: the selected node, else you, else the first shown
+  const tabStop = node && shown.nodes.includes(node) ? node.id : shown.nodes.some((n) => n.id === "you") ? "you" : shown.nodes[0]?.id;
   const litSet = lit ? new Set([lit, ...(near.get(lit) ?? [])]) : null;
 
   const fit = (nodes = shown.nodes) => {
@@ -94,10 +104,13 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
     const k = Math.min(3, Math.max(0.2, 0.9 * Math.min(W / Math.max(1, x1 - x0), H / Math.max(1, y1 - y0))));
     setView({ k, x: -((x0 + x1) / 2) * k, y: -((y0 + y1) / 2) * k });
   };
-  // fit once the graph first has its shape, and again when the local graph changes
+  // fit as the graph fills in (Intelligence, then the world, then the records) until the person
+  // moves the view, and again whenever the local graph changes
   const fitted = useRef("");
+  const moved = useRef(false);
   useEffect(() => {
-    const key = `${shown.nodes.length > 0}|${selected && depth !== "all" ? `${selected}:${depth}` : ""}`;
+    const local = selected && depth !== "all" ? `${selected}:${depth}` : "";
+    const key = `${moved.current && !local ? "" : shown.nodes.length}|${local}`;
     if (fitted.current !== key) {
       fitted.current = key;
       fit();
@@ -107,12 +120,20 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
     const p = at[id];
     if (p) setView((v) => ({ ...v, x: -p.x * v.k, y: -p.y * v.k }));
   };
-  const zoom = (by: number) => setView((v) => ({ k: Math.min(6, Math.max(0.1, v.k * by)), x: v.x * by, y: v.y * by }));
-  const move = (dx: number, dy: number) => setView((v) => ({ ...v, x: v.x + dx * 120, y: v.y + dy * 120 }));
-  const unitsPerPixel = () => W / (svg.current?.clientWidth || W);
+  const zoom = (by: number) => {
+    moved.current = true;
+    setView((v) => ({ k: Math.min(6, Math.max(0.1, v.k * by)), x: v.x * by, y: v.y * by }));
+  };
+  const move = (dx: number, dy: number) => {
+    moved.current = true;
+    setView((v) => ({ ...v, x: v.x + dx * 120, y: v.y + dy * 120 }));
+  };
+  // the drawing is scaled to fit ("meet"): by its width or its height, whichever is tighter
+  const unitsPerPixel = () => Math.max(W / (svg.current?.clientWidth || W), H / (svg.current?.clientHeight || H));
   const down = (e: ReactPointerEvent<SVGSVGElement>) => {
     if ((e.target as Element).closest(".gnode")) return;
     drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+    moved.current = true;
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const dragMove = (e: ReactPointerEvent<SVGSVGElement>) => {
@@ -138,15 +159,6 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
     setMessage(null);
     setSelected(hit.id);
     centre(hit.id);
-  };
-  const decide = async (n: GNode, accept: boolean) => {
-    try {
-      await client.decideFact(n.id.slice("fact:".length), accept);
-      setMessage({ ok: true, text: accept ? "Kept as a fact." : "Rejected." });
-      onChanged();
-    } catch (e) {
-      setMessage({ ok: false, text: say(e) });
-    }
   };
   const filterMenu = useContextMenu([{ label: "Things with no links", on: orphans, onSelect: () => setOrphans((o) => !o) }]);
   const moreMenu = useContextMenu([
@@ -201,7 +213,8 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
                     className={`gnode gnode--${n.kind}${n.id === selected ? " gnode--on" : ""}${litSet && !litSet.has(n.id) ? " gnode--dim" : ""}`}
                     transform={`translate(${p.x} ${p.y})`}
                     role="button"
-                    tabIndex={0}
+                    data-id={n.id}
+                    tabIndex={n.id === tabStop ? 0 : -1}
                     aria-label={`${n.title}, ${label(n.kind)}`}
                     aria-pressed={n.id === selected}
                     onMouseEnter={() => setHover(n.id)}
@@ -211,7 +224,16 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
                     onClick={() => setSelected(n.id)}
                     onDoubleClick={() => n.open && onGo?.(n.open)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
+                      if (e.key.startsWith("Arrow")) {
+                        // one tab stop for the whole graph: the arrows walk to the next or previous neighbour
+                        e.preventDefault();
+                        const list = [...(near.get(n.id) ?? [])].filter((id) => shown.nodes.some((m) => m.id === id));
+                        if (!list.length) return;
+                        const next = list[(e.key === "ArrowLeft" || e.key === "ArrowUp" ? list.length - 1 : 0)];
+                        setSelected(next);
+                        centre(next);
+                        requestAnimationFrame(() => (svg.current?.querySelector(`[data-id="${CSS.escape(next)}"]`) as SVGGElement | null)?.focus());
+                      } else if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         if (n.id === selected && n.open) onGo?.(n.open);
                         else setSelected(n.id);
@@ -241,14 +263,7 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
               <IconButton size="sm" label="Close" icon={<X size={ICON_SM} />} onClick={() => { setSelected(null); setDepth("all"); }} />
             </div>
             {node.kind === "hypothesis" ? (
-              <div className="row">
-                <Button size="sm" variant="primary" icon={<Check size={ICON_SM} />} onClick={() => void decide(node, true)}>
-                  Keep as a fact
-                </Button>
-                <Button size="sm" variant="ghost" icon={<X size={ICON_SM} />} onClick={() => void decide(node, false)}>
-                  Reject
-                </Button>
-              </div>
+              <HypothesisButtons client={client} id={node.id.slice("fact:".length)} text={node.title} done={(text, ok = true) => { setMessage({ ok, text }); if (ok) onChanged(); }} />
             ) : null}
             {node.open ? (
               <Button size="sm" onClick={() => onGo?.(node.open!)}>

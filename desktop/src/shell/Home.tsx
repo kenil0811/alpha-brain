@@ -152,7 +152,7 @@ function Item({ title, detail, onOpen, children }: { title: string; detail?: str
 }
 
 /** Runs one action of a card and reports it in a sentence (or the error, in plain words). */
-function useAct(onDone: (words: string) => void) {
+function useAct(onDone: (words: string, ok?: boolean) => void) {
   const [busy, setBusy] = useState(false);
   return {
     busy,
@@ -162,7 +162,7 @@ function useAct(onDone: (words: string) => void) {
         await work();
         onDone(words);
       } catch (e) {
-        onDone(say(e));
+        onDone(say(e), false);
       } finally {
         setBusy(false);
       }
@@ -172,7 +172,7 @@ function useAct(onDone: (words: string) => void) {
 
 /** A need on a card: answered in place when it fits one line (a yes/no, a short choice, a guess
  *  to check); otherwise Review opens Needs you, where it shows in full. */
-function NeedLine({ item, client, onDone, onReview }: { item: NeedItem; client: Client; onDone: (words: string) => void; onReview: () => void }) {
+function NeedLine({ item, client, onDone, onReview }: { item: NeedItem; client: Client; onDone: (words: string, ok?: boolean) => void; onReview: () => void }) {
   const { busy, act } = useAct(onDone);
   const detail = [item.why, when(item.at)].filter(Boolean).join(" · ");
   if (item.kind === "fact")
@@ -186,7 +186,7 @@ function NeedLine({ item, client, onDone, onReview }: { item: NeedItem; client: 
     return (
       <Item title={item.text} detail={detail}>
         {item.options.map((o) => (
-          <Button key={o} size="sm" disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
+          <Button key={o} size="sm" title={o} disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
             {o}
           </Button>
         ))}
@@ -214,7 +214,7 @@ function NeedLine({ item, client, onDone, onReview }: { item: NeedItem; client: 
 
 /** A failure on a card: what it was (opens its entry), when and why, with Open and Try again
  *  where the journal says what it touched (an agent's run reruns; a conversation or a project opens). */
-function FailureLine({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDone: (words: string) => void }) {
+function FailureLine({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDone: (words: string, ok?: boolean) => void }) {
   const { busy, act } = useAct(onDone);
   const automation = typeof e.data.automation === "string" ? e.data.automation : null;
   const reason = [e.data.error, e.data.why].find((r): r is string => typeof r === "string" && r.trim() !== "" && !e.text.includes(r));
@@ -235,16 +235,17 @@ function FailureLine({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntr
   );
 }
 
-/** One card: its objective as the title, the items, and "N more" to its page. */
-function Card({ card, onGo, children }: { card: HomeCard; onGo: (s: Surface) => void; children: ReactNode }) {
+/** One card: its objective as the title, the items, and "N more" to its page (or, for a card
+ *  with no page of its own, to Alpha). */
+function Card({ card, onGo, onMore, children }: { card: HomeCard; onGo: (s: Surface) => void; onMore: () => void; children: ReactNode }) {
   return (
     <section className={`card hcard hcard--${card.size}${card.wide ? " hcard--wide" : ""}`} aria-label={card.objective} data-card={card.kind}>
       <h3 className="hcard__title" title={card.objective}>
         {card.objective}
       </h3>
       {children}
-      {card.more && card.opens ? (
-        <Button size="sm" variant="ghost" className="hcard__more" onClick={() => onGo(card.opens!)}>
+      {card.more ? (
+        <Button size="sm" variant="ghost" className="hcard__more" onClick={() => (card.opens ? onGo(card.opens) : onMore())}>
           {card.more} more <ArrowRight size={ICON_SM} aria-hidden="true" />
         </Button>
       ) : null}
@@ -262,7 +263,7 @@ export function Home({ setup, client, version, onGo, onChanged, onAsk, onNew, on
   const [modulesError, setModulesError] = useState<string | null>(null);
   const [modulesTick, setModulesTick] = useState(0);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [failures, setFailures] = useState<JournalEntry[]>([]);
   const failedCount = home?.failed_today ?? 0;
   // ponytail: the newest 300 entries; a day with more than that names only its latest failures
@@ -321,9 +322,9 @@ export function Home({ setup, client, version, onGo, onChanged, onAsk, onNew, on
 
   const date = dayLabel(home?.date ?? new Date().toISOString());
   const next = home?.coming_up[0];
-  const done = (words: string) => {
-    setMessage(words);
-    onChanged();
+  const done = (text: string, ok = true) => {
+    setMessage({ ok, text });
+    if (ok) onChanged();
   };
   // the projects show even while today's summary can't load
   const cards = homeCards({ home: home ?? NOTHING_YET, failures, goals, modules: modules ?? [] });
@@ -436,11 +437,11 @@ export function Home({ setup, client, version, onGo, onChanged, onAsk, onNew, on
         {homeError ? <Trouble onRetry={() => setHomeTick((n) => n + 1)}>Couldn't load today's summary: {homeError}</Trouble> : null}
         {modulesError ? <Trouble onRetry={() => setModulesTick((n) => n + 1)}>Couldn't load your projects: {modulesError}</Trouble> : null}
         {!home && !homeError ? <p className="faint">Loading today…</p> : null}
-        {message ? <Notice>{message}</Notice> : null}
+        {message ? <Notice tone={message.ok ? undefined : "bad"}>{message.text}</Notice> : null}
         {home && !urgent ? <p className="today__quiet">Nothing needs you right now.</p> : null}
         <div className="hgrid">
           {cards.map((c) => (
-            <Card key={c.id} card={c} onGo={onGo}>
+            <Card key={c.id} card={c} onGo={onGo} onMore={() => onAsk(c.kind === "today" ? "What else is on my calendar today?" : `Tell me about the rest: ${c.objective}`)}>
               {body(c)}
             </Card>
           ))}

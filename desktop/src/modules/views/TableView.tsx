@@ -385,7 +385,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
           );
         })}
         {seen ? <SeenCell row={row} /> : null}
-        <td className="td--add">{rowButtons ? <span className="rowbtns">{rowButtons(row)}</span> : null}</td>
+        <td className="td--add">{rowButtons ? <span className="rowbtns" onClick={stop} onDoubleClick={stop}>{rowButtons(row)}</span> : null}</td>
       </tr>
     );
   };

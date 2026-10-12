@@ -299,6 +299,8 @@ A page of visuals where **every visual is actionable**.
   - **Needs attention:** up to 5–7 records (overdue, stale, missing a value, flagged), each with its own inline action.
   - **Progress toward a goal:** the project's goals, with the next step.
   - **Alpha's suggestions for this collection:** each shown as a proposal with Approve and Decline.
+  - **What changed?:** the numbers in one line, and **Ask what changed**, for Alpha to explain (12 Oct; Alpha writing it there waits for the core).
+- **Aligned with ChatGPT's dashboards** (the owner, 12 Oct): the numbers first (each count and total with its change on the week before), then the charts, then what needs attention; **As of** a time; a period (All time, 30 days, 7 days) that applies to every tile with the toolbar's list, search and filters; **Ask Alpha** to change the dashboard; each change on the week before counts every record, whatever the period; ⋮ holds **Edit dashboard**, **Tell me when…** (Alpha proposes the alert as an automation) and **Download as CSV**. Tiles sit on Home's card grid: a number S, a chart M, Needs attention L.
 - **What a CTA does:**
   - opens the collection in another view, filtered to exactly those records (a temporary filter, savable as a list);
   - opens a record page;
@@ -592,27 +594,18 @@ When a request would share data with an outside service, an amber notice asks fi
 
 ## 11. Home
 
-A header like every page's: the greeting (serif) and today's date on the left, the next event from the connected calendar on the right (when and what; "No events coming up" otherwise). Below it, a single centred column with room to breathe (the owner, 11 Oct, evening).
+The one place where everything important and urgent shows, as cards (the owner, 12 Oct). A header like every page's: the greeting (serif) and today's date on the left, the next event from the connected calendar on the right (when and what; "No events coming up" otherwise).
 
 0. **Setting up** (only until it's done; only on Home) (the owner, 11 Oct): a quiet card for what Alpha still needs (the account it thinks with, the browser it reads with), each with its one button. It never appears on any other page.
-1. **Heading:** in the header (above); the Today card no longer repeats the next event.
-2. **Today card**
-   - **Side-by-side tiles:**
-     - **Needs you:** the count.
-     - **Due:** overdue, due today and upcoming, from the Task manager. Overdue turns red only when it has items.
-     - **Done today:** what Alpha read, made and changed, with a card for each failure (what, when, why, Try again), also listed in the bell's Activity.
-     - **Coming up:** the next calendar item.
-   - **Needs you, in full:** questions to answer, proposals and action cards to approve or decline, and suggested facts to remember or forget.
-   - **Alpha is working on:** live work with its current step, and Open and Stop.
-   - **Suggestions:** what Alpha noticed, with Approve and Decline.
-   - **Quiet day:** the card says so in one sentence: "Nothing needs you right now."
-   - **Errors:** if part of the card can't load, that part says what went wrong in plain words and offers **Try again**. The rest of the card still shows.
-3. **Projects grid**
-   - Each card shows the project's icon, name, one-line description and **Open →**.
-   - The last card is **New project**. With no projects yet, it is the only card.
-4. **First steps** (a new workspace only)
-   - A few one-click starts, such as connecting a folder or a calendar, or making a first project.
-   - Each says what will happen.
+1. **The card grid**
+   - Columns as many as fit at 280px or wider; one row unit (128px); one gap. A card is **S** (1 row), **M** (2) or **L** (3) high, and **wide** (2 columns) only when it has many items. Content never grows a card: extra items fold into "N more", which opens the card's page.
+   - **Every card has a purpose, written as its title** ("Answer 3 things so Alpha can go on", "Fix 2 things that didn't work"), and **every item has its action** (Approve, Try again, Prepare, Open, Next step). A card with nothing to act on is not shown.
+   - **Alpha decides the cards** — which, how big, and how each is presented (decision list, number, timeline, preview…) from what it is for. Until the core composes Home (core-changes G10), the window builds them by a fixed rule: what needs a yes, what broke, today's events, Alpha's guesses to check, what Alpha is working on, active goals, what got done, then one S card per project and **Start something new**.
+   - Most urgent first, top-left; dense packing fills holes, but the reading order stays the priority order.
+   - A need that doesn't fit one line (a plan with questions, an action card) shows **Review**, which opens **Needs you** in full (`#/needs`).
+   - **Quiet day:** one sentence, "Nothing needs you right now."; the projects still show.
+   - **Errors:** a part that can't load says so in plain words with **Try again**; the rest still shows.
+2. **First steps** (a new workspace only): a few one-click starts, each saying what will happen.
 
 ---
 
@@ -620,11 +613,12 @@ A header like every page's: the greeting (serif) and today's date on the left, t
 
 The one place for everything Alpha knows and can do across projects. Its header tabs are:
 
-- **Second Brain**
-  - The brain view: every project, collection and record as a dot, with the links between them drawn; two or three layers at once, deeper layers and labels on zoom.
-  - Views **Brain | Facts | Goals | Map**. Facts and Goals are each the standard data view; "Waiting for your confirmation" sits beside the brain.
-  - Every fact can be corrected or forgotten, and has a **Provenance** disclosure.
-  - Beside the brain: what waits for a yes, the picked dot, standing instructions, standing permissions and Alpha's notes, each as an editable sentence (not lists, so not data views).
+- **Second Brain** (the owner, 12 Oct)
+  - **Graph** (the default; Obsidian's graph view as the reference): every thing in the platform as a node — you, projects, collections, records, people, organisations, facts, hypotheses, goals, agents, automations, skills, connections — and every link the data holds; suggested links and hypotheses dashed. The legend is the kind filter (each chip shows or hides a kind, with its count). Search finds and centres; Filter hides things with no links; ⋮ has names and Refresh. Hover lights the neighbours; a click selects and opens the side panel (links, ✓ / ✕ for a hypothesis, Open page, the local graph 1–3 links around it); a double-click opens the page.
+  - **Table:** facts, goals and hypotheses in one standard data view with a Type column. A **fact** is what is known; a **goal** what you want; a **hypothesis** what Alpha thinks is true and you haven't decided. A hypothesis row shows **✓** (Keep as a fact / Make it a goal) and **✕** (Reject) on hover or focus.
+  - Each project's Intelligence section has the same table for that project: its goals, and the facts and hypotheses about whom its work names.
+  - Every fact, goal, standing permission and note opens a page of its own.
+  - Under the views: standing instructions, standing permissions and Alpha's notes, each an editable sentence.
 - **Agents and automations** (one tab since 9 Oct, owner's third review)
   - Alpha and every agent, then every automation, in the standard data view.
   - **One New button** (no Add agent / Add automation): it asks Alpha to build what's needed, deciding between an automation (fixed steps, no model) and an agent (owns a recurring process, uses judgement), and asking the person, with the trade-offs, when unclear.
@@ -640,12 +634,9 @@ The one place for everything Alpha knows and can do across projects. Its header 
 - **Activity** (the bell at the right of the assistant's header, not a tab)
   - Everything Alpha did and read, and what the person changed, grouped by day with search first.
   - Each entry opens to what it touched.
-- **Map** (inside Second Brain as Brain | Facts | Map, since 9 Oct)
-  - The workspace as a graph: the person's world by default, Alpha's own work as a toggle.
-  - Suggested links appear dashed until the person decides.
-  - It refreshes when asked.
+- **Graph and Map are different words** (the owner, 12 Oct): a **graph** is things and the links between them (Second Brain); a **map** is places on a world map. Both have small zoom in, zoom out, fit and move buttons in the bottom-right corner, besides the wheel and dragging.
 
-**Every list here is the one data view** (12 Oct, the owner): Agents and automations, Skills, Connections, Facts, Goals, an agent page's skills and automations, and a project's goals, agents and sub-projects. Card-or-list alternatives are the data view's own views (Table by default; List, Gallery, Board…), never a separate UI. A page's actions (**New**, **Add goal**, **Connect**) sit in the toolbar between Filter and ⋮, fold into ⋮ when narrow, and appear nowhere else on the page. Not data views: the brain and the Map (pictures), Activity and an agent's Runs (a feed by day), and the editable sentences above.
+**Every list here is the one data view** (12 Oct, the owner): Agents and automations, Skills, Connections, Facts, Goals, an agent page's skills and automations, and a project's goals, agents and sub-projects. Card-or-list alternatives are the data view's own views (Table by default; List, Gallery, Board…), never a separate UI. A page's actions (**New**, **Add goal**, **Connect**) sit in the toolbar between Filter and ⋮, fold into ⋮ when narrow, and appear nowhere else on the page. Not data views: the graph (a picture), Activity and an agent's Runs (a feed by day), and the editable sentences above.
 
 ---
 

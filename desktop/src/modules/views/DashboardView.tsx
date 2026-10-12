@@ -53,18 +53,18 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   const inScope = useMemo(() => inPeriod(rows, fields, period, asOf), [rows, fields, period, asOf]);
   // a saved tile whose field has gone is dropped the next time the layout is saved
   const shown = useMemo(() => {
-    const ctx = { fields, rows: inScope, titleField: table.title_field, now: asOf };
+    const ctx = { fields, rows: inScope, allRows: rows, titleField: table.title_field, now: asOf };
     return (layout ?? defaultTiles(fields)).flatMap((t) => {
       const data = computeTile(t, ctx);
       return data ? [{ tile: t, data }] : [];
     });
-  }, [layout, fields, inScope, table.title_field, asOf]);
+  }, [layout, fields, inScope, rows, table.title_field, asOf]);
   const scope = period === "all" ? "" : ` over the last ${period} days`;
   const numbers = shown.map(({ data }) => (data.type === "metric" ? `${data.title}: ${data.value}${data.change ? ` (${data.change})` : ""}` : data.type === "attention" ? `${data.total} need attention` : `${data.title}: ${data.basis}`)).join("; ");
   const menu = useContextMenu([
-    { label: "Edit dashboard", on: editing, onSelect: () => setEditing(!editing) },
+    { label: "Edit dashboard", onSelect: () => setEditing(true), disabled: editing ? "You are editing it; Done ends it." : undefined },
     { label: "Tell me when…", onSelect: () => onAsk(`On the ${table.title} dashboard, tell me when `) },
-    { label: "Download as CSV", onSelect: () => downloadText(`${table.title} dashboard.csv`, toCsv([["Tile", "Value", "Basis"], ...shown.map(({ data }) => [data.title, data.type === "metric" ? data.value : data.type === "attention" ? String(data.total) : "", data.basis])])) },
+    { label: "Download as CSV", onSelect: () => downloadText(`${table.title} dashboard.csv`, toCsv([["Tile", "Value", "Basis"], ...shown.map(({ data }) => [data.title, data.type === "metric" ? data.value : data.type === "overtime" ? String(data.buckets.reduce((a, b) => a + b.ids.length, 0)) : String(data.total), data.basis])])) },
   ]);
 
   async function save(next: Tile[] | null) {
@@ -91,7 +91,7 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   );
 
   function body(d: TileData) {
-    if (d.type === "metric") return <MetricTile label={d.title} value={d.value} basis={d.change ? `${d.basis} · ${d.change}` : d.basis} cta={button(d.cta, d.title)} />;
+    if (d.type === "metric") return <MetricTile label={d.title} value={d.value} basis={d.basis} change={d.change} cta={button(d.cta, d.title)} />;
     // a chart tile: its total with the label and basis beside it, the chart under them
     if (d.type === "breakdown" || d.type === "overtime") {
       const total = d.type === "breakdown" ? d.total : d.buckets.reduce((a, b) => a + b.ids.length, 0);
@@ -182,8 +182,8 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
             </div>
           ))}
           <div className="dash__cell dash__cell--read">
-            <SectionCard title="Alpha's read" info="Alpha explains what changed and why, from these numbers.">
-              <p className="dash__none">{numbers}{scope}.</p>
+            <SectionCard title="What changed?" info={`Alpha explains what changed and why, from these numbers: ${numbers}${scope}.`}>
+              <p className="dash__none dash__clamp">{numbers}{scope}.</p>
               <div className="dash__cta">
                 <Button size="sm" onClick={() => onAsk(`On the ${table.title} dashboard${scope}: ${numbers}. What changed, and why?`)}>
                   Ask what changed

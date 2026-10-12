@@ -86,7 +86,7 @@ describe("the dashboard", () => {
     const user = userEvent.setup();
     const { client } = setup();
     await user.click(screen.getByRole("button", { name: "Dashboard options" }));
-    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Edit dashboard" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit dashboard" }));
     await user.click(screen.getByRole("button", { name: "Remove Needs attention" }));
     await waitFor(() => expect(client.setPreference).toHaveBeenCalled());
     const [key, value] = client.setPreference.mock.calls[0] as [string, Record<string, { id: string }[]>];
@@ -100,7 +100,7 @@ describe("the dashboard", () => {
     const user = userEvent.setup();
     const { client } = setup();
     await user.click(screen.getByRole("button", { name: "Dashboard options" }));
-    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Edit dashboard" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit dashboard" }));
     await user.click(screen.getByRole("button", { name: "Make Records by stage wide" }));
     await waitFor(() => expect(client.setPreference).toHaveBeenCalledTimes(1));
     expect(document.querySelectorAll(".dash__cell--wide")).toHaveLength(1);
@@ -131,7 +131,7 @@ describe("the dashboard", () => {
     expect(screen.getByText(/^As of /)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "7 days" }));
     expect(screen.getByRole("tab", { name: "7 days" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("region", { name: "Alpha's read" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "What changed?" })).toBeInTheDocument();
   });
 });
 
@@ -139,7 +139,7 @@ describe("week over week", () => {
   it("says what was added in the last 7 days against the 7 before", () => {
     const now = new Date("2026-10-12T12:00:00Z");
     const at = (days: number) => ({ id: String(days), revision: 1, values: {}, created_at: new Date(now.getTime() - days * 86_400_000).toISOString(), updated_at: "", provenance: {} });
-    expect(weekOverWeek([at(1), at(2), at(9)], () => 1, now)).toBe("1 more than the week before");
+    expect(weekOverWeek([at(1), at(2), at(9)], () => 1, now)).toBe("1 more added than the week before");
     expect(weekOverWeek([at(30)], () => 1, now)).toBeUndefined();
   });
 });

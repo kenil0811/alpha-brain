@@ -50,7 +50,8 @@ describe("Intelligence", () => {
 
   it("puts facts, goals and hypotheses in one table, a hypothesis approved or rejected from its row", async () => {
     localStorage.clear();
-    const client = mount("second-brain");
+    const onGo = vi.fn();
+    const client = mount("second-brain", vi.fn(), onGo);
     (client as unknown as { decideFact: unknown }).decideFact = vi.fn(async () => ({}));
     await userEvent.click(await screen.findByRole("tab", { name: "Table" }));
     const known = (await screen.findByText("You home city Berlin")).closest("tr")!;
@@ -60,6 +61,8 @@ describe("Intelligence", () => {
     expect(within(known).queryByRole("button", { name: "Reject" })).toBeNull(); // only a hypothesis has them
     await userEvent.click(within(guess).getByRole("button", { name: "Reject" }));
     await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", false));
+    await new Promise((r) => setTimeout(r, 300)); // past the row's click-to-open wait
+    expect(onGo).not.toHaveBeenCalled(); // ✕ is the row's button, not a click on the row
     await userEvent.click(within(guess).getByRole("button", { name: "Approve" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Keep as a fact" }));
     await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", true));
@@ -85,7 +88,8 @@ describe("Intelligence", () => {
     // a hypothesis is kept as a fact from the panel
     await userEvent.click(screen.getByRole("tab", { name: "All" }));
     await userEvent.click(screen.getByRole("button", { name: "tea, Hypotheses" }));
-    await userEvent.click(screen.getByRole("button", { name: "Keep as a fact" }));
+    await userEvent.click(within(screen.getByRole("complementary", { name: "tea" })).getByRole("button", { name: "Approve" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Keep as a fact" }));
     await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", true));
     // the legend hides a kind
     await userEvent.click(screen.getByRole("button", { name: /^People/ }));

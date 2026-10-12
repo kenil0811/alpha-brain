@@ -607,10 +607,24 @@ Nothing below was changed in the core; the window does the nearest honest thing 
 - **Should / core needs:** (a) hypotheses as their own kind, or a "suggested" state on goals,
   with `POST /api/hypotheses/<id>/convert { as: "fact" | "goal" }` and undo of a reject;
   (b) `POST/PATCH /api/goals` for the window; (c) `facts.module` (or the record that produced it).
+  (d) `/api/intelligence` returns only facts about the person (`knowledge.facts("person")`) and
+  no rejected ones, so the window's table and a project's Second Brain can't show facts about
+  people and organisations (they are on Network pages) or rejected hypotheses: return every
+  subject's facts, rejected included, or give the window `GET /api/facts?subject=&state=`.
 
 ### G12. The graph's payload (12 Oct)
-- **Should / core needs:** goal → project edges, files, automations and a "You" node in
-  `/api/graph`; run detail by id; a document's content; a note by id.
+- **Now:** goals already reach their project in `/api/graph` (`in` edges); the window adds
+  automations and connections from `/api/intelligence`.
+- **Should / core needs:** files and automations in `/api/graph` (one payload); run detail by id;
+  a document's content; a note by id.
+
+### G13. A Map view for places (12 Oct)
+- **Now:** no collection has a place field and the window has no map; "Map" is kept for places
+  (the owner: a graph is things and links, a map is the world).
+- **Should / core needs:** a `place` field kind (address, or latitude and longitude, geocoded by
+  Alpha with its source), and a decision on map tiles (an outside tile service sees what is
+  looked at; offline vector tiles add weight). The window then draws a Map view with the same
+  zoom and move buttons as the graph.
 
 ---
 

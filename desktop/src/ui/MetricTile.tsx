@@ -6,7 +6,7 @@ import { Tooltip } from "./Tooltip";
  *  optional small chart of its trend or split and an optional call to action. A tile is as wide
  *  as what it holds. No icon unless one is given; `attention` marks what needs the person.
  *  An empty value ("None", or nothing) reads as a word in the muted sans, never as a serif number (11 Oct). */
-export function MetricTile({ icon, label, value, basis, attention, cta, chart, onOpen, tall }: { icon?: ReactNode; label: string; value: ReactNode; basis: string; attention?: boolean; cta?: ReactNode; chart?: ReactNode; /** A click (or Enter) opens the tile's details. */ onOpen?: () => void; /** A four-line block (a split with its legend) instead of a two-line tile. */ tall?: boolean }) {
+export function MetricTile({ icon, label, value, basis, attention, cta, chart, onOpen, tall, change }: { icon?: ReactNode; label: string; value: ReactNode; basis: string; /** Its change on the last period, a line of its own ("3 more than the week before"). */ change?: string; attention?: boolean; cta?: ReactNode; chart?: ReactNode; /** A click (or Enter) opens the tile's details. */ onOpen?: () => void; /** A four-line block (a split with its legend) instead of a two-line tile. */ tall?: boolean }) {
   const open = onOpen
     ? {
         role: "button",
@@ -38,6 +38,7 @@ export function MetricTile({ icon, label, value, basis, attention, cta, chart, o
             {basis}
           </div>
         </Tooltip>
+        {change ? <div className="mtile__change">{change}</div> : null}
       </div>
       {chart ? <div className="mtile__chart">{chart}</div> : null}
       {cta ? <div className="mtile__cta">{cta}</div> : null}

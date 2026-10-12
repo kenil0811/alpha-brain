@@ -248,3 +248,5 @@
 .table tr:hover .rowbtns, .table tr:focus-within .rowbtns { opacity: 1; }
 .hypo { display: inline-flex; gap: var(--space-1); background: var(--surface); border-radius: var(--radius-control); }
 .dash__cell > .dash__edit { flex: none; order: -1; }
+.mtile__change { font-size: var(--text-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash__clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

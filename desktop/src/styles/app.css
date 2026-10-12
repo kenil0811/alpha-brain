@@ -293,7 +293,9 @@ a { color: var(--primary); }
 .hitem__title--open { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: var(--text-md); }
 .hitem__title--open:hover { text-decoration: underline; }
 .hitem__detail, .hcard__detail { font-size: var(--text-sm); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hitem__acts { display: flex; gap: var(--space-1); flex: none; }
+.hitem__acts { display: flex; gap: var(--space-1); flex: 0 1 auto; min-width: 0; }
+/* a long choice ("Yes, every Monday") shortens rather than pushing its neighbour out of the card */
+.hitem__acts .btn { min-width: 0; max-width: calc(var(--card-min) / 2.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hcard__number, .hcard__project { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex: 1; }
 .hcard__big { font-size: var(--text-2xl); font-weight: 600; color: var(--text); line-height: 1; }
 .hcard__unit { font-size: var(--text-sm); color: var(--text-2); }
