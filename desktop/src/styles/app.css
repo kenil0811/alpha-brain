@@ -299,7 +299,7 @@ a { color: var(--primary); }
 .hcard__number, .hcard__project { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex: 1; }
 .hcard__big { font-size: var(--text-2xl); font-weight: 600; color: var(--text); line-height: 1; }
 .hcard__unit { font-size: var(--text-sm); color: var(--text-2); }
-.hcard__project .hcard__detail { flex: 1; min-width: 0; }
+.hcard__project .hcard__detail { flex: 1; min-width: 0; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .hcard__act { margin-left: auto; flex: none; }
 .hcard__ico { width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none; }
 .hcard__ico svg { width: var(--icon); height: var(--icon); }
