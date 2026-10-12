@@ -646,4 +646,4 @@ by keyboard (arrows, Enter) and pinch works on touch; the leave-guard props are 
 ## Not adopted, by decision (no work needed)
 
 - "Task manager is always the first project": it is pre-built (A6, T) but ordinary — not pinned, renamable, deletable (the platform knows no domain).
-- The sidebar's top row as the Mac title bar (the host is not changed on this branch).
+- ~~The sidebar's top row as the Mac title bar~~: allowed by the owner on 12 Oct and built that day (`titleBarStyle: "Overlay"` in `desktop/src-tauri/tauri.conf.json`; `log/2026-10-12-title-bar.md`).

@@ -13,6 +13,7 @@
  * it to the strip, as its fold button does. Any part may hand the assistant a sentence to send
  * (`AssistantProvider`, `useAssistant().say`).
  */
+import { macTitleBar } from "./shell/titleBar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PREF, usePreference } from "./core/preferences";
 import { Client, NOT_ANSWERING, moduleWords } from "./core/client";
@@ -168,7 +169,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const panelShown = panelOpen && !onAssistantPage;
 
   const drawn = useRef({ rail: 0, panel: 0 });
-  const rail = useDragWidth("alpha.rail.width", { initial: 240, min: 160, max: () => window.innerWidth - drawn.current.panel, wide: 288, grow: "right", onFold: () => foldRail(true) });
+  const rail = useDragWidth("alpha.rail.width", { initial: 240, min: macTitleBar() ? 220 : 160, max: () => window.innerWidth - drawn.current.panel, wide: 288, grow: "right", onFold: () => foldRail(true) });
   const panel = useDragWidth("alpha.panel.width", { initial: 380, min: 280, max: () => window.innerWidth - drawn.current.rail, wide: 500, grow: "left", onFold: () => togglePanel(false) });
   drawn.current = { rail: railCollapsed ? 96 : rail.width, panel: panelShown ? panel.width : 48 };
 

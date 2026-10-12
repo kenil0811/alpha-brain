@@ -146,7 +146,10 @@ Every screen lives inside the same three-part frame:
 
 - **One header line.** The sidebar's top row, every page's header and the assistant's header share one height, so their bottom edges form a single line across the window, Home's included (the owner, 11 Oct, evening: Home has a header too). The header, both panels and the window's top bar share one colour; Settings › Appearance can change it, and the centre's colour, and the fonts.
 - **Nothing sits above a page's header.** Notices about setup or the runtime go inside the page body or, for setup, on Home only.
-- **No separate title bar.** The sidebar's top row doubles as the Mac's title bar, beside the window controls.
+- **No separate title bar.** The sidebar's top row doubles as the Mac's title bar, beside the window controls (built 12 Oct):
+  - the controls sit in the top row, centred on the header line, with room kept for them before the workspace; folded, the row is all controls and the workspace sits just below it; in full screen the room goes;
+  - a press on an empty part of the header line (the sidebar's top row or any page's header) drags the window; a double-click there is the Mac's own (zoom or minimize, as the person set it); a press on a control acts on the control;
+  - header text isn't selectable, as in any title bar; in a browser nothing of this applies.
 - **Panel widths.** Each side panel has three widths: normal, wide and folded.
   - Drag the inner edge to resize. The handle appears only on hover or keyboard focus. Dragging all the way in folds the panel to the same strip as its fold button; dragging out has no cap, so the assistant can widen until the middle disappears (it may cover the middle).
   - A folded panel never disappears. It shrinks to a narrow strip; clicking the strip opens it again, and so does a double-click anywhere on its empty space.
