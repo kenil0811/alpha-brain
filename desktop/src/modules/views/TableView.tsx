@@ -60,7 +60,7 @@ export interface ColumnActions {
   wrap: (column: string) => void;
 }
 
-export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, calcDefaults, onCalcDefault, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, editRequest, blank, groups, collapsed = [], onCollapse, lines, wrapAll, rowHeight, colorOf, rowIcon, titleField, lockedFor, onSay }: {
+export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, calcDefaults, onCalcDefault, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, editRequest, blank, groups, collapsed = [], onCollapse, lines, wrapAll, rowHeight, colorOf, rowIcon, rowButtons, titleField, lockedFor, onSay }: {
   rows: RecordRow[];
   /** The records the footer works over: everything the view shows, not only this page. */
   summaryRows: RecordRow[];
@@ -111,6 +111,8 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   colorOf?: (row: RecordRow) => { row?: ColorTone; cells: Record<string, ColorTone> };
   /** A mark at the start of the title cell (an agent's avatar). */
   rowIcon?: (row: RecordRow) => ReactNode;
+  /** Buttons at the row's end, shown on hover or focus (`DataSource.rowButtons`). */
+  rowButtons?: (row: RecordRow) => ReactNode;
   titleField?: string;
   /** Why one cell can't change, or null. */
   lockedFor?: (row: RecordRow, field: FieldInfo) => string | null;
@@ -383,7 +385,7 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
           );
         })}
         {seen ? <SeenCell row={row} /> : null}
-        <td className="td--add" />
+        <td className="td--add">{rowButtons ? <span className="rowbtns">{rowButtons(row)}</span> : null}</td>
       </tr>
     );
   };

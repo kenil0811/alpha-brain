@@ -1,25 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Fact, Intelligence, RecordRow, TableDesc, WorkGraph } from "../../core/client";
-import { brainOf, insideEgg, layEgg, RECORD_SAMPLE, RECORDS_ALL_AT, stepToward, YOLK, type Brain } from "./egg";
+import { brainOf } from "./collect";
 
 const fact = (id: string, over: Partial<Fact> = {}): Fact => ({ id, subject: "person", predicate: "home_city", value: id, valid_from: "", valid_to: null, recorded_at: "", source: "stated", why: null, confidence: 1, state: "accepted", ...over });
 
-describe("the egg", () => {
-  it("keeps every node, all of its circle, inside the shell", () => {
-    const brain: Brain = { nodes: [{ id: "you", kind: "you", title: "You" }], edges: [] };
-    for (let i = 0; i < 160; i += 1) {
-      brain.nodes.push({ id: `n${i}`, kind: i % 9 === 0 ? "module" : i % 3 === 0 ? "person" : "fact", title: `${i}` });
-      if (i % 2) brain.edges.push({ from: `n${i}`, to: i % 4 === 1 ? "you" : `n${i - 1}` });
-    }
-    const at = layEgg(brain);
-    for (const { x, y, r } of Object.values(at)) {
-      expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
-      for (const [px, py] of [[x - r, y], [x + r, y], [x, y - r], [x, y + r]]) expect(insideEgg(px, py)).toBe(true);
-    }
-    expect(at.you).toMatchObject(YOLK); // the person stays at the yolk
-    expect(layEgg(brain)).toEqual(at); // the same brain draws the same way
-  });
-
+describe("what the graph draws", () => {
   it("draws only real links: you to a project, a collection to its project, a fact to its subject, a person to the collection they are a row in", () => {
     const world: WorkGraph = {
       at: "",
@@ -72,27 +57,5 @@ describe("the egg", () => {
     for (const p of ["record:deals:d1 table:deals", "record:deals:d2 table:deals", "record:firms:f1 table:firms", "module:m1 table:firms", "record:deals:d1 record:firms:f1", "record:deals:d2 record:firms:f1", "entity:o1 record:firms:f1"]) expect(pairs).toContain(p);
     expect(pairs.some((p) => p.includes("gone"))).toBe(false); // a relation to a record that isn't there draws nothing
     expect(brain.edges.find((e) => e.from === "record:deals:d1" && e.to === "table:deals")?.spoke).toBe(true);
-  });
-
-  it("puts records around their collection inside the shell, and samples a big collection until zoomed in", () => {
-    const many = Array.from({ length: 1000 }, (_, i) => row(`r${i}`, { name: `R${i}` }));
-    const brain = brainOf(world, none, [{ table: desc("deals", "Deals", [{ name: "name", kind: "text" }]), records: many }]);
-    const at = layEgg(brain);
-    const recs = many.map((r) => at[`record:deals:${r.id}`]);
-    for (const { x, y, r } of recs) for (const [px, py] of [[x - r, y], [x + r, y], [x, y - r], [x, y + r]]) expect(insideEgg(px, py)).toBe(true);
-    const shown = recs.filter((p) => !p.zoom).length;
-    expect(shown).toBeLessThanOrEqual(RECORD_SAMPLE);
-    expect(recs.every((p) => !p.zoom || p.zoom === RECORDS_ALL_AT)).toBe(true);
-    expect(at["table:deals"].more).toBe(1000 - shown);
-  });
-});
-
-describe("the arrow keys in the egg", () => {
-  const at = { a: { x: 0, y: 0, r: 1 }, right: { x: 10, y: 1, r: 1 }, far: { x: 40, y: 0, r: 1 }, up: { x: 0, y: -10, r: 1 } };
-  it("moves to the neighbour that way, then to anything that way, else nowhere", () => {
-    expect(stepToward("a", ["far", "up"], Object.keys(at), at, "ArrowRight")).toBe("far");
-    expect(stepToward("a", ["up"], Object.keys(at), at, "ArrowRight")).toBe("right");
-    expect(stepToward("a", [], Object.keys(at), at, "ArrowUp")).toBe("up");
-    expect(stepToward("a", [], Object.keys(at), at, "ArrowLeft")).toBeNull();
   });
 });

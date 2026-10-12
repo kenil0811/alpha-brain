@@ -49,6 +49,9 @@ export interface DataSource {
   /** Put a file on a row's file field. */
   addFile?(row: RecordRow, field: FieldInfo, file: File): Promise<unknown>;
   reasons?: Partial<Record<SourceAbility, string>>;
+  /** Buttons at the end of a table row, shown on hover or focus (a hypothesis's ✓ / ✕); `done`
+   *  says what happened and loads the rows again. */
+  rowButtons?(row: RecordRow, done: (words: string, ok?: boolean) => void): ReactNode;
   /** A small mark at the start of a record's title (an agent's avatar), in every view. */
   rowIcon?(row: RecordRow): ReactNode;
   /** Whether one cell can change: null when it can, else the reason (shown on hover; the cell

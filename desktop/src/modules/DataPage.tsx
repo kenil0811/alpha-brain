@@ -693,6 +693,8 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   };
   const none = rows && !rows.length;
   const rowIcon = src.rowIcon ? (row: RecordRow) => src.rowIcon!(row) : undefined;
+  // ponytail: row buttons show in the table view only; the other views open the record's page
+  const rowButtons = src.rowButtons ? (row: RecordRow) => src.rowButtons!(row, (text, ok = true) => { setStatus({ ok, text }); load(); onChanged(); }) : undefined;
   const coloured = view === "table" || view === "list" || view === "board" || view === "gallery" ? colourNote(vs.colors, byName) : "";
   const tabActions: TabActions = {
     onTab: switchTab,
@@ -848,6 +850,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             onCollapse={toggleGroup}
             colorOf={colorOf}
             rowIcon={rowIcon}
+            rowButtons={rowButtons}
             titleField={titleField}
             lockedFor={src.editable ? (row, field) => src.editable!(row, field) : undefined}
             onSay={(text, ok) => setStatus({ ok, text })}

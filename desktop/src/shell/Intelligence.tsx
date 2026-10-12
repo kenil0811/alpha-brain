@@ -78,7 +78,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
     switch (current) {
       case "second-brain":
       case "map":
-        return <SecondBrain client={client} data={data} version={version} onChanged={onChanged} onAsk={onAsk} onGo={onGo} initialView={current === "map" ? "map" : undefined} />;
+        return <SecondBrain client={client} data={data} version={version} onChanged={onChanged} onAsk={onAsk} onGo={onGo} initialView={current === "map" ? "graph" : undefined} />;
       case "agents":
         return (
           <>

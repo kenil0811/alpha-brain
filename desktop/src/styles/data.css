@@ -238,3 +238,8 @@
 /* a required value refused, beside its cell */
 .cellerr { display: block; margin-top: var(--space-1); font-size: var(--text-sm); color: var(--bad); white-space: normal; }
 .board__empty { padding: var(--space-3); }
+/* a row's own buttons (a hypothesis's ✓ / ✕, 12 Oct): at the row's end, shown on hover or focus */
+.table td.td--add { position: relative; overflow: visible; }
+.rowbtns { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); display: flex; gap: var(--space-1); opacity: 0; transition: opacity var(--dur-quick) var(--ease-out); }
+.table tr:hover .rowbtns, .table tr:focus-within .rowbtns { opacity: 1; }
+.hypo { display: inline-flex; gap: var(--space-1); background: var(--surface); border-radius: var(--radius-control); }

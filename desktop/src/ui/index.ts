@@ -23,3 +23,4 @@ export { ListRow } from "./ListRow";
 export { DateField } from "./DateField";
 export { NumberField } from "./NumberField";
 export { useWidth } from "./useWidth";
+export { ZoomControls } from "./ZoomControls";

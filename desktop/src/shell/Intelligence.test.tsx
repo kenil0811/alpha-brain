@@ -28,7 +28,7 @@ function mount(tab: string, onTab = vi.fn(), onGo = vi.fn()) {
 }
 
 describe("Intelligence", () => {
-  it("has the tabs in the header; Map is a view of Second Brain and Activity is not a tab", async () => {
+  it("has the tabs in the header; the graph is a view of Second Brain and Activity is not a tab", async () => {
     const onTab = vi.fn();
     mount("second-brain", onTab);
     const header = screen.getByRole("tablist", { name: "Intelligence" });
@@ -37,44 +37,59 @@ describe("Intelligence", () => {
     expect(onTab).toHaveBeenCalledWith("agents");
   });
 
-  it("switches Brain, Facts, Goals and Map in the body with the same toggle as the header (rule 4)", async () => {
+  it("switches Graph and Table in the body with the same toggle as the header (rule 4)", async () => {
     mount("second-brain");
     const body = await screen.findByRole("tablist", { name: "Second Brain view" });
     const header = screen.getByRole("tablist", { name: "Intelligence" });
     expect(body).toHaveClass("hswitch");
     expect(body.className).toBe(header.className); // one look, two levels
-    expect(within(body).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Brain", "Facts", "Goals", "Map"]);
+    expect(within(body).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Graph", "Table"]);
     expect(body.parentElement).toHaveClass("hswitch__box--body");
     expect(document.querySelector(".toggle")).toBeNull(); // no hand-made switch left
   });
 
-  it("puts what waits for a yes beside the brain, the facts in the Facts view, and switches to the Map", async () => {
+  it("puts facts, goals and hypotheses in one table, a hypothesis approved or rejected from its row", async () => {
     localStorage.clear();
-    const onTab = vi.fn();
-    mount("second-brain", onTab);
-    expect(await screen.findByText("Waiting for your confirmation", { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText("tea")).toBeInTheDocument();
-    expect(screen.queryByText("Berlin")).toBeNull(); // the decided facts are the Facts view, not a card here
-    await userEvent.click(screen.getByRole("tab", { name: "Facts" }));
-    expect(await screen.findByText("Berlin")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Map" }));
-    expect(await screen.findByRole("textbox", { name: "Find on the map" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Brain" }));
-    expect(onTab).not.toHaveBeenCalled();
+    const client = mount("second-brain");
+    (client as unknown as { decideFact: unknown }).decideFact = vi.fn(async () => ({}));
+    await userEvent.click(await screen.findByRole("tab", { name: "Table" }));
+    const known = (await screen.findByText("You home city Berlin")).closest("tr")!;
+    expect(within(known).getByText("Fact")).toBeInTheDocument();
+    const guess = screen.getByText("You likes tea").closest("tr")!;
+    expect(within(guess).getByText("Hypothesis")).toBeInTheDocument();
+    expect(within(known).queryByRole("button", { name: "Reject" })).toBeNull(); // only a hypothesis has them
+    await userEvent.click(within(guess).getByRole("button", { name: "Reject" }));
+    await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", false));
+    await userEvent.click(within(guess).getByRole("button", { name: "Approve" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Keep as a fact" }));
+    await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", true));
   });
 
-  it("draws the brain in an egg, and a click on a node opens it", async () => {
+  it("draws everything as one graph: a click selects and shows the links, a double-click opens the page", async () => {
     localStorage.clear();
     const onGo = vi.fn();
-    mount("second-brain", vi.fn(), onGo);
-    await userEvent.click(await screen.findByRole("button", { name: "Deals, project" }));
+    const client = mount("second-brain", vi.fn(), onGo);
+    (client as unknown as { decideFact: unknown }).decideFact = vi.fn(async () => ({}));
+    const deals = await screen.findByRole("button", { name: "Deals, Projects" });
+    await userEvent.click(deals);
+    const side = screen.getByRole("complementary", { name: "Deals" });
+    expect(within(side).getByRole("button", { name: /Ada/ })).toBeInTheDocument(); // its links
+    await userEvent.click(within(side).getByRole("button", { name: "Open page" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m1" });
-    await userEvent.click(screen.getByRole("button", { name: "Ada, person" }));
+    await userEvent.dblClick(screen.getByRole("button", { name: "Ada, People" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "entity", id: "p1" });
-    await userEvent.click(screen.getByRole("button", { name: "Deals runner, agent" }));
-    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "m1" }));
-    await userEvent.click(screen.getByRole("button", { name: "Berlin, Home city" }));
-    expect(screen.getByRole("heading", { name: "Home city" })).toBeInTheDocument(); // a fact shows beside the egg
+    // the local graph: one link around Ada leaves out what is two away
+    await userEvent.click(screen.getByRole("tab", { name: "1 link" }));
+    expect(screen.queryByRole("button", { name: "Berlin, Facts" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Deals, Projects" })).toBeInTheDocument();
+    // a hypothesis is kept as a fact from the panel
+    await userEvent.click(screen.getByRole("tab", { name: "All" }));
+    await userEvent.click(screen.getByRole("button", { name: "tea, Hypotheses" }));
+    await userEvent.click(screen.getByRole("button", { name: "Keep as a fact" }));
+    await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", true));
+    // the legend hides a kind
+    await userEvent.click(screen.getByRole("button", { name: /^People/ }));
+    expect(screen.queryByRole("button", { name: "Ada, People" })).toBeNull();
   });
 
   it("lists each agent (an automation, Q33) as a row with its goal and verdict, and a row's click opens it", async () => {

@@ -10,6 +10,7 @@ import { memorySource, type DataSource } from "../../modules/source";
 import { sourceWords } from "../FactRow";
 import { AgentAvatar } from "../AgentAvatar";
 import { VERDICT } from "../Automations";
+import { HypothesisButtons } from "./Hypothesis";
 import { ALPHA_AGENT, agentsFrom } from "../agents";
 
 const NOT_HERE = "can't be done from here yet";
@@ -187,6 +188,43 @@ export function goalsSource(client: Client, key: string, goals: () => Goal[] | P
     ],
     rows: async () => (await goals()).map((g) => rec(g.id, { text: g.text, state: g.state === "active" ? "Active" : g.state.replace(/_/g, " "), since: g.since || null }, g.since)),
     reasons: { edit: `Changing a goal ${NOT_HERE}. Tell Alpha in the panel.`, add: "Use Add goal; Alpha asks you to approve.", remove: `Deleting a goal ${NOT_HERE}. Tell Alpha in the panel.` },
+  });
+}
+
+/** Facts, goals and hypotheses, one table (the owner, 12 Oct). A fact is what is known (you said
+ *  it, or a source did and you accepted it); a goal is what you want; a hypothesis is what Alpha
+ *  thinks is true and you haven't decided (a suggested fact). Hypothesis rows wear ✓ / ✕ on hover.
+ *  `names` turns a fact's subject (`entity:<id>`) into a person's or organisation's name. */
+export const TYPE = { fact: "Fact", goal: "Goal", hypothesis: "Hypothesis" } as const;
+export const GOAL_ROW = "goal:";
+export function knowledgeSource(client: Client, key: string, load: () => Promise<{ facts: Fact[]; goals: Goal[] }>, names: (subject: string) => string): DataSource {
+  const state = (s: string) => (s === "active" ? "Active" : s === "suggested" ? "Waiting for you" : s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " "));
+  return memorySource({
+    client,
+    key,
+    title: "Second Brain",
+    titleField: "statement",
+    fields: [
+      { name: "statement", kind: "text", label: "Statement" },
+      { name: "type", kind: "status", label: "Type", choices: Object.values(TYPE) },
+      { name: "about", kind: "text", label: "About" },
+      { name: "source", kind: "text", label: "Source" },
+      { name: "confidence", kind: "number", label: "Confidence", unit: "%" },
+      { name: "since", kind: "datetime", label: "Since" },
+      { name: "state", kind: "status", label: "State", choices: ["Waiting for you", "Accepted", "Active", "Done", "Dropped", "Rejected"], done_choices: ["Done", "Dropped", "Rejected"] },
+    ],
+    rows: async () => {
+      const { facts, goals } = await load();
+      const factRows = facts
+        .filter((f) => f.predicate !== "related_to")
+        .map((f) =>
+          rec(f.id, { statement: `${f.subject === "person" ? "You" : names(f.subject)} ${f.predicate.replace(/_/g, " ")} ${f.value}`, type: f.state === "suggested" || f.state === "rejected" ? TYPE.hypothesis : TYPE.fact, about: f.subject === "person" ? "You" : names(f.subject), source: sourceWords(f), confidence: Math.round(f.confidence * 100), since: f.valid_from || f.recorded_at, state: state(f.state) }, f.recorded_at),
+        );
+      const goalRows = goals.map((g) => rec(`${GOAL_ROW}${g.id}`, { statement: g.text, type: TYPE.goal, about: g.module ? names(`module:${g.module}`) : "You", source: "You said so", confidence: null, since: g.since || null, state: state(g.state) }, g.since));
+      return [...factRows.filter((r) => r.values.type === TYPE.hypothesis), ...goalRows, ...factRows.filter((r) => r.values.type === TYPE.fact)];
+    },
+    rowButtons: (row, done) => (row.values.type === TYPE.hypothesis && row.values.state === "Waiting for you" ? <HypothesisButtons client={client} id={row.id} text={String(row.values.statement)} done={done} /> : null),
+    reasons: { add: "Tell Alpha in the panel.", edit: "To correct one, tell Alpha in the panel; a hypothesis is approved or rejected with ✓ or ✕.", remove: `Forgetting ${NOT_HERE}. Reject a hypothesis with ✕, or tell Alpha in the panel.` },
   });
 }
 

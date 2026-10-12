@@ -1,30 +1,24 @@
 /**
- * Intelligence › Second Brain (the UI rulebook §12): what Alpha knows about the person, as one
- * picture, the brain in an egg (`map/BrainEgg`), and beside it what waits for a yes, then the
- * thing picked in the egg (the person by default: their facts), goals, standing instructions,
- * standing permissions and Alpha's notes. **Map** switches to the map of the world and of
- * Alpha's work (`map/WorkMap`); **Facts** is every fact as the one data view (`intel/sources.ts`);
- * a fact's click opens its own page (`#/intelligence/facts/<id>`, 9 Oct, the owner: a page, not a
- * dialog). **Goals** is every goal as the one data view, with Add goal in its toolbar handing Alpha
- * a description to propose (`DescribeAdd`); the core has no call that edits one (12 Oct, the
- * owner: lists are data views, so the brain's side no longer repeats Facts or Goals as cards).
- * A note is an editable sentence (`writeNote`).
+ * Intelligence › Second Brain (the UI rulebook §12; the owner, 12 Oct): everything Alpha knows,
+ * in two views of the same data. **Graph** (the default, Obsidian's graph view as the reference)
+ * is every thing in the platform and every link (`brain/Graph`). **Table** is facts, goals and
+ * hypotheses in one data view (`knowledgeSource`), a hypothesis approved or rejected with ✓ / ✕
+ * on hover. Under them: standing instructions, standing permissions and Alpha's notes, each an
+ * editable sentence (`writeNote`). A fact opens its own page (`#/intelligence/facts/<id>`).
  */
 import { useEffect, useMemo, useState } from "react";
 import { say } from "../core/client";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
-import { Badge, Button, EmptyCard, IconButton, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble } from "../ui";
-import { BookOpen, BrainIcon, TargetIcon, ICON, ICON_SM, MapIcon, PermissionIcon, PlusIcon, X } from "../ui/icons";
+import { Button, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble } from "../ui";
+import { BrainIcon, ICON, ICON_SM, PermissionIcon, Table2 } from "../ui/icons";
 import { BackLink } from "./BackLink";
-import { ADD_GOAL, useDescribe } from "./DescribeAdd";
+import { cachedWorld } from "./brain/model";
+import { GraphView } from "./brain/Graph";
 import { FactRow } from "./FactRow";
-import { factsSource, goalsSource } from "./intel/sources";
+import { GOAL_ROW, knowledgeSource } from "./intel/sources";
 import { RevokeButton } from "./Settings";
-import { BrainEgg } from "./map/BrainEgg";
-import { brainOf } from "./map/egg";
-import { cacheFor, WorkMap } from "./map/WorkMap";
 import type { Surface } from "./Rail";
 
 /** A note as a sentence the person can edit in place; saving is next to the field. */
@@ -67,20 +61,25 @@ export function NoteEditor({ client, scope, title, body, summary, onChanged, lab
 
 const scopeWords = (n: Note) => (n.scope === "person" ? "About you" : n.scope.replace(/^(module|entity|skill):/, ""));
 
-export type BrainView = "brain" | "facts" | "goals" | "map";
+export type BrainView = "graph" | "table";
 
 const VIEW_KEY = "alpha.brain.view";
 const lastView = (): BrainView => {
   try {
-    const v = localStorage.getItem(VIEW_KEY);
-    return v === "map" || v === "facts" || v === "goals" ? v : "brain";
+    return localStorage.getItem(VIEW_KEY) === "table" ? "table" : "graph";
   } catch {
-    return "brain";
+    return "graph";
   }
 };
 
+/** A subject's name, from the world map (`entity:<id>`, `module:<id>`). */
+export function namer(world: WorkGraph | null): (subject: string) => string {
+  const titles = new Map((world?.nodes ?? []).map((n) => [n.id, n.title]));
+  return (subject) => titles.get(subject) ?? humanize(subject.replace(/^(entity|module):/, ""));
+}
+
 export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo, initialView }: { client: Client; data: Data; version?: number; onChanged: () => void; onAsk?: (text: string) => void; onGo?: (s: Surface) => void; initialView?: BrainView }) {
-  // Brain or Map is this window's choice, kept like its widths (not an address of its own).
+  // Graph or Table is this window's choice, kept like its widths (not an address of its own).
   const [view, setViewState] = useState<BrainView>(() => initialView ?? lastView());
   const setView = (v: BrainView) => {
     setViewState(v);
@@ -90,39 +89,12 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
       /* no storage: the choice is not kept */
     }
   };
-  const { facts, notes, goals } = data.knowledge;
+  const { notes } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
-  const waiting = facts.filter((f) => f.state === "suggested" && f.predicate !== "related_to");
-  const known = facts.filter((f) => f.state !== "suggested" && f.predicate !== "related_to");
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
   const others = notes.filter((n) => n !== instructions);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [picked, setPicked] = useState("you");
-  // The world map is shared with Map: asked once, and again only on Map's Refresh (Q30).
-  const [world, setWorld] = useState<WorkGraph | null>(() => cacheFor(client).get("world")?.graph ?? null);
-  useEffect(() => {
-    if (view !== "brain") return;
-    const had = cacheFor(client).get("world");
-    if (had) {
-      setWorld(had.graph);
-      return;
-    }
-    let live = true;
-    client
-      .graph("world")
-      .then((graph) => {
-        cacheFor(client).set("world", { graph, at: new Date() });
-        if (live) setWorld(graph);
-      })
-      .catch(() => undefined); // the egg still draws what Intelligence holds
-    return () => {
-      live = false;
-    };
-  }, [client, view]);
-  const brain = useMemo(() => brainOf(world, data), [world, data]);
-  const factSource = useMemo(() => factsSource(client), [client]);
-  const goalSource = useMemo(() => goalsSource(client, "intel.goals", async () => (await client.intelligence()).knowledge.goals), [client]);
-  const describe = useDescribe();
+  const table = useMemo(() => knowledgeSource(client, "intel.knowledge", async () => (await client.intelligence()).knowledge, (s) => namer(cachedWorld(client))(s)), [client]);
 
   async function revoke(id: string) {
     try {
@@ -134,85 +106,36 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
     }
   }
 
-  const switcher = <Toggle<BrainView> inBody label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain", icon: <BrainIcon size={ICON_SM} /> }, { id: "facts", label: "Facts", icon: <BookOpen size={ICON_SM} /> }, { id: "goals", label: "Goals", icon: <TargetIcon size={ICON_SM} /> }, { id: "map", label: "Map", icon: <MapIcon size={ICON_SM} /> }]} />;
-  if (view === "map") {
-    return (
-      <div className="stack stack--wide">
-        {switcher}
-        <WorkMap client={client} onGo={onGo} />
-      </div>
-    );
-  }
-
-  if (view === "facts") {
-    return (
-      <div className="stack stack--wide">
-        {switcher}
-        <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.({ kind: "fact", id })} />
-      </div>
-    );
-  }
-
-  if (view === "goals") {
-    return (
-      <div className="stack stack--wide">
-        {switcher}
-        <DataPage client={client} source={goalSource} version={version} onChanged={onChanged} onAsk={onAsk} actions={[{ label: "Add goal", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open(ADD_GOAL) }]} onOpenRecord={(_k, id) => { setPicked(`goal:${id}`); setView("brain"); }} />
-        {describe.dialog}
-      </div>
-    );
-  }
-
-  const fact = picked.startsWith("fact:") ? known.find((f) => `fact:${f.id}` === picked) : undefined;
-  const goal = picked.startsWith("goal:") ? goals.find((g) => `goal:${g.id}` === picked) : undefined;
-  const unpick = <IconButton size="sm" label="Close" icon={<X size={ICON_SM} />} onClick={() => setPicked("you")} />;
+  const switcher = <Toggle<BrainView> inBody label="Second Brain view" value={view} onChange={setView} items={[{ id: "graph", label: "Graph", icon: <BrainIcon size={ICON_SM} /> }, { id: "table", label: "Table", icon: <Table2 size={ICON_SM} /> }]} />;
   return (
-    <div className="brain__box">
-      <div className="brain">
-        <div className="brain__left">
-          {switcher}
-          <BrainEgg client={client} brain={brain} selected={picked === "you" ? null : picked} onGo={onGo} onSelect={setPicked} />
-        </div>
-        <div className="brain__side stack">
-          {waiting.length ? (
-            <SectionCard title="Waiting for your confirmation" actions={<Badge tone="warn">{waiting.length}</Badge>}>
-              {waiting.map((f) => (
-                <FactRow key={f.id} fact={f} client={client} onChanged={onChanged} onAsk={onAsk} />
-              ))}
-            </SectionCard>
-          ) : null}
+    <div className="stack stack--wide">
+      {switcher}
+      {view === "graph" ? (
+        <GraphView client={client} data={data} onGo={onGo} onChanged={onChanged} />
+      ) : (
+        <DataPage client={client} source={table} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => (id.startsWith(GOAL_ROW) ? undefined : onGo?.({ kind: "fact", id }))} />
+      )}
+      <div className="brain__keeps">
+        <SectionCard title="Standing instructions">
+          <NoteEditor client={client} scope="person" title="Standing instructions" body={instructions?.body ?? ""} summary={instructions?.summary} onChanged={onChanged} label="Standing instructions" emptyText="None yet." />
+        </SectionCard>
 
-          {fact ? (
-            <SectionCard title={humanize(fact.predicate)} actions={unpick}>
-              <FactRow fact={fact} client={client} onChanged={onChanged} onAsk={onAsk} />
-            </SectionCard>
-          ) : goal ? (
-            <SectionCard title="Goal" actions={unpick}>
-              <ListRow title={goal.text} description={`${goal.state === "active" ? "Active" : humanize(goal.state)} · since ${when(goal.since)}`} />
-            </SectionCard>
-          ) : null}
+        <SectionCard title="Standing permissions">
+          {permissions.length ? (
+            permissions.map((p) => (
+              <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />
+            ))
+          ) : (
+            <p className="faint">None yet.</p>
+          )}
+          {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
+        </SectionCard>
 
-          <SectionCard title="Standing instructions">
-            <NoteEditor client={client} scope="person" title="Standing instructions" body={instructions?.body ?? ""} summary={instructions?.summary} onChanged={onChanged} label="Standing instructions" emptyText="None yet." />
+        {others.map((n) => (
+          <SectionCard key={n.id} title={n.title} info={scopeWords(n)}>
+            <NoteEditor client={client} scope={n.scope} title={n.title} body={n.body} summary={n.summary} onChanged={onChanged} label={`Edit ${n.title}`} />
           </SectionCard>
-
-          <SectionCard title="Standing permissions">
-            {permissions.length ? (
-              permissions.map((p) => (
-                <ListRow key={p.id} icon={<PermissionIcon size={ICON} />} title={p.sentence} description={`Since ${when(p.granted_at)}`} controls={<RevokeButton permission={p} onRevoke={() => void revoke(p.id)} />} />
-              ))
-            ) : (
-              <p className="faint">None yet.</p>
-            )}
-            {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
-          </SectionCard>
-
-          {others.map((n) => (
-            <SectionCard key={n.id} title={n.title} info={scopeWords(n)}>
-              <NoteEditor client={client} scope={n.scope} title={n.title} body={n.body} summary={n.summary} onChanged={onChanged} label={`Edit ${n.title}`} />
-            </SectionCard>
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   );
