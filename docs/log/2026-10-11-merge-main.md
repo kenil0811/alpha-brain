@@ -6,7 +6,7 @@ through `just check-layout` after the merge.
 
 **Numbering.** Main's Q35–Q38 (the conversation closer to Claude, a plan's questions, the
 research pass, modules as programs) keep their numbers. The window's own Q35–Q38 (the UI
-rulebook, the UX guidelines v2, the owner's second review, the audit decisions) are Q39–Q42
+rulebook, the UX guidelines v2, the owner's second review, the audit decisions) are Q41–Q44
 now, in the design's §11, the rulebook, `core-changes-for-the-window.md`, STATE and the
 window's log entries.
 

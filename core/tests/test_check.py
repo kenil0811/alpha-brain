@@ -8,7 +8,7 @@ from pathlib import Path
 from conftest import building
 
 from alpha.mcp.tools import Tools, provenance_of, provenance_words
-from alpha.runtime import build, check, claude_cli
+from alpha.runtime import check, claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.runtime.turn import RULES
 from alpha.world.world import World
@@ -185,74 +185,3 @@ def test_an_agreeing_answer_leaves_things_alone(world: World) -> None:
     assert kinds == ["independent", "judge"] and result["agree"] and result["repaired"] is None
     assert world.journal.recent(1)[0]["text"] == ("Checked against an independent answer:"
                                                   " it agrees.")
-
-
-# ---- the build's trial ----
-
-
-def test_a_finished_build_tries_the_first_thing_and_is_sent_back_when_wrong(world: World) -> None:
-    plan = world.plans.propose("Nutrition tracker", "Food log with calories from labels.",
-                               trial="log a for goodness shakes 35g protein shake")
-    world.plans.approve(plan["id"], '"yes"')
-    runs: list[TurnRequest] = []
-    verdicts = iter(['{"agree": false, "differences": ["kcal: Alpha 160, independent 215'
-                     ' (ocado.com)"], "unstated": []}',
-                     '{"agree": true, "differences": [], "unstated": []}'])
-
-    def runner(req: TurnRequest) -> RunResult:
-        runs.append(req)
-        t = Tools(world, turn=req.turn_id, thread=req.thread_id)
-        if req.kind == "independent":
-            return RunResult(reply="215 kcal per 330 ml bottle (ocado.com).", ok=True)
-        if req.kind == "judge":
-            return RunResult(reply=next(verdicts), ok=True)
-        if req.sentence.startswith("Trial of the build"):
-            assert "for goodness shakes" in req.sentence
-            n = len([r for r in runs if r.sentence.startswith("Trial")])
-            t.records_add("food_log", {"item": "FGS shake", "kcal": 160 if n == 1 else 215},
-                          source="estimated" if n == 1 else "label on ocado.com")
-            return RunResult(reply=f"Logged: FGS shake, {160 if n == 1 else 215} kcal.", ok=True)
-        if req.sentence.startswith("Build the approved plan"):
-            t.module_create("Nutrition")
-            t.collection_create("food_log", "Food log", FIELDS, module="Nutrition")
-            return RunResult(reply="Your food log is ready.", ok=True)
-        assert req.sentence.startswith("Continue the build")
-        assert "The trial" in req.system and "independent 215" in req.system
-        return RunResult(reply="Values now come from the label.", ok=True)
-
-    first = build.run_build(world, plan["id"], runner=runner)
-    assert first["state"] == "building" and first["checks"] == 1
-    assert world.collections.describe("food_log")["records"] == 0  # the trial's row is gone
-    thread = world.journal.recent(50, thread=first["thread"])
-    assert any(e["kind"] == "checked" for e in thread)
-    assert any("Fix how this module obtains such values" in e["text"] for e in thread)
-    assert world.journal.recent(5, stream=True, kinds=["replied"]) == []  # nothing told yet
-    done = build.run_build(world, plan["id"], runner=runner)
-    assert done["state"] == "done"
-    report = world.journal.recent(1, stream=True, kinds=["replied"])[0]["text"]
-    assert report.startswith("Values now come from the label.")
-    assert 'Tried "log a for goodness shakes 35g protein shake" as you would: Logged: FGS' in report
-    assert "it agrees." in report and "still differed" not in report
-    assert world.collections.describe("food_log")["records"] == 0
-    assert [r.kind for r in runs] == ["turn", "turn", "independent", "judge",
-                                      "turn", "turn", "independent", "judge"]
-
-
-def test_a_build_whose_trial_keeps_differing_says_so_and_stops_trying(world: World) -> None:
-    plan = world.plans.propose("Tracker", "Plan.", trial="log a shake")
-    world.plans.approve(plan["id"], '"yes"')
-
-    def runner(req: TurnRequest) -> RunResult:
-        if req.kind == "independent":
-            return RunResult(reply="215 kcal (ocado.com).", ok=True)
-        if req.kind == "judge":
-            return RunResult(reply='{"agree": false, "differences": ["kcal: Alpha 160,'
-                             ' independent 215 (ocado.com)"], "unstated": []}', ok=True)
-        if req.sentence.startswith("Trial"):
-            return RunResult(reply="Logged, 160 kcal.", ok=True)
-        return RunResult(reply="Built.", ok=True)
-
-    states = [build.run_build(world, plan["id"], runner=runner)["state"] for _ in range(3)]
-    assert states == ["building", "building", "done"]
-    report = world.plans.get(plan["id"])["report"]
-    assert "it differs on kcal" in report and "still differed" in report

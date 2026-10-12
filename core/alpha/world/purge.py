@@ -132,13 +132,13 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
                        " 'delete', rowid, title, text FROM documents WHERE id = ?", (did,))
         counts["files"] = db.execute("DELETE FROM documents WHERE module = ?", (mid,)).rowcount
         _unlink_files(files)
-        # Plans stay as a record of what was proposed and decided; none of them goes on.
-        db.execute("UPDATE plans SET state = 'stopped', report = COALESCE(report, ?),"
-                   " updated_at = ? WHERE module = ? AND state IN ('proposed', 'approved',"
-                   " 'building')", (f"{name} was removed.", now(), mid))
-        # Research passes about it stop too, and their findings go.
-        world.research.remove_module(db, mid)
+        world.workflows.remove_module(db, mid)
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
+    # A program module's workspace goes with it (Q38); the journal keeps what it was.
+    from alpha.runtime import workspace as workspace_module
+
+    if workspace_module.remove(mid):
+        counts["workspace"] = 1
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
     what = [plural(len(tables), "table") + (f" ({plural(records, 'row')})" if records else "")]

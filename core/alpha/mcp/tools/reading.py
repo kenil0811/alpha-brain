@@ -242,9 +242,9 @@ class Reading(Base):
             return {"error": f"Set status {', '.join(ALPHA_SETS)}; the others"
                     f" ({', '.join(s for s in SOURCE_STATUSES if s not in ALPHA_SETS)}) come"
                     " from the reader's runs."}
-        plan = self._building()
+        build = self._building()
         module_id = (self.world.modules.get(module)["id"] if module
-                     else self.module or (plan["module"] if plan else None))
+                     else self.module or (build["module"] if build else None))
         return self.world.sources.add(title, url, module=module_id, reader=reader,
                                       status=status, detail=detail)
 

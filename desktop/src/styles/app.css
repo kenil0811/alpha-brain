@@ -869,6 +869,11 @@ ul.stages { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
 .askcard__q { margin: 0 0 var(--space-2); font-weight: 500; }
 .askcard__options { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
 .askcard__opt { border-radius: var(--radius-pill); }
+.askcard__opt--on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.askcard--group { display: flex; flex-direction: column; gap: var(--space-3); }
+.askcard__one { border: 0; margin: 0; padding: 0; min-width: 0; }
+.askcard__n { color: var(--text-3); margin-right: 2px; }
+.askcard__input { width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius-control); padding: var(--space-2); background: var(--surface); font: inherit; color: var(--text); }
 .askcard__other { display: flex; gap: var(--space-2); align-items: center; }
 .askcard__other input { flex: 1; min-width: 120px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); padding: var(--space-2) var(--space-2); background: var(--surface); font: inherit; color: var(--text); }
 
@@ -1185,16 +1190,22 @@ button.dash__seg:hover { background: var(--hover); }
 .stepline__failed { color: var(--bad); }
 .working__partial { margin-top: var(--space-3); color: var(--text); }
 
-/* ---------- a plan's questions (main's Q36) and a researched plan's pieces (main's Q37) on its card ---------- */
-.planp { display: flex; flex-direction: column; gap: var(--space-3); margin: var(--space-2) 0 2px; }
-.planp__group { display: flex; flex-direction: column; gap: var(--space-2); }
-.planp__head { margin: 0; font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: var(--space-1); }
-.planp__item { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); }
-.planp__title { font-weight: 500; }
-.planp__what { font-weight: 400; }
-.planp__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-sm); align-items: center; }
-.planp__can { padding: 1px var(--space-2); border-radius: var(--radius-control); border: 1px solid var(--border); white-space: nowrap; }
-.planp__can--not_yet, .planp__can--needs { opacity: 0.8; }
+/* ---------- "Your workflow" (main's §12): the page in the person's words, as a card ---------- */
+/* Where a value came from, beside or under it on a thing's page (main's §12). */
+.origin { margin: 0; font-size: var(--text-sm); color: var(--text-3); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.origin--problem { color: var(--bad); white-space: normal; }
+.thing__actions { margin-bottom: var(--space-3); align-items: center; }
+.wf__purpose { margin: var(--space-1) 0 var(--space-2); }
+.wf__section { margin-top: var(--space-3); }
+.wf__head { margin: 0 0 var(--space-2); font-size: var(--text-sm); font-weight: 600; }
+.wf__steps { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+.wf__list { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
+.wf__who { display: inline-block; margin-left: var(--space-2); padding: 0 var(--space-2); border-radius: var(--radius-control); border: 1px solid var(--border); font-size: var(--text-sm); }
+.wf__who--alpha { color: var(--text-2); }
+.wf__who--you { font-weight: 600; }
+.wf__who--asks { border-style: dashed; }
+.wf__suggest { display: flex; flex-direction: column; gap: var(--space-1); }
+.linklike { background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; font-size: var(--text-sm); color: var(--text-2); }
 .planp__src { color: inherit; }
 .planp__opts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: 2px; }
 .planq { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Alpha's core: the world store, the pre-pack, the turn runtime and the MCP server that hands the world to the model."
 requires-python = "==3.13.9"
 dependencies = [
+    "duckdb==1.5.6",
     "fastapi==0.141.1",
     "fastmcp==4.0.10",
     "mcp==2.2.0",

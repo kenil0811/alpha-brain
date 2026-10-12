@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import tempfile
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from alpha.api.bodies import (
     ListBody,
     MoveModuleBody,
     RecordBody,
+    RunPartBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -28,7 +30,9 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
-from alpha.world.store import Problem
+from alpha.runtime import parts
+from alpha.world.modtables import is_qualified
+from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
 
 
@@ -48,7 +52,8 @@ def routes(app: FastAPI, s: Served) -> None:
         m = world.modules.get(ref)
         ids = world.modules.subtree(m["id"])
         card = module_card(world, m)
-        card["tables"] = [world.collections.describe(t["name"]) for t in card["tables"]]
+        card["tables"] = [world.modtables.describe(t["name"]) if is_qualified(t["name"])
+                          else world.collections.describe(t["name"]) for t in card["tables"]]
         card["inside"] = [module_card(world, c) for c in world.modules.children(m["id"])]
         card["activity"] = list(reversed(world.journal.recent(500, modules=ids)))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
@@ -56,6 +61,18 @@ def routes(app: FastAPI, s: Served) -> None:
         card["automations"] = [a for i in ids for a in automation_views(world, scheduler, i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
         return card
+
+    @app.post("/api/modules/{ref}/parts/{part}/run", dependencies=[api])
+    def run_part(ref: str, part: str, body: RunPartBody) -> dict[str, Any]:
+        """A part run when asked, from a thing's page (§12): the row's values go in, what it
+        fills comes back into the row with its sources."""
+        m = world.modules.get(ref)
+        return parts.run_part(world, m["id"], part, body.row)
+
+    @app.get("/api/modules/{ref}/parts", dependencies=[api])
+    def list_parts(ref: str) -> list[dict[str, Any]]:
+        m = world.modules.get(ref)
+        return parts.parts_of(m.get("workspace"))
 
     @app.post("/api/modules", dependencies=[api])
     def create_module(body: CreateModuleBody) -> dict[str, Any]:
@@ -92,6 +109,11 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/tables/{name}", dependencies=[api])
     def table(name: str, q: str | None = None, order: str | None = None,
               limit: int | None = None) -> dict[str, Any]:
+        if is_qualified(name):
+            # A program module's own table (Q38): read-only, from its module.duckdb.
+            return {"table": world.modtables.describe(name),
+                    "records": world.modtables.query(name, limit), "files": {},
+                    "lists": world.views.for_table(name), "relations": {}}
         # Every row by default: the page filters, sorts and pages them itself.
         desc = world.collections.describe(name)
         records = world.collections.query(name, None, order, limit)
@@ -116,6 +138,9 @@ def routes(app: FastAPI, s: Served) -> None:
     def record(name: str, rid: str) -> dict[str, Any]:
         """One record with its table: what the page shows when a relation is followed into
         another table (a client from a financials row), with a way back."""
+        if is_qualified(name):
+            return {"table": world.modtables.describe(name),
+                    "record": world.modtables.get(name, rid), "relations": {}}
         desc = world.collections.describe(name)
         row = world.collections.get(name, rid)
         return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row])}
@@ -235,6 +260,12 @@ def routes(app: FastAPI, s: Served) -> None:
         rec = world.collections.add(name, body.values, {"by": "person"})
         person_did("did", f"You added a row to {world.collections.describe(name)['title']}.",
                    name, {"record": rec["id"]})
+        module_id = world.collections.describe(name)["module"]
+        if live and module_id and scheduler is not None:
+            # A part that runs when a row arrives runs now, in the background (§12).
+            threading.Thread(target=parts.run_due, args=(world,),
+                             kwargs={"module_id": module_id}, daemon=True,
+                             name=f"parts-{module_id}").start()
         return rec
 
     @app.patch("/api/tables/{name}/records/{rid}", dependencies=[api])
@@ -242,11 +273,27 @@ def routes(app: FastAPI, s: Served) -> None:
         if body.revision is None:
             raise Problem("An edit needs the record's revision.")
         before = world.collections.get(name, rid)
-        rec = world.collections.update(name, rid, body.values, body.revision, {"by": "person"})
+        # The person's edit is the source of the fields they changed; the other fields keep
+        # theirs (a part's source and date, or its problem).
+        prov = dict(before.get("_provenance") or {})
+        fields = dict(prov.get("fields") or {})
+        for key in body.values:
+            fields[key] = {"source": "you", "fetched_at": now()}
+        prov.update({"by": "person", "fields": fields})
+        rec = world.collections.update(name, rid, body.values, body.revision, prov)
         person_did("changed", f"You changed {', '.join(body.values)} in "
                    f"{world.collections.describe(name)['title']}.", name,
                    {"record": rid, "before": {k: before.get(k) for k in body.values},
                     "after": body.values})
+        module_id = world.collections.describe(name)["module"]
+        if module_id and parts.parts_of(world.modules.get(module_id).get("workspace")):
+            # A changed setting, or a changed row, is a reason to try the parts again (§12).
+            is_setting = parts.table_of(world, module_id, "settings") == name
+            parts.retry(world, module_id, row=None if is_setting else (name, rid))
+            if live and scheduler is not None:
+                threading.Thread(target=parts.run_due, args=(world,),
+                                 kwargs={"module_id": module_id}, daemon=True,
+                                 name=f"parts-{module_id}").start()
         return rec
 
     @app.delete("/api/tables/{name}/records/{rid}", dependencies=[api])

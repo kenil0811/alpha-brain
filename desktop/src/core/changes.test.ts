@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Changed, Client } from "./client";
 import { FRESH, bumpAll, fold, useChanges } from "./changes";
 
-const quiet: Changed = { at: "t1", journal: 0, kinds: [], tables: [], modules: [], entities: [], threads: false, plans: false, actions: false, working: false };
+const quiet: Changed = { at: "t1", journal: 0, kinds: [], tables: [], modules: [], entities: [], threads: false, workflows: false, actions: false, working: false };
 
 describe("versions from the changes feed", () => {
   it("moves only the scopes a change touched", () => {

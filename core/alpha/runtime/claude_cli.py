@@ -22,6 +22,7 @@ import tempfile
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -213,6 +214,16 @@ class TurnRequest:
     # other run is stateless, as Q21 decided.
     resume: str | None = None
     persist: bool = False
+    # A build inside a module's workspace (Q38): the run gets file and shell tools, confined
+    # by Claude Code's own sandbox to this folder and these hosts (runtime/workspace.py).
+    workspace: str | None = None
+    hosts: list[str] = field(default_factory=list)
+    # Told of every step the model takes (a file written, a command run), in plain words, so
+    # the build's card shows what is happening while it happens (§12).
+    on_step: Callable[[str], Any] | None = None
+
+
+WORKSPACE_TOOLS = ["Bash", "Read", "Edit", "Write", "Glob", "Grep"]
 
 
 def tools_allowed(req: TurnRequest) -> list[str]:
@@ -220,6 +231,9 @@ def tools_allowed(req: TurnRequest) -> list[str]:
         return ["WebSearch", "WebFetch"]
     if req.kind == "judge":
         return []
+    if req.workspace:
+        return ["mcp__alpha", "WebSearch", *[f"WebFetch(domain:{h})" for h in req.hosts],
+                *WORKSPACE_TOOLS]
     return ALLOWED
 
 
@@ -241,7 +255,8 @@ def mcp_config(req: TurnRequest) -> dict[str, Any]:
 
 def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[str]:
     allowed = tools_allowed(req)
-    denied = DENIED + ([] if allowed else ["WebSearch", "WebFetch"])
+    denied = ([d for d in DENIED if d not in WORKSPACE_TOOLS] if req.workspace else DENIED) \
+        + ([] if allowed else ["WebSearch", "WebFetch"])
     args = [
         binary,
         "-p",
@@ -258,6 +273,13 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
     args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
     if allowed:
         args += ["--allowedTools", *allowed]
+    if req.workspace:
+        from alpha.runtime import workspace as workspace_module
+
+        settings = workspace_module.sandbox_settings(Path(req.workspace), req.hosts,
+                                                     req.world_path)
+        args += ["--tools", ",".join([*WORKSPACE_TOOLS, "WebSearch", "WebFetch"]),
+                 "--settings", json.dumps(settings)]
     args += [
         "--disallowedTools",
         *denied,
@@ -290,6 +312,12 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     # Alpha's tools are the whole point of a run: put every schema in context up front rather
     # than behind Claude Code's tool search, which cost a "find the tool" step on every turn.
     env.setdefault("ENABLE_TOOL_SEARCH", "false")
+    if req.workspace:
+        # The build's Python is Alpha's own (so a venv needs no download); its secrets stay out.
+        env["ALPHA_PYTHON"] = sys.executable
+        for key in list(env):
+            if key.startswith("ALPHA_") and key != "ALPHA_PYTHON":
+                env.pop(key)
     if req.kind == "turn":
         keys = [k for k in (req.turn_id, req.thread_id) if k]
     else:
@@ -302,7 +330,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
             proc = subprocess.Popen(
                 argv(req, config_path, binary or claude_account.binary() or "claude"),
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
-                text=True, env=env, cwd=tmp, start_new_session=True,
+                text=True, env=env, cwd=req.workspace or tmp, start_new_session=True,
             )
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
@@ -347,6 +375,12 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                 else:
                     count_tools(event, tools)
                     _watch(keys, event)
+                    if req.on_step is not None:
+                        for words in _steps(event):
+                            try:
+                                req.on_step(words)
+                            except Exception:
+                                log.exception("on_step")
             proc.wait()
             first_text_at = (LIVE.progress_for(keys[0]) or {}).get("first_text_at")
         finally:
@@ -374,6 +408,15 @@ def _event(line: str) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return data if isinstance(data, dict) else None
+
+
+def _steps(event: dict[str, Any]) -> list[str]:
+    """The tool calls in an assistant event, in plain words."""
+    if event.get("type") != "assistant":
+        return []
+    return [plain_tool(str(b.get("name", "")), b.get("input") or {})
+            for b in (event.get("message") or {}).get("content") or []
+            if b.get("type") == "tool_use"]
 
 
 def _watch(keys: list[str], event: dict[str, Any]) -> None:
@@ -417,7 +460,6 @@ TOOL_WORDS = {
     "documents_list": "Looking at the documents", "folder_watch": "Starting to read a folder",
     "calendar_events": "Looking at the calendar", "fact_record": "Remembering something",
     "note_write": "Writing a note", "instruction_add": "Keeping an instruction",
-    "plan_propose": "Writing the plan", "plan_approve": "Taking the yes",
     "procedure_save": "Keeping the steps", "action_propose": "Preparing it for your yes",
     "automation_create": "Setting up the automation", "ask_person": "Asking you",
     "entity_resolve": "Linking a person", "thread_brief": "Updating the brief",
@@ -429,6 +471,16 @@ def plain_tool(name: str, inputs: dict[str, Any]) -> str:
     short = name.removeprefix("mcp__alpha__")
     if short == "ToolSearch":
         return "Finding the right tool"
+    if short == "Bash":
+        cmd = " ".join(str(inputs.get("command", "")).split())
+        return f"Running: {cmd[:90]}".rstrip() if cmd else "Running a command"
+    if short in ("Write", "Edit", "MultiEdit"):
+        path = str(inputs.get("file_path", "")).rsplit("/modules/", 1)[-1].split("/", 1)[-1]
+        return f"{'Writing' if short == 'Write' else 'Changing'} {path[:80]}".rstrip()
+    if short in ("Read", "Glob", "Grep"):
+        path = str(inputs.get("file_path") or inputs.get("pattern") or "")
+        path = path.rsplit("/modules/", 1)[-1].split("/", 1)[-1]
+        return f"Reading {path[:80]}".rstrip() if path else "Reading the workspace"
     if short == "WebSearch":
         return f"Searching the web for {str(inputs.get('query', ''))[:60]}".rstrip()
     if short == "WebFetch":

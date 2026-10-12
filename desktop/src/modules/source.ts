@@ -77,6 +77,16 @@ const word = (n: number) => (n === 1 ? "record" : "records");
 
 /** A table the core keeps: everything the data view did before sources (the core's routes). */
 export function tableSource(client: Client, table: TableDesc): DataSource {
+  const base = tableAbilities(client, table);
+  if (!table.readonly) return base;
+  // A program module's own table (main's Q38) is read from its database: kept, listed and
+  // downloaded, but nothing is added, changed or removed here.
+  const why = "Built by the module · read-only.";
+  const { edit: _e, add: _a, duplicate: _d, remove: _r, addFile: _f, ...rest } = base;
+  return { ...rest, reasons: { edit: why, add: why, remove: why, upload: why } };
+}
+
+function tableAbilities(client: Client, table: TableDesc): DataSource {
   const name = table.name;
   return {
     key: name,

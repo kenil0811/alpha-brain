@@ -1,7 +1,7 @@
 """Routes for what changed: one cheap question the window asks instead of refetching every page
 on a clock (3 Oct: 26 requests a minute idle, 140 during a turn, every page re-downloaded on
 any change). Since a stamp: the journal's new entries by kind, the tables and modules they
-touched, the entities they named; whether threads, plans or actions moved; and whether anything
+touched, the entities they named; whether threads, workflows or actions moved; and whether anything
 is working now, so the window asks often while Alpha works and rarely when it is quiet."""
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def changes_since(world: World, scheduler: Scheduler, running: Turns,
     working = (bool(running.running()) or bool(scheduler.running)
                or world.store.one("SELECT 1 FROM threads WHERE state = 'working'") is not None)
     out: dict[str, Any] = {"at": at, "journal": 0, "kinds": [], "tables": [], "modules": [],
-                           "entities": [], "threads": False, "plans": False, "actions": False,
+                           "entities": [], "threads": False, "workflows": False, "actions": False,
                            "working": working}
     if not since:
         return out
@@ -53,7 +53,7 @@ def changes_since(world: World, scheduler: Scheduler, running: Turns,
 
     out.update({"journal": len(rows), "kinds": sorted(kinds), "tables": sorted(tables),
                 "modules": sorted(modules), "entities": sorted(entities),
-                "threads": moved("threads"), "plans": moved("plans"),
+                "threads": moved("threads"), "workflows": moved("workflows"),
                 "actions": moved("actions")})
     return out
 

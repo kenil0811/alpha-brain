@@ -96,8 +96,8 @@ def test_a_failing_check_says_why(tmp_path: Path) -> None:
     world.collections.create("t", "T", [{"name": "a", "kind": "text"}])
     ok, why = run.check_no_new_tables({})
     assert not ok and "t" in why
-    ok, why = run.check_plan("proposed")
-    assert not ok and why == "No plan was proposed."
+    ok, why = run.check_workflow({"state": "drafted"})
+    assert not ok and why == "No workflow page was drafted."
     world.close()
 
 

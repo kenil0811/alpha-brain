@@ -2,7 +2,7 @@
 
 Vikas asked for the built window to be judged against `Exploration/UX_Guidelines_Platform.md`
 (v2), for the rulebook to take its guidelines, and for a list of what to build. The decision is
-Q40 (Q34 until the merge with main; Q36 until the merge of 11 Oct). Docs only: no code changed, so the window still follows the earlier rulebook text.
+Q42 (Q34 until the merge with main; Q36 until the merge of 11 Oct). Docs only: no code changed, so the window still follows the earlier rulebook text.
 
 ## What changed in the rulebook
 
@@ -54,7 +54,7 @@ Read from the code (`desktop/src`), not run. ✓ meets, ◐ partly, ✗ fails.
 
 ## Recommended implementations, in order
 
-Window only (the limits of Q39 hold) unless marked **core**.
+Window only (the limits of Q41 hold) unless marked **core**.
 
 1. **Header tabs for Files, Intelligence, Governance.** `ModulePage.tsx`: add three tabs after the
    collections to the `HeaderSwitch`, render one section at a time, delete `.modpage__below`.

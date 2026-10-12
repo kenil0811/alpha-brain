@@ -221,7 +221,7 @@ def test_modules_and_threads(world: World) -> None:
     assert world.modules.get("food")["id"] == m["id"]
     with pytest.raises(Problem, match="already"):
         world.modules.create("FOOD")
-    t = world.modules.open_thread("Make the food tracker good", "research", m["id"])
+    t = world.modules.open_thread("Make the food tracker good", "topic", m["id"])
     assert world.modules.threads()[0]["id"] == t["id"]
     world.modules.update_thread(t["id"], state="done")
     assert world.modules.threads() == []
