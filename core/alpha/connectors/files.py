@@ -8,12 +8,16 @@ While the core runs, FSEvents (through watchdog) triggers the same sync for the 
 
 from __future__ import annotations
 
+import csv
+import io
 import logging
 import shutil
 import sqlite3
+import sys
 import threading
 from collections.abc import Callable
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +81,116 @@ def extract(path: Path) -> str:
     except Exception as e:  # a damaged or protected file: say so, keep going
         raise Problem(f"Couldn't read {path.name}: {e}") from e
     raise Problem(f"{path.name} isn't a kind of file Alpha reads yet.")
+
+
+@dataclass
+class TableFile:
+    """A table file read whole: its column names (unique, one per cell of the widest row), each
+    row as text by column, the line or sheet row each came from, and whether a comma is the
+    decimal mark (a file split by semicolons, the European way)."""
+
+    head: list[str]
+    rows: list[dict[str, str]]
+    lines: list[int]
+    decimal_comma: bool = False
+
+
+def _text_of(path: Path) -> str:
+    """A text file's words in the encoding it was written in: UTF-16 when it says so (Excel's
+    "Unicode Text"), UTF-8, else Windows' Western encoding (Excel's "CSV" on Windows and the
+    Mac). Never a guess with replaced characters."""
+    raw = path.read_bytes()
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return raw.decode("utf-16")
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("latin-1")  # every byte is a character in it
+
+
+def _cell(v: Any) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, datetime):
+        return v.date().isoformat() if v.time() == time() else v.isoformat(sep=" ")
+    if isinstance(v, date):
+        return v.isoformat()
+    return str(v)
+
+
+def table_rows(path: Path) -> TableFile:
+    """Every row of a table file (CSV, TSV, or an Excel workbook's first sheet), whole: the
+    header row's names and each row as text by header. Never cut, unlike a document's text."""
+    suffix = path.suffix.lower()
+    decimal_comma = False
+    if suffix in {".csv", ".tsv", ".txt"}:
+        text = _text_of(path)
+        try:
+            sniffed: Any = csv.Sniffer().sniff(text[:64_000], delimiters=",;\t|")
+            delimiter = sniffed.delimiter
+        except csv.Error:  # rows of uneven length: the header line's commonest separator
+            first = text.split("\n", 1)[0]
+            delimiter = max(",;\t|", key=first.count) if any(d in first for d in ",;\t|") \
+                else "\t" if suffix == ".tsv" else ","
+        decimal_comma = delimiter == ";"
+        # the quote is always '"': the sniffer takes an apostrophe in a name for one
+        reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter, quotechar='"')
+        csv.field_size_limit(sys.maxsize)
+        grid: list[tuple[int, list[str]]] = []
+        start = 1
+        try:
+            for r in reader:
+                if any(c.strip() for c in r):
+                    grid.append((start, r))
+                start = reader.line_num + 1
+        except csv.Error as e:
+            raise Problem(f"{path.name} isn't a well-formed table near line {reader.line_num}:"
+                          f" {e}.") from e
+    elif suffix == ".xlsx":
+        from openpyxl import load_workbook
+
+        wb = load_workbook(str(path), read_only=True, data_only=True)
+        try:
+            grid = [(i, [_cell(v) for v in r])
+                    for i, r in enumerate(wb.worksheets[0].iter_rows(values_only=True), 1)
+                    if any(v is not None and str(v).strip() for v in r)]
+        finally:
+            wb.close()
+    else:
+        raise Problem(f"{path.name} isn't a table file (CSV, TSV or Excel).")
+    if not grid:
+        raise Problem(f"{path.name} has no rows.")
+    width = max(len(r) for _, r in grid)
+    head: list[str] = []
+    for i in range(width):
+        h = (grid[0][1][i].strip() if i < len(grid[0][1]) else "") or f"column {i + 1}"
+        name, n = h, 2
+        while name.casefold() in {x.casefold() for x in head}:
+            name, n = f"{h} {n}", n + 1
+        head.append(name)
+    return TableFile(
+        head,
+        [{h: (r[i].strip() if i < len(r) else "") for i, h in enumerate(head)}
+         for _, r in grid[1:]],
+        [line for line, _ in grid[1:]],
+        decimal_comma,
+    )
+
+
+def upload_prompt(docs: list[dict[str, Any]], in_module: bool) -> str:
+    """The turn that follows files the person added: where each is kept, so Alpha never asks the
+    person for it, and that a table file goes in whole (the owner, 12 Oct)."""
+    names = ", ".join(d["title"] for d in docs)
+    where = "; ".join(f"{d['title']} is document {d['id']} at {d['path']}" for d in docs)
+    return (f"The person added {names}{' to this module' if in_module else ''} ({where})."
+            " A table file (CSV, TSV, Excel) goes into a table whole with file_to_table, every"
+            " column unless the person said which; with no table for it yet, propose one."
+            " Otherwise read what Alpha can read of it and put what belongs in the module's"
+            " tables, saying where each value came from (source=the file's name); keep the"
+            " document's id on a file field where a table has one. If the file isn't a kind"
+            " Alpha reads, say so in one line.")
 
 
 def files_dir(module_name: str | None = None) -> Path:
@@ -263,17 +377,18 @@ class Files:
     # ---- taking a file in: fetched from a connection, or given by the person ----
 
     def take(self, source: Path, *, module: str | None, origin: str, name: str | None = None,
-             move: bool = False, turn: str | None = None, by: str = "alpha") -> dict[str, Any]:
-        """Keep a file in Alpha's folder for the module and make it a document (its text
-        extracted where Alpha reads the kind; otherwise kept as a file alone). `origin` says
-        where it came from (a page or message address, or "the person"). Returns the
-        document."""
+             move: bool = False, turn: str | None = None, by: str = "alpha",
+             folder: str | None = None) -> dict[str, Any]:
+        """Keep a file in Alpha's folder for the module (in its `folder` there, such as
+        "sources" for what the person uploads) and make it a document (its text extracted where
+        Alpha reads the kind; otherwise kept as a file alone). `origin` says where it came from
+        (a page or message address, or "the person"). Returns the document."""
         source = Path(source)
         if not source.is_file():
             raise Problem(f"There is no file at {source}.")
         module_row = self.world.modules.get(module) if module else None
-        target = unique_path(files_dir(module_row["name"] if module_row else None),
-                             name or source.name)
+        home = files_dir(module_row["name"] if module_row else None)
+        target = unique_path(home / folder if folder else home, name or source.name)
         if move:
             shutil.move(str(source), target)
         else:

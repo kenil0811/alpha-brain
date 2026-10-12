@@ -690,7 +690,7 @@ procedure broken, for Alpha to repair (build-plan §4.13).
 
 | Status (3 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `page_download` into Alpha's folder per project, documents with project and origin, drag-and-drop onto a project or a row arriving as a turn (and, since 3 Oct night, an Add files button on the project's page opening the Mac's picker, the same route), `file` fields, CSV and Excel export, upload steps. |
+| Built | `page_download` into Alpha's folder per project, documents with project and origin, drag-and-drop onto a project or a row arriving as a turn (and, since 3 Oct night, an Add files button on the project's page opening the Mac's picker, the same route; since 12 Oct a file the person gives is kept in the project's `sources` folder and the turn is told its document and path), `file_to_table` reading a CSV, TSV or Excel file whole into a table with every column unless the person said which, `file` fields, CSV and Excel export, upload steps. |
 | Differs | An upload by Alpha asks every time; the plan decides what is kept. |
 | Not built | — |
 

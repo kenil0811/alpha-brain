@@ -13,6 +13,7 @@ A journey file:
       - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
       - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
       - seed: {kind: table, name: deals, title: Deals, fields: [...], rows: [...]}  # a table
+      - upload: {name: c.csv, header: "Name,Email", row: "P{i},p{i}@x.com", rows: 9}  # an upload
       - remove_module: "Car Wash Site Scoring"   # the world without something it already has
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
@@ -44,6 +45,7 @@ import os
 import re
 import shutil
 import sqlite3
+import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -52,6 +54,7 @@ from typing import Any
 
 import yaml
 
+from alpha.connectors.files import Files, upload_prompt
 from alpha.runtime import automation as automation_runtime
 from alpha.runtime import check, claude_cli, noticing, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
@@ -183,6 +186,18 @@ class Run:
                     log.warning("noticing in journey: %s", e)
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
                       "steps": outcome.result.num_turns}
+        elif "upload" in spec:
+            # A table file the person adds in the app: kept in sources, then the app's own turn.
+            u = spec["upload"]
+            path = Path(tempfile.mkdtemp()) / u["name"]
+            path.write_text(u["header"] + "\n" + "".join(
+                u["row"].format(i=i) + "\n" for i in range(int(u.get("rows", 1)))))
+            module_id = self.world.modules.get(u["module"])["id"] if u.get("module") else None
+            doc = Files(self.world).take(path, module=module_id, origin="the person",
+                                         by="person", folder="sources")
+            record = {**self.step({"say": upload_prompt([doc], in_module=bool(module_id)),
+                                   "module": u.get("module")}),
+                      "upload": f"{u['name']}, {u.get('rows', 1)} rows"}
         elif "reader" in spec:
             r = spec["reader"]
             out = pipeline.run_reader(self.world, r["name"], r["into"], r["key"],

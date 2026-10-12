@@ -13,7 +13,7 @@
 import * as RadixPopover from "@radix-ui/react-popover";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../ui";
-import { BoardIcon, ChevronLeft, MapIcon, RenameIcon, BrainIcon as GraphIcon, Calendar, CopyIcon, DashboardIcon, DeleteIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
+import { BoardIcon, ChevronLeft, MapIcon, RenameIcon, BrainIcon as GraphIcon, Calendar, CopyIcon, DeleteIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
 import type { FieldInfo } from "./fields";
 import { fieldLabel } from "./FilterUI";
 
@@ -30,7 +30,6 @@ export const VIEWS: ViewChoice[] = [
   { id: "timeline", label: "Timeline", icon: <TimelineIcon size={ICON_SM} /> },
   { id: "form", label: "Form", icon: <FormIcon size={ICON_SM} /> },
   { id: "map", label: "Map", icon: <MapIcon size={ICON_SM} /> },
-  { id: "dashboard", label: "Dashboard", icon: <DashboardIcon size={ICON_SM} /> },
 ];
 
 /** How far the row has given way: 0 everything with words, 1 icons only, 2 Filter and the

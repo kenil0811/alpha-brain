@@ -283,8 +283,9 @@ One row that never wraps, in this order:
 
 ### View types
 
-Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Map** · **Dashboard**, and **Graph** where a page has one (Second Brain, where it is the default)
+Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Map**, and **Graph** where a page has one (Second Brain, where it is the default)
 
+- No Dashboard in the View list (the owner, 12 Oct, later): dashboards become cards Alpha proposes, kept once approved and kept current; a list saved with Dashboard opens as Table.
 - No List and no Chart (the owner, 12 Oct): List was a narrower Table; charts live in the Dashboard. A list saved with either opens as Table or Dashboard.
 
 - Every view uses the same toolbar and the same open, edit and add behaviour. Only the layout of the records changes.
