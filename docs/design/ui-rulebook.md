@@ -179,12 +179,13 @@ Every screen lives inside the same three-part frame:
 - **Right-click a project** (or use its ⋮ on hover) for:
   - Open
   - Rename (edits the name in place)
-  - Change icon
-  - Move…
+  - Change icon ›, the icons as a submenu
+  - Move to ›, the places it can go as a submenu
   - Hide
   - Delete
-  - View options
-- **Hide** removes a project from the sidebar only. Hidden projects come back from **View options** in the same menu.
+  - Hidden projects ›, each with Show
+- **Hide** removes a project from the sidebar only. Hidden projects come back from **Hidden projects** in the same menu.
+- Predefined choices are submenus, never pop-ups (the owner, 12 Oct); see §14.
 - **Delete** asks which of three things the person means:
   - remove the project but keep its data;
   - remove the project and its data;
@@ -205,7 +206,8 @@ Every screen lives inside the same three-part frame:
 - When a surface has several sections, the header holds a centred **toggle** with one segment per section: small sentence-case labels with icons, and the active segment raised.
 - When there is only one section, the header shows its title in serif.
 - Switches never wrap onto a second line. When space runs short, they drop to icons only, and the labels come back as soon as there is room again (a switch measures the room in the header, never its own width).
-- **One toggle, two levels** (the owner, 11 Oct): page-level sections switch in the header; sections inside a page (Brain · Facts · Map, a card's tabs such as Allowed · Denied or Intelligence's Activity · Agents · Goals) use the **same toggle** in the body, at the top of what they switch. Two different-looking switches for the same job are a defect.
+- **The chosen part of a toggle is tinted** (the owner, 12 Oct): the accent's soft tint with accent text and a thin accent ring, so which one is on reads at a glance.
+- **One toggle, two levels** (the owner, 11 Oct): page-level sections switch in the header; sections inside a page (a card's tabs such as Allowed · Denied or Intelligence's Activity · Agents · Goals) use the **same toggle** in the body, at the top of what they switch. Two different-looking switches for the same job are a defect.
 
 **One layout for every table page** (the owner, 9 Oct)
 
@@ -254,9 +256,9 @@ One row that never wraps, in this order:
 **Saved list · View · Search** on the left; **Filter · frequent actions · ⋮ More** on the right
 
 - **A list is a saved view of the collection:** its filters (which rows), its visible columns and their order (which columns), its sorts, grouping and view type. Choosing a list shows exactly the records that qualify; each of them opens its own page, as every record does.
-- **Saved list:** the current list's name ("All") opens a standard dropdown of the lists (search, star for the list the collection opens on, **Add list** at the bottom), as in every dropdown (§14). Editing, duplicating, copying a link to and deleting a list live in ⋮ More.
-  - **Add list and Edit list open a page, not a pop-up** (the owner, 11 Oct): the list's name, its filters, sorts, grouping, visible columns and default view, chosen on that page against a live preview of the records, with **Save list** and **Cancel**. Nothing is saved until Save list.
-  - **Changes in the toolbar are temporary** (the owner, 11 Oct): filtering, sorting or grouping from the toolbar or a column heading changes what you see now, and a small bar offers **Save to this list** and **Reset**. A list never changes by itself.
+- **Saved list:** the current list's name ("All") opens a standard dropdown of the lists (search, star for the list the collection opens on, **Add list** at the bottom), as in every dropdown (§14). Renaming (a name field in the dropdown under ⋮), duplicating, sharing and deleting a list live in ⋮ More; there is no Edit list (the owner, 12 Oct). ★ on All makes the collection open on All again.
+  - **Add list opens a page, not a pop-up** (the owner, 11 Oct): the list's name, its filters, sorts, grouping, visible columns and default view, chosen on that page against a live preview of the records, with **Save list** and **Cancel**. Nothing is saved until Save list.
+  - **A list is changed where it is shown** (the owner, 12 Oct; was a bar under the toolbar): filtering, sorting or grouping from the toolbar, ⋮ or a column heading changes what you see now, and **Cancel** and **Save** appear in the toolbar, left of ⋮ (on All: **Save as list**). A list never changes by itself.
   - Lists are kept in the workspace, so Alpha can make them too.
 - **View:** a button showing the current view's icon and name (a table icon and "Table") that picks among the view types in the next section.
   - Views the data can't support stay visible but disabled, with the reason, for example "Calendar needs a date field".
@@ -273,18 +275,21 @@ One row that never wraps, in this order:
   - Frozen columns
   - Footer summaries
   - Which sections record pages show
-  - **Download ›**, one item whose submenu offers CSV and Excel
+  - **Share ›** (the owner, 12 Oct; replaces Copy link to list and Download): copy what is shown as a table (pastes into a sheet or a mail), download it as CSV or Excel
   - Reset view
+- **A setting chosen in ⋮** (Sort, Layout, Properties, Group, Conditional colour, sections) **opens in the same dropdown under ⋮**, with a back arrow, as in Notion; never a pop-up (the owner, 12 Oct).
 - **Narrow windows:** labels collapse to icons first, then Filter moves inside More. The toolbar never runs under the assistant panel; at the window's minimum size every control stays reachable.
-- **Download** gives exactly what is shown (the list's filters and the current search), and says how many.
+- **Share** gives exactly what is shown (the list's filters and the current search), and says how many.
 
 ### View types
 
-Table (the default) · List · Board · Calendar · Timeline · Gallery · Chart · Form · **Dashboard**
+Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Dashboard**, and **Graph** where a page has one (Second Brain, where it is the default)
+
+- No List and no Chart (the owner, 12 Oct): List was a narrower Table; charts live in the Dashboard. A list saved with either opens as Table or Dashboard.
 
 - Every view uses the same toolbar and the same open, edit and add behaviour. Only the layout of the records changes.
 - **Board:** quiet columns with sentence-case headers and counts. Cards can be dragged between columns. It groups by a status or choice field, with a picker when there are several.
-- **Calendar, Timeline and Chart:** run on a date field, with a picker when there are several. Grids are faint. Charts use a restrained palette and always show a legend.
+- **Calendar and Timeline:** run on a date field, with a picker when there are several. Grids are faint.
 - **Form:** one record at a time, with Previous and Next.
 
 ### Dashboard view
@@ -492,7 +497,7 @@ Task manager and Network are shipped on install. That is all "pre-built" means: 
 **Nesting**
 
 - A project can hold other projects, to any depth. Breadcrumbs show where it sits, and the project notes "what you ask here reaches them all".
-- **Move…** places a project inside another, or back at the top level.
+- **Move to ›** places a project inside another, or back at the top level.
 - **A new project above it** creates a parent where the project sits now, then moves the project into it.
 - **Move a project in** pulls another project inside this one.
 - These controls appear in the sidebar menu and in the project's Governance section.
@@ -614,6 +619,7 @@ The one place where everything important and urgent shows, as cards (the owner, 
 The one place for everything Alpha knows and can do across projects. Its header tabs are:
 
 - **Second Brain** (the owner, 12 Oct)
+  - One data view of facts, goals and hypotheses; its **View** dropdown holds **Graph** with the others, no second switch (the owner, 12 Oct). In Graph the toolbar's search finds and centres, and ⋮ holds Things with no links, Always show names and Refresh.
   - **Graph** (the default; Obsidian's graph view as the reference): every thing in the platform as a node — you, projects, collections, records, people, organisations, facts, hypotheses, goals, agents, automations, skills, connections — and every link the data holds; suggested links and hypotheses dashed. The legend is the kind filter (each chip shows or hides a kind, with its count). Search finds and centres; Filter hides things with no links; ⋮ has names and Refresh. Hover lights the neighbours; a click selects and opens the side panel (links, ✓ / ✕ for a hypothesis, Open page, the local graph 1–3 links around it); a double-click opens the page.
   - **Table:** facts, goals and hypotheses in one standard data view with a Type column. A **fact** is what is known; a **goal** what you want; a **hypothesis** what Alpha thinks is true and you haven't decided. A hypothesis row shows **✓** (Keep as a fact / Make it a goal) and **✕** (Reject) on hover or focus.
   - Each project's Intelligence section has the same table for that project: its goals, and the facts and hypotheses about whom its work names.
@@ -824,6 +830,7 @@ Everything elsewhere in this rulebook is a default. These are not.
 28. No subtitles: explanations live in (i) tips.
 29. One visual element per function; several ways in are fine. A table's "+ New" row shows only when it adds inline; otherwise the toolbar's New is the one way (the owner, 12 Oct).
 30. Every dropdown ends in Add new…; what the window can't add goes, described, to the builder agent in this page's conversation.
+31. Pop-ups are for notices, confirmations and new free input (a name, or an ask for Alpha); a predefined choice is a dropdown or a submenu (the owner, 12 Oct).
 
 ---
 

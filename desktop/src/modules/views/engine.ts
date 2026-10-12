@@ -479,18 +479,3 @@ export function colorsOf(row: RecordRow, rules: ColorRule[], byName: Map<string,
   return out;
 }
 
-/** The points of a chart: one per day of a date field, or per group of any other field; the
- *  count of records, or the sum or average of a number field. */
-export function chartPoints(rows: RecordRow[], x: FieldInfo, y: { agg: "count" | "sum" | "average"; field?: string }): { key: string; label: string; value: number }[] {
-  const measure = (rs: RecordRow[]) => {
-    if (y.agg === "count" || !y.field) return rs.length;
-    const nums = rs.map((r) => r.values[y.field!]).filter((v): v is number => typeof v === "number");
-    const total = nums.reduce((a, b) => a + b, 0);
-    return y.agg === "sum" ? total : nums.length ? total / nums.length : 0;
-  };
-  if (x.kind === "date" || x.kind === "datetime") {
-    const days = byDay(rows, x);
-    return [...days.keys()].sort().map((d) => ({ key: d, label: formatDay(d), value: measure(days.get(d)!) }));
-  }
-  return groupRows(rows, x, { hideEmpty: true }).map((g) => ({ key: g.key, label: g.label, value: measure(g.rows) }));
-}

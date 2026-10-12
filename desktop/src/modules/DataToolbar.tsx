@@ -10,23 +10,24 @@
  * When the row would not fit it gives way in steps: the labels become icons (named on hover), then
  * Filter and the frequent actions move inside ⋮. It never runs under the assistant panel.
  */
+import * as RadixPopover from "@radix-ui/react-popover";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../ui";
-import { BoardIcon, Calendar, ChartIcon, CopyIcon, DashboardIcon, DeleteIcon, EditIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, Link2, ListIcon, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
+import { BoardIcon, ChevronLeft, RenameIcon, BrainIcon as GraphIcon, Calendar, CopyIcon, DashboardIcon, DeleteIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
 import type { FieldInfo } from "./fields";
 import { fieldLabel } from "./FilterUI";
 
-export type PageView = "table" | "list" | "board" | "calendar" | "timeline" | "gallery" | "chart" | "form" | "dashboard";
+export type PageView = "graph" | "table" | "board" | "calendar" | "timeline" | "gallery" | "form" | "dashboard";
 
-/** Every view type, in Notion's order, with its icon. */
-export const VIEWS: { id: PageView; label: string; icon: ReactNode }[] = [
+/** Every view type, in Notion's order, with its icon; Graph only where the page has one. */
+export type ViewChoice = { id: PageView; label: string; icon: ReactNode };
+export const VIEWS: ViewChoice[] = [
+  { id: "graph", label: "Graph", icon: <GraphIcon size={ICON_SM} /> },
   { id: "table", label: "Table", icon: <Table2 size={ICON_SM} /> },
   { id: "board", label: "Board", icon: <BoardIcon size={ICON_SM} /> },
-  { id: "list", label: "List", icon: <ListIcon size={ICON_SM} /> },
   { id: "gallery", label: "Gallery", icon: <GalleryIcon size={ICON_SM} /> },
   { id: "calendar", label: "Calendar", icon: <Calendar size={ICON_SM} /> },
   { id: "timeline", label: "Timeline", icon: <TimelineIcon size={ICON_SM} /> },
-  { id: "chart", label: "Chart", icon: <ChartIcon size={ICON_SM} /> },
   { id: "form", label: "Form", icon: <FormIcon size={ICON_SM} /> },
   { id: "dashboard", label: "Dashboard", icon: <DashboardIcon size={ICON_SM} /> },
 ];
@@ -80,8 +81,12 @@ export interface TabActions {
   view: PageView;
   onView: (view: PageView) => void;
   viewReasons: Partial<Record<PageView, string>>;
-  /** The list's page: its name, filters, sorts, columns, grouping and view. */
-  edit: (id: string) => void;
+  /** The view types this page offers (Graph only where it has one). */
+  views: ViewChoice[];
+  /** Where the View dropdown keeps its ★ ("data.view", or the pages with a graph's own). */
+  viewKey: string;
+  /** Rename a list in the dropdown under ⋮ (the owner, 12 Oct: no Edit list page). */
+  rename: (id: string) => void;
   duplicate: (id: string) => void;
   remove: (id: string) => void;
   setDefault: (id: string) => void;
@@ -131,10 +136,9 @@ function filterItems(f: FilterState): ContextItem[] {
 export function listActions(t: ViewTab, a: TabActions): ContextItem[] {
   const all = t.id === "all";
   return [
-    { label: "Edit list", icon: <EditIcon size={ICON_SM} />, onSelect: () => a.edit(t.id), disabled: all ? "All shows every record; add a list to shape one." : a.listsReason },
+    { label: "Rename list", icon: <RenameIcon size={ICON_SM} />, onSelect: () => a.rename(t.id), disabled: all ? "All keeps its name." : a.listsReason },
     { label: "Duplicate list", icon: <CopyIcon size={ICON_SM} />, onSelect: () => a.duplicate(t.id), disabled: a.listsReason },
-    { label: "Copy link to list", icon: <Link2 size={ICON_SM} />, onSelect: () => undefined, disabled: "Lists have no address of their own yet." },
-    { label: "Open on this list", icon: <Star size={ICON_SM} />, onSelect: () => a.setDefault(t.id), disabled: all ? "All opens when no list is the default." : t.isDefault ? "It already opens on this list." : a.listsReason },
+    { label: "Open on this list", icon: <Star size={ICON_SM} />, onSelect: () => a.setDefault(t.id), disabled: t.isDefault ? "It already opens on this list." : a.listsReason },
     { label: "Delete list", icon: <DeleteIcon size={ICON_SM} />, danger: true, separatorBefore: true, onSelect: () => a.remove(t.id), disabled: all ? "All can't be deleted." : a.listsReason },
   ];
 }
@@ -144,7 +148,7 @@ export function listActions(t: ViewTab, a: TabActions): ContextItem[] {
 function ListAndView({ tabs, active, a }: { tabs: ViewTab[]; active: string; a: TabActions }) {
   const menu = useContextMenu<ViewTab>((t) => listActions(t, a));
   const current = tabs.find((t) => t.id === active) ?? tabs[0];
-  const view = VIEWS.find((v) => v.id === a.view) ?? VIEWS[0];
+  const view = a.views.find((v) => v.id === a.view) ?? a.views[0];
   return (
     <>
       <span className="tb__lists" {...menu.bind(current)}>
@@ -155,18 +159,18 @@ function ListAndView({ tabs, active, a }: { tabs: ViewTab[]; active: string; a: 
           onChange={a.onTab}
           options={tabs.map((t) => ({ value: t.id, label: t.title }))}
           defaultValue={tabs.find((t) => t.isDefault)?.id ?? "all"}
-          onSetDefault={(id) => (id === "all" ? undefined : a.setDefault(id))}
+          onSetDefault={a.setDefault}
           onAdd={a.onAddList}
           addLabel="Add list"
         />
       </span>
-      <Dropdown size="sm" className="tb__view" label="View" defaultKey="data.view" icon={view.icon} value={view.id} onChange={a.onView} options={VIEWS.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: a.viewReasons[v.id] }))} />
+      <Dropdown size="sm" className="tb__view" label="View" defaultKey={a.viewKey} icon={view.icon} value={view.id} onChange={a.onView} options={a.views.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: a.viewReasons[v.id] }))} />
       {menu.menu}
     </>
   );
 }
 
-export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, actions = [], more }: {
+export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, actions = [], more, pending, panel }: {
   tabs: ViewTab[];
   activeTab: string;
   tabActions: TabActions;
@@ -174,7 +178,8 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   onSearch: (s: string) => void;
   searchable: boolean;
   tableTitle: string;
-  filter: FilterState;
+  /** Absent where filtering doesn't apply (the Graph view filters by its legend). */
+  filter?: FilterState;
   /** Files are what this collection is about (it has a file field): Upload is an action in the
    *  right group rather than inside ⋮. */
   uploadFirst: boolean;
@@ -183,21 +188,27 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   /** The page's own actions (New, Add goal, Connect), between Filter and ⋮; one with `children`
    *  opens them as a menu. Folded into ⋮ with Filter when the row is narrow. */
   actions?: ContextItem[];
-  /** What ⋮ holds (the view's settings, the list's actions, Download, Reset view). */
+  /** What ⋮ holds (the view's settings, the list's actions, Share, Reset view). */
   more: ContextItem[];
+  /** Cancel and Save while the list has changes (the owner, 12 Oct): never folded. */
+  pending?: ReactNode;
+  /** A setting chosen in ⋮ (Group, Sort…), shown in the same dropdown under ⋮ with a way back,
+   *  as Notion does; pop-ups are kept for notices and asks to Alpha (the owner, 12 Oct). */
+  panel?: { title: string; body: ReactNode; onClose: () => void } | null;
 }) {
   const bar = useRef<HTMLDivElement>(null);
+  const moreAt = useRef<HTMLSpanElement>(null);
   const [searching, setSearching] = useState(false);
-  const f = filter;
+  const f: FilterState = filter ?? { fields: [], onAddRule: () => undefined, onAdvanced: () => undefined, hasDone: false, hideDone: false, onHideDone: () => undefined, goneCount: 0, showGone: false, onShowGone: () => undefined, active: 0 };
   // what the row's words are: when any changes, the row is measured again from the start
-  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, searching, actions.map((a) => a.label)].join("|");
+  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, searching, actions.map((a) => a.label), Boolean(pending)].join("|");
   const level = useFit(bar, words);
   const icons = level >= 1;
   const folded = level >= 2;
   const filterMenu = useContextMenu(filterItems(f));
   const inMore: ContextItem[] = folded
     ? [
-        { label: f.active ? `Filter (${f.active})` : "Filter", icon: <FilterIcon size={ICON_SM} />, children: filterItems(f) },
+        ...(filter ? [{ label: f.active ? `Filter (${f.active})` : "Filter", icon: <FilterIcon size={ICON_SM} />, children: filterItems(f) }] : []),
         ...(uploadFirst ? [{ label: "Upload", icon: <UploadIcon size={ICON_SM} />, onSelect: onUpload, disabled: onUpload ? undefined : uploadReason }] : []),
         ...actions,
         ...more.map((m, i) => (i === 0 ? { ...m, separatorBefore: true } : m)),
@@ -233,10 +244,10 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
       <span className="spacer" />
       {folded ? null : (
         <>
-          <Button size="sm" variant="ghost" icon={<FilterIcon size={ICON_SM} />} aria-label="Filter" aria-haspopup="menu" title={icons ? "Filter" : undefined} onClick={(e) => filterMenu.openFrom(undefined, e.currentTarget)}>
+          {filter ? <Button size="sm" variant="ghost" icon={<FilterIcon size={ICON_SM} />} aria-label="Filter" aria-haspopup="menu" title={icons ? "Filter" : undefined} onClick={(e) => filterMenu.openFrom(undefined, e.currentTarget)}>
             <span className="tb__label">Filter</span>
             {f.active ? <Badge tone="info">{f.active}</Badge> : null}
-          </Button>
+          </Button> : null}
           {uploadFirst ? (
             <Button size="sm" variant="primary" icon={<UploadIcon size={ICON_SM} />} aria-label="Upload" title={icons ? "Upload" : undefined} disabledReason={onUpload ? undefined : uploadReason} onClick={onUpload}>
               <span className="tb__label">Upload</span>
@@ -249,7 +260,42 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
           ))}
         </>
       )}
-      <IconButton label="More" icon={<MoreVertical />} aria-haspopup="menu" onClick={(e) => moreMenu.openFrom(undefined, e.currentTarget)} />
+      {pending}
+      <RadixPopover.Root open={Boolean(panel)} onOpenChange={(o) => !o && panel?.onClose()}>
+        <RadixPopover.Anchor asChild>
+          <span className="tb__more" ref={moreAt}>
+            <IconButton label="More" icon={<MoreVertical />} aria-haspopup="menu" onClick={(e) => moreMenu.openFrom(undefined, e.currentTarget)} />
+          </span>
+        </RadixPopover.Anchor>
+        <RadixPopover.Portal>
+          <RadixPopover.Content
+            className="menu__list vpanel"
+            align="end"
+            sideOffset={4}
+            aria-label={panel?.title}
+            onCloseAutoFocus={(e) => {
+              // no Trigger, so Radix can't return focus: give it back to ⋮
+              e.preventDefault();
+              moreAt.current?.querySelector("button")?.focus();
+            }}
+          >
+            <div className="vpanel__head">
+              <IconButton
+                size="sm"
+                label="Back"
+                icon={<ChevronLeft size={ICON_SM} />}
+                onClick={() => {
+                  panel?.onClose();
+                  const at = moreAt.current?.querySelector("button");
+                  if (at) moreMenu.openFrom(undefined, at);
+                }}
+              />
+              <span className="vpanel__title">{panel?.title}</span>
+            </div>
+            {panel?.body}
+          </RadixPopover.Content>
+        </RadixPopover.Portal>
+      </RadixPopover.Root>
       {filterMenu.menu}
       {moreMenu.menu}
       {actionMenu.menu}

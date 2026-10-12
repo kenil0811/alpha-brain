@@ -17,8 +17,6 @@
 
 /* ---------- Second Brain's graph (12 Oct, the owner; Obsidian's graph view) ---------- */
 .graph { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.graph__bar { display: flex; align-items: center; gap: var(--space-2); }
-.graph__search { display: flex; align-items: center; gap: var(--space-2); color: var(--text-3); }
 .graph__legend { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .gchip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--text-sm); cursor: pointer; }
 .gchip[aria-pressed="false"] { opacity: 0.5; text-decoration: line-through; }

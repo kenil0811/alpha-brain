@@ -13,22 +13,23 @@
  * Notion's parity (9 Oct, the owner's pass): each saved list keeps its layout, simple and
  * advanced filters, several sorts, groups, colours, row height and a load limit with "Load
  * more". What the core's list can't hold the window keeps (`viewState.ts`).
- * Lists (the owner, 11 Oct): Add list and Edit list open the list's page in place of the toolbar
- * (`ListPage`), the records below its live preview; filtering, sorting, grouping or hiding from
- * the toolbar is temporary, with a bar to Save to this list or Reset. Records always open as
- * their page, never a peek (R12). Download gives exactly what is shown and says how many.
+ * Lists (the owner, 11 and 12 Oct): Add list and Duplicate list open the list's page in place of
+ * the toolbar (`ListPage`), the records below its live preview; filtering, sorting, grouping or
+ * hiding from the toolbar is temporary, with Cancel and Save in the toolbar; Rename list is in ⋮.
+ * Records always open as their page, never a peek (R12). Share copies or downloads exactly what
+ * is shown and says how many. A page with a graph (Second Brain) offers Graph as a view.
  * Selecting rows offers Edit property, Duplicate, Delete and Download as CSV.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { say } from "../core/client";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, TableSummaryData, Relations } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { DATE_KINDS, coerce, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "./fields";
 import { reasonFor, tableSource, type DataSource } from "./source";
 import { humanize } from "./format";
-import { Button, Confirm, DateField, Dialog, Dropdown, IconButton, NumberField, Popover, Trouble, type ContextItem } from "../ui";
+import { Button, Confirm, DateField, Dropdown, IconButton, NumberField, Popover, Trouble, type ContextItem } from "../ui";
 import { useDropdownDefault } from "../ui/Dropdown";
-import { ChevronsLeft, ChevronsRight, DownloadIcon, ICON_SM, PlusIcon, UploadIcon } from "../ui/icons";
+import { ChevronsLeft, ChevronsRight, ICON_SM, PlusIcon, ShareIcon, UploadIcon } from "../ui/icons";
 import { applyQuery, colorsOf, defaultSummary, groupRows, isBlank, ofKinds, pageOf, pinnedFirst, provenanceCounts, type Sort, type SummaryOp } from "./views/engine";
 import { DEFAULT_VIEW, differs, stateFor, toConfig, withoutList, type KeptView, type ViewState } from "./viewState";
 import { FilterBar, fieldLabel, ruleFor } from "./FilterUI";
@@ -40,13 +41,11 @@ import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
 import { BoardView } from "./views/BoardView";
 import { CalendarView } from "./views/CalendarView";
-import { ChartView } from "./views/ChartView";
-import { ListView } from "./views/ListView";
 import { FormView } from "./views/FormView";
 import { TableView, copyText } from "./views/TableView";
 import { cellEditable } from "./views/cells";
 import { DashboardView, dashboardAvailable } from "./views/DashboardView";
-import { ADD_COLUMN_REASON, DataToolbar, listActions, type PageView, type TabActions, type ViewTab } from "./DataToolbar";
+import { ADD_COLUMN_REASON, DataToolbar, listActions, VIEWS, type PageView, type TabActions, type ViewTab } from "./DataToolbar";
 import { MetricsStrip } from "./MetricsStrip";
 
 export type { PageView } from "./DataToolbar";
@@ -100,14 +99,15 @@ function recordLink(table: string, id: string): string | null {
 /** The data view over a table the core keeps (`table`) or over any other `source`. `onOpenRecord` (required:
  *  every record has a page) gets the source's key and the record's id ("new" for a new record's page); `onAddFiles` is
  *  Upload (the module's file picker). */
-export function DataPage({ client, table, source, version, onChanged, onSay, onAsk, onOpenRecord, onAddFiles, summary, actions }: { client: Client; table?: TableDesc; source?: DataSource; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; /** Every record opens a page of its own (the rulebook §14): required, so no view can show a record that leads nowhere. */ onOpenRecord: (table: string, id: string) => void; onAddFiles?: () => void; summary?: TableSummaryData | null; /** The page's own actions, in the toolbar between Filter and ⋮. */ actions?: ContextItem[]; }) {
+export function DataPage({ client, table, source, version, onChanged, onSay, onAsk, onOpenRecord, onAddFiles, summary, actions, graph }: { client: Client; table?: TableDesc; source?: DataSource; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; /** Every record opens a page of its own (the rulebook §14): required, so no view can show a record that leads nowhere. */ onOpenRecord: (table: string, id: string) => void; onAddFiles?: () => void; summary?: TableSummaryData | null; /** The page's own actions, in the toolbar between Filter and ⋮. */ actions?: ContextItem[]; /** A Graph view of the same things (Second Brain): drawn with the toolbar's search, its own options in ⋮; the page opens on it. */ graph?: { render: (search: string) => ReactNode; more: ContextItem[] }; }) {
   const src = useMemo(() => source ?? tableSource(client, table!), [source, client, table]);
   const fields = src.fields;
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
   const key = `alpha.page.${src.key}`;
+  const viewMemory = `${key}.view${graph ? ".graph" : ""}`;
   const titleField = titleFieldOf(fields, src.titleField);
   const statusField = useMemo(() => fields.find((f) => f.kind === "status"), [fields]);
-  // A board groups by a choice or status field, a calendar, timeline or chart runs on a date
+  // A board groups by a choice or status field, a calendar or timeline runs on a date
   // field: the first of each by default, the person's pick when there are several.
   const choiceFields = useMemo(() => ofKinds(fields, new Set(["status", "choice"])).sort((a, b) => (a.kind === "status" ? -1 : b.kind === "status" ? 1 : 0)), [fields]);
   const dateFields = useMemo(() => ofKinds(fields, DATE_KINDS), [fields]);
@@ -121,13 +121,15 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const list = lists.find((l) => l.id === listId);
   const [edited, setEdited] = useState<Record<string, ViewState>>({});
   // The person's ★ defaults from the dropdowns: the view type and row height.
-  const starView = (useDropdownDefault("data.view") ?? "table") as PageView;
+  // a page with a graph keeps its own ★ and memory, so a ★ on Table elsewhere doesn't hide its Graph
+  const viewKey = graph ? "data.view.graph" : "data.view";
+  const starView = (useDropdownDefault(viewKey) ?? (graph ? "graph" : "table")) as PageView;
   const starRow = useDropdownDefault("Row height") as ViewState["rowHeight"] | undefined;
   const starred: Partial<ViewState> = starRow ? { rowHeight: starRow } : {};
   /** The list's page, while it is open: what it shows below is this draft (its live preview). */
   const [drafting, setDrafting] = useState<ListDraft | null>(null);
   // what the list holds, and what is shown now (the same until the toolbar changes it)
-  const saved: ViewState = stateFor(list?.config, kept[vkey], listId === "all" ? remembered<PageView>(`${key}.view`, starView) : starView, starred);
+  const saved: ViewState = stateFor(list?.config, kept[vkey], listId === "all" ? remembered<PageView>(viewMemory, starView) : starView, starred);
   const vs: ViewState = drafting?.state ?? edited[vkey] ?? saved;
   const dirty = useRef(new Set<string>());
   const patch = (p: Partial<ViewState>) => {
@@ -138,7 +140,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const unsaved = !drafting && differs(vs, saved, listId);
   const groupField = useMemo(() => (vs.view === "board" ? (byName.get(vs.groupBy ?? "") ?? choiceFields[0]) : vs.groupBy ? byName.get(vs.groupBy) : undefined), [vs.view, vs.groupBy, byName, choiceFields]);
   const dateField = useMemo(() => dateFields.find((f) => f.name === vs.dateBy) ?? dateFields[0], [dateFields, vs.dateBy]);
-  const chartX = byName.get(vs.chart.x ?? "") ?? dateField ?? choiceFields[0];
 
   // Views the data cannot support stay in the menus, disabled, with the reason (§6, §14)
   const viewReasons = useMemo(
@@ -146,13 +147,19 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       board: choiceFields[0] || vs.groupBy ? undefined : "Board needs a status or choice field. Ask Alpha in the panel to add one.",
       calendar: dateField ? undefined : "Calendar needs a date field. Ask Alpha in the panel to add one.",
       timeline: dateField ? undefined : "Timeline needs a date field. Ask Alpha in the panel to add one.",
-      chart: chartX ? undefined : "Chart needs a date, status or choice field. Ask Alpha in the panel to add one.",
       dashboard: dashboardAvailable(fields) ?? undefined,
+      graph: graph ? undefined : "This page has no graph.",
     }),
-    [choiceFields, vs.groupBy, dateField, chartX, fields],
+    [choiceFields, vs.groupBy, dateField, fields, graph],
   );
   const view: PageView = (viewReasons as Partial<Record<PageView, string>>)[vs.view] ? "table" : vs.view;
-  const setView = (v: PageView) => patch({ view: v });
+  const setView = (v: PageView) => {
+    patch({ view: v });
+    setSelected(new Set());
+    if (v === "graph") setSettingsPage(null); // the graph has no table settings
+  };
+  const graphing = view === "graph";
+  const views = useMemo(() => VIEWS.filter((v) => v.id !== "graph" || graph), [graph]);
 
   const [files, setFiles] = useState<Record<string, FileInfo>>({});
   /** Excel comes from the core, which gives the whole collection: only when that is what is shown. */
@@ -179,6 +186,8 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const [openChip, setOpenChip] = useState<number | "advanced" | "sort" | null>(null);
   /** The view setting open in its dialog (from ⋮), if any. */
   const [settingsPage, setSettingsPage] = useState<SettingsPage | null>(null);
+  /** The list being renamed, in the dropdown under ⋮. */
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [loads, setLoads] = useState(1);
   const hidden = vs.hidden;
   const setHidden = (next: string[] | ((h: string[]) => string[])) => patch({ hidden: typeof next === "function" ? next(vs.hidden) : next });
@@ -295,8 +304,8 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   }, [measure]);
 
   // A load limit shows that many, then "Load more"; without one the table and list page.
-  const limited = vs.loadLimit !== null && (view === "table" || view === "list" || view === "gallery" || view === "board");
-  const paged = !limited && (view === "table" || view === "list");
+  const limited = vs.loadLimit !== null && (view === "table" || view === "gallery" || view === "board");
+  const paged = !limited && view === "table";
   const size = pageSize === "fit" ? fit : pageSize;
   const page = rows && paged ? pageOf(rows, pageAt, size) : null;
   const pages = page?.pages ?? 1;
@@ -306,7 +315,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   // Groups are made over the whole result, so each count and footer is the group's, not the
   // page's (U18); each draws only its rows on this page.
   const groups = useMemo(() => {
-    if (!groupField || !(view === "table" || view === "list") || !rows || !shownRows) return null;
+    if (!groupField || view !== "table" || !rows || !shownRows) return null;
     const here = new Set(shownRows.map((r) => r.id));
     const first = shownRows[0]?.id === rows[0]?.id;
     return groupRows(rows, groupField, { hideEmpty: vs.hideEmptyGroups, order: vs.groupOrder })
@@ -483,7 +492,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   // A view's search, if a list carries one (Alpha's), comes with it; the person's is never saved.
   useEffect(() => setSearch(list?.config.search ?? ""), [listId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (listId === "all" && !drafting) remember(`${key}.view`, vs.view);
+    if (listId === "all" && !drafting) remember(viewMemory, vs.view);
   }, [key, listId, vs.view, drafting]);
 
   // What the person changes in how a view looks (row height, lines, colours…) is kept as they go,
@@ -506,7 +515,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
 
   const tabOrder = kept[`${src.key}:tabs`]?.tabOrder ?? [];
   const tabs: ViewTab[] = [
-    { id: "all", title: "All", view: listId === "all" ? vs.view : (edited[`${src.key}:all`] ?? stateFor(undefined, kept[`${src.key}:all`], remembered<PageView>(`${key}.view`, starView), starred)).view, isDefault: false },
+    { id: "all", title: "All", view: listId === "all" ? vs.view : (edited[`${src.key}:all`] ?? stateFor(undefined, kept[`${src.key}:all`], remembered<PageView>(viewMemory, starView), starred)).view, isDefault: !lists.some((l) => l.is_default) },
     ...[...lists]
       .sort((a, b) => (tabOrder.indexOf(a.id) + 1 || 1e9) - (tabOrder.indexOf(b.id) + 1 || 1e9))
       .map((l) => ({ id: l.id, title: l.title, view: (edited[`${src.key}:${l.id}`] ?? stateFor(l.config, kept[`${src.key}:${l.id}`], starView, starred)).view, isDefault: l.is_default })),
@@ -520,15 +529,11 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   }
   /** Open the list's page: a new list from what is shown now (so a filter made in the toolbar
    *  carries over, U16), a copy of one, or one to edit. */
-  function startDraft(id: string | null, copyOf?: string) {
+  function startDraft(copyOf?: string) {
     setStatus(null);
     setSettingsPage(null);
-    if (id) {
-      const l = lists.find((x) => x.id === id);
-      if (!l) return;
-      setDrafting({ id, title: l.title, isDefault: l.is_default, state: id === listId ? vs : stateOf(id) });
-    } else if (copyOf) setDrafting({ id: null, title: `${tabs.find((t) => t.id === copyOf)?.title ?? "List"} copy`, isDefault: false, state: copyOf === listId ? vs : stateOf(copyOf) });
-    else setDrafting({ id: null, title: "", isDefault: false, state: vs });
+    if (copyOf) setDrafting({ title: `${tabs.find((t) => t.id === copyOf)?.title ?? "List"} copy`, isDefault: false, state: copyOf === listId ? vs : stateOf(copyOf) });
+    else setDrafting({ title: "", isDefault: false, state: vs });
   }
   /** Write a list (its config to the world, the rest of its view to the window) and show it. */
   async function keepList(id: string | null, title: string, state: ViewState, isDefault: boolean) {
@@ -555,19 +560,30 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   }
   async function saveDraft() {
     if (!drafting) return;
-    if (await keepList(drafting.id, drafting.title.trim(), drafting.state, drafting.isDefault)) setDrafting(null);
+    if (await keepList(null, drafting.title.trim(), drafting.state, drafting.isDefault)) setDrafting(null);
   }
-  /** The bar under the toolbar: what the toolbar changed goes into the list, or back to it. */
+  /** Save in the toolbar: what the toolbar changed goes into the list (on All, a new list). */
   function saveToList() {
-    if (listId === "all" || !list) return startDraft(null);
+    if (listId === "all" || !list) return startDraft();
     void keepList(list.id, list.title, vs, list.is_default);
   }
   const resetToList = () => setEdited((m) => ({ ...m, [vkey]: { ...vs, ...saved, ...withoutList(vs, listId) } }));
   function starList(id: string) {
+    // ★ on All: no list is the default any more, so the page opens on All
+    const was = lists.find((l) => l.is_default);
+    if (id === "all" && !was) return;
     void run(async () => {
-      await src.updateList!(id, { default: true });
+      if (id === "all") await src.updateList!(was!.id, { default: false });
+      else await src.updateList!(id, { default: true });
       setLists((existing) => existing.map((l) => ({ ...l, is_default: l.id === id })));
     }, "Couldn't make it the default");
+  }
+  function renameList(id: string, title: string) {
+    setRenaming(null);
+    void run(async () => {
+      await src.updateList!(id, { title });
+      setLists((existing) => existing.map((l) => (l.id === id ? { ...l, title } : l)));
+    }, "Couldn't rename the list");
   }
   function dropList() {
     const id = dropping;
@@ -613,11 +629,13 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   };
   const count = (n: number) => n.toLocaleString();
   const { estimated: guesses, assumed } = rows ? provenanceCounts(rows) : { estimated: 0, assumed: 0 };
-  const resting = !rows || (!guesses && !assumed) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : ""].filter(Boolean).join(", ")}`;
+  const resting = graphing || !rows || (!guesses && !assumed) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : ""].filter(Boolean).join(", ")}`;
   const matching = filtered ? " matching" : "";
   // With one page there is nothing to page through, so no "Showing…" and no page size (9 Oct).
   const several = paged && pages > 1;
-  const counted = !rows
+  const counted = graphing
+    ? ""
+    : !rows
     ? `Loading ${src.title}…`
     : !rows.length
       ? filtered ? "Nothing matches." : emptyWords
@@ -670,6 +688,15 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     downloadText(`${src.title}.csv`, toCsv([shownFields.map((f) => fieldLabel(f)), ...rowsNow.map((r) => shownFields.map((f) => showValue(r.values[f.name], f.kind, f.unit)))]));
     setStatus({ ok: true, text: `Downloaded ${count(rowsNow.length)} ${word(rowsNow.length)} as ${src.title}.csv.` });
   }
+  /** The shown rows and columns as tab-separated text: pastes as a table into a sheet or a mail. */
+  function copyShown(rowsNow: RecordRow[]) {
+    const shownFields = columns.map((c) => byName.get(c)!).filter(Boolean);
+    const clean = (v: string) => v.replace(/[\t\n]+/g, " ");
+    const text = [shownFields.map((f) => clean(fieldLabel(f))), ...rowsNow.map((r) => shownFields.map((f) => clean(showValue(r.values[f.name], f.kind, f.unit))))].map((l) => l.join("\t")).join("\n");
+    const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
+    if (!clip) return setStatus({ ok: false, text: "Couldn't copy: this window has no clipboard." });
+    clip.writeText(text).then(() => setStatus({ ok: true, text: `Copied ${count(rowsNow.length)} ${word(rowsNow.length)} as a table.` }), () => setStatus({ ok: false, text: "Couldn't copy them." }));
+  }
   function copyLink(row: RecordRow) {
     const link = recordLink(src.key, row.id);
     const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
@@ -695,16 +722,18 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const rowIcon = src.rowIcon ? (row: RecordRow) => src.rowIcon!(row) : undefined;
   // ponytail: row buttons show in the table view only; the other views open the record's page
   const rowButtons = src.rowButtons ? (row: RecordRow) => src.rowButtons!(row, (text, ok = true) => { setStatus({ ok, text }); load(); onChanged(); }) : undefined;
-  const coloured = view === "table" || view === "list" || view === "board" || view === "gallery" ? colourNote(vs.colors, byName) : "";
+  const coloured = view === "table" || view === "board" || view === "gallery" ? colourNote(vs.colors, byName) : "";
   const tabActions: TabActions = {
     onTab: switchTab,
-    onAddList: src.saveList ? () => startDraft(null) : undefined,
+    onAddList: src.saveList ? () => startDraft() : undefined,
     listsReason,
     view,
     onView: setView,
     viewReasons,
-    edit: (id) => startDraft(id),
-    duplicate: (id) => startDraft(null, id),
+    views,
+    viewKey,
+    rename: (id) => afterMenu(() => setRenaming(id)),
+    duplicate: (id) => startDraft(id),
     remove: (id) => setDropping(id),
     setDefault: starList,
   };
@@ -723,13 +752,15 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     { label: "Add column", icon: <PlusIcon size={ICON_SM} />, onSelect: () => undefined, disabled: ADD_COLUMN_REASON },
     ...listActions(tabs.find((t) => t.id === listId) ?? tabs[0], tabActions).map((a, i) => (i === 0 ? { ...a, separatorBefore: true } : a)),
     {
-      label: `Download ${count(shownCount)} ${word(shownCount)}`,
-      icon: <DownloadIcon size={ICON_SM} />,
+      // what is shown, to paste elsewhere or keep as a file (the owner, 12 Oct: Share, not Copy link)
+      label: "Share",
+      icon: <ShareIcon size={ICON_SM} />,
       separatorBefore: true,
-      disabled: !rows ? `Loading ${src.title}…` : shownCount ? undefined : "Nothing is shown to download.",
+      disabled: !rows ? `Loading ${src.title}…` : shownCount ? undefined : "Nothing is shown to share.",
       children: [
-        { label: "CSV", onSelect: () => downloadCsv(rows ?? []) },
-        { label: "Excel", onSelect: () => void downloadExcel(), disabled: excelReason },
+        { label: `Copy ${count(shownCount)} ${word(shownCount)} as a table`, onSelect: () => copyShown(rows ?? []) },
+        { label: "Download as CSV", onSelect: () => downloadCsv(rows ?? []) },
+        { label: "Download as Excel", onSelect: () => void downloadExcel(), disabled: excelReason },
       ],
     },
     ...(fileFirst ? [] : [{ label: "Upload", icon: <UploadIcon size={ICON_SM} />, onSelect: () => onAddFiles?.(), disabled: onAddFiles ? undefined : reasonFor(src, "upload") }]),
@@ -745,6 +776,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             fields={fields}
             order={everyField}
             viewReasons={viewReasons}
+            views={views}
             hasDone={Boolean(statusField && (statusField.done_choices ?? []).length)}
             saveReason={listsReason}
             problem={status && !status.ok ? status.text : null}
@@ -763,30 +795,65 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             onSearch={setSearch}
             searchable={searchable.length > 0}
             tableTitle={src.title}
-            filter={{ fields, onAddRule: addRule, onAdvanced: addAdvanced, hasDone: Boolean(statusField && (statusField.done_choices ?? []).length), hideDone: vs.hideDone, onHideDone: (on) => patch({ hideDone: on }), goneCount: tracked ? goneCount : 0, showGone, onShowGone: setShowGone, active: vs.rules.length + (vs.advanced ? 1 : 0) + pills.length }}
+            filter={view === "graph" ? undefined : { fields, onAddRule: addRule, onAdvanced: addAdvanced, hasDone: Boolean(statusField && (statusField.done_choices ?? []).length), hideDone: vs.hideDone, onHideDone: (on) => patch({ hideDone: on }), goneCount: tracked ? goneCount : 0, showGone, onShowGone: setShowGone, active: vs.rules.length + (vs.advanced ? 1 : 0) + pills.length }}
             uploadFirst={fileFirst}
             onUpload={onAddFiles}
             uploadReason={reasonFor(src, "upload")}
             actions={actions}
-            more={moreItems}
+            more={view === "graph" && graph ? graph.more : moreItems}
+            panel={
+              settingsPage
+                ? {
+                    title: SETTINGS_TITLE[settingsPage],
+                    onClose: () => setSettingsPage(null),
+                    body: (
+                      <ViewSettings
+                        page={settingsPage}
+                        state={{ ...vs, view }}
+                        patch={patch}
+                        fields={fields}
+                        viewReasons={viewReasons}
+                        views={views}
+                        order={everyField}
+                        shown={columns}
+                        onShow={(name, on) => setHidden((h) => (on ? h.filter((n) => n !== name) : [...h, name]))}
+                        onShowAll={(on) => setHidden(on ? [] : fields.map((f) => f.name).filter((n) => n !== (titleField ?? fields[0]?.name)))}
+                        onReorder={reorderColumn}
+                        frozen={frozen}
+                        onFrozen={setFrozen}
+                        widthsSet={Object.keys(widths).length > 0}
+                        onResetWidths={() => setWidths({})}
+                        dateFields={dateFields}
+                        boardField={choiceFields[0]?.name}
+                        sections={sections}
+                        onSections={(next) => void setSectionPref({ ...sectionPref, [src.key]: next })}
+                        sorts={sorts}
+                        onSorts={setSorts}
+                      />
+                    ),
+                  }
+                : renaming
+                  ? { title: "Rename list", onClose: () => setRenaming(null), body: <RenameList key={renaming} title={lists.find((l) => l.id === renaming)?.title ?? ""} onSave={(t) => renameList(renaming, t)} onCancel={() => setRenaming(null)} /> }
+                  : null
+            }
+            pending={
+              unsaved ? (
+                <>
+                  <Button size="sm" variant="ghost" onClick={resetToList}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" variant="primary" disabledReason={listsReason} onClick={saveToList}>
+                    {list ? "Save" : "Save as list"}
+                  </Button>
+                </>
+              ) : null
+            }
           />
         )}
-        {unsaved ? (
-          <div className="listbar" aria-live="polite">
-            <span>{list ? `Changed from ${list.title}; not saved.` : "Not saved as a list."}</span>
-            <span className="spacer" />
-            <Button size="sm" variant="ghost" onClick={resetToList}>
-              Reset
-            </Button>
-            <Button size="sm" variant="primary" disabledReason={listsReason} onClick={saveToList}>
-              {list ? "Save to this list" : "Save as list"}
-            </Button>
-          </div>
-        ) : null}
-        {drafting ? null : <FilterBar fields={fields} rules={vs.rules} onRules={(r) => patch({ rules: r })} advanced={vs.advanced} onAdvanced={(g) => patch({ advanced: g })} sorts={sorts} onSorts={setSorts} openChip={openChip} onOpenChip={setOpenChip} extra={pills} onClearAll={clearAll} />}
+        {drafting || view === "graph" ? null : <FilterBar fields={fields} rules={vs.rules} onRules={(r) => patch({ rules: r })} advanced={vs.advanced} onAdvanced={(g) => patch({ advanced: g })} sorts={sorts} onSorts={setSorts} openChip={openChip} onOpenChip={setOpenChip} extra={pills} onClearAll={clearAll} />}
         {all?.length && !drafting ? <MetricsStrip table={{ name: src.key, title: src.title }} rows={all} summary={summary} /> : null}
         {coloured ? <p className="faint datacard__note">{coloured}.</p> : null}
-        {selected.size ? (
+        {selected.size && !graphing ? (
           <div className="selectbar" role="status">
             <b>{count(selected.size)} selected</b>
             <Popover label="Edit property" align="start" trigger={<Button size="sm" disabledReason={editReason}>Edit property</Button>}>
@@ -822,7 +889,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             </Button>
           </div>
         ) : null}
-        {error ? (
+        {error && !graphing ? (
           <div className="datacard__trouble">
             <Trouble onRetry={load}>Couldn't load {src.title}: {error}</Trouble>
           </div>
@@ -885,13 +952,12 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             blank={Boolean(none)}
           />
         ) : null}
+        {view === "graph" && graph ? graph.render(search) : null}
         {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} files={files} onCommit={(row, field, text) => void commit(row, field, text)} onOpenRelated={openRelated} onOpen={open} empty={none ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
         {view === "board" && groupField ? <BoardView rows={shownRows ?? []} field={groupField} subField={vs.subGroupBy ? byName.get(vs.subGroupBy) : null} hideEmpty={vs.hideEmptyGroups} order={vs.groupOrder} toneOf={toneOf} rowIcon={rowIcon} titleField={titleField} fields={fields} onOpen={open} onMove={(row, value) => move(row, groupField, value)} /> : null}
-        {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={columns} byName={byName} onOpen={open} groups={groups} collapsed={vs.collapsed} onCollapse={toggleGroup} toneOf={toneOf} rowIcon={rowIcon} /> : null}
         {view === "gallery" ? <GalleryView rows={shownRows ?? []} fields={fields.filter((f) => columns.includes(f.name))} titleField={titleField} onOpen={open} toneOf={toneOf} rowIcon={rowIcon} /> : null}
         {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={open} /> : null}
         {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={open} /> : null}
-        {view === "chart" && chartX ? <ChartView rows={rows ?? []} x={chartX} spec={vs.chart} byName={byName} /> : null}
         {view === "dashboard" ? (
           <DashboardView
             client={client}
@@ -915,12 +981,12 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             <span className="faint num">{count(more)} more</span>
           </div>
         ) : null}
-        {view !== "table" && view !== "dashboard" ? adder : null}
-        {counted || resting || (status && !drafting) || several || (blanks && !showBlank) ? (
+        {view !== "table" && view !== "dashboard" && !graphing ? adder : null}
+        {counted || resting || (status && !drafting) || several || (blanks && !showBlank && !graphing) ? (
         <div className="pager">
           <span className="num">
             {counted}
-            {blanks && !showBlank ? (
+            {blanks && !showBlank && !graphing ? (
               <span className="faint">
                 {counted ? " · " : ""}
                 {count(blanks)} empty {word(blanks)} left out{" "}
@@ -977,37 +1043,31 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       <Confirm open={dropping !== null} title={`Delete ${lists.find((l) => l.id === dropping)?.title ?? "this list"}?`} action="Delete list" onConfirm={dropList} onCancel={() => setDropping(null)}>
         The list goes and can't be brought back; its records stay.
       </Confirm>
-      <Dialog open={settingsPage !== null} onOpenChange={(o) => !o && setSettingsPage(null)} title={settingsPage ? SETTINGS_TITLE[settingsPage] : ""}>
-        {settingsPage ? (
-          <ViewSettings
-            page={settingsPage}
-            state={{ ...vs, view }}
-            patch={patch}
-            fields={fields}
-            viewReasons={viewReasons}
-            order={everyField}
-            shown={columns}
-            onShow={(name, on) => setHidden((h) => (on ? h.filter((n) => n !== name) : [...h, name]))}
-            onShowAll={(on) => setHidden(on ? [] : fields.map((f) => f.name).filter((n) => n !== (titleField ?? fields[0]?.name)))}
-            onReorder={reorderColumn}
-            frozen={frozen}
-            onFrozen={setFrozen}
-            widthsSet={Object.keys(widths).length > 0}
-            onResetWidths={() => setWidths({})}
-            dateFields={dateFields}
-            boardField={choiceFields[0]?.name}
-            sections={sections}
-            onSections={(next) => void setSectionPref({ ...sectionPref, [src.key]: next })}
-            sorts={sorts}
-            onSorts={setSorts}
-          />
-        ) : null}
-        <div className="row dialog__actions">
-          <Button variant="primary" onClick={() => setSettingsPage(null)}>
-            Done
-          </Button>
-        </div>
-      </Dialog>
     </div>
+  );
+}
+
+/** A list's new name, in the dropdown under ⋮: Enter or Save keeps it, Escape or Cancel doesn't. */
+function RenameList({ title, onSave, onCancel }: { title: string; onSave: (title: string) => void; onCancel: () => void }) {
+  const [name, setName] = useState(title);
+  const ready = name.trim().length > 0 && name.trim() !== title;
+  return (
+    <form
+      className="vset"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ready) onSave(name.trim());
+      }}
+    >
+      <input className="textfield" aria-label="List name" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+      <div className="row">
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="sm" variant="primary" type="submit" disabledReason={ready ? undefined : name.trim() ? "It already has this name." : "Give it a name first."}>
+          Save
+        </Button>
+      </div>
+    </form>
   );
 }

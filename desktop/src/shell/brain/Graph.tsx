@@ -13,8 +13,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { say } from "../../core/client";
 import type { Client, Intelligence, WorkGraph } from "../../core/client";
-import { Button, IconButton, Notice, Toggle, ZoomControls, useContextMenu } from "../../ui";
-import { FilterIcon, ICON_SM, MoreVertical, SearchIcon, X } from "../../ui/icons";
+import { Button, IconButton, Notice, Toggle, ZoomControls } from "../../ui";
+import { ICON_SM, X } from "../../ui/icons";
 import { HypothesisButtons } from "../intel/Hypothesis";
 import type { TableRecords } from "./collect";
 import type { Surface } from "../Rail";
@@ -26,12 +26,23 @@ const RADIUS: Partial<Record<GraphKind, number>> = { you: 14, module: 10, collec
 const label = (k: GraphKind) => KINDS.find((x) => x.kind === k)?.label ?? k;
 type Depth = "all" | "1" | "2" | "3";
 
-export function GraphView({ client, data, onGo, onChanged }: { client: Client; data: Intelligence; onGo?: (s: Surface) => void; onChanged: () => void }) {
+/** What the page around the graph sets: its toolbar's search, and the options in its ⋮. */
+export interface GraphOptions {
+  query: string;
+  orphans: boolean;
+  labels: boolean;
+  /** Bumped by Refresh. */
+  refresh: number;
+}
+
+export function GraphView({ client, data, onGo, onChanged, options }: { client: Client; data: Intelligence; onGo?: (s: Surface) => void; onChanged: () => void; options: GraphOptions }) {
+  const { query, orphans, labels, refresh: tick } = options;
   const [world, setWorld] = useState<WorkGraph | null>(() => cachedWorld(client));
-  const [tick, setTick] = useState(0);
   const [problem, setProblem] = useState<string | null>(null);
+  const fetched = useRef(tick); // the Refresh last asked for, so a remount doesn't ask again
   useEffect(() => {
-    if (world && !tick) return;
+    if (world && tick === fetched.current) return;
+    fetched.current = tick;
     let live = true;
     client
       .graph("world")
@@ -65,9 +76,6 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
   const near = useMemo(() => neighbours(graph), [graph]);
 
   const [hidden, setHidden] = useState<Set<GraphKind>>(new Set());
-  const [orphans, setOrphans] = useState(true);
-  const [labels, setLabels] = useState(false);
-  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [depth, setDepth] = useState<Depth>("all");
@@ -155,34 +163,19 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
     return () => el.removeEventListener("wheel", wheel);
   }, []);
 
-  const find = () => {
+  // the toolbar's search finds as it is typed: the first thing shown by that name, selected and centred
+  useEffect(() => {
+    if (!query.trim()) return setMessage(null);
     const hit = search(shown, query)[0];
     if (!hit) return setMessage({ ok: false, text: `Nothing shown is called "${query.trim()}".` });
     setMessage(null);
     setSelected(hit.id);
     centre(hit.id);
-  };
-  const filterMenu = useContextMenu([{ label: "Things with no links", on: orphans, onSelect: () => setOrphans((o) => !o) }]);
-  const moreMenu = useContextMenu([
-    { label: "Always show names", on: labels, onSelect: () => setLabels((l) => !l) },
-    { label: "Refresh", onSelect: () => setTick((t) => t + 1), separatorBefore: true },
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on a new search, and once more when the graph arrives
+  }, [query, shown.nodes.length > 0]);
 
   return (
     <div className="graph">
-      <div className="toolbar graph__bar">
-        <form className="graph__search" role="search" onSubmit={(e) => { e.preventDefault(); find(); }}>
-          <SearchIcon size={ICON_SM} aria-hidden="true" />
-          <input className="textfield" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find in the graph" aria-label="Find in the graph" />
-        </form>
-        <span className="spacer" />
-        <Button size="sm" variant="ghost" icon={<FilterIcon size={ICON_SM} />} aria-haspopup="menu" onClick={(e) => filterMenu.openFrom(undefined, e.currentTarget)}>
-          Filter
-        </Button>
-        <IconButton label="More" icon={<MoreVertical />} aria-haspopup="menu" onClick={(e) => moreMenu.openFrom(undefined, e.currentTarget)} />
-        {filterMenu.menu}
-        {moreMenu.menu}
-      </div>
       <div className="graph__legend" role="group" aria-label="Kinds shown">
         {KINDS.filter((k) => count.get(k.kind)).map((k) => (
           <button key={k.kind} type="button" className={`gchip gchip--${k.kind}`} aria-pressed={!hidden.has(k.kind)} onClick={() => setHidden((h) => { const n = new Set(h); if (n.has(k.kind)) n.delete(k.kind); else n.add(k.kind); return n; })}>

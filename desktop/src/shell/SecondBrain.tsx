@@ -1,9 +1,8 @@
 /**
  * Intelligence › Second Brain (the UI rulebook §12; the owner, 12 Oct): everything Alpha knows,
- * in two views of the same data. **Graph** (the default, Obsidian's graph view as the reference)
- * is every thing in the platform and every link (`brain/Graph`). **Table** is facts, goals and
- * hypotheses in one data view (`knowledgeSource`), a hypothesis approved or rejected with ✓ / ✕
- * on hover. Under them: standing instructions, standing permissions and Alpha's notes, each an
+ * in one data view of facts, goals and hypotheses (`knowledgeSource`), a hypothesis approved or
+ * rejected with ✓ / ✕ on hover. Its View dropdown adds **Graph** (the default, Obsidian's graph
+ * view as the reference): every thing in the platform and every link (`brain/Graph`). Under them: standing instructions, standing permissions and Alpha's notes, each an
  * editable sentence (`writeNote`). A fact opens its own page (`#/intelligence/facts/<id>`).
  */
 import { useEffect, useMemo, useState } from "react";
@@ -11,8 +10,8 @@ import { say } from "../core/client";
 import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
-import { Button, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble, useAssistant } from "../ui";
-import { BrainIcon, ICON, ICON_SM, PermissionIcon, Table2 } from "../ui/icons";
+import { Button, EmptyCard, ListRow, Notice, PageHeader, SectionCard, Trouble, useAssistant } from "../ui";
+import { BrainIcon, ICON, PermissionIcon } from "../ui/icons";
 import { BackLink } from "./BackLink";
 import { cachedWorld } from "./brain/model";
 import { GraphView } from "./brain/Graph";
@@ -61,34 +60,17 @@ export function NoteEditor({ client, scope, title, body, summary, onChanged, lab
 
 const scopeWords = (n: Note) => (n.scope === "person" ? "About you" : n.scope.replace(/^(module|entity|skill):/, ""));
 
-export type BrainView = "graph" | "table";
-
-const VIEW_KEY = "alpha.brain.view";
-const lastView = (): BrainView => {
-  try {
-    return localStorage.getItem(VIEW_KEY) === "table" ? "table" : "graph";
-  } catch {
-    return "graph";
-  }
-};
-
 /** A subject's name, from the world map (`entity:<id>`, `module:<id>`). */
 export function namer(world: WorkGraph | null): (subject: string) => string {
   const titles = new Map((world?.nodes ?? []).map((n) => [n.id, n.title]));
   return (subject) => titles.get(subject) ?? humanize(subject.replace(/^(entity|module):/, ""));
 }
 
-export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo, initialView }: { client: Client; data: Data; version?: number; onChanged: () => void; onAsk?: (text: string) => void; onGo?: (s: Surface) => void; initialView?: BrainView }) {
-  // Graph or Table is this window's choice, kept like its widths (not an address of its own).
-  const [view, setViewState] = useState<BrainView>(() => initialView ?? lastView());
-  const setView = (v: BrainView) => {
-    setViewState(v);
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {
-      /* no storage: the choice is not kept */
-    }
-  };
+export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo }: { client: Client; data: Data; version?: number; onChanged: () => void; onAsk?: (text: string) => void; onGo?: (s: Surface) => void }) {
+  // the graph's options, set from the page's ⋮ while the Graph view is open
+  const [orphans, setOrphans] = useState(true);
+  const [labels, setLabels] = useState(false);
+  const [refresh, setRefresh] = useState(0);
   const { notes } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
@@ -106,15 +88,17 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
     }
   }
 
-  const switcher = <Toggle<BrainView> inBody label="Second Brain view" value={view} onChange={setView} items={[{ id: "graph", label: "Graph", icon: <BrainIcon size={ICON_SM} /> }, { id: "table", label: "Table", icon: <Table2 size={ICON_SM} /> }]} />;
+  const graph = {
+    render: (query: string) => <GraphView client={client} data={data} onGo={onGo} onChanged={onChanged} options={{ query, orphans, labels, refresh }} />,
+    more: [
+      { label: "Things with no links", on: orphans, onSelect: () => setOrphans((o) => !o) },
+      { label: "Always show names", on: labels, onSelect: () => setLabels((l) => !l) },
+      { label: "Refresh", onSelect: () => setRefresh((t) => t + 1), separatorBefore: true },
+    ],
+  };
   return (
     <div className="stack stack--wide">
-      {switcher}
-      {view === "graph" ? (
-        <GraphView client={client} data={data} onGo={onGo} onChanged={onChanged} />
-      ) : (
-        <DataPage client={client} source={table} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.(id.startsWith(GOAL_ROW) ? { kind: "goal", id: id.slice(GOAL_ROW.length) } : { kind: "fact", id })} />
-      )}
+      <DataPage client={client} source={table} version={version} onChanged={onChanged} onAsk={onAsk} graph={graph} onOpenRecord={(_k, id) => onGo?.(id.startsWith(GOAL_ROW) ? { kind: "goal", id: id.slice(GOAL_ROW.length) } : { kind: "fact", id })} />
       <div className="brain__keeps">
         <SectionCard title="Standing instructions">
           <NoteEditor client={client} scope="person" title="Standing instructions" body={instructions?.body ?? ""} summary={instructions?.summary} onChanged={onChanged} label="Standing instructions" emptyText="None yet." />

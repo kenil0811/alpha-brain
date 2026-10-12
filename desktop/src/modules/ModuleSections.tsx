@@ -522,7 +522,7 @@ export function GovernanceSection({ client, detail, modules, onChanged }: { clie
                   <Menu
                     trigger={
                       <Button size="sm" aria-label={`Move a project into ${detail.name}`}>
-                        Move a project in…
+                        Move a project in
                       </Button>
                     }
                   >

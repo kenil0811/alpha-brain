@@ -128,13 +128,11 @@ export { Hash as CountIcon, Sigma as TotalIcon, Gauge as AverageIcon, Minimize2 
 
 /** The data view (9 Oct, the UI rulebook §6): the view types, the table's menus, the footer. */
 export {
-  Download as DownloadIcon,
+  Share as ShareIcon,
   ListFilter as FilterIcon,
-  List as ListIcon,
   Kanban as BoardIcon,
   LayoutGrid as GalleryIcon,
   ChartNoAxesGantt as TimelineIcon,
-  ChartColumn as ChartIcon,
   ClipboardList as FormIcon,
   LayoutDashboard as DashboardIcon,
   Pin as PinIcon,

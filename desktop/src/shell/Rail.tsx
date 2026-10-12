@@ -22,7 +22,7 @@
  */
 import * as RadixPopover from "@radix-ui/react-popover";
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
-import { say } from "../core/client";
+import { moduleWords, say } from "../core/client";
 import type { Client, ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { Button, IconButton, Tooltip, useContextMenu, type ContextItem } from "../ui";
@@ -53,8 +53,8 @@ import {
   BuildingIcon,
   X,
 } from "../ui/icons";
-import { IconDialog, MoveDialog, NewAboveDialog, ViewOptionsDialog } from "./ModuleDialogs";
-import { iconNamed, projectIcon } from "./moduleIcons";
+import { NewAboveDialog } from "./ModuleDialogs";
+import { iconNamed, MODULE_ICON_CHOICES, projectIcon } from "./moduleIcons";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
 
 export type Surface =
@@ -190,7 +190,7 @@ export function Rail({
   const hidden = ids(hiddenPref);
   const icons = iconsPref && typeof iconsPref === "object" ? iconsPref : NO_ICONS;
 
-  const [dialog, setDialog] = useState<{ kind: "move" | "above" | "icon"; module: ModuleCard } | { kind: "options" } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "above"; module: ModuleCard } | null>(null);
   const [said, setSaid] = useState(""); // announced politely to a screen reader
   const [trouble, setTrouble] = useState<string | null>(null); // what failed, until dismissed or the next success
   const [drag, setDrag] = useState<string | null>(null);
@@ -267,7 +267,7 @@ export function Rail({
   async function hide(m: ModuleCard) {
     const err = await setHidden([...hidden.filter((h) => h !== m.id), m.id]);
     if (err) return fail(`hide ${m.name}`, err);
-    done(`${m.name} hidden. View options brings it back.`);
+    done(`${m.name} hidden. Hidden projects brings it back.`);
   }
   async function show(id: string) {
     const err = await setHidden(hidden.filter((h) => h !== id));
@@ -291,31 +291,52 @@ export function Rail({
     await place(m.id, parent, null);
   }
 
+  // predefined choices are submenus, not pop-ups (the owner, 12 Oct): pop-ups are for notices and asks
+  const iconItems = (m: ModuleCard): ContextItem[] =>
+    MODULE_ICON_CHOICES.map((c) => ({
+      label: c.label,
+      icon: c.draw(ICON_SM),
+      on: icons[m.id] === c.name,
+      onSelect: () => void setIcons({ ...icons, [m.id]: c.name }).then((err) => (err ? fail(`change the icon of ${m.name}`, err) : done(`${m.name} has a new icon.`))),
+    }));
+  const moveItems = (m: ModuleCard): ContextItem[] => [
+    ...(m.parent ? [{ label: "The top level", onSelect: () => void moveTo(m, null) }] : []),
+    ...modules.filter((x) => x.id !== m.parent && !isInside(modules, x.id, m.id)).map((x) => ({ label: moduleWords(x), onSelect: () => void moveTo(m, x.id) })),
+  ];
+  const hiddenModules = hidden.map(byId).filter((x): x is ModuleCard => Boolean(x));
+  const hiddenItem: ContextItem = {
+    label: "Hidden projects",
+    icon: <ViewOptionsIcon />,
+    separatorBefore: true,
+    disabled: hiddenModules.length ? undefined : "Nothing is hidden.",
+    children: hiddenModules.map((x) => ({ label: `Show ${x.name}`, onSelect: () => void show(x.id) })),
+  };
   const networkItems = (m: ModuleCard): ContextItem[] => [
     { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "people" }) },
     { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenamingId(m.id), disabled: collapsed ? "Unfold the sidebar to rename it." : undefined },
-    { label: "Change icon", icon: <ChangeIconIcon />, onSelect: () => setDialog({ kind: "icon", module: m }) },
-    { label: "Move…", icon: <MoveIcon />, onSelect: () => undefined, disabled: "Network stays at the top level; drag it, or Alt+↑/↓, to reorder it.", separatorBefore: true },
+    { label: "Change icon", icon: <ChangeIconIcon />, children: iconItems(m) },
+    { label: "Move to", icon: <MoveIcon />, onSelect: () => undefined, disabled: "Network stays at the top level; drag it, or Alt+↑/↓, to reorder it.", separatorBefore: true },
     { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
     { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: NETWORK_FIXED },
-    { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }), separatorBefore: true },
+    hiddenItem,
   ];
   const moduleItems = (m: ModuleCard): ContextItem[] => [
     { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "module", id: m.id }) },
     { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenamingId(m.id), disabled: collapsed ? "Unfold the sidebar to rename it." : undefined },
-    { label: "Change icon", icon: <ChangeIconIcon />, onSelect: () => setDialog({ kind: "icon", module: m }) },
-    { label: "Move…", icon: <MoveIcon />, onSelect: () => setDialog({ kind: "move", module: m }), separatorBefore: true },
+    { label: "Change icon", icon: <ChangeIconIcon />, children: iconItems(m) },
+    { label: "Move to", icon: <MoveIcon />, separatorBefore: true, ...(m.parent || modules.some((x) => x.id !== m.parent && !isInside(modules, x.id, m.id)) ? { children: moveItems(m) } : { disabled: `${m.name} has nowhere else to go yet: there are no other projects.` }) },
     { label: "A new project above it…", icon: <AboveIcon />, onSelect: () => setDialog({ kind: "above", module: m }) },
     { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
     { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "Deleting a project can't be done from here yet. Hide it to take it off the sidebar." },
-    { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }), separatorBefore: true },
+    hiddenItem,
   ];
+  const iconMenu = useContextMenu<ModuleCard>(iconItems);
   const rowMenu = useContextMenu<Row>((r) => (r.module.id === NETWORK ? networkItems(r.module) : moduleItems(r.module)));
   const workspaceMenu = useContextMenu<void>([
     { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenaming(true), disabled: collapsed ? "Unfold the sidebar to rename the workspace." : undefined },
     { label: "Change logo…", icon: <ChangeIconIcon />, onSelect: () => setLogoOpen(true) },
     { label: "Manage Workspace", icon: <BuildingIcon />, onSelect: () => undefined, disabled: "Alpha keeps one workspace for you today.", separatorBefore: true },
-    { label: "View options", icon: <ViewOptionsIcon />, onSelect: () => setDialog({ kind: "options" }) },
+    { ...hiddenItem, separatorBefore: false },
     { label: collapsed ? "Unfold the sidebar" : "Fold the sidebar", icon: collapsed ? <ChevronsRight /> : <ChevronsLeft />, onSelect: onToggleCollapsed },
     { label: "Sign out", icon: <SignOutIcon />, onSelect: () => undefined, disabled: "There is no account to sign out of: your workspace lives on this Mac.", separatorBefore: true },
   ]);
@@ -398,7 +419,7 @@ export function Rail({
         onClick={o.onClick}
         onDoubleClick={o.module && !collapsed ? (e) => {
           // a double-click on a project's icon changes it; on its name, renames it (9 Oct, the owner)
-          if ((e.target as Element).closest(".navbtn__ico")) setDialog({ kind: "icon", module: o.module! });
+          if ((e.target as Element).closest(".navbtn__ico")) iconMenu.openFrom(o.module!, e.currentTarget); // anchored on the row, so focus comes back to it
           else setRenamingId(o.module!.id);
         } : undefined}
         onContextMenu={bound?.onContextMenu}
@@ -559,22 +580,9 @@ export function Rail({
         {said}
       </div>
       {rowMenu.menu}
+      {iconMenu.menu}
       {workspaceMenu.menu}
-      {dialog?.kind === "move" ? <MoveDialog module={dialog.module} modules={modules} onMove={(p) => void moveTo(dialog.module, p)} onClose={() => setDialog(null)} /> : null}
       {dialog?.kind === "above" ? <NewAboveDialog module={dialog.module} onMake={(n) => void makeParent(dialog.module, n)} onClose={() => setDialog(null)} /> : null}
-      {dialog?.kind === "icon" ? (
-        <IconDialog
-          module={dialog.module}
-          current={icons[dialog.module.id]}
-          onClose={() => setDialog(null)}
-          onPick={(pick) => {
-            const target = dialog.module;
-            setDialog(null);
-            void setIcons({ ...icons, [target.id]: pick }).then((err) => (err ? fail(`change the icon of ${target.name}`, err) : done(`${target.name} has a new icon.`)));
-          }}
-        />
-      ) : null}
-      {dialog?.kind === "options" ? <ViewOptionsDialog hidden={hidden.map(byId).filter((m): m is ModuleCard => Boolean(m))} onShow={(id) => void show(id)} onClose={() => setDialog(null)} /> : null}
     </nav>
   );
 }

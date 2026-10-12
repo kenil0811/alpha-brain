@@ -1,8 +1,8 @@
 /**
- * The view's settings, each opened from the toolbar's ⋮ menu into a small dialog (9 Oct, the
+ * The view's settings, each opened from the toolbar's ⋮ menu into the same dropdown (9 Oct, the
  * owner's Notion parity pass, then his decisions; the menu itself is the kit's, 11 Oct): Sort,
- * Layout (the view type and its options: lines, wrap, row height, frozen columns, load limit, the
- * chart's axes), Properties (show, hide, drag into order; a hidden one stays in place, its eye
+ * Layout (the view type and its options: lines, wrap, row height, frozen columns, load limit),
+ * Properties (show, hide, drag into order; a hidden one stays in place, its eye
  * shut), Group and Sub-group, Conditional colour (saying what it coloured), the record page's
  * sections. Records always open as their page (no peek, R12). Explanations live in (i) tooltips.
  */
@@ -11,7 +11,7 @@ import type { FieldInfo } from "./fields";
 import { Button, Dropdown, IconButton, InfoTip } from "../ui";
 import { MultiDropdown } from "../ui/Dropdown";
 import { Eye, GripIcon, HideIcon, ICON_SM, PlusIcon } from "../ui/icons";
-import { VIEWS, PropertyPicker, type PageView } from "./DataToolbar";
+import { PropertyPicker, type PageView, type ViewChoice } from "./DataToolbar";
 import { fieldLabel, RuleEditor, ruleFor, SortEditor } from "./FilterUI";
 import { needsValue, type ColorRule, type ColorTone, type Sort } from "./views/engine";
 import type { ViewState } from "./viewState";
@@ -56,6 +56,8 @@ export interface SettingsProps {
   patch: (p: Partial<ViewState>) => void;
   fields: FieldInfo[];
   viewReasons: Partial<Record<PageView, string>>;
+  /** The view types this page offers. */
+  views: ViewChoice[];
   /** Every field in the view's order, and which are shown. */
   order: string[];
   shown: string[];
@@ -106,12 +108,11 @@ export function ViewSettings(p: SettingsProps) {
 
   if (p.page === "layout") {
     const tableish = s.view === "table";
-    const loads = s.view === "table" || s.view === "list" || s.view === "gallery" || s.view === "board";
-    const numbers = p.fields.filter((f) => f.kind === "number");
+    const loads = s.view === "table" || s.view === "gallery" || s.view === "board";
     return (
       <div className="vset">
         <Row label="Layout">
-          <Dropdown size="sm" label="Layout" value={s.view} onChange={(view: PageView) => p.patch({ view })} options={VIEWS.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: p.viewReasons[v.id] }))} />
+          <Dropdown size="sm" label="Layout" value={s.view} onChange={(view: PageView) => p.patch({ view })} options={p.views.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: p.viewReasons[v.id] }))} />
         </Row>
         {tableish ? (
           <>
@@ -134,28 +135,6 @@ export function ViewSettings(p: SettingsProps) {
           <Row label="Show by">
             <Dropdown size="sm" label="Date field" value={s.dateBy ?? p.dateFields[0].name} onChange={(dateBy) => p.patch({ dateBy })} options={p.dateFields.map((f) => ({ value: f.name, label: fieldLabel(f) }))} />
           </Row>
-        ) : null}
-        {s.view === "chart" ? (
-          <>
-            <Row label="Chart type">
-              <Dropdown size="sm" label="Chart type" value={s.chart.type} onChange={(type: ViewState["chart"]["type"]) => p.patch({ chart: { ...s.chart, type } })} options={[{ value: "bar", label: "Bar" }, { value: "line", label: "Line" }, { value: "donut", label: "Donut" }]} />
-            </Row>
-            <Row label="X axis">
-              <Dropdown size="sm" label="X axis" value={s.chart.x ?? s.dateBy ?? p.dateFields[0]?.name ?? ""} onChange={(x) => p.patch({ chart: { ...s.chart, x } })} options={fieldOptions} />
-            </Row>
-            <Row label="Y axis">
-              <Dropdown
-                size="sm"
-                label="Y axis"
-                value={s.chart.agg === "count" ? "count" : `${s.chart.agg}:${s.chart.of}`}
-                onChange={(v) => {
-                  const [agg, of] = v.split(":");
-                  p.patch({ chart: { ...s.chart, agg: agg as ViewState["chart"]["agg"], of } });
-                }}
-                options={[{ value: "count", label: "Count" }, ...numbers.flatMap((f) => [{ value: `sum:${f.name}`, label: `Sum of ${fieldLabel(f)}` }, { value: `average:${f.name}`, label: `Average of ${fieldLabel(f)}` }])]}
-              />
-            </Row>
-          </>
         ) : null}
         {loads ? (
           <Row label="Load limit" tip="How many records load before “Load more”.">

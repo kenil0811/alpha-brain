@@ -8,15 +8,11 @@ import type { SavedList } from "../core/client";
 import type { ColorRule, FilterGroup, FilterRule, Sort } from "./views/engine";
 import type { PageView } from "./DataToolbar";
 
-export type RowHeight = "compact" | "medium" | "tall";
-export interface ChartSettings {
-  type: "bar" | "line" | "donut";
-  /** The field along the x axis (a date per day, anything else per group); the date field by default. */
-  x?: string;
-  agg: "count" | "sum" | "average";
-  of?: string;
-}
+/** Views a saved list may still name from before (the owner, 12 Oct: List folded into Table,
+ *  Chart into Dashboard). */
+const RETIRED_VIEWS: Record<string, PageView> = { list: "table", chart: "dashboard" };
 
+export type RowHeight = "compact" | "medium" | "tall";
 export interface ViewState {
   view: PageView;
   rules: FilterRule[];
@@ -36,7 +32,6 @@ export interface ViewState {
   /** Records loaded before "Load more"; null pages instead. */
   loadLimit: number | null;
   colors: ColorRule[];
-  chart: ChartSettings;
 }
 
 /** What the window keeps per view: the state, and the core config it was saved against. */
@@ -60,7 +55,6 @@ export const DEFAULT_VIEW: ViewState = {
   rowHeight: "medium",
   loadLimit: null,
   colors: [],
-  chart: { type: "bar", agg: "count" },
 };
 
 /** What a list is (the rulebook §6): which rows, their order, grouping, which columns and the view
@@ -101,7 +95,7 @@ function fromConfig(c: SavedList["config"]): Partial<ViewState> {
     groupBy: c.group_by ?? null,
     dateBy: c.date_by ?? null,
   };
-  if (c.view) out.view = c.view as PageView;
+  if (c.view) out.view = RETIRED_VIEWS[c.view] ?? (c.view as PageView);
   return out;
 }
 
@@ -111,6 +105,7 @@ function fromConfig(c: SavedList["config"]): Partial<ViewState> {
 export function stateFor(config: SavedList["config"] | undefined, kept: KeptView | undefined, fallbackView: PageView = "table", starred: Partial<ViewState> = {}): ViewState {
   const { core, ...mine } = kept ?? {};
   const base: ViewState = { ...DEFAULT_VIEW, view: fallbackView, ...starred, ...mine };
+  base.view = RETIRED_VIEWS[base.view] ?? base.view;
   if (!config) return base;
   if (kept && core === JSON.stringify(config)) return base;
   return { ...base, ...fromConfig(config) };

@@ -37,15 +37,14 @@ describe("Intelligence", () => {
     expect(onTab).toHaveBeenCalledWith("agents");
   });
 
-  it("switches Graph and Table in the body with the same toggle as the header (rule 4)", async () => {
+  it("opens on the Graph, one of the View dropdown's types, with no second switch (the owner, 12 Oct)", async () => {
+    localStorage.clear();
     mount("second-brain");
-    const body = await screen.findByRole("tablist", { name: "Second Brain view" });
-    const header = screen.getByRole("tablist", { name: "Intelligence" });
-    expect(body).toHaveClass("hswitch");
-    expect(body.className).toBe(header.className); // one look, two levels
-    expect(within(body).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Graph", "Table"]);
-    expect(body.parentElement).toHaveClass("hswitch__box--body");
-    expect(document.querySelector(".toggle")).toBeNull(); // no hand-made switch left
+    const view = await screen.findByRole("combobox", { name: "View" });
+    expect(view).toHaveTextContent("Graph");
+    expect(screen.queryByRole("tablist", { name: "Second Brain view" })).toBeNull();
+    await userEvent.click(view);
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Graph", "Table", "Board", "Gallery", "Calendar", "Timeline", "Form", "Dashboard"]);
   });
 
   it("puts facts, goals and hypotheses in one table, a hypothesis approved or rejected from its row", async () => {
@@ -53,7 +52,8 @@ describe("Intelligence", () => {
     const onGo = vi.fn();
     const client = mount("second-brain", vi.fn(), onGo);
     (client as unknown as { decideFact: unknown }).decideFact = vi.fn(async () => ({}));
-    await userEvent.click(await screen.findByRole("tab", { name: "Table" }));
+    await userEvent.click(await screen.findByRole("combobox", { name: "View" }));
+    await userEvent.click(screen.getByRole("option", { name: "Table" }));
     const known = (await screen.findByText("You home city Berlin")).closest("tr")!;
     expect(within(known).getByText("Fact")).toBeInTheDocument();
     const guess = screen.getByText("You likes tea").closest("tr")!;
@@ -68,11 +68,25 @@ describe("Intelligence", () => {
     await waitFor(() => expect(client.decideFact).toHaveBeenCalledWith("f2", true));
   });
 
+  it("in Graph, the toolbar's search finds a node and nothing of the table shows under it", async () => {
+    mount("second-brain");
+    await userEvent.click(await screen.findByRole("combobox", { name: "View" }));
+    await userEvent.click(screen.getByRole("option", { name: "Graph" }));
+    await screen.findByRole("button", { name: "Deals, Projects" });
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Search" }), "Deals");
+    expect(await screen.findByRole("complementary", { name: "Deals" })).toBeInTheDocument(); // found and selected
+    expect(screen.queryByText("Nothing matches.")).toBeNull(); // the table's empty line is not the graph's
+    expect(screen.queryByRole("button", { name: "Filter" })).toBeNull();
+  });
+
   it("draws everything as one graph: a click selects and shows the links, a double-click opens the page", async () => {
     localStorage.clear();
     const onGo = vi.fn();
     const client = mount("second-brain", vi.fn(), onGo);
     (client as unknown as { decideFact: unknown }).decideFact = vi.fn(async () => ({}));
+    await userEvent.click(await screen.findByRole("combobox", { name: "View" })); // the view is kept, so choose it
+    await userEvent.click(screen.getByRole("option", { name: "Graph" }));
     const deals = await screen.findByRole("button", { name: "Deals, Projects" });
     await userEvent.click(deals);
     const side = screen.getByRole("complementary", { name: "Deals" });

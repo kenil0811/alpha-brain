@@ -6,7 +6,7 @@
  * each wearing its companion's face; one New in the toolbar asks Alpha, which picks agent or automation), **Skills** (the
  * built-in ones open a page of their own too) and **Connections**. (9 Oct: Knowledge became Second Brain; later
  * the same day Map moved under Second Brain and Activity left the switch for the bell. The old
- * addresses still open: `map` is Second Brain's Map view, `activity` still draws Activity here.)
+ * addresses still open: `map` opens Second Brain, `activity` still draws Activity here.)
  * Agents, Automations, Skills and Connections are each the one data view (`intel/sources.ts`):
  * views, filters, the person's own lists; a row's click opens its page.
  */
@@ -78,7 +78,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
     switch (current) {
       case "second-brain":
       case "map":
-        return <SecondBrain client={client} data={data} version={version} onChanged={onChanged} onAsk={onAsk} onGo={onGo} initialView={current === "map" ? "graph" : undefined} />;
+        return <SecondBrain client={client} data={data} version={version} onChanged={onChanged} onAsk={onAsk} onGo={onGo} />;
       case "agents":
         return (
           <>

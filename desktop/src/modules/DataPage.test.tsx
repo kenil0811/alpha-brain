@@ -69,7 +69,9 @@ function page(rows: RecordRow[], props: Partial<Parameters<typeof DataPage>[0]> 
 async function openSetting(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(screen.getByRole("button", { name: "More" }));
   await user.click(await screen.findByRole("menuitem", { name }));
-  return screen.findByRole("dialog", { name });
+  const panel = await screen.findByRole("dialog", { name });
+  expect(panel).toHaveClass("vpanel"); // a dropdown under ⋮, not a pop-up (the owner, 12 Oct)
+  return panel;
 }
 /** ⋮ › Layout › Layout: pick a view type for the open list. */
 async function pickLayout(user: ReturnType<typeof userEvent.setup>, name: string) {
@@ -204,7 +206,7 @@ describe("the table page", () => {
 });
 
 describe("the toolbar", () => {
-  it("is one row: list, view and search on the left; Filter, then ⋮ at the far right, with Sort, Download and Upload inside it", async () => {
+  it("is one row: list, view and search on the left; Filter, then ⋮ at the far right, with Sort, Share and Upload inside it", async () => {
     const user = userEvent.setup();
     const onAddFiles = vi.fn();
     const client = page([row("r1", "Bakery", 300)], { onAddFiles });
@@ -230,14 +232,14 @@ describe("the toolbar", () => {
     const files = catchDownloads();
     await user.click(order[4]);
     expect(await screen.findByRole("menuitem", { name: "Sort" })).toBeInTheDocument();
-    screen.getByRole("menuitem", { name: "Download 1 record" }).focus();
+    screen.getByRole("menuitem", { name: "Share" }).focus();
     await user.keyboard("{ArrowRight}");
-    await screen.findByRole("menuitem", { name: "CSV" });
-    await user.keyboard("{Enter}"); // CSV, the first, has the focus
+    expect(await screen.findByRole("menuitem", { name: "Copy 1 record as a table" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Download as CSV" }));
     expect(client.exportTable).not.toHaveBeenCalled(); // what is shown, made in the window
     expect(files.map((f) => f.name)).toEqual(["Deals.csv"]);
     expect(await screen.findByText("Downloaded 1 record as Deals.csv.")).toBeInTheDocument();
-    await user.click(order[5]);
+    await user.click(order[4]);
     await user.click(await screen.findByRole("menuitem", { name: "Upload" }));
     expect(onAddFiles).toHaveBeenCalled();
   });
@@ -252,10 +254,10 @@ describe("the toolbar", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
     const files = catchDownloads();
     await user.click(screen.getByRole("button", { name: "More" }));
-    (await screen.findByRole("menuitem", { name: "Download 2 records" })).focus();
+    (await screen.findByRole("menuitem", { name: "Share" })).focus();
     await user.keyboard("{ArrowRight}");
-    expect(await screen.findByRole("menuitem", { name: "Excel" })).toHaveAttribute("aria-disabled", "true"); // the core's Excel is the whole collection
-    await user.keyboard("{Enter}"); // CSV, the first, has the focus
+    expect(await screen.findByRole("menuitem", { name: "Download as Excel" })).toHaveAttribute("aria-disabled", "true"); // the core's Excel is the whole collection
+    await user.click(screen.getByRole("menuitem", { name: "Download as CSV" }));
     const text = await files[0].blob.text();
     expect(text).toBe("Title,Price\nBakery,300\nBagels,80\n");
     expect(await screen.findByText("Downloaded 2 records as Deals.csv.")).toBeInTheDocument();
@@ -374,17 +376,9 @@ describe("the toolbar", () => {
     expect(await screen.findByLabelText("Active")).toBeInTheDocument(); // the board's column
     expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Pipeline");
     expect(screen.queryByRole("form", { name: "Add list" })).toBeNull();
-    // unticked on a later edit: it stops being the default
-    await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Edit list" }));
-    const box = await screen.findByRole("checkbox", { name: "Make this the default list" });
-    expect(box).toBeChecked();
-    await user.click(box);
-    await user.click(screen.getByRole("button", { name: "Save list" }));
-    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { default: false }));
   });
 
-  it("toolbar changes are temporary: a bar saves them to the list or resets, and nothing writes the list before", async () => {
+  it("toolbar changes are temporary: Save and Cancel in the toolbar keep or drop them, and nothing writes the list before", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
     await screen.findByText("Bakery");
@@ -392,23 +386,23 @@ describe("the toolbar", () => {
     await user.click(screen.getByRole("button", { name: "Add list" }));
     await user.type(await screen.findByRole("textbox", { name: "List name" }), "Cheap first{Enter}");
     await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Cheap first"));
-    expect(screen.queryByRole("button", { name: "Save to this list" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     await user.click(await screen.findByRole("menuitem", { name: "Sort ascending" }));
     const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
     expect(names()).toEqual(["Open Cafe", "Open Bakery"]);
     expect(client.updateList).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(names()).toEqual(["Open Bakery", "Open Cafe"]);
-    expect(screen.queryByRole("button", { name: "Save to this list" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Options for Price" }));
     await user.click(await screen.findByRole("menuitem", { name: "Sort ascending" }));
-    await user.click(screen.getByRole("button", { name: "Save to this list" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { title: "Cheap first", config: expect.objectContaining({ sort: { field: "price", direction: "asc" } }) }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Save to this list" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Save" })).toBeNull());
   });
 
-  it("a list's ⋮ edits it on the same page; All can't be deleted; a right-click deletes one after a yes", async () => {
+  it("a list's ⋮ has no Edit list (changes are saved from the toolbar); All can't be deleted; a right-click deletes one after a yes", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
@@ -417,12 +411,10 @@ describe("the toolbar", () => {
     await user.type(await screen.findByRole("textbox", { name: "List name" }), "Pipeline{Enter}");
     await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Pipeline"));
     await user.click(screen.getByRole("button", { name: "More" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Edit list" }));
-    const name = await screen.findByRole("textbox", { name: "List name" });
-    expect(name).toHaveValue("Pipeline");
-    await user.clear(name);
-    await user.type(name, "Deals to call{Enter}");
-    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", expect.objectContaining({ title: "Deals to call" })));
+    expect(await screen.findByRole("menuitem", { name: "Share" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Edit list" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Copy link to list" })).toBeNull();
+    await user.keyboard("{Escape}");
     // All keeps its table, and can't be deleted
     await user.click(screen.getByRole("combobox", { name: "List" }));
     await user.click(screen.getByRole("option", { name: /^All/ }));
@@ -431,15 +423,42 @@ describe("the toolbar", () => {
     expect(await screen.findByRole("menuitem", { name: "Delete list" })).toHaveAttribute("aria-disabled", "true");
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("combobox", { name: "List" }));
-    await user.click(screen.getByRole("option", { name: /^Deals to call/ }));
+    await user.click(screen.getByRole("option", { name: /^Pipeline/ }));
     fireEvent.contextMenu(screen.getByRole("combobox", { name: "List" }));
     await user.click(await screen.findByRole("menuitem", { name: "Delete list" }));
-    await user.click(within(screen.getByRole("dialog", { name: "Delete Deals to call?" })).getByRole("button", { name: "Delete list" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Delete Pipeline?" })).getByRole("button", { name: "Delete list" }));
     await waitFor(() => expect(client.deleteList).toHaveBeenCalledWith("v1"));
     await waitFor(() => expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("All"));
   });
 
-  it("keeps several sorts from ⋮ › Sort, for now, with Save as list and Reset on All", async () => {
+  it("renames a list in the dropdown under ⋮, and ★ on All stops a list being the default", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Add list" }));
+    await user.type(await screen.findByRole("textbox", { name: "List name" }), "Pipeline");
+    await user.click(screen.getByRole("checkbox", { name: "Make this the default list" }));
+    await user.click(screen.getByRole("button", { name: "Save list" }));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { default: true }));
+    // Rename list: a field in the dropdown under ⋮, focus back on ⋮ after
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename list" }));
+    const panel = await screen.findByRole("dialog", { name: "Rename list" });
+    expect(panel).toHaveClass("vpanel");
+    const name = within(panel).getByRole("textbox", { name: "List name" });
+    await user.clear(name);
+    await user.type(name, "Deals to call{Enter}");
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { title: "Deals to call" }));
+    expect(screen.getByRole("combobox", { name: "List" })).toHaveTextContent("Deals to call");
+    await waitFor(() => expect(screen.getByRole("button", { name: "More" })).toHaveFocus());
+    // ★ on All: the page opens on All again
+    await user.click(screen.getByRole("combobox", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Make All the default" }));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("v1", { default: false }));
+  });
+
+  it("keeps several sorts from ⋮ › Sort, for now, with Save as list and Cancel on All", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Deli", 300)]);
     await screen.findByText("Bakery");
@@ -450,11 +469,11 @@ describe("the toolbar", () => {
     await user.click(screen.getByRole("button", { name: "Add sort" }));
     await user.click(screen.getAllByRole("combobox", { name: "Direction" })[1]);
     await user.click(screen.getByRole("option", { name: "Descending" }));
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.keyboard("{Escape}"); // the setting's dropdown closes
     const names = () => screen.getAllByRole("row").filter((r) => r.getAttribute("tabindex") === "0").map((r) => r.getAttribute("aria-label"));
     expect(names()).toEqual(["Open Deli", "Open Bakery", "Open Cafe"]);
     expect(screen.getByRole("button", { name: "Save as list" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(names()).toEqual(["Open Bakery", "Open Cafe", "Open Deli"]);
     expect(client.setPreference).not.toHaveBeenCalledWith("view_settings", expect.objectContaining({ "deals:all": expect.objectContaining({ sorts: expect.anything() }) }));
   });
@@ -689,7 +708,7 @@ describe("the + New row and an empty table", () => {
     await openSetting(user, "Conditional colour");
     await user.click(screen.getByRole("button", { name: "Add rule" }));
     expect(screen.getAllByText("Rows coloured by Status.").length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.keyboard("{Escape}");
     expect(rowOf("Bakery")).toHaveClass("tone--info"); // Status is Active, the first choice
   });
 

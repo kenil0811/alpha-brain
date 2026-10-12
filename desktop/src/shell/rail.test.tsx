@@ -86,7 +86,7 @@ describe("the sidebar's order", () => {
     const user = userEvent.setup();
     const { onGo } = setup([]);
     await user.click(screen.getByRole("button", { name: "More for Network" }));
-    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "Hide", "Delete", "View options"]);
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move to", "Hide", "Delete", "Hidden projects"]);
     expect(screen.getByRole("menuitem", { name: "Rename" })).not.toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveAttribute("aria-disabled", "true");
     await user.click(screen.getByRole("menuitem", { name: "Open" }));
@@ -125,15 +125,14 @@ describe("the workspace button", () => {
     expect((await screen.findAllByText(/no account to sign out of/)).length).toBeGreaterThan(0);
   });
 
-  it("holds the sidebar's fold, and View options so hidden modules can always come back", async () => {
+  it("holds the sidebar's fold, and Hidden projects so hidden modules can always come back", async () => {
     const user = userEvent.setup();
     const { onToggleCollapsed } = setup([]);
     await user.click(screen.getByRole("button", { name: "Kenil's workspace" }));
     await user.click(await screen.findByRole("menuitem", { name: "Fold the sidebar" }));
     expect(onToggleCollapsed).toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Kenil's workspace" }));
-    await user.click(await screen.findByRole("menuitem", { name: "View options" }));
-    expect(await screen.findByText("Nothing is hidden.")).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Hidden projects" })).toHaveAttribute("aria-disabled", "true"); // nothing is hidden
   });
 });
 
@@ -168,11 +167,11 @@ describe("editing the workspace in place", () => {
 });
 
 describe("a module's menu", () => {
-  it("lists Open, Rename, Change icon, Move…, a new project above it, Hide, Delete and View options", async () => {
+  it("lists Open, Rename, Change icon, Move to, a new project above it, Hide, Delete and Hidden projects", async () => {
     setup([card("m_f", "Food")]);
     fireEvent.contextMenu(screen.getByRole("button", { name: "Food" }));
     await screen.findByRole("menu");
-    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move…", "A new project above it…", "Hide", "Delete", "View options"]);
+    expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Open", "Rename", "Change icon", "Move to", "A new project above it…", "Hide", "Delete", "Hidden projects"]);
   });
 
   it("shows Delete disabled, and says why on hover; Rename edits the name in place", async () => {
@@ -199,7 +198,7 @@ describe("a module's menu", () => {
     await waitFor(() => expect(setPreference).toHaveBeenCalledWith(PREF.moduleNames, { m_f: "Meals" }));
   });
 
-  it("hides a module (kept in preferences), and View options brings it back", async () => {
+  it("hides a module (kept in preferences), and Hidden projects brings it back, as a submenu", async () => {
     const user = userEvent.setup();
     const { setPreference, labels } = setup([card("m_f", "Food"), card("m_j", "Job")]);
     await user.click(screen.getByRole("button", { name: "More for Food" }));
@@ -209,21 +208,21 @@ describe("a module's menu", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Food hidden");
 
     await user.click(screen.getByRole("button", { name: "More for Job" }));
-    await user.click(await screen.findByRole("menuitem", { name: "View options" }));
-    const dialog = await screen.findByRole("dialog", { name: "View options" });
-    expect(within(dialog).getByText("Food")).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "Show Food" }));
+    (await screen.findByRole("menuitem", { name: "Hidden projects" })).focus();
+    await user.keyboard("{ArrowRight}");
+    await user.click(await screen.findByRole("menuitem", { name: "Show Food" }));
     expect(setPreference).toHaveBeenLastCalledWith(PREF.hiddenModules, []);
     await waitFor(() => expect(labels()).toContain("Food"));
-    expect(within(dialog).getByText("Nothing is hidden.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull(); // no pop-up
   });
 
   it("changes a module's icon and keeps the choice in preferences", async () => {
     const user = userEvent.setup();
     const { setPreference } = setup([card("m_f", "Food")]);
     await user.click(screen.getByRole("button", { name: "More for Food" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Change icon" }));
-    await user.click(await screen.findByRole("button", { name: "Fitness" }));
+    (await screen.findByRole("menuitem", { name: "Change icon" })).focus();
+    await user.keyboard("{ArrowRight}");
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Fitness" }));
     expect(setPreference).toHaveBeenCalledWith(PREF.moduleIcons, { m_f: "dumbbell" });
   });
 
@@ -231,11 +230,9 @@ describe("a module's menu", () => {
     const user = userEvent.setup();
     const { moveModule, onChanged } = setup([card("m_j", "Job"), card("m_s", "Search", "m_j"), card("m_f", "Food")]);
     await user.click(screen.getByRole("button", { name: "More for Food" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Move…" }));
-    const dialog = await screen.findByRole("dialog", { name: "Move Food" });
-    await user.click(within(dialog).getByRole("combobox", { name: "Move to" }));
-    await user.click(await screen.findByRole("option", { name: "Job" }));
-    await user.click(within(dialog).getByRole("button", { name: "Move" }));
+    (await screen.findByRole("menuitem", { name: "Move to" })).focus();
+    await user.keyboard("{ArrowRight}");
+    await user.click(await screen.findByRole("menuitem", { name: "Job" }));
     await waitFor(() => expect(moveModule).toHaveBeenCalledWith("m_f", "m_j"));
     expect(onChanged).toHaveBeenCalled();
   });

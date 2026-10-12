@@ -179,12 +179,6 @@
 .tone--gray, .table tbody tr.tone--gray td { background: var(--surface-2); }
 
 /* the chart's line and donut */
-.chart__svg { display: block; width: 100%; height: calc(var(--space-12) * 3 + var(--space-4)); overflow: visible; }
-.chart__axis { display: flex; justify-content: space-between; font-size: var(--text-sm); }
-.chart__donut { display: flex; align-items: center; gap: var(--space-6); }
-.chart__donut svg { width: calc(var(--space-12) * 3 + var(--space-4)); height: calc(var(--space-12) * 3 + var(--space-4)); flex: none; }
-.chart__keys { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--text-2); }
-.chart__keys .chart__swatch { display: inline-block; vertical-align: middle; }
 
 /* Load more; bulk edit */
 .loadmore { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--line); }
@@ -236,9 +230,6 @@
 .listpage__line { display: flex; align-items: center; gap: var(--space-3); }
 .listpage label.check { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
 .listpage__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
-/* what the toolbar changed, not yet in the list: Reset or Save to this list */
-.listbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--line); background: var(--surface-2); font-size: var(--text-sm); color: var(--text-2); }
-.listbar .spacer { flex: 1; }
 /* a required value refused, beside its cell */
 .cellerr { display: block; margin-top: var(--space-1); font-size: var(--text-sm); color: var(--bad); white-space: normal; }
 .board__empty { padding: var(--space-3); }
@@ -250,3 +241,8 @@
 .dash__cell > .dash__edit { flex: none; order: -1; }
 .mtile__change { font-size: var(--text-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash__clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* a view setting (Group, Sort…) in the dropdown under ⋮, with a way back (the owner, 12 Oct) */
+.vpanel { max-width: calc(100vw - var(--space-8)); padding: var(--space-2); gap: var(--space-2); }
+.vpanel__head { display: flex; align-items: center; gap: var(--space-1); }
+.vpanel__title { font-weight: 600; font-size: var(--text-sm); }
+.tb__more { display: inline-flex; }

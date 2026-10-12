@@ -625,6 +625,10 @@ Nothing below was changed in the core; the window does the nearest honest thing 
   Alpha with its source), and a decision on map tiles (an outside tile service sees what is
   looked at; offline vector tiles add weight). The window then draws a Map view with the same
   zoom and move buttons as the graph.
+- **Plan:** `map-view-plan.md` (12 Oct): a `place` value `{label, lat, lon, precision, source}`,
+  geocoding with provenance (offline cities first), an offline outline map now, streets later;
+  answered 12 Oct: outlines now, Apple's geocoder through a Tauri plugin, Alpha proposes the
+  conversion, the data view's Map type only.
 
 ---
 

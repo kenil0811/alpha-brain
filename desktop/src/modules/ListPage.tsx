@@ -3,32 +3,31 @@
  * view's toolbar, the list's name, its filters, sorts, the columns it shows, its grouping and view
  * type, and whether the collection opens on it, with Cancel and Save list. The records below are
  * the live preview: the data view draws them with this draft while it is open. Nothing is saved
- * until Save list; Cancel (or Escape) drops the draft and goes back. Adding, duplicating and
- * editing a list all use this page.
+ * until Save list; Cancel (or Escape) drops the draft and goes back. Adding and duplicating a
+ * list use this page; a list is renamed from ⋮ and changed from the toolbar.
  */
 import { useRef, useState } from "react";
 import { Button, Dropdown, MultiDropdown } from "../ui";
 import { PlusIcon, ICON_SM } from "../ui/icons";
 import type { FieldInfo } from "./fields";
 import { fieldLabel, GroupEditor, RuleEditor, ruleFor, SortEditor } from "./FilterUI";
-import { VIEWS, type PageView } from "./DataToolbar";
+import type { PageView, ViewChoice } from "./DataToolbar";
 import type { ViewState } from "./viewState";
 
 export interface ListDraft {
-  /** The list being edited; null for a new one. */
-  id: string | null;
   title: string;
   isDefault: boolean;
   state: ViewState;
 }
 
-export function ListPage({ draft, onDraft, fields, order, viewReasons, hasDone, saveReason, problem, onSave, onCancel }: {
+export function ListPage({ draft, onDraft, fields, order, viewReasons, views, hasDone, saveReason, problem, onSave, onCancel }: {
   draft: ListDraft;
   onDraft: (d: ListDraft) => void;
   fields: FieldInfo[];
   /** Every column in the table's order. */
   order: string[];
   viewReasons: Partial<Record<PageView, string>>;
+  views: ViewChoice[];
   /** The collection has a status with done choices: Hide done applies. */
   hasDone: boolean;
   /** Why lists can't be saved here, if they can't. */
@@ -50,7 +49,7 @@ export function ListPage({ draft, onDraft, fields, order, viewReasons, hasDone, 
     <form
       ref={form}
       className="listpage"
-      aria-label={draft.id ? "Edit list" : "Add list"}
+      aria-label="Add list"
       onSubmit={(e) => {
         e.preventDefault();
         if (name && !saveReason) onSave();
@@ -107,7 +106,7 @@ export function ListPage({ draft, onDraft, fields, order, viewReasons, hasDone, 
       </div>
       <div className="listpage__row">
         <span className="listpage__lab">View</span>
-        <Dropdown size="sm" label="Default view" value={s.view} onChange={(view: PageView) => set({ view })} options={VIEWS.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: viewReasons[v.id] }))} />
+        <Dropdown size="sm" label="Default view" value={s.view} onChange={(view: PageView) => set({ view })} options={views.map((v) => ({ value: v.id, label: v.label, icon: v.icon, disabled: viewReasons[v.id] }))} />
       </div>
       <label className="check listpage__default">
         <input type="checkbox" checked={draft.isDefault} onChange={(e) => onDraft({ ...draft, isDefault: e.target.checked })} /> Make this the default list

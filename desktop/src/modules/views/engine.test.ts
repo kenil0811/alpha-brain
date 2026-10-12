@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
-import { applyQuery, byDay, byMonth, chartPoints, colorsOf, compare, groupBy, groupRows, matchRule, nextSort, ofKinds, opsFor, pageOf, pinnedFirst, provenanceCounts, resolveDay, sortRows, summarize, summaryOpsFor, defaultSummary } from "./engine";
+import { applyQuery, byDay, byMonth, colorsOf, compare, groupBy, groupRows, matchRule, nextSort, ofKinds, opsFor, pageOf, pinnedFirst, provenanceCounts, resolveDay, sortRows, summarize, summaryOpsFor, defaultSummary } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -171,9 +171,5 @@ describe("Notion's filters, sorts, groups and colours", () => {
     expect(colorsOf(live[0], rules, byName)).toEqual({ row: "good", cells: {} });
     expect(colorsOf(live[1], rules, byName)).toEqual({ row: "bad", cells: { status: "info" } });
     expect(colorsOf(live[2], rules, byName)).toEqual({ cells: {} });
-  });
-  it("charts a count per day or a sum per group", () => {
-    expect(chartPoints(live, byName.get("when")!, { agg: "count" }).map((p) => p.value)).toEqual([2, 1]);
-    expect(chartPoints(live, status, { agg: "sum", field: "price" }).map((p) => [p.label, p.value])).toEqual([["Active", 300], ["Pending", 0], ["Sold", 120]]);
   });
 });
