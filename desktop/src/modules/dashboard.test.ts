@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RecordRow } from "../core/client";
-import { availableTiles, computeTile, dashboardAvailable, defaultTiles, type Tile } from "./dashboard";
+import { computeTile, type Tile } from "./dashboard";
 import type { FieldInfo } from "./fields";
 
 const fields: FieldInfo[] = [
@@ -25,30 +25,6 @@ const rows = [
 ];
 const ctx = { fields, rows, titleField: "title", now: NOW };
 const ids = (...i: number[]) => i.map((x) => rows[x].id);
-
-describe("availability", () => {
-  it("needs a number, status, choice or date field, and says so", () => {
-    expect(dashboardAvailable(fields)).toBeNull();
-    expect(dashboardAvailable([{ name: "t", kind: "text" }])).toBe("Dashboard needs a number, status or date field");
-    expect(dashboardAvailable([{ name: "t", kind: "choice" }])).toBeNull();
-  });
-});
-
-describe("the default tiles", () => {
-  it("are chosen from field kinds, four to seven, the numbers first", () => {
-    const ids = defaultTiles(fields).map((t) => t.id);
-    expect(ids).toEqual(["metric:count", "metric:sum:amount", "metric:avg:amount", "metric:estimated", "overtime:count:due", "breakdown:stage", "attention"]);
-    for (const only of [[{ name: "n", kind: "number" }], [{ name: "d", kind: "date" }], [{ name: "s", kind: "status" }]]) {
-      const count = defaultTiles(only).length;
-      expect(count).toBeGreaterThanOrEqual(4);
-      expect(count).toBeLessThanOrEqual(7);
-    }
-  });
-  it("offers only tiles these fields can have", () => {
-    const labels = availableTiles([{ name: "d", kind: "date" }]).map((a) => a.label);
-    expect(labels).toEqual(["Number of records", "Estimated by Alpha", "Records over time by d", "Needs attention"]);
-  });
-});
 
 describe("metrics", () => {
   it("count what is shown", () => {

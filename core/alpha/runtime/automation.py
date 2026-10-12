@@ -30,6 +30,7 @@ import threading
 import time
 from typing import Any
 
+from alpha.runtime import cards as cards_module
 from alpha.runtime import parts as parts_module
 from alpha.runtime import pipeline, route, turn, workflow_build
 from alpha.world.store import Problem
@@ -289,6 +290,13 @@ class Scheduler:
         except Exception:
             log.exception("parts due")
 
+    def cards(self) -> None:
+        """Propose dashboard cards where a table changed in a way that matters (§ dashboards)."""
+        try:
+            cards_module.review(self.world, runner=self.runner)
+        except Exception:
+            log.exception("dashboard cards")
+
     def kick(self) -> None:
         """What a turn starts at once rather than at the next tick: a workflow agreed in it,
         a row that arrived."""
@@ -325,6 +333,7 @@ class Scheduler:
         self.builds()
         self.parts()
         self.acts()
+        self.cards()
         for auto in self.world.automations.due():
             if self.stop_event.is_set():
                 return

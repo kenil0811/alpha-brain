@@ -7,6 +7,7 @@ from pathlib import Path
 
 from alpha.world.actions import Actions, Permissions, Procedures
 from alpha.world.automations import Automations
+from alpha.world.cards import Cards
 from alpha.world.collections import Collections
 from alpha.world.entities import Entities
 from alpha.world.journal import Journal
@@ -50,6 +51,7 @@ class World:
         self.skills = Skills(self.store)
         self.views = Views(self.store)
         self.preferences = Preferences(self.store)
+        self.cards = Cards(self.store)
         self.readers = Readers(self.store)
         self.sources = Sources(self.store)
         self.modtables = ModuleTables(self)

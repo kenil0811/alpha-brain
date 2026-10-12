@@ -124,6 +124,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
         counts["sources"] = world.sources.remove_module(db, mid)
         counts["actions"] = world.actions.remove_module(db, mid)
+        counts["cards"] = world.cards.remove_tables(db, tables)
         files = [r["path"] for r in db.execute("SELECT path FROM documents WHERE module = ?",
                                                (mid,)).fetchall()]
         for did in [r["id"] for r in db.execute("SELECT id FROM documents WHERE module = ?",

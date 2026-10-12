@@ -23,6 +23,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations
+from alpha.world.cards import check_card
 from alpha.world.store import Problem
 
 
@@ -108,7 +109,24 @@ def routes(app: FastAPI, s: Served) -> None:
             # the change first: a refused one (asked twice, the field gone) leaves no Yes in
             # the journal (Q46, design G13)
             done = world.collections.to_place(place["collection"], place["field"])
+        cards = proposal["data"].get("cards")
+        kept: list[dict[str, Any]] = []
+        if cards and body.accept:
+            # checked again against the table as it is now, and kept before the Yes is written
+            fields = world.collections.describe(cards["collection"])["fields"]
+            kept = world.cards.keep(cards["collection"],
+                                    [check_card(c, fields) for c in cards["cards"]], pid)
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
+        if cards:
+            if kept:
+                world.journal.append(
+                    "changed", f"Kept {len(kept)} dashboard card(s) for "
+                    f"{world.collections.describe(cards['collection'])['title']}: "
+                    + "; ".join(c["title"] for c in kept) + ".",
+                    actor="person", data={"proposal": pid, "collection": cards["collection"],
+                                          "cards": [c["id"] for c in kept]},
+                    module=proposal["module"])
+            return {"decided": pid, "turn": None, "cards": kept}
         if place:
             if done:
                 world.journal.append(

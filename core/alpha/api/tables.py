@@ -102,6 +102,19 @@ def routes(app: FastAPI, s: Served) -> None:
         return {"name": name, "scope": f"module:{name}",
                 "page": world.knowledge.find_note(f"module:{name}", name)}
 
+    @app.get("/api/tables/{name}/cards", dependencies=[api])
+    def table_cards(name: str) -> list[dict[str, Any]]:
+        """The dashboard cards a table keeps; the window works out their numbers."""
+        world.collections.describe(name)
+        return world.cards.of(name)
+
+    @app.delete("/api/cards/{cid}", dependencies=[api])
+    def remove_card(cid: str) -> dict[str, Any]:
+        card = world.cards.remove(cid)
+        person_did("changed", f"Removed the dashboard card {card['title']}.",
+                   card["collection"], {"card": cid})
+        return {"removed": cid}
+
     @app.get("/api/modules/{ref}/summary", dependencies=[api])
     def summary(ref: str) -> dict[str, Any]:
         return module_summary(world, world.modules.get(ref)["id"])

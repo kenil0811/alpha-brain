@@ -715,6 +715,18 @@ export function say(e: unknown): string {
 
 type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
 
+/** A dashboard card a table keeps (12 Oct, the owner): what it measures, never a number, so it stays current; Alpha
+ *  proposed it and the person said yes (`world/cards.py`). */
+export interface DashboardCard {
+  id: string;
+  collection: string;
+  type: "metric" | "breakdown" | "overtime" | "attention";
+  field: string | null;
+  measure: string | null;
+  title: string;
+  why: string;
+}
+
 /** A place field's value (Q46): the words given, and where they are once Apple's geocoder found
  *  them (`estimated`); words alone are a place not found. */
 export interface PlaceValue {
@@ -778,6 +790,9 @@ export class Client {
   runPart = (module: string, part: string, row: string) =>
     this.call<{ ok: boolean; exit: number; values?: Record<string, unknown>; problems?: Record<string, string>; output: string }>("POST", `/api/modules/${encodeURIComponent(module)}/parts/${encodeURIComponent(part)}/run`, { row });
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
+  /** The dashboard cards a table keeps (the person said yes to Alpha's proposal); the window works out their numbers. */
+  tableCards = (name: string) => this.call<DashboardCard[]>("GET", `/api/tables/${encodeURIComponent(name)}/cards`);
+  removeCard = (id: string) => this.call<{ removed: string }>("DELETE", `/api/cards/${encodeURIComponent(id)}`);
   /** Put a module inside another (or at the top with null); everything in it moves with it. */
   moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
   /** A module the person makes here: a place to hold others. Nothing is built. */

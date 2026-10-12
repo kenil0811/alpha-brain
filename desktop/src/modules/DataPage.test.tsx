@@ -7,12 +7,6 @@ import { TooltipProvider } from "../ui";
 import { DataPage } from "./DataPage";
 import { memorySource } from "./source";
 
-// The Dashboard has its own tests; here it is a stub that does what its call to action does.
-vi.mock("./views/DashboardView", () => ({
-  DashboardView: ({ onShowRecords }: { onShowRecords: (ids: string[], label: string) => void }) => <button onClick={() => onShowRecords(["r2"], "Overdue · 1")}>stub: show these</button>,
-  dashboardAvailable: () => null,
-}));
-
 const desc: TableDesc = { name: "deals", title: "Deals", module: null, fields: [{ name: "title", kind: "text" }, { name: "price", kind: "number" }, { name: "status", kind: "status", choices: ["Active", "Sold"], done_choices: ["Sold"] }], title_field: "title" } as unknown as TableDesc;
 const row = (id: string, title: string, price: number | null, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 3, values: { title, price, status: "Active" }, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 
@@ -273,6 +267,20 @@ describe("the toolbar", () => {
     page([]);
     await screen.findByText("No records yet.");
     expect(screen.queryByRole("region", { name: "Deals: the numbers" })).toBeNull();
+  });
+
+  it("shows the dashboard cards the table keeps above the data, and ⋮ asks Alpha for cards", async () => {
+    const user = userEvent.setup();
+    const client = Object.assign(fakeClient([row("r1", "Bakery", 300)]), {
+      tableCards: vi.fn(async () => [{ id: "c1", collection: "deals", type: "metric", field: null, measure: "count", title: "Deals in play", why: "" }]),
+    });
+    const onSay = vi.fn();
+    page([row("r1", "Bakery", 300)], { onSay }, client);
+    expect(await screen.findByRole("region", { name: "Deals dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show these 1 (Deals in play)" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Ask Alpha for more cards" }));
+    expect(onSay).toHaveBeenCalledWith("Propose dashboard cards for the Deals table (deals).");
   });
 
   it("makes Upload the primary action, left of more, when the collection has a file field", async () => {

@@ -22,7 +22,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isPlace, say } from "../core/client";
-import type { Client, FileInfo, RecordRow, SavedList, TableDesc, TableSummaryData, Relations } from "../core/client";
+import type { Client, DashboardCard, FileInfo, RecordRow, SavedList, TableDesc, TableSummaryData, Relations } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { DATE_KINDS, coerce, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "./fields";
 import { reasonFor, tableSource, type DataSource } from "./source";
@@ -44,7 +44,7 @@ import { CalendarView } from "./views/CalendarView";
 import { FormView } from "./views/FormView";
 import { TableView, copyText } from "./views/TableView";
 import { cellEditable } from "./views/cells";
-import { DashboardView, dashboardAvailable } from "./views/DashboardView";
+import { KeptCards } from "./views/KeptCards";
 import { MapView } from "./views/MapView";
 import { ADD_COLUMN_REASON, DataToolbar, listActions, VIEWS, type PageView, type TabActions, type ViewTab } from "./DataToolbar";
 import { MetricsStrip } from "./MetricsStrip";
@@ -151,7 +151,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       board: choiceFields[0] || vs.groupBy ? undefined : "Board needs a status or choice field. Ask Alpha in the panel to add one.",
       calendar: dateField ? undefined : "Calendar needs a date field. Ask Alpha in the panel to add one.",
       timeline: dateField ? undefined : "Timeline needs a date field. Ask Alpha in the panel to add one.",
-      dashboard: dashboardAvailable(fields) ?? undefined,
       graph: graph ? undefined : "This page has no graph.",
       map: placeField ? undefined : "Map needs a place field. Ask Alpha in the panel to add one.",
     }),
@@ -327,6 +326,28 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       watch?.disconnect();
     };
   }, [measure, loaded, view]);
+
+  // The dashboard cards this table keeps (12 Oct, the owner): Alpha proposes them, the person's
+  // yes keeps them, and their numbers are worked out here from the rows, so they stay current.
+  const [cards, setCards] = useState<DashboardCard[]>([]);
+  useEffect(() => {
+    if (!table) return;
+    let live = true;
+    Promise.resolve().then(() => client.tableCards(table.name)).then((c) => live && setCards(c)).catch(() => live && setCards([]));
+    return () => {
+      live = false;
+    };
+  }, [client, table, version]);
+  const removeCard = async (card: DashboardCard) => {
+    try {
+      await client.removeCard(card.id);
+      setCards((cs) => cs.filter((c) => c.id !== card.id));
+      onChanged();
+      return null;
+    } catch (e) {
+      return say(e);
+    }
+  };
 
   // A load limit shows that many, then "Load more"; without one the table and list page.
   const limited = vs.loadLimit !== null && (view === "table" || view === "gallery" || view === "board");
@@ -790,6 +811,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       ],
     },
     ...(fileFirst ? [] : [{ label: "Upload", icon: <UploadIcon size={ICON_SM} />, onSelect: () => onAddFiles?.(), disabled: onAddFiles ? undefined : reasonFor(src, "upload") }]),
+    ...(table && onSay ? [{ label: cards.length ? "Ask Alpha for more cards" : "Ask Alpha for dashboard cards", onSelect: () => onSay(`Propose dashboard cards for the ${src.title} table (${table.name}).`) }] : []),
     { label: "Reset view", onSelect: resetView },
   ];
   return (
@@ -878,6 +900,18 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
         )}
         {drafting || view === "graph" ? null : <FilterBar fields={fields} rules={vs.rules} onRules={(r) => patch({ rules: r })} advanced={vs.advanced} onAdvanced={(g) => patch({ advanced: g })} sorts={sorts} onSorts={setSorts} openChip={openChip} onOpenChip={setOpenChip} extra={pills} onClearAll={clearAll} />}
         {all?.length && !drafting ? <MetricsStrip table={{ name: src.key, title: src.title }} rows={all} summary={summary} /> : null}
+        {table && cards.length && !drafting && !graphing ? (
+          <KeptCards
+            table={{ title: src.title, title_field: src.titleField ?? null }}
+            cards={cards}
+            fields={fields}
+            rows={rows ?? []}
+            onRemove={removeCard}
+            onShowRecords={(ids, label) => setPicked({ ids, label })}
+            onOpenRecord={open}
+            onAsk={(text) => (onAsk ?? onSay)?.(text)}
+          />
+        ) : null}
         {coloured ? <p className="faint datacard__note">{coloured}.</p> : null}
         {selected.size && !graphing ? (
           <div className="selectbar" role="status">
@@ -997,21 +1031,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
         {view === "gallery" ? <GalleryView rows={shownRows ?? []} fields={fields.filter((f) => columns.includes(f.name))} titleField={titleField} onOpen={open} toneOf={toneOf} rowIcon={rowIcon} /> : null}
         {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={open} /> : null}
         {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={open} /> : null}
-        {view === "dashboard" ? (
-          <DashboardView
-            client={client}
-            table={{ title: src.title, title_field: src.titleField ?? null }}
-            fields={fields}
-            rows={rows ?? []}
-            listKey={`${src.key}:${listId}`}
-            onShowRecords={(ids, label) => {
-              setPicked({ ids, label });
-              setView("table");
-            }}
-            onOpenRecord={open}
-            onAsk={(text) => (onAsk ?? onSay)?.(text)}
-          />
-        ) : null}
         {more > 0 ? (
           <div className="loadmore">
             <Button size="sm" variant="ghost" onClick={() => setLoads((n) => n + 1)}>
@@ -1020,7 +1039,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             <span className="faint num">{count(more)} more</span>
           </div>
         ) : null}
-        {view !== "table" && view !== "dashboard" && !graphing ? adder : null}
+        {view !== "table" && !graphing ? adder : null}
         {counted || resting || (status && !drafting) || several || (blanks && !showBlank && !graphing) ? (
         <div className="pager">
           <span className="num">
