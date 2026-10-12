@@ -1,4 +1,4 @@
-# The Map view: places on a map (plan, 12 Oct 2026, not built)
+# The Map view: places on a map (plan, 12 Oct 2026; built 12 Oct on `feat/map-view`)
 
 The owner, 12 Oct: a **map** is places on the world; a **graph** is things and their links. Both
 have small zoom and move buttons in the bottom-right corner. This plan is about the map. No code
@@ -113,6 +113,15 @@ So the build is:
 - the Tauri geocoding plugin;
 - `MapView` as a view type.
 The window part waits on the first two.
+
+## As built (12 Oct, `log/2026-10-12-map-view.md`)
+
+- **Differs:** Apple's geocoder runs in the core (pyobjc CoreLocation in a child process, as
+  EventKit does for the calendar), not through a Tauri plugin. It is still the Mac's own geocoder,
+  sends the same to Apple, and needed no change under `desktop/src-tauri/`.
+- **Not built:** a person dropping or moving a point on the map (a point given with its value is
+  kept and filled); re-locating places that couldn't be looked up, other than by editing them;
+  streets (option D).
 
 ## The questions as asked
 

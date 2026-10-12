@@ -283,7 +283,7 @@ One row that never wraps, in this order:
 
 ### View types
 
-Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Dashboard**, and **Graph** where a page has one (Second Brain, where it is the default)
+Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Map** · **Dashboard**, and **Graph** where a page has one (Second Brain, where it is the default)
 
 - No List and no Chart (the owner, 12 Oct): List was a narrower Table; charts live in the Dashboard. A list saved with either opens as Table or Dashboard.
 
@@ -291,6 +291,11 @@ Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Das
 - **Board:** quiet columns with sentence-case headers and counts. Cards can be dragged between columns. It groups by a status or choice field, with a picker when there are several.
 - **Calendar and Timeline:** run on a date field, with a picker when there are several. Grids are faint.
 - **Form:** one record at a time, with Previous and Next.
+- **Map** (Q46, `map-view-plan.md`): the records on a quiet world outline (offline, in greys), one accent dot per record with a place. Available only when the collection has a place field; otherwise disabled with "Map needs a place field. Ask Alpha in the panel to add one."
+  - A place Apple's geocoder found is estimated and drawn hollow; one given with its point is filled.
+  - Dots close on screen merge into a numbered circle; a click zooms into it. A click on a dot shows its card (title, two fields, Open page); a double-click opens the page.
+  - Zoom and move with ZoomControls, the wheel or a drag; arrow keys walk the dots (one tab stop), Enter selects, then opens.
+  - Records with no place are counted on one faint line, saying how many couldn't be found; Show them lists them in the Table.
 
 ### Dashboard view
 
@@ -830,7 +835,7 @@ Everything elsewhere in this rulebook is a default. These are not.
 28. No subtitles: explanations live in (i) tips.
 29. One visual element per function; several ways in are fine. A table's "+ New" row shows only when it adds inline; otherwise the toolbar's New is the one way (the owner, 12 Oct).
 30. Every dropdown ends in Add new…; what the window can't add goes, described, to the builder agent in this page's conversation.
-31. Pop-ups are for notices, confirmations and new free input (a name, or an ask for Alpha); a predefined choice is a dropdown or a submenu (the owner, 12 Oct).
+31. Pop-ups are for notices, confirmations and new free input (a name, or an ask for Alpha); a predefined choice is a dropdown or a submenu (the owner, 12 Oct). A record's History and a metric's detail stay pop-ups: they are views to read, opened on purpose (the owner, 12 Oct).
 
 ---
 

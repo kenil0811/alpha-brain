@@ -21,7 +21,7 @@
  * Selecting rows offers Edit property, Duplicate, Delete and Download as CSV.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { say } from "../core/client";
+import { isPlace, say } from "../core/client";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, TableSummaryData, Relations } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { DATE_KINDS, coerce, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "./fields";
@@ -45,6 +45,7 @@ import { FormView } from "./views/FormView";
 import { TableView, copyText } from "./views/TableView";
 import { cellEditable } from "./views/cells";
 import { DashboardView, dashboardAvailable } from "./views/DashboardView";
+import { MapView } from "./views/MapView";
 import { ADD_COLUMN_REASON, DataToolbar, listActions, VIEWS, type PageView, type TabActions, type ViewTab } from "./DataToolbar";
 import { MetricsStrip } from "./MetricsStrip";
 
@@ -111,6 +112,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   // field: the first of each by default, the person's pick when there are several.
   const choiceFields = useMemo(() => ofKinds(fields, new Set(["status", "choice"])).sort((a, b) => (a.kind === "status" ? -1 : b.kind === "status" ? 1 : 0)), [fields]);
   const dateFields = useMemo(() => ofKinds(fields, DATE_KINDS), [fields]);
+  const placeField = useMemo(() => fields.find((f) => f.kind === "place"), [fields]);
   // Saved lists live in the world (the person's and Alpha's) and are the views, as tabs; what a
   // list can't hold the window keeps per view (PREF.viewSettings).
   const [lists, setLists] = useState<SavedList[]>([]);
@@ -149,8 +151,9 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
       timeline: dateField ? undefined : "Timeline needs a date field. Ask Alpha in the panel to add one.",
       dashboard: dashboardAvailable(fields) ?? undefined,
       graph: graph ? undefined : "This page has no graph.",
+      map: placeField ? undefined : "Map needs a place field. Ask Alpha in the panel to add one.",
     }),
-    [choiceFields, vs.groupBy, dateField, fields, graph],
+    [choiceFields, vs.groupBy, dateField, fields, graph, placeField],
   );
   const view: PageView = (viewReasons as Partial<Record<PageView, string>>)[vs.view] ? "table" : vs.view;
   const setView = (v: PageView) => {
@@ -364,7 +367,8 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     const value = coerce(text, field.kind, field.unit);
     if (field.required && (value === null || value === "")) return setStatus({ ok: false, text: `${fieldLabel(field)} can't be empty, so it was left as it was.` });
     const before = row.values[field.name] ?? null;
-    if (JSON.stringify(value) === JSON.stringify(before)) return;
+    // a place is edited as its words: the same words are no change
+    if (JSON.stringify(value) === JSON.stringify(isPlace(before) ? before.label : before)) return;
     const revision = await write(row, field, value);
     if (revision === false) return;
     undoStack.current.push({ id: row.id, field, before, after: value, revision });
@@ -953,6 +957,19 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
           />
         ) : null}
         {view === "graph" && graph ? graph.render(search) : null}
+        {view === "map" && placeField ? (
+          <MapView
+            rows={shownRows ?? []}
+            field={placeField}
+            titleField={titleField}
+            fields={fields}
+            onOpen={open}
+            onShowRecords={(ids, label) => {
+              setPicked({ ids, label });
+              setView("table");
+            }}
+          />
+        ) : null}
         {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} files={files} onCommit={(row, field, text) => void commit(row, field, text)} onOpenRelated={openRelated} onOpen={open} empty={none ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
         {view === "board" && groupField ? <BoardView rows={shownRows ?? []} field={groupField} subField={vs.subGroupBy ? byName.get(vs.subGroupBy) : null} hideEmpty={vs.hideEmptyGroups} order={vs.groupOrder} toneOf={toneOf} rowIcon={rowIcon} titleField={titleField} fields={fields} onOpen={open} onMove={(row, value) => move(row, groupField, value)} /> : null}
         {view === "gallery" ? <GalleryView rows={shownRows ?? []} fields={fields.filter((f) => columns.includes(f.name))} titleField={titleField} onOpen={open} toneOf={toneOf} rowIcon={rowIcon} /> : null}

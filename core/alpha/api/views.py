@@ -27,6 +27,8 @@ def _local_midnight_utc() -> str:
 def _cell(value: Any) -> Any:
     if isinstance(value, list):
         return ", ".join(str(v) for v in value)
+    if isinstance(value, dict) and "label" in value:  # a place: its words
+        return value["label"]
     return value
 
 

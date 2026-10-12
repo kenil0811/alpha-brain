@@ -29,7 +29,9 @@ FIELD_KINDS = {
     "url",
     "relation",
     "file",
+    "place",
 }
+PRECISIONS = ("address", "city", "region", "country")
 SYSTEM_FIELDS = {"id", "created_at", "updated_at"}
 OPS = {"eq", "ne", "gt", "gte", "lt", "lte", "contains", "in", "is_null"}
 AGGREGATES = {"count", "sum", "avg", "min", "max"}
@@ -113,6 +115,8 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
             if chosen is None:
                 raise ValueError(f"one of {field['choices']}")
             return chosen
+        if kind == "place":
+            return _place(value)
         if kind == "multichoice":
             items = [_choice(field["choices"], v)
                      for v in (value if isinstance(value, list) else [value])]
@@ -122,6 +126,30 @@ def _coerce(field: dict[str, Any], value: Any) -> Any:
     except ValueError as e:
         raise Problem(f"'{name}' must be {e.args[0] if e.args else kind}; got {value!r}.") from e
     return value
+
+
+def _place(value: Any) -> dict[str, Any] | None:
+    """A place: the words given (a label), and where they are when known. Text alone is a place
+    not yet located; `Collections` locates it before writing."""
+    if isinstance(value, str):
+        return {"label": value.strip()} if value.strip() else None
+    if not isinstance(value, dict) or not str(value.get("label") or "").strip():
+        raise ValueError("a place: its words, or {label, lat, lon}")
+    out: dict[str, Any] = {"label": str(value["label"]).strip()}
+    if value.get("lat") is not None or value.get("lon") is not None:
+        lat, lon = float(value["lat"]), float(value["lon"])
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError("a place whose latitude is within ±90 and longitude within ±180")
+        out.update(lat=lat, lon=lon)
+        if value.get("precision") is not None:
+            if value["precision"] not in PRECISIONS:
+                raise ValueError(f"a place whose precision is one of {list(PRECISIONS)}")
+            out["precision"] = value["precision"]
+        if value.get("source"):
+            out["source"] = str(value["source"])
+        if value.get("estimated"):
+            out["estimated"] = True
+    return out
 
 
 def _choice(choices: list[str], value: Any) -> str | None:
@@ -138,6 +166,8 @@ def _search_text(values: dict[str, Any]) -> str:
             parts.append(v)
         elif isinstance(v, list):
             parts.extend(str(x) for x in v)
+        elif isinstance(v, dict) and v.get("label"):
+            parts.append(str(v["label"]))
     return " ".join(parts)
 
 
@@ -186,9 +216,11 @@ class Collections:
     to that entity in the registry by that hard key, with no model call. Every change keeps the
     record's previous values in `record_versions`."""
 
-    def __init__(self, store: Store, entities: Any = None) -> None:
+    def __init__(self, store: Store, entities: Any = None, geocoder: Any = None) -> None:
         self.store = store
         self.entities = entities
+        # finds where a place's words are (alpha.connectors.places); None leaves places unlocated
+        self.geocoder = geocoder
 
     # ---- tables ----
 
@@ -371,12 +403,101 @@ class Collections:
                 raise Problem(f"'{name}' needs {missing} for every record.")
         return clean
 
+    def _locate(self, name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Each row with its places located: text in a place field, or a place without a point,
+        is looked up before any transaction opens (a lookup goes to Apple). A place it can't
+        find keeps its words and no point."""
+        places = [f["name"] for f in self._schema(name)["fields"] if f["kind"] == "place"]
+        if not places or self.geocoder is None:
+            return rows
+
+        def label(v: Any) -> str | None:
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+            if isinstance(v, dict) and v.get("lat") is None and str(v.get("label") or "").strip():
+                return str(v["label"]).strip()
+            return None
+        wanted = [x for row in rows for f in places if (x := label(row.get(f)))]
+        if not wanted:
+            return rows
+        # words this table has placed already keep their point: a person's own isn't replaced
+        # by an estimate, and a re-sync or an unchanged edit asks Apple nothing
+        have = self._placed(name, places)
+        new = [x for x in dict.fromkeys(wanted) if x not in have]
+        found = {**(self.geocoder.locate(new) if new else {}),
+                 **{x: have[x] for x in wanted if x in have}}
+        return [{**row, **{f: found.get(x) or {"label": x} for f in places
+                           if f in row and (x := label(row[f]))}} for row in rows]
+
+    def _placed(self, name: str, places: list[str]) -> dict[str, dict[str, Any]]:
+        """The points this table already has, by their words; a known one over an estimate."""
+        out: dict[str, dict[str, Any]] = {}
+        for f in places:
+            for r in self.store.all(
+                    f"SELECT json_extract(\"values\", '$.{f}') AS v FROM records WHERE"
+                    f" collection = ? AND deleted_at IS NULL AND json_extract(\"values\","
+                    f" '$.{f}.lat') IS NOT NULL", (name,)):
+                v = loads(r["v"], {})
+                if v.get("label") not in out or not v.get("estimated"):
+                    out[v["label"]] = v
+        return out
+
+    def to_place(self, name: str, field: str) -> dict[str, Any]:
+        """Turn a text field (a city, an address) into a place field: each record's words stay
+        as the place's label and are located now (the point carries its own source, so each record
+        keeps what its values rest on). One change: the schema and every record."""
+        schema = self._schema(name)
+        spec = next((f for f in schema["fields"] if f["name"] == field), None)
+        if spec is None:
+            raise Problem(f"'{name}' has no field '{field}'.")
+        if spec["kind"] == "place":
+            raise Problem(f"'{field}' is a place field already.")
+        if spec["kind"] not in {"text", "long_text"}:
+            raise Problem(f"Only a text field can become a place field; '{field}' is"
+                          f" {spec['kind']}.")
+        rows = self.store.all('SELECT id, "values" FROM records WHERE collection = ?'
+                              " AND deleted_at IS NULL", (name,))
+        texts = {r["id"]: str(loads(r["values"], {}).get(field) or "").strip() for r in rows}
+        found = self.geocoder.locate([t for t in texts.values() if t]) if self.geocoder else {}
+        located = unknown = 0
+        texts_now: dict[str, str] = {}
+        with self.store.tx() as db:
+            # the schema as it is now, inside the change: a field added meanwhile is kept
+            now_schema = loads(db.execute("SELECT schema FROM collections WHERE name = ?",
+                                          (name,)).fetchone()["schema"], {})
+            spec = next((f for f in now_schema["fields"] if f["name"] == field), None)
+            if spec is None or spec["kind"] not in {"text", "long_text"}:
+                raise Problem(f"'{field}' of '{name}' changed meanwhile; ask again.")
+            spec["kind"] = "place"
+            schema = now_schema
+            db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
+                       (dumps(schema), now(), name))
+            # read again inside the change: a record written since the lookup keeps its words
+            for r in db.execute('SELECT id, "values" FROM records WHERE collection = ?'
+                                " AND deleted_at IS NULL", (name,)).fetchall():
+                values = loads(r["values"], {})
+                text = str(values.get(field) or "").strip()
+                texts_now[r["id"]] = text
+                if not text:
+                    continue
+                values[field] = found.get(text) or {"label": text}
+                located += "lat" in values[field]
+                unknown += text not in found
+                self._keep(db, name, r["id"])
+                db.execute('UPDATE records SET "values" = ?, revision = revision + 1,'
+                           " updated_at = ? WHERE collection = ? AND id = ?",
+                           (dumps(values), now(), name, r["id"]))
+        unplaced = sum(1 for t in texts_now.values() if t) - located - unknown
+        # `unknown`: couldn't be looked up now; each is looked up again when it is written
+        return {**self.describe(name), "located": located, "unplaced": unplaced,
+                "unknown": unknown}
+
     # ---- records ----
 
     def add(
         self, name: str, values: dict[str, Any], provenance: dict[str, Any]
     ) -> dict[str, Any]:
-        clean = self._validate(name, values, partial=False)
+        clean = self._validate(name, self._locate(name, [values])[0], partial=False)
         rid = new_id("r")
         stamp = now()
         with self.store.tx() as db:
@@ -405,6 +526,7 @@ class Collections:
         row the reader returned is marked seen now, and the reader's rows it didn't return are
         marked gone (`gone`); a row that comes back is no longer gone. Returns counts and the
         ids touched."""
+        rows = self._locate(name, rows)
         schema = self._schema(name)
         identity = schema.get("identity")
         fields = {f["name"] for f in schema["fields"]}
@@ -567,7 +689,7 @@ class Collections:
         revision: int,
         provenance: dict[str, Any],
     ) -> dict[str, Any]:
-        clean = self._validate(name, values, partial=True)
+        clean = self._validate(name, self._locate(name, [values])[0], partial=True)
         current = self.get(name, rid)
         merged = {k: v for k, v in current.items() if k not in SYSTEM_FIELDS | {"revision",
                                                                                 "_provenance"}}
@@ -622,6 +744,8 @@ class Collections:
         for key, cond in (where or {}).items():
             if key in {"created_at", "updated_at"}:
                 expr = key
+            elif key in fields and fields[key]["kind"] == "place":  # a place: its words
+                expr = f"json_extract(\"values\", '$.{key}.label')"
             elif key in fields:
                 expr = f"json_extract(\"values\", '$.{key}')"
             else:

@@ -10,6 +10,7 @@ dependencies = [
     "mcp==2.2.0",
     "openpyxl==3.1.5",
     "pydantic==2.13.5",
+    "pyobjc-framework-corelocation==12.0",
     "pyobjc-framework-eventkit==12.0",
     "pypdf==6.1.1",
     "python-docx==1.2.0",

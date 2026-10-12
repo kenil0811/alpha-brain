@@ -11,6 +11,7 @@ import logging
 
 from fastmcp import FastMCP
 
+from alpha.connectors.places import AppleGeocoder
 from alpha.mcp.tools import Tools
 from alpha.world.world import World
 
@@ -29,7 +30,9 @@ def build_server(world: World | None = None) -> FastMCP:
 
 def main() -> None:
     logging.basicConfig(level=logging.WARNING)
-    build_server().run(transport="stdio", show_banner=False)
+    world = World()
+    world.collections.geocoder = AppleGeocoder()  # the model's place writes are located too
+    build_server(world).run(transport="stdio", show_banner=False)
 
 
 if __name__ == "__main__":

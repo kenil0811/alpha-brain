@@ -102,7 +102,23 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
+        place = proposal["data"].get("place_field")
+        done = None
+        if place and body.accept:
+            # the change first: a refused one (asked twice, the field gone) leaves no Yes in
+            # the journal (Q46, design G13)
+            done = world.collections.to_place(place["collection"], place["field"])
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
+        if place:
+            if done:
+                world.journal.append(
+                    "changed", f"Made {place['field']} of {done['title']} a place field:"
+                    f" {done['located']} located, {done['unplaced']} not found"
+                    + (f", {done['unknown']} couldn't be looked up now (looked up again"
+                       " when edited)" if done["unknown"] else "") + ".",
+                    actor="person", data={"proposal": pid, "collection": place["collection"]},
+                    module=done.get("module"))
+            return {"decided": pid, "turn": None}
         instruction = proposal["data"].get("instruction")
         if instruction:
             # The person's yes is what makes it an instruction; nothing else needs to run.

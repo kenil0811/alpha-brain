@@ -44,6 +44,7 @@ from alpha.api.turns import Turns
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.connectors.places import AppleGeocoder
 from alpha.runtime import conversations, route
 from alpha.runtime import turn as turns
 from alpha.runtime.automation import Scheduler
@@ -59,6 +60,8 @@ __all__ = ["AskBody", "READY_PREFIX", "Turns", "create_app", "serve"]
 def create_app(world: World | None = None, *, runner: turns.Runner | None = None,
                token: str | None = None, live: bool = True) -> FastAPI:
     world = world or World()
+    if live:
+        world.collections.geocoder = AppleGeocoder()
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     scheduler = Scheduler(world, runner)
     runner_fn = runner or route.run
