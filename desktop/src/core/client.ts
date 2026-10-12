@@ -712,8 +712,23 @@ export function say(e: unknown): string {
 
 type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
 
+/** A place field's value (Q44): the words given, and where they are once Apple's geocoder found
+ *  them (`estimated`); words alone are a place not found. */
+export interface PlaceValue {
+  label: string;
+  lat?: number;
+  lon?: number;
+  precision?: "address" | "city" | "region" | "country";
+  source?: string;
+  estimated?: boolean;
+}
+
+export const isPlace = (v: unknown): v is PlaceValue => typeof v === "object" && v !== null && !Array.isArray(v) && typeof (v as PlaceValue).label === "string";
+
 export function toRow(raw: Raw): RecordRow {
   const { id, revision, created_at, updated_at, _provenance, _seen_at, _gone_at, _entity, ...values } = raw;
+  // a place reads as its words wherever a value is read as text (cells, search, sorts, groups, CSV)
+  for (const v of Object.values(values)) if (isPlace(v)) Object.defineProperty(v, "toString", { value: () => v.label, enumerable: false });
   return { id, revision, created_at, updated_at, values, provenance: _provenance ?? {}, seen_at: _seen_at ?? null, gone_at: _gone_at ?? null, entity: _entity ?? null };
 }
 

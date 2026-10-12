@@ -13,11 +13,11 @@
 import * as RadixPopover from "@radix-ui/react-popover";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../ui";
-import { BoardIcon, ChevronLeft, RenameIcon, BrainIcon as GraphIcon, Calendar, CopyIcon, DashboardIcon, DeleteIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
+import { BoardIcon, ChevronLeft, MapIcon, RenameIcon, BrainIcon as GraphIcon, Calendar, CopyIcon, DashboardIcon, DeleteIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
 import type { FieldInfo } from "./fields";
 import { fieldLabel } from "./FilterUI";
 
-export type PageView = "graph" | "table" | "board" | "calendar" | "timeline" | "gallery" | "form" | "dashboard";
+export type PageView = "graph" | "table" | "map" | "board" | "calendar" | "timeline" | "gallery" | "form" | "dashboard";
 
 /** Every view type, in Notion's order, with its icon; Graph only where the page has one. */
 export type ViewChoice = { id: PageView; label: string; icon: ReactNode };
@@ -29,6 +29,7 @@ export const VIEWS: ViewChoice[] = [
   { id: "calendar", label: "Calendar", icon: <Calendar size={ICON_SM} /> },
   { id: "timeline", label: "Timeline", icon: <TimelineIcon size={ICON_SM} /> },
   { id: "form", label: "Form", icon: <FormIcon size={ICON_SM} /> },
+  { id: "map", label: "Map", icon: <MapIcon size={ICON_SM} /> },
   { id: "dashboard", label: "Dashboard", icon: <DashboardIcon size={ICON_SM} /> },
 ];
 

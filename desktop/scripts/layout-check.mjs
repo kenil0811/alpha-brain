@@ -208,10 +208,12 @@ const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g
 /** The project's table view (a saved view may be Calendar, Board…). Saves the view in the world it
  *  runs on: a scratch copy unless ALPHA_WINDOW_URL points at a window on a real one. */
 async function toView(p, name) {
-  const combo = p.locator("main [role=combobox]").filter({ hasText: /^\s*(Table|Graph|Board|Gallery|Calendar|Timeline|Dashboard|Form)\s*$/ }).first();
+  const combo = p.locator("main [role=combobox]").filter({ hasText: /^\s*(Table|Graph|Board|Gallery|Calendar|Timeline|Dashboard|Form|Map)\s*$/ }).first();
   if (!(await combo.count()) || (await combo.innerText()).trim() === name) return;
   await combo.click({ timeout: 4000 });
-  await p.getByRole("option", { name: new RegExp(`^${name}`) }).first().click({ timeout: 4000 });
+  const option = p.getByRole("option", { name: new RegExp(`^${name}`) }).first();
+  if ((await option.getAttribute("aria-disabled")) === "true") return void (await p.keyboard.press("Escape"));
+  await option.click({ timeout: 4000 });
   await p.waitForTimeout(400);
 }
 const toTable = (p) => toView(p, "Table");
@@ -256,6 +258,8 @@ async function plan(browser, base) {
   if (first) {
     states.push({ n: "project", h: first, a: toTable }, { n: "record", h: first, a: openFirstRow });
   } else skipped.push("project, record: no project in this world");
+  // the Map, where Deals has a place field (else Map is disabled and the state stays as it is)
+  if (deals) states.push({ n: "deals-map", h: deals, a: (pg) => toView(pg, "Map") });
   if (deals) states.push({ n: "deals-panelwide-railfolded", h: deals, ls: { "alpha.panel.width": "560", "alpha.rail.collapsed": "true" }, a: toTable });
   else skipped.push("deals with the panel wide and the sidebar folded: no project in this world");
   states.push({ n: "new-project", h: "#/new-project" });

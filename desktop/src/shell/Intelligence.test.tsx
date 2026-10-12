@@ -44,7 +44,7 @@ describe("Intelligence", () => {
     expect(view).toHaveTextContent("Graph");
     expect(screen.queryByRole("tablist", { name: "Second Brain view" })).toBeNull();
     await userEvent.click(view);
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Graph", "Table", "Board", "Gallery", "Calendar", "Timeline", "Form", "Dashboard"]);
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Graph", "Table", "Board", "Gallery", "Calendar", "Timeline", "Form", "Map", "Dashboard"]);
   });
 
   it("puts facts, goals and hypotheses in one table, a hypothesis approved or rejected from its row", async () => {

@@ -11,9 +11,11 @@ child process (`python -m alpha.connectors.places`) that spins its own: JSON lin
 out. A label that came back once is kept for the life of the process: Apple slows down a Mac
 that asks the same thing over and over.
 
-Apple finds *something* for nearly any text ("zzqqxx nowhere" is a farm road in Oklahoma), so a
+Apple finds *something* for nearly any text ("zzqqxx qqzz" is a farm road in Oklahoma), so a
 result counts only when one of its names (the place, its town, region or country) is in what was
-asked; otherwise the label stays without a point, and the map counts it as "no place".
+asked; otherwise the label stays without a point, and the map counts it as "no place". A real
+name inside nonsense still counts ("zzqqxx nowhere" is Nowhere, Oklahoma): the point is
+estimated and shown with its words, for the person to correct.
 """
 
 from __future__ import annotations
