@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Client, RecordRow, SavedList, TableDesc } from "../core/client";
@@ -214,11 +214,10 @@ describe("the toolbar", () => {
       screen.getByRole("combobox", { name: "View" }),
       screen.getByRole("button", { name: "Search" }),
       screen.getByRole("button", { name: "Filter" }),
-      screen.getByRole("button", { name: "Show the numbers" }),
       screen.getByRole("button", { name: "More" }),
     ];
     for (let i = 1; i < order.length; i++) expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(order[0].closest(".toolbar")).toBe(order[5].closest(".toolbar")); // one row
+    expect(order[0].closest(".toolbar")).toBe(order[4].closest(".toolbar")); // one row
     const spacer = order[0].closest(".toolbar")!.querySelector(".spacer")!;
     expect(spacer.compareDocumentPosition(order[3]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // Filter is right-aligned
     expect(order[0]).toHaveTextContent("All");
@@ -229,7 +228,7 @@ describe("the toolbar", () => {
     expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
     await user.keyboard("{Escape}");
     const files = catchDownloads();
-    await user.click(order[5]);
+    await user.click(order[4]);
     expect(await screen.findByRole("menuitem", { name: "Sort" })).toBeInTheDocument();
     screen.getByRole("menuitem", { name: "Download 1 record" }).focus();
     await user.keyboard("{ArrowRight}");
@@ -262,15 +261,15 @@ describe("the toolbar", () => {
     expect(await screen.findByText("Downloaded 2 records as Deals.csv.")).toBeInTheDocument();
   });
 
-  it("shows the numbers below the toolbar; their hide arrow sits on the strip", async () => {
-    const user = userEvent.setup();
+  it("always shows the numbers below the toolbar, with no fold, and none when there are no records", async () => {
     page([row("r1", "Bakery", 300)]);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("button", { name: "Show the numbers" }));
     const strip = screen.getByRole("region", { name: "Deals: the numbers" });
     expect(screen.getByRole("button", { name: "More" }).compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Show the numbers" })).toBeNull();
-    await user.click(within(strip).getByRole("button", { name: "Hide the numbers" }));
+    expect(screen.queryByRole("button", { name: /the numbers/ })).toBeNull();
+    cleanup();
+    page([]);
+    await screen.findByText("No records yet.");
     expect(screen.queryByRole("region", { name: "Deals: the numbers" })).toBeNull();
   });
 

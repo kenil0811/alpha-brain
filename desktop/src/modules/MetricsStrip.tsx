@@ -3,53 +3,29 @@
  * tiles as wide as what they hold, each a number with its label and basis beside it, and a small
  * chart where there is a trend (records and amounts added per week) or a split (the status). The
  * records resting on an estimate or an assumption get a tile only when there are some, in the
- * attention tone. The strip sits below the toolbar and starts folded so the table is the focus
- * (rulebook §6; the owner, 9 Oct): folded, its show arrow is in the toolbar just left of ⋮; shown,
- * its hide arrow sits at the strip's top-right corner. The page remembers the choice
- * (`useMetricsOpen`). The numbers come
+ * attention tone. The strip sits below the toolbar and is always shown when the collection has
+ * records (the owner, 12 Oct: no fold; hidden only when there is nothing to count, or when the
+ * person asks Alpha to hide it, which waits for the core). The numbers come
  * from the module's summary (the core works them out) and from the records on the page; nothing
  * is invented. A tile never shows a bare dash (§2): an amount shows today's if there is one, else
  * this week's (its basis saying so), else "Unknown".
  */
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { RecordRow, TableDesc, TableSummaryData } from "../core/client";
-import { Dialog, MetricTile, IconButton } from "../ui";
-import { ChevronUp } from "../ui/icons";
+import { Dialog, MetricTile } from "../ui";
 import { dayText, formatNumber, humanize } from "./format";
 import { ChartTable, Legend, SplitBar, Sparkline, isTrend, weekLabels, weekly, type Part } from "./minicharts";
 import { provenanceCounts } from "./views/engine";
 
-function remembered(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === "open"; // folded unless the person opened it
-  } catch {
-    return false;
-  }
-}
-
-/** Whether a collection's numbers are shown, remembered per collection; folded unless opened. */
-export function useMetricsOpen(name: string): [boolean, (open: boolean) => void] {
-  const key = `alpha.page.${name}.metrics`;
-  const [open, setOpen] = useState(() => remembered(key));
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, open ? "open" : "closed");
-    } catch {
-      /* the strip forgets whether it was folded, nothing more */
-    }
-  }, [key, open]);
-  return [open, setOpen];
-}
-
 /** What a tile's detail dialog shows: a bigger chart and the table under it. */
 type Detail = { title: string; basis: string; chart?: ReactNode; legend?: ReactNode; table?: { head: [string, string]; rows: [ReactNode, string][] } };
 
-/** The strip, shown; `onHide` folds it (its arrow at the top-right corner). Every tile opens a
+/** The strip. Every tile opens a
  *  dialog with its details on a click (9 Oct, the owner), and a tile is shown only when it says
  *  something: a trend line needs values in two weeks, a split two categories, and "open" only
  *  when some choices mean done. The strip is four lines high at most: two-line tiles stack two
  *  high, a split's block (its bar and one line of labels) spans both, and more runs sideways. */
-export function MetricsStrip({ table, rows, summary, onHide }: { table: Pick<TableDesc, "name" | "title">; rows: RecordRow[] | null; summary?: TableSummaryData | null; onHide: () => void }) {
+export function MetricsStrip({ table, rows, summary }: { table: Pick<TableDesc, "name" | "title">; rows: RecordRow[] | null; summary?: TableSummaryData | null }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   if (!rows) return null;
   const amount = (v: number | null, unit?: string | null) => (v === null ? "none" : formatNumber(v, unit));
@@ -79,7 +55,6 @@ export function MetricsStrip({ table, rows, summary, onHide }: { table: Pick<Tab
   const recordsBasis = !summary ? `as of ${today}` : summary.added_this_week === rows.length && rows.length ? "all added this week" : `${summary.added_this_week.toLocaleString()} added this week`;
   return (
     <section className="mstrip" aria-label={`${table.title}: the numbers`}>
-      <IconButton size="sm" className="mstrip__fold" label="Hide the numbers" icon={<ChevronUp />} onClick={onHide} />
       <MetricTile label="Records" value={rows.length.toLocaleString()} basis={recordsBasis} chart={records.small} onOpen={() => setDetail({ title: "Records", basis: `${rows.length.toLocaleString()} in all · ${recordsBasis}`, chart: records.big, table: records.table })} />
       {(summary?.amounts ?? []).map((a) => {
         const { value, basis } = headline(a);

@@ -264,7 +264,7 @@ One row that never wraps, in this order:
 - **Filter:** every filtering choice in one place.
   - Active filters appear as small removable pills under the toolbar, with **Clear all**.
   - The **Hide done** and **Show gone** toggles live in Filter.
-- **Frequent actions** sit between Filter and ⋮: at most one primary. **Upload** shows here only when files are the collection's main input (it has a file field); the numbers' show arrow appears here while the metrics strip is hidden.  The page's own actions (New, Add goal, Connect) come last here, before ⋮, and fold into ⋮ with Filter when narrow (12 Oct).
+- **Frequent actions** sit between Filter and ⋮: at most one primary. **Upload** shows here only when files are the collection's main input (it has a file field).  The page's own actions (New, Add goal, Connect) come last here, before ⋮, and fold into ⋮ with Filter when narrow (12 Oct).
 - **Filter** is right-aligned, immediately left of the frequent actions and ⋮ (the owner, 9 Oct; replaces "left-aligned").
 - **⋮ More** holds:
   - Sort
@@ -380,7 +380,7 @@ A page of visuals where **every visual is actionable**.
 
 ### Metrics strip
 
-- A collection's headline numbers sit in one strip of metric tiles **below the toolbar**, above the table, **folded by default** so the table is the focus. The Dashboard view shows them in full.
+- A collection's headline numbers sit in one strip of metric tiles **below the toolbar**, above the table, **always shown, with no fold** (the owner, 12 Oct). It is left out only when there is nothing to count (no records) or when the person asks Alpha to hide it (waits for the core, core-changes §G). The Dashboard view shows them in full.
 - Each tile is a plain tile (the owner, 11 Oct): the number with its words beside it, and what it is based on. No icon square.
 - While hidden, a show arrow sits in the toolbar's frequent actions, left of ⋮; while shown, the hide arrow sits at the strip's top-right corner. The choice is remembered.
 - Tiles that need attention get an amber tint (red is only for problems).

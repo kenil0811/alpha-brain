@@ -91,8 +91,7 @@ describe("a module's page", () => {
     expect(within(switcher).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Deals", "Clients"]);
     expect(screen.queryByRole("tab", { name: "Summary" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Files" })).toBeNull();
-    // the numbers sit above the table, folded until asked for, each with what it is based on
-    await user.click(screen.getByRole("button", { name: "Show the numbers" }));
+    // the numbers sit above the table, always shown, each with what it is based on
     expect(await screen.findByText("all added this week")).toBeInTheDocument();
     expect(screen.queryByText("At a glance")).toBeNull();
     await user.click(within(switcher).getByRole("tab", { name: "Clients" }));

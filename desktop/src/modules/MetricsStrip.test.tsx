@@ -1,19 +1,18 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { TableSummaryData } from "../core/client";
 import { TooltipProvider } from "../ui";
-import { MetricsStrip, useMetricsOpen } from "./MetricsStrip";
+import { MetricsStrip } from "./MetricsStrip";
 
 const amount = (today: number | null, this_week: number | null) => ({ field: "amount", label: "Amount", unit: "USD", how: "total" as const, today, this_week });
 beforeEach(() => localStorage.clear());
 
 const strip = (a: ReturnType<typeof amount>) => {
-  localStorage.setItem("alpha.page.deals.metrics", "open");
   const summary: TableSummaryData = { name: "deals", title: "Deals", rows: 1, added_this_week: 0, amounts: [a] };
   render(
     <TooltipProvider>
-      <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} onHide={() => undefined} />
+      <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} />
     </TooltipProvider>,
   );
   return screen.getByText("Amount").closest(".mtile") as HTMLElement;
@@ -39,41 +38,12 @@ describe("the amount tile", () => {
   });
 });
 
-describe("the fold", () => {
-  // The data view's way: the show arrow lives in the toolbar, the hide arrow on the strip.
-  function Fold() {
-    const [open, setOpen] = useMetricsOpen("deals");
-    return open ? <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={null} onHide={() => setOpen(false)} /> : <button onClick={() => setOpen(true)}>Show the numbers</button>;
-  }
-  const show = () =>
-    render(
-      <TooltipProvider>
-        <Fold />
-      </TooltipProvider>,
-    );
-
-  it("starts folded, and remembers when the person opens it", async () => {
-    const user = userEvent.setup();
-    show();
-    expect(screen.queryByText("Records")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Show the numbers" }));
-    expect(screen.getByText("Records")).toBeInTheDocument();
-    cleanup();
-    show();
-    expect(screen.getByText("Records")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Hide the numbers" }));
-    cleanup();
-    show();
-    expect(screen.queryByText("Records")).toBeNull();
-  });
-});
-
 describe("meaning and details", () => {
   const show = (counts: Record<string, number>, done: string[] = []) => {
     const summary: TableSummaryData = { name: "deals", title: "Deals", rows: 1, added_this_week: 1, amounts: [], split: { field: "kind", label: "kind", counts, done } };
     render(
       <TooltipProvider>
-        <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} onHide={() => undefined} />
+        <MetricsStrip table={{ name: "deals", title: "Deals" }} rows={[]} summary={summary} />
       </TooltipProvider>,
     );
   };

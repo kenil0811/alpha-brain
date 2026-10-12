@@ -12,7 +12,7 @@
  */
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Badge, Button, Dropdown, IconButton, useContextMenu, type ContextItem } from "../ui";
-import { BoardIcon, Calendar, ChartIcon, ChevronDown, CopyIcon, DashboardIcon, DeleteIcon, EditIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, Link2, ListIcon, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
+import { BoardIcon, Calendar, ChartIcon, CopyIcon, DashboardIcon, DeleteIcon, EditIcon, FilterIcon, FormIcon, GalleryIcon, ICON_SM, Link2, ListIcon, MoreVertical, PlusIcon, SearchIcon, Star, Table2, TimelineIcon, UploadIcon } from "../ui/icons";
 import type { FieldInfo } from "./fields";
 import { fieldLabel } from "./FilterUI";
 
@@ -166,7 +166,7 @@ function ListAndView({ tabs, active, a }: { tabs: ViewTab[]; active: string; a: 
   );
 }
 
-export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, onShowNumbers, actions = [], more }: {
+export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, actions = [], more }: {
   tabs: ViewTab[];
   activeTab: string;
   tabActions: TabActions;
@@ -180,8 +180,6 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   uploadFirst: boolean;
   onUpload?: () => void;
   uploadReason?: string;
-  /** The numbers are folded: their show arrow sits here, just left of ⋮. */
-  onShowNumbers?: () => void;
   /** The page's own actions (New, Add goal, Connect), between Filter and ⋮; one with `children`
    *  opens them as a menu. Folded into ⋮ with Filter when the row is narrow. */
   actions?: ContextItem[];
@@ -192,7 +190,7 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   const [searching, setSearching] = useState(false);
   const f = filter;
   // what the row's words are: when any changes, the row is measured again from the start
-  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, Boolean(onShowNumbers), searching, actions.map((a) => a.label)].join("|");
+  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, searching, actions.map((a) => a.label)].join("|");
   const level = useFit(bar, words);
   const icons = level >= 1;
   const folded = level >= 2;
@@ -201,7 +199,6 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
     ? [
         { label: f.active ? `Filter (${f.active})` : "Filter", icon: <FilterIcon size={ICON_SM} />, children: filterItems(f) },
         ...(uploadFirst ? [{ label: "Upload", icon: <UploadIcon size={ICON_SM} />, onSelect: onUpload, disabled: onUpload ? undefined : uploadReason }] : []),
-        ...(onShowNumbers ? [{ label: "Show the numbers", icon: <ChevronDown size={ICON_SM} />, onSelect: onShowNumbers }] : []),
         ...actions,
         ...more.map((m, i) => (i === 0 ? { ...m, separatorBefore: true } : m)),
       ]
@@ -245,7 +242,6 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
               <span className="tb__label">Upload</span>
             </Button>
           ) : null}
-          {onShowNumbers ? <IconButton size="sm" label="Show the numbers" icon={<ChevronDown size={ICON_SM} />} onClick={onShowNumbers} /> : null}
           {actions.map((a) => (
             <Button key={a.label} size="sm" icon={a.icon} aria-label={a.label} aria-haspopup={a.children ? "menu" : undefined} title={icons ? a.label : undefined} disabledReason={a.disabled} onClick={(e) => (a.children ? actionMenu.openFrom(a, e.currentTarget) : a.onSelect?.())}>
               <span className="tb__label">{a.label}</span>

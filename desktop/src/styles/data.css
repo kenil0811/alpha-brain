@@ -19,7 +19,6 @@
 .legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: calc(var(--space-12) * 3 + var(--space-4)); overflow: hidden; font-size: var(--text-sm); }
 .legend.legend--inline li { gap: var(--space-1); white-space: nowrap; cursor: default; }
 .legend.legend--inline .legend__dot { width: var(--space-2); height: var(--space-2); }
-.mstrip__fold { flex: none; }
 
 /* the Dashboard view: tiles wrap at their own width; a chart or a list takes more, its chart under the number */
 .dash__top { justify-content: flex-end; }
@@ -141,7 +140,6 @@
 /* the toolbar's list picker; the numbers below the toolbar, their hide arrow at the top-right corner */
 .tb__lists { display: inline-flex; }
 .datacard > .mstrip { position: relative; padding: var(--space-2) calc(var(--space-8) + var(--space-3)) var(--space-2) var(--space-3); }
-.datacard > .mstrip .mstrip__fold { position: absolute; top: var(--space-2); right: var(--space-2); }
 .datacard__note { margin: 0; padding: 0 var(--space-3) var(--space-1); font-size: var(--text-sm); }
 
 /* the record page's save bar: a quiet line, Cancel and Save */

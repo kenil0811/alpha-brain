@@ -47,7 +47,7 @@ import { TableView, copyText } from "./views/TableView";
 import { cellEditable } from "./views/cells";
 import { DashboardView, dashboardAvailable } from "./views/DashboardView";
 import { ADD_COLUMN_REASON, DataToolbar, listActions, type PageView, type TabActions, type ViewTab } from "./DataToolbar";
-import { MetricsStrip, useMetricsOpen } from "./MetricsStrip";
+import { MetricsStrip } from "./MetricsStrip";
 
 export type { PageView } from "./DataToolbar";
 /** Rows per page: by default as many as fit the first screen; the person can pick a fixed size,
@@ -693,7 +693,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   };
   const none = rows && !rows.length;
   const rowIcon = src.rowIcon ? (row: RecordRow) => src.rowIcon!(row) : undefined;
-  const [numbersOpen, setNumbersOpen] = useMetricsOpen(src.key);
   const coloured = view === "table" || view === "list" || view === "board" || view === "gallery" ? colourNote(vs.colors, byName) : "";
   const tabActions: TabActions = {
     onTab: switchTab,
@@ -766,7 +765,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             uploadFirst={fileFirst}
             onUpload={onAddFiles}
             uploadReason={reasonFor(src, "upload")}
-            onShowNumbers={all && !numbersOpen ? () => setNumbersOpen(true) : undefined}
             actions={actions}
             more={moreItems}
           />
@@ -784,7 +782,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
           </div>
         ) : null}
         {drafting ? null : <FilterBar fields={fields} rules={vs.rules} onRules={(r) => patch({ rules: r })} advanced={vs.advanced} onAdvanced={(g) => patch({ advanced: g })} sorts={sorts} onSorts={setSorts} openChip={openChip} onOpenChip={setOpenChip} extra={pills} onClearAll={clearAll} />}
-        {numbersOpen && !drafting ? <MetricsStrip table={{ name: src.key, title: src.title }} rows={all} summary={summary} onHide={() => setNumbersOpen(false)} /> : null}
+        {all?.length && !drafting ? <MetricsStrip table={{ name: src.key, title: src.title }} rows={all} summary={summary} /> : null}
         {coloured ? <p className="faint datacard__note">{coloured}.</p> : null}
         {selected.size ? (
           <div className="selectbar" role="status">

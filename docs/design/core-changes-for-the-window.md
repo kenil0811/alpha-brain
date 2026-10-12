@@ -586,6 +586,32 @@ Nothing below was changed in the core; the window does the nearest honest thing 
   <a short comment>]]`; use it sparingly." (b) Optionally a short summary of what `<main>` shows
   (page title, visible column and record names) so the model can name targets exactly.
 
+### G9. Hiding a collection's numbers by asking Alpha (12 Oct)
+- **Now:** the numbers strip above every table is always shown when the collection has records;
+  it has no fold (the owner, 12 Oct).
+- **Should / core needs:** a way for the person to say "hide the numbers on Deals" to Alpha and
+  have it stick: a window preference the core can set (e.g. a `page_settings` key the window reads,
+  `{ table, numbers: "hidden" }`) and a tool for Alpha to set and clear it.
+
+### G10. Home composed by Alpha (12 Oct)
+- **Now:** the window builds Home's cards itself from what it loads (`shell/homeCards.ts`).
+- **Should / core needs:** `GET /api/home/cards` where Alpha returns ranked card specs
+  `{ objective, presentation, size, items, actions, opens }`, presentation one of the window's
+  kit (decision list, number with change, progress, timeline, mini chart, record preview,
+  question, note). The window drops any spec it can't render or that has no action.
+
+### G11. Hypotheses, goals the window can write, facts tied to projects (12 Oct)
+- **Now:** a hypothesis is a fact in state "suggested"; Approve as a goal asks Alpha to set the
+  goal and then declines the suggestion; facts have no project, so a project's Second Brain shows
+  the facts about people and organisations named in its records.
+- **Should / core needs:** (a) hypotheses as their own kind, or a "suggested" state on goals,
+  with `POST /api/hypotheses/<id>/convert { as: "fact" | "goal" }` and undo of a reject;
+  (b) `POST/PATCH /api/goals` for the window; (c) `facts.module` (or the record that produced it).
+
+### G12. The graph's payload (12 Oct)
+- **Should / core needs:** goal → project edges, files, automations and a "You" node in
+  `/api/graph`; run detail by id; a document's content; a note by id.
+
 ---
 
 ## F. Left in the window (no core needed), for completeness
