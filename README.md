@@ -34,9 +34,10 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
 - `connectors/` — the built-in hands as Agent Skills directories: `browser/` (Playwright driver: reads are read-only by mechanism; acting, downloads and uploads run only inside an approved action), `files/`, `calendar/`; each has a `connector.yaml` and a `SKILL.md`.
-- `desktop/` — the Tauri 2 + React app: the workspace (rail, Home, modules with derived table
-  pages, People & Companies, Intelligence, Activity, Settings), the 380px conversation panel, and the companion
-  window. The app starts the core from this repository's `.venv`.
+- `desktop/` — the Tauri 2 + React app, by `docs/design/ui-rulebook.md`: the workspace (sidebar,
+  Home, modules with their data views and a page per record, People & Companies, Intelligence with
+  Activity, Settings), the conversation panel that folds to a strip, and the companion window. The
+  app starts the core from this repository's `.venv`.
 - `journeys/` — the real journeys the suite runs after a change (`just journeys`); reports land in
   `docs/journeys/`. The desktop acceptance check (`just check-desktop`) opens every page of the
   window on a copy of the world; reports land in `docs/checks/`, screenshots in `desktop/.check/`.

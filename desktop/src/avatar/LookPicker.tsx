@@ -2,12 +2,14 @@
  * The companion's look, chosen in Settings: the animal, the fur, the suit, the shirt, the
  * neckwear and glasses. Every change is kept in the world at once (the preference
  * `companion_look`), so the companion window and any other Mac draw the same character.
+ * Given `value` and `onChange` it keeps nothing itself: an agent's page picks that agent's look.
  */
 import { useEffect, useState } from "react";
 import type { Client } from "../core/client";
-import { Tabs } from "../ui";
+import { Switch, Toggle } from "../ui";
 import { ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Size, type Swatch } from "./looks";
 import { Rig } from "./Rig";
+import { say as words } from "../core/client";
 
 const KEY = "companion_look";
 
@@ -17,9 +19,7 @@ function Swatches({ label, choices, value, onPick, none }: { label: string; choi
       <span className="look__label">{label}</span>
       <div className="look__swatches">
         {none ? (
-          <button type="button" className={`look__swatch look__swatch--none${value === null ? " look__swatch--on" : ""}`} aria-pressed={value === null} aria-label={none} title={none} onClick={() => onPick(null)}>
-            ·
-          </button>
+          <button type="button" className={`look__swatch look__swatch--none${value === null ? " look__swatch--on" : ""}`} aria-pressed={value === null} aria-label={none} title={none} onClick={() => onPick(null)} />
         ) : null}
         {choices.map((c) => (
           <button key={c.color} type="button" className={`look__swatch${value === c.color ? " look__swatch--on" : ""}`} style={{ background: c.color }} aria-pressed={value === c.color} aria-label={c.name} title={c.name} onClick={() => onPick(c.color)} />
@@ -29,27 +29,34 @@ function Swatches({ label, choices, value, onPick, none }: { label: string; choi
   );
 }
 
-export function LookPicker({ client }: { client: Client }) {
-  const [look, setLook] = useState<Look | null>(null);
+export function LookPicker({ client, value, onChange }: { client?: Client; value?: Look; onChange?: (look: Look) => Promise<string | null> | void }) {
+  const [own, setLook] = useState<Look | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const controlled = value !== undefined && onChange !== undefined;
+  const look = controlled ? value : own;
 
   useEffect(() => {
+    if (controlled || !client) return;
     let cancelled = false;
     client
       .preference(KEY)
       .then((p) => !cancelled && setLook(normaliseLook(p.value)))
-      .catch((e) => !cancelled && (setLook(DEFAULT_LOOK), setProblem(e instanceof Error ? e.message : String(e))));
+      .catch((e) => !cancelled && (setLook(DEFAULT_LOOK), setProblem(words(e))));
     return () => {
       cancelled = true;
     };
-  }, [client]);
+  }, [client, controlled]);
 
   const change = (patch: Partial<Look>) => {
     if (!look) return;
     const next = { ...look, ...patch };
-    setLook(next);
     setProblem(null);
-    client.setPreference(KEY, next).catch((e) => setProblem(e instanceof Error ? e.message : String(e)));
+    if (controlled) {
+      void Promise.resolve(onChange(next)).then((p) => p && setProblem(p));
+      return;
+    }
+    setLook(next);
+    client?.setPreference(KEY, next).catch((e) => setProblem(words(e)));
   };
 
   if (!look) return <p className="faint">Loading the look…</p>;
@@ -75,16 +82,18 @@ export function LookPicker({ client }: { client: Client }) {
         <Swatches label="Shirt" choices={SHIRTS} value={look.shirt} onPick={(shirt) => shirt && change({ shirt })} />
         <div className="look__row" role="group" aria-label="Neckwear">
           <span className="look__label">Neckwear</span>
-          <Tabs<Neckwear> className="toggle toggle--views" label="Neckwear" value={look.neckwear} onChange={(neckwear) => change({ neckwear })} items={[{ id: "tie", label: "Tie" }, { id: "bow", label: "Bow" }, { id: "none", label: "None" }]} />
+          <Toggle<Neckwear> inBody label="Neckwear" value={look.neckwear} onChange={(neckwear) => change({ neckwear })} items={[{ id: "tie", label: "Tie" }, { id: "bow", label: "Bow" }, { id: "none", label: "None" }]} />
         </div>
         {look.neckwear !== "none" ? <Swatches label={look.neckwear === "bow" ? "Bow" : "Tie"} choices={TIES} value={look.tie} onPick={(tie) => tie && change({ tie })} /> : null}
-        <div className="look__row" role="group" aria-label="Size">
-          <span className="look__label">Size</span>
-          <Tabs<Size> className="toggle toggle--views" label="Size" value={look.size} onChange={(size) => change({ size })} items={[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }]} />
-        </div>
+        {controlled ? null : (
+          <div className="look__row" role="group" aria-label="Size">
+            <span className="look__label">Size</span>
+            <Toggle<Size> inBody label="Size" value={look.size} onChange={(size) => change({ size })} items={[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }]} />
+          </div>
+        )}
         <div className="look__row">
           <span className="look__label">Glasses</span>
-          <button type="button" className={`switch${look.glasses ? "" : " switch--off"}`} role="switch" aria-checked={look.glasses} aria-label="Glasses" onClick={() => change({ glasses: !look.glasses })} />
+          <Switch checked={look.glasses} label="Glasses" onChange={(glasses) => change({ glasses })} />
         </div>
         {problem ? (
           <p className="notice" role="alert">

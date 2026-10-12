@@ -9,8 +9,8 @@
  * sorry), the head's tilt and drop, the ears' perk, the cheeks' blush, the gaze, the body's
  * squash or stretch, and how often it blinks and breathes. Bridge springs these every frame
  * under a director; here a mood change eases by CSS transitions, the breath, the blinks and
- * the nod are CSS animations, the pupils drift on a timer (saccades), and a happy or
- * celebrating mood hops once. It is still when the window is hidden, when the Mac asks for
+ * the nod are CSS animations, and the pupils drift on a timer (saccades); no hop (the owner,
+ * 11 Oct). It is still when the window is hidden, when the Mac asks for
  * reduced motion, and after a while with nothing happening.
  */
 import { useEffect, useId, useState } from "react";
@@ -129,7 +129,7 @@ export const POSES: Record<Mood, Pose> = {
   // small and shut: the mouth gets out of the way while the brow works; the eyes go up and aside
   thinking: { ...CALM, eyeOpen: 0.78, browRaise: 0.2, browFurrow: 0.6, headTilt: -6, mouth: "smile", mouthScale: 0.78, squash: 0.08, gazeX: 50, gazeY: -48, earPerk: 2, blinkEvery: 5.5, saccade: 0.3, breath: 5 },
   talking: { ...CALM, browRaise: 0.15, mouth: "talking", blinkEvery: 4.5 },
-  // greeting-warm: squinting eyes, the big smile, blush, a hop on arrival
+  // greeting-warm: squinting eyes, the big smile, blush
   happy: { ...CALM, eyeOpen: 0.66, mouth: "happy", mouthScale: 1.05, squash: -0.16, cheeks: 0.9, earPerk: 4, browRaise: 0.4, blinkEvery: 4.5, breath: 3.2 },
   // chest up, drawn tall
   proud: { ...CALM, eyeOpen: 0.75, mouth: "happy", mouthScale: 0.95, squash: -0.3, headTilt: -2, cheeks: 0.55, earPerk: 6, browRaise: 0.3, blinkEvery: 5, breath: 4.4 },
@@ -143,6 +143,18 @@ export const POSES: Record<Mood, Pose> = {
   // slack jaw, and the whole body settles into itself under its own weight
   sleepy: { ...CALM, eyeOpen: 0.3, mouth: "open", mouthScale: 0.4, squash: 0.3, earPerk: -12, earScale: 0.94, headTilt: 5, headDrop: 50, whiskerDroop: 0.8, cheeks: 0.35, browRaise: -0.3, blinkEvery: 3, blinkSpeed: 0.3, breath: 8, saccade: 0.1 },
 };
+
+/** A pupil on a white eye: a dark iris with the painted glint over it. The painted pupil is only
+ *  the glint (white, made for the panda's dark eye), so on a white eye alone it vanished and the
+ *  white-eyed animals had no eyes (9 Oct, the owner on the panel's avatar). */
+function WhitePupil({ cx, cy }: { cx: number; cy: number }) {
+  return (
+    <>
+      <ellipse cx={cx} cy={cy + 6} rx="112" ry="118" fill="#2a2730" />
+      <image href={pupil} x={cx - 110} y={cy - 104} width="220" height="209" />
+    </>
+  );
+}
 
 function Part({ href, box, filter, transform }: { href: string; box: readonly number[]; filter?: string; transform?: string }) {
   return <image href={href} x={box[0]} y={box[1]} width={box[2]} height={box[3]} filter={filter} transform={transform} />;
@@ -262,7 +274,7 @@ function useVisible(): boolean {
   return visible;
 }
 
-/** The Mac asks for reduced motion: no drift, no breath, no hop (CSS handles the rest). */
+/** The Mac asks for reduced motion: no drift, no breath (CSS handles the rest). */
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
@@ -306,7 +318,6 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
   const [talk, setTalk] = useState(0);
   const [rested, setRested] = useState(false);
   const [drift, setDrift] = useState({ x: 0, y: 0 });
-  const [hop, setHop] = useState(false);
 
   // The mouth moves while Alpha talks and the window is in view; otherwise it holds.
   useEffect(() => {
@@ -336,13 +347,6 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
     timer = setTimeout(look, 600);
     return () => clearTimeout(timer);
   }, [visible, reduced, rested, pose.saccade]);
-  // Joy has a gesture: a hop when the mood arrives (the class goes again so the next one plays).
-  useEffect(() => {
-    if ((mood !== "happy" && mood !== "celebrating") || reduced) return;
-    setHop(true);
-    const timer = setTimeout(() => setHop(false), 750);
-    return () => clearTimeout(timer);
-  }, [mood, reduced]);
 
   const mouth: MouthName = mood === "talking" ? TALK[talk % TALK.length] : pose.mouth;
   const still = !visible || rested || reduced;
@@ -383,7 +387,7 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
           rig__squash): two groups, because an animation would replace an inline transform. The
           painted egg stays put; the ears and the face turn and settle with the head's pose, the
           ears behind the egg and the face over it. */}
-      <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className={`rig__body${hop ? " rig__body--hop" : ""}`} transform="none">
+      <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className="rig__body" transform="none">
         <Pivot x={PIVOT.body.x} y={PIVOT.body.y} className="rig__squash" transform={`scale(${1 + 0.07 * pose.squash}, ${1 - 0.07 * pose.squash})`}>
           <Pivot x={PIVOT.head.x} y={PIVOT.head.y} className="rig__head" transform={`rotate(${pose.headTilt}deg) translateY(${pose.headDrop}px)`}>
           <Pivot x={earPivot.x} y={earPivot.y} className="rig__ear" transform={earMove}>
@@ -430,10 +434,10 @@ export function Rig({ look, mood, size = 96, className }: { look: Look; mood: Mo
                 )}
                 <g className="rig__pupils" style={{ transform: `translate(${pose.gazeX + drift.x}px, ${pose.gazeY + drift.y}px)` }}>
                   <Pivot x={EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} />}
+                    {animal.eyes === "white" ? <WhitePupil cx={EYE.x} cy={EYE.y} /> : <Part href={pupil} box={BOX.pupil} />}
                   </Pivot>
                   <Pivot x={2 * AXIS - EYE.x} y={EYE.y} className="rig__pupil" transform={`scale(${pose.pupilScale})`}>
-                    {animal.eyes === "white" ? <image href={pupil} x={2 * AXIS - EYE.x - 110} y={EYE.y - 104} width="220" height="209" /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
+                    {animal.eyes === "white" ? <WhitePupil cx={2 * AXIS - EYE.x} cy={EYE.y} /> : <Part href={pupil} box={BOX.pupil} transform={rightEye} />}
                   </Pivot>
                 </g>
               </Pivot>

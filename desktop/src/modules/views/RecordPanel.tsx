@@ -1,19 +1,15 @@
-/** One record, opened beside the view: every field editable in place, the long texts under,
- *  when it was added and last changed, Remove. A relation in it opens the related record in
- *  the same drawer, on a stack: Back returns to where the person came from. The fields alone
- *  (`RecordFields`) are also the form view's body. */
-import type { Provenance, RecordRow, Relations } from "../../core/client";
+/** A record's fields, each editable in place, the long texts under, when it was added and last
+ *  changed: the form view's body. (Records open as pages of their own now, 9 Oct, the UI
+ *  rulebook §7; the side drawer and the peeks are gone, R12.) Dates read the near way ("3 min
+ *  ago", "14:32") with the exact one on hover (rule 16). */
+import type { FileInfo, Provenance, RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { humanize } from "../format";
-import { useState } from "react";
-import { Button, Confirm, IconButton } from "../../ui";
-import { ArrowLeft, X } from "../../ui/icons";
+import { humanize, recent } from "../format";
 import { Cell, LongText } from "./cells";
 
-export function RecordFields({ row, fields, titleField, relations, onCommit, onOpenRelated }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void }) {
+export function RecordFields({ row, fields, titleField, relations, files, onCommit, onOpenRelated }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; files?: Record<string, FileInfo>; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void }) {
   const long = fields.filter((f) => f.kind === "long_text");
   const shown = fields.filter((f) => f.name !== titleField && f.kind !== "long_text");
-  const when = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
   return (
     <>
       <table className="table table--kv">
@@ -23,7 +19,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
             return (
               <tr key={f.name}>
                 <th scope="row">{humanize(f.name)}</th>
-                <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} />
+                <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} />
                 {origin ? <FieldOrigin origin={origin} /> : null}
               </tr>
             );
@@ -31,13 +27,13 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
           {row.created_at ? (
             <tr>
               <th scope="row">Added</th>
-              <td>{when(row.created_at)}</td>
+              <td title={recent(row.created_at).title}>{recent(row.created_at).text}</td>
             </tr>
           ) : null}
           {row.updated_at && row.updated_at !== row.created_at ? (
             <tr>
               <th scope="row">Last changed</th>
-              <td>{when(row.updated_at)}</td>
+              <td title={recent(row.updated_at).title}>{recent(row.updated_at).text}</td>
             </tr>
           ) : null}
         </tbody>
@@ -59,8 +55,8 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
   );
 }
 
-/** Where a value came from, when a part wrote it (§12): its source and date beside the value,
- *  or why it could not be filled. The table row is three cells wide for these rows. */
+/** Where a value came from, when a part wrote it (main's §12): its source and date beside the
+ *  value, or why it could not be filled. The row is three cells wide for these. */
 function FieldOrigin({ origin }: { origin: NonNullable<Provenance["fields"]>[string] }) {
   const when = origin.fetched_at ? new Date(origin.fetched_at).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "";
   if (origin.problem) {
@@ -71,52 +67,5 @@ function FieldOrigin({ origin }: { origin: NonNullable<Provenance["fields"]>[str
       {origin.source ? `from ${origin.source}` : ""}
       {when ? ` · ${when}` : ""}
     </td>
-  );
-}
-
-/** What Alpha can do with this thing (§12): the parts that run when asked, and a run again
- *  for a part that could not fill its fields. */
-export interface ThingAction {
-  id: string;
-  title: string;
-  again?: boolean;
-}
-
-export function RecordPanel({ row, fields, titleField, relations, tableTitle, onClose, onCommit, onRemove, onOpenRelated, back, actions, onRun }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; tableTitle?: string; onClose: () => void; onCommit: (field: FieldInfo, text: string) => void; onRemove?: () => void; onOpenRelated?: (collection: string, id: string) => void; back?: { to: string; onBack: () => void }; actions?: ThingAction[]; onRun?: (part: string) => Promise<unknown> }) {
-  const title = titleField ? String(row.values[titleField] ?? "") : "";
-  const [asking, setAsking] = useState(false);
-  const [running, setRunning] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  return (
-    <section className="drawer" aria-label={title || "Details"}>
-      <Confirm open={asking} title={`Remove ${title || "this row"}?`} action="Remove it" onConfirm={() => { setAsking(false); onRemove?.(); }} onCancel={() => setAsking(false)}>
-        It leaves the table; Activity keeps that it was here.
-      </Confirm>
-      <div className="drawer__head">
-        {back ? <IconButton size="sm" label={`Back to ${back.to}`} icon={<ArrowLeft />} onClick={back.onBack} /> : null}
-        <div className="drawer__title">
-          <h3>{title || "Details"}</h3>
-          {tableTitle ? <span className="faint">{tableTitle}</span> : null}
-        </div>
-        <span className="spacer" />
-        {onRemove ? (
-          <Button size="sm" variant="danger" onClick={() => setAsking(true)}>
-            Remove
-          </Button>
-        ) : null}
-        <IconButton size="sm" label="Close details" icon={<X />} onClick={onClose} />
-      </div>
-      {actions?.length && onRun ? (
-        <div className="row thing__actions" role="group" aria-label="What Alpha can do">
-          {actions.map((a) => (
-            <Button key={a.id} size="sm" disabled={running !== null} onClick={() => { setRunning(a.id); setNote(null); void onRun(a.id).then(() => setNote(`${a.title}: done.`)).catch((e: unknown) => setNote(e instanceof Error ? e.message : String(e))).finally(() => setRunning(null)); }}>
-              {running === a.id ? "Running…" : a.again ? `Try again: ${a.title}` : a.title}
-            </Button>
-          ))}
-          {note ? <span className="faint" role="status">{note}</span> : null}
-        </div>
-      ) : null}
-      <RecordFields row={row} fields={fields} titleField={titleField} relations={relations} onCommit={onCommit} onOpenRelated={onOpenRelated} />
-    </section>
   );
 }

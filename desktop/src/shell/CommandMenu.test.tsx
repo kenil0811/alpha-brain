@@ -43,4 +43,26 @@ describe("⌘K", () => {
     await user.click(await screen.findByRole("option", { name: /Ask Alpha/ }));
     expect(onAsk).toHaveBeenCalledWith("how much protein today");
   });
+
+  it("opened by /, it is Insert: what can be added from the module the person is in", async () => {
+    const user = userEvent.setup();
+    const search = vi.fn();
+    const onGo = vi.fn();
+    const onNewModule = vi.fn();
+    const addFiles = vi.fn(async () => ({ documents: [], turn: null }));
+    const client = { search, addFiles } as unknown as Client;
+    render(
+      <TooltipProvider>
+        <CommandMenu open insert surface={{ kind: "module", id: "m_1" }} onNewModule={onNewModule} onOpenChange={vi.fn()} client={client} modules={modules} onGo={onGo} onAsk={vi.fn()} />
+      </TooltipProvider>,
+    );
+    expect(screen.getByRole("dialog", { name: "Insert" })).toBeInTheDocument();
+    expect(screen.getAllByRole("option").map((o) => o.textContent?.replace(/deal_listings|To Deal Tracker/, ""))).toEqual(["New record", "New project", "Upload files"]);
+    expect(screen.queryByRole("option", { name: /Home/ })).toBeNull();
+    await user.click(screen.getByRole("option", { name: /New record/ }));
+    expect(onGo).toHaveBeenCalledWith({ kind: "record", module: "m_1", table: "deal_listings", id: "new" });
+    await user.type(screen.getByRole("combobox"), "proj{Enter}");
+    expect(onNewModule).toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
+  });
 });

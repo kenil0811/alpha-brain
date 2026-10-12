@@ -17,6 +17,8 @@ describe("the reply as it is written", () => {
     };
     const client = {
       conversation: vi.fn().mockResolvedValue(empty),
+      // the window's header shows Alpha's avatar, which reads its look from a preference
+      preference: vi.fn(async (key: string) => ({ key, value: null })),
       newConversation: vi.fn().mockResolvedValue({ id: "c_1" }),
       askAndWait: vi.fn((_text: string, _opts: unknown, onTick?: (t: Turn) => void) => {
         onTick?.(running);

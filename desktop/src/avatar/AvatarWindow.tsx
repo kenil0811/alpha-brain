@@ -14,6 +14,7 @@ import { SIZE_PX, normaliseLook } from "./looks";
 import { hasTauri } from "../core/session";
 import { Button, IconButton, Rich } from "../ui";
 import { X, Maximize2 } from "../ui/icons";
+import { say as words } from "../core/client";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
@@ -68,7 +69,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setTurns(c.turns.slice(-12));
         setTrouble(null);
       })
-      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setTrouble(words(e)));
     client.home().then(setHome).catch(() => undefined);
   }, [client]);
   // One cheap poll asks what changed (every 3 s while Alpha works, 10 s when quiet, nothing
@@ -89,7 +90,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         if (c.working) every = 3_000;
         setTrouble(null);
       } catch (e) {
-        setTrouble(e instanceof Error ? e.message : String(e));
+        setTrouble(words(e));
         every = 5_000;
       }
       if (!cancelled) timer = setTimeout(() => void tick(), every);
@@ -155,7 +156,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         // is a real choice, a question when unsure).
         await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        say(words(e), "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -172,7 +173,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setRouting(null);
         if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        say(words(e), "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -251,7 +252,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
 
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = trouble ? "Core not answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const label = trouble ? "Alpha isn't answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && failedRunWords ? failedRunWords : null);
@@ -360,13 +361,13 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
           <div className="avatar__bubble" role="status">
             <p>{shownBubble}</p>
             {!bubble && needs.length ? (
-              <div className="row" style={{ marginTop: 6 }}>
+              <div className="row row--below">
                 <Button size="sm" variant="primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
                   Open
                 </Button>
               </div>
             ) : !bubble && failedRun ? (
-              <div className="row" style={{ marginTop: 6 }}>
+              <div className="row row--below">
                 <Button size="sm" variant="primary" onClick={() => { dismissFailedRun(); handOff({ surface: { kind: "intelligence", tab: "automations" } }, host); }}>
                   See it
                 </Button>

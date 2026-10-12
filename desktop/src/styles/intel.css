@@ -1,0 +1,70 @@
+/* intel — styles for this area; tokens only (see app.css). */
+
+/* ---------- an agent's face: the companion's head in a circle ---------- */
+.agentface { position: relative; display: inline-block; flex: none; overflow: hidden; border-radius: var(--radius-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); vertical-align: middle; }
+.agentface__rig { position: absolute; line-height: 0; }
+.agentface .agentface__rig > svg.rig { display: block; width: var(--rig-w); height: var(--rig-h); max-width: none; }
+
+/* ---------- item pages: a face beside the title, fields that edit ---------- */
+.intel__head { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.intel__fields { display: flex; flex-direction: column; gap: var(--space-3); }
+.intel__fields .field input, .intel__fields .field textarea { width: 100%; }
+.intel__code { font-family: var(--font-mono); font-size: var(--text-sm); }
+.intel__hands { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3); }
+
+/* ---------- Add goal / agent / automation: the describe box (`DescribeAdd`) ---------- */
+.describe__sent { max-width: 260px; padding: var(--space-2); color: var(--text-2); }
+
+/* ---------- Second Brain's graph (12 Oct, the owner; Obsidian's graph view) ---------- */
+.graph { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.graph__legend { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.gchip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.gchip[aria-pressed="false"] { opacity: 0.5; text-decoration: line-through; }
+.gchip__n { color: var(--text-3); }
+.gchip__dot { width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--gk, var(--text-3)); flex: none; }
+.graph__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.graph__body--side { grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); }
+.graph__canvas { position: relative; height: max(360px, calc(100vh - var(--header-h) - 220px)); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
+.graph__svg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
+.graph__svg:active { cursor: grabbing; }
+.gedge { stroke: var(--text-3); stroke-width: 1px; opacity: 0.45; vector-effect: non-scaling-stroke; }
+.gedge--waiting { stroke-dasharray: 4 3; }
+.gedge--lit { stroke: var(--primary); opacity: 0.95; stroke-width: 1.5px; }
+.gedge--dim { opacity: 0.08; }
+.gnode { cursor: pointer; transition: opacity var(--dur-state) var(--ease-out); }
+.gnode:focus { outline: none; }
+.gnode circle { fill: var(--gk, var(--text-3)); stroke: var(--surface); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.gnode:hover circle, .gnode:focus-visible circle, .gnode--on circle { stroke: var(--primary); stroke-width: 2.5px; }
+.gnode--dim { opacity: 0.2; }
+.gnode__label { fill: var(--text-2); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.gnode--hypothesis circle { fill: var(--surface); stroke: var(--warn); stroke-dasharray: 2 2; }
+/* one colour per kind: the accent, the navy and greys, two tints (U11: no second hue) */
+.gnode--you, .gchip--you { --gk: var(--k-you); }
+.gnode--module, .gchip--module { --gk: var(--k-module); }
+.gnode--collection, .gchip--collection, .gnode--record, .gchip--record { --gk: var(--k-table); }
+.gnode--record circle { stroke: none; opacity: 0.7; }
+.gnode--person, .gchip--person { --gk: var(--k-person); }
+.gnode--organisation, .gchip--organisation { --gk: var(--k-organisation); }
+.gnode--fact, .gchip--fact { --gk: var(--chart-2); }
+.gnode--hypothesis, .gchip--hypothesis { --gk: var(--warn); }
+.gnode--goal, .gchip--goal { --gk: var(--k-goal); }
+.gnode--agent, .gchip--agent, .gnode--automation, .gchip--automation { --gk: var(--k-automation); }
+.gnode--skill, .gchip--skill { --gk: var(--k-read); }
+.gnode--connection, .gchip--connection { --gk: var(--k-connection); }
+.graph__side { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); align-self: start; max-height: max(360px, calc(100vh - var(--header-h) - 220px)); overflow: auto; }
+.graph__sidehead { display: flex; align-items: flex-start; gap: var(--space-2); }
+.graph__sidetitles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.graph__sidetitles h3 { margin: 0; font-size: var(--text-base); overflow-wrap: anywhere; }
+.graph__links { margin: 0; font-size: var(--text-md); }
+.graph__linklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.graph__link { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-1) 0; background: none; border: 0; font: inherit; font-size: var(--text-md); color: var(--text); cursor: pointer; text-align: left; }
+.graph__link:hover .graph__linkname { text-decoration: underline; }
+.graph__linkname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brain__keeps { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr)); gap: var(--space-4); align-items: start; }
+
+/* ---------- zoom and move, every graph and map (12 Oct, the owner): small, bottom right ---------- */
+.zoomctl { position: absolute; right: var(--space-2); bottom: var(--space-2); display: flex; align-items: flex-end; gap: var(--space-1); }
+.zoomctl__pad { display: grid; grid-template-areas: ". up ." "left fit right" ". down ."; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.zoomctl__up { grid-area: up; } .zoomctl__left { grid-area: left; } .zoomctl__fit { grid-area: fit; } .zoomctl__right { grid-area: right; } .zoomctl__down { grid-area: down; }
+.zoomctl__zoom { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.zoomctl .iconbtn { width: var(--space-6); height: var(--space-6); }

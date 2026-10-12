@@ -1,0 +1,248 @@
+/* data — styles for this area; tokens only (see app.css). */
+
+/* ---------- a metric tile (ui/MetricTile): the number, its label and basis beside it, a small chart; as wide as what it holds ---------- */
+.mtile { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); box-shadow: var(--shadow-card); min-width: 0; }
+.mtile__icon { display: inline-grid; place-items: center; flex: none; width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); background: var(--primary-soft); color: var(--primary); }
+.mtile__icon svg { width: var(--icon); height: var(--icon); }
+.mtile--attention .mtile__icon { background: var(--warn-soft); color: var(--warn); }  /* "To check" is not an error: amber, never red (rulebook §17.21) */
+.mtile--attention .mtile__big { color: var(--warn); }
+.mtile__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.mtile__lab { font-size: var(--text-sm); font-weight: 600; color: var(--text); white-space: nowrap; }
+.mtile__basis { font-size: var(--text-sm); color: var(--text-3); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtile__chart { display: flex; align-items: center; }
+.mtile__cta { margin-left: auto; }
+.spark { display: block; overflow: visible; }
+
+/* the strip above the data: tiles wrap, each its own width */
+.mstrip { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column dense; grid-auto-columns: max-content; justify-content: start; gap: var(--space-2); overflow-x: auto; }  /* four lines high at most, the whole strip: two-line tiles two high, a split's block spanning both; more runs sideways (the owner, 9 Oct) */
+.mstrip .mtile--tall { grid-row: span 2; align-items: center; }
+.legend.legend--inline { flex-direction: row; flex-wrap: nowrap; gap: var(--space-2); max-width: calc(var(--space-12) * 3 + var(--space-4)); overflow: hidden; font-size: var(--text-sm); }
+.legend.legend--inline li { gap: var(--space-1); white-space: nowrap; cursor: default; }
+.legend.legend--inline .legend__dot { width: var(--space-2); height: var(--space-2); }
+
+/* the Dashboard view: tiles wrap at their own width; a chart or a list takes more, its chart under the number */
+.dash__top { justify-content: flex-end; }
+/* Home's card grid (12 Oct): one row unit, a number S, a chart M, the attention list L */
+.dash__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr)); grid-auto-rows: var(--card-row); grid-auto-flow: dense; gap: var(--space-3); }
+.dash__cell { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow: hidden; grid-row: span 1; }
+.dash__cell > * { flex: 1; min-height: 0; }
+.dash__cell--breakdown, .dash__cell--overtime, .dash__cell--read { grid-row: span 2; }
+.dash__cell--attention { grid-row: span 3; }
+.dash__cell--wide { grid-column: span 2; }
+.dash__asof { font-size: var(--text-sm); color: var(--text-3); white-space: nowrap; }
+.dash__cell .mtile__chart { flex-basis: 100%; display: block; }
+
+/* a section card's title with its (i) */
+.scard__titleline { display: flex; align-items: center; gap: var(--space-1); }
+
+/* ---------- the table (modules/views/TableView) ---------- */
+/* the row's handle and checkbox sit over its first cell's left edge on hover (Notion's way), for every row while any is selected */
+.table td.col--first:not(.col--frozen), .table th.col--first:not(.col--frozen) { position: relative; }
+.rowctl { position: absolute; left: 0; top: 0; bottom: 0; display: inline-flex; align-items: center; gap: var(--space-1); padding-left: var(--space-1); padding-right: var(--space-1); background: inherit; z-index: 2; opacity: 0; pointer-events: none; }
+.table .rowctl input { width: auto; min-width: 0; margin: 0; padding: 0; border: 0; }
+.rowctl__grip { width: var(--space-4); height: var(--space-6); color: var(--text-3); cursor: grab; }
+.table tbody tr:hover .rowctl, .table tbody tr:focus-within .rowctl, .table thead tr:hover .rowctl, .rowctl:focus-within, .tablewrap--selecting .rowctl { opacity: 1; pointer-events: auto; }
+.tablewrap--selecting .table td.col--first, .tablewrap--selecting .table th.col--first { padding-left: var(--space-10); }
+.rowctl--head { padding-left: var(--space-6); }  /* under the rows' checkboxes, past their handles */
+.tablewrap--selecting .rowctl--head .rowctl__grip { display: none; }
+.table td.col--wrap { white-space: normal; overflow-wrap: anywhere; }
+/* nothing covers text on hover (the owner, 9 Oct): the first cell's text slides right by the handle
+   and checkbox's width, an editable cell's text gives the pencil its room, with a quick transition */
+.table td.col--first { transition: padding-left var(--dur-quick) var(--ease-out); }
+.table tbody tr:hover td.col--first, .table tbody tr:focus-within td.col--first { padding-left: var(--space-10); }
+.table td.editable { transition: padding-right var(--dur-quick) var(--ease-out); }
+.table td.editable:hover, .table td.editable:focus-visible { padding-right: calc(var(--space-6) + var(--space-2)); }
+/* the pencil at an editable cell's right edge, on hover and keyboard focus (rulebook §6: a visible edit control) */
+.table td.editable:not(.col--frozen) { position: relative; }
+.cellpen.iconbtn { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); width: var(--space-6); height: var(--space-6); background: var(--surface); opacity: 0; pointer-events: none; }
+.table td.editable:hover .cellpen, .table td.editable:focus-visible .cellpen { opacity: 1; pointer-events: auto; }
+/* Estimated / Assumed: a quiet grey chip after the value, focusable for its reason */
+.provchip { margin-left: var(--space-1); cursor: help; }
+/* the "+" after the last heading, and the empty cell under it */
+.table th.th--add { width: var(--space-10); padding: 0 var(--space-1); text-align: center; }
+/* "+ New": a row of the table, and a line under the other views */
+.table tr.row--add:hover td { background: none; }
+.table td.addcell { padding: 0; max-width: none; overflow: visible; }
+.addrow { position: sticky; left: 0; justify-content: flex-start; border-radius: 0; color: var(--text-3); padding: var(--space-2) var(--space-3); }
+.addrow:hover:not(:disabled) { color: var(--text); }
+.addrow-wrap { border-top: 1px solid var(--border); }
+/* the footer: a calculation under every column, "Calculate" on hover where none is set */
+.foot__calc { display: block; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foot__calc--none { opacity: 0; color: var(--text-3); font-weight: 400; }
+.table tfoot td:hover .foot__calc--none, .foot__calc--none:focus-visible { opacity: 1; }
+
+/* ---------- the module page's Files, Intelligence and Governance tabs (modules/ModuleSections) ---------- */
+.dropzone { display: flex; align-items: center; justify-content: center; gap: var(--space-1); min-height: calc(var(--space-12) * 2); border: 1px dashed var(--border); border-radius: var(--radius-card); color: var(--text-3); font-size: var(--text-md); }
+.dropzone__pick { color: var(--primary); }
+.csvgrid { margin-top: var(--space-2); }
+.csvgrid__scroll { max-height: calc(var(--space-12) * 6); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-control); }
+.csvgrid__table td { padding: 0; max-width: none; }
+.csvgrid__table td input { width: 100%; min-width: calc(var(--space-12) * 2); border: 0; border-radius: 0; background: transparent; padding: var(--space-1) var(--space-2); font: inherit; }
+.csvgrid__head input { font-weight: 600; }
+.csvgrid__bar { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+.govrules { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-12) * 5), 1fr)); gap: var(--space-4); }
+.govrules__block { min-width: 0; }
+.govrules__list { list-style: none; margin: 0; padding: 0; }
+.govrules__rule { display: flex; align-items: center; gap: var(--space-1); min-height: var(--space-8); border-bottom: 1px solid var(--line); font-size: var(--text-md); }
+.govrules__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.govrules__del { opacity: 0; }
+.govrules__rule:hover .govrules__del, .govrules__del:focus-visible { opacity: 1; }
+.govrules__input { width: 100%; padding: var(--space-1) 0; border: 0; border-bottom: 1px solid transparent; background: transparent; font-size: var(--text-md); }
+.govrules__input:focus { outline: none; border-bottom-color: var(--primary); }
+
+/* ---------- the toolbar's popovers (modules/DataToolbar) ---------- */
+/* a checkbox with its words on one line (app.css has a second, list-shaped .check that otherwise wins) */
+.more label.check, .filterpanel label.check { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
+/* The table fills its section: no card frame around the data view. */
+.datacard { border: 0; border-radius: 0; background: transparent; }
+
+/* ---------- Notion parity (9 Oct): view tabs, filters, sorts, settings, groups, colours, peeks ---------- */
+/* the views as tabs, at the toolbar's left; they scroll sideways rather than wrap */
+.vtabs { display: flex; align-items: center; gap: var(--space-1); flex: 0 1 auto !important; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.vtabs::-webkit-scrollbar { display: none; }
+.vtab { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-3); font-size: var(--text-md); white-space: nowrap; }
+.vtab:hover { background: var(--hover); color: var(--text); }
+.vtab[aria-selected="true"] { color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--text); border-radius: var(--radius-control) var(--radius-control) 0 0; }
+.vtab__ico { display: inline-grid; place-items: center; }
+.toolbar--icons .vtab__ico + .vtab__label { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; }
+/* search: a magnifier that opens into a box */
+.toolbar--page .search--open, .toolbar--page .search--closed { flex: 0 1 calc(var(--space-12) * 4 + var(--space-6)); min-width: calc(var(--space-12) * 2); padding: var(--space-1) var(--space-2); }
+.search--closed { font: inherit; font-size: var(--text-sm); text-align: left; cursor: text; }
+.search--closed:hover { border-color: var(--text-3); }
+.toolbar--icons .search--closed { flex: none; min-width: 0; }
+
+/* the property picker (Filter, Sort) */
+.ppick { display: flex; flex-direction: column; max-height: calc(var(--space-12) * 6); overflow-y: auto; }
+.ppick__q { margin-bottom: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); }
+
+/* a rule: property · condition · value · delete */
+.frule { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-1); }
+.frule__input { width: calc(var(--space-12) * 3); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
+.fgroup { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); min-width: calc(var(--space-12) * 10); }
+.fgroup--nested { min-width: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
+.fgroup__line { display: flex; align-items: flex-start; gap: var(--space-1); }
+.fgroup__join { flex: none; width: calc(var(--space-12) + var(--space-6)); padding-top: var(--space-2); font-size: var(--text-sm); color: var(--text-3); }
+.fgroup__add { display: flex; gap: var(--space-1); padding-top: var(--space-1); }
+.fsort { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); }
+.fsort__line { display: flex; align-items: center; gap: var(--space-1); }
+.fsort__grip { color: var(--text-3); cursor: grab; flex: none; }
+.fpill__open { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.fpills { justify-content: flex-start; }
+
+/* the view's settings (⋮): a short list that opens pages */
+.vset { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); width: calc(var(--space-12) * 6 + var(--space-4)); max-height: calc(var(--radix-popover-content-available-height, 80vh) - var(--space-4)); overflow-y: auto; }
+.vset--wide { width: calc(var(--space-12) * 10); }
+.vset__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--space-8); }
+.vset__lab { font-size: var(--text-md); color: var(--text-2); }
+.vset label.check { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
+.vset__prop { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1); border-radius: var(--radius-control); }
+.vset__prop:hover { background: var(--hover); }
+.vset__name { flex: 1; min-width: 0; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vset__color { padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.vset__note { margin: 0; padding: var(--space-1); font-size: var(--text-sm); }
+
+/* the toolbar's list picker; the numbers below the toolbar, their hide arrow at the top-right corner */
+.tb__lists { display: inline-flex; }
+.datacard > .mstrip { position: relative; padding: var(--space-2) calc(var(--space-8) + var(--space-3)) var(--space-2) var(--space-3); }
+.datacard__note { margin: 0; padding: 0 var(--space-3) var(--space-1); font-size: var(--text-sm); }
+
+/* the record page's save bar: a quiet line, Cancel and Save */
+.savebar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-1) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); font-size: var(--text-sm); }
+.crumb__dot { display: inline-flex; align-items: center; color: var(--text-3); }
+
+/* table layout: vertical lines, row heights, a selected range */
+.tablewrap--lines .table th, .tablewrap--lines .table td { border-right: 1px solid var(--line); }
+.tablewrap--medium .table td { height: var(--space-10); }
+/* the header row on the 4px grid (app.css draws it 43px) */
+.table th { height: calc(var(--space-10) + var(--space-1)); }
+.table td.cell--range { box-shadow: inset 0 0 0 1px var(--primary); background: var(--primary-soft); }
+.table td:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.rowicon { display: inline-flex; vertical-align: middle; margin-right: var(--space-1); }
+
+/* groups: a header with its chevron, label and count; a footer of its own */
+.table tr.row--group td { padding: var(--space-2) var(--space-2) var(--space-1); background: none; border-bottom: 1px solid var(--border); max-width: none; }
+.table tr.row--group:hover td { background: none; }
+.grouphead { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1); border: 0; border-radius: var(--radius-control); background: none; font: inherit; color: var(--text); }
+.grouphead:hover { background: var(--hover); }
+.grouphead__chev { color: var(--text-3); transition: transform var(--dur-quick) var(--ease-out); }
+.grouphead__chev--open { transform: rotate(90deg); }
+.table tr.row--groupfoot td { color: var(--text-3); font-size: var(--text-sm); border-bottom: 1px solid var(--border); }
+.list__group { display: flex; flex-direction: column; padding-top: var(--space-2); }
+.subboards { display: flex; flex-direction: column; gap: var(--space-2); }
+.subboard__head { margin: var(--space-3) var(--space-3) 0; font-size: var(--text-md); font-weight: 600; }
+
+/* conditional colours: the five chip tones, as backgrounds */
+.tone--good, .table tbody tr.tone--good td { background: var(--good-soft); }
+.tone--warn, .table tbody tr.tone--warn td { background: var(--warn-soft); }
+.tone--bad, .table tbody tr.tone--bad td { background: var(--bad-soft); }
+.tone--info, .table tbody tr.tone--info td { background: var(--primary-soft); }
+.tone--gray, .table tbody tr.tone--gray td { background: var(--surface-2); }
+
+/* the chart's line and donut */
+
+/* Load more; bulk edit */
+.loadmore { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--line); }
+.bulkedit { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); min-width: calc(var(--space-12) * 5); }
+
+.frule__name { font-size: var(--text-md); font-weight: 600; padding: 0 var(--space-1); }
+
+/* governance tabs */
+.scard__body > .hswitch__box ~ .subsecs { margin-top: var(--space-6); }
+.govadd { display: flex; align-items: center; justify-content: center; gap: var(--space-1); width: 100%; margin-top: var(--space-2); padding: var(--space-2); border: 1px dashed var(--border); border-radius: var(--radius-card); background: transparent; color: var(--primary); font: inherit; font-size: var(--text-md); cursor: pointer; }
+.govadd:hover { background: var(--surface-2); }
+
+/* columns keep their resting widths (the owner, 9 Oct): measured, then laid out fixed, so hover never widens one */
+.table--fixed { table-layout: fixed; }
+
+/* a tile opens its details on a click (the owner, 9 Oct) */
+.mtile--open { cursor: pointer; transition: border-color var(--dur-quick) var(--ease-out); }
+.mtile--open:hover { border-color: var(--primary); }
+.mtile--tall { align-items: flex-start; }
+.mtile__split { display: flex; flex-direction: column; gap: var(--space-1); }
+.spark--live { cursor: crosshair; }
+/* a chart's tooltip: at the pointer, over everything */
+.charttip { position: fixed; z-index: 1000; pointer-events: none; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--navy); color: var(--surface); font-size: var(--text-sm); white-space: nowrap; box-shadow: var(--shadow-float); }
+/* a split's legend: swatch, label, count */
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
+.legend li { display: flex; align-items: center; gap: var(--space-2); }
+.legend__dot { flex: none; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-control); }
+.legend__lab { color: var(--text-2); }
+.legend__n { margin-left: auto; padding-left: var(--space-3); color: var(--text); }
+.dialog--metric { width: min(calc(var(--space-12) * 11 + var(--space-8)), calc(100vw - var(--space-12) - var(--space-4))); }
+.mdetail { display: flex; flex-direction: column; gap: var(--space-3); }
+.mdetail .muted { margin: 0; }
+.mdetail__chart { padding: var(--space-2) 0; }
+.mdetail__chart svg { width: 100%; height: auto; }
+.charttable td, .charttable th { padding: var(--space-1) var(--space-3); height: auto; }
+
+/* ---------- lists (the owner, 11 Oct): the list's page, the unsaved bar, a narrow toolbar ---------- */
+/* the data view may be narrower than its toolbar's words: the toolbar gives way (DataToolbar), never the page */
+.datapage, .datacard, .toolbar--page, .tb__lists { min-width: 0; }
+.datacard__trouble { padding: var(--space-3); }
+/* the list's page, in place of the toolbar; the records below are its preview */
+.listpage { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-bottom: 1px solid var(--border); }
+.listpage__row { display: flex; align-items: center; gap: var(--space-3); min-height: var(--space-8); }
+.listpage__row--top { align-items: flex-start; }
+.listpage__lab { flex: none; width: calc(var(--space-12) * 2 + var(--space-4)); font-size: var(--text-md); color: var(--text-2); }
+.listpage__row--top .listpage__lab { padding-top: var(--space-2); }
+.listpage__name { width: calc(var(--space-12) * 6); }
+.listpage__stack { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.listpage__line { display: flex; align-items: center; gap: var(--space-3); }
+.listpage label.check { display: inline-flex; flex-direction: row; align-items: center; gap: var(--space-2); font-size: var(--text-md); }
+.listpage__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+/* a required value refused, beside its cell */
+.cellerr { display: block; margin-top: var(--space-1); font-size: var(--text-sm); color: var(--bad); white-space: normal; }
+.board__empty { padding: var(--space-3); }
+/* a row's own buttons (a hypothesis's ✓ / ✕, 12 Oct): at the row's end, shown on hover or focus */
+.table td.td--add { position: relative; overflow: visible; }
+.rowbtns { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); display: flex; gap: var(--space-1); opacity: 0; transition: opacity var(--dur-quick) var(--ease-out); }
+.table tr:hover .rowbtns, .table tr:focus-within .rowbtns { opacity: 1; }
+.hypo { display: inline-flex; gap: var(--space-1); background: var(--surface); border-radius: var(--radius-control); }
+.dash__cell > .dash__edit { flex: none; order: -1; }
+.mtile__change { font-size: var(--text-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash__clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* a view setting (Group, Sort…) in the dropdown under ⋮, with a way back (the owner, 12 Oct) */
+.vpanel { max-width: calc(100vw - var(--space-8)); padding: var(--space-2); gap: var(--space-2); }
+.vpanel__head { display: flex; align-items: center; gap: var(--space-1); }
+.vpanel__title { font-weight: 600; font-size: var(--text-sm); }
+.tb__more { display: inline-flex; }

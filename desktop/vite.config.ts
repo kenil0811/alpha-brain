@@ -13,5 +13,5 @@ export default defineConfig({
     minify: !process.env.TAURI_ENV_DEBUG,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
-  test: { environment: "jsdom", setupFiles: ["./src/test/setup.ts"], globals: false },
+  test: { environment: "jsdom", setupFiles: ["./src/test/setup.ts"], globals: false, testTimeout: 20000 }, // whole-page tests type and click a lot; 5s timed out under a full parallel run
 });

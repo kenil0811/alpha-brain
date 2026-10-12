@@ -1,10 +1,12 @@
 /**
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
- * rebuilt on main's Surface). `#/home`, `#/activity`, `#/people`, `#/people/<id>`, `#/m/<id>`,
- * `#/assistant`, `#/assistant/<conversation>`, `#/intelligence/<tab>`, `#/settings`. Nothing
- * else is in the address: what is open inside a
- * page stays where it was.
+ * rebuilt on main's Surface). `#/home`, `#/needs` (Needs you in full), `#/network`, `#/network/<id>`, `#/m/<id>`, `#/m/<id>/<table>/<record>` (a record's page; `new` for one not made yet),
+ * `#/intelligence/<tab>`, `#/intelligence/agents/<id>`, `#/intelligence/connections/<id>`,
+ * `#/intelligence/facts/<id>` (and `goals`, `permissions`, `notes`), `#/assistant`, `#/assistant/<conversation>`, `#/new-project`, `#/settings`, `#/activity/<id>` (one entry's
+ * page), and `#/activity`, which opens the assistant panel's bell over the page that is open. Old addresses still work: `#/people…`
+ * is Network, `#/intelligence/activity` the bell, `#/intelligence/map` Second Brain (9 Oct).
+ * Nothing else is in the address: what is open inside a page stays where it was.
  */
 import { knownSurface, type Surface } from "./Rail";
 
@@ -12,14 +14,20 @@ export function pathFor(surface: Surface): string {
   switch (surface.kind) {
     case "home":
       return "/home";
+    case "needs":
+      return "/needs";
     case "activity":
       return "/activity";
+    case "entry":
+      return `/activity/${encodeURIComponent(surface.id)}`;
     case "people":
-      return "/people";
+      return "/network";
     case "entity":
-      return `/people/${encodeURIComponent(surface.id)}`;
+      return `/network/${encodeURIComponent(surface.id)}`;
     case "module":
       return `/m/${encodeURIComponent(surface.id)}`;
+    case "record":
+      return `/m/${encodeURIComponent(surface.module)}/${encodeURIComponent(surface.table)}/${encodeURIComponent(surface.id)}`;
     case "assistant":
       return surface.id ? `/assistant/${encodeURIComponent(surface.id)}` : "/assistant";
     case "intelligence":
@@ -28,6 +36,20 @@ export function pathFor(surface: Surface): string {
       return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
     case "automation":
       return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
+    case "agent":
+      return `/intelligence/agents/${encodeURIComponent(surface.id)}`;
+    case "connection":
+      return `/intelligence/connections/${encodeURIComponent(surface.id)}`;
+    case "fact":
+      return `/intelligence/facts/${encodeURIComponent(surface.id)}`;
+    case "goal":
+      return `/intelligence/goals/${encodeURIComponent(surface.id)}`;
+    case "permission":
+      return `/intelligence/permissions/${encodeURIComponent(surface.id)}`;
+    case "note":
+      return `/intelligence/notes/${encodeURIComponent(surface.id)}`;
+    case "new-project":
+      return "/new-project";
     case "settings":
       return "/settings";
   }
@@ -38,16 +60,22 @@ export function surfaceFromPath(path: string): Surface | null {
   const parts = path.replace(/^#?\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const [head, rest, third] = [parts[0], parts[1], parts[2]];
   if (!head) return null;
-  if (head === "home" || head === "activity" || head === "people" || head === "settings") {
-    if (head === "people" && rest) return { kind: "entity", id: rest };
-    return knownSurface({ kind: head });
-  }
+  if (head === "people" || head === "network") return rest ? { kind: "entity", id: rest } : { kind: "people" };
+  if (head === "activity" && rest) return { kind: "entry", id: rest };
+  if (head === "home" || head === "needs" || head === "activity" || head === "settings" || head === "new-project") return knownSurface({ kind: head });
+  if (head === "m" && rest && third && parts[3]) return { kind: "record", module: rest, table: third, id: parts[3] };
   if (head === "m" && rest) return { kind: "module", id: rest };
   if (head === "assistant") return rest ? { kind: "assistant", id: rest } : { kind: "assistant" };
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };
     if (rest === "automations" && third) return { kind: "automation", id: third };
-    return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
+    if (rest === "agents" && third) return { kind: "agent", id: third };
+    if (rest === "connections" && third) return { kind: "connection", id: third };
+    if (rest === "facts" && third) return { kind: "fact", id: third };
+    if (rest === "goals" && third) return { kind: "goal", id: third };
+    if (rest === "permissions" && third) return { kind: "permission", id: third };
+    if (rest === "notes" && third) return { kind: "note", id: third };
+    return knownSurface(rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" });
   }
   return null;
 }
@@ -56,9 +84,11 @@ export function currentHashSurface(): Surface | null {
   return surfaceFromPath(window.location.hash);
 }
 
-/** Put a surface in the address (a new history entry) unless it is already there. */
-export function pushAddress(surface: Surface): void {
+/** Put a surface in the address (a new history entry, or in place of this one: an old address
+ *  rewritten to its new name) unless it is already there. */
+export function pushAddress(surface: Surface, replace = false): void {
   const next = `#${pathFor(surface)}`;
   if (window.location.hash === next) return;
-  window.history.pushState(null, "", next);
+  if (replace) window.history.replaceState(null, "", next);
+  else window.history.pushState(null, "", next);
 }

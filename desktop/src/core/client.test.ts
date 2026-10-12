@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Client, CoreError, type Turn } from "./client";
+import { Client, CoreError, say, type Turn } from "./client";
 
 const running: Turn = { id: "k1", state: "running", text: "hi", started_at: "" };
 
@@ -38,5 +38,24 @@ describe("following a turn", () => {
     expect(await waited).toBeInstanceOf(CoreError);
     expect(client.turn).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
+  });
+});
+
+describe("an error in words", () => {
+  it("shows Alpha's own sentence, and one plain line for anything else", () => {
+    expect(say(new CoreError("That list is gone.", 404))).toBe("That list is gone.");
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(say(new TypeError("x is undefined"))).toBe("Something went wrong. Try again.");
+    expect(quiet).toHaveBeenCalled();
+    quiet.mockRestore();
+  });
+  it("reads a refusal's detail when it is a sentence, and not FastAPI's bare one", async () => {
+    const answer = (body: unknown, status: number) => vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status })));
+    const c = new Client({ baseUrl: "", token: "" });
+    answer({ detail: "This window isn't signed in." }, 401);
+    await expect(c.health()).rejects.toThrow("This window isn't signed in.");
+    answer({ detail: "Not Found" }, 404);
+    await expect(c.health()).rejects.toThrow("That isn't there any more.");
+    vi.unstubAllGlobals();
   });
 });

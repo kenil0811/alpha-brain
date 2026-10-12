@@ -5,7 +5,8 @@
  * dictation, which works in any text field.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, Circle } from "../ui/icons";
+import { IconButton } from "../ui";
+import { Mic, Circle, ICON_SM } from "../ui/icons";
 
 interface RecognitionResultEvent {
   resultIndex: number;
@@ -90,13 +91,24 @@ export function useSpeech(onText: (final: string, interim: string) => void) {
   return { supported: speechSupported(), listening, error, start, stop, toggle };
 }
 
-/** The mic itself: red and pulsing while it listens, quiet otherwise. */
+/** The mic itself: red and pulsing while it listens, quiet otherwise. Where speaking is not offered
+ *  it stays, disabled, and says what to do instead (the UI rulebook §14, never hide a command). */
 export function MicButton({ listening, supported, onToggle, small = false }: { listening: boolean; supported: boolean; onToggle: () => void; small?: boolean }) {
-  const title = supported ? (listening ? "Stop listening" : "Speak instead of typing") : "Speaking isn't available in this window; press your Mac's dictation key instead";
   return (
-    <button type="button" className={`iconbtn${small ? " iconbtn--sm" : ""}${listening ? " iconbtn--live" : ""}`} title={title} aria-label={listening ? "Stop listening" : "Speak"} aria-pressed={listening} onClick={onToggle} disabled={!supported}>
-      <span aria-hidden="true" className="iconbtn__ico">{listening ? <Circle size={12} fill="currentColor" /> : <Mic size={16} />}</span>
-      {listening ? <span className="live__word">Listening</span> : null}
-    </button>
+    <IconButton
+      size={small ? "sm" : "md"}
+      className={listening ? "iconbtn--live" : undefined}
+      label={listening ? "Stop listening" : "Speak"}
+      title={listening ? "Stop listening" : "Speak instead of typing"}
+      aria-pressed={listening}
+      disabledReason={supported ? undefined : "Speaking isn't available in this window. Press your Mac's dictation key instead."}
+      onClick={onToggle}
+      icon={
+        <>
+          {listening ? <Circle size={ICON_SM} fill="currentColor" /> : <Mic size={ICON_SM} />}
+          {listening ? <span className="live__word">Listening</span> : null}
+        </>
+      }
+    />
   );
 }

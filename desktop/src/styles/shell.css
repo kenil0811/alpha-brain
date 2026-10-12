@@ -1,0 +1,69 @@
+/* shell — styles for this area; tokens only (see app.css). */
+
+/* The sidebar's top row: the workspace tile and name (both edited in place on a double-click).
+   The Activity bell is in the assistant panel's header (9 Oct, the owner). */
+.wsbtn--edit, .wsbtn--edit:hover { background: none; }
+.wsbtn__input { flex: 1; min-width: 0; height: 28px; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
+.wsbtn__tile img, .wstile img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.wsbtn__tile:has(img), .wstile:has(img) { background: none; }
+
+.wslogo__body { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-2); width: 220px; }
+.wslogo__mark { flex: 1; min-width: 0; }
+
+/* Activity, compact, in the bell's panel. */
+.bellpop { width: 420px; max-width: calc(100vw - var(--space-8)); }
+.activity__bar { position: sticky; top: calc(-1 * var(--space-1)); z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); padding: var(--space-1) 0 var(--space-2); background: var(--surface); }
+.activity__search { flex: 1 1 100%; max-width: none; }
+.bellpop .runs { gap: 0; }
+.bellpop .runs .day { padding: var(--space-2) var(--space-2) var(--space-1); font-size: var(--text-sm); }
+.bellpop .runs .item--btn { border: 0; border-radius: var(--radius-control); margin: 0; padding: var(--space-1) var(--space-2); gap: var(--space-2); font-size: var(--text-sm); }
+.bellpop .runs .item__when { width: auto; min-width: 40px; font-size: var(--text-sm); }
+.bellpop .detail { margin: 0 0 var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-2); font-size: var(--text-sm); }
+
+/* Settings: every section a card, in as many columns as fit. */
+/* Settings: the section list on the left (9 Oct, the owner), Overview's cards in columns, one
+   section's card in a readable column */
+.setpage { display: grid; grid-template-columns: calc(var(--space-10) * 4.5) minmax(0, 1fr); gap: var(--space-4); align-items: start; } /* the list stays on the left at every size (11 Oct, the owner) */
+.setnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--header-h) + var(--space-6)); }
+.setnav button { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
+.setnav button:hover { background: var(--hover); color: var(--text); }
+.setnav button[aria-selected="true"] { background: var(--primary-soft); color: var(--text); font-weight: 500; }
+.setnav__dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; flex: none; }
+.setnav button[aria-selected="true"] .setnav__dot { background: var(--primary); }
+.setone { max-width: calc(var(--space-12) * 14); min-width: 0; }
+.setone .lrow { flex-wrap: wrap; padding: var(--space-2) 0; }
+.setgrid { columns: calc(var(--space-12) * 7); column-gap: var(--space-4); }
+.setgrid > * { break-inside: avoid; margin: 0 0 var(--space-4); }
+/* the workspace row never runs past its card (1100px window, 11 Oct): the name field shrinks first, then Save drops below it */
+.setname { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.setname .setname__input { flex: 1 1 calc(var(--space-12) * 3); min-width: 0; }
+.setname > :not(.setname__input) { flex: none; }
+.setname .wstile { width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); font-size: var(--text-md); }
+.setkeys { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-1) var(--space-3); margin: 0 0 var(--space-2); }
+.setkeys > div { display: contents; }
+.setkeys dd { margin: 0; color: var(--text-2); font-size: var(--text-sm); }
+
+/* Home: tiles as wide as what they hold; a module card with no description draws no gap. */
+.setgrid .lrow { flex-wrap: wrap; padding: var(--space-2) 0; }
+.setgrid .lrow__body { flex: 1 1 160px; }
+
+/* ---------- An Activity entry's own page (`ActivityPage`) ---------- */
+.actpage__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-4); align-items: baseline; }
+/* a project renamed in place in the sidebar (a double-click on its name) */
+.navbtn--edit { cursor: default; }
+.navbtn--edit:hover { background: none; }
+.navbtn__input { flex: 1; min-width: 0; height: 28px; margin: calc(-1 * var(--space-1)) 0; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
+/* the project being made: in the sidebar while its page is open, its name as typed (or "New project") */
+.navbtn--draft .navbtn__text { font-style: italic; }
+/* Appearance's colour swatches (11 Oct): a square well, the kit's border */
+.colorpick { width: var(--space-8); height: var(--space-8); padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: none; cursor: pointer; }
+.colorpick::-webkit-color-swatch-wrapper { padding: 2px; }
+.colorpick::-webkit-color-swatch { border: 0; border-radius: var(--radius-control); }
+
+/* Bubbles (an experiment): Alpha's marks on the page in the middle */
+.bubble { position: fixed; z-index: 50; transform: translate(-50%, -50%); min-width: var(--space-4); min-height: var(--space-4); border-radius: var(--radius-card); background: var(--primary); box-shadow: var(--shadow-raised); cursor: default; transition: transform var(--dur-quick) var(--ease-out), opacity var(--dur-quick) var(--ease-out); }
+.bubble:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.bubble--open { transform: translate(0, -50%); max-width: calc(var(--space-8) * 8); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--primary); }
+.bubble__text { font-size: var(--text-sm); color: var(--text); }
+.bubble--pop { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .bubble { transition: none; } }

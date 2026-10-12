@@ -1,11 +1,71 @@
-import { useState, type ReactNode } from "react";
-import type { ModuleCard } from "../core/client";
-import { IconButton } from "../ui";
-import { HomeIcon, ActivityIcon, PeopleIcon, ModuleIcon, AssistantIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight } from "../ui/icons";
+/**
+ * The sidebar (the UI rulebook §4), left of the frame. Top to bottom: the workspace button (the
+ * top row, at the shared header height), Home with what needs the person, Network, the person's
+ * projects (modules in the code) as a tree in their own order, New project, and pinned at the bottom
+ * Intelligence and Settings. Only the module list scrolls. It holds nothing else: no headings,
+ * no status lines, no agents, automations or records (9 Oct, the UI rulebook phase 2; the old
+ * "Your modules" heading and "Alpha is running" went).
+ *
+ * The workspace button: a click opens its menu; a double-click on the name renames the workspace
+ * in place, on the tile changes its logo (9 Oct, Vikas). The Activity bell sits in the assistant
+ * panel's header since the owner's review (9 Oct).
+ *
+ * A module is dragged to reorder it or dropped on the middle of another to move it inside;
+ * Alt+↑/↓ reorder from the keyboard, Alt+→ moves it inside the one above, Alt+← out. The order
+ * is `PREF.moduleOrder`; a move into another module is the core's `moveModule`. Right-click a
+ * module (or its ⋮) for its menu. Folded, each item is its icon with its name under it (11px,
+ * up to 12 characters, the full name on hover and focus; the owner, 11 Oct).
+ *
+ * Network is shipped pre-built but sits among the projects like one (9 Oct, the owner): it is
+ * reordered with them (its place is the id `network` in the same order, first until moved), and
+ * its menu has a project's items; Rename and Delete stay disabled, and it never nests.
+ */
+import * as RadixPopover from "@radix-ui/react-popover";
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { moduleWords, say } from "../core/client";
+import type { Client, ModuleCard } from "../core/client";
+import { PREF, usePreference } from "../core/preferences";
+import { Button, IconButton, Tooltip, useContextMenu, type ContextItem } from "../ui";
+import { SUBTITLES } from "../ui/subtitles";
+import {
+  AboveIcon,
+  ChangeIconIcon,
+  ChevronDown,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  DeleteIcon,
+  HideIcon,
+  HomeIcon,
+  ICON,
+  ICON_SM,
+  IntelligenceIcon,
+  MoreVertical,
+  ModuleIcon,
+  MoveIcon,
+  OpenIcon,
+  PeopleIcon,
+  PlusIcon,
+  RenameIcon,
+  SettingsIcon,
+  SignOutIcon,
+  ViewOptionsIcon,
+  BuildingIcon,
+  X,
+} from "../ui/icons";
+import { NewAboveDialog } from "./ModuleDialogs";
+import { iconNamed, MODULE_ICON_CHOICES, projectIcon } from "./moduleIcons";
+import { dropZone, isInside, siblingsOf, treeOf, withPlace, type ModuleBranch } from "./sidebarOrder";
 
 export type Surface =
   | { kind: "home" }
+  /** Needs you in full: Home's card of the same name opens it (12 Oct: every card has a page). */
+  | { kind: "needs" }
+  /** Activity: not a page; asking for it opens the assistant panel's bell over the page that is open. */
   | { kind: "activity" }
+  /** One Activity entry's own page (9 Oct, the owner: every element has a page). */
+  | { kind: "entry"; id: string }
+  /** The assistant's full page, a conversation open on it (Q35–Q38 on main, 9 Oct). Not in the sidebar (§17 rule 3: no extra destinations); reached from ⌘K and its address. */
   | { kind: "assistant"; id?: string }
   | { kind: "intelligence"; tab?: string }
   | { kind: "settings" }
@@ -13,29 +73,44 @@ export type Surface =
   | { kind: "entity"; id: string }
   | { kind: "skill"; name: string }
   | { kind: "automation"; id: string }
-  | { kind: "module"; id: string };
+  | { kind: "agent"; id: string }
+  /** A connection's or a fact's own page, inside Intelligence (9 Oct, the owner: pages, not dialogs). */
+  | { kind: "connection"; id: string }
+  | { kind: "fact"; id: string }
+  /** A goal's, a standing permission's or a note's own page (12 Oct, the owner: every element has a page). */
+  | { kind: "goal"; id: string }
+  | { kind: "permission"; id: string }
+  | { kind: "note"; id: string }
+  /** The New project page (9 Oct, the owner). */
+  | { kind: "new-project" }
+  | { kind: "module"; id: string }
+  /** A record's own page (the UI rulebook §7); `id` is "new" for a record not yet made. */
+  | { kind: "record"; module: string; table: string; id: string };
 
-/** Whether rail item `b` is the current place `a`. */
+/** Whether sidebar item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
-  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
-  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation")) return true; // item pages live under Intelligence
+  if (b.kind === "home" && a.kind === "needs") return true; // Needs you is Home's card, in full
+  if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside Network
+  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "agent" || a.kind === "connection" || a.kind === "fact" || a.kind === "goal" || a.kind === "permission" || a.kind === "note")) return true; // item pages live under Intelligence
+  if (b.kind === "module" && a.kind === "record") return a.module === b.id; // a record's page is inside its module
   if (b.kind === "assistant" && a.kind === "assistant") return true; // any conversation open on the page
   if (a.kind !== b.kind) return false;
   if (a.kind === "module" && b.kind === "module") return a.id === b.id;
   return true;
 }
 
-/** Modules as a tree: the top-level ones, each with the ones inside it, by name. */
-export interface ModuleBranch {
-  module: ModuleCard;
-  inside: ModuleBranch[];
+/** Double-click on a folded panel's empty space unfolds it (9 Oct, the owner); a double-click on
+ *  one of its buttons stays that button's. */
+export function unfoldOnEmpty(folded: boolean, unfold: () => void) {
+  return (e: { target: EventTarget }) => {
+    if (folded && !(e.target as Element).closest?.("button, a, input, textarea, select, [role='button'], [role='menu']")) unfold();
+  };
 }
-export function treeOf(modules: ModuleCard[]): ModuleBranch[] {
-  const ids = new Set(modules.map((m) => m.id));
-  const branch = (m: ModuleCard): ModuleBranch => ({ module: m, inside: modules.filter((c) => c.parent === m.id).sort((a, b) => a.name.localeCompare(b.name)).map(branch) });
-  // A module whose parent is unknown here is shown at the top rather than lost.
-  return modules.filter((m) => !m.parent || !ids.has(m.parent)).sort((a, b) => a.name.localeCompare(b.name)).map(branch);
-}
+
+export { treeOf, type ModuleBranch };
+
+/** The workspace's name until the person gives it one (9 Oct, the owner). */
+export const DEFAULT_WORKSPACE = "Kenil's workspace";
 
 const FOLDED_KEY = "alpha.rail.folded";
 function readFolded(): Set<string> {
@@ -46,33 +121,104 @@ function readFolded(): Set<string> {
   }
 }
 
-/** A remembered place that no longer exists (an older build's) becomes Home. */
+/** A remembered place that no longer exists (an older build's) becomes Home. Intelligence's old
+ *  Activity tab is the bell now, and its old Map tab lives in Second Brain (9 Oct). */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
+  if (s && s.kind === "intelligence" && s.tab === "activity") return { kind: "activity" };
+  if (s && s.kind === "intelligence" && s.tab === "map") return { kind: "intelligence", tab: "second-brain" };
+  if (s && (s.kind === "home" || s.kind === "needs" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || s.kind === "new-project" || (s.kind === "record" && typeof s.module === "string" && typeof s.table === "string" && typeof s.id === "string") || ((s.kind === "module" || s.kind === "entity" || s.kind === "entry" || s.kind === "automation" || s.kind === "agent" || s.kind === "connection" || s.kind === "fact" || s.kind === "goal" || s.kind === "permission" || s.kind === "note") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string"))) return s;
   return { kind: "home" };
 }
 
+const NO_IDS: string[] = [];
+const NO_ICONS: Record<string, string> = {};
+const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : NO_IDS);
+
+/** Network's place among the projects: its id in `PREF.moduleOrder` and the hidden list. */
+export const NETWORK = "network";
+const NETWORK_FIXED = "Network is built in; deleting it can't be done from here. Hide it to take it off the sidebar.";
+const NETWORK_CARD: ModuleCard = { id: NETWORK, name: "Network", goal: null, parent: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" };
+
+type Row = { kind: "module"; module: ModuleCard };
+
 export function Rail({
+  client,
   surface,
   modules,
   needs,
-  runtime,
   onGo,
   onNew,
   collapsed,
   onToggleCollapsed,
+  onChanged,
+  draftName,
+  loading = false,
+  onRetryProjects,
 }: {
+  client: Client | null;
   surface: Surface;
   modules: ModuleCard[];
   needs: number;
-  runtime: "connecting" | "connected" | "unavailable" | "lost";
   onGo: (surface: Surface) => void;
   onNew: () => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** After the core changed (a module moved or made): reload what the window shows. */
+  onChanged: () => void;
+  /** The name typed on the New project page, shown on its sidebar item while that page is open. */
+  draftName?: string;
+  /** The projects have not arrived yet: the list shows nothing rather than an empty one. */
+  loading?: boolean;
+  /** The projects couldn't be loaded: the list says so, with Try again (never an empty workspace). */
+  onRetryProjects?: () => void;
 }) {
   const [folded, setFolded] = useState<Set<string>>(readFolded);
+  const [workspace, setWorkspace] = usePreference<string>(client, PREF.workspaceName, DEFAULT_WORKSPACE);
+  const [logoPref, setLogo] = usePreference<string | null>(client, PREF.workspaceLogo, null);
+  const logo = typeof logoPref === "string" ? logoPref : "";
+  const [orderPref, setOrder] = usePreference<string[]>(client, PREF.moduleOrder, NO_IDS);
+  const [hiddenPref, setHidden] = usePreference<string[]>(client, PREF.hiddenModules, NO_IDS);
+  const [iconsPref, setIcons] = usePreference<Record<string, string>>(client, PREF.moduleIcons, NO_ICONS);
+  const [namesPref, setNames] = usePreference<Record<string, string>>(client, PREF.moduleNames, NO_ICONS);
+  const names = namesPref && typeof namesPref === "object" ? namesPref : NO_ICONS;
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const name = typeof workspace === "string" && workspace.trim() ? workspace.trim() : DEFAULT_WORKSPACE;
+  const stored = ids(orderPref);
+  const order = stored.includes(NETWORK) ? stored : [NETWORK, ...stored]; // Network first until moved
+  const all = [...modules, { ...NETWORK_CARD, name: names[NETWORK] || NETWORK_CARD.name }];
+  const hidden = ids(hiddenPref);
+  const icons = iconsPref && typeof iconsPref === "object" ? iconsPref : NO_ICONS;
+
+  const [dialog, setDialog] = useState<{ kind: "above"; module: ModuleCard } | null>(null);
+  const [said, setSaid] = useState(""); // announced politely to a screen reader
+  const [trouble, setTrouble] = useState<string | null>(null); // what failed, until dismissed or the next success
+  const [drag, setDrag] = useState<string | null>(null);
+  const [drop, setDrop] = useState<{ id: string; zone: "before" | "inside" | "after" } | null>(null);
+  const refocus = useRef<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [logoOpen, setLogoOpen] = useState(false);
+  const clickTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(clickTimer.current), []);
+
+  const byId = (id: string) => all.find((m) => m.id === id);
+  // a preference's failed write comes back already in words
+  const fail = (what: string, e: unknown) => setTrouble(`Couldn't ${what}: ${typeof e === "string" ? e : say(e)}`);
+  /** A change that worked: said politely, and any earlier problem goes (errors never fade on a timer, §14). */
+  const done = (words: string) => {
+    setTrouble(null);
+    setSaid(words);
+  };
+  // after a keyboard move the row is a new element: give it the focus again
+  useEffect(() => {
+    if (!refocus.current) return;
+    const row = [...document.querySelectorAll<HTMLElement>("[data-module-id]")].find((el) => el.dataset.moduleId === refocus.current);
+    if (row) {
+      row.focus();
+      refocus.current = null;
+    }
+  });
+
   const toggleFold = (id: string) =>
     setFolded((f) => {
       const next = new Set(f);
@@ -85,63 +231,460 @@ export function Rail({
       }
       return next;
     });
-  const item = (target: Surface, icon: ReactNode, label: string, count?: number, depth = 0, fold?: { open: boolean; onToggle: () => void }) => {
-    const current = sameSurface(surface, target);
-    const key = target.kind === "module" || target.kind === "entity" || target.kind === "automation" ? `${target.kind}:${target.id}` : target.kind === "skill" ? `skill:${target.name}` : target.kind;
+
+  /** Put module `id` under `parent` (null: the top), before or after `target`, or last when
+   *  there is none. A new parent is the core's `moveModule`; the order is the person's own. */
+  async function place(id: string, parent: string | null, target: string | null, after = false) {
+    const m = byId(id);
+    if (!m || !client) return;
+    if ((id === NETWORK || parent === NETWORK) && parent !== null) return; // Network never nests
+    const now = m.parent && byId(m.parent) ? m.parent : null;
+    try {
+      if (parent !== now) {
+        await client.moveModule(id, parent);
+        onChanged();
+      }
+    } catch (e) {
+      fail(`move ${m.name}`, e);
+      return;
+    }
+    const err = await setOrder(withPlace(order, siblingsOf(all, order, parent).map((s) => s.id), id, target, after));
+    if (err) return fail(`save the order of ${m.name}`, err);
+    refocus.current = id;
+    done(`Moved ${m.name} ${target ? `${after ? "below" : "above"} ${byId(target)?.name ?? "it"}` : parent ? `inside ${byId(parent)?.name ?? "it"}` : "to the top level"}.`);
+  }
+
+  /** A project's new name, kept as the person's own (PREF.moduleNames); empty or the same keeps the old. */
+  async function renameModule(m: ModuleCard, next: string) {
+    setRenamingId(null);
+    const clean = next.trim();
+    if (!clean || clean === m.name) return;
+    const err = await setNames({ ...names, [m.id]: clean });
+    if (err) return fail(`rename ${m.name}`, err);
+    done(`Renamed to ${clean}.`);
+    onChanged();
+  }
+  async function hide(m: ModuleCard) {
+    const err = await setHidden([...hidden.filter((h) => h !== m.id), m.id]);
+    if (err) return fail(`hide ${m.name}`, err);
+    done(`${m.name} hidden. Hidden projects brings it back.`);
+  }
+  async function show(id: string) {
+    const err = await setHidden(hidden.filter((h) => h !== id));
+    if (err) return fail("show it again", err);
+    done(`${byId(id)?.name ?? "It"} is back on the sidebar.`);
+  }
+  async function makeParent(m: ModuleCard, newName: string) {
+    if (!client) return;
+    setDialog(null);
+    try {
+      const made = await client.createModule(newName, null, m.parent ?? null);
+      await client.moveModule(m.id, made.id);
+      done(`${m.name} now sits inside ${made.name}.`);
+      onChanged();
+    } catch (e) {
+      fail(`make ${newName}`, e);
+    }
+  }
+  async function moveTo(m: ModuleCard, parent: string | null) {
+    setDialog(null);
+    await place(m.id, parent, null);
+  }
+
+  // predefined choices are submenus, not pop-ups (the owner, 12 Oct): pop-ups are for notices and asks
+  const iconItems = (m: ModuleCard): ContextItem[] =>
+    MODULE_ICON_CHOICES.map((c) => ({
+      label: c.label,
+      icon: c.draw(ICON_SM),
+      on: icons[m.id] === c.name,
+      onSelect: () => void setIcons({ ...icons, [m.id]: c.name }).then((err) => (err ? fail(`change the icon of ${m.name}`, err) : done(`${m.name} has a new icon.`))),
+    }));
+  const moveItems = (m: ModuleCard): ContextItem[] => [
+    ...(m.parent ? [{ label: "The top level", onSelect: () => void moveTo(m, null) }] : []),
+    ...modules.filter((x) => x.id !== m.parent && !isInside(modules, x.id, m.id)).map((x) => ({ label: moduleWords(x), onSelect: () => void moveTo(m, x.id) })),
+  ];
+  const hiddenModules = hidden.map(byId).filter((x): x is ModuleCard => Boolean(x));
+  const hiddenItem: ContextItem = {
+    label: "Hidden projects",
+    icon: <ViewOptionsIcon />,
+    separatorBefore: true,
+    disabled: hiddenModules.length ? undefined : "Nothing is hidden.",
+    children: hiddenModules.map((x) => ({ label: `Show ${x.name}`, onSelect: () => void show(x.id) })),
+  };
+  const networkItems = (m: ModuleCard): ContextItem[] => [
+    { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "people" }) },
+    { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenamingId(m.id), disabled: collapsed ? "Unfold the sidebar to rename it." : undefined },
+    { label: "Change icon", icon: <ChangeIconIcon />, children: iconItems(m) },
+    { label: "Move to", icon: <MoveIcon />, onSelect: () => undefined, disabled: "Network stays at the top level; drag it, or Alt+↑/↓, to reorder it.", separatorBefore: true },
+    { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
+    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: NETWORK_FIXED },
+    hiddenItem,
+  ];
+  const moduleItems = (m: ModuleCard): ContextItem[] => [
+    { label: "Open", icon: <OpenIcon />, onSelect: () => onGo({ kind: "module", id: m.id }) },
+    { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenamingId(m.id), disabled: collapsed ? "Unfold the sidebar to rename it." : undefined },
+    { label: "Change icon", icon: <ChangeIconIcon />, children: iconItems(m) },
+    { label: "Move to", icon: <MoveIcon />, separatorBefore: true, ...(m.parent || modules.some((x) => x.id !== m.parent && !isInside(modules, x.id, m.id)) ? { children: moveItems(m) } : { disabled: `${m.name} has nowhere else to go yet: there are no other projects.` }) },
+    { label: "A new project above it…", icon: <AboveIcon />, onSelect: () => setDialog({ kind: "above", module: m }) },
+    { label: "Hide", icon: <HideIcon />, onSelect: () => void hide(m), separatorBefore: true },
+    { label: "Delete", icon: <DeleteIcon />, onSelect: () => undefined, danger: true, disabled: "Deleting a project can't be done from here yet. Hide it to take it off the sidebar." },
+    hiddenItem,
+  ];
+  const iconMenu = useContextMenu<ModuleCard>(iconItems);
+  const rowMenu = useContextMenu<Row>((r) => (r.module.id === NETWORK ? networkItems(r.module) : moduleItems(r.module)));
+  const workspaceMenu = useContextMenu<void>([
+    { label: "Rename", icon: <RenameIcon />, onSelect: () => setRenaming(true), disabled: collapsed ? "Unfold the sidebar to rename the workspace." : undefined },
+    { label: "Change logo…", icon: <ChangeIconIcon />, onSelect: () => setLogoOpen(true) },
+    { label: "Manage Workspace", icon: <BuildingIcon />, onSelect: () => undefined, disabled: "Alpha keeps one workspace for you today.", separatorBefore: true },
+    { ...hiddenItem, separatorBefore: false },
+    { label: collapsed ? "Unfold the sidebar" : "Fold the sidebar", icon: collapsed ? <ChevronsRight /> : <ChevronsLeft />, onSelect: onToggleCollapsed },
+    { label: "Sign out", icon: <SignOutIcon />, onSelect: () => undefined, disabled: "There is no account to sign out of: your workspace lives on this Mac.", separatorBefore: true },
+  ]);
+
+  /** Alt+arrows on a focused module: up and down reorder among its siblings, right moves it
+   *  inside the one above, left moves it out below its parent. */
+  function keyReorder(e: KeyboardEvent<HTMLElement>, m: ModuleCard) {
+    if (!e.altKey || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+    e.preventDefault();
+    const parent = m.parent && byId(m.parent) ? m.parent : null;
+    const near = siblingsOf(all, order, parent).filter((s) => !hidden.includes(s.id));
+    const at = near.findIndex((s) => s.id === m.id);
+    const nests = m.id !== NETWORK && at > 0 && near[at - 1].id !== NETWORK;
+    if (e.key === "ArrowUp" && at > 0) void place(m.id, parent, near[at - 1].id, false);
+    else if (e.key === "ArrowDown" && at >= 0 && at < near.length - 1) void place(m.id, parent, near[at + 1].id, true);
+    else if (e.key === "ArrowRight" && nests) void place(m.id, near[at - 1].id, null);
+    else if (e.key === "ArrowLeft" && parent) {
+      const up = byId(parent)?.parent;
+      void place(m.id, up && byId(up) ? up : null, parent, true);
+    }
+  }
+
+  // dragging a module over another: top and bottom quarters reorder, the middle moves it inside
+  const mayDrop = (target: string) => Boolean(drag) && drag !== target && !isInside(modules, target, drag!) && !(drag === NETWORK && byId(target)?.parent);
+  /** Where a drop on `m` lands; Network neither takes a project inside nor goes inside one. */
+  const zoneOn = (m: ModuleCard, e: DragEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const zone = dropZone(e.clientY - r.top, r.height);
+    if (zone !== "inside" || (m.id !== NETWORK && drag !== NETWORK)) return zone;
+    return e.clientY - r.top < r.height / 2 ? "before" : "after";
+  };
+  const dragProps = (m: ModuleCard) => ({
+    draggable: true,
+    onDragStart: (e: DragEvent<HTMLElement>) => {
+      e.dataTransfer.setData("text/plain", m.id);
+      e.dataTransfer.effectAllowed = "move";
+      setDrag(m.id);
+    },
+    onDragEnd: () => {
+      setDrag(null);
+      setDrop(null);
+    },
+    // WebKit (the Mac app's engine) drops only on an element whose dragenter was cancelled too;
+    // without it a drop onto another project never fired there (9 Oct, the owner: "nesting is broken").
+    onDragEnter: (e: DragEvent<HTMLElement>) => {
+      if (mayDrop(m.id)) e.preventDefault();
+    },
+    onDragOver: (e: DragEvent<HTMLElement>) => {
+      if (!mayDrop(m.id)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const zone = zoneOn(m, e);
+      setDrop((d) => (d && d.id === m.id && d.zone === zone ? d : { id: m.id, zone }));
+    },
+    onDragLeave: (e: DragEvent<HTMLElement>) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDrop((d) => (d?.id === m.id ? null : d));
+    },
+    onDrop: (e: DragEvent<HTMLElement>) => {
+      if (!drag || !mayDrop(m.id)) return;
+      e.preventDefault();
+      const zone = zoneOn(m, e);
+      const moved = drag;
+      setDrag(null);
+      setDrop(null);
+      if (zone === "inside") void place(moved, m.id, null);
+      else void place(moved, m.parent && byId(m.parent) ? m.parent : null, m.id, zone === "after");
+    },
+  });
+
+  const item = (o: { key: string; icon: ReactNode; label: string; onClick: () => void; current?: boolean; count?: number; depth?: number; fold?: { open: boolean; onToggle: () => void }; menu?: Row; module?: ModuleCard; className?: string; hint?: string }) => {
+    const bound = o.menu ? rowMenu.bind(o.menu) : null;
+    const dropHere = o.module && drop?.id === o.module.id ? ` navrow--drop-${drop.zone}` : "";
+    const button = (
+      <button
+        type="button"
+        className={`navbtn${o.current ? " navbtn--current" : ""}${o.className ? ` ${o.className}` : ""}`}
+        aria-current={o.current ? "page" : undefined}
+        aria-label={o.label}
+        data-module-id={o.module?.id}
+        onClick={o.onClick}
+        onDoubleClick={o.module && !collapsed ? (e) => {
+          // a double-click on a project's icon changes it; on its name, renames it (9 Oct, the owner)
+          if ((e.target as Element).closest(".navbtn__ico")) iconMenu.openFrom(o.module!, e.currentTarget); // anchored on the row, so focus comes back to it
+          else setRenamingId(o.module!.id);
+        } : undefined}
+        onContextMenu={bound?.onContextMenu}
+        onKeyDown={(e) => {
+          bound?.onKeyDown(e);
+          if (o.module) keyReorder(e, o.module);
+        }}
+      >
+        <span className="navbtn__ico" aria-hidden="true">
+          {o.icon}
+        </span>
+        <span className="navbtn__text">{collapsed ? foldedLabel(o.label) : o.label}</span>
+        {o.count ? <span className="navbtn__count">{o.count}</span> : null}
+      </button>
+    );
+    if (o.module && renamingId === o.module.id && !collapsed) {
+      const m = o.module;
+      return (
+        <div key={o.key} className={`navrow${o.depth ? " navrow--nested" : ""}`} style={o.depth ? ({ "--depth": o.depth } as CSSProperties) : undefined}>
+          <div className="navbtn navbtn--edit">
+            <span className="navbtn__ico" aria-hidden="true">
+              {o.icon}
+            </span>
+            <NameInput name={m.name} label={`Rename ${m.name}`} className="navbtn__input" onDone={(v) => void renameModule(m, v)} onCancel={() => setRenamingId(null)} />
+          </div>
+        </div>
+      );
+    }
     return (
-      <div key={key} className="navrow" style={depth ? { paddingLeft: depth * 14 } : undefined}>
-        <button type="button" className={`navbtn${current ? " navbtn--current" : ""}`} aria-current={current ? "page" : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={() => onGo(target)}>
-          <span className="navbtn__ico" aria-hidden="true">
-            {icon}
-          </span>
-          <span className="navbtn__text">{label}</span>
-          {count ? <span className="navbtn__count">{count}</span> : null}
-        </button>
-        {fold && !collapsed ? (
-          <button type="button" className="navfold" aria-label={fold.open ? `Fold ${label}` : `Unfold ${label}`} aria-expanded={fold.open} onClick={fold.onToggle}>
-            {fold.open ? "▾" : "▸"}
+      <div key={o.key} className={`navrow${o.fold ? " navrow--fold" : ""}${o.module && drag === o.module.id ? " navrow--dragging" : ""}${dropHere}${o.depth && !collapsed ? " navrow--nested" : ""}`} style={o.depth && !collapsed ? ({ "--depth": o.depth } as CSSProperties) : undefined} {...(o.module ? dragProps(o.module) : {})}>
+        {o.hint || collapsed ? <Tooltip text={collapsed ? (o.hint ? `${o.label} — ${o.hint}` : o.label) : o.hint!}>{button}</Tooltip> : button}
+        {o.fold && !collapsed ? (
+          <button type="button" className="navfold" aria-label={o.fold.open ? `Fold ${o.label}` : `Unfold ${o.label}`} aria-expanded={o.fold.open} onClick={o.fold.onToggle}>
+            {o.fold.open ? <ChevronDown size={ICON_SM} aria-hidden="true" /> : <ChevronRight size={ICON_SM} aria-hidden="true" />}
           </button>
         ) : null}
+        {o.menu && !collapsed ? <IconButton size="sm" className="navmore" label={`More for ${o.label}`} icon={<MoreVertical size={ICON_SM} />} onClick={(e) => rowMenu.openFrom(o.menu!, e.currentTarget)} /> : null}
       </div>
     );
   };
+  const go = (target: Surface, icon: ReactNode, label: string, count?: number, hint?: string) => item({ key: target.kind, icon, label, count, hint, current: sameSurface(surface, target), onClick: () => onGo(target) });
+
   const branches = (list: ModuleBranch[], depth: number): ReactNode[] =>
     list.flatMap((b) => {
-      const open = !folded.has(b.module.id);
-      const row = item({ kind: "module", id: b.module.id }, <ModuleIcon />, b.module.name, undefined, depth, b.inside.length ? { open, onToggle: () => toggleFold(b.module.id) } : undefined);
+      const m = b.module;
+      if (m.id === NETWORK) {
+        const icon = icons[NETWORK] ? iconNamed(icons[NETWORK], ICON) : <PeopleIcon />;
+        return [item({ key: "people", icon, label: m.name, depth, current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "module", module: m }, module: m })];
+      }
+      const open = !folded.has(m.id);
+      const row = item({
+        key: `module:${m.id}`,
+        icon: projectIcon(icons[m.id], m.name, m.goal, ICON),
+        label: m.name,
+        depth,
+        current: sameSurface(surface, { kind: "module", id: m.id }),
+        onClick: () => onGo({ kind: "module", id: m.id }),
+        fold: b.inside.length ? { open, onToggle: () => toggleFold(m.id) } : undefined,
+        menu: { kind: "module", module: m },
+        module: m,
+      });
       return open ? [row, ...branches(b.inside, depth + 1)] : [row];
     });
-  const status = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : runtime === "lost" ? "Core not answering" : "Core not running";
+  const tree = treeOf(all, order, hidden);
+
+  // One click opens the menu, a moment later so a double-click can edit instead; a keyboard
+  // click (no pointer, `detail` 0) opens it at once.
+  const wsClick = (e: MouseEvent<HTMLButtonElement>) => {
+    const at = e.currentTarget;
+    window.clearTimeout(clickTimer.current);
+    if (e.detail === 0) workspaceMenu.openFrom(undefined, at);
+    else if (e.detail === 1) clickTimer.current = window.setTimeout(() => workspaceMenu.openFrom(undefined, at), 220);
+  };
+  const wsDouble = (e: MouseEvent<HTMLButtonElement>) => {
+    window.clearTimeout(clickTimer.current);
+    if ((e.target as Element).closest(".wsbtn__tile")) setLogoOpen(true);
+    else if (!collapsed) setRenaming(true);
+  };
+  async function rename(next: string) {
+    setRenaming(false);
+    const clean = next.trim();
+    if (!clean || clean === name) return;
+    const err = await setWorkspace(clean);
+    if (err) fail("rename the workspace", err);
+    else done(`Workspace renamed to ${clean}.`);
+  }
+  async function saveLogo(next: string | null) {
+    setLogoOpen(false);
+    const err = await setLogo(next);
+    if (err) fail("change the logo", err);
+    else done(next ? "The workspace has a new logo." : "The workspace logo is removed.");
+  }
   return (
-    <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha">
-      <div className="brand">
-        <div className="brand__mark" aria-hidden="true">
-          A
+    <nav className={collapsed ? "rail rail--collapsed" : "rail"} aria-label="Alpha" onDoubleClick={unfoldOnEmpty(collapsed, onToggleCollapsed)}>
+      <RadixPopover.Root open={logoOpen} onOpenChange={setLogoOpen}>
+        <RadixPopover.Anchor asChild>
+          <div className="rail__top">
+            {renaming ? (
+              <div className="wsbtn wsbtn--edit">
+                <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
+                <NameInput name={name} onDone={(v) => void rename(v)} onCancel={() => setRenaming(false)} />
+              </div>
+            ) : (
+              <TipWhen show={collapsed} text={name}>
+                <button type="button" className="wsbtn" aria-label={name} aria-haspopup="menu" onClick={wsClick} onDoubleClick={wsDouble} onContextMenu={workspaceMenu.bind().onContextMenu}>
+                  <WorkspaceTile logo={logo} name={name} className="wsbtn__tile" />
+                  <span className="wsbtn__name">{name}</span>
+                  <ChevronDown className="wsbtn__chev" size={ICON_SM} aria-hidden="true" />
+                </button>
+              </TipWhen>
+            )}
+          </div>
+        </RadixPopover.Anchor>
+        <RadixPopover.Portal>
+          <RadixPopover.Content className="menu__list wslogo" align="start" sideOffset={4} aria-label="Workspace logo">
+            <LogoPicker hasLogo={Boolean(logo)} onPick={(v) => void saveLogo(v)} onTrouble={(e) => fail("use that image", e)} />
+          </RadixPopover.Content>
+        </RadixPopover.Portal>
+      </RadixPopover.Root>
+      <div className="rail__main">
+        {go({ kind: "home" }, <HomeIcon />, "Home", needs)}
+        <div className="rail__scroll">
+          {/* While the projects load the list stays quiet: no rows, no "nothing here" words (§14). */}
+          {onRetryProjects ? (
+            <div className="rail__unloaded" role="status">
+              {collapsed ? null : <span className="faint">Couldn't load projects.</span>}
+              <Button size="sm" variant="ghost" onClick={onRetryProjects}>
+                Try again
+              </Button>
+            </div>
+          ) : null}
+          {/* Projects that never arrived are not shown as none (an empty workspace) */}
+          {loading || (onRetryProjects && !modules.length) ? null : branches(tree, 0)}
+          {surface.kind === "new-project" ? item({ key: "new-project", icon: <ModuleIcon />, label: draftName?.trim() || "New project", current: true, className: "navbtn--draft", onClick: () => undefined }) : null}
+          {loading ? null : (
+            <TipWhen show={collapsed} text="New project">
+              <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New project">
+                <span className="navbtn__ico" aria-hidden="true">
+                  <PlusIcon />
+                </span>
+                <span className="navbtn__text">New project</span>
+              </button>
+            </TipWhen>
+          )}
         </div>
-        <b>Alpha</b>
-        <IconButton className="rail__fold" label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"} aria-expanded={!collapsed} icon={collapsed ? <ChevronsRight /> : <ChevronsLeft />} onClick={onToggleCollapsed} />
       </div>
-      {item({ kind: "home" }, <HomeIcon />, "Home", needs)}
-      {item({ kind: "activity" }, <ActivityIcon />, "Activity")}
-      {item({ kind: "people" }, <PeopleIcon />, "People & Companies")}
-      <div className="rail__scroll">
-        <div className="rail__group">Your modules</div>
-        {modules.length === 0 ? <p className="faint" style={{ padding: "4px 10px" }}>None yet. Ask for one.</p> : null}
-        {branches(treeOf(modules), 0)}
-        <button type="button" className="navbtn navbtn--new" onClick={onNew} aria-label="New" title={collapsed ? "New" : undefined}>
-          <span className="navbtn__ico" aria-hidden="true" style={{ color: "var(--primary)" }}>
-            <PlusIcon />
-          </span>
-          <span className="navbtn__text">New</span>
-        </button>
+      {trouble ? (
+        <div className="rail__trouble" role="alert">
+          <span>{trouble}</span>
+          <IconButton size="sm" className="rail__dismiss" label="Dismiss" icon={<X size={ICON_SM} />} onClick={() => setTrouble(null)} />
+        </div>
+      ) : null}
+      <div className="rail__bottom">
+        {go({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence", undefined, SUBTITLES.intelligence)}
+        {go({ kind: "settings" }, <SettingsIcon />, "Settings")}
       </div>
-      {item({ kind: "assistant" }, <AssistantIcon />, "Assistant")}
-      {item({ kind: "intelligence" }, <IntelligenceIcon />, "Intelligence")}
-      {item({ kind: "settings" }, <SettingsIcon />, "Settings")}
-      <div className={`rail__status rail__status--${runtime}`} role="status" title={collapsed ? status : undefined}>
-        <i aria-hidden="true" />
-        <span className="rail__status-text">{status}</span>
+      <div className="sr-only" role="status" aria-live="polite">
+        {said}
       </div>
+      {rowMenu.menu}
+      {iconMenu.menu}
+      {workspaceMenu.menu}
+      {dialog?.kind === "above" ? <NewAboveDialog module={dialog.module} onMake={(n) => void makeParent(dialog.module, n)} onClose={() => setDialog(null)} /> : null}
     </nav>
+  );
+}
+
+/** The workspace's tile: its own mark, never the companion (the owner, 11 Oct: the workspace and
+ *  the avatar look different): its logo (an image, or a letter or emoji the person chose), else the
+ *  first letter of its name. Settings shows the same tile. */
+export function WorkspaceTile({ logo, name, className }: { logo: string; name: string; className: string }) {
+  return (
+    <span className={className} aria-hidden="true">
+      {logo.startsWith("data:image/") ? <img src={logo} alt="" /> : logo || ([...name][0]?.toUpperCase() ?? "A")}
+    </span>
+  );
+}
+
+/** A folded sidebar item's name: room for 12 characters, then an ellipsis (§4). */
+export function foldedLabel(label: string): string {
+  const chars = [...label];
+  return chars.length > 12 ? `${chars.slice(0, 12).join("").trimEnd()}…` : label;
+}
+
+/** The full name on hover and focus, only where it is needed. */
+function TipWhen({ show, text, children }: { show: boolean; text: string; children: ReactNode }) {
+  return show ? <Tooltip text={text}>{children}</Tooltip> : <>{children}</>;
+}
+
+/** The workspace's name, edited in place: Enter or clicking away saves, Escape cancels. */
+function NameInput({ name, onDone, onCancel, label = "Workspace name", className = "wsbtn__input" }: { name: string; onDone: (v: string) => void; onCancel: () => void; label?: string; className?: string }) {
+  const cancelled = useRef(false);
+  return (
+    <input
+      className={className}
+      aria-label={label}
+      defaultValue={name}
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          e.preventDefault(); // the sidebar does not fold on this Escape
+          cancelled.current = true;
+          onCancel();
+        }
+      }}
+      onBlur={(e) => {
+        if (!cancelled.current) onDone(e.currentTarget.value);
+      }}
+    />
+  );
+}
+
+/** An image file as a PNG data URL no larger than 128px a side, so it is small enough to keep
+ *  as a preference. */
+async function smallImage(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const k = Math.min(1, 128 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * k));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * k));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("this window can't draw images");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** The workspace logo's choices: an image, a letter or emoji, or none (the name's first letter). */
+function LogoPicker({ hasLogo, onPick, onTrouble }: { hasLogo: boolean; onPick: (logo: string | null) => void; onTrouble: (e: unknown) => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  const [mark, setMark] = useState("");
+  const short = [...mark.trim()].slice(0, 2).join("");
+  return (
+    <div className="wslogo__body">
+      <Button size="sm" onClick={() => file.current?.click()}>
+        Upload image
+      </Button>
+      <input
+        ref={file}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Logo image"
+        onChange={(e) => {
+          const f = e.currentTarget.files?.[0];
+          if (f) smallImage(f).then(onPick, onTrouble);
+        }}
+      />
+      <form className="row" onSubmit={(e) => { e.preventDefault(); if (short) onPick(short); }}>
+        <input className="textfield wslogo__mark" value={mark} onChange={(e) => setMark(e.target.value)} placeholder="A or 🚀" aria-label="Letter or emoji" />
+        <Button size="sm" type="submit" disabledReason={short ? undefined : "Type a letter or an emoji first."}>
+          Use
+        </Button>
+      </form>
+      <Button size="sm" variant="ghost" disabledReason={hasLogo ? undefined : "There is no logo to remove."} onClick={() => onPick(null)}>
+        Remove
+      </Button>
+    </div>
   );
 }

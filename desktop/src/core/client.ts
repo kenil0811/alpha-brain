@@ -678,10 +678,39 @@ export interface SearchResult {
   journal: JournalEntry[];
 }
 
+/** What the person reads when Alpha doesn't answer at all (11 Oct: no "core", no browser text). */
+export const NOT_ANSWERING = "Alpha isn't answering right now. It starts again on its own.";
+
+/** The one place an error from Alpha becomes words (the UI rulebook §14: plain words, no status
+ *  codes, stack traces or internal text). A refusal (4xx) carries the core's own sentence, which
+ *  is written for people (`Problem`); anything else gets one plain sentence, and the detail stays
+ *  in the core's log. */
+export function plainError(status: number, said: unknown): string {
+  // a path in brackets is for the log, not for people: "installer is missing (connectors/…)" → "installer is missing."
+  const text = typeof said === "string" ? said.trim().replace(/\s*\([^()]*[\\/][^()]*\)/g, "") : "";
+  const readable = text && text.length < 400 && !/traceback|exception|error:|\bat \w+\.|\n\s+at |sqlite|keyerror|typeerror/i.test(text);
+  if (status >= 400 && status < 500 && readable) return text;
+  if (status === 404) return "That isn't there any more.";
+  if (status >= 400 && status < 500) return "Alpha couldn't take that request.";
+  return "Something went wrong inside Alpha. Try again.";
+}
+
+/** What a refusal said: its `error`, else a `detail` written as a sentence (the 401 "This window
+ *  isn't signed in…"; FastAPI's bare "Not Found" is not one, so it gets the plain line instead). */
+const said = (data: { error?: unknown; detail?: unknown }): unknown => data.error ?? (typeof data.detail === "string" && /[.!?…]$/.test(data.detail.trim()) ? data.detail : undefined);
+
 export class CoreError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
   }
+}
+
+/** Any caught error as words a person can read: a CoreError is already plain; anything else gets
+ *  one plain sentence, and the raw error goes to the console. */
+export function say(e: unknown): string {
+  if (e instanceof CoreError) return e.message;
+  console.error(e);
+  return "Something went wrong. Try again.";
 }
 
 type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
@@ -702,11 +731,11 @@ export class Client {
         headers: { Authorization: `Bearer ${this.session.token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
-    } catch (e) {
-      throw new CoreError(`Alpha's core isn't answering (${e instanceof Error ? e.message : String(e)}).`, 0);
+    } catch {
+      throw new CoreError(NOT_ANSWERING, 0);
     }
-    const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string };
-    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    const data = (await response.json().catch(() => ({}))) as { error?: unknown; detail?: unknown };
+    if (!response.ok) throw new CoreError(plainError(response.status, said(data)), response.status);
     return data as T;
   }
 
@@ -785,9 +814,11 @@ export class Client {
     if (where.table) form.append("table", where.table);
     if (where.record) form.append("record", where.record);
     if (where.field) form.append("field", where.field);
-    const response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form });
+    const response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form }).catch(() => {
+      throw new CoreError(NOT_ANSWERING, 0);
+    });
     const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string; documents?: DocumentInfo[]; turn?: Turn | null };
-    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    if (!response.ok) throw new CoreError(plainError(response.status, said(data)), response.status);
     return { documents: data.documents ?? [], turn: data.turn ?? null };
   };
   exportTable = (name: string, format: "csv" | "xlsx") => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format });
@@ -867,7 +898,7 @@ export class Client {
   /** A screenshot of an action, as an object URL the caller revokes. */
   actionShot = async (id: string, name: string): Promise<string> => {
     const response = await fetch(`${this.session.baseUrl}/api/actions/${id}/shots/${name}`, { headers: { Authorization: `Bearer ${this.session.token}` } });
-    if (!response.ok) throw new CoreError(`No screenshot (${response.status}).`, response.status);
+    if (!response.ok) throw new CoreError("This screenshot couldn't be shown.", response.status);
     return URL.createObjectURL(await response.blob());
   };
   agreeWorkflow = (id: string, suggestions?: Record<string, string>, answers?: Record<string, string>) =>
