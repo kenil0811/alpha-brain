@@ -835,7 +835,7 @@ Everything elsewhere in this rulebook is a default. These are not.
 28. No subtitles: explanations live in (i) tips.
 29. One visual element per function; several ways in are fine. A table's "+ New" row shows only when it adds inline; otherwise the toolbar's New is the one way (the owner, 12 Oct).
 30. Every dropdown ends in Add new…; what the window can't add goes, described, to the builder agent in this page's conversation.
-31. Pop-ups are for notices, confirmations and new free input (a name, or an ask for Alpha); a predefined choice is a dropdown or a submenu (the owner, 12 Oct).
+31. Pop-ups are for notices, confirmations and new free input (a name, or an ask for Alpha); a predefined choice is a dropdown or a submenu (the owner, 12 Oct). A record's History and a metric's detail stay pop-ups: they are views to read, opened on purpose (the owner, 12 Oct).
 
 ---
 
