@@ -166,6 +166,27 @@ def test_ask_runs_a_turn_in_the_background(world: World) -> None:
     assert [t["kind"] for t in convo["turns"]] == ["said", "replied"]
 
 
+def test_a_running_turn_can_be_stopped_from_the_panel(world: World) -> None:
+    """The Stop on a working turn (lost for a day on 12 Oct when the plan routes around it
+    were removed): the route answers with the turn; the stop itself ends the model's process,
+    which a fake runner has none of, so it is not what this test sees."""
+    import threading
+
+    gate = threading.Event()
+
+    def runner(req: TurnRequest) -> RunResult:
+        gate.wait(5)
+        return RunResult(reply="done anyway", ok=True, duration_ms=1)
+
+    c = client(world, runner=runner)
+    started = c.post("/api/ask", json={"text": "think for a while"}).json()
+    out = c.post(f"/api/turns/{started['id']}/stop")
+    gate.set()
+    assert out.status_code == 200, out.text
+    assert out.json()["id"] == started["id"]
+    assert c.post("/api/turns/nope/stop").status_code == 400
+
+
 def test_token_and_errors(world: World) -> None:
     c = client(world, token="s3cret")
     assert c.get("/api/health").status_code == 401

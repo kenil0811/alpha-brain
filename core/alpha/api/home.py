@@ -115,6 +115,11 @@ def routes(app: FastAPI, s: Served) -> None:
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}
 
+    @app.post("/api/turns/{key}/stop", dependencies=[api])
+    def stop_turn(key: str) -> dict[str, Any]:
+        """Stop a turn that is still working (the panel's Stop)."""
+        return running.stop(key)
+
     @app.get("/api/workflows", dependencies=[api])
     def workflows() -> list[dict[str, Any]]:
         return list(reversed(world.workflows.all()))[:50]
