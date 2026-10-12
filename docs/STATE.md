@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 12 October 2026, morning.** Last entries: the superseded shapes go
+**As of 12 October 2026, midday.** Last entries: the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
 ([`log/2026-10-12-clean-sweep.md`](log/2026-10-12-clean-sweep.md), Q40; the research pass, plans, milestones and jobs removed; 5,500 lines fewer), shipped again with a Python that can make a venv ([`log/2026-10-11-shipped-again.md`](log/2026-10-11-shipped-again.md)), questions asked together answered together
 ([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
 the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
@@ -49,14 +49,14 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 225, in about 33 s; ruff and mypy strict clean |
+| Core tests | 226, in about 33 s; ruff and mypy strict clean |
 | Desktop tests | 86, in twenty-seven files; typecheck clean |
 | Tools the model sees | 73 |
 | Journeys | 22 defined; latest `docs/journeys/2026-10-12-0907.md` (the interview after the sweep: the page, the change by chat, nothing built, 507 s; its version check loosened to `version_min`, see the log); `2026-10-12-0906.md` (the question card passed); `2026-10-11-1635.md`, 1 of 1 (the build from the page, 951 s); `2026-10-11-1457.md`, 1 of 1 (the interview and the page, 467 s) |
 | Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 176 total; 176 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 178 total; 178 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 15,756 Python; tests 5,486; desktop 10,931 TS/TSX |
 
 ## What is built, against the design's order of work
