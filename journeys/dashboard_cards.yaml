@@ -1,0 +1,20 @@
+name: dashboard_cards
+title: Asked for dashboard cards, Alpha proposes a few that fit the table and keeps nothing before the yes
+why: On 12 Oct the owner chose no standard dashboard; Alpha proposes the cards that help this
+  person act on this table, the person's yes keeps them, and their numbers stay current. This is
+  the sentence the table's ⋮ › Ask Alpha for dashboard cards sends.
+steps:
+  - seed: {kind: table, name: deals, title: Deals,
+      fields: [{name: name, kind: text}, {name: amount, kind: number, label: Amount},
+               {name: stage, kind: status, label: Stage, choices: [lead, open, won, lost]},
+               {name: close_date, kind: date, label: Close date}],
+      rows: [{name: Bakery, amount: 1200, stage: open, close_date: "2026-10-01"},
+             {name: Cafe, amount: 800, stage: won, close_date: "2026-09-20"},
+             {name: Deli, amount: 450, stage: lead, close_date: "2026-11-02"},
+             {name: Diner, amount: 2300, stage: lost, close_date: "2026-09-02"}]}
+  - say: "Propose dashboard cards for the Deals table (deals)."
+checks:
+  - journal: {kind: proposed, contains: "Dashboard cards for Deals"}
+  - no_new_tables: {}
+  - judge: "Did Alpha say it proposed dashboard cards for Deals for the person to approve,
+      naming what they are, rather than claiming a dashboard is already set up?"

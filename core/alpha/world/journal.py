@@ -59,27 +59,33 @@ class Journal:
         thread: str | None = None,
         entity_ids: list[str] | None = None,
         source: str | None = None,
+        db: Any = None,
     ) -> str:
+        """One entry. `db`: write inside a transaction the caller holds, so the entry and the
+        change it records are one change."""
         if kind not in KINDS:
             raise Problem(f"'{kind}' is not a kind of journal entry; use one of {sorted(KINDS)}.")
         jid = new_id("j")
-        with self.store.tx() as db:
-            db.execute(
-                "INSERT INTO journal (id, at, kind, actor, text, data, module, thread, entity_ids,"
-                " source) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (
-                    jid,
-                    now(),
-                    kind,
-                    actor,
-                    text,
-                    dumps(data or {}),
-                    module,
-                    thread,
-                    dumps(entity_ids or []),
-                    source,
-                ),
-            )
+        if db is None:
+            with self.store.tx() as own:
+                return self.append(kind, text, actor=actor, data=data, module=module,
+                                   thread=thread, entity_ids=entity_ids, source=source, db=own)
+        db.execute(
+            "INSERT INTO journal (id, at, kind, actor, text, data, module, thread, entity_ids,"
+            " source) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (
+                jid,
+                now(),
+                kind,
+                actor,
+                text,
+                dumps(data or {}),
+                module,
+                thread,
+                dumps(entity_ids or []),
+                source,
+            ),
+        )
         return jid
 
     def read(self, jid: str) -> dict[str, Any]:
@@ -242,7 +248,7 @@ class Journal:
 
     def answer_proposal(self, proposal: str, accept: bool | None, *, words: str | None = None,
                         actor: str = "person", module: str | None = None,
-                        thread: str | None = None, **about: Any) -> str:
+                        thread: str | None = None, db: Any = None, **about: Any) -> str:
         """The one way a proposal is answered: Yes or No (or other words: a standing permission,
         a revised plan replacing it), with what the answer was about (the plan, the action), so
         Home stops showing it and Activity shows who decided."""
@@ -251,7 +257,7 @@ class Journal:
             data["accept"] = accept
         data.update(about)
         return self.append("answered", words or ("Yes" if accept else "No"), actor=actor,
-                           data=data, module=module, thread=thread)
+                           data=data, module=module, thread=thread, db=db)
 
     def close_asks_about(self, connection: str, words: str, closed: str) -> int:
         """Close the open questions a connection asked (a sign-in that is done or asked again)."""

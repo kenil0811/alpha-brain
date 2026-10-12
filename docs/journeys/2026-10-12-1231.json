@@ -1,0 +1,48 @@
+[
+ {
+  "name": "dashboard_cards",
+  "title": "Asked for dashboard cards, Alpha proposes a few that fit the table and keeps nothing before the yes",
+  "steps": [
+   {
+    "seed": "table deals, 4 rows",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "Propose dashboard cards for the Deals table (deals).",
+    "ok": true,
+    "reply": "I've proposed four dashboard cards for Deals. They're kept only if you say yes.\n\n- **Total deal value:** the sum of all amounts, so you see how big the pipeline and past wins are.\n- **Deals by stage:** a count of leads, open, won and lost deals, to show where things sit.\n- **Value closing over time:** amounts by close date, so you can plan when money is expected.\n- **Deals needing attention:** open or lead deals whose close date has passed or is near.\n\nThe table has only 4 deals so far, so the cards will be sparse until you add more.",
+    "steps": 4,
+    "seconds": 17.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "proposed",
+     "contains": "Dashboard cards for Deals"
+    },
+    "ok": true,
+    "why": "1 proposed entry: Dashboard cards for Deals: Total deal value; Deals by stage; Value closing over time; Deals needing attention.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Did Alpha say it proposed dashboard cards for Deals for the person to approve, naming what they are, rather than claiming a dashboard is already set up?",
+    "ok": true,
+    "why": "The answer says it proposed four dashboard cards, names each one, and states they are kept only if the person says yes, so it does not claim a dashboard is already set up.",
+    "seconds": 5.8
+   }
+  ],
+  "seconds": 23.7,
+  "error": null
+ }
+]

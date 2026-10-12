@@ -395,6 +395,27 @@ CREATE TABLE IF NOT EXISTS preferences (
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+-- Dashboard cards (12 Oct 2026): what the person said yes to from Alpha's proposals, kept as
+-- what a card measures (never a number); and each table's shape as last seen, so a change that
+-- matters brings new proposals (world/cards.py).
+CREATE TABLE IF NOT EXISTS cards (
+    id TEXT PRIMARY KEY,
+    collection TEXT NOT NULL,
+    type TEXT NOT NULL,
+    field TEXT,
+    measure TEXT,
+    title TEXT NOT NULL,
+    why TEXT NOT NULL DEFAULT '',
+    proposal TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cards_collection ON cards(collection);
+CREATE TABLE IF NOT EXISTS card_shapes (
+    collection TEXT PRIMARY KEY,
+    shape TEXT NOT NULL,
+    seen_at TEXT NOT NULL
+);
 """
 
 

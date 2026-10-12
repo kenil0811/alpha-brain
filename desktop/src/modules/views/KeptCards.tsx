@@ -1,36 +1,25 @@
 /**
- * The Dashboard view (9 Oct, the UI rulebook §6): a page of visuals where every visual is
- * actionable. Each tile is a number with its label and basis beside it (a chart under them where
- * there is a split or a trend), or a list, with one call to action that opens exactly
- * those records (`onShowRecords`) or one record (`onOpenRecord`); a tile with nothing to act on says
- * so in a line and keeps its button, disabled, with the reason on hover. What each tile shows is
- * worked out in `modules/dashboard.ts` from the rows the toolbar's list, search and filters leave.
- * Charts are plain SVG in the `--chart` colours with a legend always; every bar and segment is a
- * button with a label, and its count is written beside it so colour never stands alone. A chart
- * is drawn at the tile's real pixel width (`useWidth`; viewBox = pixels) so its text stays at the
- * type scale whatever the tile's width, and drops labels that would collide. "Edit
- * dashboard" (in the dashboard's ⋮) adds, removes, moves and resizes tiles; the layout is kept per
- * list in `PREF.dashboards`.
- *
- * Aligned with ChatGPT's dashboards (12 Oct, the owner): the numbers first, each count and total
- * with its change against the week before; "As of" says how fresh it is; a period (all time, 30 or
- * 7 days) applies to every tile; Ask Alpha changes the dashboard or explains it (Alpha's read);
- * "Tell me when…" asks Alpha for an alert, which it proposes as an automation; Download gives the
- * tiles' numbers as CSV. Tiles sit on Home's card grid: a number one row high, a chart two, the
- * attention list three.
+ * A table's dashboard cards (12 Oct, the owner): no standard dashboard and no Dashboard view; Alpha
+ * proposes the cards that help, the person's yes keeps them (`world/cards.py`), and each card is
+ * kept as what it measures, so its number is worked out here from the rows every time and stays
+ * current. When a table changes in a way that matters, Alpha proposes more (Needs you). Every
+ * visual is actionable: one call to action opens exactly those records (`onShowRecords`) or one
+ * record (`onOpenRecord`); a card with nothing to act on says so and keeps its button, disabled,
+ * with the reason. Charts are plain SVG in the `--chart` colours with a legend always, drawn at
+ * the card's real width (`useWidth`). The numbers first (ChatGPT's dashboards, 12 Oct): "As of"
+ * says how fresh they are, a period applies to every card, "What changed?" asks Alpha to explain,
+ * "Tell me when…" asks for an alert. Edit cards removes one, after asking.
  */
 import { useMemo, useState } from "react";
 import { toCsv, downloadText } from "../csv";
 import { timeText } from "../format";
 import type { KeyboardEvent, ReactNode } from "react";
-import type { Client, RecordRow, TableDesc } from "../../core/client";
-import { PREF, usePreference } from "../../core/preferences";
-import { Button, Dropdown, IconButton, InfoTip, MetricTile, SectionCard, Toggle, useContextMenu, useWidth } from "../../ui";
-import { ArrowDown, ArrowUp, Maximize2, Minimize2, MoreVertical, X } from "../../ui/icons";
-import { availableTiles, computeTile, defaultTiles, inPeriod, type Cta, type Period, type Segment, type Tile, type TileData } from "../dashboard";
+import type { DashboardCard, RecordRow, TableDesc } from "../../core/client";
+import { Button, Confirm, IconButton, InfoTip, MetricTile, SectionCard, Toggle, useContextMenu, useWidth } from "../../ui";
+import { MoreVertical, X } from "../../ui/icons";
+import { computeTile, inPeriod, type Cta, type Period, type Segment, type TileData } from "../dashboard";
 import type { FieldInfo } from "../fields";
 
-export { dashboardAvailable } from "../dashboard";
 
 const PALETTE = ["var(--chart)", "var(--chart-2)", "var(--chart-3)"];
 /** Past the third colour the same three come back paler; the label is what tells segments apart. */
@@ -42,48 +31,36 @@ const pressed = (act: () => void) => (e: KeyboardEvent) => {
   }
 };
 
-export function DashboardView({ client, table, fields, rows, listKey, onShowRecords, onOpenRecord, onAsk }: { client: Client; table: Pick<TableDesc, "title" | "title_field">; fields: FieldInfo[]; rows: RecordRow[]; listKey: string; onShowRecords: (ids: string[], label: string) => void; onOpenRecord: (id: string) => void; onAsk: (text: string) => void }) {
-  const [saved, setSaved] = usePreference<Record<string, Tile[]>>(client, PREF.dashboards, {});
+export function KeptCards({ table, cards, fields, rows, onRemove, onShowRecords, onOpenRecord, onAsk }: { table: Pick<TableDesc, "title" | "title_field">; cards: DashboardCard[]; fields: FieldInfo[]; rows: RecordRow[]; onRemove: (card: DashboardCard) => Promise<string | null>; onShowRecords: (ids: string[], label: string) => void; onOpenRecord: (id: string) => void; onAsk: (text: string) => void }) {
   const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState<DashboardCard | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>("all");
-  const layout = saved?.[listKey];
   // as fresh as the rows it was worked out from
   const asOf = useMemo(() => new Date(), [rows]);
   const inScope = useMemo(() => inPeriod(rows, fields, period, asOf), [rows, fields, period, asOf]);
-  // a saved tile whose field has gone is dropped the next time the layout is saved
+  // a card whose field has gone shows nothing until Alpha proposes again
   const shown = useMemo(() => {
     const ctx = { fields, rows: inScope, allRows: rows, titleField: table.title_field, now: asOf };
-    return (layout ?? defaultTiles(fields)).flatMap((t) => {
-      const data = computeTile(t, ctx);
-      return data ? [{ tile: t, data }] : [];
+    return cards.flatMap((card) => {
+      const data = computeTile({ id: card.id, type: card.type, field: card.field ?? undefined, measure: card.measure ?? undefined }, ctx);
+      // the card's own title, also on what its button shows ("Pipeline value · 3")
+      if (!data) return [];
+      const label = data.cta.label ? `${card.title} · ${data.cta.label.split(" · ").pop()}` : data.cta.label;
+      return [{ card, data: { ...data, title: card.title, cta: { ...data.cta, label } } as TileData }];
     });
-  }, [layout, fields, inScope, rows, table.title_field, asOf]);
+  }, [cards, fields, inScope, rows, table.title_field, asOf]);
   const scope = period === "all" ? "" : ` over the last ${period} days`;
-  const numbers = shown.map(({ data }) => (data.type === "metric" ? `${data.title}: ${data.value}${data.change ? ` (${data.change})` : ""}` : data.type === "attention" ? `${data.total} need attention` : `${data.title}: ${data.basis}`)).join("; ");
+  const numbers = shown.map(({ data }) => (data.type === "metric" ? `${data.title}: ${data.value}${data.change ? ` (${data.change})` : ""}` : data.type === "attention" ? `${data.title}: ${data.total}` : `${data.title}: ${data.basis}`)).join("; ");
   const menu = useContextMenu([
-    { label: "Edit dashboard", onSelect: () => setEditing(true), disabled: editing ? "You are editing it; Done ends it." : undefined },
+    { label: "Edit cards", onSelect: () => setEditing(true), disabled: editing ? "You are editing them; Done ends it." : undefined },
     { label: "Tell me when…", onSelect: () => onAsk(`On the ${table.title} dashboard, tell me when `) },
-    { label: "Download as CSV", onSelect: () => downloadText(`${table.title} dashboard.csv`, toCsv([["Tile", "Value", "Basis"], ...shown.map(({ data }) => [data.title, data.type === "metric" ? data.value : data.type === "overtime" ? String(data.buckets.reduce((a, b) => a + b.ids.length, 0)) : String(data.total), data.basis])])) },
+    { label: "Download as CSV", onSelect: () => downloadText(`${table.title} dashboard.csv`, toCsv([["Card", "Value", "Basis"], ...shown.map(({ data }) => [data.title, data.type === "metric" ? data.value : data.type === "overtime" ? String(data.buckets.reduce((a, b) => a + b.ids.length, 0)) : String(data.total), data.basis])])) },
   ]);
-
-  async function save(next: Tile[] | null) {
-    const all = { ...(saved ?? {}) };
-    if (next) all[listKey] = next;
-    else delete all[listKey];
-    setProblem(await setSaved(all));
-  }
-  const tiles = shown.map((s) => s.tile);
-  const change = (i: number, patch: Partial<Tile>) => save(tiles.map((t, j) => (j === i ? { ...t, ...patch } : t)));
-  const move = (i: number, by: number) => {
-    const next = [...tiles];
-    next.splice(i + by, 0, ...next.splice(i, 1));
-    return save(next);
-  };
-  const addable = availableTiles(fields).filter((a) => !tiles.some((t) => t.id === a.tile.id));
+  if (!shown.length) return null;
 
   const show = (cta: Cta) => onShowRecords(cta.ids, cta.label);
-  // the tile's title is in the button's name: several tiles say "Show these 3"
+  // the card's title is in the button's name: several cards say "Show these 3"
   const button = (c: Cta, title: string) => (
     <Button size="sm" aria-label={`${c.text} (${title})`} disabledReason={c.disabledReason} onClick={() => show(c)}>
       {c.text}
@@ -92,7 +69,7 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
 
   function body(d: TileData) {
     if (d.type === "metric") return <MetricTile label={d.title} value={d.value} basis={d.basis} change={d.change} cta={button(d.cta, d.title)} />;
-    // a chart tile: its total with the label and basis beside it, the chart under them
+    // a chart card: its total with the label and basis beside it, the chart under them
     if (d.type === "breakdown" || d.type === "overtime") {
       const total = d.type === "breakdown" ? d.total : d.buckets.reduce((a, b) => a + b.ids.length, 0);
       return <MetricTile label={d.title} value={total.toLocaleString()} basis={d.basis} chart={d.type === "breakdown" ? <Breakdown d={d} onShow={onShowRecords} /> : <OverTime d={d} onShow={onShowRecords} />} cta={button(d.cta, d.title)} />;
@@ -116,7 +93,7 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
         <div className="dash__cta">
           {button(d.cta, d.title)}
           {d.total > 0 ? (
-            <Button size="sm" variant="ghost" onClick={() => onAsk(`What should I do about the ${d.total} ${table.title} that need attention?`)}>
+            <Button size="sm" variant="ghost" onClick={() => onAsk(`What should I do about the ${d.total} ${table.title} in "${d.title}"?`)}>
               Ask Alpha what to do
             </Button>
           ) : null}
@@ -126,75 +103,57 @@ export function DashboardView({ client, table, fields, rows, listKey, onShowReco
   }
 
   return (
-    <section className="dash" aria-label="Dashboard">
+    <section className="dash" aria-label={`${table.title} dashboard`}>
       <div className="dash__top">
         <div className="dash__tools">
           <span className="dash__asof">As of {timeText(asOf)}</span>
           <Toggle<Period> inBody label="Period" value={period} onChange={setPeriod} items={[{ id: "all", label: "All time" }, { id: "30", label: "30 days" }, { id: "7", label: "7 days" }]} />
-          <InfoTip text="The period, and the list, search and filters above, apply to every tile." />
+          <InfoTip text="The period, and the list, search and filters below, apply to every card. Alpha proposes new cards when this table changes in a way that matters." />
         </div>
         <div className="dash__tools">
-          {editing ? (
-            <>
-              {addable.length ? (
-                <Dropdown size="sm" label="Add a tile" value="" placeholder="Add a tile…" options={addable.map((a) => ({ value: a.tile.id, label: a.label }))} onChange={(id) => save([...tiles, addable.find((a) => a.tile.id === id)!.tile])} />
-              ) : (
-                <Button size="sm" disabledReason="Every kind of tile for these fields is already here.">
-                  Add a tile…
-                </Button>
-              )}
-              <Button size="sm" variant="ghost" disabledReason={layout ? undefined : "This is already the default layout."} onClick={() => save(null)}>
-                Reset to default
-              </Button>
-            </>
-          ) : null}
           {editing ? (
             <Button size="sm" variant="primary" onClick={() => setEditing(false)}>
               Done
             </Button>
-          ) : (
-            <Button size="sm" onClick={() => onAsk(`Change the ${table.title} dashboard: `)}>
-              Ask Alpha
-            </Button>
-          )}
+          ) : null}
           <IconButton size="sm" label="Dashboard options" icon={<MoreVertical />} aria-haspopup="menu" onClick={(e) => menu.openFrom(undefined, e.currentTarget)} />
           {menu.menu}
         </div>
       </div>
       {problem ? (
         <p className="dash__problem" role="alert">
-          Could not save the layout: {problem}
+          Could not remove the card: {problem}
         </p>
       ) : null}
-      {shown.length ? (
-        <div className="dash__grid">
-          {shown.map(({ tile, data }, i) => (
-            <div key={tile.id} className={`dash__cell dash__cell--${data.type}${tile.size === "wide" ? " dash__cell--wide" : ""}`}>
-              {body(data)}
-              {editing ? (
-                <div className="dash__edit" role="group" aria-label={`Edit ${data.title}`}>
-                  <IconButton size="sm" label={`Move ${data.title} earlier`} icon={<ArrowUp />} disabledReason={i === 0 ? "It is already first." : undefined} onClick={() => move(i, -1)} />
-                  <IconButton size="sm" label={`Move ${data.title} later`} icon={<ArrowDown />} disabledReason={i === shown.length - 1 ? "It is already last." : undefined} onClick={() => move(i, 1)} />
-                  <IconButton size="sm" label={tile.size === "wide" ? `Make ${data.title} normal width` : `Make ${data.title} wide`} icon={tile.size === "wide" ? <Minimize2 /> : <Maximize2 />} onClick={() => change(i, { size: tile.size === "wide" ? "normal" : "wide" })} />
-                  <IconButton size="sm" label={`Remove ${data.title}`} icon={<X />} onClick={() => save(tiles.filter((_, j) => j !== i))} />
-                </div>
-              ) : null}
-            </div>
-          ))}
-          <div className="dash__cell dash__cell--read">
-            <SectionCard title="What changed?" info={`Alpha explains what changed and why, from these numbers: ${numbers}${scope}.`}>
-              <p className="dash__none dash__clamp">{numbers}{scope}.</p>
-              <div className="dash__cta">
-                <Button size="sm" onClick={() => onAsk(`On the ${table.title} dashboard${scope}: ${numbers}. What changed, and why?`)}>
-                  Ask what changed
-                </Button>
+      <div className="dash__grid">
+        {shown.map(({ card, data }) => (
+          <div key={card.id} className={`dash__cell dash__cell--${data.type}`}>
+            {body(data)}
+            {editing ? (
+              <div className="dash__edit" role="group" aria-label={`Edit ${data.title}`}>
+                <IconButton size="sm" label={`Remove ${data.title}`} icon={<X />} onClick={() => setRemoving(card)} />
               </div>
-            </SectionCard>
+            ) : null}
           </div>
+        ))}
+        <div className="dash__cell dash__cell--read">
+          <SectionCard title="What changed?" info={`Alpha explains what changed and why, from these numbers: ${numbers}${scope}.`}>
+            <p className="dash__none dash__clamp">{numbers}{scope}.</p>
+            <div className="dash__cta">
+              <Button size="sm" onClick={() => onAsk(`On the ${table.title} dashboard${scope}: ${numbers}. What changed, and why?`)}>
+                Ask what changed
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      ) : (
-        <p className="empty">No tiles on this dashboard. Choose ⋮ › Edit dashboard to add one.</p>
-      )}
+      </div>
+      <Confirm open={removing !== null} title={`Remove the card ${removing?.title ?? ""}?`} action="Remove" onCancel={() => setRemoving(null)} onConfirm={() => {
+        const card = removing;
+        setRemoving(null);
+        if (card) void onRemove(card).then(setProblem);
+      }}>
+        Its records stay. Alpha may propose it again when the table changes.
+      </Confirm>
     </section>
   );
 }

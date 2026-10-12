@@ -12,6 +12,8 @@ from typing import Any
 from alpha.connectors.browser import Browser
 from alpha.connectors.files import Files, table_rows
 from alpha.mcp.tools.base import Base, counts_and_ids, provenance_words, tool
+from alpha.world.cards import check_card
+from alpha.world.cards import key as card_key
 from alpha.world.store import Problem
 
 
@@ -97,6 +99,46 @@ class Tables(Base):
             module=self.module, thread=self.thread,
         )
         return {"proposed": jid}
+
+    @tool
+    def card_propose(self, collection: str, cards: list[dict[str, Any]], why: str
+                     ) -> dict[str, Any]:
+        """Propose dashboard cards for a table: there is no standard dashboard, so choose the
+        few that help this person act on this table, and the person's yes keeps them (their
+        numbers then stay current on their own). Each card: {type, field, measure, title, why}.
+        type: metric (measure count, sum, avg or estimated; field a number field for sum and
+        avg), breakdown (field a choice or status field), overtime (field a date field;
+        measure count or a number field to add up) or attention (the records that need it).
+        title: what the card is for, in the person's words ("Deals won this month"); why: one
+        line on what they would do with it. Skip a card the table keeps (card_list) or that
+        waits for the person's answer."""
+        desc = self.world.collections.describe(collection)
+        checked = [check_card(c, desc["fields"]) for c in cards]
+        if not checked:
+            raise Problem("Propose at least one card.")
+        taken = {card_key(c) for c in self.world.cards.of(collection)} \
+            | self.world.cards.pending(collection)
+        fresh: dict[tuple[str, str | None, str | None], dict[str, Any]] = {}
+        for c in checked:
+            if card_key(c) not in taken:
+                fresh.setdefault(card_key(c), c)
+        if not fresh:
+            raise Problem(f"{desc['title']} keeps these cards already, or they wait for the"
+                          " person's answer.")
+        jid = self.world.journal.append(
+            "proposed", f"Dashboard cards for {desc['title']}: "
+            + "; ".join(c["title"] for c in fresh.values()),
+            data={"cards": {"collection": collection, "cards": list(fresh.values())},
+                  "why": why, "turn": self.turn},
+            module=desc["module"], thread=self.thread,
+        )
+        return {"proposed": jid, "cards": len(fresh)}
+
+    @tool
+    def card_list(self, collection: str) -> list[dict[str, Any]]:
+        """The dashboard cards a table keeps (the ones the person said yes to)."""
+        self.world.collections.describe(collection)
+        return self.world.cards.of(collection)
 
     @tool
     def record_history(self, collection: str, id: str) -> list[dict[str, Any]]:

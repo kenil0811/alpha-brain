@@ -17,7 +17,7 @@ import { BoardIcon, ChevronLeft, MapIcon, RenameIcon, BrainIcon as GraphIcon, Ca
 import type { FieldInfo } from "./fields";
 import { fieldLabel } from "./FilterUI";
 
-export type PageView = "graph" | "table" | "map" | "board" | "calendar" | "timeline" | "gallery" | "form" | "dashboard";
+export type PageView = "graph" | "table" | "map" | "board" | "calendar" | "timeline" | "gallery" | "form";
 
 /** Every view type, in Notion's order, with its icon; Graph only where the page has one. */
 export type ViewChoice = { id: PageView; label: string; icon: ReactNode };

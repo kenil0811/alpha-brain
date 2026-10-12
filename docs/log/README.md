@@ -82,3 +82,4 @@ One file per dated entry, verbatim from where it was written; newest last. The c
 - [`2026-10-12-views-and-popups.md`](2026-10-12-views-and-popups.md) — Graph as a type in the View dropdown, List and Chart dropped, tinted toggles, Save/Cancel/Rename/Share for lists, ⋮ settings and sidebar choices as dropdowns not pop-ups (Q46); the Map view plan with the owner's answers
 - [`2026-10-12-map-view.md`](2026-10-12-map-view.md) — The Map view: a place field, Apple's geocoder and the view (12 Oct 2026, Q46, G13; branch `feat/map-view`)
 - [`2026-10-12-merge-window-into-map.md`](2026-10-12-merge-window-into-map.md) — PR #5 with main merged into the Map branch; the Map is Q46
+- [`2026-10-12-dashboard-cards.md`](2026-10-12-dashboard-cards.md) — Dashboard cards (Q47): Alpha proposes a table's cards, the yes keeps them, a change that matters in a table asks again; the Dashboard view gone; the review's 8 fixes

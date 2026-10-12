@@ -1,11 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Client, RecordRow, TableDesc } from "../../core/client";
-import { forgetPreferences } from "../../core/preferences";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DashboardCard, RecordRow, TableDesc } from "../../core/client";
 import { TooltipProvider } from "../../ui";
 import type { FieldInfo } from "../fields";
-import { DashboardView, dashboardAvailable } from "./DashboardView";
+import { KeptCards } from "./KeptCards";
 import { weekOverWeek } from "../dashboard";
 
 const fields: FieldInfo[] = [
@@ -17,33 +16,44 @@ const fields: FieldInfo[] = [
 const desc = { name: "deals", title: "Deals", module: null, title_field: "title", fields } as unknown as TableDesc;
 const row = (id: string, values: Record<string, unknown>): RecordRow => ({ id, revision: 1, values, created_at: "", updated_at: "", provenance: {} });
 const rows = [row("r1", { title: "Bakery", amount: 10, stage: "open", due: "2020-01-01" }), row("r2", { title: "Cafe", amount: 30, stage: "won", due: "2020-01-02" }), row("r3", { title: "Deli", amount: 20, stage: "open", due: "2020-02-03" })];
+const card = (id: string, type: DashboardCard["type"], title: string, field: string | null = null, measure: string | null = null): DashboardCard => ({ id, collection: "deals", type, field, measure, title, why: "" });
+/** What Alpha might propose for these fields, the numbers first. */
+const cards = [
+  card("c1", "metric", "Records", null, "count"),
+  card("c2", "metric", "Total amount", "amount", "sum"),
+  card("c3", "metric", "Average amount", "amount", "avg"),
+  card("c4", "overtime", "Records over time", "due", "count"),
+  card("c5", "breakdown", "Where deals stand", "stage"),
+  card("c6", "attention", "Needs attention"),
+];
 
-function setup(data: RecordRow[] = rows) {
-  const client = { preference: vi.fn(async () => ({ key: "dashboards", value: null })), setPreference: vi.fn(async (_k: string, v: unknown) => ({ key: "dashboards", value: v })) };
-  const on = { onShowRecords: vi.fn(), onOpenRecord: vi.fn(), onAsk: vi.fn() };
-  render(
+function setup(data: RecordRow[] = rows, kept: DashboardCard[] = cards) {
+  const on = { onShowRecords: vi.fn(), onOpenRecord: vi.fn(), onAsk: vi.fn(), onRemove: vi.fn(async () => null) };
+  const view = render(
     <TooltipProvider>
-      <DashboardView client={client as unknown as Client} table={desc} fields={fields} rows={data} listKey="deals:all" {...on} />
+      <KeptCards table={desc} cards={kept} fields={fields} rows={data} {...on} />
     </TooltipProvider>,
   );
-  return { client, ...on };
+  return { ...on, ...view };
 }
-beforeEach(() => forgetPreferences());
 afterEach(() => {
   vi.unstubAllGlobals();
   delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
 });
 
-describe("the dashboard", () => {
-  it("is available when a field can be counted, added up or dated", () => {
-    expect(dashboardAvailable(fields)).toBeNull();
-    expect(dashboardAvailable([{ name: "t", kind: "text" }])).toMatch(/needs a number, status or date/);
+describe("a table's dashboard cards", () => {
+  it("shows only the cards the person kept, under Alpha's titles, and nothing when none are kept", () => {
+    const { container } = setup(rows, []);
+    expect(container.querySelector(".dash")).toBeNull();
+    setup();
+    expect(screen.getByRole("region", { name: "Deals dashboard" })).toBeInTheDocument();
+    expect(screen.getByText("Where deals stand")).toBeInTheDocument();
   });
 
-  it("gives every tile a call to action", () => {
+  it("gives every card a call to action", () => {
     setup();
     const tiles = [...document.querySelectorAll(".dash__cell")];
-    expect(tiles.length).toBeGreaterThanOrEqual(4);
+    expect(tiles).toHaveLength(cards.length + 1);
     for (const t of tiles) expect(within(t as HTMLElement).getAllByRole("button").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Show these 3 (Records)" })).toBeEnabled();
   });
@@ -82,31 +92,17 @@ describe("the dashboard", () => {
     expect(screen.getAllByText("No records yet.").length).toBeGreaterThan(0);
   });
 
-  it("edit mode removes a tile and keeps the layout for this list", async () => {
+  it("Edit cards removes a card only after asking", async () => {
     const user = userEvent.setup();
-    const { client } = setup();
+    const { onRemove } = setup();
     await user.click(screen.getByRole("button", { name: "Dashboard options" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Edit dashboard" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit cards" }));
     await user.click(screen.getByRole("button", { name: "Remove Needs attention" }));
-    await waitFor(() => expect(client.setPreference).toHaveBeenCalled());
-    const [key, value] = client.setPreference.mock.calls[0] as [string, Record<string, { id: string }[]>];
-    expect(key).toBe("dashboards");
-    expect(value["deals:all"].map((t) => t.id)).not.toContain("attention");
-    expect(value["deals:all"]).toHaveLength(6);
-    expect(screen.queryByRole("region", { name: "Needs attention" })).not.toBeInTheDocument();
-  });
-
-  it("edit mode makes a tile wide and resets to the default layout", async () => {
-    const user = userEvent.setup();
-    const { client } = setup();
-    await user.click(screen.getByRole("button", { name: "Dashboard options" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Edit dashboard" }));
-    await user.click(screen.getByRole("button", { name: "Make Records by stage wide" }));
-    await waitFor(() => expect(client.setPreference).toHaveBeenCalledTimes(1));
-    expect(document.querySelectorAll(".dash__cell--wide")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "Reset to default" }));
-    await waitFor(() => expect(client.setPreference).toHaveBeenLastCalledWith("dashboards", {}));
-    expect(document.querySelectorAll(".dash__cell--wide")).toHaveLength(0);
+    expect(onRemove).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Its records stay");
+    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+    expect(onRemove).toHaveBeenCalledWith(cards[5]);
   });
 
   it("draws a chart at its tile's real width, so its text keeps the type scale", () => {
@@ -123,7 +119,7 @@ describe("the dashboard", () => {
     for (const c of charts) expect(c.getAttribute("viewBox")).toMatch(/^0 0 620 /);
   });
 
-  it("puts the numbers first with their change on the week before, and a period that applies to every tile", async () => {
+  it("puts the numbers first with their change on the week before, and a period that applies to every card", async () => {
     const user = userEvent.setup();
     setup();
     const cells = [...document.querySelectorAll(".dash__cell")].map((c) => c.className.match(/dash__cell--(\w+)/)?.[1]);

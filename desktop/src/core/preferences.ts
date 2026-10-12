@@ -20,7 +20,6 @@ export const PREF = {
   hiddenModules: "hidden_modules",
   pinnedRecords: "pinned_records",
   footerSummaries: "footer_summaries",
-  dashboards: "dashboards",
   recordSections: "record_sections",
   companionLook: "companion_look",
   workspaceLogo: "workspace_logo",

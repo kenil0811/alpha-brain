@@ -7,12 +7,11 @@
  * never by what a field means. Every number states its basis; a value nobody knows is "Unknown".
  */
 import type { RecordRow } from "../core/client";
-import { CHOICE_KINDS, DATE_KINDS, NUMERIC_KINDS, firstOfKind, isNumeric, titleFieldOf, type FieldInfo } from "./fields";
+import { CHOICE_KINDS, DATE_KINDS, firstOfKind, isNumeric, titleFieldOf, type FieldInfo } from "./fields";
 import { formatDay, formatNumber, humanize } from "./format";
 
-/** One tile as the person's layout keeps it (`PREF.dashboards[listKey]`): its type, the field it
- *  runs on, what it measures and how wide it is. The id is made from the other three, so a layout
- *  never holds the same tile twice. */
+/** One card as the core keeps it (`world/cards.py`): its type, the field it runs on and what it
+ *  measures; the id is the card's. */
 export interface Tile {
   id: string;
   type: "metric" | "breakdown" | "overtime" | "attention";
@@ -95,49 +94,6 @@ const lc = (s: string) => (/^.[A-Z]/.test(s) ? s : s.charAt(0).toLowerCase() + s
 const empty = (v: unknown) => v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
 const records = (n: number) => `${n} ${n === 1 ? "record" : "records"}`;
 
-/** Why the dashboard cannot be used, or null when it can: it needs something to count, add up or date. */
-export function dashboardAvailable(fields: FieldInfo[]): string | null {
-  return fields.some((f) => NUMERIC_KINDS.has(f.kind) || CHOICE_KINDS.has(f.kind) || DATE_KINDS.has(f.kind)) ? null : "Dashboard needs a number, status or date field";
-}
-
-function tile(type: Tile["type"], field?: string, measure?: string): Tile {
-  return { id: [type, measure, field].filter(Boolean).join(":"), type, field, measure };
-}
-
-/** Every tile these fields can have, with the words that name it in the "Add a tile" list. */
-export function availableTiles(fields: FieldInfo[]): { tile: Tile; label: string }[] {
-  const out: { tile: Tile; label: string }[] = [{ tile: tile("metric", undefined, "count"), label: "Number of records" }];
-  const firstNumber = firstOfKind(fields, NUMERIC_KINDS);
-  for (const f of fields) {
-    if (NUMERIC_KINDS.has(f.kind)) out.push({ tile: tile("metric", f.name, "sum"), label: `Total ${lc(nameOf(f))}` }, { tile: tile("metric", f.name, "avg"), label: `Average ${lc(nameOf(f))}` });
-  }
-  out.push({ tile: tile("metric", undefined, "estimated"), label: "Estimated by Alpha" });
-  for (const f of fields) if (CHOICE_KINDS.has(f.kind)) out.push({ tile: tile("breakdown", f.name), label: `Records by ${lc(nameOf(f))}` });
-  for (const f of fields) {
-    if (!DATE_KINDS.has(f.kind)) continue;
-    out.push({ tile: tile("overtime", f.name, "count"), label: `Records over time by ${lc(nameOf(f))}` });
-    if (firstNumber) out.push({ tile: tile("overtime", f.name, firstNumber.name), label: `${nameOf(firstNumber)} over time by ${lc(nameOf(f))}` });
-  }
-  out.push({ tile: tile("attention"), label: "Needs attention" });
-  return out;
-}
-
-/** The layout a list opens with: 4 to 7 tiles, picked by field kind; the numbers first, then
- *  the charts, then what needs attention (ChatGPT's dashboards, 12 Oct: KPIs on top). */
-export function defaultTiles(fields: FieldInfo[]): Tile[] {
-  const number = firstOfKind(fields, NUMERIC_KINDS);
-  const choice = fields.find((f) => f.kind === "status") ?? firstOfKind(fields, CHOICE_KINDS);
-  const date = firstOfKind(fields, DATE_KINDS);
-  return [
-    tile("metric", undefined, "count"),
-    ...(number ? [tile("metric", number.name, "sum"), tile("metric", number.name, "avg")] : []),
-    tile("metric", undefined, "estimated"),
-    ...(date ? [tile("overtime", date.name, "count")] : []),
-    ...(choice ? [tile("breakdown", choice.name)] : []),
-    tile("attention"),
-  ];
-}
-
 const dayOf = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
 const utc = (day: string) => {
   const [y, m, d] = day.split("-").map(Number);
@@ -163,8 +119,10 @@ function disabled(text: string, label: string, reason: string): Cta {
 }
 const noRecords = "There are no records yet.";
 
-function metric(t: Tile, { fields, rows, allRows = rows, now: ctxNow = new Date() }: Ctx): TileData {
+function metric(t: Tile, { fields, rows, allRows = rows, now: ctxNow = new Date() }: Ctx): TileData | null {
   const f = fields.find((x) => x.name === t.field);
+  // a total or an average whose number field has gone shows nothing, never a count under its title
+  if ((t.measure === "sum" || t.measure === "avg") && (!f || !isNumeric(f.kind))) return null;
   const all = rows.map((r) => r.id);
   if (t.measure === "estimated") {
     const ids = rows.filter((r) => r.provenance?.estimated || r.provenance?.assumed).map((r) => r.id);
