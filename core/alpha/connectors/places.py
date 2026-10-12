@@ -33,6 +33,9 @@ DEADLINE_S = 15
 
 
 class Geocoder(Protocol):
+    """Each label's place, or None when it isn't found; a label it couldn't look up now (no
+    network, Apple's limit) is left out of the answer."""
+
     def locate(self, labels: list[str]) -> dict[str, dict[str, Any] | None]: ...
 
 
@@ -43,8 +46,8 @@ def _words(text: str) -> set[str]:
 def _point(label: str, mark: dict[str, Any]) -> dict[str, Any] | None:
     """A placemark's point, if it is about what was asked (see the module's note)."""
     # ponytail: whole-word match, so "NYC" for New York is left unplaced; an alias list if it bites
-    names = [mark.get(k) for k in ("name", "thoroughfare", "locality", "region", "country",
-                                   "country_code")]
+    # not the country code: "in", "it", "no" are words in nearly any label
+    names = [mark.get(k) for k in ("name", "thoroughfare", "locality", "region", "country")]
     asked = _words(label)
     if not any(n and _words(n) and _words(n) <= asked for n in names):
         return None
@@ -76,7 +79,7 @@ class AppleGeocoder:
                 # a failed lookup (no network, Apple's limit) isn't kept: it may work later
                 if mark.get("error") is None:
                     self.seen[label] = _point(label, mark["mark"]) if mark.get("mark") else None
-        return {x: self.seen.get(x) for x in labels}
+        return {x: self.seen[x] for x in labels if x in self.seen}
 
 
 def _lookup(text: str) -> dict[str, Any]:

@@ -4,7 +4,7 @@
  * world-atlas, in the rulebook's greys). Nothing is fetched to draw it.
  *
  * - One dot per record with a place; dots close together on screen merge into a numbered circle,
- *   which a click zooms into. A place Apple's geocoder found is estimated and drawn hollow; one
+ *   which a click zooms into; records at one point (a city's) list in the card instead. A place Apple's geocoder found is estimated and drawn hollow; one
  *   given with its point is filled.
  * - A click selects a record and shows its card (title, two fields, Open page); a double-click
  *   opens its page, as in the graph.
@@ -25,6 +25,7 @@ const W = 1000;
 const H = 520;
 /** Dots nearer than this on screen merge into one circle. */
 const MERGE_PX = 22;
+const MAX_K = 40;
 
 const projection = geoNaturalEarth1().fitExtent([[8, 8], [W - 8, H - 8]], { type: "Sphere" });
 const path = geoPath(projection);
@@ -50,18 +51,34 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
     }
     return out.sort((a, b) => a.x - b.x || a.y - b.y);
   }, [rows, field.name]);
-  const unplaced = rows.filter((r) => !dots.some((d) => d.row === r) && r.values[field.name] !== undefined && r.values[field.name] !== null);
-  const without = rows.length - dots.length;
+  const { without, unfound } = useMemo(() => {
+    const placed = new Set(dots.map((d) => d.row.id));
+    const out = rows.filter((r) => !placed.has(r.id));
+    return { without: out, unfound: out.filter((r) => r.values[field.name] !== undefined && r.values[field.name] !== null).length };
+  }, [rows, dots, field.name]);
 
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [selected, setSelected] = useState<string | null>(null);
+  const [group, setGroup] = useState<Dot[] | null>(null);
+  // a card that closed under the focus (Back) hands it to the card now shown
+  const card = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (document.activeElement === document.body) card.current?.focus({ preventScroll: true });
+  }, [group, selected]);
+  // the window's size sets how far apart dots must be on screen: re-merge when it changes
+  const [size, setSize] = useState(0);
+  useEffect(() => {
+    const resized = () => setSize((n) => n + 1);
+    window.addEventListener("resize", resized);
+    return () => window.removeEventListener("resize", resized);
+  }, []);
   const svg = useRef<SVGSVGElement | null>(null);
-  const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
   const unitsPerPixel = () => Math.max(W / (svg.current?.clientWidth || W), H / (svg.current?.clientHeight || H));
 
   const zoom = (by: number, about = { x: W / 2, y: H / 2 }) =>
     setView((v) => {
-      const k = Math.min(40, Math.max(1, v.k * by));
+      const k = Math.min(MAX_K, Math.max(1, v.k * by));
       const f = k / v.k;
       return { k, x: about.x - (about.x - v.x) * f, y: about.y - (about.y - v.y) * f };
     });
@@ -91,19 +108,19 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
       // zoom about the pointer: where it is in the drawing's own units
       const m = el.getScreenCTM?.();
       const at = m && el.createSVGPoint ? Object.assign(el.createSVGPoint(), { x: e.clientX, y: e.clientY }).matrixTransform(m.inverse()) : undefined;
-      zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, at ? { x: at.x, y: at.y } : undefined);
+      // by how far the wheel or trackpad moved, so a trackpad's many small steps zoom gently
+      zoom(Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.004), at ? { x: at.x, y: at.y } : undefined);
     };
     el.addEventListener("wheel", wheel, { passive: false });
     return () => el.removeEventListener("wheel", wheel);
   }, []);
   const down = (e: ReactPointerEvent<SVGSVGElement>) => {
-    drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false };
+    drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const dragMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     const d = drag.current;
     if (!d) return;
-    if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) d.moved = true;
     const u = unitsPerPixel();
     setView((v) => ({ ...v, x: d.vx + (e.clientX - d.x) * u, y: d.vy + (e.clientY - d.y) * u }));
   };
@@ -118,7 +135,7 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
     }
     return [...bins.values()].map((ds): Cluster => ({ x: ds.reduce((s, d) => s + d.x, 0) / ds.length, y: ds.reduce((s, d) => s + d.y, 0) / ds.length, dots: ds }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the drawing's scale is read as it is now
-  }, [dots, view.k]);
+  }, [dots, view.k, size]);
   const [focus, setFocus] = useState(0);
   const tabAt = Math.min(focus, Math.max(0, clusters.length - 1));
   const chosen = dots.find((d) => d.row.id === selected);
@@ -127,12 +144,30 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
   const name = (d: Dot) => titleText(d.row, titleField);
 
   const choose = (c: Cluster) => {
-    if (c.dots.length === 1) return setSelected(c.dots[0].row.id);
+    if (c.dots.length === 1) {
+      setGroup(null);
+      return setSelected(c.dots[0].row.id);
+    }
+    // records at one point (or as close in as the map goes) never split: list them instead
+    const one = c.dots.every((d) => Math.hypot(d.x - c.dots[0].x, d.y - c.dots[0].y) < 1e-6);
+    if (one || view.k >= MAX_K) {
+      setSelected(null);
+      return setGroup(c.dots);
+    }
     zoom(2.5, { x: view.x + c.x * view.k, y: view.y + c.y * view.k });
   };
 
   return (
-    <div className="mapview">
+    <div
+      className="mapview"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && (chosen || group)) {
+          e.stopPropagation();
+          setSelected(null);
+          setGroup(null);
+        }
+      }}
+    >
       <div className="mapview__canvas">
         <svg
           ref={svg}
@@ -151,7 +186,7 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
             <path className="mapview__borders" d={BORDERS} strokeWidth={0.6 / view.k} />
             {clusters.map((c, i) => {
               const one = c.dots.length === 1 ? c.dots[0] : null;
-              const label = one ? `${name(one)}, ${one.place.label}${one.place.estimated ? " (estimated)" : ""}` : `${c.dots.length} records here; zoom in`;
+              const label = one ? `${name(one)}, ${one.place.label}${one.place.estimated ? " (estimated)" : ""}` : `${c.dots.length} records here`;
               return (
                 <g
                   key={c.dots.map((d) => d.row.id).join(",")}
@@ -161,7 +196,7 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
                   aria-label={label}
                   tabIndex={i === tabAt ? 0 : -1}
                   onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => choose(c)}
+                  onClick={(e) => e.detail < 2 && choose(c)}
                   onDoubleClick={() => one && onOpen(one.row.id)}
                   onKeyDown={(e) => {
                     const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
@@ -188,8 +223,27 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
             })}
           </g>
         </svg>
+        {group && !chosen ? (
+          <aside className="mapcard" aria-label={`${group.length} records`} ref={card} tabIndex={-1}>
+            <strong className="mapcard__title">{`${group.length} records at ${group[0].place.label}`}</strong>
+            <ul className="mapcard__list">
+              {group.map((d) => (
+                <li key={d.row.id}>
+                  <Button size="sm" variant="ghost" onClick={() => setSelected(d.row.id)} onDoubleClick={() => onOpen(d.row.id)}>
+                    {name(d)}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <div className="row">
+              <Button size="sm" variant="ghost" onClick={() => setGroup(null)}>
+                Close
+              </Button>
+            </div>
+          </aside>
+        ) : null}
         {chosen ? (
-          <aside className="mapcard" aria-label={name(chosen)}>
+          <aside className="mapcard" aria-label={name(chosen)} ref={card} tabIndex={-1}>
             <strong className="mapcard__title">{name(chosen)}</strong>
             <span className="faint">
               {chosen.place.label}
@@ -207,7 +261,12 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
               <Button size="sm" onClick={() => onOpen(chosen.row.id)}>
                 Open page
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+              {group ? (
+                <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+                  Back
+                </Button>
+              ) : null}
+              <Button size="sm" variant="ghost" onClick={() => { setSelected(null); setGroup(null); }}>
                 Close
               </Button>
             </div>
@@ -215,11 +274,11 @@ export function MapView({ rows, field, titleField, fields, onOpen, onShowRecords
         ) : null}
         <ZoomControls onZoom={(by) => zoom(by)} onMove={move} onFit={fit} />
       </div>
-      {without ? (
+      {without.length ? (
         <p className="faint mapview__none">
-          {without.toLocaleString()} {without === 1 ? "record has" : "records have"} no place
-          {unplaced.length ? `; ${unplaced.length.toLocaleString()} of them couldn't be found` : ""}.{" "}
-          <Button size="sm" variant="ghost" onClick={() => onShowRecords(rows.filter((r) => !dots.some((d) => d.row === r)).map((r) => r.id), `No ${field.label ?? field.name}`)}>
+          {without.length.toLocaleString()} {without.length === 1 ? "record has" : "records have"} no place
+          {unfound ? `; ${unfound.toLocaleString()} of them couldn't be found` : ""}.{" "}
+          <Button size="sm" variant="ghost" onClick={() => onShowRecords(without.map((r) => r.id), `No ${field.label ?? field.name}`)}>
             Show them
           </Button>
         </p>

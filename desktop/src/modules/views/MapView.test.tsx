@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RecordRow } from "../../core/client";
 import { TooltipProvider } from "../../ui";
-import type { FieldInfo } from "../fields";
+import { editText, showValue, type FieldInfo } from "../fields";
 import { MapView } from "./MapView";
 
 const fields: FieldInfo[] = [
@@ -34,7 +34,7 @@ function draw(over: Partial<Parameters<typeof MapView>[0]> = {}) {
 describe("MapView", () => {
   it("merges records at one place, keeps others apart, and draws a found place hollow", () => {
     draw();
-    expect(screen.getByRole("button", { name: "2 records here; zoom in" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "2 records here" })).toBeTruthy();
     const paris = screen.getByRole("button", { name: "Deli, Paris" });
     expect(paris.getAttribute("class")).not.toContain("mapdot--estimated");
   });
@@ -71,5 +71,22 @@ describe("MapView", () => {
     await userEvent.keyboard("{Enter}");
     await userEvent.keyboard("{Enter}");
     expect(p.onOpen).toHaveBeenCalledWith("c");
+  });
+
+  it("records at one city never split: a click lists them, and Escape closes the card", async () => {
+    draw();
+    await userEvent.click(screen.getByRole("button", { name: "2 records here" }));
+    expect(screen.getByText("2 records at Austin, TX")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Cafe" }));
+    expect(screen.getByRole("complementary", { name: "Cafe" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByText("2 records at Austin, TX")).toBeTruthy();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("complementary")).toBeNull();
+  });
+
+  it("a place reads and edits as its words", () => {
+    expect(showValue(austin("Austin, TX"), "place")).toBe("Austin, TX");
+    expect(editText(austin("Austin, TX"), "place")).toBe("Austin, TX");
   });
 });

@@ -2,6 +2,7 @@
  * One place that knows what a field kind looks like and how typed text becomes a value, for
  * every derived page, table cell and form in the shell.
  */
+import { isPlace } from "../core/client";
 import { formatDay, formatNumber, humanize, when } from "./format";
 import { parseDate, parseNumber } from "./parse";
 
@@ -28,6 +29,7 @@ export function isNumeric(kind: string): boolean {
 /** The value as words for a cell: numbers with units, days short, choices as pills. */
 export function showValue(value: unknown, kind: string, unit?: string | null): string {
   if (value === null || value === undefined || value === "") return "";
+  if (isPlace(value)) return value.label; // a place reads as its words, wherever it shows
   if (isNumeric(kind)) return typeof value === "number" ? formatNumber(value, unit) : String(value);
   if (kind === "date") return formatDay(String(value));
   if (kind === "datetime") return when(String(value));
@@ -74,6 +76,7 @@ export function inputType(kind: string): string {
 /** The text a cell editor starts with. */
 export function editText(value: unknown, kind: string): string {
   if (value === null || value === undefined) return "";
+  if (isPlace(value)) return value.label;
   if (kind === "multichoice" && Array.isArray(value)) return value.join(", ");
   if (kind === "bool") return value ? "true" : "false";
   return String(value);

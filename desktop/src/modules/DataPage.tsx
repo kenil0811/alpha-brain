@@ -21,7 +21,7 @@
  * Selecting rows offers Edit property, Duplicate, Delete and Download as CSV.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { say } from "../core/client";
+import { isPlace, say } from "../core/client";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, TableSummaryData, Relations } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { DATE_KINDS, coerce, inputType, isNumeric, showValue, titleFieldOf, type FieldInfo } from "./fields";
@@ -367,7 +367,8 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     const value = coerce(text, field.kind, field.unit);
     if (field.required && (value === null || value === "")) return setStatus({ ok: false, text: `${fieldLabel(field)} can't be empty, so it was left as it was.` });
     const before = row.values[field.name] ?? null;
-    if (JSON.stringify(value) === JSON.stringify(before)) return;
+    // a place is edited as its words: the same words are no change
+    if (JSON.stringify(value) === JSON.stringify(isPlace(before) ? before.label : before)) return;
     const revision = await write(row, field, value);
     if (revision === false) return;
     undoStack.current.push({ id: row.id, field, before, after: value, revision });

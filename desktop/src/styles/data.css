@@ -265,3 +265,5 @@
 .mapdot__n { fill: var(--primary); text-anchor: middle; font-weight: 600; pointer-events: none; }
 .mapcard { position: absolute; left: var(--space-2); top: var(--space-2); max-width: 280px; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); font-size: var(--text-md); }
 .mapcard__title { font-size: var(--text-base); overflow-wrap: anywhere; }
+.mapcard__list { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow: auto; display: flex; flex-direction: column; }
+.mapcard:focus { outline: none; }

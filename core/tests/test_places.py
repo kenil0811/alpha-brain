@@ -109,3 +109,30 @@ def test_apples_answer_counts_only_when_it_is_about_what_was_asked() -> None:
     assert _point("1 Infinite Loop, Cupertino", street)["precision"] == "address"  # type: ignore[index]
     farm = {**mark, "name": "Fort Cobb", "locality": "Fort Cobb", "region": "OK"}
     assert _point("zzqqxx qqzz", farm) is None  # Apple's guess for nonsense is left out
+
+
+def test_a_placed_word_keeps_its_point_and_a_failed_lookup_is_said_so(world: World) -> None:
+    table(world)
+    fake = world.collections.geocoder = Fake()
+    world.collections.add("deals", {"title": "Home", "city": {"label": "Austin, TX", "lat": 1,
+                                                               "lon": 2}}, {})
+    r = world.collections.add("deals", {"title": "B", "city": "Austin, TX"}, {})
+    assert (r["city"]["lat"], fake.asked) == (1.0, [])  # the person's point, Apple not asked
+    assert sorted(x["title"] for x in world.collections.query(
+        "deals", where={"city": "Austin, TX"})) == ["B", "Home"]  # a place filters by its words
+
+    class Down(Fake):
+        def locate(self, labels: list[str]) -> dict[str, dict[str, Any] | None]:
+            return {}  # offline: nothing could be looked up
+
+    table_two = "trips"
+    world.collections.create(table_two, "Trips", [{"name": "to", "kind": "text"}])
+    world.collections.add(table_two, {"to": "Paris"}, {})
+    world.collections.geocoder = Down()
+    done = world.collections.to_place(table_two, "to")
+    assert (done["located"], done["unplaced"], done["unknown"]) == (0, 0, 1)
+
+
+def test_a_place_exports_as_its_words() -> None:
+    from alpha.api.views import _cell
+    assert _cell(AUSTIN) == "Austin, TX"

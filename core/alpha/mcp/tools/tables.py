@@ -81,8 +81,8 @@ class Tables(Base):
         spec = next((f for f in self.world.collections.describe(name)["fields"]
                      if f["name"] == field), None)
         if spec is None or spec["kind"] not in {"text", "long_text"}:
-            return {"error": f"'{field}' is not a text field of {name}; only one can become"
-                              " a place."}
+            raise Problem(f"'{field}' is not a text field of {name}; only one can become"
+                          " a place.")
         title = self.world.collections.describe(name)["title"]
         label = spec.get("label") or field.replace("_", " ")
         jid = self.world.journal.append(

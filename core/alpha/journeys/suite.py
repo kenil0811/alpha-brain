@@ -14,6 +14,7 @@ A journey file:
       - decline_plan: latest     # the person's no, through the app's route
       - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
       - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
+      - seed: {kind: table, name: deals, title: Deals, fields: [...], rows: [...]}  # a table
       - remove_module: "Car Wash Site Scoring"   # the world without something it already has
     checks:
       - independent: {}                     # the second opinion on the last turn agrees
@@ -220,6 +221,12 @@ class Run:
                 self.world.knowledge.record_fact("person", seed["predicate"], seed["value"],
                                                  source="stated", state="accepted")
                 record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
+            elif seed.get("kind") == "table":
+                self.world.collections.create(seed["name"], seed["title"], seed["fields"])
+                self.world.collections.upsert(seed["name"], seed["fields"][0]["name"],
+                                              seed.get("rows", []), {"source": "stated"})
+                record = {"seed": f"table {seed['name']}, {len(seed.get('rows', []))} rows",
+                          "ok": True}
             else:
                 raise Problem(f"Unknown seed: {seed}")
             # Seeds are not the journey's own work: move the mark past them.

@@ -1,0 +1,16 @@
+name: map_places
+title: Asked to put deals on a map, Alpha proposes making the city field a place field
+why: On 12 Oct (Q44) the owner chose that Alpha proposes turning a city or address text field
+  into a place field when it sees one, and only the person's yes changes the table. The Map view
+  shows only a place field.
+steps:
+  - seed: {kind: table, name: map_deals, title: Map deals,
+      fields: [{name: name, kind: text}, {name: city, kind: text, label: City}],
+      rows: [{name: Bakery, city: "Austin, TX"}, {name: Cafe, city: "Paris, France"},
+             {name: Deli, city: "Mumbai, India"}]}
+  - say: "put my map deals on a map by their city"
+checks:
+  - journal: {kind: proposed, contains: "place field"}
+  - no_new_tables: {}
+  - judge: "Did Alpha say it proposed making City a place field, for the person to approve,
+      rather than claiming the map is already done?"

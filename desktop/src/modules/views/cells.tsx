@@ -4,7 +4,7 @@
  * place. A file cell opens or reveals the document.
  */
 import { type KeyboardEvent, type ReactNode, type TdHTMLAttributes, useRef, useState } from "react";
-import type { FileInfo, RecordRow, Relations } from "../../core/client";
+import { isPlace, type FileInfo, type RecordRow, type Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { dayText, humanize } from "../format";
@@ -123,11 +123,13 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   if (field.kind === "file") return <FileCell row={row} field={field} files={files ?? {}} onFile={onFile} tdProps={tdProps} adornment={adornment} />;
   const value = row.values[field.name];
   const numeric = isNumeric(field.kind);
-  const estimate = Boolean(row.provenance?.estimated) && numeric;
+  // a place Apple's geocoder found is estimated on the value itself
+  const placed = isPlace(value) && value.estimated ? value : null;
+  const estimate = (Boolean(row.provenance?.estimated) && numeric) || Boolean(placed);
   const assumed = row.provenance?.assumed;
   const source = row.provenance?.source;
   const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
-  const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
+  const rests = [placed ? `Placed by ${placed.source ?? "Apple Maps"}, estimated.` : estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   const base = [tdProps?.className, numeric ? "r num" : ""].filter(Boolean).join(" ") || undefined;
   if (editing && !locked) {
     return (

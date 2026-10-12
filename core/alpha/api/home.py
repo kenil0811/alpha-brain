@@ -91,19 +91,24 @@ def routes(app: FastAPI, s: Served) -> None:
                 world.plans.approve(plan, "Approved in the app")
             else:
                 world.plans.decline(plan)
+        place = proposal["data"].get("place_field")
+        done = None
+        if place and body.accept:
+            # the change first, as with a plan: a refused one (asked twice, the field gone)
+            # leaves no Yes in the journal (Q44, design G13)
+            done = world.collections.to_place(place["collection"], place["field"])
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
         if plan:
             if body.accept and live:
                 scheduler.builds()
             return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
-        place = proposal["data"].get("place_field")
         if place:
-            # the person's yes is the change; nothing else needs to run (Q44, design G13)
-            if body.accept:
-                done = world.collections.to_place(place["collection"], place["field"])
+            if done:
                 world.journal.append(
                     "changed", f"Made {place['field']} of {done['title']} a place field:"
-                    f" {done['located']} located, {done['unplaced']} not found.",
+                    f" {done['located']} located, {done['unplaced']} not found"
+                    + (f", {done['unknown']} couldn't be looked up now (looked up again"
+                       " when edited)" if done["unknown"] else "") + ".",
                     actor="person", data={"proposal": pid, "collection": place["collection"]},
                     module=done.get("module"))
             return {"decided": pid, "turn": None}

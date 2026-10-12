@@ -420,9 +420,27 @@ class Collections:
         wanted = [x for row in rows for f in places if (x := label(row.get(f)))]
         if not wanted:
             return rows
-        found = self.geocoder.locate(wanted)
+        # words this table has placed already keep their point: a person's own isn't replaced
+        # by an estimate, and a re-sync or an unchanged edit asks Apple nothing
+        have = self._placed(name, places)
+        new = [x for x in dict.fromkeys(wanted) if x not in have]
+        found = {**(self.geocoder.locate(new) if new else {}),
+                 **{x: have[x] for x in wanted if x in have}}
         return [{**row, **{f: found.get(x) or {"label": x} for f in places
                            if f in row and (x := label(row[f]))}} for row in rows]
+
+    def _placed(self, name: str, places: list[str]) -> dict[str, dict[str, Any]]:
+        """The points this table already has, by their words; a known one over an estimate."""
+        out: dict[str, dict[str, Any]] = {}
+        for f in places:
+            for r in self.store.all(
+                    f"SELECT json_extract(\"values\", '$.{f}') AS v FROM records WHERE"
+                    f" collection = ? AND deleted_at IS NULL AND json_extract(\"values\","
+                    f" '$.{f}.lat') IS NOT NULL", (name,)):
+                v = loads(r["v"], {})
+                if v.get("label") not in out or not v.get("estimated"):
+                    out[v["label"]] = v
+        return out
 
     def to_place(self, name: str, field: str) -> dict[str, Any]:
         """Turn a text field (a city, an address) into a place field: each record's words stay
@@ -441,10 +459,17 @@ class Collections:
                               " AND deleted_at IS NULL", (name,))
         texts = {r["id"]: str(loads(r["values"], {}).get(field) or "").strip() for r in rows}
         found = self.geocoder.locate([t for t in texts.values() if t]) if self.geocoder else {}
-        spec["kind"] = "place"
-        located = 0
+        located = unknown = 0
         texts_now: dict[str, str] = {}
         with self.store.tx() as db:
+            # the schema as it is now, inside the change: a field added meanwhile is kept
+            now_schema = loads(db.execute("SELECT schema FROM collections WHERE name = ?",
+                                          (name,)).fetchone()["schema"], {})
+            spec = next((f for f in now_schema["fields"] if f["name"] == field), None)
+            if spec is None or spec["kind"] not in {"text", "long_text"}:
+                raise Problem(f"'{field}' of '{name}' changed meanwhile; ask again.")
+            spec["kind"] = "place"
+            schema = now_schema
             db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
                        (dumps(schema), now(), name))
             # read again inside the change: a record written since the lookup keeps its words
@@ -457,12 +482,15 @@ class Collections:
                     continue
                 values[field] = found.get(text) or {"label": text}
                 located += "lat" in values[field]
+                unknown += text not in found
                 self._keep(db, name, r["id"])
                 db.execute('UPDATE records SET "values" = ?, revision = revision + 1,'
                            " updated_at = ? WHERE collection = ? AND id = ?",
                            (dumps(values), now(), name, r["id"]))
-        unplaced = sum(1 for t in texts_now.values() if t) - located
-        return {**self.describe(name), "located": located, "unplaced": unplaced}
+        unplaced = sum(1 for t in texts_now.values() if t) - located - unknown
+        # `unknown`: couldn't be looked up now; each is looked up again when it is written
+        return {**self.describe(name), "located": located, "unplaced": unplaced,
+                "unknown": unknown}
 
     # ---- records ----
 
@@ -716,6 +744,8 @@ class Collections:
         for key, cond in (where or {}).items():
             if key in {"created_at", "updated_at"}:
                 expr = key
+            elif key in fields and fields[key]["kind"] == "place":  # a place: its words
+                expr = f"json_extract(\"values\", '$.{key}.label')"
             elif key in fields:
                 expr = f"json_extract(\"values\", '$.{key}')"
             else:
