@@ -5,7 +5,7 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, PlanPiece, PlanQuestion, Research, Thread, Turn, Workflow } from "../core/client";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
@@ -15,9 +15,9 @@ import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
 
-/** The questions a plan asks before its build (Q36): each with its choices, Alpha's pick
+/** The questions the workflow page asks before its build: each with its choices, Alpha's pick
  *  selected, and a line to say it another way. What is chosen goes with the yes. */
-export function PlanQuestions({ questions, answers, onChange }: { questions: PlanQuestion[]; answers: Record<string, string>; onChange: (answers: Record<string, string>) => void }) {
+export function Questions({ questions, answers, onChange }: { questions: Question[]; answers: Record<string, string>; onChange: (answers: Record<string, string>) => void }) {
   return (
     <ol className="planq">
       {questions.map((q, i) => {
@@ -43,159 +43,13 @@ export function PlanQuestions({ questions, answers, onChange }: { questions: Pla
   );
 }
 
-export function defaultAnswers(questions: PlanQuestion[]): Record<string, string> {
+export function defaultAnswers(questions: Question[]): Record<string, string> {
   const out: Record<string, string> = {};
   questions.forEach((q, i) => {
     const v = q.answer ?? q.default;
     if (v) out[String(i)] = v;
   });
   return out;
-}
-
-const PIECE_GROUPS: { kind: PlanPiece["kind"]; title: string; note: string }[] = [
-  { kind: "kept", title: "Kept for you", note: "what every such thing has and you'd miss; skip any you don't want" },
-  { kind: "choice", title: "Your call", note: "where the products differ or it costs something: keep, defer or skip" },
-  { kind: "wont", title: "Not this time", note: "named so it isn't forgotten; keep one to bring it in now" },
-];
-const DECISIONS = ["keep", "defer", "skip"] as const;
-const DECISION_WORDS: Record<string, string> = { keep: "Keep", defer: "Defer", skip: "Skip" };
-const CAN_WORDS: Record<string, string> = { now: "Can build now", needs: "Needs", not_yet: "Not yet" };
-
-/** A researched plan's pieces (Q37) in three blocks: kept for you (the lean core), your call
- *  (each with why, how it would be built here and whether it can be built now) and not this
- *  time. The person keeps, defers or skips each; Alpha's recommendation is pressed. */
-export function PlanPieces({ pieces, decisions, onChange }: { pieces: PlanPiece[]; decisions: Record<string, string>; onChange: (decisions: Record<string, string>) => void }) {
-  return (
-    <div className="planp">
-      {PIECE_GROUPS.map((g) => {
-        const items = pieces.filter((p) => p.kind === g.kind);
-        if (!items.length) return null;
-        return (
-          <section key={g.kind} className="planp__group" aria-label={g.title}>
-            <h4 className="planp__head">
-              {g.title} <span className="faint">· {g.note}</span>
-            </h4>
-            {items.map((p) => {
-              const chosen = decisions[p.id] ?? p.recommend;
-              const sources = (p.sources ?? []).filter((s) => s.title || s.url);
-              return (
-                <div key={p.id} className="planp__item">
-                  <div className="planp__title">
-                    {p.title} <span className="planp__what">— {p.what}</span>
-                  </div>
-                  {p.why ? <div className="faint">{p.why}</div> : null}
-                  <div className="planp__meta">
-                    <span className={`planp__can planp__can--${p.can}`}>
-                      {CAN_WORDS[p.can] ?? p.can}
-                      {p.needs ? `: ${p.needs}` : ""}
-                    </span>
-                    {p.build ? <span className="faint">How: {p.build}</span> : null}
-                    {p.known ? <span className="faint">Rests on: {p.known}</span> : null}
-                    {sources.length ? (
-                      <span className="faint">
-                        From:{" "}
-                        {sources.map((s, i) => (
-                          <span key={`${s.url ?? s.title}-${i}`}>
-                            {i ? ", " : ""}
-                            {s.url ? (
-                              <a className="planp__src" href={s.url} target="_blank" rel="noreferrer">
-                                {s.title || s.url}
-                              </a>
-                            ) : (
-                              s.title
-                            )}
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="planp__opts" role="group" aria-label={`Decide: ${p.title}`}>
-                    {DECISIONS.map((d) => (
-                      <Button key={d} size="sm" variant={chosen === d ? "primary" : undefined} aria-pressed={chosen === d} onClick={() => onChange({ ...decisions, [p.id]: d })}>
-                        {DECISION_WORDS[d]}
-                        {d === p.recommend ? <span className="planq__pick"> · Alpha's pick</span> : null}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-export function defaultDecisions(pieces: PlanPiece[]): Record<string, string> {
-  const out: Record<string, string> = {};
-  pieces.forEach((p) => {
-    out[p.id] = p.decision ?? p.recommend;
-  });
-  return out;
-}
-
-/** A plan Alpha proposed (nothing is built until the person says yes, here or in words), or a
- *  build that stopped before it finished (it can carry on from where it stopped). A plan with
- *  questions shows them with Alpha's picks selected: the yes carries the answers. */
-export function PlanCard({ plan, client, onDecided }: { plan: Plan; client: Client; onDecided: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const questions = plan.state === "proposed" ? (plan.questions ?? []) : [];
-  const pieces = plan.state === "proposed" ? (plan.pieces ?? []) : [];
-  const [answers, setAnswers] = useState<Record<string, string>>(() => defaultAnswers(plan.questions ?? []));
-  const [decisions, setDecisions] = useState<Record<string, string>>(() => defaultDecisions(plan.pieces ?? []));
-  const stopped = plan.state === "stopped";
-  const decide = (yes: boolean) => {
-    setBusy(true);
-    // One request per decision. (Until 2 Oct evening the yes request was built eagerly, so
-    // "Not now" approved and "Leave it" resumed before declining: builds ran on a no.)
-    const go = () => (stopped ? client.resumePlan(plan.id) : client.approvePlan(plan.id, questions.length ? answers : undefined, pieces.length ? decisions : undefined));
-    void (yes ? go() : client.declinePlan(plan.id)).finally(() => {
-      setBusy(false);
-      onDecided();
-    });
-  };
-  const open = questions.filter((_q, i) => !(answers[String(i)] ?? "").trim()).length;
-  const kept = pieces.filter((p) => (decisions[p.id] ?? p.recommend) === "keep").length;
-  return (
-    <div className="creation plancard" aria-label={`Plan: ${plan.title}`}>
-      <h3 className="creation__title">
-        {plan.title}
-        <span className="badge badge--waiting">{stopped ? "Stopped" : "Plan"}</span>
-      </h3>
-      {pieces.length ? <PlanPieces pieces={pieces} decisions={decisions} onChange={setDecisions} /> : null}
-      {questions.length ? <PlanQuestions questions={questions} answers={answers} onChange={setAnswers} /> : null}
-      {plan.milestones?.length ? (
-        <ol className="planm" aria-label="Milestones">
-          {plan.milestones.map((m) => (
-            <li key={m.id} className={`planm__item${m.passes ? " planm__item--done" : ""}`}>
-              <span className="planm__mark">{m.passes ? "✓" : "○"}</span> <b>{m.id}</b> {m.title}
-              <span className="faint"> — {m.what}</span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-      <span className="faint">
-        {stopped
-          ? "The build stopped before it finished. It can carry on from where it stopped."
-          : pieces.length
-            ? `Nothing is built until you say yes. ${kept} of ${pieces.length} pieces kept, Alpha's picks pressed: change any${open ? `; ${open === 1 ? "one question has no pick yet" : `${open} questions have no pick yet`}` : ""}.`
-            : questions.length
-              ? open
-                ? `Nothing is built until you say yes. ${open === 1 ? "One question has no pick yet" : `${open} questions have no pick yet`}: answer it, or build and Alpha decides it sensibly.`
-                : "Nothing is built until you say yes. Alpha's picks are selected: change any, or say it your way."
-              : "Nothing is built until you say yes."}
-      </span>
-      <div className="row" style={{ marginTop: 8 }}>
-        <Button size="sm" variant="primary" disabled={busy} onClick={() => decide(true)}>
-          {stopped ? "Continue building" : questions.length || pieces.length ? "Build with these" : "Build it"}
-        </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide(false)}>
-          {stopped ? "Leave it" : "Not now"}
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 const WHO_WORDS: Record<string, string> = { alpha: "Alpha", you: "You", both: "Alpha prepares, you decide" };
@@ -326,7 +180,7 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
           </ul>
         </section>
       ) : null}
-      {drafted && b.questions.length ? <PlanQuestions questions={b.questions} answers={answers} onChange={setAnswers} /> : null}
+      {drafted && b.questions.length ? <Questions questions={b.questions} answers={answers} onChange={setAnswers} /> : null}
       {drafted ? (
         <>
           <span className="faint">Nothing is built until you say yes. To change anything, say what's different here; Alpha rewrites the page and keeps the version before.</span>
@@ -398,8 +252,6 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
   );
 }
 
-/** A reply that proposed a plan whose questions the core read out of it (Q36) shows without
- *  those numbered questions and their lead-in line: the plan card carries them with choices. */
 /** Questions Alpha asked together (one turn, several `ask_person` calls) are one form: each
  *  with its choices to tap or words to type, one Answer for all of them, so the person is
  *  never sent on after the first tap (11 Oct: "after i selected one, it submitted"). What is
@@ -474,24 +326,6 @@ export function groupAsks(asks: Ask[]): Ask[][] {
   return groups;
 }
 
-export function withoutPlanQuestions(text: string, plans: Plan[], turn: unknown): string {
-  const plan = plans.find((p) => p.turn === turn && p.state === "proposed" && (p.questions ?? []).length && (p.questions ?? []).every((q) => q.derived));
-  if (!plan) return text;
-  const lines = text.trimEnd().split("\n");
-  let i = lines.length - 1;
-  while (i >= 0 && !lines[i].trim()) i--;
-  let removed = 0;
-  while (i >= 0 && /^\s*(?:[-*•]|\d+[.)])\s+.*\?\s*$/.test(lines[i])) {
-    i--;
-    removed++;
-  }
-  if (!removed) return text;
-  while (i >= 0 && !lines[i].trim()) i--;
-  if (i >= 0 && /:\s*$/.test(lines[i]) && lines[i].length < 160) i--;
-  const rest = lines.slice(0, i + 1).join("\n").trimEnd();
-  return rest.length ? rest : text;
-}
-
 /** A reply whose trailing question became a card (Q35) shows without that question: the card
  *  carries it, so the person reads it once. A reply that was only the question shows nothing. */
 export function withoutCarded(text: string, asks: Ask[], turn: unknown): string | null {
@@ -505,12 +339,11 @@ export function withoutCarded(text: string, asks: Ask[], turn: unknown): string 
   return rest.length ? rest : null;
 }
 
-function Message({ e, asks, plans }: { e: JournalEntry; asks?: Ask[]; plans?: Plan[] }) {
+function Message({ e, asks }: { e: JournalEntry; asks?: Ask[] }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
   let text: string | null = e.text;
   if (e.kind === "replied" && asks) text = withoutCarded(e.text, asks, e.data.turn);
-  if (text !== null && e.kind === "replied" && plans) text = withoutPlanQuestions(text, plans, e.data.turn);
   if (text === null) return null;
   return (
     <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
@@ -539,7 +372,7 @@ export function AssistantPanel({ open, onOpen, ...rest }: ConversationProps & { 
   return <Conversation layout="panel" onClose={() => onOpen(false)} {...rest} />;
 }
 
-/** A conversation with Alpha: its messages, the cards (a plan, an action, a question with
+/** A conversation with Alpha: its messages, the cards (a workflow page, an action, a question with
  *  choices), what Alpha is doing now with the reply as it is written, and the composer. The
  *  same thing in the side panel ("panel") and on the Assistant page ("page", wide). */
 export function Conversation({
@@ -557,8 +390,6 @@ export function Conversation({
 }: ConversationProps & { layout: "panel" | "page"; onClose?: () => void }) {
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [research, setResearch] = useState<Research[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
@@ -580,8 +411,6 @@ export function Conversation({
       .then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
-        setPlans(c.plans ?? []);
-        setResearch(c.research ?? []);
         setWorkflows(c.workflows ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
@@ -841,11 +670,6 @@ export function Conversation({
         ) : (
           <>
             {threads.filter((t) => t.kind !== "chat").map((t) => {
-              // A build or a research pass has no time limit: the person stops it when it
-              // isn't going anywhere.
-              const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
-              const pass = t.kind === "research" ? research.find((r) => r.thread === t.id) : undefined;
-              const stop = build ? () => client.stopPlan(build.id) : pass ? () => client.stopResearch(pass.id) : null;
               return (
                 <div key={t.id} className="creation-wrap">
                   <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
@@ -856,9 +680,7 @@ export function Conversation({
                     <span className="faint">
                       {t.kind === "build" && t.state === "working"
                         ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch`
-                        : t.kind === "research" && t.state === "working"
-                          ? `Looking into how this is done · a few minutes · ${t.step_count ?? 0} steps · the plan comes here as a card`
-                          : t.state === "working"
+                        : t.state === "working"
                             ? "Alpha is working on this now"
                             : t.state === "waiting"
                               ? "Waiting for your answer · open it to reply here"
@@ -866,11 +688,6 @@ export function Conversation({
                     </span>
                     {t.state === "working" && t.live?.doing ? <span className="faint thread__last">… {t.live.doing}</span> : t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
                   </button>
-                  {stop ? (
-                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void stop().catch(() => undefined).finally(() => { load(); onChanged(); })}>
-                      Stop
-                    </Button>
-                  ) : null}
                 </div>
               );
             })}
@@ -881,16 +698,11 @@ export function Conversation({
             ) : null}
             {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
             {turns.map((e) => (
-              <Message key={e.id} e={e} asks={openAsks} plans={plans} />
+              <Message key={e.id} e={e} asks={openAsks} />
             ))}
             {workflows.map((w) => (
               <WorkflowCard key={w.id} workflow={w} client={client} onDecided={() => { load(); onChanged(); }} />
             ))}
-            {plans
-              .filter((p) => p.state === "proposed" || p.state === "stopped")
-              .map((p) => (
-                <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
-              ))}
             {actions
               .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
               // A failed attempt is history once Alpha proposed the same thing again.

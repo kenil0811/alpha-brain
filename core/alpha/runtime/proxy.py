@@ -44,7 +44,7 @@ class Proxy:
         class Handler(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
 
-            def log_message(self, fmt: str, *args: Any) -> None:  # quiet
+            def log_message(self, *_args: Any) -> None:  # quiet
                 pass
 
             def _check(self, host: str) -> bool:

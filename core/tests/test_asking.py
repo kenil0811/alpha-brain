@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from conftest import PIECES, researching
-
 from alpha.runtime import asking, claude_cli, turn
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
@@ -74,7 +72,7 @@ def test_a_question_in_prose_becomes_a_card_with_options_from_the_seam(world: Wo
     assert not [a for a in world.journal.open_asks() if a["data"].get("turn") == out.said]
 
 
-def test_no_card_when_the_model_made_one_or_proposed_a_plan_or_the_question_is_several(
+def test_no_card_when_the_model_made_one_or_drafted_the_page_or_the_question_is_several(
         world: World) -> None:
     calls: list[str] = []
 
@@ -90,12 +88,15 @@ def test_no_card_when_the_model_made_one_or_proposed_a_plan_or_the_question_is_s
 
     out = turn.ask(world, "track my invoices", runner=asking_runner)
     assert len([a for a in world.journal.open_asks() if a["data"].get("turn") == out.said]) == 1
-    # A plan proposed in the turn: the plan card is the question.
-    def planning(req: TurnRequest) -> RunResult:
-        world.plans.propose("Invoices", "A table.", turn=req.turn_id)
-        return RunResult(reply="Here is the plan. Shall I build it?", ok=True)
+    # A workflow page drafted in the turn: the page's card is the question.
+    def drafting(req: TurnRequest) -> RunResult:
+        world.workflows.draft("Invoices", {"purpose": "Keep invoices.", "steps": [
+            {"id": "arrives", "title": "An invoice arrives", "what": "You add it.", "who": "you"},
+            {"id": "keep", "title": "Keep it", "what": "In the table.", "who": "alpha"}],
+            "keeps": [{"thing": "Invoice", "fields": ["number"]}]}, turn=req.turn_id)
+        return RunResult(reply="Here is your workflow. Shall I build it?", ok=True)
 
-    out = turn.ask(world, "track my invoices", runner=planning)
+    out = turn.ask(world, "track my invoices", runner=drafting)
     assert not [a for a in world.journal.open_asks() if a["data"].get("turn") == out.said]
     # An open question gets a card with no options and no seam call; a "which" with no list
     # asks the seam, which answers [] when the question is open.
@@ -151,75 +152,3 @@ def test_the_window_sees_which_card_the_core_made_and_from_which_turn(world: Wor
     cards = [i for lst in home.values() if isinstance(lst, list)
              for i in lst if isinstance(i, dict) and i.get("kind") == "ask"]
     assert cards and cards[-1]["derived"] is True and cards[-1]["turn"] == out.said
-
-
-def test_a_plans_questions_get_choices_and_defaults_and_the_answers_reach_the_brief(
-        world: World) -> None:
-    """Q36: a plan's questions are on the card with choices and Alpha's default; the person's
-    answers (or the defaults) go into the brief the build reads."""
-    from alpha.runtime import build
-    from alpha.runtime.claude_cli import TurnRequest as Req
-
-    calls: list[str] = []
-
-    def runner(req: Req) -> RunResult:
-        calls.append(req.kind)
-        if req.kind == "judge":
-            assert req.turn_id.startswith("plan-questions:") and "Questions:\n1." in req.sentence
-            return RunResult(ok=True, reply='{"questions": [{"options": ["Proceed keyless for now",'
-                             ' "Get a free API key first"], "default": "Proceed keyless for now"},'
-                             ' {"options": [], "default": null}]}')
-        world.plans.propose("Car Wash Site Scoring", "Scores a site.", turn=req.turn_id,
-                            trial="score 12 Main St")
-        return RunResult(ok=True, reply=(
-            "Here is the plan.\n\nTwo quick questions before I build it:\n\n"
-            "1. Proceed keyless on the Census API for now, or grab a free API key first?\n"
-            "2. A real address you want as the first trial site, or should I pick one myself?"))
-
-    out = turn.ask(world, "build me a site scorer", runner=runner)
-    assert calls == ["turn", "judge"]
-    plan = next(p for p in world.plans.all(("proposed",)) if p["turn"] == out.said)
-    first, second = plan["questions"]
-    assert first["text"].startswith("Proceed keyless") and second["text"].startswith("A real")
-    assert first["options"] == ["Proceed keyless for now", "Get a free API key first"]
-    assert first["default"] == "Proceed keyless for now" and first["derived"]
-    assert second["options"] == [] and second["default"] is None
-    # No ask card: the plan card carries the questions.
-    assert not [a for a in world.journal.open_asks() if a["data"].get("turn") == out.said]
-    # The person answers one in the app and keeps the other default; the brief says both.
-    world.plans.answer(plan["id"], {"1": "12 Main St, Austin"})
-    approved = world.plans.approve(plan["id"], "Approved in the app")
-    assert "Decided:" in approved["approval"]
-    text = build.brief(approved)
-    assert "## Decided before the build" in text
-    assert "Proceed keyless for now (Alpha's pick; they didn't say)" in text
-    assert "12 Main St, Austin (their choice)" in text
-
-
-def test_a_plan_proposed_with_its_own_questions_keeps_them(world: World) -> None:
-    import pytest
-
-    from alpha.world.store import Problem
-
-    plan = world.plans.propose("P", "Body.", questions=[
-        {"text": "Daily or weekly?", "options": ["Daily", "Weekly"], "default": "weekly"},
-        {"text": "Which folder?", "options": [], "default": "~/Documents"}])
-    assert plan["questions"][0]["default"] == "Weekly"
-    folder = plan["questions"][1]
-    assert folder["options"] == [] and folder["default"] == "~/Documents"
-    with pytest.raises(Problem):
-        world.plans.propose("P", "Body.", questions=[{"options": ["a"]}])
-    with pytest.raises(Problem):
-        world.plans.answer(plan["id"], {"x": "y"})
-
-
-def test_the_model_must_give_a_default_with_choices(world: World) -> None:
-    t = researching(world, turn="j_1")
-    out = t.plan_propose("P", "Body.", "log a run", pieces=PIECES, questions=[
-        {"text": "Miles or km?", "options": ["Miles", "Km"]}])
-    assert "no default" in out["error"]
-    out = t.plan_propose("P", "Body.", "log a run", pieces=PIECES, questions=[
-        {"text": "Miles or km?", "options": ["Miles", "Km"], "default": "Km"},
-        {"text": "Which folder?"}])
-    plan = world.plans.get(out["plan"])
-    assert plan["questions"][0]["default"] == "Km" and plan["questions"][1]["options"] == []

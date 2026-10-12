@@ -239,60 +239,6 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE INDEX IF NOT EXISTS runs_automation ON runs(automation, started_at);
 
 
--- what Alpha proposed to set up, and its way from the person's yes to a finished build
-CREATE TABLE IF NOT EXISTS plans (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL,
-    state TEXT NOT NULL,
-    module TEXT,
-    thread TEXT,
-    turn TEXT,
-    proposal TEXT,
-    approval TEXT,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    report TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
--- a research pass: Alpha looking into how a thing is done before it proposes a plan (§6.3,
--- Q37), with a verdict judged by code; and the findings each pass read, each a claim with its
--- page, resolved by the core (1 the page answered, 0 it did not, NULL no page: the person's
--- own world)
-CREATE TABLE IF NOT EXISTS research (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    ask TEXT NOT NULL,
-    job TEXT,
-    state TEXT NOT NULL,
-    thread TEXT,
-    conversation TEXT,
-    module TEXT,
-    turn TEXT,
-    plan TEXT,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    verdict TEXT,
-    why TEXT,
-    model_ms INTEGER NOT NULL DEFAULT 0,
-    started_at TEXT,
-    ended_at TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS findings (
-    id TEXT PRIMARY KEY,
-    research TEXT NOT NULL,
-    angle TEXT NOT NULL,
-    claim TEXT NOT NULL,
-    quote TEXT,
-    url TEXT,
-    title TEXT,
-    resolved INTEGER,
-    at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS findings_research ON findings(research, at);
-
 -- a module as the person's own workflow (§12, Q39): one page in their words, structured, with
 -- its versions kept; Alpha writes it and changes it only through the conversation
 CREATE TABLE IF NOT EXISTS workflows (
@@ -468,19 +414,7 @@ ADDED_COLUMNS = [
     ("automations", "steps", "TEXT"),
     # an automation's pipeline is a skill of kind run; the old steps column moves there
     ("automations", "skill", "TEXT"),
-    # the first thing the person will do with what a plan builds, as they would say it, and how
-    # many times the build's trial of it disagreed with an independent answer
-    ("plans", "trial", "TEXT"),
-    ("plans", "checks", "INTEGER NOT NULL DEFAULT 0"),
-    ("plans", "questions", "TEXT"),  # the plan's questions with choices and defaults (Q36)
-    # a researched plan's pieces (kept for you, your call, not this time), each with its
-    # evidence and the person's decision, and the research pass that produced it (Q37)
-    ("plans", "pieces", "TEXT"),
-    ("plans", "research", "TEXT"),
-    # a program plan (Q38): its milestones with checks and the hosts its build may reach; a
-    # module's workspace folder once it has one
-    ("plans", "milestones", "TEXT"),
-    ("plans", "hosts", "TEXT"),
+    # a module's workspace folder once it has one (Q38, kept by §12)
     ("modules", "workspace", "TEXT"),
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
@@ -532,6 +466,7 @@ class Store:
     def _migrate(self) -> None:
         with self.tx() as db:
             self._move_know_how(db)
+            self._drop_superseded(db)
             for table, column, decl in ADDED_COLUMNS:
                 have = {r["name"] for r in db.execute(f"PRAGMA table_info({table})")}
                 if column not in have:
@@ -571,6 +506,15 @@ class Store:
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
                        ((first["at"] if first and first["at"] else None) or now(),))
             self._move_pipelines(db)
+
+    @staticmethod
+    def _drop_superseded(db: sqlite3.Connection) -> None:
+        """The research pass and plans with milestones (Q37, Q38) were superseded by the
+        workflow page (§12, Q39) and removed on 12 Oct 2026 (Q40): their tables go; the
+        journal keeps every line about them. Their threads become plain topics."""
+        for table in ("plans", "research", "findings"):
+            db.execute(f"DROP TABLE IF EXISTS {table}")
+        db.execute("UPDATE threads SET kind = 'topic' WHERE kind IN ('research', 'deepen')")
 
     @staticmethod
     def _move_know_how(db: sqlite3.Connection) -> None:

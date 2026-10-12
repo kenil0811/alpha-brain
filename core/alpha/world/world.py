@@ -13,10 +13,8 @@ from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
 from alpha.world.modtables import ModuleTables
 from alpha.world.modules import Modules
-from alpha.world.plans import Plans
 from alpha.world.preferences import Preferences
 from alpha.world.readers import Readers
-from alpha.world.research import Research
 from alpha.world.runs import Runs
 from alpha.world.skills import Skills
 from alpha.world.sources import Sources
@@ -54,8 +52,6 @@ class World:
         self.preferences = Preferences(self.store)
         self.readers = Readers(self.store)
         self.sources = Sources(self.store)
-        self.plans = Plans(self.store)
-        self.research = Research(self.store)
         self.modtables = ModuleTables(self)
         self.workflows = Workflows(self.store)
         self.procedures = Procedures(self.store)

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client, Turn } from "../core/client";
 import { Conversation } from "./AssistantPanel";
 
-const empty = { turns: [], threads: [], plans: [], actions: [], asks: [], conversations: [], conversation: null };
+const empty = { turns: [], threads: [], actions: [], asks: [], conversations: [], conversation: null };
 
 describe("the reply as it is written", () => {
   it("shows the partial text and the steps so far while a turn runs", async () => {

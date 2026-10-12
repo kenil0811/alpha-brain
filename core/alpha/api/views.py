@@ -30,26 +30,6 @@ def _cell(value: Any) -> Any:
     return value
 
 
-def plan_view(world: World, plan: dict[str, Any]) -> dict[str, Any]:
-    """A plan for the app: a researched plan's pieces carry the titles and pages of the
-    findings they cite (Q37), so the card can show where each piece comes from."""
-    if not plan.get("research") or not plan.get("pieces"):
-        return plan
-    findings = {f["id"]: f for f in world.research.findings(str(plan["research"]))}
-    pieces = []
-    for p in plan["pieces"]:
-        sources: list[dict[str, Any]] = []
-        for e in p.get("evidence") or []:
-            f = findings.get(e)
-            if not f:
-                continue
-            source = {"title": f.get("title"), "url": f.get("url")}
-            if source not in sources:
-                sources.append(source)
-        pieces.append({**p, "sources": sources})
-    return {**plan, "pieces": pieces}
-
-
 def needs_you(world: World) -> list[dict[str, Any]]:
     """Everything waiting on the person: questions, proposals, suggested facts, same-name
     people to confirm."""
@@ -61,19 +41,9 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     answered = {loads(r["data"], {}).get("proposal")
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):
-        if p["id"] not in answered:
-            plan_id = p["data"].get("plan")
-            questions: list[dict[str, Any]] = []
-            pieces: list[dict[str, Any]] = []
-            if plan_id:
-                try:
-                    plan = plan_view(world, world.plans.get(plan_id))
-                    questions, pieces = plan["questions"], plan["pieces"]
-                except Problem:
-                    questions, pieces = [], []
+        if p["id"] not in answered and not p["data"].get("plan"):
             items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
-                          "why": p["data"].get("why"), "at": p["at"], "module": p["module"],
-                          "plan": plan_id, "questions": questions, "pieces": pieces})
+                          "why": p["data"].get("why"), "at": p["at"], "module": p["module"]})
     for wf in world.workflows.all(("drafted",)):
         items.append({"kind": "workflow", "id": wf["id"], "text": f"Your workflow: {wf['title']}",
                       "why": wf["body"].get("purpose"), "at": wf["created_at"],

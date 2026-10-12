@@ -9,9 +9,7 @@ A journey file:
         module: Nutrition
       - reader: {name: linkedin_connections, into: linkedin_connections, key: profile_url}
       - automation: "Daily deal tracker"                   # run one automation now, by title
-      - build: latest                                      # approve the newest plan, build it
       - approve_action: latest   # (in steps_after) the person's yes to the newest action
-      - decline_plan: latest     # the person's no, through the app's route
       - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
       - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
       - remove_module: "Car Wash Site Scoring"   # the world without something it already has
@@ -21,7 +19,7 @@ A journey file:
       - near: {collection: food_log, field: calories, value: 240, within: 0.1}
       - no_new_tables: {}
       - no_new_modules: {}
-      - plan: proposed
+      - workflow: {state: drafted, steps_min: 2}
       - reply: {matches: "\\n\\s*1[.)]"}     # regex on the last reply (or `contains`)
       - judge: "Did the answer name people from the connections table, or say plainly none?"
       - judge: {rubric: "…", history: 1}   # the judge also sees the previous exchange
@@ -54,9 +52,8 @@ from typing import Any
 import yaml
 
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import build, check, claude_cli, noticing, pipeline, route, turn, workflow_build
+from alpha.runtime import check, claude_cli, noticing, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
-from alpha.runtime import research as research_runtime
 from alpha.world import purge
 from alpha.world.store import Problem, now
 from alpha.world.world import World
@@ -129,9 +126,7 @@ class Mark:
     at: str
     tables: set[str]
     modules: set[str]
-    plans: set[str]
     skills: dict[str, int]
-    research: set[str] = field(default_factory=set)
 
 
 def mark(world: World) -> Mark:
@@ -139,9 +134,7 @@ def mark(world: World) -> Mark:
         at=now(),  # UTC, like every `at` and `created_at` in the world
         tables={t["name"] for t in world.collections.overview()},
         modules={m["id"] for m in world.modules.all()},
-        plans={p["id"] for p in world.plans.all()},
         skills={s["name"]: s["version"] for s in world.skills.all()},
-        research={r["id"] for r in world.research.all()},
     )
 
 
@@ -181,8 +174,7 @@ class Run:
             self.last_turn, self.last_reply = outcome.said, outcome.reply
             self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
-                self._settle_research()
-                self._settle_builds()
+                self._settle_workflows()
                 # What the app does after a person's turn: the noticing pass, here in line.
                 try:
                     noticing.notice(self.world, outcome.said, runner=self.runner)
@@ -274,42 +266,10 @@ class Run:
                 raise Problem("No workflow was drafted in this journey to decline.")
             out = self.world.workflows.decline(new[-1]["id"])
             record = {"decline_workflow": out["title"], "ok": out["state"] == "declined"}
-        elif "decline_plan" in spec:
-            from fastapi.testclient import TestClient
-
-            from alpha.api.server import create_app
-
-            plan = self._latest_plan()
-            # Through the same route the card uses, with the scheduler live, as in the app.
-            with TestClient(create_app(self.world, live=True, runner=self.runner)) as c:
-                answer = c.post(f"/api/plans/{plan['id']}/decline")
-                time.sleep(2)  # anything wrongly started would show by now
-            final = self.world.plans.get(plan["id"])
-            record = {"decline_plan": plan["title"], "ok": answer.status_code == 200
-                      and final["state"] == "declined", "state": final["state"]}
-        elif "build" in spec:
-            plan = self._latest_plan()
-            self.world.plans.approve(plan["id"], "Approved by the journey suite")
-            final = self._settle_builds()
-            record = {"build": plan["title"], "ok": final.get("state") == "done",
-                      "state": final.get("state"), "report": (final.get("report") or "")[:600]}
         else:
             raise Problem(f"Unknown step: {spec}")
         record["seconds"] = round(time.monotonic() - began, 1)
         return record
-
-    def _settle_research(self) -> None:
-        """Run every research pass this journey started to its end, as the scheduler would
-        (Q37): to its plan, or until it waits on the person, fails or stops."""
-        for _ in range(50):
-            pending = [r for r in self.world.research.waiting()
-                       if r["id"] not in self.mark.research
-                       and not (r["thread"] and self.world.modules.thread(r["thread"])["state"]
-                                == "waiting")]
-            if not pending:
-                break
-            for research in pending:
-                research_runtime.run(self.world, research["id"], runner=self.runner)
 
     def _settle_workflows(self) -> dict[str, Any]:
         last: dict[str, Any] = {}
@@ -340,31 +300,11 @@ class Run:
                     return str(t["name"])
         raise Problem(f"No table of a module made in this journey has a field '{field}'.")
 
-    def _settle_builds(self) -> dict[str, Any]:
-        """Run every approved or building plan to its end, as the scheduler would."""
-        last: dict[str, Any] = {}
-        for _ in range(50):
-            # Only plans this journey proposed: a build copied from the live world is not ours
-            # to continue (it would spend the subscription twice).
-            pending = [p for p in self.world.plans.all(("approved", "building"))
-                       if p["id"] not in self.mark.plans]
-            if not pending:
-                break
-            for plan in pending:
-                last = build.run_build(self.world, plan["id"], runner=self.runner)
-        return last
-
     def _automation(self, title: str) -> dict[str, Any]:
         hits = [a for a in self.world.automations.all() if title.lower() in a["title"].lower()]
         if len(hits) != 1:
             raise Problem(f"{len(hits)} automations match '{title}'.")
         return hits[0]
-
-    def _latest_plan(self) -> dict[str, Any]:
-        new = [p for p in self.world.plans.all(("proposed",)) if p["id"] not in self.mark.plans]
-        if not new:
-            raise Problem("No plan was proposed in this journey to build.")
-        return sorted(new, key=lambda p: p["created_at"])[-1]
 
     # checks
 
@@ -448,48 +388,6 @@ class Run:
         new = {m["id"] for m in self.world.modules.all()} - self.mark.modules
         return not new, ("No module was made." if not new else f"Made {len(new)} module(s).")
 
-    def check_plan(self, arg: Any) -> tuple[bool, str]:
-        """A plan in the state asked; `questions_min` (Q36): at least that many questions on
-        the plan, each with its choices listed in the words; `pieces_min`, `kinds` and
-        `evidence_min` (Q37): a researched plan's pieces, the kinds among them, and how many
-        distinct findings with a page that answered they cite."""
-        state = arg if isinstance(arg, str) else arg.get("state", "proposed")
-        new = [p for p in self.world.plans.all() if p["id"] not in self.mark.plans]
-        hits = [p for p in new if p["state"] == state]
-        if not new:
-            return False, "No plan was proposed."
-        words = f"Plans: {', '.join(p['title'] + ' (' + p['state'] + ')' for p in new)}."
-        if isinstance(arg, dict) and (arg.get("pieces_min") or arg.get("kinds")
-                                      or arg.get("evidence_min")):
-            pieces = hits[-1]["pieces"] if hits else []
-            kinds = {p["kind"] for p in pieces}
-            cited = {e for p in pieces for e in p.get("evidence") or []}
-            resolved = {f["id"] for r in self.world.research.all()
-                        if r["id"] not in self.mark.research
-                        for f in self.world.research.findings(r["id"]) if f["resolved"] == 1}
-            evidence = len(cited & resolved)
-            shown = "; ".join(f"{p['kind']}: {p['title']} ({p.get('recommend')},"
-                              f" {p.get('can')})" for p in pieces)
-            missing = [k for k in arg.get("kinds") or [] if k not in kinds]
-            ok = (bool(hits) and len(pieces) >= int(arg.get("pieces_min") or 0)
-                  and not missing and evidence >= int(arg.get("evidence_min") or 0))
-            return ok, (f"{words} {len(pieces)} pieces: {shown or 'none'}."
-                        f" Kinds missing: {', '.join(missing) or 'none'}."
-                        f" Distinct findings cited with a page that answered: {evidence}.")
-        if isinstance(arg, dict) and arg.get("questions_min"):
-            questions = hits[-1]["questions"] if hits else []
-            shown = "; ".join(f"{q['text'][:60]} → {q['options'] or 'open'}"
-                              + (f" (pick {q['default']})" if q.get("default") else "")
-                              for q in questions)
-            # Asking as cards before the plan, so the plan needs none, is as good.
-            asked = [a for a in self.world.journal.recent(50, kinds=["asked"])
-                     if a["at"] >= self.mark.at]
-            cards = f" Asked as cards first: {len(asked)}." if asked else ""
-            ok = bool(hits) and (len(questions) >= int(arg["questions_min"])
-                                 or (bool(arg.get("or_asked")) and bool(asked)))
-            return ok, f"{words} Questions on the plan: {shown or 'none'}.{cards}"
-        return bool(hits), words
-
     def check_module(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A module made in this journey with at least `tables_min` tables and `parts_min`
         parts declared in its workspace."""
@@ -572,24 +470,6 @@ class Run:
                     f" {len(b['suggestions'])} suggestions:"
                     f" {'; '.join(sg['title'] for sg in b['suggestions']) or 'none'}."
                     f" Settings {len(b['settings'])}, questions {len(b['questions'])}.")
-
-    def check_research(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        """A research pass this journey started (Q37), in the state asked, with at least
-        `looks_min` looks (each a journal line with its angle) and, when given, the verdict."""
-        new = [r for r in self.world.research.all() if r["id"] not in self.mark.research]
-        if not new:
-            return False, "No research pass was started."
-        research = new[-1]
-        looks = [e for e in self.world.journal.recent(200, thread=research["thread"])
-                 if e["kind"] == "did" and e["data"].get("angle")] if research["thread"] else []
-        state_ok = research["state"] == arg.get("state", "done")
-        verdict_ok = not arg.get("verdict") or research.get("verdict") == arg["verdict"]
-        looks_ok = len(looks) >= int(arg.get("looks_min") or 0)
-        angles = "; ".join(str(e["data"]["angle"]) for e in looks)
-        return (state_ok and verdict_ok and looks_ok,
-                f"Pass '{research['title']}' is {research['state']}"
-                f" (verdict {research.get('verdict') or 'none'}: {research.get('why') or ''});"
-                f" {len(looks)} look{'s' if len(looks) != 1 else ''}: {angles or 'none'}.")
 
     def check_ask(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A question for the person, as a card, from the last turn (Q35): `derived` whether
@@ -784,8 +664,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next((k for k in ("say", "reader", "automation", "build", "approve_action",
-                                     "decline_plan", "seed") if k in s), "step")
+            kind = next((k for k in ("say", "reader", "automation", "approve_action",
+                                     "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"
             detail = (s.get("reply") or s.get("result") or s.get("report") or s.get("detail")

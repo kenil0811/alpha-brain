@@ -112,18 +112,20 @@ class Base:
             "SELECT 1 FROM automations WHERE thread = ?", (self.thread,)) is not None
 
     def _building(self) -> dict[str, Any] | None:
-        """The approved plan this turn is building, if it is one."""
-        plan = self.world.plans.of_thread(self.thread)
-        return plan if plan and plan["state"] == "building" else None
-
-    def _researching(self) -> dict[str, Any] | None:
-        """The research pass this turn is part of, if it is one (Q37): the only place a plan
-        is proposed."""
-        research = self.world.research.of_thread(self.thread)
-        return research if research and research["state"] == "running" else None
+        """The build thread this turn runs in, if it is one that may make lasting things: a
+        thread of kind build that is not a workflow's walled session (that session writes
+        files; the core makes the tables from the page, §12). Since 12 Oct 2026 (Q40) no
+        code opens such a thread: lasting things come from the page, and the door for
+        automations and readers of their own is an open question."""
+        if not self.thread:
+            return None
+        thread = self.world.modules.thread(self.thread)
+        if thread["kind"] != "build" or self.world.workflows.of_thread(self.thread):
+            return None
+        return thread
 
     def _gate(self, what: str) -> dict[str, Any] | None:
-        """Lasting things are made only in the build of a plan the person said yes to."""
+        """Lasting things are made only in a build the person said yes to."""
         if self._building():
             return None
         return {"error": f"{what} happens only in a build the person said yes to. Understand"

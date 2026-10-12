@@ -105,11 +105,6 @@ class NoteBody(BaseModel):
     summary: str | None = None
 
 
-class JobBody(BaseModel):
-    """The inputs of a module's job (Q38), by input name."""
-    inputs: dict[str, Any] | None = None
-
-
 class AgreeWorkflowBody(BaseModel):
     """The person's yes on their workflow page (§12): what they said about Alpha's
     suggestions ({id: "accept" | "skip"}) and their answers to the questions, by number."""

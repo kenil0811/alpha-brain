@@ -460,7 +460,6 @@ TOOL_WORDS = {
     "documents_list": "Looking at the documents", "folder_watch": "Starting to read a folder",
     "calendar_events": "Looking at the calendar", "fact_record": "Remembering something",
     "note_write": "Writing a note", "instruction_add": "Keeping an instruction",
-    "plan_propose": "Writing the plan", "plan_approve": "Taking the yes",
     "procedure_save": "Keeping the steps", "action_propose": "Preparing it for your yes",
     "automation_create": "Setting up the automation", "ask_person": "Asking you",
     "entity_resolve": "Linking a person", "thread_brief": "Updating the brief",

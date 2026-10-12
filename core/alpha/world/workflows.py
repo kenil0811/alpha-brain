@@ -19,7 +19,6 @@ import re
 import sqlite3
 from typing import Any
 
-from alpha.world.plans import clean_questions
 from alpha.world.store import Problem, Store, new_id, now
 
 STATES = ("drafted", "agreed", "building", "built", "stopped", "declined", "removed")
@@ -27,6 +26,9 @@ WHO = ("alpha", "you", "both")
 ORIGINS = ("you", "your document", "the trade", "Alpha's default")
 DECISIONS = ("accept", "skip")
 MOST_CHARS = 600
+MOST_QUESTIONS = 6
+MOST_OPTIONS = 4
+MOST_OPTION_CHARS = 90
 
 
 def _words(v: Any, most: int = MOST_CHARS) -> str:
@@ -38,6 +40,33 @@ def _slug(text: str, fallback: str) -> str:
     while "__" in out:
         out = out.replace("__", "_")
     return out[:60].rstrip("_") or fallback
+
+
+def clean_questions(questions: Any) -> list[dict[str, Any]]:
+    """The page's questions: each with its text, 2 to 4 short choices and Alpha's default
+    (added to the choices when it is none of them), and the person's answer once given."""
+    out: list[dict[str, Any]] = []
+    for q in (questions or [])[:MOST_QUESTIONS]:
+        if not isinstance(q, dict):
+            raise Problem("Each question is {text, options, default}.")
+        text = str(q.get("text") or q.get("question") or "").strip()
+        if not text:
+            raise Problem("A question needs its text.")
+        options = [str(o).strip()[:MOST_OPTION_CHARS] for o in (q.get("options") or [])
+                   if str(o).strip()][:MOST_OPTIONS]
+        default = str(q.get("default") or "").strip()[:MOST_OPTION_CHARS] or None
+        if default and options and default not in options:
+            match = next((o for o in options if o.lower() == default.lower()), None)
+            if match:
+                default = match
+            elif len(options) < MOST_OPTIONS:
+                options.append(default)
+            else:
+                default = options[0]
+        answer = str(q.get("answer") or "").strip() or None
+        out.append({"text": text, "options": options, "default": default, "answer": answer,
+                    "derived": bool(q.get("derived"))})
+    return out
 
 
 def clean_body(body: Any, previous: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -270,6 +299,13 @@ class Workflows:
 
     def decline(self, wid: str) -> dict[str, Any]:
         return self._move(wid, "declined", when=("drafted", "agreed"))
+
+    def of_thread(self, thread: str | None) -> dict[str, Any] | None:
+        """The workflow whose build runs in this thread, if any."""
+        if not thread:
+            return None
+        row = self.store.one("SELECT * FROM workflows WHERE thread = ?", (thread,))
+        return _view(row) if row else None
 
     def start_build(self, wid: str, thread: str) -> dict[str, Any]:
         return self._move(wid, "building", when=("agreed", "building"), thread=thread)

@@ -1,4 +1,4 @@
-"""Routes for Home: what needs the person, their answers and decisions; plans; a turn stopped."""
+"""Routes for Home: what needs the person, their answers and decisions; workflows."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from alpha.api.bodies import (
     AgreeWorkflowBody,
     AnswerBody,
     AnswersBody,
-    ApprovePlanBody,
     AskBody,
     DecideBody,
 )
@@ -20,12 +19,10 @@ from alpha.api.views import (
     _local_midnight_utc,
     module_card,
     needs_you,
-    plan_view,
     thread_views,
 )
 from alpha.connectors.calendar import Calendar
-from alpha.runtime import build, claude_cli, conversations
-from alpha.runtime import research as research_runtime
+from alpha.runtime import conversations
 from alpha.world.store import Problem
 
 
@@ -105,19 +102,7 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
-        plan = proposal["data"].get("plan")
-        if plan:
-            # The state moves first: a refused decision (a plan already building, say) must
-            # not leave an answer in the journal. A yes starts the build; a no closes it.
-            if body.accept:
-                world.plans.approve(plan, "Approved in the app")
-            else:
-                world.plans.decline(plan)
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
-        if plan:
-            if body.accept and live:
-                scheduler.builds()
-            return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
         instruction = proposal["data"].get("instruction")
         if instruction:
             # The person's yes is what makes it an instruction; nothing else needs to run.
@@ -129,39 +114,6 @@ def routes(app: FastAPI, s: Served) -> None:
         started = running.start(AskBody(text=f"Yes, go ahead: {proposal['text']}",
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}
-
-    @app.get("/api/plans", dependencies=[api])
-    def plans() -> list[dict[str, Any]]:
-        return [plan_view(world, p) for p in list(reversed(world.plans.all()))[:50]]
-
-    @app.post("/api/plans/{plan_id}/approve", dependencies=[api])
-    def approve_plan(plan_id: str, body: ApprovePlanBody | None = None) -> dict[str, Any]:
-        plan = world.plans.get(plan_id)
-        if body and body.answers and plan["state"] == "proposed":
-            plan = world.plans.answer(plan_id, body.answers)
-        if body and body.pieces and plan["state"] == "proposed":
-            plan = world.plans.decide_pieces(plan_id, body.pieces)
-        if plan.get("proposal"):
-            decide_proposal(plan["proposal"], DecideBody(accept=True))
-            return world.plans.get(plan_id)
-        world.plans.approve(plan_id, "Approved in the app")
-        if live:
-            scheduler.builds()
-        return world.plans.get(plan_id)
-
-    @app.post("/api/plans/{plan_id}/stop", dependencies=[api])
-    def stop_plan(plan_id: str) -> dict[str, Any]:
-        """Stop a build that isn't going anywhere: its run ends now and it says what it made."""
-        plan = world.plans.get(plan_id)
-        if plan["state"] not in ("approved", "building"):
-            raise Problem(f"The build of {plan['title']} isn't running.")
-        if not (plan["thread"] and claude_cli.LIVE.stop(plan["thread"])):
-            build.stop(world, plan_id, None)
-        return world.plans.get(plan_id)
-
-    @app.post("/api/turns/{key}/stop", dependencies=[api])
-    def stop_turn(key: str) -> dict[str, Any]:
-        return running.stop(key)
 
     @app.get("/api/workflows", dependencies=[api])
     def workflows() -> list[dict[str, Any]]:
@@ -202,32 +154,6 @@ def routes(app: FastAPI, s: Served) -> None:
                              actor="person", thread=declined.get("conversation"),
                              data={"workflow": wid})
         return declined
-
-    @app.post("/api/research/{rid}/stop", dependencies=[api])
-    def stop_research(rid: str) -> dict[str, Any]:
-        """Stop a research pass that isn't going anywhere: its run ends now and the
-        conversation says so."""
-        research = world.research.get(rid)
-        if research["state"] not in ("waiting", "running"):
-            raise Problem(f"Alpha isn't looking into {research['title']} now.")
-        if not (research["thread"] and claude_cli.LIVE.stop(research["thread"])):
-            research_runtime.stop(world, rid, None)
-        return world.research.get(rid)
-
-    @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
-    def resume_plan(plan_id: str) -> dict[str, Any]:
-        plan = world.plans.resume(plan_id)
-        if live:
-            scheduler.builds()
-        return plan
-
-    @app.post("/api/plans/{plan_id}/decline", dependencies=[api])
-    def decline_plan(plan_id: str) -> dict[str, Any]:
-        plan = world.plans.get(plan_id)
-        if plan.get("proposal"):
-            decide_proposal(plan["proposal"], DecideBody(accept=False))
-            return world.plans.get(plan_id)
-        return world.plans.decline(plan_id)
 
     @app.post("/api/facts/{fid}/decide", dependencies=[api])
     def decide_fact(fid: str, body: DecideBody) -> dict[str, Any]:

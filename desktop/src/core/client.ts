@@ -200,8 +200,6 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   goals: Goal[];
   automations: Automation[];
   sources: Source[];
-  /** What the person can do with a program module (Q38): its declared jobs. */
-  jobs?: Job[];
 }
 
 export interface Part {
@@ -212,13 +210,6 @@ export interface Part {
   fills: { thing: string; fields: string[] };
   when: string;
   reaches: string[];
-}
-
-export interface Job {
-  id: string;
-  title: string;
-  what: string;
-  inputs: { name: string; label: string; kind: "text" | "number"; required: boolean; help?: string }[];
 }
 
 /** A place a module reads from, and whether it works (kept by the platform from what happened). */
@@ -235,52 +226,15 @@ export interface Source {
   last_rows: number | null;
 }
 
-/** What Alpha proposed to set up, and its way from the person's yes to a finished build. */
-/** A question a plan asks before its build (Q36): its choices and the one Alpha would take. */
-export interface PlanQuestion {
+/** A question the workflow page asks before its build: its choices and the one Alpha would
+ *  take. */
+export interface Question {
   text: string;
   options: string[];
   default: string | null;
   answer: string | null;
-  /** The core read it out of the reply; the model didn't put it on the plan itself. */
+  /** The core read it out of the reply; the model didn't put it on the page itself. */
   derived?: boolean;
-}
-
-/** A researched plan's piece (Q37): what such a thing could have, with its evidence (the
- *  findings' titles and pages), how it would be built here, whether it can be built now,
- *  Alpha's recommendation and the person's decision. */
-export interface PlanPiece {
-  id: string;
-  title: string;
-  what: string;
-  why: string | null;
-  evidence: string[];
-  known: string | null;
-  build: string | null;
-  can: "now" | "needs" | "not_yet";
-  needs: string | null;
-  recommend: "keep" | "skip" | "defer";
-  kind: "kept" | "choice" | "wont";
-  decision: "keep" | "skip" | "defer" | null;
-  sources?: { title: string | null; url: string | null }[];
-}
-
-export interface Plan {
-  id: string;
-  title: string;
-  body: string;
-  state: "proposed" | "approved" | "building" | "done" | "stopped" | "declined" | "replaced";
-  module: string | null;
-  thread: string | null;
-  turn?: string | null;
-  proposal: string | null;
-  report: string | null;
-  created_at: string;
-  questions?: PlanQuestion[];
-  pieces?: PlanPiece[];
-  research?: string | null;
-  /** A program plan's milestones (Q38), each flipped to passes by the evaluator. */
-  milestones?: { id: string; title: string; what: string; passes: boolean; attempts?: number; why?: string | null }[];
 }
 
 /** A module as the person's workflow (§12, Q39): the page Alpha drafts from the interview and
@@ -304,7 +258,7 @@ export interface WorkflowBody {
   settings: { key: string; label: string; value: unknown; unit: string | null; origin: string; why: string | null }[];
   assumptions: string[];
   suggestions: { id: string; title: string; what: string; why: string | null; sources: string[]; decision: "accept" | "skip" | null }[];
-  questions: PlanQuestion[];
+  questions: Question[];
 }
 export interface Workflow {
   id: string;
@@ -317,17 +271,6 @@ export interface Workflow {
   module: string | null;
   created_at: string;
   updated_at: string;
-}
-
-/** A research pass (Q37): Alpha looking into how a thing is done before it proposes it. */
-export interface Research {
-  id: string;
-  title: string;
-  ask: string;
-  state: "waiting" | "running" | "done" | "stopped" | "failed";
-  thread: string | null;
-  conversation: string | null;
-  module: string | null;
 }
 
 export interface TableSummaryData {
@@ -403,9 +346,6 @@ export interface NeedItem {
   /** The turn that asked it: questions asked together are answered together. */
   turn?: string | null;
   module?: string | null;
-  plan?: string | null;
-  questions?: PlanQuestion[];
-  pieces?: PlanPiece[];
   action?: Action;
   workflow?: Workflow;
 }
@@ -692,8 +632,6 @@ export interface Conversation {
   turns: JournalEntry[];
   threads: Thread[];
   running: Turn[];
-  plans: Plan[];
-  research?: Research[];
   workflows?: Workflow[];
   actions?: Action[];
   asks?: Ask[];
@@ -710,7 +648,7 @@ export interface Changed {
   modules: string[];
   entities: string[];
   threads: boolean;
-  plans: boolean;
+  workflows: boolean;
   actions: boolean;
   working: boolean;
 }
@@ -932,20 +870,10 @@ export class Client {
     if (!response.ok) throw new CoreError(`No screenshot (${response.status}).`, response.status);
     return URL.createObjectURL(await response.blob());
   };
-  /** The person's yes, with their answers to the plan's questions by number (a question left
-   * out keeps Alpha's default). */
-  approvePlan = (id: string, answers?: Record<string, string>, pieces?: Record<string, string>) =>
-    this.call<Plan>("POST", `/api/plans/${id}/approve`, answers || pieces ? { answers, pieces } : undefined);
-  runJob = (module: string, job: string, inputs: Record<string, string>) =>
-    this.call<{ job: string; ok: boolean; exit: number; output: string }>("POST", `/api/modules/${encodeURIComponent(module)}/jobs/${encodeURIComponent(job)}`, { inputs });
   agreeWorkflow = (id: string, suggestions?: Record<string, string>, answers?: Record<string, string>) =>
     this.call<Workflow>("POST", `/api/workflows/${id}/agree`, suggestions || answers ? { suggestions, answers } : undefined);
   declineWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`);
   resumeWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/resume`);
-  stopResearch = (id: string) => this.call<Research>("POST", `/api/research/${id}/stop`);
-  declinePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/decline`);
-  resumePlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/resume`);
-  stopPlan = (id: string) => this.call<Plan>("POST", `/api/plans/${id}/stop`);
   stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });

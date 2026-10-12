@@ -4,7 +4,7 @@
  */
 import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
 import { moduleWords } from "../core/client";
-import type { Client, Job, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
+import type { Client, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -295,18 +295,6 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
               ) : null}
             </div>
           </div>
-          {detail.jobs?.length ? (
-            <div className="section">
-              <div className="section__head">
-                <h2>What you can do</h2>
-              </div>
-              <div className="card list">
-                {detail.jobs.map((job) => (
-                  <JobForm key={job.id} job={job} onRun={(inputs) => client.runJob(detail.id, job.id, inputs)} onDone={onChanged} />
-                ))}
-              </div>
-            </div>
-          ) : null}
           <div className="section">
             <div className="section__head">
               <h2>What it keeps</h2>
@@ -553,44 +541,3 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
 
 /** One job of a program module (Q38): its inputs as a form, Run, and what came back. The
  *  job runs in the module's workspace under the sandbox; the tables show the result. */
-function JobForm({ job, onRun, onDone }: { job: Job; onRun: (inputs: Record<string, string>) => Promise<{ ok: boolean; exit: number; output: string }>; onDone: () => void }) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; output: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const missing = job.inputs.some((i) => i.required && !(values[i.name] ?? "").trim());
-  return (
-    <form
-      className="item item--top job"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (busy || missing) return;
-        setBusy(true);
-        setError(null);
-        setResult(null);
-        onRun(values)
-          .then((r) => { setResult({ ok: r.ok, output: r.output }); onDone(); })
-          .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
-          .finally(() => setBusy(false));
-      }}
-    >
-      <div className="item__ico" aria-hidden="true">▶</div>
-      <div className="item__body">
-        <b>{job.title}</b>
-        {job.what ? <div className="item__sub">{job.what}</div> : null}
-        <div className="row" style={{ marginTop: 6, flexWrap: "wrap", gap: 6 }}>
-          {job.inputs.map((i) => (
-            <input key={i.name} className="planq__other" type={i.kind === "number" ? "number" : "text"} value={values[i.name] ?? ""} placeholder={i.label} aria-label={`${job.title}: ${i.label}`} title={i.help || undefined} onChange={(e) => setValues({ ...values, [i.name]: e.target.value })} />
-          ))}
-          <Button size="sm" variant="primary" type="submit" disabled={busy || missing}>
-            {busy ? "Running…" : "Run"}
-          </Button>
-        </div>
-        {result ? (
-          <pre className={`job__out${result.ok ? "" : " job__out--failed"}`} role="status">{result.ok ? "Done." : "It failed."} {result.output.trim().split("\n").slice(-6).join("\n")}</pre>
-        ) : null}
-        {error ? <p className="notice">{error}</p> : null}
-      </div>
-    </form>
-  );
-}

@@ -941,7 +941,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .stepline__failed { color: var(--bad); }
 .working__partial { margin-top: 10px; color: var(--text); }
 
-/* ---------- a plan's questions on its card (Q36) ---------- */
+/* ---------- the workflow page's questions on its card ---------- */
 /* Where a value came from, beside it on a thing's page (§12). */
 .origin { font-size: var(--text-xs); opacity: 0.75; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .origin--problem { opacity: 1; color: var(--danger, #c33); white-space: normal; }
@@ -957,27 +957,6 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .wf__who--asks { border-style: dashed; }
 .wf__suggest { display: flex; flex-direction: column; gap: 4px; }
 .linklike { background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; font-size: var(--text-xs); opacity: 0.8; }
-/* A program module's jobs (Q38): a form per job on the module's page, and what came back. */
-.job { align-items: flex-start; }
-.job__out { margin: 6px 0 0; padding: 6px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-xs); white-space: pre-wrap; max-height: 160px; overflow: auto; }
-.job__out--failed { border-color: var(--danger, #c33); }
-/* A program plan's milestones (Q38): what the build delivers, ticked by the evaluator. */
-.planm { list-style: none; margin: 6px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); }
-.planm__item--done { opacity: 0.8; }
-.planm__mark { display: inline-block; width: 1.2em; }
-/* A researched plan's pieces (Q37): three blocks, each piece with its evidence and keep / defer / skip. */
-.planp { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 2px; }
-.planp__group { display: flex; flex-direction: column; gap: 8px; }
-.planp__head { margin: 0; font-size: var(--text-sm); font-weight: 600; }
-.planp__head .faint { font-weight: 400; }
-.planp__item { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-.planp__title { font-weight: 500; }
-.planp__what { font-weight: 400; }
-.planp__meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: var(--text-xs); align-items: center; }
-.planp__can { padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); white-space: nowrap; }
-.planp__can--not_yet, .planp__can--needs { opacity: 0.8; }
-.planp__src { color: inherit; }
-.planp__opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .planq { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .planq__item { display: flex; flex-direction: column; gap: 6px; }
 .planq__text { font-weight: 500; }

@@ -16,7 +16,6 @@ from alpha.api.bodies import (
     AskBody,
     CreateModuleBody,
     ExportBody,
-    JobBody,
     ListBody,
     MoveModuleBody,
     RecordBody,
@@ -31,7 +30,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
-from alpha.runtime import jobs, parts
+from alpha.runtime import parts
 from alpha.world.modtables import is_qualified
 from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
@@ -61,7 +60,6 @@ def routes(app: FastAPI, s: Served) -> None:
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] in ids]
         card["automations"] = [a for i in ids for a in automation_views(world, scheduler, i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
-        card["jobs"] = jobs.jobs_of(m.get("workspace"))
         return card
 
     @app.post("/api/modules/{ref}/parts/{part}/run", dependencies=[api])
@@ -75,13 +73,6 @@ def routes(app: FastAPI, s: Served) -> None:
     def list_parts(ref: str) -> list[dict[str, Any]]:
         m = world.modules.get(ref)
         return parts.parts_of(m.get("workspace"))
-
-    @app.post("/api/modules/{ref}/jobs/{job}", dependencies=[api])
-    def run_job(ref: str, job: str, body: JobBody | None = None) -> dict[str, Any]:
-        """What the person does with a program module (Q38): the job runs in the workspace
-        under the profile, walled to the plan's hosts, and its tables show the result."""
-        m = world.modules.get(ref)
-        return jobs.run_job(world, m["id"], job, (body.inputs if body else None) or {})
 
     @app.post("/api/modules", dependencies=[api])
     def create_module(body: CreateModuleBody) -> dict[str, Any]:
