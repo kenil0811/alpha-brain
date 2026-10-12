@@ -40,6 +40,10 @@ describe("metrics", () => {
     expect(d).toMatchObject({ value: "Unknown", cta: { disabledReason: "No record has a value in Amount yet." } });
     expect(computeTile(tile({ type: "metric", measure: "count" }), { ...ctx, rows: [] })).toMatchObject({ value: "0", cta: { disabledReason: "There are no records yet." } });
   });
+  it("show nothing for a total or average whose number field has gone, never a count under its title", () => {
+    expect(computeTile(tile({ type: "metric", field: "gone", measure: "sum" }), ctx)).toBeNull();
+    expect(computeTile(tile({ type: "metric", field: "stage", measure: "avg" }), ctx)).toBeNull();
+  });
   it("count what Alpha estimated", () => {
     expect(computeTile(tile({ type: "metric", measure: "estimated" }), ctx)).toMatchObject({ value: "1", cta: { ids: ids(3) } });
   });

@@ -166,6 +166,7 @@ class Scheduler:
                  clock: Any = time.time) -> None:
         self.world = world
         self.runner = runner or route.run
+        self._reviewing = False
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()
@@ -291,11 +292,27 @@ class Scheduler:
             log.exception("parts due")
 
     def cards(self) -> None:
-        """Propose dashboard cards where a table changed in a way that matters (§ dashboards)."""
-        try:
-            cards_module.review(self.world, runner=self.runner)
-        except Exception:
-            log.exception("dashboard cards")
+        """Propose dashboard cards where a table changed in a way that matters (Q47), in its
+        own thread so a tick never waits on Alpha's turns, one pass at a time, the Mac kept
+        awake while it runs."""
+        with self.lock:
+            if self._reviewing:
+                return
+            self._reviewing = True
+
+        def work() -> None:
+            self._hold()
+            try:
+                cards_module.review(self.world, runner=self.runner,
+                                    stop=self.stop_event.is_set)
+            except Exception:
+                log.exception("dashboard cards")
+            finally:
+                self._release()
+                with self.lock:
+                    self._reviewing = False
+
+        threading.Thread(target=work, daemon=True, name="dashboard-cards").start()
 
     def kick(self) -> None:
         """What a turn starts at once rather than at the next tick: a workflow agreed in it,

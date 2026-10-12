@@ -44,7 +44,10 @@ export function KeptCards({ table, cards, fields, rows, onRemove, onShowRecords,
     const ctx = { fields, rows: inScope, allRows: rows, titleField: table.title_field, now: asOf };
     return cards.flatMap((card) => {
       const data = computeTile({ id: card.id, type: card.type, field: card.field ?? undefined, measure: card.measure ?? undefined }, ctx);
-      return data ? [{ card, data: { ...data, title: card.title } as TileData }] : [];
+      // the card's own title, also on what its button shows ("Pipeline value · 3")
+      if (!data) return [];
+      const label = data.cta.label ? `${card.title} · ${data.cta.label.split(" · ").pop()}` : data.cta.label;
+      return [{ card, data: { ...data, title: card.title, cta: { ...data.cta, label } } as TileData }];
     });
   }, [cards, fields, inScope, rows, table.title_field, asOf]);
   const scope = period === "all" ? "" : ` over the last ${period} days`;

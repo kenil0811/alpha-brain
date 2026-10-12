@@ -285,8 +285,8 @@ One row that never wraps, in this order:
 
 Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Map**, and **Graph** where a page has one (Second Brain, where it is the default)
 
-- No Dashboard in the View list (the owner, 12 Oct, later): dashboards become cards Alpha proposes, kept once approved and kept current; a list saved with Dashboard opens as Table.
-- No List and no Chart (the owner, 12 Oct): List was a narrower Table; charts live in the Dashboard. A list saved with either opens as Table or Dashboard.
+- No Dashboard in the View list (the owner, 12 Oct, later; Q47): a table's dashboard is the cards Alpha proposed and the person kept, above its data (below). A list saved with Dashboard opens as Table.
+- No List and no Chart (the owner, 12 Oct): List was a narrower Table; charts live in the dashboard cards. A list saved with either opens as Table.
 
 - Every view uses the same toolbar and the same open, edit and add behaviour. Only the layout of the records changes.
 - **Board:** quiet columns with sentence-case headers and counts. Cards can be dragged between columns. It groups by a status or choice field, with a picker when there are several.
@@ -298,30 +298,19 @@ Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Map
   - Zoom and move with ZoomControls, the wheel or a drag; arrow keys walk the dots (one tab stop), Enter selects, then opens.
   - Records with no place are counted on one faint line, saying how many couldn't be found; Show them lists them in the Table.
 
-### Dashboard view
+### Dashboard cards (Q47)
 
-A page of visuals where **every visual is actionable**.
+No standard dashboard (the owner, 12 Oct). **Alpha proposes** the cards that help the person act on a table; the person's **yes keeps** them; a kept card stays current by itself; when the table changes in a way that matters, Alpha **proposes more**.
 
-- **Visual = something to do.** Each tile pairs a visual with a call to action (CTA). If a tile has nothing to act on, it says so in one line ("Nothing overdue.") and its CTA stays visible but disabled, with the reason.
-- **Tile types:**
-  - **Metric:** a serif number, what it is based on, and a CTA such as "Show these 12".
-  - **Breakdown by status or choice:** clicking a segment opens those records.
-  - **Over time:** by a date field. Clicking a bar or point opens those records.
-  - **Needs attention:** up to 5–7 records (overdue, stale, missing a value, flagged), each with its own inline action.
-  - **Progress toward a goal:** the project's goals, with the next step.
-  - **Alpha's suggestions for this collection:** each shown as a proposal with Approve and Decline.
-  - **What changed?:** the numbers in one line, and **Ask what changed**, for Alpha to explain (12 Oct; Alpha writing it there waits for the core).
-- **Aligned with ChatGPT's dashboards** (the owner, 12 Oct): the numbers first (each count and total with its change on the week before), then the charts, then what needs attention; **As of** a time; a period (All time, 30 days, 7 days) that applies to every tile with the toolbar's list, search and filters; **Ask Alpha** to change the dashboard; each change on the week before counts every record, whatever the period; ⋮ holds **Edit dashboard**, **Tell me when…** (Alpha proposes the alert as an automation) and **Download as CSV**. Tiles sit on Home's card grid: a number S, a chart M, Needs attention L.
-- **What a CTA does:**
-  - opens the collection in another view, filtered to exactly those records (a temporary filter, savable as a list);
-  - opens a record page;
-  - starts a bulk action, confirmed in a dialog;
-  - or puts a sentence in the assistant's composer.
-- **Context:** the saved list, search and filters in the toolbar apply to every tile.
-- **Layout:** by default, Alpha picks 4–7 tiles from the collection's fields. The person adds, removes, reorders and resizes tiles from **⋮ More › Edit dashboard**. The layout is saved with the list.
+- **Where:** a table's kept cards sit above its data, under the numbers strip, on every view but Graph. A table with none shows none.
+- **Proposals** come to **Needs you** as "Dashboard cards for Deals: …", with Approve and Decline. Nothing shows before the yes.
+- **Asking:** ⋮ › **Ask Alpha for dashboard cards** (or "for more cards" once some are kept) sends the request to Alpha.
+- **A change that matters** brings a proposal by itself (an event pass across every project): a new table with rows, a table's first rows, new fields, new choices. More rows alone don't: the kept cards' numbers follow them.
+- **Visual = something to do.** Each card pairs a visual with a call to action (CTA). If a card has nothing to act on, it says so in one line ("Nothing overdue.") and its CTA stays visible but disabled, with the reason.
+- **Card kinds** (chosen by a field's kind, never by what it means): **Metric** (a count, or a number field's total or average, or how many values Alpha estimated: a serif number, its basis, "Show these 12"); **Breakdown** by a status or choice (a segment opens its records); **Over time** by a date field (a bar opens its records); **Needs attention** (up to 5–7 records, each with Open). Alpha titles each card with what it is for ("Deals won this month").
+- **Aligned with ChatGPT's dashboards** (the owner, 12 Oct): the numbers first, with their change on the week before; **As of** a time; a period (All time, 30 days, 7 days) that applies to every card with the toolbar's list, search and filters; **What changed?** asks Alpha to explain; ⋮ holds **Edit cards** (remove one, after a yes), **Tell me when…** (Alpha proposes the alert as an automation) and **Download as CSV**.
+- **What a CTA does:** shows exactly those records (a temporary filter, savable as a list), opens a record page, or puts a sentence in the assistant's composer.
 - **Every number states its basis.** "Average deal size · 14 deals with an amount" — never a bare score.
-- **Available when** the collection has at least one number, status, choice or date field. Otherwise it is disabled, with "Dashboard needs a number, status or date field".
-- **Project dashboard (optional):** a project can open on a dashboard spanning all its collections, if the person chooses. It follows the same rules.
 
 ### Table
 
@@ -393,7 +382,7 @@ A page of visuals where **every visual is actionable**.
 
 ### Metrics strip
 
-- A collection's headline numbers sit in one strip of metric tiles **below the toolbar**, above the table, **always shown, with no fold** (the owner, 12 Oct). It is left out only when there is nothing to count (no records) or when the person asks Alpha to hide it (waits for the core, core-changes §G). The Dashboard view shows them in full.
+- A collection's headline numbers sit in one strip of metric tiles **below the toolbar**, above the table, **always shown, with no fold** (the owner, 12 Oct). It is left out only when there is nothing to count (no records) or when the person asks Alpha to hide it (waits for the core, core-changes §G). The dashboard cards below it show what the person kept.
 - Each tile is a plain tile (the owner, 11 Oct): the number with its words beside it, and what it is based on. No icon square.
 - While hidden, a show arrow sits in the toolbar's frequent actions, left of ⋮; while shown, the hide arrow sits at the strip's top-right corner. The choice is remembered.
 - Tiles that need attention get an amber tint (red is only for problems).

@@ -1,0 +1,48 @@
+[
+ {
+  "name": "dashboard_cards",
+  "title": "Asked for dashboard cards, Alpha proposes a few that fit the table and keeps nothing before the yes",
+  "steps": [
+   {
+    "seed": "table deals, 4 rows",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "Propose dashboard cards for the Deals table (deals).",
+    "ok": true,
+    "reply": "I've proposed four dashboard cards for Deals. They show up once you say yes, and after that their numbers stay current on their own.\n\n1. **Total deal value:** the sum of all deal amounts, so you can see the size of the pipeline at a glance.\n2. **Deals by stage:** a count of deals in each stage (lead, open, won, lost), so you can see where the funnel is thin.\n3. **Deal value by close date:** deal amounts plotted over close dates, so you can see which months bring in money.\n4. **Deals needing attention:** open deals whose close date has passed. Bakery is one now, since it was due on 1 Oct and is",
+    "steps": 4,
+    "seconds": 19.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "proposed",
+     "contains": "Dashboard cards for Deals"
+    },
+    "ok": true,
+    "why": "1 proposed entry: Dashboard cards for Deals: Total deal value; Deals by stage; Deal value by close date; Deals needing attention.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Did Alpha say it proposed dashboard cards for Deals for the person to approve, naming what they are, rather than claiming a dashboard is already set up?",
+    "ok": true,
+    "why": "The answer says it 'proposed four dashboard cards' that 'show up once you say yes', names each card, and does not claim a dashboard is already set up.",
+    "seconds": 6.1
+   }
+  ],
+  "seconds": 25.3,
+  "error": null
+ }
+]

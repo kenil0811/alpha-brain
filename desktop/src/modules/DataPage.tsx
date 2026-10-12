@@ -276,6 +276,9 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   const blanks = useMemo(() => (all ?? []).filter((r) => isBlank(r) && r.id !== editRequest?.id).length, [all, editRequest]);
   const real = useMemo(() => (all && blanks && !showBlank ? all.filter((r) => !isBlank(r) || r.id === editRequest?.id) : all), [all, blanks, showBlank, editRequest]);
   const rows = useMemo(() => (real ? pinnedFirst(applyQuery(real, { search, searchable, filters: {}, rules: vs.rules, advanced: vs.advanced, fields, hideDone: vs.hideDone, statusField, showGone, sort: null, sorts: vs.sorts, ids: picked ? new Set(picked.ids) : null }), pinned) : null), [real, search, searchable, vs.rules, vs.advanced, fields, vs.hideDone, showGone, statusField, vs.sorts, picked, pinned]);
+  // the dashboard cards follow the list, search and filters, but not a card's own "show these":
+  // clicking one card must not narrow every card
+  const cardRows = useMemo(() => (real && picked ? applyQuery(real, { search, searchable, filters: {}, rules: vs.rules, advanced: vs.advanced, fields, hideDone: vs.hideDone, statusField, showGone, sort: null, sorts: [], ids: null }) : rows), [real, picked, rows, search, searchable, vs.rules, vs.advanced, fields, vs.hideDone, showGone, statusField]);
   useEffect(() => {
     setPageAt(0);
     setLoads(1);
@@ -905,7 +908,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             table={{ title: src.title, title_field: src.titleField ?? null }}
             cards={cards}
             fields={fields}
-            rows={rows ?? []}
+            rows={cardRows ?? []}
             onRemove={removeCard}
             onShowRecords={(ids, label) => setPicked({ ids, label })}
             onOpenRecord={open}

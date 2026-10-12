@@ -93,37 +93,53 @@ def what_changed(before: dict[str, Any] | None, after: dict[str, Any]) -> str | 
     return "; ".join(words) or None
 
 
+STARTED = "*"  # the row that says the pass has run once
+
+
+def key(card: dict[str, Any]) -> tuple[str, str | None, str | None]:
+    """What makes two cards the same card: what they measure, not their titles."""
+    return (card["type"], card.get("field") or None, card.get("measure") or None)
+
+
 class Cards:
     def __init__(self, store: Store) -> None:
         self.store = store
 
     def of(self, collection: str) -> list[dict[str, Any]]:
         return [self._row(r) for r in self.store.all(
-            "SELECT * FROM cards WHERE collection = ? ORDER BY created_at, id", (collection,))]
+            "SELECT * FROM cards WHERE collection = ? ORDER BY created_at, rowid", (collection,))]
 
-    def keep(self, collection: str, cards: list[dict[str, Any]], proposal: str | None
-             ) -> list[dict[str, Any]]:
-        """Keep the cards the person said yes to; one already kept (the same type, field and
-        measure) takes the new title instead of appearing twice."""
-        kept = []
-        with self.store.tx() as db:
-            for c in cards:
-                same = db.execute(
-                    "SELECT id FROM cards WHERE collection = ? AND type = ? AND"
-                    " IFNULL(field, '') = ? AND IFNULL(measure, '') = ?",
-                    (collection, c["type"], c["field"] or "", c["measure"] or "")).fetchone()
-                cid = same["id"] if same else new_id("card")
-                if same:
-                    db.execute("UPDATE cards SET title = ?, why = ? WHERE id = ?",
-                               (c["title"], c["why"], cid))
-                else:
-                    db.execute(
-                        "INSERT INTO cards (id, collection, type, field, measure, title, why,"
-                        " proposal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (cid, collection, c["type"], c["field"], c["measure"], c["title"],
-                         c["why"], proposal, now()))
-                kept.append({"id": cid, "collection": collection, **c})
-        return kept
+    def keep(self, db: Any, collection: str, cards: list[dict[str, Any]],
+             proposal: str | None) -> list[dict[str, Any]]:
+        """Keep the cards the person said yes to, inside the caller's transaction; one already
+        kept (the same type, field and measure) takes the new title instead of appearing twice."""
+        kept: dict[str, dict[str, Any]] = {}
+        for c in cards:
+            same = db.execute(
+                "SELECT id FROM cards WHERE collection = ? AND type = ? AND"
+                " IFNULL(field, '') = ? AND IFNULL(measure, '') = ?",
+                (collection, c["type"], c["field"] or "", c["measure"] or "")).fetchone()
+            cid = same["id"] if same else new_id("card")
+            if same:
+                db.execute("UPDATE cards SET title = ?, why = ? WHERE id = ?",
+                           (c["title"], c["why"], cid))
+            else:
+                db.execute(
+                    "INSERT INTO cards (id, collection, type, field, measure, title, why,"
+                    " proposal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cid, collection, c["type"], c["field"], c["measure"], c["title"],
+                     c["why"], proposal, now()))
+            kept[cid] = {"id": cid, "collection": collection, **c}
+        return list(kept.values())
+
+    def pending(self, collection: str) -> set[tuple[str, str | None, str | None]]:
+        """The cards proposed for a table that wait for the person's answer."""
+        answered = "SELECT json_extract(data, '$.proposal') FROM journal WHERE kind = 'answered'"
+        rows = self.store.all(
+            "SELECT data FROM journal WHERE kind = 'proposed' AND deleted_at IS NULL AND"
+            f" json_extract(data, '$.cards.collection') = ? AND id NOT IN ({answered})",
+            (collection,))
+        return {key(c) for r in rows for c in loads(r["data"], {})["cards"]["cards"]}
 
     def remove(self, cid: str) -> dict[str, Any]:
         with self.store.tx() as db:
@@ -141,14 +157,33 @@ class Cards:
         return n
 
     def shapes(self) -> dict[str, dict[str, Any]]:
-        return {r["collection"]: loads(r["shape"], None)
-                for r in self.store.all("SELECT collection, shape FROM card_shapes")}
+        return {r["collection"]: loads(r["shape"], None) for r in self.store.all(
+            "SELECT collection, shape FROM card_shapes WHERE collection != ?", (STARTED,))}
 
-    def saw(self, collection: str, shape: dict[str, Any]) -> None:
+    def started(self) -> bool:
+        """Whether the pass has run before (kept as a row, so a world whose tables all went
+        still proposes for its next one)."""
+        return self.store.one("SELECT 1 AS x FROM card_shapes WHERE collection = ?",
+                              (STARTED,)) is not None
+
+    def start(self) -> None:
         with self.store.tx() as db:
-            db.execute("INSERT INTO card_shapes (collection, shape, seen_at) VALUES (?, ?, ?)"
-                       " ON CONFLICT(collection) DO UPDATE SET shape = excluded.shape,"
-                       " seen_at = excluded.seen_at", (collection, dumps(shape), now()))
+            db.execute("INSERT OR IGNORE INTO card_shapes (collection, shape, seen_at)"
+                       " VALUES (?, '{}', ?)", (STARTED, now()))
+
+    def claim(self, collection: str, before: dict[str, Any] | None,
+              after: dict[str, Any]) -> bool:
+        """Record a table's new shape only if it is still the one this pass read, so two passes
+        never both act on one change. True when this pass made the change."""
+        with self.store.tx() as db:
+            if before is None:
+                cur = db.execute("INSERT OR IGNORE INTO card_shapes (collection, shape, seen_at)"
+                                 " VALUES (?, ?, ?)", (collection, dumps(after), now()))
+            else:
+                cur = db.execute("UPDATE card_shapes SET shape = ?, seen_at = ? WHERE"
+                                 " collection = ? AND shape = ?",
+                                 (dumps(after), now(), collection, dumps(before)))
+            return bool(cur.rowcount)
 
     @staticmethod
     def _row(r: Any) -> dict[str, Any]:

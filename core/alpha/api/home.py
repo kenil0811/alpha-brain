@@ -24,7 +24,7 @@ from alpha.api.views import (
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations
 from alpha.world.cards import check_card
-from alpha.world.store import Problem
+from alpha.world.store import Problem, loads
 
 
 def routes(app: FastAPI, s: Served) -> None:
@@ -100,6 +100,42 @@ def routes(app: FastAPI, s: Served) -> None:
         # Closed without an answer: nothing runs.
         return {"dismissed": world.journal.close_ask(ask_id, "Dismissed.")}
 
+    def decide_cards(pid: str, proposal: dict[str, Any], cards: dict[str, Any],
+                     accept: bool) -> dict[str, Any]:
+        """Dashboard cards (Q47): the answer, the cards it keeps and the line saying so are one
+        change, made only while the proposal is unanswered; each card is checked against the
+        table as it is now, and one that no longer fits is named, not kept."""
+        module, name = proposal["module"], cards["collection"]
+        with world.store.tx() as db:
+            if db.execute("SELECT 1 FROM journal WHERE kind = 'answered' AND"
+                          " json_extract(data, '$.proposal') = ?", (pid,)).fetchone():
+                raise Problem("That proposal is already answered.")
+            table = db.execute("SELECT title, schema FROM collections WHERE name = ?",
+                               (name,)).fetchone()
+            if table is None:
+                world.journal.answer_proposal(pid, False, words="That table is gone.",
+                                              module=module, db=db)
+                return {"decided": pid, "turn": None, "cards": [], "gone": True}
+            fields = loads(table["schema"])["fields"]
+            fitting, dropped = [], []
+            for c in cards["cards"] if accept else []:
+                try:
+                    fitting.append(check_card(c, fields))
+                except Problem:
+                    dropped.append(c.get("title") or c.get("type"))
+            kept = world.cards.keep(db, name, fitting, pid)
+            world.journal.answer_proposal(pid, accept, module=module, db=db)
+            if kept or dropped:
+                world.journal.append(
+                    "changed", (f"Kept {len(kept)} dashboard card(s) for {table['title']}: "
+                                + "; ".join(c["title"] for c in kept) + "." if kept else "")
+                    + (f" Not kept, the table no longer has what they need: "
+                       f"{', '.join(dropped)}." if dropped else ""),
+                    actor="person", data={"proposal": pid, "collection": name,
+                                          "cards": [c["id"] for c in kept]},
+                    module=module, db=db)
+        return {"decided": pid, "turn": None, "cards": kept, "dropped": dropped}
+
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
@@ -110,23 +146,9 @@ def routes(app: FastAPI, s: Served) -> None:
             # the journal (Q46, design G13)
             done = world.collections.to_place(place["collection"], place["field"])
         cards = proposal["data"].get("cards")
-        kept: list[dict[str, Any]] = []
-        if cards and body.accept:
-            # checked again against the table as it is now, and kept before the Yes is written
-            fields = world.collections.describe(cards["collection"])["fields"]
-            kept = world.cards.keep(cards["collection"],
-                                    [check_card(c, fields) for c in cards["cards"]], pid)
-        answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
         if cards:
-            if kept:
-                world.journal.append(
-                    "changed", f"Kept {len(kept)} dashboard card(s) for "
-                    f"{world.collections.describe(cards['collection'])['title']}: "
-                    + "; ".join(c["title"] for c in kept) + ".",
-                    actor="person", data={"proposal": pid, "collection": cards["collection"],
-                                          "cards": [c["id"] for c in kept]},
-                    module=proposal["module"])
-            return {"decided": pid, "turn": None, "cards": kept}
+            return decide_cards(pid, proposal, cards, body.accept)
+        answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
         if place:
             if done:
                 world.journal.append(

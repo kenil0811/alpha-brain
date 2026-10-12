@@ -119,8 +119,10 @@ function disabled(text: string, label: string, reason: string): Cta {
 }
 const noRecords = "There are no records yet.";
 
-function metric(t: Tile, { fields, rows, allRows = rows, now: ctxNow = new Date() }: Ctx): TileData {
+function metric(t: Tile, { fields, rows, allRows = rows, now: ctxNow = new Date() }: Ctx): TileData | null {
   const f = fields.find((x) => x.name === t.field);
+  // a total or an average whose number field has gone shows nothing, never a count under its title
+  if ((t.measure === "sum" || t.measure === "avg") && (!f || !isNumeric(f.kind))) return null;
   const all = rows.map((r) => r.id);
   if (t.measure === "estimated") {
     const ids = rows.filter((r) => r.provenance?.estimated || r.provenance?.assumed).map((r) => r.id);

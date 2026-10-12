@@ -13,6 +13,7 @@ from alpha.connectors.browser import Browser
 from alpha.connectors.files import Files, table_rows
 from alpha.mcp.tools.base import Base, counts_and_ids, provenance_words, tool
 from alpha.world.cards import check_card
+from alpha.world.cards import key as card_key
 from alpha.world.store import Problem
 
 
@@ -109,21 +110,27 @@ class Tables(Base):
         avg), breakdown (field a choice or status field), overtime (field a date field;
         measure count or a number field to add up) or attention (the records that need it).
         title: what the card is for, in the person's words ("Deals won this month"); why: one
-        line on what they would do with it. Skip a card the table already keeps (card_list)."""
+        line on what they would do with it. Skip a card the table keeps (card_list) or that
+        waits for the person's answer."""
         desc = self.world.collections.describe(collection)
         checked = [check_card(c, desc["fields"]) for c in cards]
         if not checked:
             raise Problem("Propose at least one card.")
-        kept = {(c["type"], c["field"], c["measure"]) for c in self.world.cards.of(collection)}
-        fresh = [c for c in checked if (c["type"], c["field"], c["measure"]) not in kept]
+        taken = {card_key(c) for c in self.world.cards.of(collection)} \
+            | self.world.cards.pending(collection)
+        fresh: dict[tuple[str, str | None, str | None], dict[str, Any]] = {}
+        for c in checked:
+            if card_key(c) not in taken:
+                fresh.setdefault(card_key(c), c)
         if not fresh:
-            raise Problem(f"{desc['title']} keeps every one of these cards already.")
+            raise Problem(f"{desc['title']} keeps these cards already, or they wait for the"
+                          " person's answer.")
         jid = self.world.journal.append(
             "proposed", f"Dashboard cards for {desc['title']}: "
-            + "; ".join(c["title"] for c in fresh),
-            data={"cards": {"collection": collection, "cards": fresh}, "why": why,
-                  "turn": self.turn},
-            module=desc["module"] or self.module, thread=self.thread,
+            + "; ".join(c["title"] for c in fresh.values()),
+            data={"cards": {"collection": collection, "cards": list(fresh.values())},
+                  "why": why, "turn": self.turn},
+            module=desc["module"], thread=self.thread,
         )
         return {"proposed": jid, "cards": len(fresh)}
 

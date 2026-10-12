@@ -82,7 +82,47 @@ def test_a_change_that_matters_asks_alpha_for_cards_and_rows_alone_do_not(world:
 def test_removing_a_project_removes_its_cards(world: World) -> None:
     module = world.modules.create("Sales", None)
     world.collections.create("deals", "Deals", FIELDS, module=module["id"])
-    world.cards.keep("deals", [{"type": "attention", "field": None, "measure": None,
-                                "title": "Chase these", "why": ""}], None)
+    with world.store.tx() as db:
+        world.cards.keep(db, "deals", [{"type": "attention", "field": None, "measure": None,
+                                        "title": "Chase these", "why": ""}], None)
     purge.remove_module(world, module["id"])
     assert world.cards.of("deals") == [] and "deals" not in world.cards.shapes()
+
+
+def test_the_first_table_ever_gets_its_proposal(world: World) -> None:
+    asked: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        asked.append(req.sentence)
+        return RunResult(ok=True, reply="Proposed.")
+
+    assert cards_runtime.review(world, runner) == []  # an empty world: the pass starts
+    deals(world)
+    assert [o["change"] for o in cards_runtime.review(world, runner)] == ["it is new"]
+    assert len(asked) == 1
+
+
+def test_one_proposal_per_card_and_one_answer_per_proposal(world: World) -> None:
+    deals(world)
+    t = Tools(world)
+    pipeline = {"type": "metric", "measure": "sum", "field": "amount", "title": "Pipeline"}
+    first = t.card_propose("deals", [pipeline, {**pipeline, "title": "Same card"}], "")
+    assert first["cards"] == 1  # the same card twice in one proposal is one card
+    assert "wait" in t.card_propose("deals", [pipeline], "")["error"]  # already proposed
+    c = TestClient(create_app(world, live=False))
+    assert c.post(f"/api/proposals/{first['proposed']}/decide",
+                  json={"accept": True}).status_code == 200
+    again = c.post(f"/api/proposals/{first['proposed']}/decide", json={"accept": True})
+    assert again.status_code >= 400 and "already answered" in again.text
+    assert len(world.cards.of("deals")) == 1
+
+
+def test_a_yes_for_a_table_that_went_keeps_nothing(world: World) -> None:
+    module = world.modules.create("Sales", None)
+    world.collections.create("deals", "Deals", FIELDS, module=module["id"])
+    proposed = Tools(world).card_propose(
+        "deals", [{"type": "attention", "title": "Chase these"}], "")
+    purge.remove_module(world, module["id"])
+    c = TestClient(create_app(world, live=False))
+    out = c.post(f"/api/proposals/{proposed['proposed']}/decide", json={"accept": True}).json()
+    assert out["gone"] and out["cards"] == [] and world.cards.of("deals") == []
