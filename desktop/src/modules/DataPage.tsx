@@ -58,6 +58,8 @@ export const PAGE_SIZE_KEY = "alpha.rows-per-page";
 const FEWEST_ROWS = 5;
 /** What the first screen keeps for the "+ New" row, the footer and the page bar, below the rows. */
 const BELOW_ROWS = 140;
+/** The space kept under the page bar, to the window's edge. */
+const PAGE_END = 12;
 const ALL_SECTIONS = ["notes", "intelligence", "governance"];
 
 function remembered<T>(key: string, fallback: T): T {
@@ -295,7 +297,15 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     if (!body) return;
     const first = body.firstElementChild as HTMLElement | null;
     const rowHeight = first?.getBoundingClientRect().height || (vs.rowHeight === "tall" ? 57 : vs.rowHeight === "medium" ? 52 : 44);
-    const room = window.innerHeight - body.getBoundingClientRect().top - BELOW_ROWS;
+    // what is really below the rows (the add row, a scrollbar, the page bar), measured; the guess
+    // only until the page bar shows (it left a gap under the bar, the owner, 12 Oct)
+    const box = body.getBoundingClientRect();
+    const bar = body.closest("main")?.querySelector(".pager")?.getBoundingClientRect();
+    // from the last record's row: the add row sits in the same body, below the records
+    const records = [...body.children].filter((r) => !r.classList.contains("row--add"));
+    const last = records.length ? records[records.length - 1].getBoundingClientRect().bottom : box.top;
+    const below = bar && bar.bottom > last ? bar.bottom - last + PAGE_END : BELOW_ROWS;
+    const room = window.innerHeight - box.top - below;
     setFit(Math.max(FEWEST_ROWS, Math.floor(room / rowHeight)));
   }, [vs.rowHeight]);
   useLayoutEffect(() => {
@@ -303,8 +313,16 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   }, [loaded, view, src.key, measure]);
   useEffect(() => {
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [measure]);
+    // what is above or below the rows settles after they show (the numbers strip loads, the
+    // page bar comes once there are pages): measure again whenever the page's size changes
+    const page = loaded ? bodyRef.current?.closest("main")?.firstElementChild : null;
+    const watch = page && typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure()) : null;
+    if (page) watch?.observe(page);
+    return () => {
+      window.removeEventListener("resize", measure);
+      watch?.disconnect();
+    };
+  }, [measure, loaded]);
 
   // A load limit shows that many, then "Load more"; without one the table and list page.
   const limited = vs.loadLimit !== null && (view === "table" || view === "gallery" || view === "board");

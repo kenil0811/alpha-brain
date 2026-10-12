@@ -330,20 +330,6 @@ describe("the toolbar", () => {
     expect(screen.queryByLabelText("Active filters")).toBeNull();
   });
 
-  it("the dashboard's 'these records' becomes a table filter, a removable pill named for it", async () => {
-    const user = userEvent.setup();
-    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
-    await screen.findByText("Bakery");
-    await pickLayout(user, "Dashboard");
-    await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "stub: show these" }));
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.queryByText("Bakery")).toBeNull();
-    expect(screen.getByText("Cafe")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Remove filter: Overdue · 1" }));
-    expect(screen.getByText("Bakery")).toBeInTheDocument();
-  });
-
   it("lists: Add list opens the list's page over a live preview, saving nothing until Save list", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { values: { title: "Cafe", price: 120, status: "Sold" } })]);

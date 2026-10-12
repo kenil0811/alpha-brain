@@ -10,7 +10,8 @@ import type { PageView } from "./DataToolbar";
 
 /** Views a saved list may still name from before (the owner, 12 Oct: List folded into Table,
  *  Chart into Dashboard). */
-const RETIRED_VIEWS: Record<string, PageView> = { list: "table", chart: "dashboard" };
+// Dashboard left the View list (the owner, 12 Oct): dashboards become cards Alpha proposes
+const RETIRED_VIEWS: Record<string, PageView> = { list: "table", chart: "table", dashboard: "table" };
 
 export type RowHeight = "compact" | "medium" | "tall";
 export interface ViewState {

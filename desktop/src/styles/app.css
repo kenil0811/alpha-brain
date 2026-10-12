@@ -493,7 +493,11 @@ a { color: var(--primary); }
 .composer textarea { border: 0; background: transparent; resize: none; min-height: 31px; max-height: 160px; outline: none; box-shadow: none; padding: 0; font-size: var(--text-base); line-height: 1.45; color: var(--text); }
 .composer__row { display: flex; align-items: center; gap: var(--space-1); }
 .composer__gap { flex: 1; }
-.composer__model { flex: none; max-width: none; border-color: transparent; background: none; color: var(--text-2); }
+/* the depth gives way first in a narrow panel, so Send never leaves the box (the owner, 12 Oct) */
+.composer__model { flex: 0 1 auto; min-width: 0; max-width: none; overflow: hidden; border-color: transparent; background: none; color: var(--text-2); }
+.composer__model > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.composer__row > * { flex-shrink: 0; }
+.composer__row > .composer__model, .composer__row > .composer__gap { flex-shrink: 1; }
 .composer__send { border-radius: var(--radius-pill); background: var(--primary); color: var(--primary-ink); }
 .composer__send:hover:not(:disabled) { background: var(--primary); color: var(--primary-ink); filter: brightness(1.08); }
 .composer__send:disabled { background: var(--surface-2); color: var(--text-3); opacity: 1; }
