@@ -8,6 +8,7 @@
  * data, Removed projects, Help. The companion's look is edited on Alpha's agent page; Appearance
  * links there (the Companion section went, 9 Oct).
  */
+import { EXPERIMENTS, useExperiment } from "./experiments";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { say } from "../core/client";
 import type { ClaudeStatus, Client, DataInfo, Intelligence as IntelData, Permission, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
@@ -330,6 +331,20 @@ function PermissionsCard({ client, onChanged }: { client: Client; onChanged?: ()
   );
 }
 
+/** Experimental features (12 Oct, the owner): each off by default, kept per window. */
+function ExperimentsCard() {
+  return (
+    <SectionCard title="Experimental features" info="Early ideas to try. Each is off until you turn it on, and only in this window.">
+      {EXPERIMENTS.map((x) => <ExperimentRow key={x.name} {...x} />)}
+    </SectionCard>
+  );
+}
+
+function ExperimentRow({ name, label, info }: (typeof EXPERIMENTS)[number]) {
+  const [on, setOn] = useExperiment(name);
+  return <ListRow title={<>{label} <InfoTip text={info} /></>} controls={<Switch checked={on} label={label} onChange={setOn} />} />;
+}
+
 function HelpCard() {
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
@@ -354,7 +369,7 @@ function HelpCard() {
   );
 }
 
-type SectionId = "overview" | "workspace" | "thinks" | "reads" | "appearance" | "permissions" | "defaults" | "data" | "notifications" | "builder" | "removed" | "help";
+type SectionId = "overview" | "workspace" | "thinks" | "reads" | "appearance" | "permissions" | "defaults" | "data" | "notifications" | "builder" | "removed" | "experiments" | "help";
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "workspace", label: "Workspace" },
@@ -367,6 +382,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "defaults", label: "Defaults" },
   { id: "data", label: "Your data" },
   { id: "removed", label: "Removed projects" },
+  { id: "experiments", label: "Experimental features" },
   { id: "help", label: "Help" },
 ];
 
@@ -485,9 +501,10 @@ export function Settings({ client, theme, onTheme, look = {}, onLook, claude, on
       </SectionCard>
     ),
     removed: notYet("Removed projects", "Projects removed with their data kept, with Restore. Alpha can't keep removed projects yet."),
+    experiments: <ExperimentsCard />,
     help: <HelpCard />,
   };
-  const order: Exclude<SectionId, "overview">[] = ["workspace", "thinks", "reads", "appearance", "permissions", "defaults", "data", "notifications", "builder", "removed", "help"];
+  const order: Exclude<SectionId, "overview">[] = ["workspace", "thinks", "reads", "appearance", "permissions", "defaults", "data", "notifications", "builder", "removed", "experiments", "help"];
 
   return (
     <>

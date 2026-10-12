@@ -5,8 +5,10 @@
  * standing permissions and Alpha's notes. **Map** switches to the map of the world and of
  * Alpha's work (`map/WorkMap`); **Facts** is every fact as the one data view (`intel/sources.ts`);
  * a fact's click opens its own page (`#/intelligence/facts/<id>`, 9 Oct, the owner: a page, not a
- * dialog). A note is an editable sentence (`writeNote`); a goal is read-only because the core has
- * no call that edits one; Add goal hands Alpha a description to propose (`DescribeAdd`).
+ * dialog). **Goals** is every goal as the one data view, with Add goal in its toolbar handing Alpha
+ * a description to propose (`DescribeAdd`); the core has no call that edits one (12 Oct, the
+ * owner: lists are data views, so the brain's side no longer repeats Facts or Goals as cards).
+ * A note is an editable sentence (`writeNote`).
  */
 import { useEffect, useMemo, useState } from "react";
 import { say } from "../core/client";
@@ -14,11 +16,11 @@ import type { Client, Intelligence as Data, Note, WorkGraph } from "../core/clie
 import { humanize, when } from "../modules/format";
 import { DataPage } from "../modules/DataPage";
 import { Badge, Button, EmptyCard, IconButton, ListRow, Notice, PageHeader, SectionCard, Toggle, Trouble } from "../ui";
-import { BookOpen, BrainIcon, ICON, ICON_SM, MapIcon, PermissionIcon, X } from "../ui/icons";
+import { BookOpen, BrainIcon, TargetIcon, ICON, ICON_SM, MapIcon, PermissionIcon, PlusIcon, X } from "../ui/icons";
 import { BackLink } from "./BackLink";
-import { DescribeAdd } from "./DescribeAdd";
+import { ADD_GOAL, useDescribe } from "./DescribeAdd";
 import { FactRow } from "./FactRow";
-import { factsSource } from "./intel/sources";
+import { factsSource, goalsSource } from "./intel/sources";
 import { RevokeButton } from "./Settings";
 import { BrainEgg } from "./map/BrainEgg";
 import { brainOf } from "./map/egg";
@@ -65,13 +67,13 @@ export function NoteEditor({ client, scope, title, body, summary, onChanged, lab
 
 const scopeWords = (n: Note) => (n.scope === "person" ? "About you" : n.scope.replace(/^(module|entity|skill):/, ""));
 
-export type BrainView = "brain" | "facts" | "map";
+export type BrainView = "brain" | "facts" | "goals" | "map";
 
 const VIEW_KEY = "alpha.brain.view";
 const lastView = (): BrainView => {
   try {
     const v = localStorage.getItem(VIEW_KEY);
-    return v === "map" || v === "facts" ? v : "brain";
+    return v === "map" || v === "facts" || v === "goals" ? v : "brain";
   } catch {
     return "brain";
   }
@@ -119,6 +121,8 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
   }, [client, view]);
   const brain = useMemo(() => brainOf(world, data), [world, data]);
   const factSource = useMemo(() => factsSource(client), [client]);
+  const goalSource = useMemo(() => goalsSource(client, "intel.goals", async () => (await client.intelligence()).knowledge.goals), [client]);
+  const describe = useDescribe();
 
   async function revoke(id: string) {
     try {
@@ -130,7 +134,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
     }
   }
 
-  const switcher = <Toggle<BrainView> inBody label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain", icon: <BrainIcon size={ICON_SM} /> }, { id: "facts", label: "Facts", icon: <BookOpen size={ICON_SM} /> }, { id: "map", label: "Map", icon: <MapIcon size={ICON_SM} /> }]} />;
+  const switcher = <Toggle<BrainView> inBody label="Second Brain view" value={view} onChange={setView} items={[{ id: "brain", label: "Brain", icon: <BrainIcon size={ICON_SM} /> }, { id: "facts", label: "Facts", icon: <BookOpen size={ICON_SM} /> }, { id: "goals", label: "Goals", icon: <TargetIcon size={ICON_SM} /> }, { id: "map", label: "Map", icon: <MapIcon size={ICON_SM} /> }]} />;
   if (view === "map") {
     return (
       <div className="stack stack--wide">
@@ -145,6 +149,16 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
       <div className="stack stack--wide">
         {switcher}
         <DataPage client={client} source={factSource} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.({ kind: "fact", id })} />
+      </div>
+    );
+  }
+
+  if (view === "goals") {
+    return (
+      <div className="stack stack--wide">
+        {switcher}
+        <DataPage client={client} source={goalSource} version={version} onChanged={onChanged} onAsk={onAsk} actions={[{ label: "Add goal", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open(ADD_GOAL) }]} onOpenRecord={(_k, id) => { setPicked(`goal:${id}`); setView("brain"); }} />
+        {describe.dialog}
       </div>
     );
   }
@@ -176,15 +190,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo,
             <SectionCard title="Goal" actions={unpick}>
               <ListRow title={goal.text} description={`${goal.state === "active" ? "Active" : humanize(goal.state)} · since ${when(goal.since)}`} />
             </SectionCard>
-          ) : (
-            <SectionCard title="Facts" actions={<Button size="sm" variant="ghost" onClick={() => setView("facts")}>{known.length ? `All ${known.length}` : "All"}</Button>}>
-              {known.length ? known.map((f) => <FactRow key={f.id} fact={f} client={client} onChanged={onChanged} onAsk={onAsk} />) : <p className="faint">None yet.</p>}
-            </SectionCard>
-          )}
-
-          <SectionCard title="Goals" actions={<DescribeAdd thing="goal" />}>
-            {goals.length ? goals.map((g) => <ListRow key={g.id} title={g.text} onOpen={() => setPicked(`goal:${g.id}`)} description={`${g.state === "active" ? "Active" : humanize(g.state)} · since ${when(g.since)}`} />) : <p className="faint">None yet.</p>}
-          </SectionCard>
+          ) : null}
 
           <SectionCard title="Standing instructions">
             <NoteEditor client={client} scope="person" title="Standing instructions" body={instructions?.body ?? ""} summary={instructions?.summary} onChanged={onChanged} label="Standing instructions" emptyText="None yet." />

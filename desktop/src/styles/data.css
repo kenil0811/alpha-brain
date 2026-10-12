@@ -194,9 +194,6 @@
 .scard__body > .hswitch__box ~ .subsecs { margin-top: var(--space-6); }
 .govadd { display: flex; align-items: center; justify-content: center; gap: var(--space-1); width: 100%; margin-top: var(--space-2); padding: var(--space-2); border: 1px dashed var(--border); border-radius: var(--radius-card); background: transparent; color: var(--primary); font: inherit; font-size: var(--text-md); cursor: pointer; }
 .govadd:hover { background: var(--surface-2); }
-.askalpha { display: inline-flex; align-items: center; gap: var(--space-2); }
-.askbox { display: flex; flex-direction: column; gap: var(--space-2); flex-basis: 100%; }
-.askbox__bar { display: flex; gap: var(--space-1); }
 
 /* columns keep their resting widths (the owner, 9 Oct): measured, then laid out fixed, so hover never widens one */
 .table--fixed { table-layout: fixed; }

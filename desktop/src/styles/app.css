@@ -1084,7 +1084,6 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .noteline { display: flex; align-items: flex-start; gap: var(--space-3); }
 .noteline__text { flex: 1; margin: 0; white-space: pre-wrap; font-size: var(--text-base); color: var(--text); overflow-wrap: anywhere; }
 .noteline__text--empty { color: var(--text-3); }
-.addgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); }
 .runs .item__when { width: 104px; }
 .entityhead { display: flex; align-items: center; gap: var(--space-3); }
 .agentpage__lead { margin: 0 0 var(--space-2); color: var(--text-2); font-size: var(--text-base); }
@@ -1218,7 +1217,6 @@ button.dash__seg:hover { background: var(--hover); }
 .subsec__head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
 .subsec__title { margin: 0; font-size: var(--text-sm); color: var(--text-3); font-weight: 600; }
 .subsec .lrow { padding-left: 0; padding-right: 0; }
-.goals { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-md); }
 /* a chart's legend */
 .chart__legend { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm); color: var(--text-2); }
 .chart__swatch { width: 13px; height: 13px; border-radius: var(--radius-control); background: var(--primary); flex: none; }

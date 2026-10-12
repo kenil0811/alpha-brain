@@ -5,7 +5,7 @@
  * core afresh on every load, so an edit shows as saved. Only what the core can change is
  * editable: an automation's on/off and a suggested fact's state; the rest says why not.
  */
-import { CoreError, type Client, type Connection, type Fact, type Intelligence, type RecordRow } from "../../core/client";
+import { CoreError, type Automation, type Client, type Connection, type Fact, type Goal, type Intelligence, type ModuleCard, type ModuleDetail, type RecordRow } from "../../core/client";
 import { memorySource, type DataSource } from "../../modules/source";
 import { sourceWords } from "../FactRow";
 import { AgentAvatar } from "../AgentAvatar";
@@ -28,9 +28,34 @@ export const AGENT_ROW = "agent:";
  *  (Q33: an agent's process, with a goal and a verdict per run judged by code). Each row wears
  *  the companion chosen for it. */
 export function automationsSource(client: Client, modules: Record<string, string>): DataSource {
+  return agentsSource(client, "intel.automations", async () => {
+    const d = await client.intelligence();
+    const agents = agentsFrom(d, modules).map((g) =>
+      g.id === ALPHA_AGENT ? alphaRow("Answers you, keeps your projects and asks before acting") : rec(`${AGENT_ROW}${g.id}`, { title: g.name, kind: "Agent", goal: g.description, verdict: null, when: runs(g.automations.length), on: null, last_run: null, next_run: null, result: null, module: g.module ? (modules[g.module] ?? g.module) : "" }),
+    );
+    return [...agents, ...d.automations.map((a) => automationRow(a, modules))];
+  });
+}
+
+/** A project's agents and automations (its Intelligence section): Alpha, then its automations. */
+export function projectAgentsSource(client: Client, d: ModuleDetail): DataSource {
+  return agentsSource(client, "project.automations", () => [alphaRow(`The assistant that works in ${d.name}`), ...d.automations.map((a) => automationRow(a, { [d.id]: d.name }))]);
+}
+
+/** An agent's own automations (its page). */
+export function automationListSource(client: Client, items: Automation[], modules: Record<string, string>): DataSource {
+  return agentsSource(client, "agent.automations", () => items.map((a) => automationRow(a, modules)));
+}
+
+const runs = (n: number) => `Runs ${n} automation${n === 1 ? "" : "s"}`;
+const alphaRow = (goal: string) => rec(`${AGENT_ROW}${ALPHA_AGENT}`, { title: "Alpha — your assistant", kind: "Agent", goal, verdict: null, when: null, on: null, last_run: null, next_run: null, result: null, module: "" });
+const automationRow = (a: Automation, modules: Record<string, string>) =>
+  rec(a.id, { title: a.title, kind: "Automation", goal: a.goal ?? "", verdict: a.last_verdict ? VERDICT[a.last_verdict].words : "Not judged yet", when: a.when, on: a.enabled, last_run: a.last_run_at, next_run: a.next_run_at, result: a.running ? "Running" : a.last_error ? "Didn't work" : a.last_run_at ? "Worked" : "Not run yet", module: a.module ? (modules[a.module] ?? a.module) : "" });
+
+function agentsSource(client: Client, key: string, rows: () => RecordRow[] | Promise<RecordRow[]>): DataSource {
   return memorySource({
     client,
-    key: "intel.automations",
+    key,
     title: "Agents and automations",
     titleField: "title",
     fields: [
@@ -45,18 +70,7 @@ export function automationsSource(client: Client, modules: Record<string, string
       { name: "result", kind: "status", label: "Last result", choices: ["Running", "Worked", "Didn't work", "Not run yet"], done_choices: ["Worked"] },
       { name: "module", kind: "text", label: "Project" },
     ],
-    rows: async () => {
-      const d = await client.intelligence();
-      const agents = agentsFrom(d, modules).map((g) =>
-        rec(`${AGENT_ROW}${g.id}`, { title: g.id === ALPHA_AGENT ? "Alpha — your assistant" : g.name, kind: "Agent", goal: g.id === ALPHA_AGENT ? "Answers you, keeps your projects and asks before acting" : g.description, verdict: null, when: `Runs ${g.automations.length} automation${g.automations.length === 1 ? "" : "s"}`, on: null, last_run: null, next_run: null, result: null, module: g.module ? (modules[g.module] ?? g.module) : "" }),
-      );
-      return [
-        ...agents,
-        ...d.automations.map((a) =>
-          rec(a.id, { title: a.title, kind: "Automation", goal: a.goal ?? "", verdict: a.last_verdict ? VERDICT[a.last_verdict].words : "Not judged yet", when: a.when, on: a.enabled, last_run: a.last_run_at, next_run: a.next_run_at, result: a.running ? "Running" : a.last_error ? "Didn't work" : a.last_run_at ? "Worked" : "Not run yet", module: a.module ? (modules[a.module] ?? a.module) : "" }),
-        ),
-      ];
-    },
+    rows,
     edit: async (row, values) => {
       const keys = Object.keys(values);
       if (row.id.startsWith(AGENT_ROW)) throw refuse(AGENT_FIXED);
@@ -66,7 +80,7 @@ export function automationsSource(client: Client, modules: Record<string, string
     },
     rowIcon: (row) => <AgentAvatar client={client} agent={row.id.startsWith(AGENT_ROW) ? row.id.slice(AGENT_ROW.length) : row.id} size={20} label={String(row.values.title)} />,
     editable: (row, field) => (row.id.startsWith(AGENT_ROW) ? AGENT_FIXED : field.name === "on" ? null : ONLY_ON),
-    reasons: { add: "Use Add agent or Add automation above; Alpha asks you to approve.", remove: `Deleting an agent or automation ${NOT_HERE}. Ask Alpha in the panel.` },
+    reasons: { add: "Use New; Alpha asks you to approve.", remove: `Deleting an agent or automation ${NOT_HERE}. Ask Alpha in the panel.` },
   });
 }
 
@@ -75,10 +89,10 @@ const SKILL_HEALTH = { ok: "Working", broken: "Being repaired", untried: "Not tr
 /** Built-in hands (files, browser, calendar) ride along as rows of kind "Built in"; each opens a
  *  simple page of its own (`HandPage`). */
 export const BUILT_IN = "hand:";
-export function skillsSource(client: Client, modules: Record<string, string>): DataSource {
+export function skillsSource(client: Client, modules: Record<string, string>, only?: string[]): DataSource {
   return memorySource({
     client,
-    key: "intel.skills",
+    key: only ? "agent.skills" : "intel.skills",
     title: "Skills",
     titleField: "description",
     fields: [
@@ -91,8 +105,10 @@ export function skillsSource(client: Client, modules: Record<string, string>): D
     ],
     rows: async () => {
       const d = await client.intelligence();
+      const skillRow = (s: Intelligence["skills"][number]) => rec(s.name, { description: s.description, kind: SKILL_KIND[s.kind], used_by: s.site ?? (s.module ? (modules[s.module] ?? s.module) : "Alpha"), health: SKILL_HEALTH[s.health], last_run: s.last_run_at, updated: s.updated_at || null }, s.updated_at);
+      if (only) return d.skills.filter((s) => only.includes(s.name)).map(skillRow);
       return [
-        ...d.skills.map((s) => rec(s.name, { description: s.description, kind: SKILL_KIND[s.kind], used_by: s.site ?? (s.module ? (modules[s.module] ?? s.module) : "Alpha"), health: SKILL_HEALTH[s.health], last_run: s.last_run_at, updated: s.updated_at || null }, s.updated_at)),
+        ...d.skills.map(skillRow),
         ...d.hands.map((h) => rec(`${BUILT_IN}${h.name}`, { description: h.description ? `${h.title}: ${h.description}` : h.title, kind: "Built in", used_by: "Alpha", health: "Working", last_run: null, updated: null })),
       ];
     },
@@ -121,7 +137,7 @@ export function connectionsSource(client: Client): DataSource {
       { name: "problem", kind: "text", label: "Problem" },
     ],
     rows: async () => (await client.intelligence()).connections.filter((c) => c.status !== "off").map((c) => rec(c.id, { name: connectionName(c), kind: CONNECTOR_KIND[c.connector] ?? c.connector, state: CONNECTION_STATE[c.status], last_sync: c.last_sync, problem: c.last_error ?? "" })),
-    reasons: { edit: "A connection doesn't change here. Open it to read again or delete it.", add: "Add one below.", remove: "Open it to delete it; it says what goes with it first." },
+    reasons: { edit: "A connection doesn't change here. Open it to read again or delete it.", add: "Use Connect.", remove: "Open it to delete it; it says what goes with it first." },
   });
 }
 
@@ -153,5 +169,41 @@ export function factsSource(client: Client): DataSource {
     },
     editable: (row, field) => (field.name !== "state" ? "To correct a fact, tell Alpha in the panel." : row.values.state !== "suggested" ? FACT_FIXED : null),
     reasons: { add: "Tell Alpha in the panel.", remove: `Forgetting a fact ${NOT_HERE}. Open one waiting for you to forget it.` },
+  });
+}
+
+/** Goals (12 Oct, the owner: a list is the one data view), Second Brain's or a project's.
+ *  Read-only: the core has no call that edits one; Add goal in the toolbar asks Alpha. */
+export function goalsSource(client: Client, key: string, goals: () => Goal[] | Promise<Goal[]>): DataSource {
+  return memorySource({
+    client,
+    key,
+    title: "Goals",
+    titleField: "text",
+    fields: [
+      { name: "text", kind: "text", label: "Goal" },
+      { name: "state", kind: "text", label: "State" },
+      { name: "since", kind: "datetime", label: "Since" },
+    ],
+    rows: async () => (await goals()).map((g) => rec(g.id, { text: g.text, state: g.state === "active" ? "Active" : g.state.replace(/_/g, " "), since: g.since || null }, g.since)),
+    reasons: { edit: `Changing a goal ${NOT_HERE}. Tell Alpha in the panel.`, add: "Use Add goal; Alpha asks you to approve.", remove: `Deleting a goal ${NOT_HERE}. Tell Alpha in the panel.` },
+  });
+}
+
+/** A project's sub-projects; each opens its project. */
+export function subProjectsSource(client: Client, inside: ModuleCard[]): DataSource {
+  return memorySource({
+    client,
+    key: "project.inside",
+    title: "Sub-projects",
+    titleField: "name",
+    fields: [
+      { name: "name", kind: "text", label: "Name" },
+      { name: "about", kind: "text", label: "About" },
+      { name: "collections", kind: "number", label: "Collections" },
+      { name: "holds", kind: "number", label: "Sub-projects" },
+    ],
+    rows: () => inside.map((m) => rec(m.id, { name: m.name, about: m.goal ?? m.last_text ?? "", collections: m.tables.length, holds: m.children?.length ?? 0 })),
+    reasons: { edit: "Open it to change it.", add: "Ask Alpha in the panel to make one inside this project.", remove: "Open it to delete it." },
   });
 }

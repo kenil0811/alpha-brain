@@ -37,26 +37,26 @@ describe("Intelligence", () => {
     expect(onTab).toHaveBeenCalledWith("agents");
   });
 
-  it("switches Brain, Facts and Map in the body with the same toggle as the header (rule 4)", async () => {
+  it("switches Brain, Facts, Goals and Map in the body with the same toggle as the header (rule 4)", async () => {
     mount("second-brain");
     const body = await screen.findByRole("tablist", { name: "Second Brain view" });
     const header = screen.getByRole("tablist", { name: "Intelligence" });
     expect(body).toHaveClass("hswitch");
     expect(body.className).toBe(header.className); // one look, two levels
-    expect(within(body).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Brain", "Facts", "Map"]);
+    expect(within(body).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Brain", "Facts", "Goals", "Map"]);
     expect(body.parentElement).toHaveClass("hswitch__box--body");
     expect(document.querySelector(".toggle")).toBeNull(); // no hand-made switch left
   });
 
-  it("puts what waits for a yes above the facts, opens a fact's provenance, and switches to the Map", async () => {
+  it("puts what waits for a yes beside the brain, the facts in the Facts view, and switches to the Map", async () => {
     localStorage.clear();
     const onTab = vi.fn();
     mount("second-brain", onTab);
     expect(await screen.findByText("Waiting for your confirmation", { selector: "h3" })).toBeInTheDocument();
     expect(screen.getByText("tea")).toBeInTheDocument();
-    expect(screen.getByText("Berlin")).toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole("button", { name: "Provenance" })[1]);
-    expect(screen.getByText("You said so")).toBeInTheDocument();
+    expect(screen.queryByText("Berlin")).toBeNull(); // the decided facts are the Facts view, not a card here
+    await userEvent.click(screen.getByRole("tab", { name: "Facts" }));
+    expect(await screen.findByText("Berlin")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Map" }));
     expect(await screen.findByRole("textbox", { name: "Find on the map" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Brain" }));
@@ -100,12 +100,18 @@ describe("Intelligence", () => {
     await waitFor(() => expect(client.switchAutomation).toHaveBeenCalledWith("a1", false));
   });
 
-  it("lists Alpha as one agent among the others, opening its agent page, with Add agent and Add automation", async () => {
+  it("lists Alpha as one agent among the others, opening its agent page, with one New in the toolbar", async () => {
     localStorage.clear();
     const onGo = vi.fn();
     mount("agents", vi.fn(), onGo);
-    expect(await screen.findByRole("button", { name: "Add agent" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add automation" })).toBeInTheDocument();
+    await screen.findByText("Alpha — your assistant", undefined, { timeout: 4000 });
+    const toolbar = document.querySelector(".toolbar--page")!;
+    expect(screen.queryByRole("button", { name: "Add agent" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add automation" })).toBeNull();
+    // between Filter and ⋮ (the rulebook §6)
+    const names = within(toolbar as HTMLElement).getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+    expect(names.slice(-2)).toEqual(["New", "More"]);
+    expect(names.indexOf("Filter")).toBeLessThan(names.indexOf("New"));
     await userEvent.click(await screen.findByText("Alpha — your assistant", undefined, { timeout: 4000 }));
     await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" }));
   });

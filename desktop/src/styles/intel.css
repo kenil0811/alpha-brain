@@ -64,4 +64,3 @@
 
 /* ---------- Add goal / agent / automation: the describe box (`DescribeAdd`) ---------- */
 .describe__sent { max-width: 260px; padding: var(--space-2); color: var(--text-2); }
-.intel__adds { display: flex; gap: var(--space-2); justify-content: flex-end; }

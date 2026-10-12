@@ -11,10 +11,12 @@ import { UploadIcon as Upload } from "../ui/icons";
 import { moduleWords, say } from "../core/client";
 import type { Client, DocumentInfo, ModuleCard, ModuleDetail, Note, Source } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
-import { AutomationList } from "../shell/Automations";
+import { ADD_GOAL, newAgentOrAutomation, useDescribe } from "../shell/DescribeAdd";
+import { AGENT_ROW, goalsSource, projectAgentsSource, subProjectsSource } from "../shell/intel/sources";
+import { DataPage } from "./DataPage";
 import { NewAboveDialog } from "../shell/ModuleDialogs";
 import type { Surface } from "../shell/Rail";
-import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, Tooltip, useAssistant, type Tone, type ToggleItem } from "../ui";
+import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, Tooltip, type Tone, type ToggleItem } from "../ui";
 import { ActivityIcon, AgentIcon, Ban, Check, FileText, Flag, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
 import { downloadText, parseCsv, toCsv } from "./csv";
 import { humanize, recent, when } from "./format";
@@ -211,50 +213,14 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   );
 }
 
-/** Add a goal, an agent or an automation: no route makes one, so it goes to Alpha as a sentence
- *  ("In Deals, add a goal: …") and Alpha asks the person to approve it (9 Oct, Vikas). */
-function AskAlpha({ project, thing }: { project: string; thing: "goal" | "agent" | "automation" }) {
-  const assistant = useAssistant();
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const [sent, setSent] = useState(false);
-  const send = () => {
-    if (!assistant || !text.trim()) return;
-    assistant.say(`In ${project}, add ${thing === "automation" ? "an" : "a"} ${thing}: ${text.trim()}`);
-    setText("");
-    setOpen(false);
-    setSent(true);
-  };
-  if (!open) {
-    return (
-      <span className="askalpha">
-        <Button size="sm" icon={<PlusIcon size={ICON_SM} />} disabledReason={assistant ? undefined : "The assistant isn't reachable here."} onClick={() => { setSent(false); setOpen(true); }}>
-          Add {thing}
-        </Button>
-        {sent ? <span className="faint">Sent to Alpha — it will ask you to approve.</span> : null}
-      </span>
-    );
-  }
-  return (
-    <div className="askbox">
-      <textarea className="note__edit" rows={3} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={`Describe the ${thing} you want`} aria-label={`Describe the ${thing} you want`} />
-      <div className="askbox__bar">
-        <Button size="sm" variant="primary" disabledReason={text.trim() ? undefined : `Say what ${thing} you want first.`} onClick={send}>
-          Send
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 type IntelTab = "activity" | "agents" | "goals" | "page" | "inside";
 
 export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [tab, setTab] = useState<IntelTab>("activity");
   const inside = detail.inside ?? [];
+  const describe = useDescribe();
+  // a list here is the one data view (12 Oct, the owner), rebuilt when the project's detail changes
+  const sources = useMemo(() => ({ goals: goalsSource(client, "project.goals", () => detail.goals), agents: projectAgentsSource(client, detail), inside: subProjectsSource(client, detail.inside ?? []) }), [client, detail]);
   const tabs: ToggleItem<IntelTab>[] = [
     { id: "activity", label: "Activity", icon: <ActivityIcon size={ICON_SM} /> },
     // Alpha, the assistant that works here, is the first agent
@@ -267,55 +233,11 @@ export function IntelligenceSection({ client, detail, version, onChanged, onGo }
     <SectionCard title="Intelligence">
       <Toggle inBody label="Intelligence" items={tabs} value={tab} onChange={setTab} />
       {tab === "page" ? <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} /> : null}
-      {tab === "goals" ? (
-        <div className="stack">
-          {detail.goals.length ? (
-            <ul className="goals">
-              {detail.goals.map((g) => (
-                <li key={g.id}>{g.text}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="faint">No goals yet.</p>
-          )}
-          <AskAlpha project={detail.name} thing="goal" />
-        </div>
-      ) : null}
       {tab === "activity" ? <ModuleActivity detail={detail} /> : null}
-      {tab === "agents" ? (
-        <div className="stack">
-          <div className="lrows">
-            <ListRow icon={<AgentIcon size={ICON} />} title="Alpha" description={`The assistant that works in ${detail.name}`} onOpen={() => onGo({ kind: "agent", id: "alpha" })} />
-          </div>
-          {detail.automations.length ? <AutomationList client={client} items={detail.automations} onChanged={onChanged} bare empty="" /> : null}
-          <div className="row">
-            <AskAlpha project={detail.name} thing="agent" />
-            <AskAlpha project={detail.name} thing="automation" />
-          </div>
-        </div>
-      ) : null}
-      {tab === "inside" ? (
-        <div className="subsec">
-          <div className="subsec__head">
-            <InfoTip text="What you ask here reaches them all." />
-          </div>
-          <div className="lrows">
-            {inside.map((m) => (
-              <ListRow
-                key={m.id}
-                icon={<ModuleIcon size={ICON} />}
-                title={m.name}
-                description={`${m.goal ?? m.last_text ?? "Nothing in it yet."} · ${m.tables.length} ${word(m.tables.length, "collection", "collections")}${m.children?.length ? ` · holds ${m.children.length}` : ""}`}
-                controls={
-                  <Button size="sm" onClick={() => onGo({ kind: "module", id: m.id })}>
-                    Open
-                  </Button>
-                }
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {tab === "goals" ? <DataPage client={client} source={sources.goals} version={version} onChanged={onChanged} actions={[{ label: "Add goal", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open({ ...ADD_GOAL, ask: (t) => `In ${detail.name}, add a goal: ${t}` }) }]} onOpenRecord={() => onGo({ kind: "module", id: detail.id })} /> : null}
+      {tab === "agents" ? <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} actions={[{ label: "New", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open(newAgentOrAutomation(detail.name)) }]} onOpenRecord={(_k, id) => onGo(id.startsWith(AGENT_ROW) ? { kind: "agent", id: id.slice(AGENT_ROW.length) } : { kind: "automation", id })} /> : null}
+      {tab === "inside" ? <DataPage client={client} source={sources.inside} version={version} onChanged={onChanged} onOpenRecord={(_k, id) => onGo({ kind: "module", id })} /> : null}
+      {describe.dialog}
     </SectionCard>
   );
 }

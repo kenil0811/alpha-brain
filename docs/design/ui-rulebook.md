@@ -264,7 +264,7 @@ One row that never wraps, in this order:
 - **Filter:** every filtering choice in one place.
   - Active filters appear as small removable pills under the toolbar, with **Clear all**.
   - The **Hide done** and **Show gone** toggles live in Filter.
-- **Frequent actions** sit between Filter and ⋮: at most one primary. **Upload** shows here only when files are the collection's main input (it has a file field); the numbers' show arrow appears here while the metrics strip is hidden.
+- **Frequent actions** sit between Filter and ⋮: at most one primary. **Upload** shows here only when files are the collection's main input (it has a file field); the numbers' show arrow appears here while the metrics strip is hidden.  The page's own actions (New, Add goal, Connect) come last here, before ⋮, and fold into ⋮ with Filter when narrow (12 Oct).
 - **Filter** is right-aligned, immediately left of the frequent actions and ⋮ (the owner, 9 Oct; replaces "left-aligned").
 - **⋮ More** holds:
   - Sort
@@ -622,11 +622,12 @@ The one place for everything Alpha knows and can do across projects. Its header 
 
 - **Second Brain**
   - The brain view: every project, collection and record as a dot, with the links between them drawn; two or three layers at once, deeper layers and labels on zoom.
-  - Facts about the person and their world, shown as a standard data view, with "Waiting for your confirmation" items above it.
+  - Views **Brain | Facts | Goals | Map**. Facts and Goals are each the standard data view; "Waiting for your confirmation" sits beside the brain.
   - Every fact can be corrected or forgotten, and has a **Provenance** disclosure.
-  - Also holds goals, standing instructions, standing permissions and Alpha's notes, each as an editable sentence.
+  - Beside the brain: what waits for a yes, the picked dot, standing instructions, standing permissions and Alpha's notes, each as an editable sentence (not lists, so not data views).
 - **Agents and automations** (one tab since 9 Oct, owner's third review)
   - Alpha and every agent, then every automation, in the standard data view.
+  - **One New button** (no Add agent / Add automation): it asks Alpha to build what's needed, deciding between an automation (fixed steps, no model) and an agent (owns a recurring process, uses judgement), and asking the person, with the trade-offs, when unclear.
   - **Each agent has its own page** showing what it does, its skills, its runs and its permissions.
   - Each automation is a sentence with its trigger, its next run and an on/off switch, and its own page with **Run now** and its runs.
 - **Skills**
@@ -644,7 +645,7 @@ The one place for everything Alpha knows and can do across projects. Its header 
   - Suggested links appear dashed until the person decides.
   - It refreshes when asked.
 
-Rows in Agents and automations, Skills and Connections share one layout: an icon, a title, a one-line description and controls aligned to the right.
+**Every list here is the one data view** (12 Oct, the owner): Agents and automations, Skills, Connections, Facts, Goals, an agent page's skills and automations, and a project's goals, agents and sub-projects. Card-or-list alternatives are the data view's own views (Table by default; List, Gallery, Board…), never a separate UI. A page's actions (**New**, **Add goal**, **Connect**) sit in the toolbar between Filter and ⋮, fold into ⋮ when narrow, and appear nowhere else on the page. Not data views: the brain and the Map (pictures), Activity and an agent's Runs (a feed by day), and the editable sentences above.
 
 ---
 
@@ -671,7 +672,10 @@ Rows in Agents and automations, Skills and Connections share one layout: an icon
 8. **Defaults:** rows per page, the sections record pages show, the first view of new collections.
 9. **Your data:** where it is kept on this Mac, its size, backups, export of the whole workspace.
 10. **Removed projects:** projects that were removed but whose data was kept, with Restore.
-11. **Help:** shortcuts, version, how to report a problem.
+11. **Experimental features:** early ideas, one row each: the name, an (i) tip, and a switch. Off by default; kept per window (localStorage `alpha.experiments`, read with `useExperiment(name)`).
+12. **Help:** shortcuts, version, how to report a problem.
+
+**Bubbles** (the first experimental feature, 12 Oct). When on, a finished reply can place small round bubbles on the page in the middle: from Alpha's markup `[[bubble: <target text> | <comment>]]` (never shown in the reply) and from quoted or bold names that exactly match something visible (a heading, column, record title, button), with the sentence that named it. A bubble sits at its element's top-right corner, follows it on scroll and resize, and all go when the page changes. Hover or Enter/Space opens it to show its text; scrubbing the pointer back and forth across it (3 turns within 600 ms) or Delete/Escape pops it (a quick scale-and-fade, instant under reduced motion). Each is focusable with an accessible name ("Alpha's note: ..."). Several may show at once.
 
 ---
 

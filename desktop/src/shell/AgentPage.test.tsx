@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Client, Intelligence as Data } from "../core/client";
@@ -31,12 +31,13 @@ describe("an agent's page", () => {
   it("shows a module's runner: its skills, automations, runs and the standing permissions", async () => {
     const { onGo, onAsk } = mount("m1");
     expect(await screen.findByRole("heading", { name: "Deals runner" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reads the deal listings" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check deals every morning" })).toBeInTheDocument();
+    // its skills and automations are data views; a row opens its page
+    expect(await screen.findByText("Reads the deal listings")).toBeInTheDocument();
+    expect(await screen.findByText("Check deals every morning")).toBeInTheDocument();
     expect(screen.getByText("Read 12 listings")).toBeInTheDocument();
     expect(screen.getByText("Save drafts")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Reads the deal listings" }));
-    expect(onGo).toHaveBeenCalledWith({ kind: "skill", name: "read_deals" });
+    await userEvent.click(screen.getByText("Reads the deal listings"));
+    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "skill", name: "read_deals" }));
     await userEvent.click(screen.getByRole("button", { name: "Ask Alpha to change this" }));
     expect(onAsk).toHaveBeenCalledWith('Change the agent "Deals runner": ');
     await userEvent.click(screen.getByRole("button", { name: "Agents and automations" }));

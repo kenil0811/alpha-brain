@@ -574,6 +574,18 @@ Nothing below was changed in the core; the window does the nearest honest thing 
   reaches people through `detail`; it should read without "core" (e.g. "This window isn't
   signed in to Alpha. Restart Alpha.").
 
+### G8. Bubbles: Alpha pointing at the page (an experiment, 12 Oct)
+- **Now:** with Settings › Experimental features › Bubbles on, the window reads two things out of
+  a finished reply: the markup `[[bubble: <target text> | <comment>]]` (stripped from the shown
+  text) and quoted or bold names that exactly match a heading, column, record title or button in
+  `<main>`; it anchors a bubble there (`shell/bubbles/`). `ask` carries no page context, so the
+  model is never told about the markup and only the quoted/bold path fires in practice.
+- **Should / core needs:** (a) `POST /api/ask` accepts an optional `experiments: ["bubbles"]`
+  (or a `page` context field) and, when present, adds to the model's instructions: "You may
+  point at something on the page the person sees by writing `[[bubble: <its visible text> |
+  <a short comment>]]`; use it sparingly." (b) Optionally a short summary of what `<main>` shows
+  (page title, visible column and record names) so the model can name targets exactly.
+
 ---
 
 ## F. Left in the window (no core needed), for completeness

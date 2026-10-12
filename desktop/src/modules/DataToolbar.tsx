@@ -4,7 +4,8 @@
  * with ★ for the list the collection opens on and Add list at the bottom), the View button (the
  * view type's icon and name), then Search (a bordered box, typed into once clicked). Right-aligned:
  * Filter, the frequent actions (Upload when the collection has a file field; the numbers' show
- * arrow when they are folded), and ⋮ at the far right. Filter and ⋮ are the kit's menu (arrow keys,
+ * arrow when they are folded), the page's own actions (New, Add goal, Connect: 12 Oct, the owner,
+ * the only place a data page has action buttons), and ⋮ at the far right. Filter and ⋮ are the kit's menu (arrow keys,
  * Escape back to the button). A right-click on the list picker gives the list's actions too.
  * When the row would not fit it gives way in steps: the labels become icons (named on hover), then
  * Filter and the frequent actions move inside ⋮. It never runs under the assistant panel.
@@ -165,7 +166,7 @@ function ListAndView({ tabs, active, a }: { tabs: ViewTab[]; active: string; a: 
   );
 }
 
-export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, onShowNumbers, more }: {
+export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, searchable, tableTitle, filter, uploadFirst, onUpload, uploadReason, onShowNumbers, actions = [], more }: {
   tabs: ViewTab[];
   activeTab: string;
   tabActions: TabActions;
@@ -181,6 +182,9 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   uploadReason?: string;
   /** The numbers are folded: their show arrow sits here, just left of ⋮. */
   onShowNumbers?: () => void;
+  /** The page's own actions (New, Add goal, Connect), between Filter and ⋮; one with `children`
+   *  opens them as a menu. Folded into ⋮ with Filter when the row is narrow. */
+  actions?: ContextItem[];
   /** What ⋮ holds (the view's settings, the list's actions, Download, Reset view). */
   more: ContextItem[];
 }) {
@@ -188,7 +192,7 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
   const [searching, setSearching] = useState(false);
   const f = filter;
   // what the row's words are: when any changes, the row is measured again from the start
-  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, Boolean(onShowNumbers), searching].join("|");
+  const words = [tabs.find((t) => t.id === activeTab)?.title, tabActions.view, f.active, uploadFirst, Boolean(onShowNumbers), searching, actions.map((a) => a.label)].join("|");
   const level = useFit(bar, words);
   const icons = level >= 1;
   const folded = level >= 2;
@@ -198,10 +202,12 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
         { label: f.active ? `Filter (${f.active})` : "Filter", icon: <FilterIcon size={ICON_SM} />, children: filterItems(f) },
         ...(uploadFirst ? [{ label: "Upload", icon: <UploadIcon size={ICON_SM} />, onSelect: onUpload, disabled: onUpload ? undefined : uploadReason }] : []),
         ...(onShowNumbers ? [{ label: "Show the numbers", icon: <ChevronDown size={ICON_SM} />, onSelect: onShowNumbers }] : []),
+        ...actions,
         ...more.map((m, i) => (i === 0 ? { ...m, separatorBefore: true } : m)),
       ]
     : more;
   const moreMenu = useContextMenu(inMore);
+  const actionMenu = useContextMenu<ContextItem | null>((a) => a?.children ?? []);
   return (
     <div className={`toolbar toolbar--page${icons ? " toolbar--icons" : ""}`} ref={bar}>
       <ListAndView tabs={tabs} active={activeTab} a={tabActions} />
@@ -240,11 +246,17 @@ export function DataToolbar({ tabs, activeTab, tabActions, search, onSearch, sea
             </Button>
           ) : null}
           {onShowNumbers ? <IconButton size="sm" label="Show the numbers" icon={<ChevronDown size={ICON_SM} />} onClick={onShowNumbers} /> : null}
+          {actions.map((a) => (
+            <Button key={a.label} size="sm" icon={a.icon} aria-label={a.label} aria-haspopup={a.children ? "menu" : undefined} title={icons ? a.label : undefined} disabledReason={a.disabled} onClick={(e) => (a.children ? actionMenu.openFrom(a, e.currentTarget) : a.onSelect?.())}>
+              <span className="tb__label">{a.label}</span>
+            </Button>
+          ))}
         </>
       )}
       <IconButton label="More" icon={<MoreVertical />} aria-haspopup="menu" onClick={(e) => moreMenu.openFrom(undefined, e.currentTarget)} />
       {filterMenu.menu}
       {moreMenu.menu}
+      {actionMenu.menu}
     </div>
   );
 }

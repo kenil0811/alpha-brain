@@ -3,7 +3,7 @@
  * with a centred switch in its header: **Second Brain** (the brain in an egg, with the Map as its
  * second view), **Agents and automations** (one list since 9 Oct, the owner: Alpha is one agent
  * among them; Q33: every automation is an agent's process, with a goal and a verdict per run,
- * each wearing its companion's face; Add agent and Add automation ask Alpha), **Skills** (the
+ * each wearing its companion's face; one New in the toolbar asks Alpha, which picks agent or automation), **Skills** (the
  * built-in ones open a page of their own too) and **Connections**. (9 Oct: Knowledge became Second Brain; later
  * the same day Map moved under Second Brain and Activity left the switch for the bell. The old
  * addresses still open: `map` is Second Brain's Map view, `activity` still draws Activity here.)
@@ -17,12 +17,12 @@ import { DataFrame } from "../modules/DataFrame";
 import { DataPage } from "../modules/DataPage";
 import { Activity } from "./Activity";
 import { Connections } from "./Connections";
-import { DescribeAdd } from "./DescribeAdd";
+import { newAgentOrAutomation, useDescribe } from "./DescribeAdd";
 import { AGENT_ROW, automationsSource, skillsSource } from "./intel/sources";
 import type { Surface } from "./Rail";
 import { SecondBrain } from "./SecondBrain";
 import { HeaderSwitch, PageHeader, SectionCard, Trouble, type HeaderSwitchItem } from "../ui";
-import { AgentIcon, BrainIcon, ConnectionIcon, ICON_SM, SkillIcon } from "../ui/icons";
+import { AgentIcon, BrainIcon, ConnectionIcon, ICON_SM, PlusIcon, SkillIcon } from "../ui/icons";
 import { SUBTITLES } from "../ui/subtitles";
 
 export type IntelTab = "second-brain" | "agents" | "skills" | "connections" | "activity" | "map";
@@ -46,6 +46,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
   const [tick, setTick] = useState(0);
   const [modules, setModules] = useState<Record<string, string>>({});
   const current = intelTab(tab);
+  const describe = useDescribe();
   // Stable per client and module names, so a data view reloads on `version`, not on every render.
   const sources = useMemo(() => ({ agents: automationsSource(client, modules), skills: skillsSource(client, modules) }), [client, modules]);
   useEffect(() => {
@@ -80,13 +81,10 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo, onA
         return <SecondBrain client={client} data={data} version={version} onChanged={onChanged} onAsk={onAsk} onGo={onGo} initialView={current === "map" ? "map" : undefined} />;
       case "agents":
         return (
-          <div className="stack stack--wide">
-            <div className="intel__adds">
-              <DescribeAdd thing="agent" />
-              <DescribeAdd thing="automation" />
-            </div>
-            <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.(id.startsWith(AGENT_ROW) ? { kind: "agent", id: id.slice(AGENT_ROW.length) } : { kind: "automation", id })} />
-          </div>
+          <>
+            <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} onAsk={onAsk} actions={[{ label: "New", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open(newAgentOrAutomation()) }]} onOpenRecord={(_k, id) => onGo?.(id.startsWith(AGENT_ROW) ? { kind: "agent", id: id.slice(AGENT_ROW.length) } : { kind: "automation", id })} />
+            {describe.dialog}
+          </>
         );
       case "skills":
         return <DataPage client={client} source={sources.skills} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, id) => onGo?.({ kind: "skill", name: id })} />;

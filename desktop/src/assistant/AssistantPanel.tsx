@@ -27,6 +27,8 @@ import { AskCard, PlanCard } from "./Cards";
 // The plan cards live in Cards.tsx; main's callers (Home, the tests) import them from here.
 export { PlanCard, PlanPieces, PlanQuestions, defaultAnswers, defaultDecisions } from "./Cards";
 import { Composer } from "./Composer";
+import { experimentOn } from "../shell/experiments";
+import { bubblesFromReply, withoutBubbles } from "../shell/bubbles/bubbles";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 export const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
@@ -41,7 +43,11 @@ function Mark({ client, size = 28 }: { client: Client; size?: number }) {
 }
 
 /** The words a finished turn leaves for a screen reader: its reply, or "Done", or that it failed. */
-const heardOf = (final: { state: string; reply?: string }) => (final.state === "failed" ? `Didn't finish. ${final.reply ?? ""}`.trim() : final.reply?.trim() || "Done");
+const heardOf = (final: { state: string; reply?: string }) => {
+  // Bubbles (an experiment): a finished reply may point at parts of the page in the middle
+  if (final.state !== "failed" && final.reply && experimentOn("bubbles")) bubblesFromReply(final.reply, document.querySelector("main.main"));
+  return final.state === "failed" ? `Didn't finish. ${final.reply ?? ""}`.trim() : withoutBubbles(final.reply ?? "") || "Done";
+};
 
 /** What a turn already says about itself (the journal's own fields, nothing guessed): how long it
  *  took and how many steps it ran. Who answered and which records it used are not recorded per
@@ -93,8 +99,8 @@ export function withoutCarded(text: string, asks: Ask[], turn: unknown): string 
 function Message({ e, onRetry, asks, plans }: { e: JournalEntry; onRetry?: () => void; asks?: Ask[]; plans?: Plan[] }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
-  let text: string | null = e.text;
-  if (e.kind === "replied" && asks) text = withoutCarded(e.text, asks, e.data.turn);
+  let text: string | null = e.kind === "replied" ? withoutBubbles(e.text) : e.text;
+  if (text !== null && e.kind === "replied" && asks) text = withoutCarded(text, asks, e.data.turn);
   if (text !== null && e.kind === "replied" && plans) text = withoutPlanQuestions(text, plans, e.data.turn);
   if (text === null) return null;
   const failed = e.kind === "failed";

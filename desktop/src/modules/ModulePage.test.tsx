@@ -113,11 +113,12 @@ describe("a module's page", () => {
     expect(within(screen.getByRole("region", { name: "Files" })).getByText(/Drop files here/)).toBeInTheDocument();
     const intelligence = screen.getByRole("region", { name: "Intelligence" });
     await user.click(within(intelligence).getByRole("tab", { name: "Goals 1" }));
-    expect(within(intelligence).getByText("Close three deals")).toBeInTheDocument();
+    expect(await within(intelligence).findByText("Close three deals")).toBeInTheDocument();
     // agents and automations live in Intelligence, not Governance
     await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations 2" }));
-    expect(within(intelligence).getByText("Chase late invoices")).toBeInTheDocument();
-    expect(within(intelligence).getAllByRole("button")[0]).toHaveTextContent(/^Alpha/); // Alpha is the first agent
+    expect(await within(intelligence).findByText("Chase late invoices")).toBeInTheDocument();
+    const rows = within(intelligence).getAllByRole("row").map((r) => r.textContent ?? "");
+    expect(rows.findIndex((t) => t.includes("Alpha"))).toBeLessThan(rows.findIndex((t) => t.includes("Chase late invoices"))); // Alpha is the first agent
     const governance = screen.getByRole("region", { name: "Governance" });
     expect(within(governance).queryByText("Chase late invoices")).toBeNull();
     expect(within(governance).getByRole("button", { name: "Move Advisory" })).toBeInTheDocument();
@@ -201,14 +202,14 @@ describe("a module's page", () => {
     await screen.findByText("Bakery");
     const intelligence = screen.getByRole("region", { name: "Intelligence" });
     await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations 1" }));
-    await user.click(within(intelligence).getByRole("button", { name: /^Alpha/ }));
-    expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" });
+    await user.click(await within(intelligence).findByText("Alpha — your assistant"));
+    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" }));
     await user.click(within(intelligence).getByRole("tab", { name: "Goals 1" }));
-    await user.click(within(intelligence).getByRole("button", { name: "Add goal" }));
-    await user.type(within(intelligence).getByRole("textbox", { name: "Describe the goal you want" }), "Close five deals");
-    await user.click(within(intelligence).getByRole("button", { name: "Send" }));
+    await user.click(await within(intelligence).findByRole("button", { name: "Add goal" }));
+    await user.type(screen.getByRole("textbox", { name: "Describe the goal you want" }), "Close five deals");
+    await user.click(screen.getByRole("button", { name: "Send" }));
     expect(say).toHaveBeenCalledWith("In Advisory, add a goal: Close five deals");
-    expect(within(intelligence).getByText("Sent to Alpha — it will ask you to approve.")).toBeInTheDocument();
+    expect(screen.getByText("Sent to Alpha — it will ask you to approve.")).toBeInTheDocument();
   });
 
   it("a project with one collection has no switch: its name is the title", async () => {
@@ -249,7 +250,7 @@ describe("a module's page", () => {
     await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("button", { name: "Avilo" }));
     expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_0" });
     await user.click(screen.getByRole("tab", { name: "Sub-projects 1" }));
-    expect(screen.getByLabelText("What you ask here reaches them all.")).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Intelligence" })).getByText("Leads")).toBeInTheDocument();
+    await user.click(await within(screen.getByRole("region", { name: "Intelligence" })).findByText("Leads"));
+    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m_2" }));
   });
 });

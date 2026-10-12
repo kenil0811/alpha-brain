@@ -61,3 +61,11 @@
 .colorpick { width: var(--space-8); height: var(--space-8); padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: none; cursor: pointer; }
 .colorpick::-webkit-color-swatch-wrapper { padding: 2px; }
 .colorpick::-webkit-color-swatch { border: 0; border-radius: var(--radius-control); }
+
+/* Bubbles (an experiment): Alpha's marks on the page in the middle */
+.bubble { position: fixed; z-index: 50; transform: translate(-50%, -50%); min-width: var(--space-4); min-height: var(--space-4); border-radius: var(--radius-card); background: var(--primary); box-shadow: var(--shadow-raised); cursor: default; transition: transform var(--dur-quick) var(--ease-out), opacity var(--dur-quick) var(--ease-out); }
+.bubble:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.bubble--open { transform: translate(0, -50%); max-width: calc(var(--space-8) * 8); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--primary); }
+.bubble__text { font-size: var(--text-sm); color: var(--text); }
+.bubble--pop { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .bubble { transition: none; } }

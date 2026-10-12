@@ -100,7 +100,7 @@ function recordLink(table: string, id: string): string | null {
 /** The data view over a table the core keeps (`table`) or over any other `source`. `onOpenRecord` (required:
  *  every record has a page) gets the source's key and the record's id ("new" for a new record's page); `onAddFiles` is
  *  Upload (the module's file picker). */
-export function DataPage({ client, table, source, version, onChanged, onSay, onAsk, onOpenRecord, onAddFiles, summary }: { client: Client; table?: TableDesc; source?: DataSource; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; /** Every record opens a page of its own (the rulebook §14): required, so no view can show a record that leads nowhere. */ onOpenRecord: (table: string, id: string) => void; onAddFiles?: () => void; summary?: TableSummaryData | null; }) {
+export function DataPage({ client, table, source, version, onChanged, onSay, onAsk, onOpenRecord, onAddFiles, summary, actions }: { client: Client; table?: TableDesc; source?: DataSource; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onAsk?: (sentence: string) => void; /** Every record opens a page of its own (the rulebook §14): required, so no view can show a record that leads nowhere. */ onOpenRecord: (table: string, id: string) => void; onAddFiles?: () => void; summary?: TableSummaryData | null; /** The page's own actions, in the toolbar between Filter and ⋮. */ actions?: ContextItem[]; }) {
   const src = useMemo(() => source ?? tableSource(client, table!), [source, client, table]);
   const fields = src.fields;
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
@@ -767,6 +767,7 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
             onUpload={onAddFiles}
             uploadReason={reasonFor(src, "upload")}
             onShowNumbers={all && !numbersOpen ? () => setNumbersOpen(true) : undefined}
+            actions={actions}
             more={moreItems}
           />
         )}

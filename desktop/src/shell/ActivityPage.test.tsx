@@ -4,7 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client, JournalEntry } from "../core/client";
 import { AssistantProvider, TooltipProvider } from "../ui";
 import { ActivityPage } from "./ActivityPage";
-import { DescribeAdd } from "./DescribeAdd";
+import { ADD_GOAL, useDescribe } from "./DescribeAdd";
+
+function AddGoal() {
+  const d = useDescribe();
+  return (
+    <>
+      <button type="button" onClick={() => d.open(ADD_GOAL)}>Add goal</button>
+      {d.dialog}
+    </>
+  );
+}
 
 const failed: JournalEntry = { id: "j1", at: "2026-10-09T07:00:00", kind: "failed", actor: "alpha", text: "Checking deals didn't work", data: { automation: "a1", error: "the site asked for a sign-in" }, module: "m1", thread: null, entity_ids: ["p1"], source: null };
 
@@ -47,13 +57,13 @@ describe("an Activity entry's page", () => {
   });
 });
 
-describe("Add goal, agent or automation", () => {
+describe("a page action that asks Alpha", () => {
   it("sends the description to Alpha and says it will ask for a yes", async () => {
     const say = vi.fn();
     render(
       <TooltipProvider>
         <AssistantProvider say={say}>
-          <DescribeAdd thing="goal" />
+          <AddGoal />
         </AssistantProvider>
       </TooltipProvider>,
     );

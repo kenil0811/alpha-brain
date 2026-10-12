@@ -429,12 +429,11 @@ describe("modules as a tree", () => {
 
 
 describe("an agent's last run", () => {
-  it("shows its verdict and why on the list", async () => {
-    const { AutomationList } = await import("./Automations");
+  it("shows its verdict and goal in the data view's row", async () => {
+    const { automationListSource } = await import("./intel/sources");
     const a = { id: "a_1", title: "Daily brokers", module: null, thread: null, schedule: "daily 07:00", when: "every day at 07:00, or when your Mac next wakes", procedure: "", enabled: true, next_run_at: null, last_run_at: "2026-10-09T06:00:00+00:00", last_result: "Read 1 of 2 sources.", last_error: "walled couldn't be reached.", last_verdict: "partial" as const, last_why: "walled couldn't be reached.", goal: "deals" };
-    render(<AutomationList client={{} as never} items={[a]} onChanged={vi.fn()} empty="none" />);
-    expect(screen.getByText("Partial")).toBeInTheDocument();
-    expect(screen.getByText("walled couldn't be reached.")).toBeInTheDocument();
-    expect(screen.getByText(/^deals · /)).toBeInTheDocument();
+    const client = { preference: async (key: string) => ({ key, value: null }) } as never;
+    const [row] = (await automationListSource(client, [a], {}).load()).records;
+    expect(row.values).toMatchObject({ verdict: "Partial", goal: "deals", result: "Didn't work", on: true });
   });
 });

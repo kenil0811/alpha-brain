@@ -1,6 +1,6 @@
 /**
  * Intelligence › Connections: every folder, site and calendar Alpha can reach, with its state,
- * and the three ways to add one. Deleting one is never a single click: the menu opens a dialog
+ * and Connect (a folder, a site, the calendar) in the data view's toolbar (12 Oct, the owner). Deleting one is never a single click: the menu opens a dialog
  * that says what goes with it before the person confirms (the UI rulebook §12 and §14).
  * The connections are the one data view (`intel/sources.ts`); a row's click opens the
  * connection's own page (`#/intelligence/connections/<id>`) with Read now and Delete, and a back
@@ -13,8 +13,8 @@ import { DataPage } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { BackLink } from "./BackLink";
 import { connectionName, connectionsSource } from "./intel/sources";
-import { Badge, Button, Confirm, EmptyCard, IconButton, InfoTip, ListRow, Menu, MenuItem, Notice, PageHeader, SectionCard, Trouble, type Tone } from "../ui";
-import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON, MoreVertical } from "../ui/icons";
+import { Badge, Button, Confirm, Dialog, EmptyCard, IconButton, InfoTip, ListRow, Menu, MenuItem, Notice, PageHeader, SectionCard, Trouble, type ContextItem, type Tone } from "../ui";
+import { Calendar, ConnectionIcon, FolderOpen, Globe, ICON, ICON_SM, MoreVertical, PlusIcon } from "../ui/icons";
 
 const CONNECTOR: Record<string, { icon: ReactNode; reach: string }> = {
   files: { icon: <FolderOpen size={ICON} />, reach: "Reads the documents in this folder as they change; never changes your files" },
@@ -57,40 +57,45 @@ function useRun(onChanged: () => void) {
 }
 
 export function Connections({ client, data, version, onChanged, onOpen }: { client: Client; data: Data; version: number; onChanged: () => void; onOpen?: (id: string) => void }) {
-  const [folder, setFolder] = useState("");
-  const [site, setSite] = useState("");
+  const [asking, setAsking] = useState<"folder" | "site" | null>(null);
+  const [text, setText] = useState("");
   const { busy, message, run } = useRun(onChanged);
   const hasCalendar = data.connections.some((c) => c.status !== "off" && c.connector === "calendar");
   const source = useMemo(() => connectionsSource(client), [client]);
+  const ask = (k: "folder" | "site") => {
+    setText("");
+    setAsking(k);
+  };
+  const connect: ContextItem = {
+    label: "Connect",
+    icon: <PlusIcon size={ICON_SM} />,
+    disabled: busy !== null ? "Connecting…" : undefined,
+    children: [
+      { label: "A folder…", icon: <FolderOpen size={ICON_SM} />, onSelect: () => ask("folder") },
+      { label: "A site you sign into…", icon: <Globe size={ICON_SM} />, onSelect: () => ask("site") },
+      { label: "Your calendar", icon: <Calendar size={ICON_SM} />, disabled: hasCalendar ? "Your calendars are already connected." : undefined, onSelect: () => void run("calendar", () => client.connectCalendar(), "Calendars connected.") },
+    ],
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const v = text.trim();
+    setAsking(null);
+    if (asking === "folder") void run("folder", () => client.connectFolder(v), "Alpha is reading the folder.");
+    else void run("site", () => client.connectSite(v), "A window is open: sign in there, then close it.");
+  };
   return (
     <div className="stack stack--wide">
-      <DataPage client={client} source={source} version={version} onChanged={onChanged} onOpenRecord={(_k, id) => onOpen?.(id)} />
+      <DataPage client={client} source={source} version={version} onChanged={onChanged} actions={[connect]} onOpenRecord={(_k, id) => onOpen?.(id)} />
       {message ? <Notice tone={message.ok ? "ok" : "bad"}>{message.text}</Notice> : null}
-      <div className="addgrid">
-        <SectionCard title="A folder">
-          <form className="row" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Alpha is reading the folder."); }}>
-            <input className="textfield" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="~/Documents/Job search" aria-label="Folder" />
-            <Button variant="primary" type="submit" disabled={!folder.trim() || busy !== null}>
-              Read it
-            </Button>
-          </form>
-        </SectionCard>
-        <SectionCard title="A site you sign into" actions={<InfoTip text="A window opens; you sign in yourself" />}>
-          <form className="row" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("site", () => client.connectSite(site.trim()), "A window is open: sign in there, then close it."); }}>
-            <input className="textfield" value={site} onChange={(e) => setSite(e.target.value)} placeholder="linkedin.com" aria-label="Site" />
-            <Button variant="primary" type="submit" disabled={!site.trim() || busy !== null}>
-              Sign in
-            </Button>
-          </form>
-        </SectionCard>
-        {!hasCalendar ? (
-          <SectionCard title="Your calendar">
-            <Button variant="primary" disabled={busy !== null} onClick={() => void run("calendar", () => client.connectCalendar(), "Calendars connected.")}>
-              Connect calendars
-            </Button>
-          </SectionCard>
-        ) : null}
-      </div>
+      <Dialog open={asking !== null} onOpenChange={(o) => !o && setAsking(null)} title={asking === "site" ? "Connect a site you sign into" : "Connect a folder"}>
+        <form className="row" onSubmit={submit}>
+          <input autoFocus className="textfield" value={text} onChange={(e) => setText(e.target.value)} placeholder={asking === "site" ? "linkedin.com" : "~/Documents/Job search"} aria-label={asking === "site" ? "Site" : "Folder"} />
+          {asking === "site" ? <InfoTip text="A window opens; you sign in yourself" /> : null}
+          <Button variant="primary" type="submit" disabledReason={text.trim() ? undefined : "Type it first."}>
+            {asking === "site" ? "Sign in" : "Read it"}
+          </Button>
+        </form>
+      </Dialog>
     </div>
   );
 }

@@ -41,6 +41,8 @@ import { ModulePage } from "./modules/ModulePage";
 import { RecordPage } from "./modules/RecordPage";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useLook, useTheme } from "./shell/theme";
+import { useExperiment } from "./shell/experiments";
+import { BubbleLayer } from "./shell/bubbles/BubbleLayer";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
 import { AssistantProvider, Button, InfoTip } from "./ui";
 import { ChevronsLeft, ChevronsRight, ICON_SM } from "./ui/icons";
@@ -91,6 +93,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
   const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
+  const [bubblesOn] = useExperiment("bubbles");
   const [look, setLook] = useLook();
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
   const [thinking, setThinking] = useState<Thinking | null>(null);
@@ -400,6 +403,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <Intelligence client={runtime.client} tab={surface.tab ?? "second-brain"} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : null}
       </main>
+      {bubblesOn ? <BubbleLayer page={JSON.stringify(surface)} /> : null}
       {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} insert={inserting} surface={surface} onNewModule={startNew} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}
       {client ? (
         <AssistantPanel client={client} open={panelShown} onOpen={togglePanel} openReason={onAssistantPage ? "The conversation is open on this page." : undefined} scopeName={scopeName} module={scopeModule} version={versions.conversation} onChanged={changed} draft={onAssistantPage ? null : draft} onDraftTaken={() => setDraft(null)} focusThread={focusThread} focusConversation={focusConversation} openActivity={activityAt} activityVersion={versions.intelligence} onOpenEntry={(id) => setSurface({ kind: "entry", id })} />

@@ -5,22 +5,22 @@
  * permissions that apply. An agent is Alpha or a module's runner, read from `/api/intelligence`
  * (`agents.ts`); the core keeps no record of one, so Save stays disabled with the reason.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LookPicker } from "../avatar/LookPicker";
 import { say } from "../core/client";
 import type { Client, Intelligence as Data, JournalEntry } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { Badge, Button, EmptyCard, InfoTip, ListRow, Notice, PageHeader, SectionCard, Trouble, type Tone } from "../ui";
 import { AgentAvatar, useAgentLook } from "./AgentAvatar";
-import { AgentIcon, ICON, PermissionIcon, SkillIcon } from "../ui/icons";
+import { AgentIcon, ICON, PermissionIcon } from "../ui/icons";
 import { ALPHA_AGENT, agentsFrom } from "./agents";
-import { AutomationList } from "./Automations";
+import { DataPage } from "../modules/DataPage";
+import { automationListSource, skillsSource } from "./intel/sources";
 import { BackLink } from "./BackLink";
 import type { Surface } from "./Rail";
 import { RevokeButton } from "./Settings";
 import { Field } from "./SkillPage";
 
-const KIND: Record<string, string> = { read: "Reads a list from a page", act: "Does a task on a site", run: "Runs on its own" };
 const RUN_KINDS = new Set(["did", "changed", "made", "saw", "failed", "checked"]);
 const runTone = (e: JournalEntry): Tone => (e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray");
 
@@ -49,6 +49,10 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
       live = false;
     };
   }, [client, id, module, version, tick]);
+  const sources = useMemo(() => {
+    const mine = data ? agentsFrom(data, modules).find((a) => a.id === id) : undefined;
+    return { skills: skillsSource(client, modules, mine?.skills.map((s) => s.name) ?? []), automations: automationListSource(client, mine?.automations ?? [], modules) };
+  }, [client, data, modules, id]);
   const back = <BackLink to="Agents and automations" onClick={() => onGo({ kind: "intelligence", tab: "agents" })} />;
   if (!data) {
     return (
@@ -133,25 +137,13 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
             <LookPicker value={look} onChange={setLook} />
           </SectionCard>
 
+          {/* its skills and automations are the one data view (12 Oct, the owner) */}
           <SectionCard title="Skills">
-            {agent.skills.length ? (
-              agent.skills.map((s) => (
-                <ListRow
-                  key={s.name}
-                  icon={<SkillIcon size={ICON} />}
-                  title={s.description}
-                  onOpen={() => onGo({ kind: "skill", name: s.name })}
-                  description={`${KIND[s.kind] ?? s.kind}${s.last_run_at ? ` · ${when(s.last_run_at)}` : ""}`}
-                  controls={<Badge tone={s.health === "ok" ? "good" : s.health === "broken" ? "bad" : "gray"}>{s.health === "ok" ? "Working" : s.health === "broken" ? "Being repaired" : "Not tried yet"}</Badge>}
-                />
-              ))
-            ) : (
-              <p className="faint">None yet.</p>
-            )}
+            <DataPage client={client} source={sources.skills} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, name) => onGo({ kind: "skill", name })} />
           </SectionCard>
 
           <SectionCard title="Automations">
-            <AutomationList bare client={client} items={agent.automations} onChanged={onChanged} onOpen={(aid) => onGo({ kind: "automation", id: aid })} empty="" />
+            <DataPage client={client} source={sources.automations} version={version} onChanged={onChanged} onAsk={onAsk} onOpenRecord={(_k, aid) => onGo({ kind: "automation", id: aid })} />
           </SectionCard>
 
           <SectionCard title="Runs">

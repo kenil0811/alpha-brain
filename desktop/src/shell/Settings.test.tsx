@@ -25,10 +25,11 @@ function mount(c: ReturnType<typeof client>, onChanged = vi.fn(), onGo = vi.fn()
 describe("Settings", () => {
   it("lists its sections on the left; Overview, the first, shows every section's card at once", () => {
     mount(client());
-    expect(within(screen.getByRole("tablist", { name: "Settings sections" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Workspace", "Thinks with", "Reads with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Help"]);
+    expect(within(screen.getByRole("tablist", { name: "Settings sections" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Workspace", "Thinks with", "Reads with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Experimental features", "Help"]);
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
-    for (const name of ["Workspace", "Thinks with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Help"]) expect(screen.getByRole("region", { name })).toBeInTheDocument();
+    for (const name of ["Workspace", "Thinks with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Experimental features", "Help"]) expect(screen.getByRole("region", { name })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Companion" })).toBeNull(); // its look lives on Alpha's agent page
+    expect(screen.getByRole("switch", { name: "Bubbles" })).toHaveAttribute("aria-checked", "false"); // experiments start off
     expect(screen.getByRole("tab", { name: "Match Mac" })).toHaveAttribute("aria-selected", "true"); // the shared toggle (rule 29)
     expect(screen.getAllByText(/Nothing configured yet/)).toHaveLength(3);
   });
