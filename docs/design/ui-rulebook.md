@@ -219,7 +219,7 @@ Every screen lives inside the same three-part frame:
 - Opening a project lands on its data, never on a description of the project.
 - By default, the first tab is the first collection; for Task manager, it is the Queue.
 
-**Below the table** (the owner, 9 Oct: replaces the header tabs of Q40)
+**Below the table** (the owner, 9 Oct: replaces the header tabs of Q42)
 
 - The data comes first. As the person keeps scrolling: **Files**, then **Intelligence**, then **Governance**.
   - Intelligence holds what Alpha does here: its activity, its agents and automations (Alpha first among them — Alpha is an agent), its goals (with Add goal, Add agent, Add automation), Alpha's editable page about the project, and **Sub-projects** (the projects inside this one).
@@ -292,7 +292,7 @@ Table (the default) · Board · Gallery · Calendar · Timeline · Form · **Map
 - **Board:** quiet columns with sentence-case headers and counts. Cards can be dragged between columns. It groups by a status or choice field, with a picker when there are several.
 - **Calendar and Timeline:** run on a date field, with a picker when there are several. Grids are faint.
 - **Form:** one record at a time, with Previous and Next.
-- **Map** (Q44, `map-view-plan.md`): the records on a quiet world outline (offline, in greys), one accent dot per record with a place. Available only when the collection has a place field; otherwise disabled with "Map needs a place field. Ask Alpha in the panel to add one."
+- **Map** (Q46, `map-view-plan.md`): the records on a quiet world outline (offline, in greys), one accent dot per record with a place. Available only when the collection has a place field; otherwise disabled with "Map needs a place field. Ask Alpha in the panel to add one."
   - A place Apple's geocoder found is estimated and drawn hollow; one given with its point is filled.
   - Dots close on screen merge into a numbered circle; a click zooms into it. A click on a dot shows its card (title, two fields, Open page); a double-click opens the page.
   - Zoom and move with ZoomControls, the wheel or a drag; arrow keys walk the dots (one tab stop), Enter selects, then opens.

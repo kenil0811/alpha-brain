@@ -1,4 +1,4 @@
-"""Places (Q44, design G13): the place field kind, locating its words before a write, a text field
+"""Places (Q46, design G13): the place field kind, locating its words before a write, a text field
 turned into a place field on the person's yes, and what counts as Apple having found it. Apple is
 never called: a fake geocoder stands in."""
 

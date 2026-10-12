@@ -1,0 +1,41 @@
+[
+ {
+  "name": "workflow_build",
+  "title": "The page the person said yes to becomes a module whose parts fill a thing they add",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Screener — Austin, gates-first",
+    "ok": true,
+    "removed": {
+     "tables": 0,
+     "rows": 0,
+     "readers": 0,
+     "automations": 0,
+     "threads": 0,
+     "notes": 0,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open. It's for me, to decide which sites to pursue. Sites come from brokers by email, but for now I'll type the address. Today I check households within 3 miles (at least 45,000) and the traffic on the road (at least 30,000 cars a day), then I score the site and write a short memo. Start with Austin, Texas. Go ahead and write it up.",
+    "ok": true,
+    "reply": "The page is ready on its card: type an address, Alpha checks households within 3 miles (≥45,000) and road traffic (≥30,000), scores it 0–100, and writes a memo — sourced from the Census Bureau and the Travis County GIS traffic layer already proven in the earlier build. Say \"go ahead\" (or tell me what to change) and I'll build it.",
+    "steps": 4,
+    "seconds": 194.3
+   },
+   {
+    "agree_workflow": "Car wash site screener — Austin, TX",
+    "ok": true,
+    "state": "built",
+    "seconds": 703.5
+   }
+  ],
+  "checks": [],
+  "seconds": 897.8,
+  "error": "Problem: 0 tables match 'site'."
+ }
+]

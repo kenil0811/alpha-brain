@@ -6,7 +6,7 @@ may sit inside another (Job holds Search and Resume), to any depth: one concept,
 nothing per level (Q31). What a module owns stays its own; a parent is the place that holds
 its children, whose page, activity and conversation reach the whole subtree.
 
-A thread is a piece of work with its own model context (a build, research, an automation, a long
+A thread is a piece of work with its own model context (a build, an automation, a long
 job, or a topic the person opened deliberately). The person sees one stream; the to-and-fro of
 the work lives in its thread so it never crowds the stream's context.
 """
@@ -18,7 +18,7 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
-THREAD_KINDS = {"build", "research", "job", "topic", "chat"}
+THREAD_KINDS = {"build", "job", "topic", "chat"}
 THREAD_STATES = {"open", "working", "waiting", "done"}
 
 
@@ -102,6 +102,13 @@ class Modules:
 
     def all(self) -> list[dict[str, Any]]:
         return [_row(r) for r in self.store.all("SELECT * FROM modules ORDER BY name")]
+
+    def set_workspace(self, module_id: str, path: str | None) -> dict[str, Any]:
+        """The folder a program module is built in (Q38); None when it is removed."""
+        with self.store.tx() as db:
+            db.execute("UPDATE modules SET workspace = ?, updated_at = ? WHERE id = ?",
+                       (path, now(), module_id))
+        return self.get(module_id)
 
     # ---- threads ----
 

@@ -1,10 +1,10 @@
-# Graph in the View dropdown, fewer views, no pop-ups for predefined choices; the Map plan (12 Oct 2026, Q44)
+# Graph in the View dropdown, fewer views, no pop-ups for predefined choices; the Map plan (12 Oct 2026, Q46)
 
 Branch `feat/ui-audit-fixes`, commit df6689e after the entry
 [`2026-10-12-home-cards-second-brain.md`](2026-10-12-home-cards-second-brain.md). Window only;
 nothing under `core/`, `connectors/`, `journeys/` or `desktop/src-tauri/` changed.
 
-## What was decided (the owner, 12 Oct; Q44)
+## What was decided (the owner, 12 Oct; Q46)
 
 - **Second Brain:** Graph is one of the data view's View types, not a second switch above the
   table. The owner's question "how is GraphView tied to the backend" was answered:

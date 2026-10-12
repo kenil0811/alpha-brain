@@ -1,0 +1,76 @@
+[
+ {
+  "name": "workflow_interview",
+  "title": "A module ask is interviewed, then drafted as \"Your workflow\" in the person's words",
+  "steps": [
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "M0, M0B and M1 are done and passing — you already have a working screener: `parcels_screened` holds 7,710 Travis County parcels run through the zoning, traffic and competitor gates, with a `near_miss_reason` on anything that fails just one gate. The only thing left per the plan is **M2: a revenue range for every site that passes all three gates**, which is what would actually let you *pick* which sites to open rather than just see which qualify.\n\nSince you already saw M1 and the plan is waiting on your \"continue,\" want me to carry on and build M2 now?",
+    "steps": 7,
+    "seconds": 64.2
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles, density, drive-time population, the traffic on the road and at the main intersection, then I score fourteen things like visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "This revises the gates-first screener you already have (M0/M0B/M1 are built) to add what you actually described: households/density/drive-time population, raising the traffic floor to 30,000 AADT, broker-email intake, your 14-point scorecard, and a drafted investor memo per site.\n\nThree things need your call on the card: how Alpha should spot broker listings in Gmail, whether to set up a free OpenRouteService key for real drive-time polygons (vs. a radius approximation), and using the cross-street's AADT as a stand-in for intersection traffic (no public per-intersection data exists for Austin)",
+    "steps": 16,
+    "seconds": 360.6
+   },
+   {
+    "say": "Add a minimum lot size of 0.8 acres as one of the checks.",
+    "ok": true,
+    "reply": "Added the 0.8‑acre lot-size gate to the plan — it reuses the TCAD acreage field already on every `sites`/`parcels_screened` row, so it's a new piece in the existing pipeline rather than a new data source. Everything else from the proposal you're already looking at (demographics, the 30,000 AADT floor, broker-email intake, your 14-point scorecard, the investor memo) carries over unchanged, and the two open questions (how to spot broker listings in Gmail, which demographics source) still stand. New card is up — let me know when you're ready to answer those or approve.",
+    "steps": 8,
+    "seconds": 114.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 3,
+     "keeps_min": 2,
+     "suggestions_min": 1
+    },
+    "ok": false,
+    "why": "No workflow page was drafted.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version": 2
+    },
+    "ok": false,
+    "why": "No workflow page was drafted.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 539.6,
+  "error": null
+ }
+]

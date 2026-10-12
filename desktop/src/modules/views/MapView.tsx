@@ -1,5 +1,5 @@
 /**
- * The Map view (Q44, design `map-view-plan.md`): a collection's records where they are, on a
+ * The Map view (Q46, design `map-view-plan.md`): a collection's records where they are, on a
  * quiet outline of the world drawn here, offline (Natural Earth's countries at 1:50m through
  * world-atlas, in the rulebook's greys). Nothing is fetched to draw it.
  *

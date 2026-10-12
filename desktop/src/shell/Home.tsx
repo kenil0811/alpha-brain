@@ -11,9 +11,9 @@
  * still shows.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { PlanPieces, PlanQuestions, defaultAnswers, defaultDecisions } from "../assistant/AssistantPanel";
+import { AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
 import { say } from "../core/client";
-import type { Client, Goal, Home as HomeData, JournalEntry, ModuleCard, NeedItem } from "../core/client";
+import type { Ask, Client, Goal, Home as HomeData, JournalEntry, ModuleCard, NeedItem } from "../core/client";
 import { dayLabel, dayText, timeText, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import { homeCards, type HomeCard } from "./homeCards";
@@ -21,6 +21,27 @@ import { ModuleGlyph } from "./moduleIcons";
 import type { Surface } from "./Rail";
 import { Button, IconButton, InfoTip, ListRow, Notice, PageHeader, SectionCard, Trouble } from "../ui";
 import { ArrowRight, ActivityIcon, Check, FolderOpen, ICON, ICON_SM, ModuleIcon, PlusIcon, X } from "../ui/icons";
+
+/** Questions asked in one turn are one card with one Answer; everything else stands alone. */
+export function groupNeeds(items: NeedItem[]): NeedItem[][] {
+  const groups: NeedItem[][] = [];
+  const byTurn = new Map<string, NeedItem[]>();
+  items.forEach((item) => {
+    const key = item.kind === "ask" && item.turn ? item.turn : null;
+    const found = key ? byTurn.get(key) : undefined;
+    if (found) found.push(item);
+    else {
+      const group = [item];
+      if (key) byTurn.set(key, group);
+      groups.push(group);
+    }
+  });
+  return groups;
+}
+
+function askOf(item: NeedItem): Ask {
+  return { id: item.id, text: item.text, at: item.at, options: item.options ?? [], thread: null, module: item.module ?? null, turn: item.turn ?? null };
+}
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -31,8 +52,6 @@ function greeting(): string {
 export function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, string>>(() => defaultAnswers(item.kind === "proposal" ? (item.questions ?? []) : []));
-  const [decisions, setDecisions] = useState<Record<string, string>>(() => defaultDecisions(item.kind === "proposal" ? (item.pieces ?? []) : []));
   const [error, setError] = useState<string | null>(null);
   async function act(work: () => Promise<unknown>, words: string) {
     setBusy(true);
@@ -77,10 +96,10 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
       </article>
     );
   }
+  if (item.kind === "workflow" && item.workflow) {
+    return <WorkflowCard workflow={item.workflow} client={client} onDecided={() => onDone("Noted.")} />;
+  }
   if (item.kind === "proposal") {
-    const questions = item.questions ?? [];
-    const pieces = item.pieces ?? [];
-    const decided = questions.length || pieces.length;
     return (
       <article className="today__item">
         <h4 className="today__ask">{item.text}</h4>
@@ -89,10 +108,8 @@ export function Need({ item, client, onDone }: { item: NeedItem; client: Client;
             <b>Because</b> {item.why}
           </p>
         ) : null}
-        {pieces.length ? <PlanPieces pieces={pieces} decisions={decisions} onChange={setDecisions} /> : null}
-        {questions.length ? <PlanQuestions questions={questions} answers={answers} onChange={setAnswers} /> : null}
         <div className="row">
-          <Button variant="primary" disabled={busy} onClick={() => void act(() => (item.plan && decided ? client.approvePlan(item.plan, questions.length ? answers : undefined, pieces.length ? decisions : undefined) : client.decideProposal(item.id, true)), item.plan ? "Approved. Building it now; it reports in the conversation." : "Approved. Alpha is doing that now.")}>
+          <Button variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), "Approved. Alpha is doing that now.")}>
             Approve
           </Button>
           <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, false), "Declined. It won't come back.")}>
@@ -192,7 +209,7 @@ function NeedLine({ item, client, onDone, onReview }: { item: NeedItem; client: 
         ))}
       </Item>
     );
-  if (item.kind === "proposal" && !item.plan && !item.questions?.length && !item.pieces?.length)
+  if (item.kind === "proposal")
     return (
       <Item title={item.text} detail={detail}>
         <Button size="sm" variant="primary" disabled={busy} onClick={() => void act(() => client.decideProposal(item.id, true), "Approved. Alpha is doing that now.")}>
@@ -499,9 +516,16 @@ export function NeedsPage({ client, version, onChanged }: { client: Client; vers
         {home && !needs.length ? <p className="today__quiet">Nothing needs you right now.</p> : null}
         {needs.length ? (
           <div className="card today">
-            {needs.map((item) => (
-              <Need key={item.id} item={item} client={client} onDone={(words) => { setMessage(words); onChanged(); }} />
-            ))}
+            {groupNeeds(needs).map((group) =>
+              group.length > 1 ? (
+                <article key={group[0].id} className="today__item">
+                  <h4 className="today__ask">Alpha asked {group.length} questions</h4>
+                  <AskGroup asks={group.map(askOf)} client={client} onAnswered={() => { setMessage("Answered."); onChanged(); }} />
+                </article>
+              ) : (
+                <Need key={group[0].id} item={group[0]} client={client} onDone={(words) => { setMessage(words); onChanged(); }} />
+              ),
+            )}
           </div>
         ) : null}
       </div>

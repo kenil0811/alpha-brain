@@ -97,6 +97,17 @@ function FileField({ client, id }: { client: Client; id: string }) {
   );
 }
 
+/** Where a value came from, when a part wrote it (main's §12): its source and date under the
+ *  value, or why it could not be filled. */
+function ValueOrigin({ row, field }: { row: RecordRow; field: FieldInfo }) {
+  const origin = row.provenance.fields?.[field.name];
+  if (!origin) return null;
+  if (origin.problem && isEmpty(row.values[field.name])) return <p className="origin origin--problem">Not filled: {origin.problem}</p>;
+  if (!origin.source) return null;
+  const day = origin.fetched_at ? new Date(origin.fetched_at).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "";
+  return <p className="origin faint">From {origin.source}{day ? ` · ${day}` : ""}</p>;
+}
+
 export function RecordField({ client, field, value, row, relations, relatedTitle, open, error, saved, onChange, onCommit }: { client: Client; field: FieldInfo; value: unknown; row: RecordRow | null; relations?: Relations; relatedTitle?: string; open: (() => void) | null; error?: string; saved?: boolean; onChange: (value: unknown) => void; onCommit: (value: unknown) => void }) {
   const label = fieldLabel(field);
   const inputId = `recfield-${field.name}`;
@@ -142,6 +153,7 @@ export function RecordField({ client, field, value, row, relations, relatedTitle
         ))}
       </label>
       {control}
+      {row ? <ValueOrigin row={row} field={field} /> : null}
       {error ? <Notice tone="bad">{error}</Notice> : saved ? <Notice>Saved.</Notice> : null}
     </div>
   );

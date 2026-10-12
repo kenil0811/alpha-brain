@@ -1,7 +1,7 @@
 # The owner's second review of the window (9 October 2026)
 
-Vikas used the window after Q40 and asked for a long list of changes; four contradictions were
-settled first (Q41): sections back below the table, ⋮ everywhere, autosave plus a visible Save /
+Vikas used the window after Q42 and asked for a long list of changes; four contradictions were
+settled first (Q43): sections back below the table, ⋮ everywhere, autosave plus a visible Save /
 Cancel / "Last saved", and the star for the default with a highlighted selection instead of a
 tick; then duplicate names collapse in the window (renaming needs the core), New project opens a
 page and asks the assistant, the workspace is "Kenil's workspace", and "module" becomes

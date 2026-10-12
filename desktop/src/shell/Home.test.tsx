@@ -70,7 +70,7 @@ describe("Home", () => {
   });
 
   it("shows each card at its size, most urgent first, and opens Needs you in full from Review", async () => {
-    const ask = (id: string) => ({ kind: "proposal" as const, id, text: `Plan ${id}`, plan: "pl1", at: "2026-10-09T08:00:00+00:00" });
+    const ask = (id: string) => ({ kind: "workflow" as const, id, text: `Workflow ${id}`, at: "2026-10-09T08:00:00+00:00" });
     const home = { ...quiet, ran_today: 3, needs_you: [ask("p1"), ask("p2"), ask("p3"), ask("p4"), { kind: "fact" as const, id: "f1", text: "Kenil works_at Acme", at: "2026-10-09T08:00:00+00:00" }] };
     const decideFact = vi.fn(async () => ({}));
     const onGo = mount({ home: vi.fn(async () => home), modules: vi.fn(async () => [deals]), decideFact } as unknown as Partial<Client>);

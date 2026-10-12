@@ -30,8 +30,8 @@ import threading
 import time
 from typing import Any
 
-from alpha.runtime import build, pipeline, route, turn
-from alpha.runtime import research as research_runtime
+from alpha.runtime import parts as parts_module
+from alpha.runtime import pipeline, route, turn, workflow_build
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -168,8 +168,7 @@ class Scheduler:
         self.lock = threading.Lock()
         self.running: set[str] = set()
         self.building: set[str] = set()
-        self.researching: set[str] = set()
-        self.crashes: dict[str, int] = {}  # a building plan's (or pass's) crashed runs in a row
+        self.crashes: dict[str, int] = {}  # a building workflow's crashed runs in a row
         self.stop_event = threading.Event()
         self.clock = clock
         self._last_tick: float | None = None
@@ -248,88 +247,53 @@ class Scheduler:
                              name=f"auto-{aid}").start()
 
     def builds(self) -> None:
-        """Start or continue every approved plan's build."""
-        for plan in self.world.plans.all(("approved", "building")):
+        """Start or continue every agreed workflow's build."""
+        for wf in self.world.workflows.waiting():
             if self.stop_event.is_set():
                 return
             with self.lock:
-                if plan["id"] in self.building:
+                if wf["id"] in self.building:
                     continue
-                self.building.add(plan["id"])
-            threading.Thread(target=self._build, args=(plan["id"],), daemon=True,
-                             name=f"build-{plan['id']}").start()
-
-    def _build(self, pid: str) -> None:
+                self.building.add(wf["id"])
+            threading.Thread(target=self._build_workflow, args=(wf["id"],), daemon=True,
+                             name=f"workflow-{wf['id']}").start()
+    def _build_workflow(self, wid: str) -> None:
         self._hold()
         crashed = False
         try:
-            build.run_build(self.world, pid, runner=self.runner)
+            workflow_build.run(self.world, wid, runner=self.runner)
         except Exception:
             crashed = True
-            log.exception("build run failed")
+            log.exception("workflow build failed")
         finally:
             self._release()
             with self.lock:
-                self.building.discard(pid)
-        if self.world.plans.get(pid)["state"] != "building" or self.stop_event.is_set():
-            self.crashes.pop(pid, None)
+                self.building.discard(wid)
+        wf = self.world.workflows.get(wid)
+        if wf["state"] != "building" or self.stop_event.is_set():
+            self.crashes.pop(wid, None)
             return
-        # A run that ended before its work did leaves the plan building: carry on at once.
-        # A run that crashed waits, longer each time, so a broken build never spins (3 Oct).
         if crashed:
-            n = self.crashes.get(pid, 0) + 1
-            self.crashes[pid] = n
+            n = self.crashes.get(wid, 0) + 1
+            self.crashes[wid] = n
             if self.stop_event.wait(backoff_s(n)):
                 return
         else:
-            self.crashes.pop(pid, None)
+            self.crashes.pop(wid, None)
         self.builds()
 
-    def researches(self) -> None:
-        """Start or continue every research pass that is waiting or running (Q37)."""
-        for research in self.world.research.waiting():
-            if self.stop_event.is_set():
-                return
-            with self.lock:
-                if research["id"] in self.researching:
-                    continue
-                self.researching.add(research["id"])
-            threading.Thread(target=self._research, args=(research["id"],), daemon=True,
-                             name=f"research-{research['id']}").start()
-
-    def _research(self, rid: str) -> None:
-        self._hold()
-        crashed = False
+    def parts(self) -> None:
+        """Run every part that is due on every row (a row that arrived, a part after another)."""
         try:
-            research_runtime.run(self.world, rid, runner=self.runner)
+            parts_module.run_due(self.world)
         except Exception:
-            crashed = True
-            log.exception("research run failed")
-        finally:
-            self._release()
-            with self.lock:
-                self.researching.discard(rid)
-        research = self.world.research.get(rid)
-        if research["state"] != "running" or self.stop_event.is_set():
-            self.crashes.pop(rid, None)
-            return
-        thread = research["thread"]
-        if thread and self.world.modules.thread(thread)["state"] == "waiting":
-            return  # it asked the person; their answer carries it on
-        if crashed:
-            n = self.crashes.get(rid, 0) + 1
-            self.crashes[rid] = n
-            if self.stop_event.wait(backoff_s(n)):
-                return
-        else:
-            self.crashes.pop(rid, None)
-        self.researches()
+            log.exception("parts due")
 
     def kick(self) -> None:
-        """What a turn starts at once rather than at the next tick: a plan approved in it, a
-        research pass started in it."""
+        """What a turn starts at once rather than at the next tick: a workflow agreed in it,
+        a row that arrived."""
         self.builds()
-        self.researches()
+        self.parts()
 
     def acts(self) -> None:
         """Perform every action the person approved that hasn't run (the app was closed in
@@ -359,7 +323,7 @@ class Scheduler:
             # Just woke, or only in a maintenance wake: nothing starts yet.
             return
         self.builds()
-        self.researches()
+        self.parts()
         self.acts()
         for auto in self.world.automations.due():
             if self.stop_event.is_set():

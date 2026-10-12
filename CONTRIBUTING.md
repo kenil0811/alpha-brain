@@ -18,7 +18,7 @@ Alpha is an agent that keeps a person's world and acts for them. The design's te
    world), not to the code. The test: would this line still make sense if the person tracked
    something you have never heard of?
 2. **Mechanisms, not prompts.** A rule that matters is enforced in code where the effect
-   happens: the plan gate refuses to make a table outside an approved build; `action_propose`
+   happens: the build gate refuses to make a table outside a build; `action_propose`
    refuses inside an automation; an action's state moves with a conditional write. A sentence
    in a prompt is guidance for the model, never the wall. When a review finds a wall that is
    only a prompt, it is a defect (the 3 Oct checkpoint found one).
@@ -50,12 +50,13 @@ Alpha is an agent that keeps a person's world and acts for them. The design's te
 ```
 core/alpha/
   world/        the store and the tables, one module per kind of thing (journal, collections,
-                entities, knowledge (facts, pages, goals), skills, automations, plans, actions,
+                entities, knowledge (facts, pages, goals), skills, automations, workflows, actions,
                 sources, modules, purge). No model, no HTTP, no browser here.
   context/      what the model is given: the pre-pack (prepack.py) and module summaries.
-  runtime/      how a run happens: claude_cli (the model boundary), turn, build, pipeline,
-                acting, automation (the scheduler), conversations, judge (the System One seam),
-                noticing, check (the second opinion).
+  runtime/      how a run happens: claude_cli (the model boundary), turn, workflow_build and
+                parts (the build from the page and what runs on rows), workspace and proxy (the
+                walls), pipeline, acting, automation (the scheduler), conversations, judge (the
+                System One seam), noticing, check (the second opinion).
   mcp/          the world as tools for the model: tools/ (one module per thing they touch, on
                 a shared base), server.py (the MCP server that registers them).
   api/          the loopback HTTP API the app uses: server.py (create_app, serve), one module
@@ -150,7 +151,7 @@ packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a na
   `add`, `update`, `save`, `run`, `propose`, `approve`.
 - A tool raises `Problem` for "cannot do that": the decorator turns it into `{"error": …}`
   for the model. It never returns a bare traceback. It journals what it did.
-- A tool that makes a lasting thing checks the plan gate (`self._gate`); a tool that acts
+- A tool that makes a lasting thing checks the build gate (`self._gate`); a tool that acts
   outward checks `self._in_automation()`. Walls live in the tool, not in the rules prompt.
 - Before adding a tool, ask whether an existing one with one more argument does it; the model
   reads every tool's schema on every turn, and the count is 70 (the next slice trims it).

@@ -27,9 +27,9 @@ a short list of pieces is ported deliberately (see `docs/design/build-plan.md`).
   section numbers to the log files.
 - `docs/design/research/` — the five research reports behind the design.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
-  records, entities, facts, notes, goals, modules, threads, plans, sources, skills (readers, procedures, pipelines),
+  records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines),
   automations), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
-  `claude -p` runs, the turn, builds, pipelines, the scheduler, the second opinion), `journeys/`
+  `claude -p` runs, the turn, the workflow build and its parts, pipelines, the scheduler, the second opinion), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
@@ -63,7 +63,7 @@ just turns          # how long the last turns took: wall, the model's time, step
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in
-`~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles, Alpha's own
+`~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles, `modules/<id>/` for each program module's workspace (Q38: its code, data and `module.duckdb`, under git), Alpha's own
 `files/<module>` for what it fetched or was given, `exports/`, `actions/` screenshots); the CLI on its own defaults to
 `~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and
 acceptance runs use a scratch one so the owner's world stays untouched). Builds are

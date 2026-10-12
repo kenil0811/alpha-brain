@@ -73,6 +73,11 @@ class AnswerBody(BaseModel):
     text: str
 
 
+class AnswersBody(BaseModel):
+    """Several questions asked in one turn, answered at once: ask id → the person's words."""
+    answers: dict[str, str]
+
+
 class FolderBody(BaseModel):
     path: str
 
@@ -99,3 +104,14 @@ class NoteBody(BaseModel):
     body: str
     summary: str | None = None
 
+
+class AgreeWorkflowBody(BaseModel):
+    """The person's yes on their workflow page (§12): what they said about Alpha's
+    suggestions ({id: "accept" | "skip"}) and their answers to the questions, by number."""
+    suggestions: dict[str, str] | None = None
+    answers: dict[str, str] | None = None
+
+
+class RunPartBody(BaseModel):
+    """The row a part runs on (§12)."""
+    row: str

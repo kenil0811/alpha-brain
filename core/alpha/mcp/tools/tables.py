@@ -396,7 +396,7 @@ class Tables(Base):
                     source: str = "stated", assumed: str | None = None) -> dict[str, Any]:
         """Only for a plain log with nowhere to keep it ("log two boiled eggs" and no food
         table exists): make the simplest table for it (in module, made if it doesn't exist)
-        and add this first row. One per message. Anything more is a plan (plan_propose).
+        and add this first row. One per message. Anything more is a workflow (workflow_draft).
         source and assumed: as in records_add."""
         said = self.world.journal.read(self.turn) if self.turn else None
         if not said or said["kind"] != "said" or said["actor"] != "person":
@@ -404,7 +404,7 @@ class Tables(Base):
         if self.world.store.one(
             "SELECT 1 FROM journal WHERE kind = 'made' AND json_extract(data, '$.turn') = ?"
             " AND json_extract(data, '$.table_start') = 1", (self.turn,)):
-            return {"error": "One new table per message; propose a plan for more."}
+            return {"error": "One new table per message; write the workflow page for more."}
         module_id = None
         if module:
             try:

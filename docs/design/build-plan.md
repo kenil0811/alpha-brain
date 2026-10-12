@@ -125,7 +125,7 @@ entities(id PK, kind, canonical, aliases JSON, keys JSON, merged_into, created_a
 
 modules(id PK, name, goal, project, created_at, updated_at)
 threads(id PK, title, kind, state, module, session_ref, created_at, updated_at)
-  kind: build | deepen | research | job | topic;  state: open | working | waiting | done
+  kind: build | job | topic | chat;  state: open | working | waiting | done   (research and deepen gone 12 Oct, Q40)
 ```
 
 *As of 2 Oct the schema has grown past this (every difference in §4.10): journal kind `checked`;
@@ -260,9 +260,10 @@ testable; the World path from `ALPHA_WORLD`; stdio transport.
 `connections_list`, `folder_watch`, `files_sync`, `documents_list`, `document_read`,
 `page_read`, `page_script`, `reader_save` (gated for a new name), `reader_run`, `readers_list`,
 `browser_signin`, `calendar_connect`, `calendar_sync`, `calendar_events`. Automations:
-`automation_create` (gated), `automations_list`, `automation_update`. Plans and sources:
-`plan_propose`, `plan_approve`, `plan_resume`, `plan_decline`, `source_add` (gated),
-`sources_list`. Person: `ask_person`, `propose`.*
+`automation_create` (gated), `automations_list`, `automation_update`. Sources: `source_add`
+(gated), `sources_list`. Workflows (§12): `workflow_draft`, `workflow_revise`, `workflow_agree`,
+`workflow_decline`, `workflow_resume` (the `plan_*` and `research_*` tools went 12 Oct, Q40).
+Person: `ask_person`, `propose`.*
 
 ### 3.7 CLI (`cli.py`, script `alpha`)
 
