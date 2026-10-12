@@ -33,16 +33,17 @@ class Tables(Base):
         rows_are: str | None = None,
         identity_field: str | None = None,
     ) -> dict[str, Any]:
-        """Create a table for a kind of thing the person keeps. name: snake_case, e.g.
-        food_log. fields: [{"name", "kind", "label"?, "unit"?, "required"?, "choices"?,
-        "relation"?}], kind one of text, long_text, number, date, datetime, bool, choice,
-        multichoice, status, url, relation. id, created_at and updated_at exist on every record
-        already. Design it the way a thoughtful product person would: the fields the person
-        will want to see and filter by, units on numbers, a date field when things happen on a
-        day. module: the module's id or name it belongs to (create the module first).
-        rows_are: "person" or "organisation" when each row is one (a contact, a company), with
-        identity_field the field holding what identifies it for sure (an email address or a
-        profile URL): every row is then linked to that person or organisation across Alpha."""
+        """Create a table for a kind of thing the person keeps. name: snake_case, e.g. food_log.
+        fields: [{"name", "kind", "label"?, "unit"?, "required"?, "choices"?, "relation"?}], kind
+        one of text, long_text, number, date, datetime, bool, choice, multichoice, status, url,
+        relation, place. A place is where something is (a city, an address): write its words, and
+        Alpha locates it on the map. id, created_at and updated_at exist on every record already.
+        Design it the way a thoughtful product person would: the fields the person will want to see
+        and filter by, units on numbers, a date field when things happen on a day. module: the
+        module's id or name it belongs to (create the module first). rows_are: "person" or
+        "organisation" when each row is one (a contact, a company), with identity_field the field
+        holding what identifies it for sure (an email address or a profile URL): every row is then
+        linked to that person or organisation across Alpha."""
         refused = self._gate("Making a table")
         if refused:
             return refused
@@ -70,6 +71,27 @@ class Tables(Base):
         self._did("changed", f"Linked {described['title']} to {rows_are}s by {identity_field}"
                   f" ({described['linked']} rows).", {"collection": name}, described["module"])
         return described
+
+    @tool
+    def collection_propose_place(self, name: str, field: str, why: str) -> dict[str, Any]:
+        """Suggest turning a text field that holds cities or addresses into a place field, so
+        its records show on a map. Propose it when you see such a field; it changes only on the
+        person's yes, and then every record's words are located. why: one sentence on what the
+        map would show them."""
+        spec = next((f for f in self.world.collections.describe(name)["fields"]
+                     if f["name"] == field), None)
+        if spec is None or spec["kind"] not in {"text", "long_text"}:
+            return {"error": f"'{field}' is not a text field of {name}; only one can become"
+                              " a place."}
+        title = self.world.collections.describe(name)["title"]
+        label = spec.get("label") or field.replace("_", " ")
+        jid = self.world.journal.append(
+            "proposed", f"Show {title} on a map: make {label} a place field",
+            data={"place_field": {"collection": name, "field": field}, "why": why,
+                  "turn": self.turn},
+            module=self.module, thread=self.thread,
+        )
+        return {"proposed": jid}
 
     @tool
     def record_history(self, collection: str, id: str) -> list[dict[str, Any]]:

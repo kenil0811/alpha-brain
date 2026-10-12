@@ -96,6 +96,17 @@ def routes(app: FastAPI, s: Served) -> None:
             if body.accept and live:
                 scheduler.builds()
             return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
+        place = proposal["data"].get("place_field")
+        if place:
+            # the person's yes is the change; nothing else needs to run (Q44, design G13)
+            if body.accept:
+                done = world.collections.to_place(place["collection"], place["field"])
+                world.journal.append(
+                    "changed", f"Made {place['field']} of {done['title']} a place field:"
+                    f" {done['located']} located, {done['unplaced']} not found.",
+                    actor="person", data={"proposal": pid, "collection": place["collection"]},
+                    module=done.get("module"))
+            return {"decided": pid, "turn": None}
         instruction = proposal["data"].get("instruction")
         if instruction:
             # The person's yes is what makes it an instruction; nothing else needs to run.

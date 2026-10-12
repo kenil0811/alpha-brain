@@ -46,5 +46,5 @@ testpaths = ["core/tests"]
 addopts = "-p no:cacheprovider"
 
 [[tool.mypy.overrides]]
-module = ["EventKit", "Foundation", "docx", "pptx"]
+module = ["CoreLocation", "EventKit", "Foundation", "docx", "pptx"]
 ignore_missing_imports = true
