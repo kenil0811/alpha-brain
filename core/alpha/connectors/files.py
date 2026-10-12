@@ -8,6 +8,7 @@ While the core runs, FSEvents (through watchdog) triggers the same sync for the 
 
 from __future__ import annotations
 
+import csv
 import logging
 import shutil
 import sqlite3
@@ -77,6 +78,35 @@ def extract(path: Path) -> str:
     except Exception as e:  # a damaged or protected file: say so, keep going
         raise Problem(f"Couldn't read {path.name}: {e}") from e
     raise Problem(f"{path.name} isn't a kind of file Alpha reads yet.")
+
+
+def table_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    """Every row of a table file (CSV, TSV, or an Excel workbook's first sheet), whole: the
+    header row's names and each row as text by header. Never cut, unlike a document's text."""
+    suffix = path.suffix.lower()
+    if suffix in {".csv", ".tsv", ".txt"}:
+        with path.open(newline="", encoding="utf-8-sig", errors="replace") as f:
+            sample = f.read(64_000)
+            f.seek(0)
+            try:
+                dialect: Any = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+            except csv.Error:
+                dialect = "excel-tab" if suffix == ".tsv" else "excel"
+            grid = [r for r in csv.reader(f, dialect) if any(c.strip() for c in r)]
+    elif suffix == ".xlsx":
+        from openpyxl import load_workbook
+
+        wb = load_workbook(str(path), read_only=True, data_only=True)
+        grid = [["" if v is None else str(v) for v in r]
+                for r in wb.worksheets[0].iter_rows(values_only=True)
+                if any(v is not None and str(v).strip() for v in r)]
+    else:
+        raise Problem(f"{path.name} isn't a table file (CSV, TSV or Excel).")
+    if not grid:
+        raise Problem(f"{path.name} has no rows.")
+    head = [h.strip() or f"column {i + 1}" for i, h in enumerate(grid[0])]
+    return head, [{h: (r[i].strip() if i < len(r) else "") for i, h in enumerate(head)}
+                  for r in grid[1:]]
 
 
 def files_dir(module_name: str | None = None) -> Path:
@@ -263,17 +293,18 @@ class Files:
     # ---- taking a file in: fetched from a connection, or given by the person ----
 
     def take(self, source: Path, *, module: str | None, origin: str, name: str | None = None,
-             move: bool = False, turn: str | None = None, by: str = "alpha") -> dict[str, Any]:
-        """Keep a file in Alpha's folder for the module and make it a document (its text
-        extracted where Alpha reads the kind; otherwise kept as a file alone). `origin` says
-        where it came from (a page or message address, or "the person"). Returns the
-        document."""
+             move: bool = False, turn: str | None = None, by: str = "alpha",
+             folder: str | None = None) -> dict[str, Any]:
+        """Keep a file in Alpha's folder for the module (in its `folder` there, such as
+        "sources" for what the person uploads) and make it a document (its text extracted where
+        Alpha reads the kind; otherwise kept as a file alone). `origin` says where it came from
+        (a page or message address, or "the person"). Returns the document."""
         source = Path(source)
         if not source.is_file():
             raise Problem(f"There is no file at {source}.")
         module_row = self.world.modules.get(module) if module else None
-        target = unique_path(files_dir(module_row["name"] if module_row else None),
-                             name or source.name)
+        home = files_dir(module_row["name"] if module_row else None)
+        target = unique_path(home / folder if folder else home, name or source.name)
         if move:
             shutil.move(str(source), target)
         else:

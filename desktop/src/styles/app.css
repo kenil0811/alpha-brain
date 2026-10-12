@@ -146,6 +146,8 @@ a { color: var(--primary); }
 .edgetog--rail { left: calc(var(--rail-w) - var(--space-3)); }
 .edgetog--panel { right: calc(var(--panel-w) - var(--space-3)); }
 .app:has(.rail:hover) .edgetog--rail, .app:has(> .assist:hover) .edgetog--panel, .edgetog:hover, .edgetog:focus-visible { opacity: 1; pointer-events: auto; }
+/* a folded panel always shows the way back out (the owner, 12 Oct) */
+.app--rail-collapsed .edgetog--rail, .app--assistant-folded .edgetog--panel { opacity: 1; pointer-events: auto; }
 .app--resizing .edgetog { opacity: 0; pointer-events: none; }
 
 /* ---------- the sidebar (9 Oct, the UI rulebook §4) ---------- */

@@ -205,8 +205,10 @@ def routes(app: FastAPI, s: Served) -> None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(up.filename or "").suffix
                                              ) as tmp:
                 tmp.write(await up.read())
+            # what the person uploads is kept in the project's own sources folder
             doc = Files(world).take(Path(tmp.name), module=module_id, origin="the person",
-                                    name=up.filename or "file", move=True, by="person")
+                                    name=up.filename or "file", move=True, by="person",
+                                    folder="sources")
             taken.append(doc)
         if table and record and field and taken:
             current = world.collections.get(table, record)
@@ -215,14 +217,21 @@ def routes(app: FastAPI, s: Served) -> None:
             person_did("changed", f"Put {taken[0]['title']} on a row of {table}.", table,
                        {"record": record, "document": taken[0]["id"]})
         started = None
-        if module_id and live and not (table and record):
+        if live and not (table and record):
             names = ", ".join(d["title"] for d in taken)
+            # where each file is kept, so Alpha never has to ask the person for it
+            where = "; ".join(f"{d['title']} is document {d['id']} at {d['path']}"
+                              for d in taken)
             started = running.start(AskBody(
-                text=f"The person added {names} to this module. Read what Alpha can read of"
-                     " it and put what belongs in the module's tables, saying where each value"
-                     " came from (source=the file's name); keep the document's id on a file"
-                     " field where a table has one. If the file isn't a kind Alpha reads, say"
-                     " so in one line.", module=module_id), actor="alpha",
+                text=f"The person added {names}"
+                     f"{' to this module' if module_id else ''} ({where}). A table file (CSV,"
+                     " TSV, Excel) goes into a table whole with file_to_table, every column"
+                     " unless the person said which; with no table for it yet, propose one."
+                     " Otherwise read what Alpha can read of it and put what belongs in the"
+                     " module's tables, saying where each value came from (source=the file's"
+                     " name); keep the document's id on a file field where a table has one. If"
+                     " the file isn't a kind Alpha reads, say so in one line.",
+                module=module_id), actor="alpha",
                 journal_as=f"Read {names} the person added.")
         return {"documents": taken, "turn": started}
 

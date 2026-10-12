@@ -156,7 +156,7 @@ def test_dropped_files_are_kept_and_alpha_reads_them(world: World, tmp_path: Pat
     assert out.status_code == 200, out.text
     docs = out.json()["documents"]
     assert docs[0]["title"] == "statement.csv" and docs[0]["origin"] == "the person"
-    assert Path(docs[0]["path"]).is_relative_to(files_dir("Advisory"))
+    assert Path(docs[0]["path"]).parent == files_dir("Advisory") / "sources"  # its own folder
     entry = world.journal.recent(1)[0]
     assert entry["kind"] == "changed" and entry["actor"] == "person"
     assert entry["text"].startswith("Added statement.csv into Advisory")
@@ -255,3 +255,26 @@ def test_a_table_exports_as_csv_and_excel(world: World) -> None:
     assert wb.worksheets[0].title == "Attachments"
     assert [c.value for c in wb.worksheets[0][2]][0] == "Data, with a comma"
     assert world.journal.recent(1)[0]["text"].startswith("Exported Attachments (1 rows)")
+
+
+def test_a_table_file_is_imported_whole_every_column(world: World, tmp_path: Path) -> None:
+    """The owner, 12 Oct: an uploaded CSV goes in whole, every column unless they said which."""
+    world.collections.create("contacts", "Contacts", [{"name": "name", "kind": "text"}])
+    rows = "".join(f"Person {i},p{i}@x.com,0{2100 + i},\"1,{i:03d}\"\n" for i in range(3000))
+    src = tmp_path / "contacts.csv"
+    src.write_text("Name,Email,Zip,Amount\n" + rows)  # far past a document's text limit
+    doc = Files(world).take(src, module=None, origin="the person", folder="sources")
+    t = Tools(world, turn=said(world, "import it"))
+    out = t.file_to_table(doc["id"], "contacts", key_column="Email")
+    assert (out["rows"], out["added"]) == (3000, 3000)
+    assert set(out["fields_added"]) == {"email", "zip", "amount"}  # Name matched its label
+    first = world.collections.query("contacts", where={"email": "p0@x.com"})[0]
+    assert (first["name"], first["zip"], first["amount"]) == ("Person 0", "02100", 1000)
+    assert first["_provenance"]["source"] == "contacts.csv"
+    again = t.file_to_table(doc["id"], "contacts", key_column="Email")
+    assert (again["added"], again["unchanged"]) == (0, 3000)  # a second import updates
+    assert "no column" in t.file_to_table(doc["id"], "contacts", columns=["Phone"])["error"]
+    # without a key, each row is matched on its place in the file
+    world.collections.create("loose", "Loose", [{"name": "x", "kind": "text"}])
+    assert t.file_to_table(doc["id"], "loose", columns=["Name"])["added"] == 3000
+    assert t.file_to_table(doc["id"], "loose", columns=["Name"])["added"] == 0

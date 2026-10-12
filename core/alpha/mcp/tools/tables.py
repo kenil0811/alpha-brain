@@ -3,9 +3,11 @@ lists, the one-row log."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from alpha.connectors.browser import Browser
+from alpha.connectors.files import Files, table_rows
 from alpha.mcp.tools.base import Base, counts_and_ids, provenance_words, tool
 from alpha.world.store import Problem
 
@@ -222,6 +224,71 @@ class Tables(Base):
                 "sample": rows[:3], **({"warning": warning} if warning else {})}
 
     @tool
+    def file_to_table(self, document: str, collection: str, key_column: str | None = None,
+                      columns: list[str] | None = None) -> dict[str, Any]:
+        """Import a table file the person gave (CSV, TSV or Excel; by document id, path or file
+        name) into a table, whole: every row is read in the core, never through the document's
+        text. Take every column (columns=None) unless the person named which, or you proposed
+        fewer and they agreed; a column the table lacks is added as a field. key_column: a
+        column unique per row (an id, an email, a link), so importing again updates instead of
+        duplicating; without one, each row is matched on its place in the file. The table must
+        exist (collection_create, inside a plan's build)."""
+        doc = Files(self.world).read(document, 0, 0)
+        path = Path(doc["path"])
+        head, rows = table_rows(path)
+        unknown = [c for c in (columns or []) + ([key_column] if key_column else [])
+                   if c not in head]
+        if unknown:
+            raise Problem(f"{path.name} has no column {unknown}; its columns are {head}.")
+        taken = columns or head
+        desc = self.world.collections.describe(collection)
+        have = {f["name"]: f for f in desc["fields"]}
+        by_label = {str(f.get("label") or "").casefold(): f["name"] for f in desc["fields"]}
+        names: dict[str, str] = {}
+        for c in taken:
+            slug = "_".join("".join(ch if ch.isalnum() else " " for ch in c.lower()).split())
+            names[c] = by_label.get(c.casefold()) or (slug if slug and slug != "id"
+                                                      else f"{slug or 'column'}_value")
+        new = []
+        for c in taken:
+            if names[c] in have:
+                continue
+            filled = [r[c] for r in rows if r[c]]
+            new.append({"name": names[c], "label": c,
+                        "kind": "number" if filled and all(_number(v) is not None
+                                                          for v in filled) else "text"})
+        key = names[key_column] if key_column else "source_row"
+        if not key_column and key not in have:
+            new.append({"name": key, "label": "Row in the file", "kind": "text"})
+        if new:
+            self.world.collections.add_fields(collection, new)
+        kinds = {f["name"]: f["kind"] for f in
+                 self.world.collections.describe(collection)["fields"]}
+
+        def value(name: str, text: str) -> Any:
+            return _number(text) if kinds[name] == "number" and _number(text) is not None \
+                else text
+        records = [{**{names[c]: value(names[c], r[c]) for c in taken if r[c]},
+                    **({} if key_column else {key: f"{path.name}#{i + 2}"})}
+                   for i, r in enumerate(rows)]
+        result = self.world.collections.upsert(
+            collection, key, [r for r in records if r.get(key) not in (None, "")],
+            {"by": "alpha", "turn": self.turn, "source": path.name})
+        no_key = sum(1 for r in records if r.get(key) in (None, ""))
+        self._did(
+            "did",
+            f"Imported {path.name} into {desc['title']}: {len(rows)} rows,"
+            f" {result['added']} new, {result['updated']} updated, {result['unchanged']}"
+            f" unchanged" + (f", {result['invalid']} set aside" if result["invalid"] else "")
+            + (f", {no_key} without {key_column}" if no_key else "") + ".",
+            {"collection": collection, "document": doc["id"], **counts_and_ids(result)},
+            desc["module"],
+        )
+        return {"rows": len(rows), "columns": taken, "fields_added": [f["name"] for f in new],
+                **{k: v for k, v in result.items() if k != "ids"},
+                **({"without_key": no_key} if no_key else {})}
+
+    @tool
     def records_update(
         self, collection: str, id: str, values: dict[str, Any], revision: int,
         source: str | None = None, assumed: str | None = None,
@@ -357,3 +424,15 @@ class Tables(Base):
                   f"{provenance_words(prov)}.",
                   {"collection": slug, "record": row["id"], "values": values}, module_id)
         return {"table": described, "row": row}
+
+
+def _number(text: str) -> float | int | None:
+    """A cell's number, read as a person writes it ("1,200", "$40", "12%"), or None."""
+    clean = text.strip().replace(",", "").lstrip("$£€").rstrip("%")
+    if len(clean) > 1 and clean[0] == "0" and clean[1] != ".":
+        return None  # a code with its leading zero (a zip, an id) stays words
+    try:
+        n = float(clean)
+    except ValueError:
+        return None
+    return int(n) if n.is_integer() else n
