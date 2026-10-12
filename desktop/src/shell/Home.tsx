@@ -1,6 +1,6 @@
 /**
- * Home: a single centred column with no page header bar (the UI rulebook §11). A heading block
- * (today's date and a greeting), **one Today card** (what needs the person, what Alpha
+ * Home: a header like every page's — the greeting and date on the left, the next event on the right
+ * (the owner, 11 Oct) — then a single centred column (the UI rulebook §11): **one Today card** (what needs the person, what Alpha
  * did, what is coming up, and what Alpha is working on), the modules as cards that open, and,
  * for a new workspace only, a few first steps. Nothing here is decoration: each card is
  * something to answer or open, and words only where the thing does not say itself (9 Oct,
@@ -23,7 +23,8 @@ import { ActionCard } from "./ActionCard";
 import { ModuleGlyph } from "./moduleIcons";
 import { OpenCard } from "./OpenCard";
 import type { Surface } from "./Rail";
-import { Badge, Button, InfoTip, ListRow, MetricTile, Notice, SectionCard, Trouble } from "../ui";
+import { Badge, Button, InfoTip, ListRow, MetricTile, Notice, PageHeader, SectionCard, Trouble } from "../ui";
+import type { ReactNode } from "react";
 import { ArrowRight, ActivityIcon, Check, Eye, FolderOpen, ICON, ICON_SM, ModuleIcon, PlusIcon, Zap, X } from "../ui/icons";
 
 function greeting(): string {
@@ -182,7 +183,7 @@ function Failure({ e, client, onGo, onOpenThread, onDone }: { e: JournalEntry; c
   );
 }
 
-export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThread }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void; onOpenThread: (id: string) => void }) {
+export function Home({ setup, client, version, onGo, onChanged, onAsk, onNew, onOpenThread }: { setup?: ReactNode; client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void; onOpenThread: (id: string) => void }) {
   const [home, setHome] = useState<HomeData | null>(null);
   const [homeError, setHomeError] = useState<string | null>(null);
   const [homeTick, setHomeTick] = useState(0);
@@ -242,11 +243,22 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
   const top = (modules ?? []).filter((m) => !m.parent);
 
   return (
+    <>
+    <PageHeader
+      left={<div className="home__head"><span className="home__greeting serif">{greeting()}</span><span className="home__date">{date}</span></div>}
+      right={
+        next ? (
+          <div className="home__next">
+            <span className="home__nextwhen">{next.all_day ? `${dayText(new Date(next.starts_at))}, all day` : `${dayText(new Date(next.starts_at))}, ${timeText(new Date(next.starts_at))}`}</span>
+            <span className="home__nexttitle">{next.title}</span>
+          </div>
+        ) : home ? (
+          <span className="home__next home__next--none">No events coming up <InfoTip text="From the calendar connected in Intelligence › Connections." /></span>
+        ) : undefined
+      }
+    />
     <div className="page page--home">
-      <header className="home__hero">
-        <div className="eyebrow">{date}</div>
-        <h1 className="home__greeting">{greeting()}</h1>
-      </header>
+      {setup}
 
       <section className="card today" aria-label="Today">
         {homeError ? <Trouble onRetry={() => setHomeTick((n) => n + 1)}>Couldn't load today's summary: {homeError}</Trouble> : null}
@@ -256,7 +268,6 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             <div className="today__tiles">
               <MetricTile label="Needs you" value={needs.length} attention={needs.length > 0} basis="" />
               <MetricTile label="Done today" value={home.ran_today} basis={home.failed_today ? `${home.failed_today} didn't work` : ""} attention={home.failed_today > 0} />
-              <MetricTile label="Coming up" value={next ? (next.all_day ? "All day" : timeText(new Date(next.starts_at))) : "None"} basis={next ? `${dayText(new Date(next.starts_at))} · ${next.title}` : "Calendar empty or not connected"} />
             </div>
 
             {message ? <Notice>{message}</Notice> : null}
@@ -367,5 +378,6 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         </SectionCard>
       ) : null}
     </div>
+    </>
   );
 }

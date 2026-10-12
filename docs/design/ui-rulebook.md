@@ -144,7 +144,7 @@ Every screen lives inside the same three-part frame:
 
 **Sidebar | Main area | Assistant panel**
 
-- **One header line.** The sidebar's top row, every page's header and the assistant's header share one height, so their bottom edges form a single line across the window. **Home is exempt:** it has no page header (§11) (the owner, 11 Oct).
+- **One header line.** The sidebar's top row, every page's header and the assistant's header share one height, so their bottom edges form a single line across the window, Home's included (the owner, 11 Oct, evening: Home has a header too). The header, both panels and the window's top bar share one colour; Settings › Appearance can change it, and the centre's colour, and the fonts.
 - **Nothing sits above a page's header.** Notices about setup or the runtime go inside the page body or, for setup, on Home only.
 - **No separate title bar.** The sidebar's top row doubles as the Mac's title bar, beside the window controls.
 - **Panel widths.** Each side panel has three widths: normal, wide and folded.
@@ -592,12 +592,10 @@ When a request would share data with an outside service, an amber notice asks fi
 
 ## 11. Home
 
-A single centred column with room to breathe, and no page header bar (the one page exempt from the shared header line).
+A header like every page's: the greeting (serif) and today's date on the left, the next event from the connected calendar on the right (when and what; "No events coming up" otherwise). Below it, a single centred column with room to breathe (the owner, 11 Oct, evening).
 
 0. **Setting up** (only until it's done; only on Home) (the owner, 11 Oct): a quiet card for what Alpha still needs (the account it thinks with, the browser it reads with), each with its one button. It never appears on any other page.
-1. **Heading block**
-   - a small stone-grey eyebrow with today's date;
-   - a large serif greeting.
+1. **Heading:** in the header (above); the Today card no longer repeats the next event.
 2. **Today card**
    - **Side-by-side tiles:**
      - **Needs you:** the count.
@@ -801,7 +799,7 @@ And:
 
 Everything elsewhere in this rulebook is a default. These are not.
 
-1. Every screen sits in the three-part frame with one shared header line. Home is exempt from the header line; nothing sits above a page's header.
+1. Every screen sits in the three-part frame with one shared header line, Home included; nothing sits above a page's header.
 2. Settings is always the last sidebar item; New is always the last item in the project list.
 3. Never in the sidebar: group headings, a theme switch, status lines, or extra destinations.
 4. Section switches, in the header or in the body, are one toggle and never wrap.

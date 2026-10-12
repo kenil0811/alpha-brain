@@ -40,7 +40,7 @@ import { useStepBack } from "./shell/stepBack";
 import { ModulePage } from "./modules/ModulePage";
 import { RecordPage } from "./modules/RecordPage";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
-import { useTheme } from "./shell/theme";
+import { useLook, useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
 import { AssistantProvider, Button, InfoTip } from "./ui";
 import { ChevronsLeft, ChevronsRight, ICON_SM } from "./ui/icons";
@@ -91,6 +91,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [focusThread, setFocusThread] = useState<{ id: string; at: number } | null>(null);
   const [focusConversation, setFocusConversation] = useState<{ id: string; at: number } | null>(null);
   const [theme, setTheme] = useTheme();
+  const [look, setLook] = useLook();
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
   const [thinking, setThinking] = useState<Thinking | null>(null);
 
@@ -334,21 +335,6 @@ export function App({ client: injected }: { client?: Client } = {}) {
             Alpha is back. Anything that was running can be asked again.
           </div>
         ) : null}
-        {runtime.kind === "connected" && chosen && needsSetup && !down && surface.kind === "home" ? (
-          <div className="page firstrun">
-            <div className="card firstrun__card">
-              <div className="firstrun__head">
-                <h2>
-                  Set up Alpha <InfoTip text={`Two things, once: the ${chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.`} />
-                </h2>
-              </div>
-              <div className="list">
-                <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
-                <BrowserRow client={runtime.client} status={browser} onStatus={setBrowser} />
-              </div>
-            </div>
-          </div>
-        ) : null}
         {runtime.kind !== "connected" ? (
           // The frame stays whole while Alpha starts or is away (the UI rulebook §3): a slim notice,
           // a quiet line, and the assistant's place kept on the right.
@@ -371,13 +357,25 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "assistant" ? (
           <AssistantPage client={runtime.client} version={versions.conversation} onChanged={changed} conversationId={surface.id ?? null} onOpen={(id) => setSurface({ kind: "assistant", id })} draft={draft} onDraftTaken={() => setDraft(null)} />
         ) : surface.kind === "home" ? (
-          <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
+          <Home setup={chosen && needsSetup && !down ? (
+            <div className="card firstrun__card">
+              <div className="firstrun__head">
+                <h2>
+                  Set up Alpha <InfoTip text={`Two things, once: the ${chosenName} account Alpha thinks with, and the browser it reads pages with. Nothing leaves your Mac. Settings has both too.`} />
+                </h2>
+              </div>
+              <div className="list">
+                <ClaudeRow which={thinking?.route ?? "claude"} client={runtime.client} status={chosen} onStatus={(s) => { if (thinking?.route === "codex") setThinking((t) => (t ? { ...t, codex: s } : t)); else { setClaude(s); setThinking((t) => (t ? { ...t, claude: s } : t)); } }} />
+                <BrowserRow client={runtime.client} status={browser} onStatus={setBrowser} />
+              </div>
+            </div>
+          ) : null} client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={say} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onOpenRecord={(table, id) => setSurface({ kind: "record", module: surface.id, table, id })} modules={modules} />
         ) : surface.kind === "record" ? (
           <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} module={surface.module} table={surface.table} id={surface.id} version={(versions.modules[surface.module] ?? 0) + versions.all} modules={modules} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} onGo={setSurface} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} look={look} onLook={setLook} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "new-project" ? (
           <NewProjectPage client={runtime.client} onSay={say} onGo={setSurface} onOpenChat={() => togglePanel(true)} onName={setDraftName} onCancel={() => setSurface(beforeNew.current)} />
         ) : surface.kind === "connection" ? (

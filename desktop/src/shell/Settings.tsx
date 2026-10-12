@@ -16,7 +16,7 @@ import { PREF, usePreference } from "../core/preferences";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { DEFAULT_WORKSPACE, WorkspaceTile, type Surface } from "./Rail";
-import { ThemeControl, type Theme } from "./theme";
+import { HEAD_FONTS, ThemeControl, UI_FONTS, contrast, type Look, type Theme } from "./theme";
 import { Badge, Button, Confirm, Dropdown, InfoTip, ListRow, Notice, PageHeader, SectionCard, Switch, Tabs, Trouble } from "../ui";
 import { ICON, PermissionIcon, ThinksIcon } from "../ui/icons";
 
@@ -370,7 +370,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "help", label: "Help" },
 ];
 
-export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking, onChanged, onGo }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void; onChanged?: () => void; onGo?: (s: Surface) => void }) {
+export function Settings({ client, theme, onTheme, look = {}, onLook, claude, onClaude, thinking, onThinking, onChanged, onGo }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; look?: Look; onLook?: (l: Look) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void; onChanged?: () => void; onGo?: (s: Surface) => void }) {
   const [section, setSection] = useState<SectionId>("overview");
   const [companion, setCompanion] = useState<boolean | null>(null);
   const [data, setData] = useState<DataInfo | null>(null);
@@ -430,6 +430,7 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
     appearance: (
       <SectionCard title="Appearance">
         <ListRow title="Theme" controls={<ThemeControl theme={theme} onChange={onTheme} />} />
+        <LookRows look={look} onLook={onLook} />
         <ListRow title="Motion and contrast" description="Follow your Mac" />
         <ListRow
           title={<>Companion <InfoTip text="Its look and size are Alpha's, on Alpha's agent page." /></>}
@@ -504,6 +505,36 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
           {section === "overview" ? order.map((id) => <div key={id}>{cards[id]}</div>) : cards[section]}
         </div>
       </div>
+    </>
+  );
+}
+
+/** Appearance's own colours and fonts (11 Oct, the owner): the header and both panels share one
+ *  colour, the centre has its own; each font from a short list. Empty is the theme's. */
+function LookRows({ look, onLook }: { look: Look; onLook?: (l: Look) => void }) {
+  const set = (change: Partial<Look>) => onLook?.({ ...look, ...change });
+  const ink = typeof window === "undefined" ? "" : getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
+  const hard = (colour?: string) => !!colour && /^#[0-9a-f]{6}$/i.test(ink) && contrast(colour, ink) < 4.5;
+  const colour = (label: string, key: "chrome" | "canvas", fallback?: string) => (
+    <ListRow
+      title={label}
+      description={hard(look[key]) ? "Text may be hard to read on this colour." : look[key] ? undefined : "The theme's"}
+      controls={
+        <>
+          <input type="color" className="colorpick" aria-label={label} value={look[key] ?? fallback} onChange={(e) => set({ [key]: e.target.value })} />
+          {look[key] ? <Button size="sm" variant="ghost" onClick={() => set({ [key]: undefined })}>Reset</Button> : null}
+        </>
+      }
+    />
+  );
+  const css = typeof window === "undefined" ? null : getComputedStyle(document.documentElement);
+  const hex = (name: string) => { const v = css?.getPropertyValue(name).trim() ?? ""; return /^#[0-9a-f]{6}$/i.test(v) ? v : undefined; };
+  return (
+    <>
+      {colour("Header and panels", "chrome", hex("--surface"))}
+      {colour("Centre", "canvas", hex("--bg"))}
+      <ListRow title="Text font" controls={<Dropdown size="sm" label="Text font" value={look.fontUi ?? ""} options={UI_FONTS} onChange={(v) => set({ fontUi: v || undefined })} />} />
+      <ListRow title="Heading font" controls={<Dropdown size="sm" label="Heading font" value={look.fontHead ?? ""} options={HEAD_FONTS} onChange={(v) => set({ fontHead: v || undefined })} />} />
     </>
   );
 }

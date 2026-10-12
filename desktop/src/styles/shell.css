@@ -57,3 +57,7 @@
 .navbtn__input { flex: 1; min-width: 0; height: 28px; margin: calc(-1 * var(--space-1)) 0; padding: 0 var(--space-2); border: 1px solid var(--primary); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; outline: none; }
 /* the project being made: in the sidebar while its page is open, its name as typed (or "New project") */
 .navbtn--draft .navbtn__text { font-style: italic; }
+/* Appearance's colour swatches (11 Oct): a square well, the kit's border */
+.colorpick { width: var(--space-8); height: var(--space-8); padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: none; cursor: pointer; }
+.colorpick::-webkit-color-swatch-wrapper { padding: 2px; }
+.colorpick::-webkit-color-swatch { border: 0; border-radius: var(--radius-control); }

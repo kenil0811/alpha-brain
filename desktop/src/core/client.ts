@@ -683,7 +683,8 @@ export const NOT_ANSWERING = "Alpha isn't answering right now. It starts again o
  *  is written for people (`Problem`); anything else gets one plain sentence, and the detail stays
  *  in the core's log. */
 export function plainError(status: number, said: unknown): string {
-  const text = typeof said === "string" ? said.trim() : "";
+  // a path in brackets is for the log, not for people: "installer is missing (connectors/…)" → "installer is missing."
+  const text = typeof said === "string" ? said.trim().replace(/\s*\([^()]*[\\/][^()]*\)/g, "") : "";
   const readable = text && text.length < 400 && !/traceback|exception|error:|\bat \w+\.|\n\s+at |sqlite|keyerror|typeerror/i.test(text);
   if (status >= 400 && status < 500 && readable) return text;
   if (status === 404) return "That isn't there any more.";
