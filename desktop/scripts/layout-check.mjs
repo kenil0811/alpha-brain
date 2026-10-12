@@ -119,6 +119,7 @@ function detect() {
   if (main) for (const e of [main, ...main.querySelectorAll("*")]) {
     if (e !== main && !scrollsX(e)) continue;
     if (e !== main && e.querySelector("table,[role=grid],canvas,svg.map,.board,.timeline,.calendar")) continue;
+    if (e !== main && e.matches(".mstrip")) continue; // the numbers strip runs sideways by design (the owner, 9 Oct)
     if (e.scrollWidth > e.clientWidth + 1 && vis(e)) out.push({ k: "MAIN-HSCROLL", d: desc(e).slice(0, 60), sw: e.scrollWidth, cw: e.clientWidth });
   }
   if (document.documentElement.scrollWidth > vw + 1) out.push({ k: "MAIN-HSCROLL", d: "the page", sw: document.documentElement.scrollWidth, cw: vw });

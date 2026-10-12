@@ -598,7 +598,7 @@ The one place where everything important and urgent shows, as cards (the owner, 
 
 0. **Setting up** (only until it's done; only on Home) (the owner, 11 Oct): a quiet card for what Alpha still needs (the account it thinks with, the browser it reads with), each with its one button. It never appears on any other page.
 1. **The card grid**
-   - Columns as many as fit at 280px or wider; one row unit (128px); one gap. A card is **S** (1 row), **M** (2) or **L** (3) high, and **wide** (2 columns) only when it has many items. Content never grows a card: extra items fold into "N more", which opens the card's page.
+   - Columns as many as fit at 240px or wider; one row unit (128px); one gap. A card is **S** (1 row), **M** (2) or **L** (3) high, and **wide** (2 columns) only when it has many items. Content never grows a card: extra items fold into "N more", which opens the card's page.
    - **Every card has a purpose, written as its title** ("Answer 3 things so Alpha can go on", "Fix 2 things that didn't work"), and **every item has its action** (Approve, Try again, Prepare, Open, Next step). A card with nothing to act on is not shown.
    - **Alpha decides the cards** — which, how big, and how each is presented (decision list, number, timeline, preview…) from what it is for. Until the core composes Home (core-changes G10), the window builds them by a fixed rule: what needs a yes, what broke, today's events, Alpha's guesses to check, what Alpha is working on, active goals, what got done, then one S card per project and **Start something new**.
    - Most urgent first, top-left; dense packing fills holes, but the reading order stays the priority order.

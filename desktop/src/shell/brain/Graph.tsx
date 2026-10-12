@@ -130,6 +130,8 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
   };
   // the drawing is scaled to fit ("meet"): by its width or its height, whichever is tighter
   const unitsPerPixel = () => Math.max(W / (svg.current?.clientWidth || W), H / (svg.current?.clientHeight || H));
+  /** Labels read 12px on screen whatever the drawing's scale or zoom. */
+  const textSize = (12 * unitsPerPixel()) / view.k;
   const down = (e: ReactPointerEvent<SVGSVGElement>) => {
     if ((e.target as Element).closest(".gnode")) return;
     drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
@@ -242,7 +244,7 @@ export function GraphView({ client, data, onGo, onChanged }: { client: Client; d
                   >
                     <circle r={r} />
                     {named ? (
-                      <text className="gnode__label" y={r + 12 / view.k} fontSize={12 / view.k}>
+                      <text className="gnode__label" y={r + textSize} fontSize={textSize}>
                         {n.title.length > 28 ? `${n.title.slice(0, 27)}…` : n.title}
                       </text>
                     ) : null}

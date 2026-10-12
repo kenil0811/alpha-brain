@@ -23,9 +23,9 @@
 /* Settings: every section a card, in as many columns as fit. */
 /* Settings: the section list on the left (9 Oct, the owner), Overview's cards in columns, one
    section's card in a readable column */
-.setpage { display: grid; grid-template-columns: calc(var(--space-10) * 4) minmax(0, 1fr); gap: var(--space-6); align-items: start; } /* the list stays on the left at every size (11 Oct, the owner) */
+.setpage { display: grid; grid-template-columns: calc(var(--space-10) * 4.5) minmax(0, 1fr); gap: var(--space-4); align-items: start; } /* the list stays on the left at every size (11 Oct, the owner) */
 .setnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--header-h) + var(--space-6)); }
-.setnav button { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
+.setnav button { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: var(--text-2); font-size: var(--text-md); text-align: left; }
 .setnav button:hover { background: var(--hover); color: var(--text); }
 .setnav button[aria-selected="true"] { background: var(--primary-soft); color: var(--text); font-weight: 500; }
 .setnav__dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; flex: none; }

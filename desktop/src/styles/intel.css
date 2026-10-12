@@ -69,3 +69,4 @@
 .zoomctl__pad { display: grid; grid-template-areas: ". up ." "left fit right" ". down ."; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .zoomctl__up { grid-area: up; } .zoomctl__left { grid-area: left; } .zoomctl__fit { grid-area: fit; } .zoomctl__right { grid-area: right; } .zoomctl__down { grid-area: down; }
 .zoomctl__zoom { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.zoomctl .iconbtn { width: var(--space-6); height: var(--space-6); }

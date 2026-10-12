@@ -47,8 +47,8 @@
   /* the one header height: the sidebar's top row, every page's header and the assistant's */
   --header-h: 52px;
   /* Home's and the dashboard's cards (12 Oct): one row unit (S = 1, M = 2, L = 3 rows) and the
-     narrowest a card may be, so a line stays easy to read */
-  --card-row: 128px; --card-min: 280px;
+     narrowest a card may be (240px: two side by side in the middle at 1100), so a line stays easy to read */
+  --card-row: 128px; --card-min: 240px;
   /* and the one line under it, border included in that height (everything is border-box), so the three lines meet */
   --header-line: 1px solid var(--border);
   /* icons come in two sizes (ui/icons.ts: ICON_SM, ICON) */
@@ -735,7 +735,6 @@ body.avatar-window #root { height: 100vh; }
 .editable { cursor: text; }
 
 /* ---------- second brain: Home, People, Activity, threads, companion ---------- */
-.home__head { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
 .needs { display: flex; flex-direction: column; gap: var(--space-2); }
 .need { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); border-left: 3px solid var(--warn); }
 .need h3 { font-size: var(--text-lg); }
