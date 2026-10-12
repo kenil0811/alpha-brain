@@ -207,13 +207,14 @@ const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g
 
 /** The project's table view (a saved view may be Calendar, Board…). Saves the view in the world it
  *  runs on: a scratch copy unless ALPHA_WINDOW_URL points at a window on a real one. */
-async function toTable(p) {
-  const combo = p.locator("main [role=combobox]").filter({ hasText: /^\s*(Board|List|Gallery|Calendar|Timeline|Dashboard|Chart|Form)\s*$/ }).first();
-  if (!(await combo.count())) return;
+async function toView(p, name) {
+  const combo = p.locator("main [role=combobox]").filter({ hasText: /^\s*(Table|Graph|Board|Gallery|Calendar|Timeline|Dashboard|Form)\s*$/ }).first();
+  if (!(await combo.count()) || (await combo.innerText()).trim() === name) return;
   await combo.click({ timeout: 4000 });
-  await p.getByRole("option", { name: /^Table/ }).first().click({ timeout: 4000 });
+  await p.getByRole("option", { name: new RegExp(`^${name}`) }).first().click({ timeout: 4000 });
   await p.waitForTimeout(400);
 }
+const toTable = (p) => toView(p, "Table");
 
 async function openFirstRow(p) {
   await toTable(p);
@@ -246,10 +247,12 @@ async function plan(browser, base) {
   await ctx.close();
   const states = [{ n: "home", h: "#/home" }];
   for (const [n, h] of [["network", "#/network"], ["intelligence", "#/intelligence/second-brain"], ["settings", "#/settings"]]) {
-    states.push({ n, h });
+    // the view is kept in the world: Second Brain's own state is its Graph, chosen every time
+    states.push(n === "intelligence" ? { n, h, a: (pg) => toView(pg, "Graph") } : { n, h });
     tabs[n].forEach((t, i) => states.push({ n: `${n}-${slug(t)}`, h, a: (pg) => clickTab(pg, i) }));
   }
   const skipped = [];
+  states.push({ n: "intelligence-second-brain-table", h: "#/intelligence/second-brain", a: toTable }); // Graph is its default view
   if (first) {
     states.push({ n: "project", h: first, a: toTable }, { n: "record", h: first, a: openFirstRow });
   } else skipped.push("project, record: no project in this world");
