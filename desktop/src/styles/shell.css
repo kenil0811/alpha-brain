@@ -44,8 +44,6 @@
 .setkeys dd { margin: 0; color: var(--text-2); font-size: var(--text-sm); }
 
 /* Home: tiles as wide as what they hold; a module card with no description draws no gap. */
-.today__tiles .mtile { flex: 0 0 auto; }
-.home__modules .modcard p:empty { display: none; }
 .setgrid .lrow { flex-wrap: wrap; padding: var(--space-2) 0; }
 .setgrid .lrow__body { flex: 1 1 160px; }
 

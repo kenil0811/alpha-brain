@@ -46,6 +46,9 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1); --dur-quick: 120ms; --dur-state: 200ms;
   /* the one header height: the sidebar's top row, every page's header and the assistant's */
   --header-h: 52px;
+  /* Home's and the dashboard's cards (12 Oct): one row unit (S = 1, M = 2, L = 3 rows) and the
+     narrowest a card may be, so a line stays easy to read */
+  --card-row: 128px; --card-min: 280px;
   /* and the one line under it, border included in that height (everything is border-box), so the three lines meet */
   --header-line: 1px solid var(--border);
   /* icons come in two sizes (ui/icons.ts: ICON_SM, ICON) */
@@ -260,8 +263,8 @@ a { color: var(--primary); }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 @media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
 
-/* ---------- home (9 Oct, the UI rulebook §11): one centred column, one Today card ---------- */
-.page--home { max-width: 880px; display: flex; flex-direction: column; gap: var(--space-6); padding-top: var(--space-6); }
+/* ---------- home (12 Oct, the owner; the UI rulebook §11): a grid of cards ---------- */
+.page--home { max-width: none; display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-4); }
 /* Home's header (11 Oct, the owner): the greeting and date on the left, the next event on the right */
 .home__head { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; white-space: nowrap; }
 .home__greeting { font-size: var(--text-xl); font-weight: 500; color: var(--text); }
@@ -270,28 +273,42 @@ a { color: var(--primary); }
 .home__nextwhen { color: var(--text-3); }
 .home__nexttitle { overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
 .home__next--none { color: var(--text-3); }
+/* the grid: as many columns as fit at --card-min, one row unit, one gap; dense fills the holes
+   an S card leaves, while the order in the page (keyboard, screen readers) stays most urgent first */
+.hgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr)); grid-auto-rows: var(--card-row); grid-auto-flow: dense; gap: var(--space-4); }
+.hcard { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); min-width: 0; overflow: hidden; box-shadow: var(--shadow-card); }
+.hcard--s { grid-row: span 1; }
+.hcard--m { grid-row: span 2; }
+.hcard--l { grid-row: span 3; }
+.hcard--wide { grid-column: span 2; }
+.hcard--wide .hcard__items { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--space-4); align-content: start; }
+.hcard--new { border-style: dashed; background: transparent; box-shadow: none; }
+.hcard__title { margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.hcard__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 0; }
+.hcard__more { align-self: flex-start; margin-top: auto; flex: none; }
+.hitem { display: flex; align-items: center; gap: var(--space-2); min-height: var(--space-12); padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.hitem:last-child { border-bottom: 0; }
+.hitem__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.hitem__title { font-size: var(--text-md); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.hitem__title--open { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: var(--text-md); }
+.hitem__title--open:hover { text-decoration: underline; }
+.hitem__detail, .hcard__detail { font-size: var(--text-sm); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hitem__acts { display: flex; gap: var(--space-1); flex: none; }
+.hcard__number, .hcard__project { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex: 1; }
+.hcard__big { font-size: var(--text-2xl); font-weight: 600; color: var(--text); line-height: 1; }
+.hcard__unit { font-size: var(--text-sm); color: var(--text-2); }
+.hcard__project .hcard__detail { flex: 1; min-width: 0; }
+.hcard__act { margin-left: auto; flex: none; }
+.hcard__ico { width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none; }
+.hcard__ico svg { width: var(--icon); height: var(--icon); }
+.page--needs { max-width: 880px; display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-4); }
 .today { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); box-shadow: var(--shadow-card); }
-.today__tiles { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.today__tiles .mtile { box-shadow: none; }
-.today__part { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--line); padding-top: var(--space-4); }
-.today__title { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-base); }
 .today__item { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
 .today__item:last-child { border-bottom: 0; }
 .today__ask { margin: 0; font-size: var(--text-base); font-weight: 600; color: var(--navy); }
 .today__input { flex: 1; min-width: 160px; }
 .today__quiet { margin: 0; color: var(--text-2); font-size: var(--text-base); }
-.home__modules { display: flex; flex-direction: column; gap: var(--space-3); }
 .sectitle { font-size: var(--text-base); font-weight: 600; }
-.modgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
-.modcard { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-height: 150px; text-align: left; box-shadow: var(--shadow-card); }
-.modcard__top { display: flex; align-items: center; gap: var(--space-3); }
-.modcard__titles { min-width: 0; }
-.modcard__titles h3 { font-size: var(--text-base); overflow-wrap: anywhere; }
-.modcard__ico { width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none; }
-.modcard__ico svg { width: var(--icon); height: var(--icon); }
-.modcard p { margin: 0; color: var(--text-2); font-size: var(--text-md); overflow-wrap: anywhere; }
-.modcard__foot { margin-top: auto; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
-.modcard--new { border-style: dashed; background: transparent; box-shadow: none; }
 
 /* ---------- module page ---------- */
 .blocks { display: flex; flex-direction: column; gap: var(--space-3); }

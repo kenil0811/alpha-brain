@@ -23,7 +23,7 @@ import { AssistantPage } from "./assistant/AssistantPage";
 import { AssistantPanel } from "./assistant/AssistantPanel";
 import { ActivityPage } from "./shell/ActivityPage";
 import { AgentPage } from "./shell/AgentPage";
-import { Home } from "./shell/Home";
+import { Home, NeedsPage } from "./shell/Home";
 import { Intelligence } from "./shell/Intelligence";
 import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
@@ -312,7 +312,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const scopeId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : null;
   const scopeModule = scopeId ? (modules.find((m) => m.id === scopeId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? (namesPref?.network || "Network") : surface.kind === "entry" ? "Activity" : "Intelligence";
+    surface.kind === "module" || surface.kind === "record" ? (scopeModule ? moduleWords(scopeModule) : "Project") : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" || surface.kind === "needs" ? "Home" : surface.kind === "settings" ? "Settings" : surface.kind === "new-project" ? "New project" : surface.kind === "people" || surface.kind === "entity" ? (namesPref?.network || "Network") : surface.kind === "entry" ? "Activity" : "Intelligence";
 
   return (
     <AssistantProvider say={say}>
@@ -373,6 +373,8 @@ export function App({ client: injected }: { client?: Client } = {}) {
               </div>
             </div>
           ) : null} client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
+        ) : surface.kind === "needs" ? (
+          <NeedsPage client={runtime.client} version={versions.home} onChanged={changed} />
         ) : surface.kind === "module" ? (
           <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={say} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onOpenRecord={(table, id) => setSurface({ kind: "record", module: surface.id, table, id })} modules={modules} />
         ) : surface.kind === "record" ? (

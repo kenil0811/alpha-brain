@@ -1,7 +1,7 @@
 /**
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
- * rebuilt on main's Surface). `#/home`, `#/network`, `#/network/<id>`, `#/m/<id>`, `#/m/<id>/<table>/<record>` (a record's page; `new` for one not made yet),
+ * rebuilt on main's Surface). `#/home`, `#/needs` (Needs you in full), `#/network`, `#/network/<id>`, `#/m/<id>`, `#/m/<id>/<table>/<record>` (a record's page; `new` for one not made yet),
  * `#/intelligence/<tab>`, `#/intelligence/agents/<id>`, `#/intelligence/connections/<id>`,
  * `#/intelligence/facts/<id>`, `#/assistant`, `#/assistant/<conversation>`, `#/new-project`, `#/settings`, `#/activity/<id>` (one entry's
  * page), and `#/activity`, which opens the assistant panel's bell over the page that is open. Old addresses still work: `#/people…`
@@ -14,6 +14,8 @@ export function pathFor(surface: Surface): string {
   switch (surface.kind) {
     case "home":
       return "/home";
+    case "needs":
+      return "/needs";
     case "activity":
       return "/activity";
     case "entry":
@@ -54,7 +56,7 @@ export function surfaceFromPath(path: string): Surface | null {
   if (!head) return null;
   if (head === "people" || head === "network") return rest ? { kind: "entity", id: rest } : { kind: "people" };
   if (head === "activity" && rest) return { kind: "entry", id: rest };
-  if (head === "home" || head === "activity" || head === "settings" || head === "new-project") return knownSurface({ kind: head });
+  if (head === "home" || head === "needs" || head === "activity" || head === "settings" || head === "new-project") return knownSurface({ kind: head });
   if (head === "m" && rest && third && parts[3]) return { kind: "record", module: rest, table: third, id: parts[3] };
   if (head === "m" && rest) return { kind: "module", id: rest };
   if (head === "assistant") return rest ? { kind: "assistant", id: rest } : { kind: "assistant" };
