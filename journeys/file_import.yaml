@@ -1,0 +1,15 @@
+name: file_import
+title: A CSV the person adds goes into the table whole, every column, without asking where it is
+why: On 12 Oct the owner found an uploaded CSV read only in part and Alpha asking for the file's
+  location. The app now keeps the file in the project's sources folder and tells the turn where it
+  is, and a table file goes in whole with file_to_table, every column unless the person said which.
+steps:
+  - seed: {kind: table, name: contacts, title: Contacts,
+      fields: [{name: name, kind: text, label: Name}], rows: [{name: Seed person}]}
+  - upload: {name: contacts.csv, header: "Name,Email,City,Deal size,Zip",
+      row: "Person {i},p{i}@example.com,City {i},\"1,{i:03d}\",0{i:04d}", rows: 400}
+checks:
+  - journal: {kind: did, contains: "Imported contacts.csv into Contacts: 400 rows"}
+  - no_new_tables: {}
+  - judge: "Did Alpha import the file into Contacts with all 400 rows and every column (Email,
+      City, Deal size, Zip), without asking the person where the file is or for a copy of it?"

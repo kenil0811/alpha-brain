@@ -179,6 +179,20 @@ def table_rows(path: Path) -> TableFile:
     )
 
 
+def upload_prompt(docs: list[dict[str, Any]], in_module: bool) -> str:
+    """The turn that follows files the person added: where each is kept, so Alpha never asks the
+    person for it, and that a table file goes in whole (the owner, 12 Oct)."""
+    names = ", ".join(d["title"] for d in docs)
+    where = "; ".join(f"{d['title']} is document {d['id']} at {d['path']}" for d in docs)
+    return (f"The person added {names}{' to this module' if in_module else ''} ({where})."
+            " A table file (CSV, TSV, Excel) goes into a table whole with file_to_table, every"
+            " column unless the person said which; with no table for it yet, propose one."
+            " Otherwise read what Alpha can read of it and put what belongs in the module's"
+            " tables, saying where each value came from (source=the file's name); keep the"
+            " document's id on a file field where a table has one. If the file isn't a kind"
+            " Alpha reads, say so in one line.")
+
+
 def files_dir(module_name: str | None = None) -> Path:
     """Alpha's own folder for files it fetched or was given: one folder per module under the
     data directory (`files/<module>`), `files/loose` for the rest. Never the person's folders."""

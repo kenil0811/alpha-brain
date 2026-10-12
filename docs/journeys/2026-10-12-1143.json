@@ -1,0 +1,49 @@
+[
+ {
+  "name": "file_import",
+  "title": "A CSV the person adds goes into the table whole, every column, without asking where it is",
+  "steps": [
+   {
+    "seed": "table contacts, 1 rows",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "The person added contacts.csv (contacts.csv is document d_dd9f2c382819 at /var/folders/6l/2vh8nqcn1rgbtz03gcxc__yr0000gn/T/alpha-journeys/2026-10-12-1143/files/loose/sources/contacts.csv). A table file (CSV, TSV, Excel) goes into a table whole with file_to_table, every column unless the person said which; with no table for it yet, propose one. Otherwise read what Alpha can read of it and put what belongs in the module's tables, saying where each value came from (source=the file's name); keep the document's id on a file field where a table has one. If the file isn't a kind Alpha reads, say so in one line.",
+    "ok": true,
+    "reply": "I imported all 400 rows of contacts.csv into the Contacts table, with every column. Nothing was skipped or invalid.\n\n- **New fields:** the table only had a name field, so I added email, city, deal size and zip.\n- **Matching:** I used email to match rows, so importing the file again will update them instead of duplicating them.\n- **Seed row:** the original \"Seed\" row is still there, and its new fields are empty.\n- **Placeholder data:** the rows look like test data (Person 0, p0@example.com, City 0). Tell me if you meant to import something else.",
+    "steps": 4,
+    "seconds": 22.5,
+    "upload": "contacts.csv, 400 rows"
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "did",
+     "contains": "Imported contacts.csv into Contacts: 400 rows"
+    },
+    "ok": true,
+    "why": "1 did entry: Imported contacts.csv into Contacts: 400 rows, 400 new, 0 updated, 0 unchanged; new fields: Email, City, Deal size, Zip..",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Did Alpha import the file into Contacts with all 400 rows and every column (Email, City, Deal size, Zip), without asking the person where the file is or for a copy of it?",
+    "ok": true,
+    "why": "The answer states all 400 rows were imported into Contacts with every column (adding email, city, deal size, zip) and never asks the person for the file's location or a copy.",
+    "seconds": 7.3
+   }
+  ],
+  "seconds": 29.8,
+  "error": null
+ }
+]

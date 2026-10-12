@@ -28,7 +28,7 @@ from alpha.api.views import (
     module_card,
     relation_titles,
 )
-from alpha.connectors.files import Files, unique_path
+from alpha.connectors.files import Files, unique_path, upload_prompt
 from alpha.context.summary import module_summary
 from alpha.runtime import parts
 from alpha.world.modtables import is_qualified
@@ -244,18 +244,8 @@ def routes(app: FastAPI, s: Served) -> None:
         started = None
         if live and not (table and record):
             names = ", ".join(d["title"] for d in taken)
-            # where each file is kept, so Alpha never has to ask the person for it
-            where = "; ".join(f"{d['title']} is document {d['id']} at {d['path']}"
-                              for d in taken)
             started = running.start(AskBody(
-                text=f"The person added {names}"
-                     f"{' to this module' if module_id else ''} ({where}). A table file (CSV,"
-                     " TSV, Excel) goes into a table whole with file_to_table, every column"
-                     " unless the person said which; with no table for it yet, propose one."
-                     " Otherwise read what Alpha can read of it and put what belongs in the"
-                     " module's tables, saying where each value came from (source=the file's"
-                     " name); keep the document's id on a file field where a table has one. If"
-                     " the file isn't a kind Alpha reads, say so in one line.",
+                text=upload_prompt(taken, in_module=bool(module_id)),
                 module=module_id), actor="alpha",
                 journal_as=f"Read {names} the person added.")
         return {"documents": taken, "turn": started}
