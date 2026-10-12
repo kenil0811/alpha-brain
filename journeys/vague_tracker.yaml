@@ -1,14 +1,13 @@
 name: vague_tracker
-title: A vague tracker ask is asked about, looked into and proposed, and nothing is built
+title: A vague tracker ask is asked about, then drafted as a workflow page, and nothing is built
 why: On 2 Oct Alpha built nine tables and eight readers blind for "a live daily tracker" and
-  ran out of time. Since 9 Oct (Q37) a vague ask gets the job's questions first, then a research
-  pass, then a plan of pieces. Nothing lasting is made before the person's yes.
+  ran out of time. Since 11 Oct (§12) a vague ask gets the interview's questions, then the
+  workflow page in the person's words. Nothing lasting is made before the person's yes.
 steps:
   - say: "i want to keep track of all the ai conferences happening in london this year"
   - say: "It's for me; I want to decide which ones to go to; today I search by hand now and
-      then; nothing exists yet. Go ahead and look into it."
+      then; nothing exists yet. Go ahead and write it up."
 checks:
-  - research: {state: done, looks_min: 1}
-  - plan: {state: proposed, pieces_min: 2, kinds: [kept]}
+  - workflow: {state: drafted, steps_min: 2, keeps_min: 1}
   - no_new_tables: {}
   - no_new_modules: {}

@@ -128,16 +128,3 @@ def test_the_journal_has_its_hot_indexes(world: World) -> None:
 
 def test_a_crashed_build_waits_longer_each_time() -> None:
     assert [automation.backoff_s(n) for n in (1, 2, 3, 4, 5, 6)] == [30, 60, 120, 240, 480, 600]
-
-
-def test_a_stopped_plan_is_recent_for_two_days(world: World) -> None:
-    plan = world.plans.propose("Old", "x")
-    world.plans.approve(plan["id"], "yes")
-    thread = world.modules.open_thread("Old", "build", None)
-    world.plans.start(plan["id"], thread["id"])
-    world.plans.stop(plan["id"], "stopped")
-    assert [p["id"] for p in world.plans.recent()] == [plan["id"]]
-    with world.store.tx() as db:  # three days old: no longer recent
-        db.execute("UPDATE plans SET updated_at = '2026-09-30T08:00:00+00:00' WHERE id = ?",
-                   (plan["id"],))
-    assert world.plans.recent() == []

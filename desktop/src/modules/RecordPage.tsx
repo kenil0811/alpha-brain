@@ -25,7 +25,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CoreError, say } from "../core/client";
-import type { Client, JournalEntry, ModuleCard, RecordRow, Relations, TableDesc } from "../core/client";
+import type { Client, JournalEntry, ModuleCard, Part, RecordRow, Relations, TableDesc } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { BackLink } from "../shell/BackLink";
 import type { Surface } from "../shell/Rail";
@@ -109,6 +109,19 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
   const [lastSaved, setLastSaved] = useState<number | null>(() => savedAt.get(here) ?? null);
   const [now, setNow] = useState(() => Date.now());
   const [cancelling, setCancelling] = useState(false);
+  // What Alpha can do with this thing (main's §12): the module's parts that run when asked, and
+  // Try again for a part that could not fill its fields.
+  const [parts, setParts] = useState<Part[]>([]);
+  const [running, setRunning] = useState<string | null>(null);
+  const [partNote, setPartNote] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    // a module that isn't a program has no parts: its answer, or any failure, is none
+    Promise.resolve().then(() => client.parts(module)).then((p) => live && setParts(p)).catch(() => live && setParts([]));
+    return () => {
+      live = false;
+    };
+  }, [client, module, version]);
   // "Saved" for a few seconds after a save, then "Last saved 14:32"
   useEffect(() => {
     if (lastSaved === null) return;
@@ -419,6 +432,21 @@ export function RecordPage({ client, module, table, id, version, modules, onGo, 
               <h1 className="serif">{titleText}</h1>
             </div>
           </div>
+          {row ? (() => {
+            const mine = parts.filter((p) => p.fills.thing === table || table.endsWith(`_${p.fills.thing}`));
+            const failed = new Set(Object.values(row.provenance.fields ?? {}).filter((o) => o.problem && o.part).map((o) => o.part as string));
+            const actions = [...mine.filter((p) => p.when === "asked").map((p) => ({ id: p.id, title: p.title, again: false })), ...mine.filter((p) => failed.has(p.id) && p.when !== "asked").map((p) => ({ id: p.id, title: p.title, again: true }))];
+            return actions.length ? (
+              <div className="row thing__actions" role="group" aria-label="What Alpha can do">
+                {actions.map((a) => (
+                  <Button key={a.id} size="sm" disabled={running !== null} onClick={() => { setRunning(a.id); setPartNote(null); void client.runPart(module, a.id, row.id).then(() => { setPartNote({ ok: true, text: `${a.title}: done.` }); setTick((n) => n + 1); onChanged(); }).catch((e: unknown) => setPartNote({ ok: false, text: say(e) })).finally(() => setRunning(null)); }}>
+                    {running === a.id ? "Running…" : a.again ? `Try again: ${a.title}` : a.title}
+                  </Button>
+                ))}
+                {partNote ? <Notice tone={partNote.ok ? undefined : "bad"}>{partNote.text}</Notice> : null}
+              </div>
+            ) : null;
+          })() : null}
           <SectionCard title="Details" info="Every field can be edited here, and saves when you leave it.">
             <div className="recform">
               {fields.map((f) => {

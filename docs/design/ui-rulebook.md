@@ -219,7 +219,7 @@ Every screen lives inside the same three-part frame:
 - Opening a project lands on its data, never on a description of the project.
 - By default, the first tab is the first collection; for Task manager, it is the Queue.
 
-**Below the table** (the owner, 9 Oct: replaces the header tabs of Q40)
+**Below the table** (the owner, 9 Oct: replaces the header tabs of Q42)
 
 - The data comes first. As the person keeps scrolling: **Files**, then **Intelligence**, then **Governance**.
   - Intelligence holds what Alpha does here: its activity, its agents and automations (Alpha first among them — Alpha is an agent), its goals (with Add goal, Add agent, Add automation), Alpha's editable page about the project, and **Sub-projects** (the projects inside this one).

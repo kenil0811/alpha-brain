@@ -1,0 +1,94 @@
+[
+ {
+  "name": "workflow_interview",
+  "title": "A module ask is interviewed, then drafted as \"Your workflow\" in the person's words",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard — Austin",
+    "ok": true,
+    "removed": {
+     "lists": 0,
+     "tables": 3,
+     "rows": 37,
+     "readers": 0,
+     "automations": 0,
+     "threads": 1,
+     "notes": 1,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "I've put that as a question card — let me know which fits (or just tell me in your own words) and I'll pick it back up from there.",
+    "steps": 5,
+    "seconds": 68.1
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles, density, drive-time population, the traffic on the road and at the main intersection, then I score fourteen things like visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted \"Your workflow\" — Car wash site scorecard, Austin. It picks up where the earlier version left off: Alpha reads broker emails daily, geocodes each site, pulls households/density/drive-time population and traffic (road + intersection), checks it against your gates (45,000 households, 30,000 cars/day, and the 0.8-acre lot size from before), scores the 14 items 1–10 with notes, and drafts the investor memo — nothing gets emailed until you ask.\n\nFour things are open on the page, each with my pick: 14 vs. 15 scorecard items (the earlier build had grown to 15), whether to keep the lot-si",
+    "steps": 11,
+    "seconds": 259.6
+   },
+   {
+    "say": "Add a minimum lot size of 0.8 acres as one of the checks.",
+    "ok": true,
+    "reply": "Added — the 0.8-acre minimum lot size is now its own explicit gate on the page, right alongside the households (≥45,000) and traffic (≥30,000 cars/day) checks, and it's shown with its source (your own words). That also settles one of the four open questions from the last draft; three remain: 14 vs. 15 scorecard items, how listings reach Alpha (Gmail automatically vs. you pasting them in), and the drive-time window — each with my pick on the page. Let me know when you're ready to go ahead, or if there's anything else to change.",
+    "steps": 10,
+    "seconds": 179.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 3,
+     "keeps_min": 2,
+     "suggestions_min": 1
+    },
+    "ok": true,
+    "why": "'Car wash site scorecard — Austin' v1 is drafted: 6 steps: Catch new broker listings (alpha); Gather the site's numbers (alpha); Apply the gates (alpha); Score the 14-item scorecard (both); Write the investor memo (both); Send the memo to investors (alpha, asks). Keeps car_wash_sites, car_wash_site_scores. 3 suggestions: Reuse the Austin screener's data pipeline; Carry a status per site; Flag near-misses. Settings 6, questions 4.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version": 2
+    },
+    "ok": false,
+    "why": "'Car wash site scorecard — Austin' v4 is drafted: 6 steps: Catch new broker listings (alpha); Gather the site's numbers (alpha); Apply the gates (alpha); Score the 14-item scorecard (you); Write the investor memo (alpha); Send the memo to investors (both, asks). Keeps car_wash_sites, car_wash_site_scores. 1 suggestions: Track competitor density too. Settings 8, questions 3.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 507.0,
+  "error": null
+ }
+]

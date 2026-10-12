@@ -29,8 +29,10 @@ rsync -a --copy-links \
   --exclude 'lib/python3.13/tkinter' --exclude 'lib/python3.13/turtledemo' --exclude '__pycache__' \
   --exclude 'bin/idle*' --exclude 'bin/pip*' --exclude 'bin/pydoc*' --exclude 'bin/*-config' \
   --exclude 'bin/python' --exclude 'bin/python3' --exclude 'lib/python3.13/config-3.13-darwin' \
-  --exclude 'lib/python3.13/site-packages' --exclude 'lib/python3.13/ensurepip' \
+  --exclude 'lib/python3.13/site-packages' \
   "$PYDIR/" "$RT/python/"
+# ensurepip stays: a module's build makes its own venv with `$ALPHA_PYTHON -m venv`, which
+# needs it (found 11 Oct: the venv failed without it, so no module could be built elsewhere).
 PY=$RT/python/bin/python3.13
 
 echo "== the core and its locked packages"
@@ -57,6 +59,9 @@ rsync -a --exclude 'node_modules/.bin' --exclude '.DS_Store' "$ROOT/connectors/"
 
 echo "== a smoke test of the runtime from where it sits"
 PYTHONPATH=$RT/site-packages PYTHONNOUSERSITE=1 "$PY" -c "import alpha.cli, EventKit, fastapi, pydantic_core, uvicorn; print('python ok', alpha.cli.__name__)"
+VENV=$(mktemp -d)/venv
+"$PY" -m venv "$VENV" && "$VENV/bin/python" -m pip --version >/dev/null && echo "venv ok (a module's build can make its own)"
+rm -rf "$(dirname "$VENV")"
 (cd "$RT/connectors/browser" && "$RT/node/bin/node" -e "require('playwright-core'); console.log('node ok', process.version)")
 du -sh "$RT"
 

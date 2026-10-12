@@ -30,9 +30,6 @@ class Modules(Base):
         if refused:
             return refused
         module = self.world.modules.create(name, goal, parent=parent)
-        plan = self._building()
-        if plan and not plan["module"]:
-            self.world.plans.set_module(plan["id"], module["id"])
         where = f" inside {self.world.modules.path_words(module['parent'])}" \
             if module.get("parent") else ""
         self._did("made", f"Made the module {name}{where}.", {"module": module["id"]},
@@ -53,13 +50,13 @@ class Modules(Base):
 
     @tool
     def threads_list(self, state: str | None = None) -> list[dict[str, Any]]:
-        """Open pieces of work (builds, research, automations running, topics)."""
+        """Open pieces of work (builds, automations running, topics)."""
         return self.world.modules.threads(state)
 
     @tool
     def thread_open(self, title: str, kind: str, module: str | None = None) -> dict[str, Any]:
         """Open a thread for work that will take more than this turn or a long to-and-fro:
-        kind build, research, job or topic. The person sees it as a card; its
+        kind build, job or topic. The person sees it as a card; its
         conversation stays out of the main stream."""
         module_id = self.world.modules.get(module)["id"] if module else None
         thread = self.world.modules.open_thread(title, kind, module_id)

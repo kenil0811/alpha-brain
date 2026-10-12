@@ -6,8 +6,8 @@ the same model with web search and nothing of Alpha's (no world, no tools), a ju
 compares the two, and the verdict is journaled as `checked`. When they disagree on something the
 independent answer can source, Alpha gets the finding as a turn of its own: it corrects the
 records, tells the person in a line where the right number comes from, or says why it stands by
-its own. It runs after a turn that wrote values Alpha worked out itself, and on the trial of
-every finished build; `alpha check <turn>` runs it by hand.
+its own. It runs after a turn that wrote values Alpha worked out itself; `alpha check <turn>`
+runs it by hand.
 """
 
 from __future__ import annotations

@@ -33,7 +33,7 @@ export function bumpAll(v: Versions): Versions {
 
 /** The versions after a change report: only the scopes it touched move. */
 export function fold(v: Versions, c: Changed, moduleOf: (table: string) => string | null | undefined): Versions {
-  const any = c.journal > 0 || c.threads || c.plans || c.actions;
+  const any = c.journal > 0 || c.threads || c.workflows || c.actions;
   if (!any) return v;
   const tables = { ...v.tables };
   const modules = { ...v.modules };

@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from conftest import PIECES, building, researching
+from conftest import building
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -85,6 +85,51 @@ def test_decisions(world: World) -> None:
     proposal = next(i for i in needs if i["kind"] == "proposal")
     c.post(f"/api/proposals/{proposal['id']}/decide", json={"accept": False})
     assert c.get("/api/home").json()["needs_you"] == []
+
+
+def test_questions_asked_together_are_answered_together_or_one_by_one(world: World) -> None:
+    """Three questions in one turn (11 Oct, "I want a personal trainer"): the form answers
+    two at once in one turn; the third, answered on its own card, does not close the rest."""
+    seeded(world)
+    said = world.journal.append("said", "I want a personal trainer", actor="person")
+    asks = [world.journal.append("asked", q, data={"options": o, "turn": said})
+            for q, o in [("What should it do?", ["A program", "Logging", "Both"]),
+                         ("Where do you train?", ["Gym", "Home"]),
+                         ("Any program already?", [])]]
+    def runner(req: TurnRequest) -> RunResult:
+        return RunResult(reply="Noted.", ok=True, duration_ms=1)
+
+    c = client(world, runner=runner)
+    out = c.post("/api/asks/answer", json={"answers": {asks[0]: "Both", asks[1]: "Gym",
+                                                       asks[2]: ""}}).json()
+    assert len(out["answered"]) == 2 and out["turn"]
+    for _ in range(100):
+        if c.get(f"/api/turns/{out['turn']['id']}").json()["state"] == "done":
+            break
+        time.sleep(0.05)
+    sent = world.journal.recent(1, kinds=["said"])[0]["text"]
+    assert sent == "What should it do? — Both\nWhere do you train? — Gym"
+    assert [a["id"] for a in world.journal.open_asks() if a["data"].get("turn") == said] == [
+        asks[2]]
+    # The last one answered on its card: its own answer, nothing else closed.
+    c.post(f"/api/asks/{asks[2]}/answer", json={"text": "No"})
+    assert [a for a in world.journal.open_asks() if a["data"].get("turn") == said] == []
+    assert c.post("/api/asks/answer", json={"answers": {asks[0]: ""}}).status_code == 400
+
+
+def test_a_tap_on_one_card_leaves_the_cards_beside_it(world: World) -> None:
+    from alpha.runtime.turn import close_answered_asks
+    said = world.journal.append("said", "a trainer", actor="person")
+    asks = [world.journal.append("asked", q, data={"turn": said})
+            for q in ["What?", "Where?", "Already?"]]
+    world.journal.append("answered", "Both", actor="person", data={"ask": asks[0]})
+    close_answered_asks(world, "Both", None)  # the card's answer, as the next turn's words
+    assert [a["id"] for a in world.journal.open_asks()] == asks[1:]
+    # Words typed with nothing answered on a card answer every question of the turn.
+    said2 = world.journal.append("said", "a trainer", actor="person")
+    more = [world.journal.append("asked", q, data={"turn": said2}) for q in ["A?", "B?"]]
+    close_answered_asks(world, "gym, three days, nothing yet", None)
+    assert not [a for a in world.journal.open_asks() if a["id"] in more]
 
 
 def test_an_ask_can_be_dismissed_without_running_anything(world: World) -> None:
@@ -196,23 +241,6 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
     assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")
 
 
-def test_a_refused_decline_leaves_no_answer_and_starts_nothing(world: World) -> None:
-    """The panel once fired resume and decline together on "Leave it": the decline must be
-    refused on a building plan without journaling a No."""
-    t = researching(world, turn=world.journal.append("said", "track x", actor="person"))
-    pid = t.plan_propose("Track x", "A plan.", "show me x", pieces=PIECES)["plan"]
-    plan = world.plans.get(pid)
-    world.plans.approve(pid, "yes")
-    thread = world.modules.open_thread("Build: Track x", "build", None)
-    world.plans.start(pid, thread["id"])
-    c = client(world)
-    refused = c.post(f"/api/plans/{pid}/decline")
-    assert refused.status_code == 400 and "building" in refused.json()["error"]
-    assert not [e for e in world.journal.recent(10, kinds=["answered"])
-                if e["data"].get("proposal") == plan["proposal"]]
-    assert world.plans.get(pid)["state"] == "building"
-
-
 def test_a_modules_page_is_read_and_written_from_its_own_route(world: World) -> None:
     world.modules.create("Deals", goal="find a firm")
     c = TestClient(create_app(world, live=False))
@@ -293,7 +321,7 @@ def test_changes_say_what_moved_since_a_stamp(world: World) -> None:
     assert after["journal"] == 2 and after["tables"] == ["openings"]
     assert after["modules"] == [world.modules.get("Job Search")["id"]]
     assert after["entities"] == [priya["id"]] and set(after["kinds"]) == {"did", "noticed"}
-    assert after["threads"] is True and after["plans"] is False
+    assert after["threads"] is True and after["workflows"] is False
     assert after["at"] >= since
     again = c.get("/api/changes", params={"since": after["at"]}).json()
     assert again["journal"] == 0 and again["threads"] is False
@@ -346,18 +374,3 @@ def test_the_conversations_list_adds_the_finished_ones_when_asked(world: World) 
     assert open_one["id"] in live and done_one["id"] not in live
     everything = [x["id"] for x in c.get("/api/conversations?done=true").json()]
     assert open_one["id"] in everything and done_one["id"] in everything
-
-
-def test_approving_a_plan_in_the_app_carries_the_answers(world: World) -> None:
-    t = building(world, turn="j_1")
-    plan = world.plans.propose("P", "Body.", questions=[
-        {"text": "Daily or weekly?", "options": ["Daily", "Weekly"], "default": "Daily"}])
-    c = client(world)
-    home = c.get("/api/home").json()
-    shown = [i for lst in home.values() if isinstance(lst, list)
-             for i in lst if isinstance(i, dict) and i.get("plan") == plan["id"]]
-    assert not shown  # no proposal entry: this plan was made straight in the store
-    out = c.post(f"/api/plans/{plan['id']}/approve", json={"answers": {"0": "Weekly"}}).json()
-    assert out["state"] == "approved" and out["questions"][0]["answer"] == "Weekly"
-    assert "Weekly (their choice)" in out["approval"]
-    assert t  # the building tools fixture is unused here, kept for the world's shape

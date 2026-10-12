@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { say } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Plan, Research, Thread, Turn } from "../core/client";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Thread, Turn, Workflow } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { Activity } from "../shell/Activity";
@@ -23,9 +23,9 @@ import { useSpeech } from "../shell/voice";
 import { unfoldOnEmpty } from "../shell/Rail";
 import { Badge, Button, Dropdown, IconButton, PageHeader, Popover, Rich, Trouble, useContextMenu } from "../ui";
 import { ArchiveIcon, ArrowLeft, Check, ChevronDown, ChevronRight, DeleteIcon, ICON_SM, MoreVertical, NotificationIcon, PlusIcon, RenameIcon, RetryIcon, X } from "../ui/icons";
-import { AskCard, PlanCard } from "./Cards";
-// The plan cards live in Cards.tsx; main's callers (Home, the tests) import them from here.
-export { PlanCard, PlanPieces, PlanQuestions, defaultAnswers, defaultDecisions } from "./Cards";
+import { AskCard, AskGroup, WorkflowCard, groupAsks } from "./Cards";
+// The cards live in Cards.tsx; main's callers (Home, the tests) import them from here.
+export { AskGroup, Questions, WorkflowCard, defaultAnswers, groupAsks } from "./Cards";
 import { Composer } from "./Composer";
 import { experimentOn } from "../shell/experiments";
 import { bubblesFromReply, withoutBubbles } from "../shell/bubbles/bubbles";
@@ -59,26 +59,6 @@ function provenance(e: JournalEntry): string {
   return parts.join(" · ");
 }
 
-/** A reply that proposed a plan whose questions the core read out of it (Q36) shows without
- *  those numbered questions and their lead-in line: the plan card carries them with choices. */
-export function withoutPlanQuestions(text: string, plans: Plan[], turn: unknown): string {
-  const plan = plans.find((p) => p.turn === turn && p.state === "proposed" && (p.questions ?? []).length && (p.questions ?? []).every((q) => q.derived));
-  if (!plan) return text;
-  const lines = text.trimEnd().split("\n");
-  let i = lines.length - 1;
-  while (i >= 0 && !lines[i].trim()) i--;
-  let removed = 0;
-  while (i >= 0 && /^\s*(?:[-*•]|\d+[.)])\s+.*\?\s*$/.test(lines[i])) {
-    i--;
-    removed++;
-  }
-  if (!removed) return text;
-  while (i >= 0 && !lines[i].trim()) i--;
-  if (i >= 0 && /:\s*$/.test(lines[i]) && lines[i].length < 160) i--;
-  const rest = lines.slice(0, i + 1).join("\n").trimEnd();
-  return rest.length ? rest : text;
-}
-
 /** A reply whose trailing question became a card (Q35) shows without that question: the card
  *  carries it, so the person reads it once. A reply that was only the question shows nothing. */
 export function withoutCarded(text: string, asks: Ask[], turn: unknown): string | null {
@@ -94,14 +74,13 @@ export function withoutCarded(text: string, asks: Ask[], turn: unknown): string 
 
 /** One message: the person's on the right in ink; Alpha's on the left, light, with a tiny grey
  *  provenance line, status tags and Retry (which sends the person's last sentence again) under it.
- *  A reply whose questions became cards (Q35, Q36) shows without them; one that was only the
+ *  A reply whose question became a card (Q35) shows without it; one that was only the
  *  question shows nothing. */
-function Message({ e, onRetry, asks, plans }: { e: JournalEntry; onRetry?: () => void; asks?: Ask[]; plans?: Plan[] }) {
+function Message({ e, onRetry, asks }: { e: JournalEntry; onRetry?: () => void; asks?: Ask[] }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
   let text: string | null = e.kind === "replied" ? withoutBubbles(e.text) : e.text;
   if (text !== null && e.kind === "replied" && asks) text = withoutCarded(text, asks, e.data.turn);
-  if (text !== null && e.kind === "replied" && plans) text = withoutPlanQuestions(text, plans, e.data.turn);
   if (text === null) return null;
   const failed = e.kind === "failed";
   const prov = provenance(e);
@@ -189,8 +168,7 @@ export function Conversation({
   );
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [research, setResearch] = useState<Research[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
   const [showSteps, setShowSteps] = useState(false);
@@ -214,8 +192,7 @@ export function Conversation({
       .then((c) => {
         setTurns(c.turns);
         setThreads(c.threads);
-        setPlans(c.plans ?? []);
-        setResearch(c.research ?? []);
+        setWorkflows(c.workflows ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
         setConvos(c.conversations ?? []);
@@ -438,7 +415,7 @@ export function Conversation({
         );
       const before = e.kind === "said" ? undefined : [...said.slice(0, said.indexOf(e))].reverse().find((x) => x.kind === "said");
       const retry = before && !pending && (e.kind === "failed" || e === lastAi) ? () => void send(before.text) : undefined;
-      return <Message key={e.id} e={e} onRetry={retry} asks={openAsks} plans={plans} />;
+      return <Message key={e.id} e={e} onRetry={retry} asks={openAsks} />;
     });
   };
 
@@ -498,20 +475,19 @@ export function Conversation({
             {renderMessages(threadView.journal)}
             {!threadView.journal.length ? <p className="assist__empty">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
             {!pending
-              ? openAsks.map((a) => (
-                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                ))
+              ? groupAsks(openAsks).map((group) =>
+                  group.length > 1 ? (
+                    <AskGroup key={group[0].id} asks={group} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ) : (
+                    <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ),
+                )
               : null}
           </>
         ) : (
           <>
             {threads.filter((t) => t.kind !== "chat").map((t) => {
-              // A build or a research pass has no time limit: the person stops it when it
-              // isn't going anywhere.
-              const build = t.kind === "build" ? plans.find((p) => p.thread === t.id && (p.state === "building" || p.state === "approved")) : undefined;
               const last = t.state === "working" && t.steps?.length ? t.steps[t.steps.length - 1] : null;
-              const pass = t.kind === "research" ? research.find((r) => r.thread === t.id) : undefined;
-              const stop = build ? () => client.stopPlan(build.id) : pass ? () => client.stopResearch(pass.id) : null;
               return (
                 <div key={t.id} className="creation-wrap">
                   <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
@@ -522,34 +498,27 @@ export function Conversation({
                     <span className="faint">
                       {t.kind === "build" && t.state === "working"
                         ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch`
-                        : t.kind === "research" && t.state === "working"
-                          ? `Looking into how this is done · a few minutes · ${t.step_count ?? 0} steps · the plan comes here as a card`
-                          : t.state === "working"
+                        : t.state === "working"
                             ? "Alpha is working on this now"
                             : t.state === "waiting"
                               ? "Waiting for your answer · open it to reply here"
                               : "Its own thread · open it to talk about this work"}
                     </span>
-                    {last ? (
+                    {t.state === "working" && t.live?.doing ? (
+                      <span className="faint thread__last">… {t.live.doing}</span>
+                    ) : last ? (
                       <span className="faint thread__last">
                         {last.kind === "failed" ? <X size={ICON_SM} aria-label="failed" /> : <Check size={ICON_SM} aria-label="done" />} {last.text}
                       </span>
                     ) : null}
                   </button>
-                  {stop ? (
-                    <Button size="sm" variant="ghost" className="creation__stop" onClick={() => void stop().catch(() => undefined).finally(() => { load(); onChanged(); })}>
-                      Stop
-                    </Button>
-                  ) : null}
                 </div>
               );
             })}
             {renderMessages(turns)}
-            {plans
-              .filter((p) => p.state === "proposed" || p.state === "stopped")
-              .map((p) => (
-                <PlanCard key={p.id} plan={p} client={client} onDecided={() => { load(); onChanged(); }} />
-              ))}
+            {workflows.map((w) => (
+              <WorkflowCard key={w.id} workflow={w} client={client} onDecided={() => { load(); onChanged(); }} />
+            ))}
             {actions
               .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
               // A failed attempt is history once Alpha proposed the same thing again.
@@ -558,9 +527,13 @@ export function Conversation({
                 <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
               ))}
             {!pending
-              ? openAsks.map((a) => (
-                  <AskCard key={a.id} ask={a} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                ))
+              ? groupAsks(openAsks).map((group) =>
+                  group.length > 1 ? (
+                    <AskGroup key={group[0].id} asks={group} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ) : (
+                    <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
+                  ),
+                )
               : null}
           </>
         )}

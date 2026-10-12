@@ -1,4 +1,4 @@
-"""Routes for Home: what needs the person, their answers and decisions; plans; a turn stopped."""
+"""Routes for Home: what needs the person, their answers and decisions; workflows."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ from typing import Any
 from fastapi import FastAPI
 
 from alpha.api.bodies import (
+    AgreeWorkflowBody,
     AnswerBody,
-    ApprovePlanBody,
+    AnswersBody,
     AskBody,
     DecideBody,
 )
@@ -18,12 +19,10 @@ from alpha.api.views import (
     _local_midnight_utc,
     module_card,
     needs_you,
-    plan_view,
     thread_views,
 )
 from alpha.connectors.calendar import Calendar
-from alpha.runtime import build, claude_cli, conversations
-from alpha.runtime import research as research_runtime
+from alpha.runtime import conversations
 from alpha.world.store import Problem
 
 
@@ -75,6 +74,26 @@ def routes(app: FastAPI, s: Served) -> None:
                                         thread=asked["thread"]))
         return {"answered": jid, "turn": started}
 
+    @app.post("/api/asks/answer", dependencies=[api])
+    def answer_many(body: AnswersBody) -> dict[str, Any]:
+        """Questions asked together are answered together: each answer is journaled on its
+        own question, and one turn carries them all, in the conversation that asked."""
+        answers = {k: v.strip() for k, v in body.answers.items() if v and v.strip()}
+        if not answers:
+            raise Problem("Nothing answered yet.")
+        asked = [world.journal.read(ask_id) for ask_id in answers]
+        if len({(a["thread"], a["module"]) for a in asked}) != 1:
+            raise Problem("These questions were asked in different conversations;"
+                          " answer them where each was asked.")
+        answered = [world.journal.append("answered", answers[a["id"]], actor="person",
+                                         data={"ask": a["id"]}, module=a["module"],
+                                         thread=a["thread"]) for a in asked]
+        text = (answers[asked[0]["id"]] if len(asked) == 1 else
+                "\n".join(f"{a['text']} — {answers[a['id']]}" for a in asked))
+        started = running.start(AskBody(text=text, module=asked[0]["module"],
+                                        thread=asked[0]["thread"]))
+        return {"answered": answered, "turn": started}
+
     @app.post("/api/asks/{ask_id}/dismiss", dependencies=[api])
     def dismiss(ask_id: str) -> dict[str, Any]:
         # Closed without an answer: nothing runs.
@@ -83,19 +102,7 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/proposals/{pid}/decide", dependencies=[api])
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
-        plan = proposal["data"].get("plan")
-        if plan:
-            # The state moves first: a refused decision (a plan already building, say) must
-            # not leave an answer in the journal. A yes starts the build; a no closes it.
-            if body.accept:
-                world.plans.approve(plan, "Approved in the app")
-            else:
-                world.plans.decline(plan)
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
-        if plan:
-            if body.accept and live:
-                scheduler.builds()
-            return {"decided": pid, "turn": None, "plan": world.plans.get(plan)}
         instruction = proposal["data"].get("instruction")
         if instruction:
             # The person's yes is what makes it an instruction; nothing else needs to run.
@@ -108,64 +115,45 @@ def routes(app: FastAPI, s: Served) -> None:
                                         module=proposal["module"])) if body.accept else None
         return {"decided": pid, "turn": started}
 
-    @app.get("/api/plans", dependencies=[api])
-    def plans() -> list[dict[str, Any]]:
-        return [plan_view(world, p) for p in list(reversed(world.plans.all()))[:50]]
+    @app.get("/api/workflows", dependencies=[api])
+    def workflows() -> list[dict[str, Any]]:
+        return list(reversed(world.workflows.all()))[:50]
 
-    @app.post("/api/plans/{plan_id}/approve", dependencies=[api])
-    def approve_plan(plan_id: str, body: ApprovePlanBody | None = None) -> dict[str, Any]:
-        plan = world.plans.get(plan_id)
-        if body and body.answers and plan["state"] == "proposed":
-            plan = world.plans.answer(plan_id, body.answers)
-        if body and body.pieces and plan["state"] == "proposed":
-            plan = world.plans.decide_pieces(plan_id, body.pieces)
-        if plan.get("proposal"):
-            decide_proposal(plan["proposal"], DecideBody(accept=True))
-            return world.plans.get(plan_id)
-        world.plans.approve(plan_id, "Approved in the app")
+    @app.get("/api/workflows/{wid}", dependencies=[api])
+    def workflow(wid: str) -> dict[str, Any]:
+        return {**world.workflows.get(wid), "versions": world.workflows.versions(wid)}
+
+    @app.post("/api/workflows/{wid}/agree", dependencies=[api])
+    def agree_workflow(wid: str, body: AgreeWorkflowBody | None = None) -> dict[str, Any]:
+        """The yes on the page (§12): suggestions decided, answers kept, then agreed; the
+        build follows in the background (its wiring is the next slice)."""
+        if body:
+            for sid, decision in (body.suggestions or {}).items():
+                world.workflows.decide_suggestion(wid, sid, decision)
+            if body.answers:
+                world.workflows.answer(wid, body.answers)
+        agreed = world.workflows.agree(wid, "Agreed in the app")
+        world.journal.append("did", f"You agreed your workflow: {agreed['title']}.",
+                             actor="person", thread=agreed.get("conversation"),
+                             data={"workflow": wid})
         if live:
             scheduler.builds()
-        return world.plans.get(plan_id)
+        return agreed
 
-    @app.post("/api/plans/{plan_id}/stop", dependencies=[api])
-    def stop_plan(plan_id: str) -> dict[str, Any]:
-        """Stop a build that isn't going anywhere: its run ends now and it says what it made."""
-        plan = world.plans.get(plan_id)
-        if plan["state"] not in ("approved", "building"):
-            raise Problem(f"The build of {plan['title']} isn't running.")
-        if not (plan["thread"] and claude_cli.LIVE.stop(plan["thread"])):
-            build.stop(world, plan_id, None)
-        return world.plans.get(plan_id)
-
-    @app.post("/api/turns/{key}/stop", dependencies=[api])
-    def stop_turn(key: str) -> dict[str, Any]:
-        return running.stop(key)
-
-    @app.post("/api/research/{rid}/stop", dependencies=[api])
-    def stop_research(rid: str) -> dict[str, Any]:
-        """Stop a research pass that isn't going anywhere: its run ends now and the
-        conversation says so."""
-        research = world.research.get(rid)
-        if research["state"] not in ("waiting", "running"):
-            raise Problem(f"Alpha isn't looking into {research['title']} now.")
-        if not (research["thread"] and claude_cli.LIVE.stop(research["thread"])):
-            research_runtime.stop(world, rid, None)
-        return world.research.get(rid)
-
-    @app.post("/api/plans/{plan_id}/resume", dependencies=[api])
-    def resume_plan(plan_id: str) -> dict[str, Any]:
-        plan = world.plans.resume(plan_id)
+    @app.post("/api/workflows/{wid}/resume", dependencies=[api])
+    def resume_workflow(wid: str) -> dict[str, Any]:
+        out = world.workflows.resume(wid)
         if live:
             scheduler.builds()
-        return plan
+        return out
 
-    @app.post("/api/plans/{plan_id}/decline", dependencies=[api])
-    def decline_plan(plan_id: str) -> dict[str, Any]:
-        plan = world.plans.get(plan_id)
-        if plan.get("proposal"):
-            decide_proposal(plan["proposal"], DecideBody(accept=False))
-            return world.plans.get(plan_id)
-        return world.plans.decline(plan_id)
+    @app.post("/api/workflows/{wid}/decline", dependencies=[api])
+    def decline_workflow(wid: str) -> dict[str, Any]:
+        declined = world.workflows.decline(wid)
+        world.journal.append("did", f"Set aside the workflow {declined['title']}.",
+                             actor="person", thread=declined.get("conversation"),
+                             data={"workflow": wid})
+        return declined
 
     @app.post("/api/facts/{fid}/decide", dependencies=[api])
     def decide_fact(fid: str, body: DecideBody) -> dict[str, Any]:

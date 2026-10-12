@@ -1,24 +1,21 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Action, Client, Convo, JournalEntry, ModuleCard, Plan } from "../core/client";
+import type { Action, Client, Convo, JournalEntry, ModuleCard } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { AssistantPanel } from "./AssistantPanel";
 import { DEPTH_REASON, MENTION_REASON } from "./Composer";
 
 const CHAT: Convo = { id: "c1", title: "Chat", kind: "chat", state: "open", module: null, scope: "Everything", question: null, last: null, last_at: "", updated_at: "" };
 const entry = (id: string, kind: string, text: string): JournalEntry => ({ id, at: "2026-10-09T10:00:00+00:00", kind, actor: "x", text, data: {}, module: null, thread: null, entity_ids: [], source: null });
-const PLAN = { id: "p1", title: "Track my deals", body: "A Deals table with stage and value.", state: "proposed", module: null, thread: null, proposal: null, report: null, created_at: "" } as Plan;
 const ACTION = { id: "a1", procedure: "x", title: "Message Ada", payload: { text: "Hello" }, evidence: null, undo: "It can be deleted.", effect: "send", site: "example.com", state: "proposed", module: null, preview: "shot.png", preview_note: null, shots: {}, result: null, error: null, created_at: "", updated_at: "" } as Action;
 
-function setup(opts: { turns?: JournalEntry[]; plans?: Plan[]; actions?: Action[]; open?: boolean; module?: ModuleCard | null } = {}) {
+function setup(opts: { turns?: JournalEntry[]; actions?: Action[]; open?: boolean; module?: ModuleCard | null } = {}) {
   const client = {
-    conversation: vi.fn(async () => ({ turns: opts.turns ?? [], threads: [], running: [], plans: opts.plans ?? [], actions: opts.actions ?? [], asks: [], conversation: CHAT, conversations: [CHAT] })),
+    conversation: vi.fn(async () => ({ turns: opts.turns ?? [], threads: [], running: [], workflows: [], actions: opts.actions ?? [], asks: [], conversation: CHAT, conversations: [CHAT] })),
     thinking: vi.fn(async () => ({ route: "claude", claude: { installed: true, signed_in: true }, codex: { installed: false, signed_in: false } })),
     setThinking: vi.fn(),
     askAndWait: vi.fn(async () => ({ id: "t1", state: "done", text: "", started_at: "" })),
-    approvePlan: vi.fn(async () => ({})),
-    declinePlan: vi.fn(async () => ({})),
     approveAction: vi.fn(async () => ({})),
     declineAction: vi.fn(async () => ({})),
     actionShot: vi.fn(async () => { throw new Error("no shot"); }),
@@ -75,16 +72,6 @@ describe("the assistant panel", () => {
     expect(screen.queryByRole("group", { name: "Other agents" })).toBeNull();
     await user.type(box(), " @");
     expect(screen.getByRole("group", { name: "Other agents" })).toHaveTextContent(MENTION_REASON);
-  });
-
-  it("a proposed plan is approved or declined through the existing routes", async () => {
-    const user = userEvent.setup();
-    const { client } = setup({ plans: [PLAN] });
-    await user.click(await screen.findByRole("button", { name: "Approve" }));
-    expect(client.approvePlan).toHaveBeenCalledWith("p1", undefined, undefined); // no questions or pieces to carry
-    await user.click(screen.getByRole("button", { name: "Decline" }));
-    expect(client.declinePlan).toHaveBeenCalledWith("p1");
-    expect(client.approvePlan).toHaveBeenCalledTimes(1);
   });
 
   it("an action card is approved or declined through the existing routes", async () => {

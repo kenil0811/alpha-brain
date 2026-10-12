@@ -1,4 +1,4 @@
-# Home as cards, Second Brain as one graph and one table, a page for every kept thing (12 Oct 2026, Q43)
+# Home as cards, Second Brain as one graph and one table, a page for every kept thing (12 Oct 2026, Q45)
 
 Branch `feat/ui-audit-fixes` (worktree `alpha-brain-audit-fixes`), commits db2e496 to 3afb5e2,
 not yet pushed to `feat/ui-rulebook` (PR #5). Window only: nothing under `core/`, `connectors/`,
@@ -7,7 +7,7 @@ not yet pushed to `feat/ui-rulebook` (PR #5). Window only: nothing under `core/`
 
 ## What was decided
 
-The owner, 12 Oct (Q43; the rulebook's §11 Home and §12 Second Brain carry it):
+The owner, 12 Oct (Q45; the rulebook's §11 Home and §12 Second Brain carry it):
 - Home is a grid of cards. Cards are the reference; Alpha picks how each one is shown from what it
   is for. Every card has a purpose (its title) and an action on every item, in three fixed
   heights by priority, as many columns as stay readable.

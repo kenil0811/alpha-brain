@@ -86,7 +86,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         const c = await client.changes(since.current);
         const first = since.current === null;
         since.current = c.at;
-        if (first || c.journal > 0 || c.threads || c.plans || c.actions) refresh();
+        if (first || c.journal > 0 || c.threads || c.workflows || c.actions) refresh();
         if (c.working) every = 3_000;
         setTrouble(null);
       } catch (e) {
