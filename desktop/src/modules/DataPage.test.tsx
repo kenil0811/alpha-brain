@@ -794,7 +794,7 @@ describe("relations and the form view", () => {
 });
 
 describe("any source", () => {
-  it("draws rows the window holds, keeps what the source can't do disabled with its reason, and its lists in the window", async () => {
+  it("draws rows the window holds, shows no add row when it can't add inline, and its lists in the window", async () => {
     const user = userEvent.setup();
     const client = fakeClient([]);
     const source = memorySource({ client, key: "agents", title: "Agents", fields: [{ name: "name", kind: "text" }, { name: "runs", kind: "number" }], rows: () => [row("a1", "", 4, { values: { name: "Alpha", runs: 4 } })], reasons: { add: "Ask Alpha to make an agent." } });
@@ -805,7 +805,7 @@ describe("any source", () => {
     );
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
     expect(client.table).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "New" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "New" })).toBeNull(); // no inline add: no add row (rule 29)
     await user.dblClick(screen.getByText("Alpha"));
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull(); // no edit given: cells stay as they are
     await user.click(screen.getByRole("combobox", { name: "List" }));

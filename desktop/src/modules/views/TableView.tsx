@@ -60,7 +60,7 @@ export interface ColumnActions {
   wrap: (column: string) => void;
 }
 
-export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, calcDefaults, onCalcDefault, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, addReason, editRequest, blank, groups, collapsed = [], onCollapse, lines, wrapAll, rowHeight, colorOf, rowIcon, titleField, lockedFor, onSay }: {
+export function TableView({ rows, summaryRows, fields, columns, byName, widths, onWidth, frozen, sort, onSort, tall, pinned, seen, bodyRef, files, onFile, relations, onOpenRelated, selected, onSelect, onSelectAll, summaries, onSummary, calcDefaults, onCalcDefault, onOpen, onCommit, editReason, rowActions, columnActions, onAdd, editRequest, blank, groups, collapsed = [], onCollapse, lines, wrapAll, rowHeight, colorOf, rowIcon, titleField, lockedFor, onSay }: {
   rows: RecordRow[];
   /** The records the footer works over: everything the view shows, not only this page. */
   summaryRows: RecordRow[];
@@ -94,9 +94,8 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
   editReason?: string;
   rowActions: RowActions;
   columnActions: ColumnActions;
-  /** The "+ New" row; without it the row stays, disabled, with `addReason`. */
+  /** The "+ New" row; without it there is no row (one visible element per function, rule 29). */
   onAdd?: () => void;
-  addReason?: string;
   /** Start editing this cell when it is drawn (a row just added: its title). */
   editRequest?: { id: string; field: string } | null;
   /** Draw a few blank rows (an empty table keeps its structure). */
@@ -525,13 +524,15 @@ export function TableView({ rows, summaryRows, fields, columns, byName, widths, 
                 </tr>
               ))
             : null}
-          <tr className="row--add">
-            <td colSpan={wide} className="addcell">
-              <Button size="sm" variant="ghost" className="addrow" icon={<PlusIcon size={ICON_SM} />} disabledReason={onAdd ? undefined : addReason} onClick={onAdd}>
-                New
-              </Button>
-            </td>
-          </tr>
+          {onAdd ? (
+            <tr className="row--add">
+              <td colSpan={wide} className="addcell">
+                <Button size="sm" variant="ghost" className="addrow" icon={<PlusIcon size={ICON_SM} />} onClick={onAdd}>
+                  New
+                </Button>
+              </td>
+            </tr>
+          ) : null}
         </tbody>
         {sums || footAsked ? (
           <tfoot>

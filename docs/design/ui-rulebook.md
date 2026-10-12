@@ -831,7 +831,7 @@ Everything elsewhere in this rulebook is a default. These are not.
 26. One layout for every table page: the data view over the first screen, then Files, Intelligence and Governance.
 27. A column's width never changes on hover.
 28. No subtitles: explanations live in (i) tips.
-29. One visual element per function; several ways in are fine.
+29. One visual element per function; several ways in are fine. A table's "+ New" row shows only when it adds inline; otherwise the toolbar's New is the one way (the owner, 12 Oct).
 30. Every dropdown ends in Add new…; what the window can't add goes, described, to the builder agent in this page's conversation.
 
 ---

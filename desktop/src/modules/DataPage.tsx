@@ -409,7 +409,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     }
   }
   const editReason = src.edit ? undefined : reasonFor(src, "edit");
-  const addReason = src.add ? undefined : reasonFor(src, "add");
   const removeReason = src.remove ? undefined : reasonFor(src, "remove");
   const duplicateReason = src.duplicate ? undefined : reasonFor(src, "add");
   const listsReason = src.saveList ? undefined : reasonFor(src, "lists");
@@ -679,13 +678,14 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
   }
   const bulkField = byName.get(bulk.field);
 
-  const adder = (
+  // one visible element per function (rule 29): the add row shows only when it adds inline
+  const adder = src.add ? (
     <div className="addrow-wrap">
-      <Button size="sm" variant="ghost" className="addrow" icon={<PlusIcon size={ICON_SM} />} disabledReason={addReason} onClick={() => void addNew()}>
+      <Button size="sm" variant="ghost" className="addrow" icon={<PlusIcon size={ICON_SM} />} onClick={() => void addNew()}>
         New
       </Button>
     </div>
-  );
+  ) : null;
   // a person or a company opens its Network page (by the address); another table's record, its page
   const openRelated = (target: string, id: string) => {
     if (target === "person" || target === "organisation" || target.startsWith("entity:")) window.location.hash = `#${pathFor({ kind: "entity", id })}`;
@@ -878,7 +878,6 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
               wrap: (c) => setWrapped((w) => (w.includes(c) ? w.filter((n) => n !== c) : [...w, c])),
             }}
             onAdd={src.add ? () => void addNew() : undefined}
-            addReason={addReason}
             editRequest={editRequest}
             blank={Boolean(none)}
           />
