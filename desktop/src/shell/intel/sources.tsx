@@ -1,6 +1,6 @@
 /**
  * Intelligence's lists as data sources (9 Oct): agents (automations, Q33), skills, connections and
- * facts, each drawn by the one data view (`DataPage`), so each has views, filters, sorting and
+ * Second Brain's facts, goals and hypotheses, each drawn by the one data view (`DataPage`), so each has views, filters, sorting and
  * the person's own lists (kept in `PREF.windowLists` by `memorySource`). Rows are asked of the
  * core afresh on every load, so an edit shows as saved. Only what the core can change is
  * editable: an automation's on/off and a suggested fact's state; the rest says why not.
@@ -18,7 +18,6 @@ const NOT_HERE = "can't be done from here yet";
 const refuse = (words: string) => new CoreError(words, 400);
 const AGENT_FIXED = `Changing an agent ${NOT_HERE}. Open it and ask Alpha.`;
 const ONLY_ON = "Only On changes here. To change the rest, ask Alpha in the panel.";
-const FACT_FIXED = `Changing a decided fact ${NOT_HERE}. Tell Alpha in the panel.`;
 const rec = (id: string, values: Record<string, unknown>, at = ""): RecordRow => ({ id, revision: 1, values, created_at: at, updated_at: at, provenance: {} });
 
 /** An agent's row id in Agents and automations; the rest are automations' ids. */
@@ -139,55 +138,6 @@ export function connectionsSource(client: Client): DataSource {
     ],
     rows: async () => (await client.intelligence()).connections.filter((c) => c.status !== "off").map((c) => rec(c.id, { name: connectionName(c), kind: CONNECTOR_KIND[c.connector] ?? c.connector, state: CONNECTION_STATE[c.status], last_sync: c.last_sync, problem: c.last_error ?? "" })),
     reasons: { edit: "A connection doesn't change here. Open it to read again or delete it.", add: "Use Connect.", remove: "Open it to delete it; it says what goes with it first." },
-  });
-}
-
-/** The facts Second Brain lists ("related_to" links are the map's, not facts to read). */
-export const shownFacts = (d: Pick<Intelligence, "knowledge">): Fact[] => d.knowledge.facts.filter((f) => f.predicate !== "related_to");
-export function factsSource(client: Client): DataSource {
-  return memorySource({
-    client,
-    key: "intel.facts",
-    title: "Facts",
-    titleField: "value",
-    fields: [
-      { name: "value", kind: "text", label: "Fact" },
-      { name: "predicate", kind: "text", label: "What" },
-      { name: "subject", kind: "text", label: "About" },
-      { name: "state", kind: "status", label: "State", choices: ["suggested", "accepted", "rejected"], done_choices: ["accepted"] },
-      { name: "source", kind: "text", label: "Source" },
-      { name: "added", kind: "datetime", label: "Added" },
-    ],
-    rows: async () => shownFacts(await client.intelligence()).map((f) => rec(f.id, { value: f.value, predicate: f.predicate.replace(/_/g, " "), subject: f.subject, state: f.state, source: sourceWords(f), added: f.recorded_at }, f.recorded_at)),
-    edit: async (row, values) => {
-      const keys = Object.keys(values);
-      const to = values.state;
-      if (keys.length !== 1 || keys[0] !== "state") throw refuse("To correct a fact, tell Alpha in the panel.");
-      if (row.values.state !== "suggested") throw refuse(FACT_FIXED);
-      if (to !== "accepted" && to !== "rejected") throw refuse("A fact waiting for you can be accepted or rejected.");
-      await client.decideFact(row.id, to === "accepted");
-      return { ...row, values: { ...row.values, state: to }, revision: row.revision + 1 };
-    },
-    editable: (row, field) => (field.name !== "state" ? "To correct a fact, tell Alpha in the panel." : row.values.state !== "suggested" ? FACT_FIXED : null),
-    reasons: { add: "Tell Alpha in the panel.", remove: `Forgetting a fact ${NOT_HERE}. Open one waiting for you to forget it.` },
-  });
-}
-
-/** Goals (12 Oct, the owner: a list is the one data view), Second Brain's or a project's.
- *  Read-only: the core has no call that edits one; Add goal in the toolbar asks Alpha. */
-export function goalsSource(client: Client, key: string, goals: () => Goal[] | Promise<Goal[]>): DataSource {
-  return memorySource({
-    client,
-    key,
-    title: "Goals",
-    titleField: "text",
-    fields: [
-      { name: "text", kind: "text", label: "Goal" },
-      { name: "state", kind: "text", label: "State" },
-      { name: "since", kind: "datetime", label: "Since" },
-    ],
-    rows: async () => (await goals()).map((g) => rec(g.id, { text: g.text, state: g.state === "active" ? "Active" : g.state.replace(/_/g, " "), since: g.since || null }, g.since)),
-    reasons: { edit: `Changing a goal ${NOT_HERE}. Tell Alpha in the panel.`, add: "Use Add goal; Alpha asks you to approve.", remove: `Deleting a goal ${NOT_HERE}. Tell Alpha in the panel.` },
   });
 }
 

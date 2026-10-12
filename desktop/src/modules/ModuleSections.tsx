@@ -12,12 +12,14 @@ import { moduleWords, say } from "../core/client";
 import type { Client, DocumentInfo, ModuleCard, ModuleDetail, Note, Source } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { ADD_GOAL, newAgentOrAutomation, useDescribe } from "../shell/DescribeAdd";
-import { AGENT_ROW, goalsSource, projectAgentsSource, subProjectsSource } from "../shell/intel/sources";
+import { AGENT_ROW, GOAL_ROW, knowledgeSource, projectAgentsSource, subProjectsSource } from "../shell/intel/sources";
+import { cachedWorld, keepWorld, subjectsOf } from "../shell/brain/model";
+import { namer } from "../shell/SecondBrain";
 import { DataPage } from "./DataPage";
 import { NewAboveDialog } from "../shell/ModuleDialogs";
 import type { Surface } from "../shell/Rail";
 import { Badge, Button, Confirm, IconButton, InfoTip, ListRow, Menu, MenuHeading, MenuItem, Notice, SectionCard, Toggle, Tooltip, type Tone, type ToggleItem } from "../ui";
-import { ActivityIcon, AgentIcon, Ban, Check, FileText, Flag, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
+import { ActivityIcon, AgentIcon, Ban, BrainIcon, Check, FileText, ICON, ICON_SM, ModuleIcon, PermissionIcon, PlusIcon, Table2, X } from "../ui/icons";
 import { downloadText, parseCsv, toCsv } from "./csv";
 import { humanize, recent, when } from "./format";
 
@@ -213,19 +215,33 @@ function ModulePageCard({ client, moduleRef, version, onChanged }: { client: Cli
   );
 }
 
-type IntelTab = "activity" | "agents" | "goals" | "page" | "inside";
+type IntelTab = "activity" | "agents" | "brain" | "page" | "inside";
 
 export function IntelligenceSection({ client, detail, version, onChanged, onGo }: { client: Client; detail: ModuleDetail; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [tab, setTab] = useState<IntelTab>("activity");
   const inside = detail.inside ?? [];
   const describe = useDescribe();
   // a list here is the one data view (12 Oct, the owner), rebuilt when the project's detail changes
-  const sources = useMemo(() => ({ goals: goalsSource(client, "project.goals", () => detail.goals), agents: projectAgentsSource(client, detail), inside: subProjectsSource(client, detail.inside ?? []) }), [client, detail]);
+  const sources = useMemo(() => {
+    // this project's second brain: its goals, and the facts and hypotheses about whom its work names
+    const knowledge = knowledgeSource(
+      client,
+      "project.knowledge",
+      async () => {
+        const world = cachedWorld(client) ?? (await client.graph("world").then((g) => (keepWorld(client, g), g), () => null));
+        const about = subjectsOf(world, detail.id, detail.tables.map((t) => t.name));
+        const facts = (await client.intelligence()).knowledge.facts.filter((f) => about.has(f.subject));
+        return { facts, goals: detail.goals };
+      },
+      (s) => (s === `module:${detail.id}` ? detail.name : namer(cachedWorld(client))(s)),
+    );
+    return { knowledge, agents: projectAgentsSource(client, detail), inside: subProjectsSource(client, detail.inside ?? []) };
+  }, [client, detail]);
   const tabs: ToggleItem<IntelTab>[] = [
     { id: "activity", label: "Activity", icon: <ActivityIcon size={ICON_SM} /> },
     // Alpha, the assistant that works here, is the first agent
     { id: "agents", label: "Agents and automations", icon: <AgentIcon size={ICON_SM} />, count: detail.automations.length + 1 },
-    { id: "goals", label: "Goals", icon: <Flag size={ICON_SM} />, count: detail.goals.length || undefined },
+    { id: "brain", label: "Second Brain", icon: <BrainIcon size={ICON_SM} /> },
     { id: "page", label: "Alpha's page", icon: <FileText size={ICON_SM} /> },
     ...(inside.length ? [{ id: "inside" as const, label: "Sub-projects", icon: <ModuleIcon size={ICON_SM} />, count: inside.length }] : []),
   ];
@@ -234,7 +250,7 @@ export function IntelligenceSection({ client, detail, version, onChanged, onGo }
       <Toggle inBody label="Intelligence" items={tabs} value={tab} onChange={setTab} />
       {tab === "page" ? <ModulePageCard client={client} moduleRef={detail.id} version={version} onChanged={onChanged} /> : null}
       {tab === "activity" ? <ModuleActivity detail={detail} /> : null}
-      {tab === "goals" ? <DataPage client={client} source={sources.goals} version={version} onChanged={onChanged} actions={[{ label: "Add goal", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open({ ...ADD_GOAL, ask: (t) => `In ${detail.name}, add a goal: ${t}` }) }]} onOpenRecord={() => onGo({ kind: "module", id: detail.id })} /> : null}
+      {tab === "brain" ? <DataPage client={client} source={sources.knowledge} version={version} onChanged={onChanged} actions={[{ label: "Add goal", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open({ ...ADD_GOAL, ask: (t) => `In ${detail.name}, add a goal: ${t}` }) }]} onOpenRecord={(_k, id) => onGo(id.startsWith(GOAL_ROW) ? { kind: "module", id: detail.id } : { kind: "fact", id })} /> : null}
       {tab === "agents" ? <DataPage client={client} source={sources.agents} version={version} onChanged={onChanged} actions={[{ label: "New", icon: <PlusIcon size={ICON_SM} />, onSelect: () => describe.open(newAgentOrAutomation(detail.name)) }]} onOpenRecord={(_k, id) => onGo(id.startsWith(AGENT_ROW) ? { kind: "agent", id: id.slice(AGENT_ROW.length) } : { kind: "automation", id })} /> : null}
       {tab === "inside" ? <DataPage client={client} source={sources.inside} version={version} onChanged={onChanged} onOpenRecord={(_k, id) => onGo({ kind: "module", id })} /> : null}
       {describe.dialog}

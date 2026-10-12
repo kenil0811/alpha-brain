@@ -24,6 +24,9 @@ function fakeClient(d: ModuleDetail, extra: Record<string, unknown> = {}) {
     table: (name: string) => Promise.resolve({ table: name === "deals" ? deals : clients, records: name === "deals" ? [{ id: "r1", revision: 1, values: { title: "Bakery", price: 300 }, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {} }] : [], files: {}, lists: [], relations: {} }),
     preference: (key: string) => Promise.resolve({ key, value: null }),
     setPreference: vi.fn(),
+    // Ada is named in the project; Bo is not, so only Ada's facts are this project's
+    graph: () => Promise.resolve({ at: "", nodes: [{ id: "entity:p1", kind: "person", title: "Ada", entity: "p1" }], edges: [{ from: "entity:p1", to: "module:m_1", kind: "named in" }] }),
+    intelligence: () => Promise.resolve({ knowledge: { facts: [{ id: "f1", subject: "entity:p1", predicate: "works_at", value: "Acme", valid_from: "", valid_to: null, recorded_at: "", source: "turn:1", why: null, confidence: 0.6, state: "suggested" }, { id: "f2", subject: "entity:p2", predicate: "works_at", value: "Elsewhere", valid_from: "", valid_to: null, recorded_at: "", source: "stated", why: null, confidence: 1, state: "accepted" }], notes: [], goals: [] } }),
     ...extra,
   } as unknown as Client;
 }
@@ -111,8 +114,10 @@ describe("a module's page", () => {
     expect(regions.filter((n) => ["Files", "Intelligence", "Governance"].includes(n ?? ""))).toEqual(["Files", "Intelligence", "Governance"]);
     expect(within(screen.getByRole("region", { name: "Files" })).getByText(/Drop files here/)).toBeInTheDocument();
     const intelligence = screen.getByRole("region", { name: "Intelligence" });
-    await user.click(within(intelligence).getByRole("tab", { name: "Goals 1" }));
-    expect(await within(intelligence).findByText("Close three deals")).toBeInTheDocument();
+    await user.click(within(intelligence).getByRole("tab", { name: "Second Brain" }));
+    expect(await within(intelligence).findByText("Close three deals")).toBeInTheDocument(); // its goal
+    expect(await within(intelligence).findByText("Ada works at Acme")).toBeInTheDocument(); // a hypothesis about whom it names
+    expect(within(intelligence).queryByText(/Elsewhere/)).toBeNull();
     // agents and automations live in Intelligence, not Governance
     await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations 2" }));
     expect(await within(intelligence).findByText("Chase late invoices")).toBeInTheDocument();
@@ -203,7 +208,7 @@ describe("a module's page", () => {
     await user.click(within(intelligence).getByRole("tab", { name: "Agents and automations 1" }));
     await user.click(await within(intelligence).findByText("Alpha — your assistant"));
     await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "agent", id: "alpha" }));
-    await user.click(within(intelligence).getByRole("tab", { name: "Goals 1" }));
+    await user.click(within(intelligence).getByRole("tab", { name: "Second Brain" }));
     await user.click(await within(intelligence).findByRole("button", { name: "Add goal" }));
     await user.type(screen.getByRole("textbox", { name: "Describe the goal you want" }), "Close five deals");
     await user.click(screen.getByRole("button", { name: "Send" }));

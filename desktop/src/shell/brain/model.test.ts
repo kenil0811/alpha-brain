@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fact, Intelligence, WorkGraph } from "../../core/client";
-import { around, graphOf, place, search, visible } from "./model";
+import { around, graphOf, place, search, subjectsOf, visible } from "./model";
 
 const fact = (id: string, over: Partial<Fact> = {}): Fact => ({ id, subject: "person", predicate: "likes", value: id, valid_from: "", valid_to: null, recorded_at: "", source: "stated", why: null, confidence: 1, state: "accepted", ...over });
 const world: WorkGraph = { at: "", nodes: [{ id: "module:m1", kind: "module", title: "Deals", module: "m1" }, { id: "goal:g1", kind: "goal", title: "Close ten", module: "m1" }], edges: [{ from: "goal:g1", to: "module:m1", kind: "in" }] };
@@ -43,5 +43,12 @@ describe("Second Brain's graph", () => {
     const a = place(g);
     expect(Object.keys(a).sort()).toEqual(g.nodes.map((n) => n.id).sort());
     expect(place(g)).toEqual(a);
+  });
+});
+
+describe("a project's second brain", () => {
+  it("is about whom its work names: named in the project, or a row in one of its collections", () => {
+    const w: WorkGraph = { at: "", nodes: [], edges: [{ from: "entity:a", to: "module:m1", kind: "named in" }, { from: "entity:b", to: "table:deals", kind: "row in" }, { from: "entity:c", to: "module:m2", kind: "named in" }] };
+    expect([...subjectsOf(w, "m1", ["deals"])].sort()).toEqual(["entity:a", "entity:b"]);
   });
 });

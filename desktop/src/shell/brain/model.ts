@@ -77,6 +77,15 @@ export function graphOf(world: WorkGraph | null, data: Pick<Intelligence, "knowl
   return { nodes: [...nodes.values()], edges };
 }
 
+/** The people and organisations a project's work names (`named in` the project, or a row in one
+ *  of its collections): whose facts belong to the project until the core ties facts to one (G11). */
+export function subjectsOf(world: WorkGraph | null, module: string, tables: string[]): Set<string> {
+  const here = new Set([`module:${module}`, ...tables.map((t) => `table:${t}`)]);
+  const out = new Set<string>();
+  for (const e of world?.edges ?? []) if ((e.kind === "named in" || e.kind === "row in") && e.from.startsWith("entity:") && here.has(e.to)) out.add(e.from);
+  return out;
+}
+
 /** Each node's neighbours. */
 export function neighbours(graph: Graph): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>(graph.nodes.map((n) => [n.id, new Set()]));
