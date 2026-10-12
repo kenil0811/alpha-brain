@@ -618,7 +618,7 @@ Nothing below was changed in the core; the window does the nearest honest thing 
 - **Should / core needs:** files and automations in `/api/graph` (one payload); run detail by id;
   a document's content; a note by id.
 
-### G13. A Map view for places (12 Oct)
+### G13. A Map view for places (12 Oct) — built 12 Oct (`log/2026-10-12-map-view.md`)
 - **Now:** no collection has a place field and the window has no map; "Map" is kept for places
   (the owner: a graph is things and links, a map is the world).
 - **Should / core needs:** a `place` field kind (address, or latitude and longitude, geocoded by

@@ -1,0 +1,48 @@
+[
+ {
+  "name": "map_places",
+  "title": "Asked to put deals on a map, Alpha proposes making the city field a place field",
+  "steps": [
+   {
+    "seed": "table map_deals, 3 rows",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "put my map deals on a map by their city",
+    "ok": true,
+    "reply": "I've proposed turning the City field into a map location. Once you approve it, Alpha will place all three deals on the map:\n\n- Deli: Mumbai, India\n- Cafe: Paris, France\n- Bakery: Austin, TX\n\nThe cities are the ones you gave me. Nothing changes until you say yes.",
+    "steps": 4,
+    "seconds": 15.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "proposed",
+     "contains": "place field"
+    },
+    "ok": true,
+    "why": "1 proposed entry: Show Map deals on a map: make City a place field.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Did Alpha say it proposed making City a place field, for the person to approve, rather than claiming the map is already done?",
+    "ok": true,
+    "why": "The answer says Alpha 'proposed turning the City field into a map location', that it will be placed 'once you approve it', and that 'Nothing changes until you say yes', so it does not claim the map is already done.",
+    "seconds": 5.0
+   }
+  ],
+  "seconds": 20.8,
+  "error": null
+ }
+]
