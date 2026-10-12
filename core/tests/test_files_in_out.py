@@ -260,7 +260,7 @@ def test_a_table_exports_as_csv_and_excel(world: World) -> None:
 def test_a_table_file_is_imported_whole_every_column(world: World, tmp_path: Path) -> None:
     """The owner, 12 Oct: an uploaded CSV goes in whole, every column unless they said which."""
     world.collections.create("contacts", "Contacts", [{"name": "name", "kind": "text"}])
-    rows = "".join(f"Person {i},p{i}@x.com,0{2100 + i},\"1,{i:03d}\"\n" for i in range(3000))
+    rows = "".join(f"Person {i},p{i}@x.com,0{2100 + i},\"1,{i % 1000:03d}\"\n" for i in range(3000))
     src = tmp_path / "contacts.csv"
     src.write_text("Name,Email,Zip,Amount\n" + rows)  # far past a document's text limit
     doc = Files(world).take(src, module=None, origin="the person", folder="sources")
@@ -278,3 +278,44 @@ def test_a_table_file_is_imported_whole_every_column(world: World, tmp_path: Pat
     world.collections.create("loose", "Loose", [{"name": "x", "kind": "text"}])
     assert t.file_to_table(doc["id"], "loose", columns=["Name"])["added"] == 3000
     assert t.file_to_table(doc["id"], "loose", columns=["Name"])["added"] == 0
+
+
+def test_a_table_file_keeps_every_column_and_reads_numbers_as_written(world: World,
+                                                                      tmp_path: Path) -> None:
+    """The review of 12 Oct: headers the field rules refuse, repeated or extra columns, European
+    decimals, long ids, placeholders, refunds, encodings and a re-upload all import whole."""
+    world.collections.create("t", "T", [{"name": "title", "kind": "text", "label": "Name"}])
+    src = tmp_path / "shop.csv"
+    src.write_bytes(("Name;Created At;2024 Sales;Prénom;Name;OrderId;Price\n"
+                     "José;2024-01-05;1.234,50;Zoë;dup;9007199254740993;2,50\n"
+                     "Ann;2024-01-06;N/A;Bo;dup2;9007199254740992;-3,00;extra\n").encode("cp1252"))
+    t = Tools(world, turn=said(world, "import it"))
+    doc = Files(world).take(src, module=None, origin="the person", folder="sources")
+    out = t.file_to_table(doc["id"], "t", key_column="OrderId")
+    assert out.get("added") == 2, out
+    assert set(out["fields_added"]) == {"created_at_2", "c_2024_sales", "prenom", "name_2",
+                                        "orderid", "price", "column_8"}
+    jose = world.collections.query("t", where={"orderid": "9007199254740993"})[0]
+    assert (jose["title"], jose["prenom"], jose["name_2"]) == ("José", "Zoë", "dup")
+    assert (jose["c_2024_sales"], jose["price"]) == (1234.5, 2.5)
+    ann = world.collections.query("t", where={"orderid": "9007199254740992"})[0]
+    assert (ann.get("c_2024_sales"), ann["price"], ann["column_8"]) == (None, -3, "extra")
+    # the same file uploaded again is the same rows, matched on their lines
+    world.collections.create("loose", "Loose", [{"name": "x", "kind": "text"}])
+    assert t.file_to_table(doc["id"], "loose", columns=["Prénom"])["added"] == 2
+    again = Files(world).take(src, module=None, origin="the person", folder="sources")
+    assert again["path"] != doc["path"]
+    assert t.file_to_table(again["id"], "loose", columns=["Prénom"])["added"] == 0
+    # a column outside the chosen ones can still be the key
+    assert t.file_to_table(doc["id"], "t", columns=["Name"], key_column="OrderId")["unchanged"] == 2
+
+
+def test_numbers_read_as_people_write_them() -> None:
+    from alpha.mcp.tools.tables import _number
+
+    assert [_number(v) for v in ("1,200", "$40", "-$40", "(40)", "12%", "0.5", "7")] == \
+        [1200, 40, -40, -40, 12, 0.5, 7]
+    assert [_number(v) for v in ("02100", "+15551234567", "NaN", "inf", "1,1000", "N/A")] == \
+        [None] * 6
+    assert _number("9007199254740993") == 9007199254740993
+    assert (_number("2,50", True), _number("1.234,50", True)) == (2.5, 1234.5)

@@ -9,12 +9,15 @@ While the core runs, FSEvents (through watchdog) triggers the same sync for the 
 from __future__ import annotations
 
 import csv
+import io
 import logging
 import shutil
 import sqlite3
+import sys
 import threading
 from collections.abc import Callable
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -80,33 +83,100 @@ def extract(path: Path) -> str:
     raise Problem(f"{path.name} isn't a kind of file Alpha reads yet.")
 
 
-def table_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+@dataclass
+class TableFile:
+    """A table file read whole: its column names (unique, one per cell of the widest row), each
+    row as text by column, the line or sheet row each came from, and whether a comma is the
+    decimal mark (a file split by semicolons, the European way)."""
+
+    head: list[str]
+    rows: list[dict[str, str]]
+    lines: list[int]
+    decimal_comma: bool = False
+
+
+def _text_of(path: Path) -> str:
+    """A text file's words in the encoding it was written in: UTF-16 when it says so (Excel's
+    "Unicode Text"), UTF-8, else Windows' Western encoding (Excel's "CSV" on Windows and the
+    Mac). Never a guess with replaced characters."""
+    raw = path.read_bytes()
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return raw.decode("utf-16")
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("latin-1")  # every byte is a character in it
+
+
+def _cell(v: Any) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, datetime):
+        return v.date().isoformat() if v.time() == time() else v.isoformat(sep=" ")
+    if isinstance(v, date):
+        return v.isoformat()
+    return str(v)
+
+
+def table_rows(path: Path) -> TableFile:
     """Every row of a table file (CSV, TSV, or an Excel workbook's first sheet), whole: the
     header row's names and each row as text by header. Never cut, unlike a document's text."""
     suffix = path.suffix.lower()
+    decimal_comma = False
     if suffix in {".csv", ".tsv", ".txt"}:
-        with path.open(newline="", encoding="utf-8-sig", errors="replace") as f:
-            sample = f.read(64_000)
-            f.seek(0)
-            try:
-                dialect: Any = csv.Sniffer().sniff(sample, delimiters=",;\t|")
-            except csv.Error:
-                dialect = "excel-tab" if suffix == ".tsv" else "excel"
-            grid = [r for r in csv.reader(f, dialect) if any(c.strip() for c in r)]
+        text = _text_of(path)
+        try:
+            sniffed: Any = csv.Sniffer().sniff(text[:64_000], delimiters=",;\t|")
+            delimiter = sniffed.delimiter
+        except csv.Error:  # rows of uneven length: the header line's commonest separator
+            first = text.split("\n", 1)[0]
+            delimiter = max(",;\t|", key=first.count) if any(d in first for d in ",;\t|") \
+                else "\t" if suffix == ".tsv" else ","
+        decimal_comma = delimiter == ";"
+        # the quote is always '"': the sniffer takes an apostrophe in a name for one
+        reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter, quotechar='"')
+        csv.field_size_limit(sys.maxsize)
+        grid: list[tuple[int, list[str]]] = []
+        start = 1
+        try:
+            for r in reader:
+                if any(c.strip() for c in r):
+                    grid.append((start, r))
+                start = reader.line_num + 1
+        except csv.Error as e:
+            raise Problem(f"{path.name} isn't a well-formed table near line {reader.line_num}:"
+                          f" {e}.") from e
     elif suffix == ".xlsx":
         from openpyxl import load_workbook
 
         wb = load_workbook(str(path), read_only=True, data_only=True)
-        grid = [["" if v is None else str(v) for v in r]
-                for r in wb.worksheets[0].iter_rows(values_only=True)
-                if any(v is not None and str(v).strip() for v in r)]
+        try:
+            grid = [(i, [_cell(v) for v in r])
+                    for i, r in enumerate(wb.worksheets[0].iter_rows(values_only=True), 1)
+                    if any(v is not None and str(v).strip() for v in r)]
+        finally:
+            wb.close()
     else:
         raise Problem(f"{path.name} isn't a table file (CSV, TSV or Excel).")
     if not grid:
         raise Problem(f"{path.name} has no rows.")
-    head = [h.strip() or f"column {i + 1}" for i, h in enumerate(grid[0])]
-    return head, [{h: (r[i].strip() if i < len(r) else "") for i, h in enumerate(head)}
-                  for r in grid[1:]]
+    width = max(len(r) for _, r in grid)
+    head: list[str] = []
+    for i in range(width):
+        h = (grid[0][1][i].strip() if i < len(grid[0][1]) else "") or f"column {i + 1}"
+        name, n = h, 2
+        while name.casefold() in {x.casefold() for x in head}:
+            name, n = f"{h} {n}", n + 1
+        head.append(name)
+    return TableFile(
+        head,
+        [{h: (r[i].strip() if i < len(r) else "") for i, h in enumerate(head)}
+         for _, r in grid[1:]],
+        [line for line, _ in grid[1:]],
+        decimal_comma,
+    )
 
 
 def files_dir(module_name: str | None = None) -> Path:

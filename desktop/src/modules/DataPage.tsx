@@ -300,12 +300,16 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     // what is really below the rows (the add row, a scrollbar, the page bar), measured; the guess
     // only until the page bar shows (it left a gap under the bar, the owner, 12 Oct)
     const box = body.getBoundingClientRect();
-    const bar = body.closest("main")?.querySelector(".pager")?.getBoundingClientRect();
+    // this table's own page bar (a page can hold two tables)
+    const bar = body.closest(".datapage")?.querySelector(".pager")?.getBoundingClientRect();
     // from the last record's row: the add row sits in the same body, below the records
     const records = [...body.children].filter((r) => !r.classList.contains("row--add"));
     const last = records.length ? records[records.length - 1].getBoundingClientRect().bottom : box.top;
     const below = bar && bar.bottom > last ? bar.bottom - last + PAGE_END : BELOW_ROWS;
-    const room = window.innerHeight - box.top - below;
+    // in the page's own coordinates, so a page scrolled down doesn't count as more room
+    const main = body.closest("main");
+    const top = main ? box.top - main.getBoundingClientRect().top + main.scrollTop : box.top;
+    const room = (main?.clientHeight ?? window.innerHeight) - top - below;
     setFit(Math.max(FEWEST_ROWS, Math.floor(room / rowHeight)));
   }, [vs.rowHeight]);
   useLayoutEffect(() => {
@@ -315,14 +319,14 @@ export function DataPage({ client, table, source, version, onChanged, onSay, onA
     window.addEventListener("resize", measure);
     // what is above or below the rows settles after they show (the numbers strip loads, the
     // page bar comes once there are pages): measure again whenever the page's size changes
-    const page = loaded ? bodyRef.current?.closest("main")?.firstElementChild : null;
-    const watch = page && typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure()) : null;
-    if (page) watch?.observe(page);
+    const main = loaded ? bodyRef.current?.closest("main") : null;
+    const watch = main && typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure()) : null;
+    for (const part of main ? [...main.children] : []) watch?.observe(part);
     return () => {
       window.removeEventListener("resize", measure);
       watch?.disconnect();
     };
-  }, [measure, loaded]);
+  }, [measure, loaded, view]);
 
   // A load limit shows that many, then "Load more"; without one the table and list page.
   const limited = vs.loadLimit !== null && (view === "table" || view === "gallery" || view === "board");

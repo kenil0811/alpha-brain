@@ -3,6 +3,9 @@ lists, the one-row log."""
 
 from __future__ import annotations
 
+import math
+import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -235,28 +238,33 @@ class Tables(Base):
         exist (collection_create, inside a plan's build)."""
         doc = Files(self.world).read(document, 0, 0)
         path = Path(doc["path"])
-        head, rows = table_rows(path)
+        table = table_rows(path)
+        head, rows = table.head, table.rows
         unknown = [c for c in (columns or []) + ([key_column] if key_column else [])
                    if c not in head]
         if unknown:
             raise Problem(f"{path.name} has no column {unknown}; its columns are {head}.")
-        taken = columns or head
+        taken = list(columns or head)
+        if key_column and key_column not in taken:
+            taken.append(key_column)
         desc = self.world.collections.describe(collection)
         have = {f["name"]: f for f in desc["fields"]}
         by_label = {str(f.get("label") or "").casefold(): f["name"] for f in desc["fields"]}
         names: dict[str, str] = {}
         for c in taken:
-            slug = "_".join("".join(ch if ch.isalnum() else " " for ch in c.lower()).split())
-            names[c] = by_label.get(c.casefold()) or (slug if slug and slug != "id"
-                                                      else f"{slug or 'column'}_value")
+            mine = by_label.get(c.casefold()) or _field_name(c)
+            name, n = mine, 2
+            while name in names.values() or name in SYSTEM_NAMES:
+                name, n = f"{mine}_{n}", n + 1
+            names[c] = name
         new = []
         for c in taken:
             if names[c] in have:
                 continue
-            filled = [r[c] for r in rows if r[c]]
-            new.append({"name": names[c], "label": c,
-                        "kind": "number" if filled and all(_number(v) is not None
-                                                          for v in filled) else "text"})
+            filled = [r[c] for r in rows if r[c] and not _blank(r[c])]
+            numeric = c != key_column and filled and all(
+                _number(v, table.decimal_comma) is not None for v in filled)
+            new.append({"name": names[c], "label": c, "kind": "number" if numeric else "text"})
         key = names[key_column] if key_column else "source_row"
         if not key_column and key not in have:
             new.append({"name": key, "label": "Row in the file", "kind": "text"})
@@ -266,22 +274,34 @@ class Tables(Base):
                  self.world.collections.describe(collection)["fields"]}
 
         def value(name: str, text: str) -> Any:
-            return _number(text) if kinds[name] == "number" and _number(text) is not None \
-                else text
-        records = [{**{names[c]: value(names[c], r[c]) for c in taken if r[c]},
-                    **({} if key_column else {key: f"{path.name}#{i + 2}"})}
-                   for i, r in enumerate(rows)]
+            if kinds[name] != "number":
+                return text
+            if _blank(text):
+                return None
+            n = _number(text, table.decimal_comma)
+            return text if n is None else n
+        # a re-upload is stored as "name (2).csv": its rows are the same rows
+        source = re.sub(r" \(\d+\)(?=\.[^.]+$)", "", path.name)
+        records = [{**{names[c]: v for c in taken if r[c]
+                       for v in [value(names[c], r[c])] if v is not None},
+                    **({} if key_column else {key: f"{source}#{line}"})}
+                   for line, r in zip(table.lines, rows, strict=True)]
         result = self.world.collections.upsert(
             collection, key, [r for r in records if r.get(key) not in (None, "")],
-            {"by": "alpha", "turn": self.turn, "source": path.name})
+            {"by": "alpha", "turn": self.turn, "source": source})
         no_key = sum(1 for r in records if r.get(key) in (None, ""))
+        added = [f["label"] for f in new]
         self._did(
             "did",
-            f"Imported {path.name} into {desc['title']}: {len(rows)} rows,"
+            f"Imported {source} into {desc['title']}: {len(rows)} rows,"
             f" {result['added']} new, {result['updated']} updated, {result['unchanged']}"
             f" unchanged" + (f", {result['invalid']} set aside" if result["invalid"] else "")
-            + (f", {no_key} without {key_column}" if no_key else "") + ".",
-            {"collection": collection, "document": doc["id"], **counts_and_ids(result)},
+            + (f", {result['skipped']} with a {key_column} seen earlier in the file"
+               if result.get("skipped") else "")
+            + (f", {no_key} without {key_column}" if no_key else "")
+            + (f"; new fields: {', '.join(added)}" if added else "") + ".",
+            {"collection": collection, "document": doc["id"], "fields_added": added,
+             **counts_and_ids(result)},
             desc["module"],
         )
         return {"rows": len(rows), "columns": taken, "fields_added": [f["name"] for f in new],
@@ -426,13 +446,45 @@ class Tables(Base):
         return {"table": described, "row": row}
 
 
-def _number(text: str) -> float | int | None:
-    """A cell's number, read as a person writes it ("1,200", "$40", "12%"), or None."""
-    clean = text.strip().replace(",", "").lstrip("$£€").rstrip("%")
+SYSTEM_NAMES = {"id", "created_at", "updated_at"}
+BLANKS = {"n/a", "na", "-", "—", "–", "null", "none", "nil", "#n/a"}
+
+
+def _blank(text: str) -> bool:
+    """A placeholder a person writes for "no value" ("N/A", "-", "null")."""
+    return text.strip().casefold() in BLANKS
+
+
+def _field_name(label: str) -> str:
+    """A field name for a column: ASCII words joined by "_", starting with a letter."""
+    plain = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode()
+    slug = re.sub(r"[^a-z0-9]+", "_", plain.lower()).strip("_")
+    if slug and not slug[0].isalpha():
+        slug = f"c_{slug}"
+    return slug[:40].rstrip("_") or "column"
+
+
+def _number(text: str, decimal_comma: bool = False) -> float | int | None:
+    """A cell's number, read as a person writes it ("1,200", "$40", "-$40", "(40)", "12%",
+    "2,50" in a file split by semicolons), or None. A code with a leading zero or a "+" (a zip,
+    a phone number) stays words, and so does anything not finite."""
+    clean = text.strip()
+    negative = clean.startswith("(") and clean.endswith(")")
+    clean = clean.strip("()").strip()
+    if clean.startswith("-"):
+        negative, clean = True, clean[1:].strip()
+    clean = clean.lstrip("$£€").rstrip("%").strip()
+    if decimal_comma:
+        clean = clean.replace(".", "").replace(" ", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", clean):
+        clean = clean.replace(",", "")
+    if not re.fullmatch(r"\d+(\.\d+)?([eE][+-]?\d+)?|\.\d+", clean):
+        return None
     if len(clean) > 1 and clean[0] == "0" and clean[1] != ".":
         return None  # a code with its leading zero (a zip, an id) stays words
-    try:
-        n = float(clean)
-    except ValueError:
+    n: float | int = int(clean) if clean.isdigit() else float(clean)
+    if isinstance(n, float) and not math.isfinite(n):
         return None
-    return int(n) if n.is_integer() else n
+    if isinstance(n, float) and n.is_integer() and "e" not in clean.lower():
+        n = int(n)
+    return -n if negative else n
