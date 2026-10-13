@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { BrowserRow } from "./Settings";
+import { BrowserRow, Settings } from "./Settings";
 import type { BrowserStatus, Client } from "../core/client";
 
 const absent: BrowserStatus = { installed: false, installing: false, words: null, chrome: false, problem: null };
@@ -25,5 +25,48 @@ describe("the browser Alpha reads with (first run)", () => {
     rerender(<BrowserRow client={client} status={{ ...absent, problem: "The browser didn't install: Error: getaddrinfo ENOTFOUND cdn" }} onStatus={vi.fn()} />);
     expect(screen.getByText(/didn't install/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+});
+
+describe("Settings as cards", () => {
+  function fake() {
+    const prefs: Record<string, unknown> = {};
+    const client = {
+      browser: vi.fn().mockResolvedValue({ ...absent, installed: true }),
+      dataInfo: vi.fn().mockResolvedValue({ folder: "/Users/k/Library/Alpha", size: 4 * 1024 * 1024, backups: [] }),
+      claude: vi.fn().mockResolvedValue({ installed: true, signed_in: true }),
+      companion: vi.fn().mockResolvedValue(null),
+      preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
+      setPreference: vi.fn(async (key: string, value: unknown) => {
+        prefs[key] = value;
+        return { key, value };
+      }),
+    };
+    return { client: client as unknown as Client, calls: client };
+  }
+
+  it("shows each part as its own card, Removed modules empty for now, and the keys in Help", async () => {
+    const { client } = fake();
+    render(<Settings client={client} theme="system" onTheme={vi.fn()} claude={null} onClaude={vi.fn()} />);
+    const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(titles).toEqual(["Workspace", "Thinks with", "Reads with", "Appearance", "Your data", "Removed modules", "Defaults", "Help"]);
+    expect(screen.getByRole("region", { name: "Removed modules" })).toHaveTextContent("Nothing here. Removing a module today deletes it for good");
+    const help = screen.getByRole("region", { name: "Help" });
+    expect(within(help).getByText("⌘K")).toBeInTheDocument();
+    expect(within(help).getByText("Shift+F10")).toBeInTheDocument();
+    expect(within(help).getByText("Unknown")).toBeInTheDocument(); // no Mac app in a test: no version
+    expect(await screen.findByText(/\/Users\/k\/Library\/Alpha · 4.0 MB/)).toBeInTheDocument();
+  });
+
+  it("renames the workspace, the same name the sidebar shows", async () => {
+    const { client, calls } = fake();
+    render(<Settings client={client} theme="system" onTheme={vi.fn()} claude={null} onClaude={vi.fn()} />);
+    const card = screen.getByRole("region", { name: "Workspace" });
+    expect(within(card).getByText("Alpha")).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    fireEvent.change(within(card).getByRole("textbox", { name: "The workspace's name" }), { target: { value: "Kenil's brain" } });
+    fireEvent.click(within(card).getByRole("button", { name: "Save" }));
+    expect(await within(card).findByText("Kenil's brain")).toBeInTheDocument();
+    expect(calls.setPreference).toHaveBeenCalledWith("workspace_name", "Kenil's brain");
   });
 });

@@ -348,7 +348,32 @@ and show, icon and move from the menu, the rename, a refused move); `just check-
 the icons and the right-click menu in WebKit; no drag tried there (a drop moves his real
 modules). "ok commit it, then propose section 6".
 
+## Section 6: Settings as cards (13 Oct, this commit)
+
+Proposed in writing; Kenil: "removed projects - add in the ui for it now, but keep it empty, we
+will need it when we implement / proceed otherwise". Built: each part of Settings is a card with
+its title and what it is about inside it, in two stacks side by side when the page is wide and
+one under the other when it isn't. Cards: **Workspace** (new: the name, the same preference the
+sidebar renames, Edit/Save/Cancel; where it lives, with a jump to Your data), Thinks with, Reads
+with (now in a card), **Appearance** (gains "Motion and contrast: follow your Mac", which main
+already does), Your data, **Removed modules** (new and empty: "Removing a module today deletes it
+for good; keeping it here so you can bring it back comes later"; filled when the core's Removed
+state, A4, lands), Defaults, **Help** (new: the keys main answers to, each checked in the code
+that handles it, and the Mac app's version, "Unknown" in a browser).
+
+Left out of the branch's Settings: its section list and Overview (every card fits on one
+screen), Notifications and Builder rules (empty pages, Q41), the depth row (Q41), Experimental
+features (main has none), fonts and window colours (knobs); Permissions stay in Intelligence.
+
+Found in the browser pane: CSS columns painted a dark band through Appearance (it was the
+page still painting, but two plain stacks are more predictable, so they replaced the columns).
+
+What ran: `just lint` clean; 148 desktop tests in 32 files (2 new: the cards in order with
+Removed modules empty and Help's keys, the workspace's rename); `just check-desktop`: 81 of 81
+pages clean at every size (`docs/checks/2026-10-13-1251.md`). The Mac app rebuilt and seen on
+Settings (both stacks in WebKit). "ok".
+
 ## Left
 
-Section 6 (Settings as cards) proposed in writing next; then 7 Intelligence, 8 the assistant
-panel, 9 plain errors, absolute dates, delete confirms.
+Section 7 (Intelligence) proposed in writing next; then 8 the assistant panel, 9 plain errors,
+absolute dates, delete confirms.

@@ -1044,3 +1044,15 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .iconmenu__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2px; margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--border); }
 .iconmenu__tick { margin-left: auto; }
 .menu__item .iconmenu__tick { color: var(--primary); }
+
+/* Settings as cards (13 Oct, Q42 section 6): two stacks side by side when the page is wide, one
+   under the other otherwise, each card as tall as what it holds. */
+.setcards { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.setcards__col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.setcard__head { padding: 14px 16px 12px; border-bottom: 1px solid var(--line); }
+.setcard__head h2 { font-size: var(--text-lg); margin-bottom: 2px; }
+.setcard__empty { padding: 18px 16px; }
+.setkeys { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.setkeys > div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: baseline; }
+.setkeys dd { margin: 0; font-size: var(--text-md); color: var(--text-2); }
+.kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); padding: 1px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; background: var(--surface-2); color: var(--text); white-space: nowrap; }
