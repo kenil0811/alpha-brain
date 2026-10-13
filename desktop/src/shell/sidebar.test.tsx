@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Client, ModuleCard } from "../core/client";
+import { CoreError, type Client, type ModuleCard } from "../core/client";
 import { iconFromName } from "./moduleIcons";
 import { Rail } from "./Rail";
 import { dropZone, isInside, siblingsOf, treeOf, withPlace } from "./sidebarOrder";
@@ -144,7 +144,7 @@ describe("the sidebar's own arrangement", () => {
 
   it("says when a move couldn't be done", async () => {
     const { client, calls } = fakeCore();
-    calls.moveModule.mockRejectedValueOnce(new Error("That module is gone."));
+    calls.moveModule.mockRejectedValueOnce(new CoreError("That module is gone.", 400));
     rail(client, [card("m_a", "Avilo"), card("m_d", "Deals")]);
     fireEvent.keyDown(screen.getByRole("button", { name: "Deals" }), { key: "ArrowRight", altKey: true });
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't move Deals: That module is gone.");

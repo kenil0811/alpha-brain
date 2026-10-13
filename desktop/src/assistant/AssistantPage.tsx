@@ -9,6 +9,7 @@ import type { Client, Convo } from "../core/client";
 import { when } from "../modules/format";
 import { Button } from "../ui";
 import { Conversation } from "./AssistantPanel";
+import { say } from "../core/client";
 
 export function AssistantPage({
   client,
@@ -33,7 +34,7 @@ export function AssistantPage({
     client
       .conversations(null, true)
       .then((all) => { setConvos(all); setError(null); })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
   }, [client, version]);
   const focus = useMemo(() => (conversationId ? { id: conversationId, at: Date.now() } : null), [conversationId]);
   const chats = convos.filter((c) => c.kind === "chat");

@@ -5,7 +5,7 @@
  * (An idea from pull request #3, rebuilt on main's search route.)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { moduleWords } from "../core/client";
+import { moduleWords, say } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
@@ -67,7 +67,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
         .catch((e: unknown) => {
           if (!live) return;
           setHits(null);
-          setTrouble(e instanceof Error ? e.message : String(e));
+          setTrouble(say(e));
         });
     }, 180);
     return () => {

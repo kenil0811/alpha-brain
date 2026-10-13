@@ -3,7 +3,7 @@
  * App · Activity · Settings toggle and the subtabs are the current shell's own structure.
  */
 import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
-import { moduleWords } from "../core/client";
+import { moduleWords, say } from "../core/client";
 import type { Client, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
@@ -33,7 +33,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
       setDropNote(`Added ${out.documents.map((d) => d.title).join(", ")}. Alpha is reading ${files.length === 1 ? "it" : "them"} into the tables.`);
       onChanged();
     } catch (err) {
-      setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${err instanceof Error ? err.message : String(err)}`);
+      setDropNote(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${say(err)}`);
     }
     window.setTimeout(() => setDropNote(null), 6000);
   }
@@ -67,7 +67,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
         setDetail(d);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
   }, [client, moduleId, version]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
@@ -94,7 +94,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
       setMoveNote(`${card.name} now sits ${card.path && card.path.length > 1 ? `inside ${card.path.slice(0, -1).join(" › ")}` : "at the top"}.`);
       onChanged();
     } catch (e) {
-      setMoveNote(`Couldn't move it: ${e instanceof Error ? e.message : String(e)}`);
+      setMoveNote(`Couldn't move it: ${say(e)}`);
     }
   }
   /** A new module above this one: made where this one sits, then this one moves into it
@@ -110,7 +110,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
       setNewName("");
       onChanged();
     } catch (e) {
-      setMoveNote(`Couldn't make it: ${e instanceof Error ? e.message : String(e)}`);
+      setMoveNote(`Couldn't make it: ${say(e)}`);
     }
   }
   async function moveIn(id: string) {
@@ -119,7 +119,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
       setMoveNote(`${card.name} now sits inside ${detail?.name ?? "this module"}.`);
       onChanged();
     } catch (e) {
-      setMoveNote(`Couldn't move it in: ${e instanceof Error ? e.message : String(e)}`);
+      setMoveNote(`Couldn't move it in: ${say(e)}`);
     }
   }
   if (!detail) {

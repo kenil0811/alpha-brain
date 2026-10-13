@@ -6,12 +6,13 @@
 import { useEffect, useState } from "react";
 import { AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
 import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem } from "../core/client";
-import { when } from "../modules/format";
+import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 import { Badge, Button, IconButton } from "../ui";
 import { ArrowRight, Check, X, Eye } from "../ui/icons";
 import { ModuleGlyph } from "./moduleIcons";
+import { say } from "../core/client";
 
 /** Questions asked in one turn are one card with one Answer; everything else stands alone. */
 export function groupNeeds(items: NeedItem[]): NeedItem[][] {
@@ -39,9 +40,8 @@ function greeting(): string {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
+/** A moment on Home, absolute like everywhere (section 9b): "13 Oct, 14:30". */
+const timeOf = (iso: string) => when(iso);
 
 /** Today's failures, newest first: the journal's `failed` entries since local midnight. */
 export function failedToday(entries: JournalEntry[], now = new Date()): JournalEntry[] {
@@ -67,7 +67,7 @@ function Failure({ e, client, onGo, onOpenThread, onDismiss, onDone }: { e: Jour
       await client.runAutomation(automation);
       onDone("Running it again; it reports in Activity.");
     } catch (err) {
-      onDone(`Couldn't start it again: ${err instanceof Error ? err.message : String(err)}`);
+      onDone(`Couldn't start it again: ${say(err)}`);
     } finally {
       setBusy(false);
     }
@@ -105,7 +105,7 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
       await work();
       onDone(words);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setBusy(false);
     }
@@ -199,7 +199,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         setHome(h);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
   }, [client, version]);
   // today's failures, asked of the journal by kind; the count comes with the summary
   const failedCount = home?.failed_today ?? 0;
@@ -227,7 +227,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
     const today = new Set(failures.map((f) => f.id));
     const next = [...new Set([...dismissed, ...ids])].filter((id) => today.has(id));
     setDismissed(next);
-    client.setPreference(DISMISSED, next).catch((e: unknown) => setToast(`Couldn't remember that: ${e instanceof Error ? e.message : String(e)}`));
+    client.setPreference(DISMISSED, next).catch((e: unknown) => setToast(`Couldn't remember that: ${say(e)}`));
   };
   const shownFailures = failures.filter((f) => !dismissed.includes(f.id));
 
@@ -237,7 +237,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
     return () => clearTimeout(t);
   }, [toast]);
 
-  const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const date = dayLabel(new Date());
   if (!home) {
     return (
       <div className="page">

@@ -5,7 +5,7 @@
  */
 import { WorkMap } from "./map/WorkMap";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { Client, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
+import type { Client, ConnectionRemoval, Intelligence as Data, Note, Permission } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage, type HeldRows } from "../modules/DataPage";
 import { skillsHeld, skillsTable } from "./intel/skillsTable";
@@ -15,6 +15,7 @@ import { FACT_COLOURS, factRow, factsTable } from "./intel/factsTable";
 import { AgentFace, ALPHA_AGENT } from "./AgentFace";
 import type { Surface } from "./Rail";
 import { Button, Badge, Confirm, Tabs } from "../ui";
+import { say } from "../core/client";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
@@ -43,7 +44,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
       .then((plan) => setRemoving((r) => (r?.id === id ? { id, plan } : r)))
       .catch((e: unknown) => {
         setRemoving(null);
-        setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+        setMessage({ ok: false, text: say(e) });
       });
   }
   async function run(label: string, work: () => Promise<unknown>, ok: string) {
@@ -54,7 +55,7 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
       setMessage({ ok: true, text: ok });
       onChanged();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     } finally {
       setBusy(null);
     }
@@ -185,6 +186,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
   // About you as a table (section 7d): a suggested fact's Yes and No at its row's end
   const [deciding, setDeciding] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<Permission | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const decide = (id: string, accept: boolean) => {
     setDeciding(id);
@@ -192,7 +194,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
     client
       .decideFact(id, accept)
       .then(onChanged)
-      .catch((e: unknown) => setProblem(`Couldn't keep that: ${e instanceof Error ? e.message : String(e)}`))
+      .catch((e: unknown) => setProblem(`Couldn't keep that: ${say(e)}`))
       .finally(() => setDeciding(null));
   };
   const factTable = useMemo(() => factsTable(facts), [facts]);
@@ -256,12 +258,16 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
               <span>
                 {p.sentence} <span className="faint">· since {when(p.granted_at)}</span>
               </span>
-              <Button size="sm" variant="ghost" onClick={() => void client.revokePermission(p.id).then(onChanged)}>
+              <Button size="sm" variant="ghost" onClick={() => setRevoking(p)}>
                 Revoke
               </Button>
             </div>
           ))}
         </div>
+        {/* a revoke asks first (section 9c), saying what changes */}
+        <Confirm open={revoking !== null} title="Revoke this permission?" action="Revoke" onConfirm={() => { const p = revoking; setRevoking(null); if (p) client.revokePermission(p.id).then(onChanged).catch((e: unknown) => setProblem(`Couldn't revoke it: ${say(e)}`)); }} onCancel={() => setRevoking(null)}>
+          {revoking ? `“${revoking.sentence}”: Alpha will ask you again before doing this.` : null}
+        </Confirm>
       </div>
       {instructions ? null : (
         <NoteCard note={{ id: "new", scope: "person", title: "Standing instructions", body: "Ask before sending anything to anyone.", updated_at: "" }} client={client} onChanged={onChanged} />
@@ -286,7 +292,7 @@ function Agents({ client, data, modules, onChanged, onGo }: { client: Client; da
       setMessage({ ok: true, text: words });
       onChanged();
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: say(e) });
     } finally {
       setBusy(null);
     }
@@ -335,7 +341,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
     client
       .intelligence()
       .then(setData)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
     client
       .modules()
       .then((list) => setModules(Object.fromEntries(list.map((m) => [m.id, m.name]))))

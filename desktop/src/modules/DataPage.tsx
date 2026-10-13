@@ -25,6 +25,7 @@ import { ChartView } from "./views/ChartView";
 import { ListView } from "./views/ListView";
 import { FormView } from "./views/FormView";
 import { TableView } from "./views/TableView";
+import { say } from "../core/client";
 
 export type PageView = "table" | "board" | "list" | "gallery" | "calendar" | "timeline" | "chart" | "form";
 const VIEWS: { id: PageView; label: string }[] = [
@@ -172,7 +173,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
       if (host.available()) await host.revealPath(out.path);
       setStatus({ ok: true, text: `Exported ${out.rows} rows to ${out.name}${host.available() ? "" : ` (${out.path})`}.` });
     } catch (e) {
-      setStatus({ ok: false, text: `Couldn't export: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't export: ${say(e)}` });
     }
   }
   async function addFile(row: RecordRow, field: FieldInfo, file: File) {
@@ -181,7 +182,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
       load();
       onChanged();
     } catch (e) {
-      setStatus({ ok: false, text: `Couldn't add ${file.name}: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `Couldn't add ${file.name}: ${say(e)}` });
     }
   }
   // Saved lists live in the world (the person's and Alpha's); the window only shows them.
@@ -207,7 +208,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   }, [client, coloursKey]);
   const setColours = (next: Colours) => {
     setColoursState(next);
-    client.setPreference(coloursKey, next).catch((e: unknown) => setStatus({ ok: false, text: `Couldn't keep the colours: ${e instanceof Error ? e.message : String(e)}` }));
+    client.setPreference(coloursKey, next).catch((e: unknown) => setStatus({ ok: false, text: `Couldn't keep the colours: ${say(e)}` }));
   };
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
@@ -264,7 +265,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
           setAll(records);
           setError(null);
         })
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+        .catch((e: unknown) => setError(say(e)));
       return;
     }
     client
@@ -293,7 +294,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         }
         setLists(kept);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(say(e)));
   }, [client, table.name, key, heldLoad]);
   useEffect(load, [load, version]);
 
@@ -369,7 +370,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
       onChanged();
       return true;
     } catch (e) {
-      setStatus({ ok: false, text: `${words}: ${e instanceof Error ? e.message : String(e)}` });
+      setStatus({ ok: false, text: `${words}: ${say(e)}` });
       return false;
     }
   }
@@ -414,7 +415,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         await client.editRecord(table.name, row.id, values, row.revision);
         done += 1;
       } catch (e) {
-        problem = e instanceof Error ? e.message : String(e);
+        problem = say(e);
         break;
       }
     }
@@ -425,7 +426,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
           await client.addRecord(table.name, values);
           done += 1;
         } catch (e) {
-          problem = e instanceof Error ? e.message : String(e);
+          problem = say(e);
           break;
         }
       }
@@ -451,7 +452,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         await client.editRecord(table.name, row.id, { [field.name]: value }, row.revision);
         done += 1;
       } catch (e) {
-        problem = e instanceof Error ? e.message : String(e);
+        problem = say(e);
         break;
       }
     }
@@ -471,7 +472,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         await client.deleteRecord(table.name, row.id, row.revision);
         done += 1;
       } catch (e) {
-        problem = e instanceof Error ? e.message : String(e);
+        problem = say(e);
         break;
       }
     }

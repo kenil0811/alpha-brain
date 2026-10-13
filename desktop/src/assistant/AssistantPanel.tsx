@@ -6,7 +6,7 @@
  * saying how long it took and how many steps it ran, and Retry on a turn that didn't finish.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import { moduleWords } from "../core/client";
+import { moduleWords, say } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
@@ -224,7 +224,7 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
       const out = await client.answerAsk(ask.id, words);
       onAnswered(out.turn);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
       setBusy(false);
     }
   };
@@ -273,7 +273,7 @@ export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Cl
       const out = await client.answerAsks(Object.fromEntries(answered.map((a) => [a.id, answerOf(a)])));
       onAnswered(out.turn);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
       setBusy(false);
     }
   };
@@ -460,7 +460,7 @@ export function Conversation({
         setLoadError(null);
         if (!active && c.conversation) setActive(c.conversation.id);
       })
-      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setLoadError(say(e)));
   }, [client, module?.id, active]);
   useEffect(load, [load, version]);
   // A page change shows that page's live conversation, not the one from the last page.
@@ -530,7 +530,7 @@ export function Conversation({
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         // The core stopped answering (or lost the turn): the words come back to the box.
-        setError(`${e instanceof Error ? e.message : String(e)} Your message is back in the box.`);
+        setError(`${say(e)} Your message is back in the box.`);
         setText((current) => current || clean);
       } finally {
         sending.current = false;
@@ -570,7 +570,7 @@ export function Conversation({
         const final = await client.waitTurn(turn, setPending, 8, 500);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
-        setError(`${e instanceof Error ? e.message : String(e)} The turn may still have run; its answer shows here when the core is back.`);
+        setError(`${say(e)} The turn may still have run; its answer shows here when the core is back.`);
       }
       setPending(null);
       load();

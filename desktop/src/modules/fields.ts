@@ -2,7 +2,7 @@
  * One place that knows what a field kind looks like and how typed text becomes a value, for
  * every derived page, table cell and form in the shell.
  */
-import { formatDay, formatNumber, humanize } from "./format";
+import { formatDay, formatNumber, humanize, when } from "./format";
 
 export interface FieldInfo {
   name: string;
@@ -29,7 +29,7 @@ export function showValue(value: unknown, kind: string, unit?: string | null): s
   if (value === null || value === undefined || value === "") return "";
   if (isNumeric(kind)) return typeof value === "number" ? formatNumber(value, unit) : String(value);
   if (kind === "date") return formatDay(String(value));
-  if (kind === "datetime") return new Date(String(value)).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  if (kind === "datetime") return when(String(value));
   if (kind === "bool") return value ? "Yes" : "No";
   if (kind === "multichoice") return Array.isArray(value) ? value.map((v) => humanize(String(v))).join(", ") : String(value);
   if (kind === "choice" || kind === "status") return humanize(String(value));

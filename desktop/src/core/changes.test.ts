@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Changed, Client } from "./client";
+import { CoreError, NOT_ANSWERING } from "./client";
 import { FRESH, bumpAll, fold, useChanges } from "./changes";
 
 const quiet: Changed = { at: "t1", journal: 0, kinds: [], tables: [], modules: [], entities: [], threads: false, workflows: false, actions: false, working: false };
@@ -42,9 +43,9 @@ describe("the window's one poll", () => {
     const answers: (Changed | Error)[] = [
       { ...quiet, at: "t1", working: true },
       { ...quiet, at: "t2", journal: 1, kinds: ["did"], tables: ["food_log"], working: true },
-      new Error("gone"),
-      new Error("gone"),
-      new Error("gone"),
+      new CoreError(NOT_ANSWERING, 0),
+      new CoreError(NOT_ANSWERING, 0),
+      new CoreError(NOT_ANSWERING, 0),
       { ...quiet, at: "t3" },
     ];
     const calls: (string | null)[] = [];
@@ -78,7 +79,7 @@ describe("the window's one poll", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
-    expect(result.current.down).toBe("gone");
+    expect(result.current.down).toBe(NOT_ANSWERING);
     // It answers again: everything is looked at afresh.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4000);

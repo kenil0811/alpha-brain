@@ -702,6 +702,31 @@ export class CoreError extends Error {
   }
 }
 
+/** What the window says when the core can't be reached at all. */
+export const NOT_ANSWERING = "Alpha's core isn't answering. It restarts on its own; try again in a moment.";
+
+/** The core's answer to a request it refused, in words a person reads (13 Oct, Q42 section 9a):
+ *  its own words when it gave some (a refusal from the world, a sign-in), else what the status
+ *  means; the technical detail goes to the console, never to the screen. */
+export function plainError(status: number, data: { error?: unknown; detail?: unknown }): string {
+  const words = typeof data.error === "string" ? data.error : typeof data.detail === "string" && data.detail !== "Not Found" ? data.detail : null;
+  if (words) return words;
+  if (data.detail !== undefined || data.error !== undefined) console.error("Alpha's core answered", status, data);
+  if (status === 404) return "That isn't there any more; it may have been removed.";
+  if (status === 422 || status === 400) return "Alpha's core couldn't take that. Try again.";
+  return "Something went wrong in Alpha's core. Try again.";
+}
+
+/** Any error in words for the screen: the core's own words as they are; a fault in the window
+ *  itself as one plain sentence, its detail to the console. The host answers in words of its
+ *  own (strings), which pass through. */
+export function say(e: unknown): string {
+  if (e instanceof CoreError) return e.message;
+  if (typeof e === "string" && e.trim()) return e; // the Mac host's own words (a Tauri command's refusal)
+  console.error(e);
+  return "Something went wrong here. Try again.";
+}
+
 type Raw = Record<string, unknown> & { id: string; revision: number; created_at: string; updated_at: string; _provenance?: Provenance; _seen_at?: string; _gone_at?: string; _entity?: string };
 
 export function toRow(raw: Raw): RecordRow {
@@ -721,10 +746,11 @@ export class Client {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (e) {
-      throw new CoreError(`Alpha's core isn't answering (${e instanceof Error ? e.message : String(e)}).`, 0);
+      console.error("Alpha's core isn't answering", e);
+      throw new CoreError(NOT_ANSWERING, 0);
     }
-    const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string };
-    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    const data = (await response.json().catch(() => ({}))) as { error?: unknown; detail?: unknown };
+    if (!response.ok) throw new CoreError(plainError(response.status, data), response.status);
     return data as T;
   }
 

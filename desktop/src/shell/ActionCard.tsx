@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Button, Dialog } from "../ui";
+import { say } from "../core/client";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
 /** A field a person has no use for on the card: an identifier the procedure needs (a urn, a
@@ -58,7 +59,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
       await fn();
       onDecided(note);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setBusy(false);
     }

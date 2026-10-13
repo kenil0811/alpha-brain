@@ -14,6 +14,7 @@ import { SIZE_PX, normaliseLook } from "./looks";
 import { hasTauri } from "../core/session";
 import { Button, IconButton, Rich } from "../ui";
 import { X, Maximize2 } from "../ui/icons";
+import { say as inWords } from "../core/client";
 
 export const HANDOFF_KEY = "alpha.handoff";
 
@@ -68,7 +69,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setTurns(c.turns.slice(-12));
         setTrouble(null);
       })
-      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setTrouble(inWords(e)));
     client.home().then(setHome).catch(() => undefined);
   }, [client]);
   // One cheap poll asks what changed (every 3 s while Alpha works, 10 s when quiet, nothing
@@ -89,7 +90,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         if (c.working) every = 3_000;
         setTrouble(null);
       } catch (e) {
-        setTrouble(e instanceof Error ? e.message : String(e));
+        setTrouble(inWords(e));
         every = 5_000;
       }
       if (!cancelled) timer = setTimeout(() => void tick(), every);
@@ -155,7 +156,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         // is a real choice, a question when unsure).
         await finish(await client.ask(clean), comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        say(inWords(e), "concerned");
       } finally {
         setBusy(false);
         refresh();
@@ -172,7 +173,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
         setRouting(null);
         if (out.turn) await finish(out.turn, comp?.focus?.id ?? null);
       } catch (e) {
-        say(e instanceof Error ? e.message : String(e), "concerned");
+        say(inWords(e), "concerned");
       } finally {
         setBusy(false);
         refresh();

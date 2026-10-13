@@ -7,6 +7,7 @@ import type { Automation, Client } from "../core/client";
 import { when } from "../modules/format";
 import { Button } from "../ui";
 import { Check, X } from "../ui/icons";
+import { say } from "../core/client";
 
 export const VERDICT: Record<"succeeded" | "partial" | "failed", { cls: string; words: string }> = {
   succeeded: { cls: "badge--succeeded", words: "Succeeded" },
@@ -27,7 +28,7 @@ export function AutomationList({ client, items, onChanged, empty, onOpen }: { cl
       setMessage(words);
       onChanged();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
+      setMessage(say(e));
     } finally {
       setBusy(null);
     }

@@ -13,6 +13,7 @@ import type { Client, Note, Part, Provenance, RecordChange, RecordHistory as His
 import { Button } from "../ui";
 import { showValue, type FieldInfo } from "./fields";
 import { humanize, when } from "./format";
+import { say } from "../core/client";
 
 /** Who made a change, in words: you, a reader, a part of the module, or Alpha. */
 export function whoChanged(by: Provenance, fields: string[], parts: Part[]): string {
@@ -94,7 +95,7 @@ export function RecordHistory({ client, table, row, fields, parts, readonly, ver
         setPages(h);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -108,7 +109,7 @@ export function RecordHistory({ client, table, row, fields, parts, readonly, ver
       const next = await client.recordHistory(table, row.id, pages.changes[pages.changes.length - 1].revision);
       setPages({ ...next, changes: [...pages.changes, ...next.changes] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setLoadingMore(false);
     }
@@ -118,7 +119,7 @@ export function RecordHistory({ client, table, row, fields, parts, readonly, ver
       const saved = await client.editRecord(table, row.id, Object.fromEntries(change.fields.map((f) => [f.field, f.before ?? null])), row.revision);
       onUndone(saved);
     } catch (e) {
-      setError(`Couldn't undo it: ${e instanceof Error ? e.message : String(e)}`);
+      setError(`Couldn't undo it: ${say(e)}`);
     }
   };
 
@@ -168,7 +169,7 @@ export function RecordNote({ client, table, id, note, readonly, onSaved }: { cli
         setError(null);
         onSaved();
       })
-      .catch((e: unknown) => setError(`Couldn't save the note: ${e instanceof Error ? e.message : String(e)}`));
+      .catch((e: unknown) => setError(`Couldn't save the note: ${say(e)}`));
   };
   return (
     <div className="section">

@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Changed, Client } from "./client";
+import { say } from "./client";
 
 export interface Versions {
   /** Bumped with everything: the person did something, or the core came back. */
@@ -106,7 +107,7 @@ export function useChanges(client: Client | null, moduleOf: (table: string) => s
       misses.current += 1;
       if (misses.current >= MISSES_BEFORE_DOWN) {
         wasDown.current = true;
-        setDown(e instanceof Error ? e.message : String(e));
+        setDown(say(e));
       }
     }
   }, [client]);

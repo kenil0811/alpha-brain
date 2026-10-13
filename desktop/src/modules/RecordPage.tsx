@@ -16,6 +16,7 @@ import { coerce, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize, when } from "./format";
 import { RecordHistory, RecordNote } from "./RecordHistory";
 import { actionsFor, RecordFields, ThingActions } from "./views/RecordFields";
+import { say } from "../core/client";
 
 export function RecordPage({ client, table, id, version, onChanged, onGo }: { client: Client; table: string; id: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations; note: Note | null } | null>(null);
@@ -34,7 +35,7 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
         setData(d);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -88,7 +89,7 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
         setMessage(null);
         onChanged();
       })
-      .catch((e: unknown) => setMessage({ ok: false, text: `Couldn't save the change: ${e instanceof Error ? e.message : String(e)}` }));
+      .catch((e: unknown) => setMessage({ ok: false, text: `Couldn't save the change: ${say(e)}` }));
   };
   const remove = async () => {
     setAsking(false);
@@ -97,7 +98,7 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
       onChanged();
       back();
     } catch (e) {
-      setMessage({ ok: false, text: `Couldn't remove it: ${e instanceof Error ? e.message : String(e)}` });
+      setMessage({ ok: false, text: `Couldn't remove it: ${say(e)}` });
     }
   };
   const run = (part: string) =>

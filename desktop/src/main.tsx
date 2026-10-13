@@ -18,7 +18,11 @@ class Guard extends React.Component<{ children: React.ReactNode }, { error: stri
         <section className="page" role="alert" style={{ padding: 24 }}>
           <h2>Alpha's window hit a problem</h2>
           <p className="muted">Reload to carry on; nothing you saved is affected.</p>
-          <pre style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-sm)", userSelect: "text" }}>{this.state.error}</pre>
+          {/* the detail is for a bug report, folded away: never what the person reads first (section 9a) */}
+          <details style={{ marginBottom: 12 }}>
+            <summary className="faint">Details for a bug report</summary>
+            <pre style={{ whiteSpace: "pre-wrap", fontSize: "var(--text-sm)", userSelect: "text" }}>{this.state.error}</pre>
+          </details>
           <Button variant="primary" onClick={() => window.location.reload()}>
             Reload
           </Button>

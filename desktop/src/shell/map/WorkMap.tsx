@@ -20,6 +20,8 @@ import { ActivityIcon, BookOpen, Building2, Eye, FileText, Flag, FolderOpen, Glo
 import { anchorsFor, makeSimulation, positionsOf, settle, toMapEdges, toMapNodes, type Anchors, type Positions } from "./layout";
 import type { FromWorker, ToWorker } from "./layout.worker";
 import { shape, signature, type ShapedNode } from "./shape";
+import { say } from "../../core/client";
+import { when } from "../../modules/format";
 
 type Kind = GraphNode["kind"];
 const KINDS: Record<GraphKind, { kind: Kind; label: string }[]> = {
@@ -166,7 +168,7 @@ function curve(a: { x: number; y: number }, b: { x: number; y: number }): string
   return `M ${a.x} ${a.y} Q ${mx - dy * bend} ${my + dx * bend} ${b.x} ${b.y}`;
 }
 
-const timeOf = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+const timeOf = (d: Date) => when(d.toISOString());
 
 export function WorkMap({ client, onGo, initialKind = "world" }: { client: Client; onGo?: (s: Surface) => void; initialKind?: GraphKind }) {
   const [kind, setKind] = useState<GraphKind>(initialKind);
@@ -206,7 +208,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
       seen.current = sig;
       setGraph(g);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }, [client]);
   useEffect(() => {
@@ -218,7 +220,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
       if (kind === "world") await client.connectGraph();
       await fetchGraph(kind);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setBusy(null);
     }
@@ -425,7 +427,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
       await client.decideFact(fact, accept);
       await fetchGraph(kind);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   };
 

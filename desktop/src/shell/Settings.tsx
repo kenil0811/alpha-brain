@@ -16,6 +16,7 @@ import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
 import { Button, Trouble } from "../ui";
+import { say } from "../core/client";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -50,7 +51,7 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
     try {
       await onUse();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     } finally {
       setTrying(false);
     }
@@ -82,7 +83,7 @@ export function ThinkerRow({ which, client, status, onStatus, inUse, onUse }: { 
       await work();
       setWaiting(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }
 
@@ -165,7 +166,7 @@ export function BrowserRow({ client, status, onStatus }: { client: Client; statu
     try {
       onStatus(await client.installBrowser());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(say(e));
     }
   }
   const words = !status
@@ -340,8 +341,8 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
         setData(d);
         setTrouble(null);
       })
-      .catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
-    client.claude().then(onClaude).catch((e: unknown) => setTrouble(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setTrouble(say(e)));
+    client.claude().then(onClaude).catch((e: unknown) => setTrouble(say(e)));
   }, [client, onClaude, tick]);
 
   const choosePageSize = useCallback((next: PageSize) => {

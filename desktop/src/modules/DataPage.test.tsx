@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Client, RecordRow, TableDesc } from "../core/client";
+import { CoreError, type Client, type RecordRow, type TableDesc } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { DataPage } from "./DataPage";
 
@@ -345,7 +345,7 @@ describe("editing several ticked rows at once (section 4b)", () => {
   it("a refused row stops it, saying how many were set and why", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
-    client.editRecord = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("Record r2 changed since revision 3")) as never;
+    client.editRecord = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new CoreError("Record r2 changed since revision 3", 400)) as never;
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("checkbox", { name: "Select every row on this page" }));
     await user.click(screen.getByRole("button", { name: "Set…" }));
@@ -411,7 +411,7 @@ describe("pasting from a spreadsheet (section 4c)", () => {
   it("a refused row stops the paste with how far it got", async () => {
     const user = userEvent.setup();
     const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
-    client.editRecord = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("Record r2 changed since revision 3")) as never;
+    client.editRecord = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new CoreError("Record r2 changed since revision 3", 400)) as never;
     await screen.findByText("Bakery");
     paste(within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!, "1\n2");
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Paste" }));

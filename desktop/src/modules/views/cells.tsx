@@ -6,13 +6,13 @@ import { type KeyboardEvent, useState } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
-import { humanize } from "../format";
+import { dayText, humanize } from "../format";
 import { Badge, IconButton } from "../../ui";
 import { FolderOpen } from "../../ui/icons";
 
 /** When a reader-fed row came and went, in words: "New today", "Since 2 Oct", "Gone 5 Oct". */
 export function SeenCell({ row }: { row: RecordRow }) {
-  const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const day = (iso: string) => dayText(new Date(iso));
   const today = new Date().toDateString();
   if (row.gone_at) return <td><Badge tone="gray">Gone {day(row.gone_at)}</Badge></td>;
   if (new Date(row.created_at).toDateString() === today) return <td><Badge tone="good">New today</Badge></td>;

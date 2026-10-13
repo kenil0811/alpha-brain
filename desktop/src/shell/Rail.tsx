@@ -16,6 +16,7 @@ import { Button, IconButton, Popover } from "../ui";
 import { HomeIcon, ActivityIcon, PeopleIcon, AssistantIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight, ChevronRight, Check, HideIcon, X } from "../ui/icons";
 import { iconFor, iconFromName, MODULE_ICONS, useModuleIcons } from "./moduleIcons";
 import { dropZone, existing, isInside, siblingsOf, treeOf, withPlace, type DropZone, type ModuleBranch } from "./sidebarOrder";
+import { say } from "../core/client";
 
 export type Surface =
   | { kind: "home" }
@@ -160,7 +161,7 @@ export function Rail({
       try {
         await client.moveModule(id, parent);
       } catch (e) {
-        return fail(`move ${m.name}`, e instanceof Error ? e.message : String(e));
+        return fail(`move ${m.name}`, say(e));
       }
       if (parent) unfold(parent);
       onChanged?.();
@@ -176,7 +177,7 @@ export function Rail({
     try {
       await client.moveModule(m.id, parent);
     } catch (e) {
-      return fail(`move ${m.name}`, e instanceof Error ? e.message : String(e));
+      return fail(`move ${m.name}`, say(e));
     }
     if (parent) unfold(parent);
     // it goes at the end of where it now sits until it is moved again

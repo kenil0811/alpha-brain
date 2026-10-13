@@ -10,6 +10,7 @@ import { Badge, Button } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
+import { say } from "../core/client";
 
 const KIND: Record<string, string> = { read: "Reads a list from a page", act: "Does a task on a site", run: "Runs on its own" };
 
@@ -28,7 +29,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
         setError(null);
         if (!editing) setBody(s.notes?.body ?? "");
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };

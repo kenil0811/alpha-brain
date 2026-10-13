@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import type { Client } from "./client";
+import { say } from "./client";
 
 /** The keys the window keeps. */
 export const PREF = {
@@ -74,7 +75,7 @@ export function usePreference<T>(client: Client | null, key: string, fallback: T
     } catch (e) {
       values.set(key, before);
       tell(key);
-      return e instanceof Error ? e.message : String(e);
+      return say(e);
     }
   };
   return [value, save];

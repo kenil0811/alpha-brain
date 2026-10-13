@@ -481,6 +481,42 @@ through his subscription). The Mac app rebuilt; the panel not seen there (its wi
 another Space). Open: the pager's Previous/Next break mid-word with the panel open, like the view
 tabs (main's toolbar at narrow widths), put to Kenil. "ok commit it, then propose section 9".
 
+## Section 9: plain errors, absolute dates, every delete confirming (13 Oct, this commit)
+
+Proposed in writing; Kenil: "ok go for all of these". Built:
+
+- **9a Plain errors**: one helper (`say` in `core/client.ts`) words every error, and the 64
+  places that showed a raw message use it. The core's own words pass through (a refusal from the
+  world, a sign-in); otherwise `plainError` says what the status means ("That isn't there any
+  more; it may have been removed." for a 404, "Alpha's core couldn't take that. Try again." for
+  a request it couldn't read, which showed "[object Object]" before, "Something went wrong in
+  Alpha's core. Try again." for a failure inside it); the core down is one sentence without the
+  engine's words ("Load failed"); a fault in the window itself is "Something went wrong here.
+  Try again."; the host's own words (strings) pass through; the detail goes to the console. The
+  crash screen's stack is folded under "Details for a bug report".
+- **9b Absolute dates**, written by the window, not the engine (the Mac app showed "3 Oct at
+  08:15 PM" where Chromium showed "3 Oct, 20:15"): a moment "13 Oct, 14:30" (with the year in
+  another year; today's moments too), a day "13 Oct", a heading "Monday 13 October", a month
+  "October 2026"; the clock follows the Mac's 12- or 24-hour setting ("2:30 pm"). No
+  "Yesterday", no time without its day. Cells, record pages, Home, Activity, the map, calendar,
+  timeline, grouping by month. Period names ("Didn't work today", "New today") stay.
+- **9c Every delete confirms**: revoking a standing permission asks first with what changes;
+  every other delete already did. Dismissing a question and Done on a conversation close, not
+  delete, and stay as they are.
+
+Tests that faked a core refusal with a plain `Error` now use `CoreError`, as the client throws.
+
+What ran: `just lint` clean; 168 desktop tests in 37 files (6 new: the core's words and the
+plain ones; a window fault never as code; days with and without the year; 24- and 12-hour
+times; no Yesterday; the revoke confirm); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-1443.md`). The Mac app rebuilt; its dates not seen there (the window
+was on another Space): whether WebKit reads the Mac's 12-hour clock is the one thing left to see.
+"yes".
+
 ## Left
 
-Section 9 (plain errors, absolute dates, every delete confirming) proposed in writing next.
+The window's sections from pull request #5 are done (4e skipped). Open with Kenil: a table's view
+tabs and pager words break mid-word at 1100 with the panel open (main's toolbar at narrow
+widths). Next in the plan: slice 2, the small core routes (A1–A4, B1, B2, B4, B6, B8–B11, C9, D1,
+D1b export, D5, D9, D11, D12, G1, G3–G7, E1–E3), then behaviour (slice 3), then the design
+sessions. Nothing pushed; nothing posted on the pull request.

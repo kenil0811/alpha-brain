@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { Trouble } from "../ui";
+import { say } from "../core/client";
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
@@ -62,7 +63,7 @@ export function Activity({ client, version }: { client: Client; version: number;
           setRows(r);
           setError(null);
         })
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+        .catch((e: unknown) => setError(say(e)));
     }, 200);
     return () => clearTimeout(t);
   }, [client, q, version, tick]);

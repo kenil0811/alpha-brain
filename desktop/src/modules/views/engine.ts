@@ -6,7 +6,7 @@
  */
 import type { RecordRow, Relations } from "../../core/client";
 import { isNumeric, openChoices, type FieldInfo } from "../fields";
-import { formatDay, formatNumber, humanize } from "../format";
+import { formatDay, formatNumber, humanize, monthText } from "../format";
 
 export interface Sort {
   field: string;
@@ -360,7 +360,10 @@ export interface RowGroup {
   rows: RecordRow[];
 }
 
-const MONTH = (key: string) => new Date(`${key}-01T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+const MONTH = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  return y && m ? monthText(y, m - 1) : key;
+};
 
 /** The rows in groups by one field, in the field's own order: a choice or status keeps its
  *  choices' order, a tick is Ticked then Not ticked, a date groups by month, the rest A to Z;

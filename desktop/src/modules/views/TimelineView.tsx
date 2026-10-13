@@ -2,6 +2,7 @@
 import type { RecordRow } from "../../core/client";
 import { showValue, type FieldInfo } from "../fields";
 import { byMonth } from "./engine";
+import { monthText } from "../format";
 
 export function TimelineView({ rows, field, titleField, fields, onOpen }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; fields: FieldInfo[]; onOpen: (id: string) => void }) {
   const months = byMonth(rows, field);
@@ -27,5 +28,5 @@ export function TimelineView({ rows, field, titleField, fields, onOpen }: { rows
 
 function monthName(month: string): string {
   const [y, m] = month.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  return monthText(y, m - 1);
 }

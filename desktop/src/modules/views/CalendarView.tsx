@@ -4,6 +4,7 @@ import type { FieldInfo } from "../fields";
 import { IconButton } from "../../ui";
 import { ChevronLeft, ChevronRight } from "../../ui/icons";
 import { byDay } from "./engine";
+import { monthText } from "../format";
 
 export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }: { rows: RecordRow[]; field: FieldInfo; titleField: string | undefined; month: { y: number; m: number }; onMonth: (m: { y: number; m: number }) => void; onOpen: (id: string) => void }) {
   const first = new Date(month.y, month.m, 1);
@@ -12,7 +13,7 @@ export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }
   const cells: (number | null)[] = [...Array(start).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
   while (cells.length % 7) cells.push(null);
   const onDays = byDay(rows, field);
-  const label = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const label = monthText(first.getFullYear(), first.getMonth());
   return (
     <div className="calendar">
       <div className="calendar__head">

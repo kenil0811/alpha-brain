@@ -5,17 +5,18 @@
  *  that could not fill its fields. */
 import type { Part, Provenance, RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { humanize } from "../format";
+import { dayText, humanize, when as whenText } from "../format";
 import { useState } from "react";
 import { Button } from "../../ui";
 import { Cell, LongText } from "./cells";
+import { say } from "../../core/client";
 
 /** `page`: on the record's own page the title is a field like the rest (it is edited there) and
  *  the dates are in the page's header, so neither repeats here. */
 export function RecordFields({ row, fields, titleField, relations, onCommit, onOpenRelated, page = false }: { row: RecordRow; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; onCommit: (field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void; page?: boolean }) {
   const long = fields.filter((f) => f.kind === "long_text");
   const shown = fields.filter((f) => (page || f.name !== titleField) && f.kind !== "long_text");
-  const when = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
+  const when = (iso: string) => whenText(iso);
   return (
     <>
       <table className={page ? "table table--kv table--wrap" : "table table--kv"}>
@@ -66,7 +67,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
 /** Where a value came from, when a part wrote it (§12): its source and date beside the value,
  *  or why it could not be filled. The table row is three cells wide for these rows. */
 function FieldOrigin({ origin }: { origin: NonNullable<Provenance["fields"]>[string] }) {
-  const when = origin.fetched_at ? new Date(origin.fetched_at).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "";
+  const when = origin.fetched_at ? dayText(new Date(origin.fetched_at)) : "";
   if (origin.problem) {
     return <td className="origin origin--problem" title={origin.problem}>not filled: {origin.problem}</td>;
   }
@@ -104,7 +105,7 @@ export function ThingActions({ actions, onRun }: { actions: ThingAction[]; onRun
   return (
     <div className="row thing__actions" role="group" aria-label="What Alpha can do">
       {actions.map((a) => (
-        <Button key={a.id} size="sm" disabled={running !== null} onClick={() => { setRunning(a.id); setNote(null); void onRun(a.id).then(() => setNote(`${a.title}: done.`)).catch((e: unknown) => setNote(e instanceof Error ? e.message : String(e))).finally(() => setRunning(null)); }}>
+        <Button key={a.id} size="sm" disabled={running !== null} onClick={() => { setRunning(a.id); setNote(null); void onRun(a.id).then(() => setNote(`${a.title}: done.`)).catch((e: unknown) => setNote(say(e))).finally(() => setRunning(null)); }}>
           {running === a.id ? "Running…" : a.again ? `Try again: ${a.title}` : a.title}
         </Button>
       ))}

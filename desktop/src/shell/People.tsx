@@ -10,6 +10,7 @@ import { initials, when } from "../modules/format";
 import { factOrigin } from "./facts";
 import { Button, Badge, Trouble } from "../ui";
 import { ArrowLeft } from "../ui/icons";
+import { say } from "../core/client";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
@@ -25,7 +26,7 @@ export function People({ client, version, onOpen }: { client: Client; version: n
         setPeople(rows);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -96,7 +97,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
         setError(null);
         if (!editing) setBody(e.page?.body ?? "");
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };

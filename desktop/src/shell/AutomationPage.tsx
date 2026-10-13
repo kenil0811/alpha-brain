@@ -15,6 +15,7 @@ import { useAgentLook } from "./AgentFace";
 import { LookEditor } from "../avatar/LookPicker";
 import type { Look } from "../avatar/looks";
 import { usePreference } from "../core/preferences";
+import { say } from "../core/client";
 
 /** The face this agent wears in Agents (section 7c): its own look, or Alpha's until one is
  *  picked; the companion's pickers from Settings. */
@@ -61,7 +62,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
         setAuto(a);
         setError(null);
       })
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
@@ -75,7 +76,7 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
       setMessage(words);
       onChanged();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
+      setMessage(say(e));
     }
   };
   return (

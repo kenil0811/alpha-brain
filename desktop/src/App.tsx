@@ -6,7 +6,7 @@
  * something here. When the core stops answering the window says so and the host brings it back.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Client, moduleWords } from "./core/client";
+import { Client, moduleWords, say } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
 import { resolveSession } from "./core/session";
@@ -142,7 +142,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         await client.health();
         if (!cancelled) setRuntime({ kind: "connected", client });
       } catch (e) {
-        if (!cancelled) setRuntime({ kind: "unavailable", reason: e instanceof Error ? e.message : String(e) });
+        if (!cancelled) setRuntime({ kind: "unavailable", reason: say(e) });
       }
     });
     return () => {
@@ -266,7 +266,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
-            <span>Alpha's core isn't answering ({down}). The host starts it again on its own; this clears when it is back.</span>
+            <span>Alpha's core isn't answering. The host starts it again on its own; this clears when it is back.</span>
             <Button size="sm" onClick={() => void poll()}>
               Try now
             </Button>
