@@ -94,7 +94,10 @@ class Knowledge(Base):
     @tool
     def goal_update(self, id: str, state: str) -> dict[str, Any]:
         """Mark a goal done or dropped (or active again)."""
-        return self.world.knowledge.update_goal(id, state)
+        goal = self.world.knowledge.update_goal(id, state)
+        words = {"done": "Marked done", "dropped": "Dropped", "active": "Picked up again"}
+        self._did("changed", f"{words.get(state, state)} the goal: {goal['text']}", {"goal": id})
+        return goal
 
     @tool
     def facts_get(self, subject: str = "person") -> list[dict[str, Any]]:

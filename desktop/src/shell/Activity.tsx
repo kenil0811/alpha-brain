@@ -1,16 +1,21 @@
 /**
  * Activity: what Alpha did, what it read, what you changed, newest first and grouped by day;
- * search finds anything that happened. Each row opens to what it touched.
+ * search finds anything that happened. Each row opens its own page (slice 2 D12); Show earlier
+ * goes back a page at a time, as far as the journal goes; Failed asks the core for failures
+ * only, so none is missed on a busy day.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Client, JournalEntry } from "../core/client";
 import { dayLabel, when } from "../modules/format";
-import { Trouble } from "../ui";
+import { Button, Trouble } from "../ui";
 import { say } from "../core/client";
+import type { Surface } from "./Rail";
+
+const PAGE = 300;
 
 const SHOWN = new Set(["did", "changed", "made", "saw", "failed", "noticed", "proposed", "asked", "answered", "checked"]);
 
-function badge(e: JournalEntry): { cls: string; words: string } {
+export function badge(e: JournalEntry): { cls: string; words: string } {
   if (e.kind === "failed") return { cls: "badge--failed", words: "Failed" };
   if (e.kind === "asked" || e.kind === "proposed") return { cls: "badge--waiting", words: "Waiting" };
   if (e.actor === "person") return { cls: "", words: "You" };
@@ -19,46 +24,19 @@ function badge(e: JournalEntry): { cls: string; words: string } {
   return { cls: "badge--succeeded", words: "Done" };
 }
 
-function Details({ e }: { e: JournalEntry }) {
-  const data = e.data as Record<string, unknown>;
-  const lines: string[] = [];
-  if (typeof data.url === "string") lines.push(`Page: ${data.url}${data.signed_in ? " (signed in)" : ""}`);
-  if (typeof data.path === "string") lines.push(`File: ${data.path}`);
-  if (data.values && typeof data.values === "object") lines.push(`Values: ${Object.entries(data.values as Record<string, unknown>).map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(", ")}`);
-  if (data.before && data.after) lines.push(`Before ${JSON.stringify(data.before)} → after ${JSON.stringify(data.after)}`);
-  if (typeof data.why === "string") lines.push(`Because: ${data.why}`);
-  if (typeof data.error === "string") lines.push(`What went wrong: ${data.error}`);
-  if (e.source) lines.push(`Source: ${e.source.replace("connector:", "")}`);
-  return (
-    <div className="detail">
-      {lines.length ? (
-        <ul className="check">
-          {lines.map((l) => (
-            <li key={l}>
-              <span className="m m--y">·</span>
-              <span>{l}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <span className="faint">Nothing more recorded.</span>
-      )}
-      <span className="faint">{new Date(e.at).toLocaleString()}</span>
-    </div>
-  );
-}
-
-export function Activity({ client, version }: { client: Client; version: number; onChanged: () => void }) {
+export function Activity({ client, version, onGo }: { client: Client; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
   const [rows, setRows] = useState<JournalEntry[] | null>(null);
+  const [end, setEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "alpha" | "you" | "failed">("all");
-  const [open, setOpen] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const kind = filter === "failed" ? "failed" : undefined;
   useEffect(() => {
     const t = setTimeout(() => {
       client
-        .activity({ q: q.trim() || undefined, limit: 300 })
+        .activity({ q: q.trim() || undefined, limit: PAGE, kind })
         .then((r) => {
           setRows(r);
           setError(null);
@@ -66,13 +44,40 @@ export function Activity({ client, version }: { client: Client; version: number;
         .catch((e: unknown) => setError(say(e)));
     }, 200);
     return () => clearTimeout(t);
-  }, [client, q, version, tick]);
+  }, [client, q, kind, tick]);
+  // Something new: the newest page again, kept in front of the earlier pages already shown.
+  const seen = useRef(version);
+  useEffect(() => {
+    if (seen.current === version || q.trim()) return;
+    seen.current = version;
+    client
+      .activity({ limit: PAGE, kind })
+      .then((r) => setRows((prev) => (prev ? [...r, ...prev.filter((p) => !r.some((x) => x.id === p.id))] : r)))
+      .catch(() => undefined); // the next change tries again; what is shown stays
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+  // a new search or filter starts from the newest again
+  useEffect(() => setEnd(false), [q, kind]);
+  const all = rows ?? [];
+  const showEarlier = () => {
+    const oldest = all[all.length - 1];
+    if (!oldest) return;
+    setLoading(true);
+    client
+      .activity({ limit: PAGE, kind, before: oldest.id })
+      .then((r) => {
+        setRows((prev) => [...(prev ?? []), ...r]);
+        setEnd(r.length < PAGE);
+      })
+      .catch((e: unknown) => setError(say(e)))
+      .finally(() => setLoading(false));
+  };
   const shown = useMemo(
     () =>
-      (rows ?? []).filter(
+      all.filter(
         (e) => SHOWN.has(e.kind) && (filter === "all" || (filter === "you" ? e.actor === "person" : filter === "failed" ? e.kind === "failed" : e.actor !== "person")),
       ),
-    [rows, filter],
+    [all, filter],
   );
   let lastDay = "";
   return (
@@ -109,17 +114,24 @@ export function Activity({ client, version }: { client: Client; version: number;
             return (
               <div key={e.id}>
                 {head}
-                <button type="button" className="item item--btn" aria-expanded={open === e.id} onClick={() => setOpen((o) => (o === e.id ? null : e.id))}>
+                <button type="button" className="item item--btn" onClick={() => onGo({ kind: "entry", id: e.id })}>
                   <span className="item__when num">{when(e.at)}</span>
                   <span className={`badge ${b.cls}`}>{b.words}</span>
                   <span className="item__body">
                     <b>{e.snippet ? <span dangerouslySetInnerHTML={{ __html: e.snippet.replace(/</g, "&lt;").replace(/\[/g, "<mark>").replace(/\]/g, "</mark>") }} /> : e.text}</b>
                   </span>
                 </button>
-                {open === e.id ? <Details e={e} /> : null}
               </div>
             );
           })}
+          {rows && !q.trim() && rows.length >= PAGE && !end ? (
+            <div className="row" style={{ justifyContent: "center", padding: 12 }}>
+              <Button size="sm" disabled={loading} onClick={showEarlier}>
+                {loading ? "Loading…" : "Show earlier"}
+              </Button>
+            </div>
+          ) : null}
+          {end ? <p className="empty">That's everything, back to the first entry.</p> : null}
         </div>
       </div>
     </div>

@@ -136,6 +136,35 @@ export interface JournalEntry {
   entity_ids: string[];
   source: string | null;
   snippet?: string;
+  /** A failure: what Try again would redo, in words (`asks`: say yes first, it acts on a site),
+   *  or why it can't (`blocked`); null when there is nothing to redo (slice 2 D5). */
+  again?: { how: string | null; words?: string; asks?: boolean; blocked?: string } | null;
+  /** A failure: how the latest try went. */
+  tried?: { at: string; state: "running" | "worked" | "failed"; words: string } | null;
+  /** Something since removed that the entry was about, in a few words. */
+  removed?: string;
+}
+
+/** What an activity entry touched, each opening its own page (slice 2 D12). */
+export interface Touched {
+  kind: "module" | "conversation" | "automation" | "skill" | "record" | "goal";
+  id: string;
+  name: string;
+  table?: string;
+  module?: string | null;
+  chat?: boolean;
+}
+
+/** One activity entry's own page: the entry, what it touched, its turn's other steps. */
+export interface EntryPage extends JournalEntry {
+  touched: Touched[];
+  steps: JournalEntry[];
+}
+
+/** One goal's own page: the goal, its module's name, and what happened to it. */
+export interface GoalPage extends Goal {
+  module_name: string | null;
+  history: JournalEntry[];
 }
 
 export interface Thread {
@@ -868,10 +897,13 @@ export class Client {
   connectionRemoval = (id: string) => this.call<ConnectionRemoval>("GET", `/api/connections/${id}/removal`);
   removeConnection = (id: string) => this.call<ConnectionRemoval>("DELETE", `/api/connections/${id}`);
 
-  activity = (params: { q?: string; module?: string; limit?: number; kind?: string } = {}) => {
+  activity = (params: { q?: string; module?: string; limit?: number; kind?: string; since?: string; before?: string } = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
     return this.call<JournalEntry[]>("GET", `/api/activity?${qs}`);
   };
+  /** One entry's page, however old; Try again on a failure (slice 2 D5, D12). */
+  activityEntry = (id: string) => this.call<EntryPage>("GET", `/api/activity/${encodeURIComponent(id)}`);
+  tryAgain = (id: string) => this.call<JournalEntry>("POST", `/api/activity/${encodeURIComponent(id)}/again`);
   search = (q: string) => this.call<SearchResult>("GET", `/api/search?q=${encodeURIComponent(q)}`);
 
   /** Files the person dropped: kept for the module and read by Alpha. */
@@ -994,6 +1026,7 @@ export class Client {
   correctFact = (id: string, value: string) => this.call<Fact>("POST", `/api/facts/${encodeURIComponent(id)}/correct`, { value });
   forgetFact = (id: string) => this.call<Fact>("DELETE", `/api/facts/${encodeURIComponent(id)}`);
   addGoal = (text: string, module?: string | null) => this.call<Goal>("POST", "/api/goals", { text, module: module ?? null });
+  goal = (id: string) => this.call<GoalPage>("GET", `/api/goals/${encodeURIComponent(id)}`);
   changeGoal = (id: string, change: { text?: string; state?: "active" | "done" | "dropped" }) => this.call<Goal>("PATCH", `/api/goals/${encodeURIComponent(id)}`, change);
   exportMemory = () => this.call<{ markdown: string; json: string; items: number }>("POST", "/api/memory/export");
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });

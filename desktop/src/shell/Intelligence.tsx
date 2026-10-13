@@ -16,6 +16,7 @@ import { AgentFace, ALPHA_AGENT } from "./AgentFace";
 import type { Surface } from "./Rail";
 import { Button, Badge, Confirm, Dialog, Tabs } from "../ui";
 import { host } from "../core/host";
+import { GoalButtons, GoalWords } from "./GoalPage";
 import { say } from "../core/client";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
@@ -183,7 +184,7 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
 
 /** Goals (slice 2 D1, D11): typed straight in, their words rewritten in place, marked done or
  *  dropped (kept with their date), or picked up again. */
-function GoalsCard({ client, goals, onChanged }: { client: Client; goals: Goal[]; onChanged: () => void }) {
+function GoalsCard({ client, goals, onChanged, onGo }: { client: Client; goals: Goal[]; onChanged: () => void; onGo?: (s: Surface) => void }) {
   const [text, setText] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -211,17 +212,11 @@ function GoalsCard({ client, goals, onChanged }: { client: Client; goals: Goal[]
           <div key={g.id} className="goalrow">
             <div className="goalrow__body">
               {editing === g.id ? (
-                <input
-                  className="textfield"
-                  defaultValue={g.text}
-                  autoFocus
-                  aria-label={`New words for ${g.text}`}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { const t = e.currentTarget.value; setEditing(null); void act(() => client.changeGoal(g.id, { text: t }), "rewrite the goal"); }
-                    if (e.key === "Escape") setEditing(null);
-                  }}
-                  onBlur={(e) => { const t = e.currentTarget.value; setEditing(null); if (t.trim() !== g.text) void act(() => client.changeGoal(g.id, { text: t }), "rewrite the goal"); }}
-                />
+                <GoalWords goal={g} onCancel={() => setEditing(null)} onDone={(t) => { setEditing(null); if (t.trim() !== g.text) void act(() => client.changeGoal(g.id, { text: t }), "rewrite the goal"); }} />
+              ) : onGo ? (
+                <button type="button" className="goalrow__open" title="Open its page" onClick={() => onGo({ kind: "goal", id: g.id })}>
+                  {g.text}
+                </button>
               ) : (
                 <b style={{ fontWeight: 500 }}>{g.text}</b>
               )}
@@ -231,25 +226,7 @@ function GoalsCard({ client, goals, onChanged }: { client: Client; goals: Goal[]
               </div>
             </div>
             <span className="goalrow__acts">
-              {editing !== g.id ? (
-                <Button size="sm" variant="ghost" onClick={() => setEditing(g.id)}>
-                  Edit
-                </Button>
-              ) : null}
-              {g.state === "active" ? (
-                <>
-                  <Button size="sm" onClick={() => void act(() => client.changeGoal(g.id, { state: "done" }), "mark it done")}>
-                    Done
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => void act(() => client.changeGoal(g.id, { state: "dropped" }), "drop it")}>
-                    Drop
-                  </Button>
-                </>
-              ) : (
-                <Button size="sm" variant="ghost" onClick={() => void act(() => client.changeGoal(g.id, { state: "active" }), "pick it up again")}>
-                  Pick up again
-                </Button>
-              )}
+              <GoalButtons client={client} goal={g} editing={editing === g.id} onEdit={() => setEditing(g.id)} act={act} />
             </span>
           </div>
         ))}
@@ -258,7 +235,7 @@ function GoalsCard({ client, goals, onChanged }: { client: Client; goals: Goal[]
   );
 }
 
-function Knowledge({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
+function Knowledge({ client, data, onChanged, onGo }: { client: Client; data: Data; onChanged: () => void; onGo?: (s: Surface) => void }) {
   const { facts, notes, goals } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
@@ -342,7 +319,7 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
         </div>
       )}
       {problem ? <p className="notice intel__table" role="alert">{problem}</p> : null}
-      <GoalsCard client={client} goals={goals} onChanged={onChanged} />
+      <GoalsCard client={client} goals={goals} onChanged={onChanged} onGo={onGo} />
       <Dialog open={correcting !== null} onOpenChange={(o) => !o && setCorrecting(null)} title={correcting ? `Correct ${humanize(correcting.predicate).toLowerCase()}` : ""}>
         {correcting ? (
           <form
@@ -523,7 +500,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />
       ) : (
-        <Knowledge client={client} data={data} onChanged={onChanged} />
+        <Knowledge client={client} data={data} onChanged={onChanged} onGo={onGo} />
       )}
     </div>
   );

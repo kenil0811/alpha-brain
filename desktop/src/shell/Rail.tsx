@@ -28,6 +28,9 @@ export type Surface =
   | { kind: "entity"; id: string }
   | { kind: "skill"; name: string }
   | { kind: "automation"; id: string }
+  /** One activity entry's own page, and one goal's (slice 2 D12). */
+  | { kind: "entry"; id: string }
+  | { kind: "goal"; id: string }
   /** `table`: the module opened on that table's tab. */
   | { kind: "module"; id: string; table?: string }
   /** One record's own page; `module` is the module its table belongs to, when it has one. */
@@ -36,7 +39,8 @@ export type Surface =
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
-  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation")) return true; // item pages live under Intelligence
+  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "goal")) return true; // item pages live under Intelligence
+  if (b.kind === "activity" && a.kind === "entry") return true; // an entry's page is inside Activity
   if (b.kind === "assistant" && a.kind === "assistant") return true; // any conversation open on the page
   if (a.kind === "record" && b.kind === "module") return a.module === b.id; // a record's page is inside its module
   if (a.kind !== b.kind) return false;
@@ -58,7 +62,7 @@ function readFolded(): Set<string> {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string") || (s.kind === "record" && typeof s.table === "string" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "entry" || s.kind === "goal") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string") || (s.kind === "record" && typeof s.table === "string" && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 

@@ -1,4 +1,4 @@
-"""Routes for Activity, search, conversations, the companion, turns and threads."""
+"""Routes for search, conversations, the companion, turns and threads."""
 
 from __future__ import annotations
 
@@ -30,15 +30,6 @@ def routes(app: FastAPI, s: Served) -> None:
     world = s.world
     running = s.running
     api = s.api
-
-    @app.get("/api/activity", dependencies=[api])
-    def activity(limit: int = 100, module: str | None = None, q: str | None = None,
-                 kind: str | None = None) -> list[dict[str, Any]]:
-        if q:
-            return world.journal.search(q, limit)
-        module_id = world.modules.get(module)["id"] if module else None
-        kinds = [kind] if kind else None
-        return list(reversed(world.journal.recent(limit, module=module_id, kinds=kinds)))
 
     @app.get("/api/search", dependencies=[api])
     def search(q: str) -> dict[str, Any]:

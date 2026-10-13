@@ -97,11 +97,24 @@ class Journal:
         thread: str | None = None,
         stream: bool = False,
         kinds: list[str] | None = None,
+        since: str | None = None,
+        before: str | None = None,
     ) -> list[dict[str, Any]]:
         """Newest last. `stream=True` keeps only turns outside any thread; `modules` is a set
-        of modules (a module and what it holds)."""
+        of modules (a module and what it holds); `since` bounds the time (a whole day's
+        failures) and `before`, an entry's id, gives the page of history before it (exactly,
+        though many entries share a second)."""
         where = ["deleted_at IS NULL"]
         args: list[Any] = []
+        if since is not None:
+            where.append("at >= ?")
+            args.append(since)
+        if before is not None:
+            edge = self.store.one("SELECT at, rowid AS n FROM journal WHERE id = ?", (before,))
+            if edge is None:
+                raise Problem(f"There is no journal entry {before}.")
+            where.append("(at < ? OR (at = ? AND rowid < ?))")
+            args.extend([edge["at"], edge["at"], edge["n"]])
         if module is not None:
             where.append("module = ?")
             args.append(module)
@@ -164,6 +177,31 @@ class Journal:
             f"SELECT * FROM journal WHERE {' AND '.join(where)} ORDER BY at LIMIT ?",
             (*args, limit))
         return [entry(r) for r in rows]
+
+    def of_turn(self, turn: str) -> list[dict[str, Any]]:
+        """Everything one turn did, oldest first: the person's sentence and each step that
+        names it."""
+        rows = self.store.all(
+            "SELECT * FROM journal WHERE id = ? AND deleted_at IS NULL UNION ALL"
+            " SELECT * FROM journal WHERE json_extract(data, '$.turn') = ? AND id != ?"
+            " AND deleted_at IS NULL ORDER BY at", (turn, turn, turn))
+        return [entry(r) for r in rows]
+
+    def of_goal(self, gid: str) -> list[dict[str, Any]]:
+        """What happened to one goal, oldest first: set, rewritten, done, dropped."""
+        rows = self.store.all(
+            "SELECT * FROM journal WHERE json_extract(data, '$.goal') = ?"
+            " AND deleted_at IS NULL ORDER BY at", (gid,))
+        return [entry(r) for r in rows]
+
+    def tries(self, ids: list[str]) -> dict[str, dict[str, Any]]:
+        """The latest time the person tried each of these failures again, by failure."""
+        if not ids:
+            return {}
+        rows = self.store.all(
+            "SELECT * FROM journal WHERE json_extract(data, '$.again_of') IN"
+            f" ({','.join('?' * len(ids))}) AND deleted_at IS NULL ORDER BY at", tuple(ids))
+        return {str(e["data"]["again_of"]): e for e in map(entry, rows)}
 
     def forget(self, jid: str) -> None:
         """Tombstone: the row stays (so nothing that points to it breaks) but says nothing."""

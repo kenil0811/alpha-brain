@@ -29,6 +29,7 @@ from fastapi.responses import JSONResponse
 
 from alpha.api import (
     actions,
+    activity,
     changes,
     connections,
     conversation,
@@ -126,6 +127,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     connections.routes(app, served)
     settings.routes(app, served)
     conversation.routes(app, served)
+    activity.routes(app, served)
     return app
 
 

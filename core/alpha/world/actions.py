@@ -263,6 +263,25 @@ class Actions:
     def decline(self, aid: str) -> dict[str, Any]:
         return self._move(aid, "declined", ("proposed", "failed"))
 
+    def again(self, aid: str, approval: str) -> dict[str, Any]:
+        """A failed action approved once more by the person (slice 2 D5)."""
+        return self._move(aid, "approved", ("failed",), approval=approval, error=None)
+
+    def reopen(self, aid: str, note: str) -> dict[str, Any]:
+        """A failed preview made again (slice 2 D5): the card is proposed once more, waiting
+        for its new preview."""
+        return self._move(aid, "proposed", ("failed",), preview=None, preview_note=note,
+                          error=None)
+
+    def newer(self, action: dict[str, Any]) -> dict[str, Any] | None:
+        """An action Alpha proposed afresh for the same procedure after this one failed (its
+        repair), still waiting or under way."""
+        row = self.store.one(
+            "SELECT id FROM actions WHERE procedure = ? AND id != ? AND created_at >= ?"
+            " AND state IN ('proposed', 'approved', 'running') ORDER BY created_at DESC LIMIT 1",
+            (action["procedure"], action["id"], action["updated_at"]))
+        return self.get(row["id"]) if row else None
+
     def start(self, aid: str) -> dict[str, Any]:
         return self._move(aid, "running", ("approved",))
 

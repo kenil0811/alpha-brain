@@ -1,9 +1,9 @@
 /**
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
- * rebuilt on main's Surface). `#/home`, `#/activity`, `#/people`, `#/people/<id>`, `#/m/<id>`,
+ * rebuilt on main's Surface). `#/home`, `#/activity`, `#/activity/<entry>`, `#/people`, `#/people/<id>`, `#/m/<id>`,
  * `#/m/<id>/<table>` (a module on one of its tables), `#/m/<id>/<table>/<record>` (a record's own page; `#/records/<table>/<record>` for a table that
- * belongs to no module), `#/assistant`, `#/assistant/<conversation>`, `#/intelligence/<tab>`,
+ * belongs to no module), `#/assistant`, `#/assistant/<conversation>`, `#/intelligence/<tab>`, `#/intelligence/goals/<goal>`,
  * `#/settings`. Nothing
  * else is in the address: what is open inside a
  * page stays where it was.
@@ -30,6 +30,10 @@ export function pathFor(surface: Surface): string {
       return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
     case "automation":
       return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
+    case "goal":
+      return `/intelligence/goals/${encodeURIComponent(surface.id)}`;
+    case "entry":
+      return `/activity/${encodeURIComponent(surface.id)}`;
     case "settings":
       return "/settings";
     case "record":
@@ -44,6 +48,7 @@ export function surfaceFromPath(path: string): Surface | null {
   if (!head) return null;
   if (head === "home" || head === "activity" || head === "people" || head === "settings") {
     if (head === "people" && rest) return { kind: "entity", id: rest };
+    if (head === "activity" && rest) return { kind: "entry", id: rest };
     return knownSurface({ kind: head });
   }
   if (head === "m" && rest && third && parts[3]) return { kind: "record", module: rest, table: third, id: parts[3] };
@@ -54,6 +59,7 @@ export function surfaceFromPath(path: string): Surface | null {
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };
     if (rest === "automations" && third) return { kind: "automation", id: third };
+    if (rest === "goals" && third) return { kind: "goal", id: third };
     return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
   }
   return null;

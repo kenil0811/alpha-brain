@@ -182,6 +182,11 @@ class Automations:
             )
         return self.get(aid)
 
+    def of_thread(self, thread: str) -> dict[str, Any] | None:
+        """The automation whose own thread this is, if any."""
+        row = self.store.one("SELECT id FROM automations WHERE thread = ?", (thread,))
+        return self.get(row["id"]) if row else None
+
     def set_thread(self, aid: str, thread: str) -> None:
         with self.store.tx() as db:
             db.execute("UPDATE automations SET thread = ? WHERE id = ?", (thread, aid))

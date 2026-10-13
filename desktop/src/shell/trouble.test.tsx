@@ -7,7 +7,7 @@ import { People } from "./People";
 describe("a page whose load failed", () => {
   it("says so and offers to try again, instead of an empty list", async () => {
     const activity = vi.fn(() => Promise.reject(new CoreError(NOT_ANSWERING, 0)));
-    render(<Activity client={{ activity } as unknown as Client} version={0} onChanged={vi.fn()} />);
+    render(<Activity client={{ activity } as unknown as Client} version={0} onChanged={vi.fn()} onGo={vi.fn()} />);
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(`Couldn't load Activity: ${NOT_ANSWERING}`));
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     screen.getByRole("button", { name: "Try again" }).click();

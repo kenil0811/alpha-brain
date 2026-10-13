@@ -28,22 +28,50 @@ describe("Home: didn't work today", () => {
     expect(failedToday(rows, now).map((e) => e.id)).toEqual(["c", "a"]);
   });
 
-  it("names each with its reason, Try again for an automation, Open where it happened", async () => {
+  it("names each with its reason, Try again where the core can redo it, Open to its own page", async () => {
     const user = userEvent.setup();
-    const runAutomation = vi.fn(async () => ({}));
+    const tryAgain = vi.fn(async () => ({}));
     const { client, onGo } = mount({
       home: vi.fn(async () => ({ ...quiet, failed_today: 2 })),
-      activity: vi.fn(async () => [failed("j1", "Run of Daily brokers failed", { automation: "a_1" }, { at: secondsAgo(1) }), failed("j2", "That didn't work", { error: "the model timed out" }, { module: "m1", at: secondsAgo(2) })]),
-      runAutomation,
+      activity: vi.fn(async () => [
+        failed("j1", "Run of Daily brokers failed", { automation: "a_1" }, { at: secondsAgo(1), again: { how: "automation", words: 'Runs "Daily brokers" again.' } }),
+        failed("j2", "That didn't work", { error: "the model timed out" }, { module: "m1", at: secondsAgo(2), again: null }),
+      ]),
+      tryAgain,
     });
     const card = await screen.findByRole("region", { name: "Didn't work today" });
     expect(await within(card).findByText("the model timed out")).toBeInTheDocument();
-    expect(client.activity).toHaveBeenCalledWith({ kind: "failed", limit: 2 });
+    expect(client.activity).toHaveBeenCalledWith({ kind: "failed", since: expect.any(String), limit: 500 });
     expect(screen.getByText("2 didn't work, below")).toBeInTheDocument();
+    expect(within(card).getAllByRole("button", { name: "Try again" })).toHaveLength(1);
     await user.click(within(card).getByRole("button", { name: "Try again" }));
-    expect(runAutomation).toHaveBeenCalledWith("a_1");
+    expect(tryAgain).toHaveBeenCalledWith("j1");
     await user.click(within(card).getAllByRole("button", { name: "Open" })[1]);
-    expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m1" });
+    expect(onGo).toHaveBeenCalledWith({ kind: "entry", id: "j2" });
+  });
+
+  it("asks before doing an action on a site again, and says how a try went", async () => {
+    const user = userEvent.setup();
+    const tryAgain = vi.fn(async () => ({}));
+    mount({
+      home: vi.fn(async () => ({ ...quiet, failed_today: 3 })),
+      activity: vi.fn(async () => [
+        failed("j1", '"Post" did not happen', { action: "x_1" }, { at: secondsAgo(1), again: { how: "action", asks: true, words: 'Does "Post" on linkedin.com again, once.' } }),
+        failed("j2", "Enrich failed on a row of Deals", { part: "p" }, { at: secondsAgo(2), again: { how: "part", words: "Runs it on that row again." }, tried: { at: "2026-10-13T20:52:00Z", state: "worked", words: "" } }),
+        failed("j3", '"Draft" did not happen', { action: "x_2" }, { at: secondsAgo(3), again: { how: null, blocked: 'Alpha proposed "Draft" again after a fix; decide it in Needs you.' } }),
+      ]),
+      tryAgain,
+    });
+    const card = await screen.findByRole("region", { name: "Didn't work today" });
+    expect(await within(card).findByText(/^Worked when tried again/)).toBeInTheDocument();
+    expect(within(card).getByText(/decide it in Needs you/)).toBeInTheDocument();
+    expect(within(card).getAllByRole("button", { name: "Try again" })).toHaveLength(1);
+    await user.click(within(card).getByRole("button", { name: "Try again" }));
+    const ask = await screen.findByRole("dialog", { name: "Try it again?" });
+    expect(ask).toHaveTextContent('Does "Post" on linkedin.com again, once.');
+    expect(tryAgain).not.toHaveBeenCalled();
+    await user.click(within(ask).getByRole("button", { name: "Try again" }));
+    expect(tryAgain).toHaveBeenCalledWith("j1");
   });
 
   it("Dismiss clears one from Home and Clear all the rest; the choice is remembered", async () => {

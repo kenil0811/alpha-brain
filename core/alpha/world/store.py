@@ -489,6 +489,11 @@ class Store:
                        "json_extract(data, '$.turn'))")
             db.execute("CREATE INDEX IF NOT EXISTS journal_ask ON journal("
                        "json_extract(data, '$.ask'))")
+            # A failure tried again, and a goal's history (slice 2 D5, D12).
+            db.execute("CREATE INDEX IF NOT EXISTS journal_again ON journal("
+                       "json_extract(data, '$.again_of'))")
+            db.execute("CREATE INDEX IF NOT EXISTS journal_goal ON journal("
+                       "json_extract(data, '$.goal'))")
             # Rows a reader wrote before rows knew their reader.
             db.execute("UPDATE records SET reader = json_extract(provenance, '$.reader')"
                        " WHERE reader IS NULL AND json_extract(provenance, '$.reader') IS NOT NULL")

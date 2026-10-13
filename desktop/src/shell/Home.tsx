@@ -9,7 +9,7 @@ import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem } from "../c
 import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
-import { Badge, Button, IconButton } from "../ui";
+import { Badge, Button, Confirm, IconButton } from "../ui";
 import { ArrowRight, Check, X, Eye } from "../ui/icons";
 import { ModuleGlyph } from "./moduleIcons";
 import { say } from "../core/client";
@@ -43,31 +43,42 @@ function greeting(): string {
 /** A moment on Home, absolute like everywhere (section 9b): "13 Oct, 14:30". */
 const timeOf = (iso: string) => when(iso);
 
+/** This Mac's midnight today. */
+const midnight = (now = new Date()) => new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
 /** Today's failures, newest first: the journal's `failed` entries since local midnight. */
 export function failedToday(entries: JournalEntry[], now = new Date()): JournalEntry[] {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  return entries.filter((e) => e.kind === "failed" && new Date(e.at).getTime() >= midnight).sort((a, b) => b.at.localeCompare(a.at));
+  const from = midnight(now).getTime();
+  return entries.filter((e) => e.kind === "failed" && new Date(e.at).getTime() >= from).sort((a, b) => b.at.localeCompare(a.at));
 }
 
 /** The failures the person cleared from Home. Only Home forgets them: Activity keeps every one. */
 const DISMISSED = "home_dismissed";
 
-/** One thing that didn't work: when, what, why, and what can be done about it. Try again starts
- *  an automation's run again; Open goes where the journal says it happened; Dismiss clears it
- *  from Home. */
-function Failure({ e, client, onGo, onOpenThread, onDismiss, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDismiss: () => void; onDone: (words: string) => void }) {
+/** How the latest try went, in words: "Trying again…", "Worked when tried again, 13 Oct, 21:52". */
+export function triedWords(tried: NonNullable<JournalEntry["tried"]>): string {
+  if (tried.state === "running") return "Trying again…";
+  if (tried.state === "worked") return `Worked when tried again, ${when(tried.at)}`;
+  return `Tried again ${when(tried.at)}; it failed again${tried.words ? `: ${tried.words}` : ""}`;
+}
+
+/** One thing that didn't work: when, what, why, and what can be done about it. Try again redoes
+ *  exactly what failed (the core says what that is; an action on a site asks first) and the card
+ *  then says how it went; Open goes to the entry's own page; Dismiss clears it from Home. */
+function Failure({ e, client, onGo, onDismiss, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onDismiss: () => void; onDone: (words: string) => void }) {
   const [busy, setBusy] = useState(false);
-  const automation = typeof e.data.automation === "string" ? e.data.automation : null;
+  const [asking, setAsking] = useState(false);
   const reason = [e.data.error, e.data.why].find((r): r is string => typeof r === "string" && r.trim() !== "" && !e.text.includes(r));
-  const open = automation ? () => onGo({ kind: "automation", id: automation }) : e.thread ? () => onOpenThread(e.thread!) : e.module ? () => onGo({ kind: "module", id: e.module! }) : null;
-  async function again() {
-    if (!automation) return;
+  const again = e.again?.how ? e.again : null;
+  const tried = e.tried ?? null;
+  const offer = again !== null && tried?.state !== "running" && tried?.state !== "worked";
+  async function tryAgain() {
     setBusy(true);
     try {
-      await client.runAutomation(automation);
-      onDone("Running it again; it reports in Activity.");
+      await client.tryAgain(e.id);
+      onDone("Trying again; the card says how it went.");
     } catch (err) {
-      onDone(`Couldn't start it again: ${say(err)}`);
+      onDone(`Couldn't try again: ${say(err)}`);
     } finally {
       setBusy(false);
     }
@@ -78,18 +89,22 @@ function Failure({ e, client, onGo, onOpenThread, onDismiss, onDone }: { e: Jour
       <div className="item__body">
         <b>{e.text}</b>
         {reason ? <div className="item__sub">{reason}</div> : null}
+        {tried ? <div className={`item__sub${tried.state === "worked" ? " item__sub--ok" : ""}`}>{triedWords(tried)}</div> : e.again?.blocked ? <div className="item__sub">{e.again.blocked}</div> : null}
       </div>
-      {automation ? (
-        <Button size="sm" variant="primary" disabled={busy} onClick={() => void again()}>
+      {offer ? (
+        <Button size="sm" variant="primary" disabled={busy} title={again.words} onClick={() => (again.asks ? setAsking(true) : void tryAgain())}>
           Try again
         </Button>
       ) : null}
-      {open ? (
-        <Button size="sm" onClick={open}>
-          Open
-        </Button>
-      ) : null}
+      <Button size="sm" onClick={() => onGo({ kind: "entry", id: e.id })}>
+        Open
+      </Button>
       <IconButton size="sm" label="Dismiss" title="Clear it from Home; Activity keeps it" icon={<X size={14} />} onClick={onDismiss} />
+      {again?.asks ? (
+        <Confirm open={asking} title="Try it again?" action="Try again" onConfirm={() => { setAsking(false); void tryAgain(); }} onCancel={() => setAsking(false)}>
+          {again.words} It acts on the site for real, as when you approved it.
+        </Confirm>
+      ) : null}
     </div>
   );
 }
@@ -201,7 +216,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       })
       .catch((e: unknown) => setError(say(e)));
   }, [client, version]);
-  // today's failures, asked of the journal by kind; the count comes with the summary
+  // today's failures, asked of the journal by kind since local midnight (D9); the count comes with the summary
   const failedCount = home?.failed_today ?? 0;
   const [failures, setFailures] = useState<JournalEntry[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -211,7 +226,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       return;
     }
     let live = true;
-    Promise.all([client.activity({ kind: "failed", limit: failedCount }), client.preference(DISMISSED).catch(() => ({ value: [] }))])
+    Promise.all([client.activity({ kind: "failed", since: midnight().toISOString(), limit: 500 }), client.preference(DISMISSED).catch(() => ({ value: [] }))])
       .then(([rows, pref]) => {
         if (!live) return;
         setFailures(failedToday(rows));
@@ -307,7 +322,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
           </div>
           <div className="card list">
             {shownFailures.map((e) => (
-              <Failure key={e.id} e={e} client={client} onGo={onGo} onOpenThread={onOpenThread} onDismiss={() => dismiss([e.id])} onDone={(words) => { setToast(words); onChanged(); }} />
+              <Failure key={e.id} e={e} client={client} onGo={onGo} onDismiss={() => dismiss([e.id])} onDone={(words) => { setToast(words); onChanged(); }} />
             ))}
           </div>
         </section>

@@ -60,8 +60,9 @@ export function addressOf(node: GraphNode): Surface | null {
     case "table":
     case "source":
     case "document":
-    case "goal":
       return node.module ? { kind: "module", id: node.module } : { kind: "intelligence", tab: "knowledge" };
+    case "goal":
+      return { kind: "goal", id: node.id.slice("goal:".length) };
     case "skill":
       return { kind: "skill", name: node.name ?? node.id.slice("skill:".length) };
     case "automation":

@@ -18,6 +18,8 @@ import { Intelligence, type IntelTab } from "./shell/Intelligence";
 import { AutomationPage } from "./shell/AutomationPage";
 import { CommandMenu } from "./shell/CommandMenu";
 import { SkillPage } from "./shell/SkillPage";
+import { ActivityEntryPage } from "./shell/ActivityEntryPage";
+import { GoalPage } from "./shell/GoalPage";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
 import { currentHashSurface, pathFor, pushAddress } from "./shell/address";
@@ -253,7 +255,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const scopeModuleId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : undefined;
   const scopeModule = scopeModuleId ? (modules.find((m) => m.id === scopeModuleId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" || (surface.kind === "record" && scopeModule) ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "record" ? "Record" : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" || (surface.kind === "record" && scopeModule) ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "record" ? "Record" : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "activity" || surface.kind === "entry" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   return (
     <div
@@ -330,10 +332,14 @@ export function App({ client: injected }: { client?: Client } = {}) {
           <SkillPage key={surface.name} client={runtime.client} name={surface.name} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
         ) : surface.kind === "automation" ? (
           <AutomationPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onChanged={changed} />
+        ) : surface.kind === "entry" ? (
+          <ActivityEntryPage key={surface.id} client={runtime.client} id={surface.id} version={versions.activity} onGo={setSurface} onChanged={changed} />
+        ) : surface.kind === "goal" ? (
+          <GoalPage key={surface.id} client={runtime.client} id={surface.id} version={versions.intelligence} onGo={setSurface} onChanged={changed} />
         ) : surface.kind === "intelligence" ? (
           <Intelligence client={runtime.client} tab={(surface.tab ?? "skills") as IntelTab} version={versions.intelligence} onTab={(tab) => setSurface({ kind: "intelligence", tab })} onChanged={changed} onGo={setSurface} />
         ) : (
-          <Activity client={runtime.client} version={versions.activity} onChanged={changed} />
+          <Activity client={runtime.client} version={versions.activity} onChanged={changed} onGo={setSurface} />
         )}
       </main>
       {client ? <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} client={client} modules={modules} onGo={setSurface} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} /> : null}

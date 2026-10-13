@@ -88,6 +88,16 @@ def routes(app: FastAPI, s: Served) -> None:
                              module=module_id, data={"goal": goal["id"]})
         return goal
 
+    @app.get("/api/goals/{gid}", dependencies=[api])
+    def goal_page(gid: str) -> dict[str, Any]:
+        """One goal's own page (D12): the goal, its module and what happened to it."""
+        goal = world.knowledge.goal(gid)
+        try:
+            module = world.modules.get(goal["module"])["name"] if goal["module"] else None
+        except Problem:
+            module = None
+        return {**goal, "module_name": module, "history": world.journal.of_goal(gid)}
+
     @app.patch("/api/goals/{gid}", dependencies=[api])
     def change_goal(gid: str, body: GoalBody) -> dict[str, Any]:
         """A goal's words rewritten, or marked done or dropped, or made active again (D1)."""

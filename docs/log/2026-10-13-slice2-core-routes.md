@@ -189,7 +189,49 @@ the browser pane on the check copy: Correct… and Forget… on known facts, an 
 (341 lines) with its outline whole. Not looked at in the Mac app. "ok commit it, then tell me what
 step 7 is".
 
+## Step 7: finding and redoing (13–14 Oct)
+
+Proposed in writing; Kenil: "ok go ahead with step 7". His two questions unanswered, the
+defaults taken: a goal isn't linked to agents (its page shows its own history), and a failed
+action on a site asks first, then is done once more.
+
+- **D5 Try again for any failure** (`context/again.py`; `POST /api/activity/{id}/again`): the
+  core reads what a failure names and redoes exactly that: an automation's run (also a reader
+  that broke in the automation's own thread, which names only the thread), a part on its row, a
+  conversation's turn that never replied (asked again; one that replied never is), an action on
+  a site (failed → approved once more, after the window asks), an action's failed preview (made
+  again, decided in Needs you). Alpha's own note has nothing to redo. A newer proposal after a
+  repair blocks Try again and says so. The try is journaled as the person's (`again_of`); how it
+  went is read from what came after (the next run, the part's next entry for that row, the
+  conversation's next reply, the action's state), never stored. Every failure the window gets
+  carries `again` and `tried`. Home's card shows "Trying again…" and then "Worked when tried
+  again, …" or the new reason; Open goes to the entry's page.
+- **D9 a whole day** (`journal.recent(since=, before=)`): Home asks for every failure since the
+  Mac's midnight in one call; Activity has Show earlier, paged exactly by entry (many entries
+  share a second); the Failed filter asks the core.
+- **D12 a page for every item** (`context/entry_page.py`; `GET /api/activity/{id}`, `GET
+  /api/goals/{gid}`): an entry's page at `#/activity/<id>`, however old: its words, Try again,
+  what it touched (module, agent, skill, row, goal, conversation, each opening), what was
+  recorded, its turn's other steps; Activity's rows open it. A goal's page at
+  `#/intelligence/goals/<id>`: state, dates, Edit, Done, Drop, its history; the Goals card and
+  the Map open it. Alpha's goal_update now journals too. A related record in another module was
+  already placed in its own module by main (`placed` in App.tsx): nothing changed there, the
+  proposal was wrong about it.
+
+New indexes `journal_again` and `journal_goal` (expression indexes); every new query's plan
+uses an index.
+
+What ran: `just lint` clean; 255 core tests (8 new: an action done once more and reporting it
+worked; a newer proposal standing in the way; a failed turn asked again and a replied one never;
+Alpha's note with nothing to redo; a day's failures and exact paging in one second; an entry's
+page; a goal's history; an agent's run tried again, and a reader broken in its thread); 191
+desktop tests in 43 files (5 new); `just check-desktop`: 79 of 79 pages clean at every size
+(`docs/checks/2026-10-13-2323.md`; it doesn't visit the two new pages yet). In the browser pane
+on the check copy: a broken reader's page (Try again runs its agent), a part failure's page, a
+goal's page, Show earlier from 271 to 540 rows back to 9 Oct. Try again not clicked for real (on
+the check copy it would run a real part or the model): proven by tests only. Not looked at in
+the Mac app. "ok commit it, then tell me what step 8 is".
+
 ## Left
 
-Step 7 (finding and redoing: D5, D9, D12) proposed next; then 8–9; step 4 people skipped for
-now. Nothing pushed.
+Step 8 (G5, G7) proposed next; then 9; step 4 people skipped for now. Nothing pushed.
