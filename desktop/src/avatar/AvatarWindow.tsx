@@ -13,7 +13,7 @@ import { moved, press, released, type Press } from "./drag";
 import { SIZE_PX, normaliseLook } from "./looks";
 import { hasTauri } from "../core/session";
 import { Button, IconButton, Rich } from "../ui";
-import { X, Maximize2 } from "../ui/icons";
+import { X, Maximize2, Minimize2 } from "../ui/icons";
 import { say as words } from "../core/client";
 
 export const HANDOFF_KEY = "alpha.handoff";
@@ -43,6 +43,7 @@ function handOff(value: Record<string, unknown>, host?: AvatarHost) {
 
 export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHost }) {
   const [expanded, setExpanded] = useState(false);
+  const [large, setLarge] = useState(false);
   const [turns, setTurns] = useState<JournalEntry[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -260,9 +261,9 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   useEffect(() => {
     // The window covers what it shows: the character with room for its shadow, the character
     // under a bubble, or the open panel.
-    const [width, height] = mode === "open" ? [380, 560] : mode === "bubble" ? [320, 150 + px] : [px + 32, px + 44];
+    const [width, height] = mode === "open" ? (large ? [560, Math.min(820, (window.screen?.availHeight || 900) - 80)] : [380, 560]) : mode === "bubble" ? [320, 150 + px] : [px + 32, px + 44];
     host?.layout(mode, width, height).catch(() => undefined);
-  }, [host, mode, px]);
+  }, [host, mode, px, large]);
 
   // Tell the host where the companion is drawn, whenever that moves or changes size.
   useLayoutEffect(() => {
@@ -295,7 +296,11 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
             <span className="faint" data-tauri-drag-region>
               {label}
             </span>
-            <IconButton size="sm" label="Open the workspace" title="Open this conversation in the workspace" icon={<Maximize2 />} onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)} />
+            <button type="button" className="avatar__open" aria-label="Open in platform" title="Open this conversation in the platform" onClick={() => handOff({ panel: true, conversation: comp?.focus?.id, surface: comp?.focus?.module ? { kind: "module", id: comp.focus.module } : { kind: "home" } }, host)}>
+              <span className="avatar__open-main">Open</span>
+              <span className="avatar__open-sub">in platform</span>
+            </button>
+            <IconButton size="sm" label={large ? "Smaller" : "Larger"} icon={large ? <Minimize2 /> : <Maximize2 />} onClick={() => setLarge(!large)} />
             <IconButton size="sm" label="Close" icon={<X />} onClick={() => toggle()} />
           </header>
           <div className="avatar__turns" ref={listRef}>
@@ -358,15 +363,17 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
       ) : null}
       <div className="avatar__dock">
         {!expanded && shownBubble ? (
+          !bubble && needs.length ? (
+            // what needs the person: the bubble itself answers, opening the screen Answer opens
+            <div role="status">
+              <button type="button" className="avatar__bubble avatar__bubble--answer" title="Answer in the platform" onClick={() => handOff({ surface: { kind: "needs" } }, host)}>
+                <p>{shownBubble}</p>
+              </button>
+            </div>
+          ) : (
           <div className="avatar__bubble" role="status">
             <p>{shownBubble}</p>
-            {!bubble && needs.length ? (
-              <div className="row row--below">
-                <Button size="sm" variant="primary" onClick={() => handOff({ surface: { kind: "home" } }, host)}>
-                  Open
-                </Button>
-              </div>
-            ) : !bubble && failedRun ? (
+            {!bubble && failedRun ? (
               <div className="row row--below">
                 <Button size="sm" variant="primary" onClick={() => { dismissFailedRun(); handOff({ surface: { kind: "intelligence", tab: "automations" } }, host); }}>
                   See it
@@ -377,6 +384,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               </div>
             ) : null}
           </div>
+          )
         ) : null}
         <button
           type="button"

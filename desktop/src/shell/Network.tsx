@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { say } from "../core/client";
-import type { Client, Entity, EntityDetail, RecordRow } from "../core/client";
+import type { Client, Entity, EntityDetail, ModuleCard, RecordRow, TableDesc } from "../core/client";
 import { DataFrame } from "../modules/DataFrame";
 import { DataPage } from "../modules/DataPage";
 import { memorySource } from "../modules/source";
@@ -20,16 +20,22 @@ import { BackLink } from "./BackLink";
 import { FactRow } from "./FactRow";
 import { GovernanceCard } from "../modules/ModuleSections";
 import { Button, Badge, HeaderSwitch, PageHeader, SectionCard, Trouble } from "../ui";
-import { BuildingIcon, ICON_SM, PeopleIcon } from "../ui/icons";
+import { BuildingIcon, ICON_SM, PeopleIcon, Table2 } from "../ui/icons";
 
-type Side = "people" | "orgs";
+/** People, Organizations, or one of the Network project's own tables (by name). */
+type Side = string;
+/** A parent sits to the right of what it holds (12 Oct, the owner): the project's tables (a row
+ *  is a person), then People, then Organizations. */
 const SIDES = [
-  { id: "people" as const, label: "People", icon: <PeopleIcon size={ICON_SM} /> },
-  { id: "orgs" as const, label: "Organizations", icon: <BuildingIcon size={ICON_SM} /> },
+  { id: "people", label: "People", icon: <PeopleIcon size={ICON_SM} /> },
+  { id: "orgs", label: "Organizations", icon: <BuildingIcon size={ICON_SM} /> },
 ];
 
-export function Network({ client, version, onOpen, onChanged = () => undefined, onAsk }: { client: Client; version: number; onOpen: (id: string) => void; onChanged?: () => void; onAsk?: (text: string) => void }) {
+export function Network({ client, version, onOpen, onOpenRecord, onChanged = () => undefined, onAsk }: { client: Client; version: number; onOpen: (id: string) => void; onOpenRecord?: (module: string, table: string, id: string) => void; onChanged?: () => void; onAsk?: (text: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
+  // Network as a project (A6): the tables merged into it ("LinkedIn connections") are its own
+  const [project, setProject] = useState<ModuleCard | null>(null);
+  const [table, setTable] = useState<TableDesc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [side, setSide] = useState<Side>("people");
@@ -47,18 +53,53 @@ export function Network({ client, version, onOpen, onChanged = () => undefined, 
       live = false;
     };
   }, [client, version, tick]);
-  const source = useMemo(() => networkSource(client, side), [client, side]);
-  const rows = (people ?? []).filter((e) => (side === "people") === (e.kind === "person"));
-  const noun = side === "people" ? "people" : "organizations";
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => client.modules())
+      .then((all) => live && setProject(all.find((m) => m.network) ?? null))
+      .catch(() => undefined); // without it Network is People and Organizations
+    return () => {
+      live = false;
+    };
+  }, [client, version]);
+  const own = (project?.tables ?? []).map((t) => `table:${t.name}`); // never the same id as People or Organizations
+  useEffect(() => {
+    setTable(null);
+    if (!own.includes(side)) return;
+    let live = true;
+    client
+      .table(side.slice("table:".length))
+      .then((t) => {
+        if (!live) return;
+        setTable(t.table);
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(say(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, side, own.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sides = [...(project?.tables ?? []).map((t) => ({ id: `table:${t.name}`, label: t.title, icon: <Table2 size={ICON_SM} /> })), ...SIDES];
+  const source = useMemo(() => networkSource(client, side === "orgs" ? "orgs" : "people"), [client, side]);
+  // a project's table here is a table of people
+  const rows = (people ?? []).filter((e) => (side !== "orgs") === (e.kind === "person"));
+  const noun = side === "orgs" ? "organizations" : "people";
   return (
     <DataFrame
       client={client}
       scope={NETWORK_SCOPE}
       name="Network"
       onChanged={onChanged}
-      header={<PageHeader centre={<HeaderSwitch label="Network" items={SIDES} value={side} onChange={setSide} />} />}
+      header={<PageHeader centre={<HeaderSwitch label="Network" items={sides} value={side} onChange={setSide} />} />}
       notice={error ? <Trouble onRetry={() => setTick((n) => n + 1)}>Couldn't load Network: {error}</Trouble> : null}
-      data={(upload) => <DataPage key={side} client={client} source={source} version={version + tick} onChanged={onChanged} onAsk={onAsk} onAddFiles={upload} onOpenRecord={(_k, id) => onOpen(id)} />}
+      data={(upload) =>
+        own.includes(side) ? (
+          table ? <DataPage key={side} client={client} table={table} version={version + tick} onChanged={onChanged} onAsk={onAsk} onAddFiles={upload} onOpenRecord={(t, id) => onOpenRecord?.(project!.id, t, id)} /> : <p className="faint">Loading…</p>
+        ) : (
+          <DataPage key={side} client={client} source={source} version={version + tick} onChanged={onChanged} onAsk={onAsk} onAddFiles={upload} onOpenRecord={(_k, id) => onOpen(id)} />
+        )
+      }
       intelligence={
         <SectionCard title="Intelligence" info={`The latest Alpha has with each of these ${noun}.`}>
           {rows.some((e) => e.last_text) ? (
@@ -69,7 +110,7 @@ export function Network({ client, version, onOpen, onChanged = () => undefined, 
                   <button type="button" className="linkbtn people__name" onClick={() => onOpen(e.id)}>
                     {e.name}
                   </button>
-                  <span className="people__line">{e.last_text}</span>
+                  <span className="people__line" title={e.last_text ?? undefined} data-truncate-ok>{e.last_text}</span>
                 </div>
               ))}
             </div>
@@ -101,7 +142,7 @@ const NETWORK_FIXED = "Alpha adds people and organizations as it meets them in w
 
 /** People or Organizations as the one data view's source (9 Oct, the owner: the same table as
  *  every project, with every view, filter and dropdown). Read only: entities change through Alpha. */
-function networkSource(client: Client, side: Side) {
+function networkSource(client: Client, side: "people" | "orgs") {
   return memorySource({
     client,
     key: `network.${side}`,
@@ -109,13 +150,18 @@ function networkSource(client: Client, side: Side) {
     titleField: "name",
     fields: [
       { name: "name", kind: "text", label: "Name" },
+      side === "people" ? { name: "at", kind: "text", label: "Organization" } : { name: "members", kind: "number", label: "People" },
       { name: "about", kind: "text", label: "About" },
       { name: "last_heard", kind: "datetime", label: "Last heard" },
     ],
-    rows: async () =>
-      (await client.people())
+    rows: async () => {
+      const all = await client.people();
+      const names = new Map(all.map((e) => [e.id, e.name]));
+      return all
         .filter((e) => (side === "people") === (e.kind === "person"))
-        .map((e): RecordRow => ({ id: e.id, revision: 1, created_at: e.last_at ?? "", updated_at: e.last_at ?? "", provenance: {}, values: { name: e.name, about: e.summary || keysLine(e), last_heard: e.last_at ?? null } })),
+        .sort((a, b) => (side === "orgs" ? (b.members ?? 0) - (a.members ?? 0) : 0)) // the largest organisations first
+        .map((e): RecordRow => ({ id: e.id, revision: 1, created_at: e.last_at ?? "", updated_at: e.last_at ?? "", provenance: {}, values: { name: e.name, ...(side === "people" ? { at: (e.at ?? []).map((id) => names.get(id) ?? "").filter(Boolean).join(", ") || null } : { members: e.members ?? 0 }), about: e.summary || keysLine(e), last_heard: e.last_at ?? null } }));
+    },
     rowIcon: (row) => (
       <span className="people__avatar" aria-hidden="true">
         {initials(String(row.values.name ?? ""))}
@@ -272,7 +318,7 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged, onA
                 <div key={e.id} className="list__row">
                   <span className="faint people__when">{when(e.at)}</span>
                   <Badge tone={e.kind === "failed" ? "bad" : e.actor === "person" ? "info" : "gray"}>{e.kind}</Badge>
-                  <span className="people__line">{e.text}</span>
+                  <span className="people__line" title={e.text} data-truncate-ok>{e.text}</span>
                 </div>
               ))}
             </div>

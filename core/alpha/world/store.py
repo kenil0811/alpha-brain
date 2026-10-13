@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS facts (
     state TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS facts_subject ON facts(subject, predicate);
+CREATE INDEX IF NOT EXISTS facts_predicate ON facts(predicate, state);
 
 CREATE TABLE IF NOT EXISTS entities (
     id TEXT PRIMARY KEY,

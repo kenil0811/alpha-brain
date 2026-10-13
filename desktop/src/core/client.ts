@@ -162,6 +162,8 @@ export interface ModuleCard {
   /** The ids of the modules inside this one. */
   children?: string[];
   tables: TableSummary[];
+  /** Network, the built-in project for people and organisations: shown as the Network page. */
+  network?: boolean;
   records: number;
   last_at: string | null;
   last_text: string | null;
@@ -397,6 +399,10 @@ export interface Entity {
   last_text?: string | null;
   /** The one line of the entity's wiki page, when Alpha has written one. */
   summary?: string | null;
+  /** A person's organisations (their ids), from a field that names them (collection_link). */
+  at?: string[];
+  /** An organisation's people. */
+  members?: number;
 }
 
 export interface EntityDetail extends Entity {

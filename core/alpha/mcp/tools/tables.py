@@ -80,6 +80,20 @@ class Tables(Base):
         return described
 
     @tool
+    def collection_link(self, name: str, field: str, kind: str) -> dict[str, Any]:
+        """Say that a field names people or organisations each row's own person or
+        organisation is related to (kind person or organisation): a Company field in a table
+        of people names the organisations they are at. Each value becomes that organisation,
+        found by name or made, linked to the row's person, now and on every write; Network
+        then shows who is at each. The table's rows must be identified first
+        (collection_identify)."""
+        described = self.world.collections.link_field(name, field, kind)
+        self._did("changed", f"Linked {described['title']}'s {field} to {kind}s:"
+                  f" {described['rows_linked']} rows linked to {described['named']} {kind}s.",
+                  {"collection": name}, described["module"])
+        return described
+
+    @tool
     def collection_propose_place(self, name: str, field: str, why: str) -> dict[str, Any]:
         """Suggest turning a text field that holds cities or addresses into a place field, so
         its records show on a map. Propose it when you see such a field; it changes only on the

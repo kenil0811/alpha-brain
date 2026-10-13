@@ -481,7 +481,7 @@ Task manager and Network are shipped on install. That is all "pre-built" means: 
 
 **Network** (People and Organizations as two tabs; was People & Companies)
 
-- A pre-built project.
+- A pre-built project (Q48): a real project in the core, so Alpha can merge another into it ("merge my LinkedIn into Network") and its tables show as tabs left of People and Organizations (rule 32). People shows each person's Organization; Organizations shows how many People each has.
 - Each person or company record page has:
   - Alpha's editable page about them;
   - their facts;
@@ -584,8 +584,8 @@ When a request would share data with an outside service, an amber notice asks fi
 ## 10. The companion
 
 - An optional, always-on-top character that shows what Alpha is doing: idle, listening, working, or needs you.
-- **Bubble:** carries at most one line and one action.
-- **Quick ask:** a click opens a small panel to say or type one thing.
+- **Bubble:** carries at most one line and one action. When something needs the person, answering is the default: the bubble has no Open or Answer button, and a click on it opens the screen Home's **Answer** opens (the owner, 12 Oct).
+- **Quick ask:** a click opens a small panel to say or type one thing. Its header, left of the expand arrows, has **Open** with "in platform" beneath it, which opens the conversation in the workspace; the arrows make the panel larger or smaller (the owner, 12 Oct).
 - **Hand-off:** anything that needs the full window opens the workspace at the right place.
 - **Settings:** the person picks its look and size there.
 - **Tone:** friendly but quiet, with the same words and the same approvals as the window.
@@ -615,7 +615,7 @@ The one place for everything Alpha knows and can do across projects. Its header 
 
 - **Second Brain** (the owner, 12 Oct)
   - One data view of facts, goals and hypotheses; its **View** dropdown holds **Graph** with the others, no second switch (the owner, 12 Oct). In Graph the toolbar's search finds and centres, and ⋮ holds Things with no links, Always show names and Refresh.
-  - **Graph** (the default; Obsidian's graph view as the reference): every thing in the platform as a node — you, projects, collections, records, people, organisations, facts, hypotheses, goals, agents, automations, skills, connections — and every link the data holds; suggested links and hypotheses dashed. The legend is the kind filter (each chip shows or hides a kind, with its count). Search finds and centres; Filter hides things with no links; ⋮ has names and Refresh. Hover lights the neighbours; a click selects and opens the side panel (links, ✓ / ✕ for a hypothesis, Open page, the local graph 1–3 links around it); a double-click opens the page.
+  - **Graph** (the default; Obsidian's graph view as the reference). It opens on the **overview** (the owner, 12 Oct, Q48): the projects and what sits directly in them, each project drawn as one soft group; a collection stands for its rows and is drawn by their number; people fold into the organisations they are at, the largest drawn beside the collection their people are rows in, the rest as one "N more organizations" node. ⋮ › **Show every record and person** draws everything: every thing in the platform as a node — you, projects, collections, records, people, organisations, facts, hypotheses, goals, agents, automations, skills, connections — and every link the data holds; suggested links and hypotheses dashed. The legend is the kind filter (each chip shows or hides a kind, with its count). Search finds and centres; Filter hides things with no links; ⋮ has names and Refresh. Hover lights the neighbours; a click selects and opens the side panel (links, ✓ / ✕ for a hypothesis, Open page, the local graph 1–3 links around it); a double-click opens the page.
   - **Table:** facts, goals and hypotheses in one standard data view with a Type column. A **fact** is what is known; a **goal** what you want; a **hypothesis** what Alpha thinks is true and you haven't decided. A hypothesis row shows **✓** (Keep as a fact / Make it a goal) and **✕** (Reject) on hover or focus.
   - Each project's Intelligence section has the same table for that project: its goals, and the facts and hypotheses about whom its work names.
   - Every fact, goal, standing permission and note opens a page of its own.
@@ -826,6 +826,7 @@ Everything elsewhere in this rulebook is a default. These are not.
 29. One visual element per function; several ways in are fine. A table's "+ New" row shows only when it adds inline; otherwise the toolbar's New is the one way (the owner, 12 Oct).
 30. Every dropdown ends in Add new…; what the window can't add goes, described, to the builder agent in this page's conversation.
 31. Pop-ups are for notices, confirmations and new free input (a name, or an ask for Alpha); a predefined choice is a dropdown or a submenu (the owner, 12 Oct). A record's History and a metric's detail stay pop-ups: they are views to read, opened on purpose (the owner, 12 Oct).
+32. **A parent tab sits to the right of what it holds** (the owner, 12 Oct): in a switch of tabs, each tab's things belong to the tab on its right, never the other way (Network: a project's tables of people, then People, then Organizations). A project Alpha makes keeps the same order.
 
 ---
 

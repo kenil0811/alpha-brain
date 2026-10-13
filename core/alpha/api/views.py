@@ -182,7 +182,8 @@ def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
             "last_at": last["at"] if last else None, "last_text": last["text"] if last else None,
             "threads": [t for t in world.modules.threads() if t["module"] == m["id"]],
             "path": [p["name"] for p in world.modules.path(m["id"])],
-            "children": [c["id"] for c in world.modules.children(m["id"])]}
+            "children": [c["id"] for c in world.modules.children(m["id"])],
+            "network": m["id"] == world.modules.network_id()}
 
 
 TROUBLE_WINDOW_H = 24

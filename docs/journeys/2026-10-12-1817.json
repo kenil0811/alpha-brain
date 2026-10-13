@@ -1,0 +1,58 @@
+[
+ {
+  "name": "network_merge",
+  "title": "Asked to merge a module of contacts into Network, Alpha merges it and makes their companies organisations",
+  "steps": [
+   {
+    "seed": "table old_contacts, 3 rows",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "Merge my Old contacts module into Network, and make their companies the organisations they work at.",
+    "ok": true,
+    "reply": "I merged Old contacts into Network. Its table, with the 3 contacts, now sits under Network.\n\nI treated each contact as a person, identified by their profile link. The company field now names the organisation each person works at, and Network shows who is at each one. Only 2 of the 3 contacts got an organisation. I didn't check why, but the third most likely has no company filled in. Tell me if you want me to look at it.",
+    "steps": 5,
+    "seconds": 23.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "Merged Old contacts into Network"
+    },
+    "ok": true,
+    "why": "1 changed entry: Merged Old contacts into Network (1 collections)..",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "company to organisations"
+    },
+    "ok": true,
+    "why": "1 changed entry: Linked Old contacts's company to organisations (2 named)..",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Did Alpha say it merged Old contacts into Network and linked the people to their companies (Acme, Globex) as organisations, without claiming anything it didn't do?",
+    "ok": false,
+    "why": "The answer says only 2 of 3 contacts got an organisation and never names Acme or Globex as linked organisations, and it speculates about the cause rather than confirming the full linkage the rubric requires.",
+    "seconds": 6.7
+   }
+  ],
+  "seconds": 30.0,
+  "error": null
+ }
+]

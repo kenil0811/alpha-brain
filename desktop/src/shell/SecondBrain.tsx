@@ -70,6 +70,7 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo 
   // the graph's options, set from the page's ⋮ while the Graph view is open
   const [orphans, setOrphans] = useState(true);
   const [labels, setLabels] = useState(false);
+  const [every, setEvery] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const { notes } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
@@ -89,10 +90,11 @@ export function SecondBrain({ client, data, version = 0, onChanged, onAsk, onGo 
   }
 
   const graph = {
-    render: (query: string) => <GraphView client={client} data={data} onGo={onGo} onChanged={onChanged} options={{ query, orphans, labels, refresh }} />,
+    render: (query: string) => <GraphView client={client} data={data} onGo={onGo} onChanged={onChanged} options={{ query, orphans, labels, every, refresh }} />,
     more: [
       { label: "Things with no links", on: orphans, onSelect: () => setOrphans((o) => !o) },
       { label: "Always show names", on: labels, onSelect: () => setLabels((l) => !l) },
+      { label: "Show every record and person", on: every, onSelect: () => setEvery((e) => !e) },
       { label: "Refresh", onSelect: () => setRefresh((t) => t + 1), separatorBefore: true },
     ],
   };

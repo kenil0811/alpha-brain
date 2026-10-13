@@ -49,6 +49,19 @@ class Modules(Base):
         return {**moved, "path": self.world.modules.path_words(moved["id"])}
 
     @tool
+    def module_merge(self, module: str, into: str) -> dict[str, Any]:
+        """Merge a module into another when the person asks ("merge LinkedIn into Network"):
+        its tables, the modules inside it, goals, automations, sources and skills move into
+        `into` (id or name) and the emptied module goes. Rows and their history stay as they
+        are. Network is the built-in module for the person's people and organisations."""
+        out = self.world.modules.merge(module, into)
+        what = ", ".join(f"{n} {k}" for k, n in out["moved"].items()) or "nothing it held"
+        self._did("changed", f"Merged {out['merged']['name']} into {out['into']['name']}"
+                  f" ({what}).", {"module": out["into"]["id"], "merged": out["merged"]["id"]},
+                  out["into"]["id"])
+        return out
+
+    @tool
     def threads_list(self, state: str | None = None) -> list[dict[str, Any]]:
         """Open pieces of work (builds, automations running, topics)."""
         return self.world.modules.threads(state)

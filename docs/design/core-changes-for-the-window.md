@@ -73,9 +73,11 @@ Each item: **Now** (what the window does today) · **Should** (exact behaviour) 
 - **Core needs:** the notion of more than one workspace, switching, and signing out.
 
 ### A6. Pre-built projects: Task manager and Network
-- **Now:** Network is a special destination (people and organisations as entities, not a
-  project); there is no Task manager. A sidebar entry for Network has a project's menu, but
-  Rename and Delete are disabled.
+- **Now:** Network is a real module (12 Oct, Q48), made at `alpha serve` start and known by its
+  id in `meta`; Alpha can merge a module into it (`module_merge`) and link a field to
+  organisations (`collection_link`). The window's Network page shows its tables left of People
+  and Organizations, which are still entities, not collections of the project; there is no Task
+  manager. The sidebar's Network row has a project's menu, but Rename and Delete are disabled.
 - **Should:** a new workspace is **shipped** with two projects already made: **Task manager**
   (section T) and **Network** (People and Organizations). "Pre-built" means only that they exist
   on install: they are ordinary projects in every other way, so the person can rename, move,

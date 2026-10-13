@@ -135,6 +135,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         _unlink_files(files)
         world.workflows.remove_module(db, mid)
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
+        db.execute("UPDATE meta SET value = 'removed' WHERE key = 'network_module' AND value = ?",
+                   (mid,))
     # A program module's workspace goes with it (Q38); the journal keeps what it was.
     from alpha.runtime import workspace as workspace_module
 

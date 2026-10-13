@@ -27,6 +27,8 @@
 .graph__canvas { position: relative; height: max(360px, calc(100vh - var(--header-h) - 220px)); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
 .graph__svg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
 .graph__svg:active { cursor: grabbing; }
+.ggroup { fill: var(--hover); stroke: var(--border); stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: 0.6; pointer-events: none; }
+.ggroup--lit { stroke: var(--primary); }
 .gedge { stroke: var(--text-3); stroke-width: 1px; opacity: 0.45; vector-effect: non-scaling-stroke; }
 .gedge--waiting { stroke-dasharray: 4 3; }
 .gedge--lit { stroke: var(--primary); opacity: 0.95; stroke-width: 1.5px; }
