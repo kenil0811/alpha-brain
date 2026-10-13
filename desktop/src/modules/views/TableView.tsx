@@ -12,17 +12,20 @@ import { FooterCell, SetOnRows } from "./RulesUI";
 import { ColumnMenu, SeenMenu } from "./RulesUI";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onPaste, colours, onColours, onOpen, onCommit, readonly, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { /** No cell opens for editing. */ readonly?: boolean; files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void; setFields?: FieldInfo[]; onSet?: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onPaste?: (rowId: string, column: string, text: string) => void; colours?: Colours; onColours?: (c: Colours) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onPaste, colours, onColours, onOpen, canOpen = true, rowActions, onCommit, readonly, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { /** No cell opens for editing. */ readonly?: boolean; /** Rows that have a page wear the › at their start; without one there is no › column. */ canOpen?: boolean; /** Buttons at a row's end (a connection's Read now and Remove). */ rowActions?: (row: RecordRow) => ReactNode; files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void; setFields?: FieldInfo[]; onSet?: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onPaste?: (rowId: string, column: string, text: string) => void; colours?: Colours; onColours?: (c: Colours) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const foot = footersOf(columns, byName, footers ?? {});
   // a grouped table's header rows carry each group's totals when any column beyond the first has one
   const groupTotals = columns.slice(1).some((c) => foot[c] !== "none");
   const sortAt = (field: string) => sorts.find((x) => x.field === field);
+  // the columns before and after the fields: the tick and the ›; Seen and the row's buttons
+  const lead = (onSelect ? 1 : 0) + (canOpen ? 1 : 0);
+  const tail = (seen ? 1 : 0) + (rowActions ? 1 : 0);
   const pasteBox = useRef<HTMLTextAreaElement | null>(null);
   const pasteFrom = useRef<HTMLElement | null>(null);
   /** A paste that landed on a cell: its row and column, and the text. */
   const pasteInto = (cell: HTMLElement, text: string) => {
     const line = cell.closest("tr") as HTMLTableRowElement | null;
-    const col = columns[(cell as HTMLTableCellElement).cellIndex - (onSelect ? 1 : 0) - 1];
+    const col = columns[(cell as HTMLTableCellElement).cellIndex - lead];
     if (!onPaste || !line?.dataset.row || !col) return;
     onPaste(line.dataset.row, col, text);
   };
@@ -45,13 +48,20 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                   <input type="checkbox" aria-label={`Select ${String(row.values[fields[0]?.name] ?? row.id)}`} checked={selected?.has(row.id) ?? false} onChange={(e) => onSelect(row.id, e.target.checked)} />
                 </td>
               ) : null}
-              <td className="open">
-                <IconButton size="sm" label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`} icon={<ChevronRight size={14} />} onClick={(e) => { e.stopPropagation(); onOpen(row.id); }} />
-              </td>
+              {canOpen ? (
+                <td className="open">
+                  <IconButton size="sm" label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`} icon={<ChevronRight size={14} />} onClick={(e) => { e.stopPropagation(); onOpen(row.id); }} />
+                </td>
+              ) : null}
               {columns.map((c) => (
                 <Cell key={c} row={row} field={byName.get(c)!} tone={colours ? toneOf(row, byName.get(c)!, colours) : null} onCommit={readonly ? undefined : (text) => onCommit(row, byName.get(c)!, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
               ))}
               {seen ? <SeenCell row={row} /> : null}
+              {rowActions ? (
+                <td className="rowacts" onClick={(e) => e.stopPropagation()}>
+                  <span className="rowacts__in">{rowActions(row)}</span>
+                </td>
+              ) : null}
             </tr>
   );
   return (
@@ -81,6 +91,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                 <input type="checkbox" aria-label="Select every row on this page" checked={rows.length > 0 && rows.every((r) => selected?.has(r.id))} onChange={(e) => onSelectAll?.(e.target.checked)} />
               </th>
             ) : null}
+            {canOpen ? (
             <th className="open" aria-label={selection?.count ? undefined : "Open"}>
               {selection?.count ? (
                 <div className="selbar" role="status">
@@ -97,6 +108,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                 </div>
               ) : null}
             </th>
+            ) : null}
             {columns.map((c) => {
               const kind = byName.get(c)?.kind ?? "text";
               return (
@@ -133,6 +145,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
               );
             })}
             {seen ? <th><span>Seen</span>{gone ? <SeenMenu showGone={gone.showGone} goneCount={gone.count} onShowGone={gone.onShowGone} /> : null}</th> : null}
+            {rowActions ? <th className="rowacts" aria-label="Actions" /> : null}
           </tr>
         </thead>
         <tbody
@@ -166,7 +179,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                   renderRow(item.row)
                 ) : (
                   <tr key={`g:${item.key}${item.continued ? ":cont" : ""}`} className="grouprow">
-                    <td colSpan={groupTotals ? 2 + (onSelect ? 1 : 0) : columns.length + 1 + (onSelect ? 1 : 0) + (seen ? 1 : 0)}>
+                    <td colSpan={groupTotals ? lead + 1 : columns.length + lead + tail}>
                       <button type="button" className="grouprow__btn" aria-expanded={!item.folded} onClick={() => onToggleGroup?.(item.key)}>
                         {item.folded ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
                         <b>{item.label}</b>{" "}
@@ -185,13 +198,14 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                         })
                       : null}
                     {groupTotals && seen ? <td /> : null}
+                    {groupTotals && rowActions ? <td /> : null}
                   </tr>
                 ),
               )
             : rows.map(renderRow)}
           {empty ? (
             <tr>
-              <td colSpan={columns.length + (seen ? 2 : 1) + (onSelect ? 1 : 0)} className="empty" style={{ whiteSpace: "normal" }}>
+              <td colSpan={columns.length + lead + tail} className="empty" style={{ whiteSpace: "normal" }}>
                 {empty}
               </td>
             </tr>
@@ -201,13 +215,14 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
           <tfoot>
             <tr>
               {onSelect ? <td /> : null}
-              <td />
+              {canOpen ? <td /> : null}
               {columns.map((c, i) => (
                 <td key={c} className={isNumeric(byName.get(c)?.kind ?? "") ? "r num" : undefined}>
                   {byName.get(c) ? <FooterCell field={byName.get(c)!} op={foot[c]} value={footerValue(totalOf, byName.get(c)!, foot[c])} onOp={(op) => onFooter(c, op)} first={i === 0} /> : null}
                 </td>
               ))}
               {seen ? <td /> : null}
+              {rowActions ? <td /> : null}
             </tr>
           </tfoot>
         ) : null}

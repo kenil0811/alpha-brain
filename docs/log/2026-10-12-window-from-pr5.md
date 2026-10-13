@@ -397,7 +397,34 @@ In the browser pane on the check copy: the Kind menu's ticklist (22 readers, 3 a
 the pills, paging (19 of 29 on page 1). The Mac app rebuilt and seen on Skills. "ok commit it,
 then do 7b".
 
+## Section 7b: Intelligence's connections as a table (13 Oct, this commit)
+
+"ok commit it, then do 7b". Built (`shell/intel/connectionsTable.ts`): the connections that are on
+as rows of the data view: What, Kind (Folder, Site, Calendar), Status (main's four pills,
+coloured until the person colours them), Last read, Last problem (only when one has one). Main's
+own buttons at the row's end, through a new place in the view for a row's buttons: Read now (or
+Check for a site) and Remove, which asks first in main's confirm with what goes ("Removes 2
+readers, 2 procedures and 1 automation. Your tables keep their rows."). No › (a connection has
+no page yet: the view now leaves the › column out when rows have no page). The ways to add one
+stay under the table.
+
+Differs from the proposal: it named "Fix or OK" and "Turn off or on", which main doesn't have;
+main's own buttons were kept. "What it can reach" is one sentence per kind, and as a column it
+made the table wider than the page (the page check flagged the pinned buttons covering cells):
+it is said once per kind under the table instead, and the buttons are not pinned.
+
+Open, not changed (main's own toolbar): at 1100 wide with the assistant panel open a table's view
+tabs break mid-word ("Tabl e"); put to Kenil (a View dropdown when narrow).
+
+What ran: `just lint` clean; 152 desktop tests in 34 files (2 new: the rows in words and the
+problem column only when used; the table with its buttons, no ›, Remove asking with what goes,
+Cancel keeping it, Remove removing); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-1329.md`; the first run, with the column and pinned buttons, had 20
+covered cells on this page). In the browser pane on the check copy: Remove's dialog, then
+Cancel. Not seen in the Mac app (its window was on another Space or the screen locked). "ok lets
+do both 7c, 7d".
+
 ## Left
 
-7b (connections as a table) next; then 7c, 7d; 8 the assistant panel, 9 plain errors, absolute
-dates, delete confirms.
+7c (agents with a look each) and 7d (facts as a table) next; then 8 the assistant panel, 9 plain
+errors, absolute dates, delete confirms.

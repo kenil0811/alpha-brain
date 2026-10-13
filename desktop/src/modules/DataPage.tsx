@@ -4,7 +4,7 @@
  * click away; a saved list is a filter plus the columns shown. Edits here are the person's own
  * and are journaled as theirs.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
@@ -139,6 +139,8 @@ export interface HeldRows {
   words: string;
   /** The colours the table wears until the person sets their own (a skill's health). */
   colours?: Colours;
+  /** Buttons at a row's end in the table (a connection's Read now and Remove). */
+  actions?: (row: RecordRow) => ReactNode;
 }
 
 /** `onOpenRecord` opens a record's own page (a row of this table, or a related one followed
@@ -252,10 +254,10 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
 
   const searchable = useMemo(() => fields.filter((f) => f.kind === "text" || f.kind === "long_text" || f.kind === "url").map((f) => f.name), [fields]);
 
+  const heldLoad = held?.load;
   const load = useCallback(() => {
-    if (held) {
-      held
-        .load()
+    if (heldLoad) {
+      heldLoad()
         .then((records) => {
           setAll(records);
           setError(null);
@@ -290,7 +292,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
         setLists(kept);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [client, table.name, key, held]);
+  }, [client, table.name, key, heldLoad]);
   useEffect(load, [load, version]);
 
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters: NO_FILTERS, rules, byName, hideDone, statusField, showGone, sorts }) : null), [all, search, searchable, rules, byName, hideDone, showGone, statusField, sorts]);
@@ -725,6 +727,8 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               colours={colours}
               onColours={setColours}
               onOpen={openRow}
+              canOpen={Boolean(onOpenRecord)}
+              rowActions={held?.actions}
               onCommit={commit}
               readonly={readonly}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

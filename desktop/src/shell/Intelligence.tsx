@@ -5,14 +5,15 @@
  */
 import { WorkMap } from "./map/WorkMap";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
+import type { Client, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
-import { DataPage } from "../modules/DataPage";
+import { DataPage, type HeldRows } from "../modules/DataPage";
 import { AutomationList } from "./Automations";
 import { skillsHeld, skillsTable } from "./intel/skillsTable";
+import { CONNECTION_COLOURS, connectionRow, connectionsTable, reachLines } from "./intel/connectionsTable";
 import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
-import { Button, Badge, Tabs } from "../ui";
+import { Button, Badge, Confirm, Tabs } from "../ui";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
@@ -22,19 +23,6 @@ const TABS: { id: IntelTab; label: string }[] = [
   { id: "connections", label: "Connections" },
   { id: "knowledge", label: "Knowledge" },
 ];
-
-const CONNECTOR: Record<string, { icon: string; label: (c: Connection) => string; reach: string }> = {
-  files: { icon: "▤", label: (c) => c.target.split("/").slice(-2).join("/"), reach: "Reads the documents in this folder as they change; never changes your files" },
-  browser: { icon: "◎", label: (c) => `${c.target}, signed in as you`, reach: "Reads pages the way you would; never posts, messages or clicks" },
-  calendar: { icon: "▦", label: () => "Your calendars", reach: "Reads events and attendees; adds nothing without a yes" },
-};
-
-const STATUS: Record<Connection["status"], { pill: string; words: string }> = {
-  connected: { pill: "pill--good", words: "Connected" },
-  needs_ok: { pill: "pill--warn", words: "Needs your OK" },
-  broken: { pill: "pill--bad", words: "Not working" },
-  off: { pill: "pill--gray", words: "Off" },
-};
 
 /** What removing a connection takes with it: the same words Activity records afterwards. */
 function removalWords(plan: ConnectionRemoval): string {
@@ -70,57 +58,48 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
       setBusy(null);
     }
   }
-  const live = data.connections.filter((c) => c.status !== "off");
+  const live = useMemo(() => data.connections.filter((c) => c.status !== "off"), [data]);
   const hasCalendar = live.some((c) => c.connector === "calendar");
+  // the table (section 7b): its columns and rows kept the same until the connections change;
+  // the buttons are read fresh each time, so they show what is busy
+  const table = useMemo(() => connectionsTable(live), [live]);
+  const load = useMemo(() => () => Promise.resolve(live.map(connectionRow)), [live]);
+  const byId = new Map(live.map((c) => [c.id, c]));
+  const held: HeldRows = {
+    load,
+    words: "Add one below",
+    colours: CONNECTION_COLOURS,
+    actions: (row) => {
+      const c = byId.get(row.id);
+      if (!c) return null;
+      return (
+        <>
+          <Button size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
+            {busy === c.id ? "…" : c.connector === "browser" ? "Check" : "Read now"}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
+            {removing?.id === c.id && !removing.plan ? "…" : "Remove"}
+          </Button>
+        </>
+      );
+    },
+  };
+  const going = removing?.plan ? byId.get(removing.id) : undefined;
   return (
     <div className="stack">
-      <div className="card list">
-        {!live.length ? <p className="empty">Nothing connected yet. Alpha can always read public web pages; connect a folder, a site you sign into, or your calendar below.</p> : null}
-        {live.map((c) => {
-          const meta = CONNECTOR[c.connector] ?? { icon: "•", label: () => c.target, reach: "" };
-          return (
-            <div key={c.id} className="item">
-              <div className="item__ico" aria-hidden="true">
-                {meta.icon}
-              </div>
-              <div className="item__body">
-                <b>{meta.label(c)}</b>
-                <div className={`item__sub${removing?.id === c.id ? " item__sub--warn" : ""}`}>
-                  {removing?.id === c.id ? (
-                    removing.plan ? removalWords(removing.plan) : "…"
-                  ) : (
-                    <>
-                      {meta.reach}
-                      {c.last_sync ? ` · last read ${when(c.last_sync)}` : ""}
-                      {c.last_error ? ` · ${c.last_error}` : ""}
-                    </>
-                  )}
-                </div>
-              </div>
-              <span className={`pill ${STATUS[c.status].pill}`}>{STATUS[c.status].words}</span>
-              {removing?.id === c.id ? (
-                <>
-                  <Button size="sm" onClick={() => setRemoving(null)}>
-                    Keep it
-                  </Button>
-                  <Button size="sm" variant="danger" disabled={!removing.plan || busy !== null} onClick={() => void run(c.id, () => client.removeConnection(c.id), "Removed.").then(() => setRemoving(null))}>
-                    Remove
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button size="sm" disabled={busy !== null} onClick={() => void run(c.id, () => client.syncConnection(c.id), "Read again.")}>
-                    {c.connector === "browser" ? "Check" : "Read now"}
-                  </Button>
-                  <Button size="sm" variant="ghost" disabled={busy !== null || removing !== null} onClick={() => askRemove(c.id)}>
-                    Remove
-                  </Button>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {live.length ? (
+        <div className="intel__table">
+          <DataPage client={client} table={table} held={held} version={0} onChanged={onChanged} />
+          <p className="faint intel__reach">{reachLines(live).join(" ")}</p>
+        </div>
+      ) : (
+        <div className="card">
+          <p className="empty">Nothing connected yet. Alpha can always read public web pages; connect a folder, a site you sign into, or your calendar below.</p>
+        </div>
+      )}
+      <Confirm open={Boolean(going)} title={going ? `Remove ${String(connectionRow(going).values.what)}?` : ""} action="Remove" onConfirm={() => { const id = removing?.id; setRemoving(null); if (id) void run(id, () => client.removeConnection(id), "Removed."); }} onCancel={() => setRemoving(null)}>
+        {removing?.plan ? removalWords(removing.plan) : null}
+      </Confirm>
       <div className="intel">
         <form className="card card--pad" onSubmit={(e: FormEvent) => { e.preventDefault(); void run("folder", () => client.connectFolder(folder.trim()), "Alpha is reading the folder."); }}>
           <div className="intel__head">
