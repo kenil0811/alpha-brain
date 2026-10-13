@@ -33,6 +33,8 @@ export const PREF = {
   /** A data view's own settings the core's lists can't hold (advanced filters, several sorts,
    *  groups, layout, colours, tab order), per `${sourceKey}:${listId}` (and `${sourceKey}:tabs`). */
   viewSettings: "view_settings",
+  /** Settings › Models: a daily spend, in dollars, past which the page warns (it stops nothing). */
+  dailyBudget: "daily_budget",
 } as const;
 export type PrefKey = (typeof PREF)[keyof typeof PREF];
 

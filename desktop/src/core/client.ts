@@ -639,6 +639,25 @@ export interface Conversation {
   conversations?: Convo[];
 }
 
+/** One model a call used (`/api/usage`, the core's `world/usage.py`): tokens, and the tool's own
+ *  API-equivalent price, which ChatGPT through Codex doesn't give (null). `kind` is "turn" for
+ *  an answer, else a background pass ("judge", "independent"). */
+export interface UsageRow {
+  id: string;
+  at: string;
+  turn: string | null;
+  thread: string | null;
+  module: string | null;
+  kind: string;
+  route: "claude" | "codex" | null;
+  model: string | null;
+  input: number | null;
+  output: number | null;
+  cache_read: number | null;
+  cache_write: number | null;
+  cost: number | null;
+}
+
 /** What changed since a stamp (`/api/changes`): the window's one poll. */
 export interface Changed {
   at: string;
@@ -819,6 +838,7 @@ export class Client {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
     return this.call<JournalEntry[]>("GET", `/api/activity?${qs}`);
   };
+  usage = (since?: string) => this.call<UsageRow[]>("GET", `/api/usage${since ? `?since=${encodeURIComponent(since)}` : ""}`);
   search = (q: string) => this.call<SearchResult>("GET", `/api/search?q=${encodeURIComponent(q)}`);
 
   /** Files the person dropped: kept for the module and read by Alpha. */

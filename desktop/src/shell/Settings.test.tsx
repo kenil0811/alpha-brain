@@ -6,6 +6,9 @@ import { Settings } from "./Settings";
 
 function client() {
   const c = {
+    usage: vi.fn(async () => []),
+    modules: vi.fn(async () => []),
+    conversations: vi.fn(async () => []),
     dataInfo: vi.fn(async () => ({ folder: "/Users/me/Alpha", size: 2048, backups: [] })),
     claude: vi.fn(async () => ({ installed: true, signed_in: true })),
     preference: vi.fn(async (key: string) => ({ key, value: null })),
@@ -25,7 +28,7 @@ function mount(c: ReturnType<typeof client>, onChanged = vi.fn(), onGo = vi.fn()
 describe("Settings", () => {
   it("lists its sections on the left; Overview, the first, shows every section's card at once", () => {
     mount(client());
-    expect(within(screen.getByRole("tablist", { name: "Settings sections" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Workspace", "Thinks with", "Reads with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Experimental features", "Help"]);
+    expect(within(screen.getByRole("tablist", { name: "Settings sections" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Workspace", "Thinks with", "Models", "Reads with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Experimental features", "Help"]);
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
     for (const name of ["Workspace", "Thinks with", "Appearance", "Notifications", "Permissions", "Builder rules", "Defaults", "Your data", "Removed projects", "Experimental features", "Help"]) expect(screen.getByRole("region", { name })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Companion" })).toBeNull(); // its look lives on Alpha's agent page

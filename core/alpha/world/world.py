@@ -19,6 +19,7 @@ from alpha.world.runs import Runs
 from alpha.world.skills import Skills
 from alpha.world.sources import Sources
 from alpha.world.store import Store
+from alpha.world.usage import Usage
 from alpha.world.views import Views
 from alpha.world.workflows import Workflows
 
@@ -47,6 +48,7 @@ class World:
         self.modules = Modules(self.store)
         self.automations = Automations(self.store)
         self.runs = Runs(self.store)
+        self.usage = Usage(self.store)
         self.skills = Skills(self.store)
         self.views = Views(self.store)
         self.preferences = Preferences(self.store)

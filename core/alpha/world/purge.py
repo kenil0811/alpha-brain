@@ -8,7 +8,8 @@ as a record but lose the session the model would resume, and open questions are 
 
 `remove_module` deletes a module's tables and their rows, the readers its automations use, its
 automations, its note and its goals. Entities and facts stay (they belong to the person, not to
-a module), and so do connections (a sign-in belongs to Alpha's browser).
+a module), and so do connections (a sign-in belongs to Alpha's browser). What its model calls
+cost (`usage`) stays too: like the journal, it is what happened.
 
 `remove_connection` disconnects Alpha from something: for a site, Alpha's sign-in (its browser
 profile on disk), the readers Alpha wrote for the sites that sign-in covers and the automations

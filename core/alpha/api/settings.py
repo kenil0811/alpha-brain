@@ -66,6 +66,12 @@ def routes(app: FastAPI, s: Served) -> None:
                              actor="person", data={"thinks_with": body.route})
         return route.status(world.path)
 
+    # ---- what the model calls used and cost (Settings › Models, 12 Oct) ----
+
+    @app.get("/api/usage", dependencies=[api])
+    def usage(since: str | None = None) -> list[dict[str, Any]]:
+        return world.usage.since(since)
+
     @app.post("/api/codex/install", dependencies=[api])
     def codex_install() -> dict[str, Any]:
         return codex_account.install()

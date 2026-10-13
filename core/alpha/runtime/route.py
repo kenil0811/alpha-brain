@@ -11,6 +11,7 @@ from typing import Any
 
 from alpha.runtime import claude_account, claude_cli, codex_account, codex_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.world import usage
 from alpha.world.store import loads
 
 ROUTES = ("claude", "codex")
@@ -40,9 +41,31 @@ def chosen(world_path: Path | str | None) -> str:
 
 
 def run(req: TurnRequest) -> RunResult:
-    if chosen(req.world_path) == "codex":
-        return codex_cli.run(req)
-    return claude_cli.run(req)
+    which = chosen(req.world_path)
+    result = codex_cli.run(req) if which == "codex" else claude_cli.run(req)
+    usage.record(req.world_path, usage_rows(which, req, result))
+    return result
+
+
+def usage_rows(which: str, req: TurnRequest, result: RunResult) -> list[dict[str, Any]]:
+    """What a call used, one row per model (`world/usage.py`): Claude Code reports each model's
+    tokens and price (`modelUsage`); the Codex CLI reports tokens only, on the model `model_for`
+    picked (None is Codex's own default). A run that never reached a model reports nothing."""
+    base = {"turn": req.turn_id, "thread": req.thread_id, "module": req.module_id,
+            "kind": req.kind, "route": which}
+    raw = result.raw or {}
+    if which == "codex":
+        used = raw.get("usage") or {}
+        return [{**base, "model": codex_cli.model_for(req)[0], "input": used.get("input_tokens"),
+                 "output": used.get("output_tokens"),
+                 "cache_read": used.get("cached_input_tokens")}] if used else []
+    rows = [{**base, "model": name, "input": u.get("inputTokens"), "output": u.get("outputTokens"),
+             "cache_read": u.get("cacheReadInputTokens"),
+             "cache_write": u.get("cacheCreationInputTokens"), "cost": u.get("costUSD")}
+            for name, u in (raw.get("modelUsage") or {}).items()]
+    if not rows and result.cost_estimate is not None:
+        rows = [{**base, "cost": result.cost_estimate}]
+    return rows
 
 
 def trial(world_path: Path | str, which: str) -> tuple[bool, str]:

@@ -4,7 +4,7 @@
  * has room for, and each other section shows just its own card (9 Oct, the owner's review). Each
  * row says what is so and offers the one thing to do about it, with as few words as it takes;
  * what is not configurable yet says so, never a hidden control. Sections: Overview, Workspace,
- * Thinks with, Reads with, Appearance, Notifications, Permissions, Builder rules, Defaults, Your
+ * Thinks with, Models, Reads with, Appearance, Notifications, Permissions, Builder rules, Defaults, Your
  * data, Removed projects, Help. The companion's look is edited on Alpha's agent page; Appearance
  * links there (the Companion section went, 9 Oct).
  */
@@ -20,6 +20,7 @@ import { DEFAULT_WORKSPACE, WorkspaceTile, type Surface } from "./Rail";
 import { HEAD_FONTS, ThemeControl, UI_FONTS, contrast, type Look, type Theme } from "./theme";
 import { Badge, Button, Confirm, Dropdown, InfoTip, ListRow, Notice, PageHeader, SectionCard, Switch, Tabs, Trouble } from "../ui";
 import { ICON, PermissionIcon, ThinksIcon } from "../ui/icons";
+import { ModelsCard } from "./Models";
 
 const WAIT_EVERY_MS = 3000;
 
@@ -369,11 +370,12 @@ function HelpCard() {
   );
 }
 
-type SectionId = "overview" | "workspace" | "thinks" | "reads" | "appearance" | "permissions" | "defaults" | "data" | "notifications" | "builder" | "removed" | "experiments" | "help";
+type SectionId = "overview" | "workspace" | "thinks" | "models" | "reads" | "appearance" | "permissions" | "defaults" | "data" | "notifications" | "builder" | "removed" | "experiments" | "help";
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "workspace", label: "Workspace" },
   { id: "thinks", label: "Thinks with" },
+  { id: "models", label: "Models" },
   { id: "reads", label: "Reads with" },
   { id: "appearance", label: "Appearance" },
   { id: "notifications", label: "Notifications" },
@@ -438,6 +440,7 @@ export function Settings({ client, theme, onTheme, look = {}, onLook, claude, on
         <ListRow title={<>Quick overview and Deep thinking <InfoTip text="Every answer is a quick overview for now, on the chosen assistant's own model. Choosing depth, and a model for each, isn't possible yet." /></>} description="Quick overview only" />
       </SectionCard>
     ),
+    models: <ModelsCard client={client} claude={thinking?.claude ?? claude} />,
     reads: (
       <SectionCard title="Reads with" info="Alpha's own browser, kept on this Mac; sign-in windows open in your Chrome when you have it.">
         <BrowserRow client={client} status={browser} onStatus={setBrowser} />
@@ -504,7 +507,7 @@ export function Settings({ client, theme, onTheme, look = {}, onLook, claude, on
     experiments: <ExperimentsCard />,
     help: <HelpCard />,
   };
-  const order: Exclude<SectionId, "overview">[] = ["workspace", "thinks", "reads", "appearance", "permissions", "defaults", "data", "notifications", "builder", "removed", "experiments", "help"];
+  const order: Exclude<SectionId, "overview">[] = ["workspace", "thinks", "models", "reads", "appearance", "permissions", "defaults", "data", "notifications", "builder", "removed", "experiments", "help"];
 
   return (
     <>

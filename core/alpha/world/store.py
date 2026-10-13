@@ -323,6 +323,24 @@ CREATE TABLE IF NOT EXISTS permissions (
     source TEXT
 );
 
+-- what each model call used and cost, one row per model it used (world/usage.py)
+CREATE TABLE IF NOT EXISTS usage (
+    id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    turn TEXT,
+    thread TEXT,
+    module TEXT,
+    kind TEXT NOT NULL,
+    route TEXT,
+    model TEXT,
+    input INTEGER,
+    output INTEGER,
+    cache_read INTEGER,
+    cache_write INTEGER,
+    cost REAL
+);
+CREATE INDEX IF NOT EXISTS usage_at ON usage(at);
+
 -- what the model was given for each turn, so a wrong answer can be traced to what it saw
 CREATE TABLE IF NOT EXISTS turn_contexts (
     turn TEXT PRIMARY KEY,
@@ -397,6 +415,17 @@ CREATE TABLE IF NOT EXISTS preferences (
 );
 """
 
+
+# The journal's answers from before usage was recorded, as usage rows (route from the price).
+USAGE_BACKFILL = """
+INSERT OR IGNORE INTO usage (id, at, turn, thread, module, kind, route, model, cost)
+SELECT 'u_' || id, at, json_extract(data, '$.turn'), thread, module, 'turn',
+       CASE WHEN json_type(data, '$.cost_estimate') IN ('real', 'integer') THEN 'claude'
+            WHEN kind = 'replied' THEN 'codex' END,
+       NULL, json_extract(data, '$.cost_estimate')
+FROM journal
+WHERE kind IN ('replied', 'failed') AND json_type(data, '$.turn') IS NOT NULL
+"""
 
 # Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
@@ -506,6 +535,10 @@ class Store:
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
                        ((first["at"] if first and first["at"] else None) or now(),))
             self._move_pipelines(db)
+            # Answers from before usage was recorded (12 Oct), carried over once: while the table
+            # is empty, so an answer recorded since is never counted twice (world/usage.py).
+            if not db.execute("SELECT 1 FROM usage LIMIT 1").fetchone():
+                db.execute(USAGE_BACKFILL)
 
     @staticmethod
     def _drop_superseded(db: sqlite3.Connection) -> None:
