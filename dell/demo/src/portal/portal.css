@@ -1,0 +1,61 @@
+/* Client portal. Values from tokens.css only. */
+.portal { height: 100%; overflow: auto; background: var(--bg); }
+.portal__bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding: var(--s2) var(--s4);
+  background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--t-sm);
+}
+.portal__firm { font-weight: var(--w-semi); }
+.portal__who { margin-left: auto; color: var(--text-2); }
+.portal__back { display: inline-flex; align-items: center; gap: var(--s1); min-height: 44px; }
+.portal__tabs {
+  display: flex; gap: var(--s1); padding: var(--s2) var(--s4); overflow-x: auto;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.portal__tab {
+  display: inline-flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s3);
+  border-radius: var(--r-ctl); color: var(--text-2); font-size: var(--t-sm); white-space: nowrap;
+}
+.portal__tab:hover { background: var(--hover); text-decoration: none; }
+.portal__tab--on { background: var(--primary-soft); color: var(--primary); font-weight: var(--w-med); }
+.portal__body {
+  max-width: 760px; margin: 0 auto; padding: var(--s8) var(--s4) var(--s10);
+  display: flex; flex-direction: column; gap: var(--s4);
+}
+.portal__title { font-size: var(--t-xl); font-weight: var(--w-semi); line-height: 1.25; }
+.portal__progress { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s3); }
+.portal__progress .bar { flex: 1; }
+.portal__items, .portal__files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.portal__items li, .portal__files li {
+  display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); min-height: 64px;
+}
+.portal__items li:first-child, .portal__files li:first-child { border-top: 0; }
+.portal__item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.portal__fname { overflow-wrap: anywhere; }
+.portal__ok { color: var(--good); width: 24px; height: 24px; }
+.portal__dot { width: 24px; height: 24px; flex: none; border: 2px solid var(--border); border-radius: var(--r-pill); }
+.portal__go { min-height: 44px; flex: none; }
+.portal__before { color: var(--text-2); }
+.portal__choice { display: flex; gap: var(--s2); margin-top: var(--s3); }
+.portal__opt {
+  flex: 1; max-width: 200px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: var(--s1);
+  border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--surface); font-size: var(--t-base); cursor: pointer;
+}
+.portal__opt:hover:not(:disabled) { background: var(--hover); }
+.portal__opt--on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); font-weight: var(--w-med); }
+.portal__opt:disabled { cursor: default; opacity: 0.7; }
+.portal__send { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.portal__send .btn { min-height: 48px; font-size: var(--t-base); }
+.portal__drop {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--s1); text-align: center;
+  padding: var(--s8) var(--s4); border: 2px dashed var(--border); border-radius: var(--r-card); background: var(--surface-2); cursor: pointer;
+}
+.portal__drop:hover, .portal__drop:focus-within { border-color: var(--primary); }
+.portal__drop > svg { width: 32px; height: 32px; color: var(--primary); }
+.portal__drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.portal__pills { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
+@media (max-width: 600px) {
+  .portal__bar, .portal__tabs { padding-left: var(--s3); padding-right: var(--s3); }
+  .portal__who { margin-left: 0; }
+  .portal__body { padding: var(--s5) var(--s3) var(--s8); }
+  .portal__opt { max-width: none; }
+}

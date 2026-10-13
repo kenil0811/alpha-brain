@@ -1,0 +1,67 @@
+/* Design tokens for the Dell demo.
+   Palette: Alpha's shell palette (desktop/src/styles/app.css on main, 12 Oct 2026) — keep in step.
+   Type and spacing: Alpha UI rulebook §1 — body 18, table 17, labels 16, spacing on a 5px step,
+   one seven-step type scale. Nothing below is sized or coloured by hand. */
+@import "@fontsource-variable/geist/index.css";
+@import "@fontsource-variable/source-serif-4/index.css";
+
+:root {
+  --bg: #fafbfc; --surface: #ffffff; --surface-2: #f3f5f7; --text: #1a2b3c; --text-2: #4b5a6a; --text-3: #5f6b78;
+  --border: #e3e6ea; --line: #f1f3f5; --hover: #eef1f4; --primary: #3f6f99; --primary-ink: #ffffff; --primary-soft: #e4edf5;
+  --good: #4f7a52; --good-soft: #e5eee5; --warn: #8a5f2c; --warn-soft: #f6eee2; --bad: #b4413a; --bad-soft: #f6e5e3;
+  --info-soft: #e4edf5; --gray-soft: #eef0f2;
+  --chart: #4d7ea8; --chart-2: #c4955a; --chart-3: #6b7c65; --chart-4: #8a7aa8; --chart-5: #a86b6b;
+  --shadow-seam: 0 0 0 1px rgba(26, 43, 60, 0.04), 0 0 18px rgba(26, 43, 60, 0.07);
+  --shadow-card: 0 1px 2px rgba(26, 43, 60, 0.04);
+  --shadow-float: 0 1px 2px rgba(26, 43, 60, 0.06), 0 10px 30px rgba(26, 43, 60, 0.12);
+  --scrim: rgba(15, 21, 28, 0.32);
+
+  --font-ui: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --font-ed: "Source Serif 4 Variable", Georgia, serif;
+
+  /* the one type scale (seven steps) */
+  --t-xs: 14px;   /* metadata, chips, footers */
+  --t-sm: 16px;   /* labels, table headers, metric labels */
+  --t-md: 17px;   /* table and working size */
+  --t-base: 18px; /* body and inputs */
+  --t-lg: 21px;   /* section titles */
+  --t-xl: 27px;   /* page titles, record titles */
+  --t-2xl: 36px;  /* hero heading, big numbers */
+  --w-reg: 400; --w-med: 500; --w-semi: 600;
+
+  /* spacing on a 5px step */
+  --s1: 5px; --s2: 10px; --s3: 15px; --s4: 20px; --s5: 25px; --s6: 30px; --s8: 40px; --s10: 50px;
+
+  --r-ctl: 7px;   /* buttons, inputs, sidebar items */
+  --r-card: 11px; /* cards, tables, panels, menus */
+  --r-pill: 999px;
+  --r-composer: 22px;
+
+  --head-h: 60px;
+  --rail-w: 268px; --rail-folded: 84px;
+  --assist-w: 380px; --assist-folded: 72px;
+  --row-h: 46px;
+  --ctl-h: 38px;
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f151c; --surface: #161e27; --surface-2: #1c2530; --text: #e6ebf0; --text-2: #b4bec9; --text-3: #8b96a2;
+  --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
+  --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220;
+  --info-soft: #1f3040; --gray-soft: #222b35;
+  --chart: #7fa5c5; --chart-2: #d9b07a; --chart-3: #9cb39a; --chart-4: #b3a5d0; --chart-5: #d49a9a;
+  --shadow-seam: 0 0 0 1px rgba(0, 0, 0, 0.3), 0 0 18px rgba(0, 0, 0, 0.35);
+  --shadow-card: none;
+  --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+@media (prefers-contrast: more) {
+  :root { --text-2: #2f3b47; --text-3: #44505c; --border: #aeb6bf; --line: #d6dbe0; }
+}
