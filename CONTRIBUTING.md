@@ -205,6 +205,11 @@ threads (a state move, an upsert) is written as in §3.2.
   (16, small headings), `-xl` (20, section and page-level headings), `-2xl` (26, the page
   title and big numbers). A raw pixel size in the stylesheet or in an inline style fails
   `styles/typescale.test.ts`.
+- **A change to how the window looks is seen in the app before it lands**: the page in the
+  Mac app (WebKit) at the person's own window size, and Kenil says yes. Tests and
+  `just check-desktop` prove nothing overflows; they never prove it looks right. Design from
+  elsewhere (a branch, a rulebook, another product) is guidance: it is fitted to main's own
+  design, never taken as a block, and never outranks how the window looks (12 Oct, Q42).
 - **Nothing overflows, nothing is cut off, nothing is covered**, at the window's smallest size
   (1100×560, `tauri.conf.json`) as at its default, light and dark. `just check-desktop` opens
   every page at those sizes on a copy of the world and fails on a page that scrolls sideways,
