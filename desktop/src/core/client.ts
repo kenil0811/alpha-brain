@@ -771,7 +771,7 @@ export class Client {
   connectionRemoval = (id: string) => this.call<ConnectionRemoval>("GET", `/api/connections/${id}/removal`);
   removeConnection = (id: string) => this.call<ConnectionRemoval>("DELETE", `/api/connections/${id}`);
 
-  activity = (params: { q?: string; module?: string; limit?: number } = {}) => {
+  activity = (params: { q?: string; module?: string; limit?: number; kind?: string } = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
     return this.call<JournalEntry[]>("GET", `/api/activity?${qs}`);
   };

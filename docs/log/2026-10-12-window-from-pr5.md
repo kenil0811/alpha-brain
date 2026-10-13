@@ -35,3 +35,22 @@ halves, 2a the page and 2b History with Undo and Notes; (3) the table's toolbar 
 filter rules, sort, group); (4) the table's extras (totals, colour, bulk edit, paste one write
 per row, the numbers strip); (5) the sidebar; (6) Settings as cards; (7) Intelligence; (8) the
 assistant panel; (9) plain errors, absolute dates, every delete confirmed.
+
+## Section 1: Home's "Didn't work today" (this commit)
+
+Proposed with the order of the nine sections and screenshots of Home on main and of the
+feature on the branch; Kenil: "there should be a close/discard option as well to clean this
+up. other lets do it, stop after its done and i will review", then, on the screenshots of the
+built section: "yes commit it". Built in main's own markup and styles, nothing new in the
+stylesheet: a section after the tiles, the rows of "Coming up" (time, the sentence, the reason
+when the journal has one), Try again for a failed automation run, Open where it happened, ✕ to
+dismiss one and Clear all. Dismissing clears it from Home only (the preference `home_dismissed`,
+today's ids only, so it never grows); Activity keeps every entry. The tile says "below" while
+there is something to see. The failures are asked of the journal by kind (`/api/activity`
+already took `kind`; the client now passes it), so no core change. Not built: Try again for a
+reader's or a part's failure, which needs a core route (the plan's slice 2).
+
+What ran: typecheck clean; 90 desktop tests in 28 files (four new); the Mac app rebuilt, Home
+seen in WebKit at 1240×820 with today's two reader failures; `just check-desktop`: 66 of 66
+pages clean at every size (`docs/checks/2026-10-12-2211.md`). Dismiss and Clear all were not
+clicked in Kenil's world (they write to it); the tests cover them.

@@ -1,0 +1,73 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import type { Client, Home as HomeData, JournalEntry } from "../core/client";
+import { TooltipProvider } from "../ui";
+import { Home, failedToday } from "./Home";
+
+const quiet: HomeData = { date: "2026-10-12T09:00:00+00:00", needs_you: [], ran_today: 4, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [], brief: null };
+const failed = (id: string, text: string, data: Record<string, unknown>, extra: Partial<JournalEntry> = {}): JournalEntry => ({ id, at: new Date().toISOString(), kind: "failed", actor: "alpha", text, data, module: null, thread: null, entity_ids: [], source: null, ...extra });
+
+function mount(over: Partial<Record<keyof Client, unknown>>) {
+  const onGo = vi.fn();
+  const client = { home: vi.fn(async () => quiet), preference: vi.fn(async () => ({ key: "home_dismissed", value: null })), setPreference: vi.fn(async () => ({})), ...over } as unknown as Client & Record<string, ReturnType<typeof vi.fn>>;
+  render(
+    <TooltipProvider>
+      <Home client={client} version={0} onGo={onGo} onChanged={vi.fn()} onAsk={vi.fn()} onNew={vi.fn()} onOpenThread={vi.fn()} />
+    </TooltipProvider>,
+  );
+  return { client, onGo };
+}
+
+describe("Home: didn't work today", () => {
+  it("keeps today's failures only, newest first", () => {
+    const now = new Date("2026-10-12T15:00:00");
+    const rows = [failed("a", "older today", {}, { at: "2026-10-12T08:00:00" }), failed("b", "yesterday", {}, { at: "2026-10-11T22:00:00" }), failed("c", "newer today", {}, { at: "2026-10-12T14:00:00" }), { ...failed("d", "read a page", {}), kind: "saw" }];
+    expect(failedToday(rows, now).map((e) => e.id)).toEqual(["c", "a"]);
+  });
+
+  it("names each with its reason, Try again for an automation, Open where it happened", async () => {
+    const user = userEvent.setup();
+    const runAutomation = vi.fn(async () => ({}));
+    const { client, onGo } = mount({
+      home: vi.fn(async () => ({ ...quiet, failed_today: 2 })),
+      activity: vi.fn(async () => [failed("j1", "Run of Daily brokers failed", { automation: "a_1" }), failed("j2", "That didn't work", { error: "the model timed out" }, { module: "m1" })]),
+      runAutomation,
+    });
+    const card = await screen.findByRole("region", { name: "Didn't work today" });
+    expect(await within(card).findByText("the model timed out")).toBeInTheDocument();
+    expect(client.activity).toHaveBeenCalledWith({ kind: "failed", limit: 2 });
+    expect(screen.getByText("2 didn't work, below")).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: "Try again" }));
+    expect(runAutomation).toHaveBeenCalledWith("a_1");
+    await user.click(within(card).getAllByRole("button", { name: "Open" })[1]);
+    expect(onGo).toHaveBeenCalledWith({ kind: "module", id: "m1" });
+  });
+
+  it("Dismiss clears one from Home and Clear all the rest; the choice is remembered", async () => {
+    const user = userEvent.setup();
+    const { client } = mount({
+      home: vi.fn(async () => ({ ...quiet, failed_today: 2 })),
+      activity: vi.fn(async () => [failed("j1", "First failure", {}), failed("j2", "Second failure", {})]),
+    });
+    const card = await screen.findByRole("region", { name: "Didn't work today" });
+    await within(card).findByText("First failure");
+    await user.click(within(card).getAllByRole("button", { name: "Dismiss" })[0]);
+    expect(screen.queryByText("First failure")).toBeNull();
+    expect(client.setPreference).toHaveBeenLastCalledWith("home_dismissed", ["j1"]);
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Didn't work today" })).toBeNull());
+    expect(client.setPreference).toHaveBeenLastCalledWith("home_dismissed", ["j1", "j2"]);
+    expect(screen.getByText("2 didn't work; see Activity")).toBeInTheDocument();
+  });
+
+  it("stays away when the failures were cleared before", async () => {
+    mount({
+      home: vi.fn(async () => ({ ...quiet, failed_today: 1 })),
+      activity: vi.fn(async () => [failed("j1", "Cleared earlier", {})]),
+      preference: vi.fn(async () => ({ key: "home_dismissed", value: ["j1"] })),
+    });
+    expect(await screen.findByText("1 didn't work; see Activity")).toBeInTheDocument();
+    expect(screen.queryByText("Cleared earlier")).toBeNull();
+  });
+});

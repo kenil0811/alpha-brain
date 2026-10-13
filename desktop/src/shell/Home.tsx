@@ -5,11 +5,11 @@
  */
 import { useEffect, useState } from "react";
 import { AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
-import type { Ask, Client, Home as HomeData, NeedItem } from "../core/client";
+import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
-import { Badge, Button } from "../ui";
+import { Badge, Button, IconButton } from "../ui";
 import { ModuleIcon, ArrowRight, Check, X, Eye } from "../ui/icons";
 
 /** Questions asked in one turn are one card with one Answer; everything else stands alone. */
@@ -40,6 +40,57 @@ function greeting(): string {
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Today's failures, newest first: the journal's `failed` entries since local midnight. */
+export function failedToday(entries: JournalEntry[], now = new Date()): JournalEntry[] {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return entries.filter((e) => e.kind === "failed" && new Date(e.at).getTime() >= midnight).sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** The failures the person cleared from Home. Only Home forgets them: Activity keeps every one. */
+const DISMISSED = "home_dismissed";
+
+/** One thing that didn't work: when, what, why, and what can be done about it. Try again starts
+ *  an automation's run again; Open goes where the journal says it happened; Dismiss clears it
+ *  from Home. */
+function Failure({ e, client, onGo, onOpenThread, onDismiss, onDone }: { e: JournalEntry; client: Client; onGo: (s: Surface) => void; onOpenThread: (id: string) => void; onDismiss: () => void; onDone: (words: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const automation = typeof e.data.automation === "string" ? e.data.automation : null;
+  const reason = [e.data.error, e.data.why].find((r): r is string => typeof r === "string" && r.trim() !== "" && !e.text.includes(r));
+  const open = automation ? () => onGo({ kind: "automation", id: automation }) : e.thread ? () => onOpenThread(e.thread!) : e.module ? () => onGo({ kind: "module", id: e.module! }) : null;
+  async function again() {
+    if (!automation) return;
+    setBusy(true);
+    try {
+      await client.runAutomation(automation);
+      onDone("Running it again; it reports in Activity.");
+    } catch (err) {
+      onDone(`Couldn't start it again: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="item">
+      <span className="item__when num">{timeOf(e.at)}</span>
+      <div className="item__body">
+        <b>{e.text}</b>
+        {reason ? <div className="item__sub">{reason}</div> : null}
+      </div>
+      {automation ? (
+        <Button size="sm" variant="primary" disabled={busy} onClick={() => void again()}>
+          Try again
+        </Button>
+      ) : null}
+      {open ? (
+        <Button size="sm" onClick={open}>
+          Open
+        </Button>
+      ) : null}
+      <IconButton size="sm" label="Dismiss" title="Clear it from Home; Activity keeps it" icon={<X size={14} />} onClick={onDismiss} />
+    </div>
+  );
 }
 
 function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
@@ -149,6 +200,36 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, [client, version]);
+  // today's failures, asked of the journal by kind; the count comes with the summary
+  const failedCount = home?.failed_today ?? 0;
+  const [failures, setFailures] = useState<JournalEntry[]>([]);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  useEffect(() => {
+    if (!failedCount) {
+      setFailures([]);
+      return;
+    }
+    let live = true;
+    Promise.all([client.activity({ kind: "failed", limit: failedCount }), client.preference(DISMISSED).catch(() => ({ value: [] }))])
+      .then(([rows, pref]) => {
+        if (!live) return;
+        setFailures(failedToday(rows));
+        setDismissed(Array.isArray(pref.value) ? pref.value.filter((v): v is string => typeof v === "string") : []);
+      })
+      .catch(() => live && setFailures([])); // the tile still says how many, and Activity has them
+    return () => {
+      live = false;
+    };
+  }, [client, version, failedCount]);
+  /** Clears failures from Home. Only today's ids are kept, so the list never grows. */
+  const dismiss = (ids: string[]) => {
+    const today = new Set(failures.map((f) => f.id));
+    const next = [...new Set([...dismissed, ...ids])].filter((id) => today.has(id));
+    setDismissed(next);
+    client.setPreference(DISMISSED, next).catch((e: unknown) => setToast(`Couldn't remember that: ${e instanceof Error ? e.message : String(e)}`));
+  };
+  const shownFailures = failures.filter((f) => !dismissed.includes(f.id));
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -179,7 +260,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         <div className="card tile">
           <div className="tile__lab">Done today</div>
           <div className="tile__big num">{home.ran_today}</div>
-          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work; see Activity` : "Things Alpha read, made and changed"}</div>
+          <div className="tile__sub">{home.failed_today ? `${home.failed_today} didn't work${shownFailures.length ? ", below" : "; see Activity"}` : "Things Alpha read, made and changed"}</div>
         </div>
         <div className="card tile">
           <div className="tile__lab">Coming up</div>
@@ -210,6 +291,25 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             )}
           </div>
         </div>
+      ) : null}
+
+      {shownFailures.length ? (
+        <section className="section" aria-label="Didn't work today">
+          <div className="section__head">
+            <h2>Didn't work today</h2>
+            <span className="faint">{shownFailures.length === 1 ? "1 thing" : `${shownFailures.length} things`}, newest first</span>
+            <div className="section__right">
+              <Button size="sm" variant="ghost" title="Clear them from Home; Activity keeps them" onClick={() => dismiss(shownFailures.map((f) => f.id))}>
+                Clear all
+              </Button>
+            </div>
+          </div>
+          <div className="card list">
+            {shownFailures.map((e) => (
+              <Failure key={e.id} e={e} client={client} onGo={onGo} onOpenThread={onOpenThread} onDismiss={() => dismiss([e.id])} onDone={(words) => { setToast(words); onChanged(); }} />
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {home.threads.length ? (
