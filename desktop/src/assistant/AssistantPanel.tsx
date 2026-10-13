@@ -10,6 +10,7 @@ import { moduleWords, say } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
+import { RenameBox, useConversationActions } from "./ConversationActions";
 import { MicButton, useSpeech } from "../shell/voice";
 import { Button, IconButton, Popover, Trouble, Rich } from "../ui";
 import { ChevronRight, ChevronDown, Check, PlusIcon, X } from "../ui/icons";
@@ -441,6 +442,7 @@ export function Conversation({
   const [active, setActive] = useState<string | null>(null);
   const [convos, setConvos] = useState<Convo[]>([]);
   const [picking, setPicking] = useState(false);
+  const [renamingConvo, setRenamingConvo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const body = useRef<HTMLDivElement>(null);
@@ -641,6 +643,14 @@ export function Conversation({
   ) : null;
   const chats = convos.filter((c) => c.kind === "chat");
   const activeConvo = chats.find((c) => c.id === active) ?? null;
+  const convoActions = useConversationActions(client, (what) => {
+    if (what === "deleted") {
+      setActive(null);
+      setThreadView(null);
+    }
+    load();
+    onChanged();
+  });
 
   return (
     <aside className={layout === "page" ? "assist assist--page" : "assist"} aria-label="Assistant">
@@ -675,6 +685,9 @@ export function Conversation({
       {layout === "panel" && !threadView ? (
         // the conversation picker (section 8a): always here, so nothing moves when a second one starts
         <div className="convpick">
+          {renamingConvo && activeConvo ? (
+            <RenameBox convo={activeConvo} onSave={(t) => { setRenamingConvo(false); void convoActions.rename(activeConvo, t); }} onCancel={() => setRenamingConvo(false)} />
+          ) : (
           <Popover
             open={picking}
             onOpenChange={setPicking}
@@ -703,8 +716,20 @@ export function Conversation({
                 </button>
               ))}
               {!chats.length ? <p className="faint convpick__none">None yet: what you say starts one.</p> : null}
+              {activeConvo ? (
+                <>
+                  <div className="menu__head">This conversation</div>
+                  <button type="button" className="menu__item" onClick={() => { setPicking(false); setRenamingConvo(true); }}>
+                    Rename…
+                  </button>
+                  <button type="button" className="menu__item menu__item--danger" onClick={() => { setPicking(false); convoActions.askDelete(activeConvo); }}>
+                    Delete…
+                  </button>
+                </>
+              ) : null}
             </div>
           </Popover>
+          )}
           <Button size="sm" variant="ghost" onClick={() => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); })}>
             <PlusIcon size={14} aria-hidden="true" /> New
           </Button>
@@ -790,6 +815,12 @@ export function Conversation({
         )}
         {workingNote}
         {loadError ? <Trouble onRetry={load}>Couldn't load the conversation: {loadError}</Trouble> : null}
+        {convoActions.problem ? (
+          <p className="notice" role="alert">
+            {convoActions.problem}
+          </p>
+        ) : null}
+        {convoActions.confirm}
         {error ? (
           <p className="notice" role="alert">
             {error}

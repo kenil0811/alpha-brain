@@ -24,6 +24,7 @@ from typing import Any
 
 from alpha.runtime import judge
 from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
@@ -55,6 +56,33 @@ def live_for(world: World, module: str | None) -> dict[str, Any] | None:
 def ensure(world: World, sentence: str, module: str | None) -> dict[str, Any]:
     """The live conversation in a scope, or a new one for this sentence."""
     return live_for(world, module) or open_conversation(world, sentence, module)
+
+
+UNNAMED = "New conversation"
+
+
+def rename(world: World, cid: str, title: str) -> dict[str, Any]:
+    """The person's title for a conversation (13 Oct, slice 2 G1), kept from then on."""
+    thread = world.modules.thread(cid)
+    clean = " ".join(title.split())
+    if not clean:
+        raise Problem("A conversation needs a title.")
+    if clean == thread["title"]:
+        return world.modules.retitle(cid, clean, by_person=True)  # named now, even if the same
+    renamed = world.modules.retitle(cid, clean[:120], by_person=True)
+    world.journal.append("changed", f"You renamed the conversation {thread['title']} to"
+                         f" {renamed['title']}.", actor="person", thread=cid,
+                         module=thread["module"], data={"conversation": cid,
+                                                        "before": thread["title"]})
+    return renamed
+
+
+def name_from_first(world: World, cid: str, sentence: str) -> None:
+    """A conversation started unnamed (+ New) takes its first message's words as its title,
+    unless the person named it."""
+    thread = world.modules.thread(cid)
+    if thread["kind"] == "chat" and not thread.get("titled") and thread["title"] == UNNAMED:
+        world.modules.retitle(cid, title_for(sentence), by_person=False)
 
 
 def close(world: World, cid: str, why: str = "done") -> dict[str, Any]:

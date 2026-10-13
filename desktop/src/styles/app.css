@@ -1101,3 +1101,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .fieldform__row .textfield { min-width: 0; width: 100%; }
 .fieldform__note { margin: 0; font-size: var(--text-xs); }
 .section--drop { outline: 2px dashed var(--primary); outline-offset: 6px; border-radius: 8px; }
+
+/* A conversation renamed in place (13 Oct, slice 2 G1). */
+.convrename { flex: 1 1 auto; min-width: 0; width: 100%; padding: 4px 8px; }
+.convrow--renaming { padding: 4px 6px; }

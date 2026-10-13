@@ -917,6 +917,10 @@ export class Client {
   };
   newConversation = (module?: string | null, title?: string) => this.call<Convo>("POST", "/api/conversations", { module: module ?? null, title: title ?? null });
   closeConversation = (id: string) => this.call<Convo>("POST", `/api/conversations/${id}/close`);
+  /** A conversation renamed, and deleted from the lists (13 Oct, slice 2 G1, C9). */
+  renameConversation = (id: string, title: string) => this.call<Convo>("POST", `/api/conversations/${encodeURIComponent(id)}/rename`, { title });
+  conversationRemoval = (id: string) => this.call<{ conversation: string; title: string; what: string }>("GET", `/api/conversations/${encodeURIComponent(id)}/removal`);
+  deleteConversation = (id: string) => this.call<Record<string, unknown>>("DELETE", `/api/conversations/${encodeURIComponent(id)}`);
   focusConversation = (id: string) => this.call<{ focus: string }>("POST", `/api/conversations/${id}/focus`);
   companion = () => this.call<Companion>("GET", "/api/companion");
   /** A choice of look the person made, kept in the world; the window owns its shape. */

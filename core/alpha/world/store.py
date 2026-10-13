@@ -422,6 +422,8 @@ ADDED_COLUMNS = [
     # a module's workspace folder once it has one (Q38, kept by §12)
     ("modules", "workspace", "TEXT"),
     # a file Alpha fetched or the person added: whose module it is, and where it came from
+    # a conversation the person named keeps their title (13 Oct, slice 2 G1)
+    ("threads", "titled", "TEXT"),
     ("documents", "module", "TEXT"),
     # a file kept about a person or company, on their page (13 Oct, slice 2 B11)
     ("documents", "about", "TEXT"),

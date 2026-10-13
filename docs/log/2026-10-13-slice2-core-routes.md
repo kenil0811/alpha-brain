@@ -123,6 +123,35 @@ with what goes and that rows stay); `just check-desktop`: 79 of 79 pages clean a
 in her journal, then deleted through the confirm. Not seen in the Mac app (Open and Show in
 Finder are the app's). "ok commit it, then tell me what step 5 is".
 
+## Step 5: conversations renamed and deleted (G1, C9, this commit)
+
+Proposed in writing; Kenil: "ok go ahead with step 5". Built:
+
+- **G1 Rename** (`conversations.rename`, `POST /api/conversations/{cid}/rename`, `threads.titled`;
+  the window's `RenameBox` and `useConversationActions`): from the panel's picker ("This
+  conversation": Rename…, Delete…) and a right-click on the Assistant page's list; empty refused;
+  the person's title kept from then on; one started with + New takes its first message's words
+  (`name_from_first`, on `POST /api/ask`) unless named; journaled; a rename isn't activity, so
+  the conversation keeps its place.
+- **C9 Delete** (`conversation_removal`, `remove_conversation`, `GET …/removal`, `DELETE
+  /api/conversations/{cid}`): asks with what it does; its open questions closed as removed, its
+  undecided actions declined, a workflow page drafted in it kept with its module (unlinked); the
+  thread goes; the journal keeps its turns, marked as from a removed conversation (the removal
+  journals itself like a module's); refused while Alpha works in it. The Assistant page opens the
+  next conversation when the open one went; the panel starts fresh.
+
+Fixed while building: renaming to the same title didn't mark it the person's; a rename moved the
+conversation to the top of the history (it touched the time it was last active).
+
+What ran: `just lint` clean; 243 core tests (3 new: the person's title kept and an unnamed one
+named by its first message; a delete closing its question, unlinking its page, history marked;
+refused while working); 183 desktop tests in 42 files (2 new: rename and delete from the panel's
+picker; a right-click delete on the Assistant page opening the next); `just check-desktop`: 79 of
+79 pages clean at every size (`docs/checks/2026-10-13-1742.md`). In the browser pane on the check
+copy: one of several "New conversation"s renamed "Car wash next steps" from a right-click, another
+deleted through the confirm and gone from the list. "ok commit it, then tell me what step 4 is".
+
 ## Left
 
-Step 5 (conversations: rename, delete) proposed next; then 4, 6–9. Nothing pushed.
+Step 4 (people: a person or company made by hand, the person's own organisations) proposed next;
+then 6–9. Nothing pushed.

@@ -208,6 +208,16 @@ class Modules:
             )
         return self.thread(tid)
 
+    def retitle(self, tid: str, title: str, *, by_person: bool) -> dict[str, Any]:
+        """A thread's title: the person's (kept from then on), or the first message's while the
+        person hasn't named it."""
+        self.thread(tid)
+        # not activity: a renamed conversation keeps its place in the lists (by its last turn)
+        with self.store.tx() as db:
+            db.execute("UPDATE threads SET title = ?, titled = COALESCE(?, titled) WHERE id = ?",
+                       (title, "person" if by_person else None, tid))
+        return self.thread(tid)
+
     def set_brief(self, tid: str, brief: str) -> dict[str, Any]:
         """A thread's brief: what this work is for, what was decided, what didn't work and why,
         what is open, what comes next. Each run starts from it and the thread's own journal,

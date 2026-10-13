@@ -134,3 +134,7 @@ class AddFieldBody(BaseModel):
 
 class RelabelFieldBody(BaseModel):
     label: str
+
+
+class RenameConversationBody(BaseModel):
+    title: str

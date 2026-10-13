@@ -10,6 +10,7 @@ from alpha.api.bodies import (
     AskBody,
     ConversationBody,
     MoveBody,
+    RenameConversationBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -21,6 +22,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.files import Files
 from alpha.runtime import conversations
+from alpha.world.purge import conversation_removal, remove_conversation
 from alpha.world.store import Problem
 
 
@@ -120,7 +122,24 @@ def routes(app: FastAPI, s: Served) -> None:
     def ask(body: AskBody) -> dict[str, Any]:
         if not body.text.strip():
             raise Problem("Say something first.")
+        if body.conversation:
+            conversations.name_from_first(world, body.conversation, body.text)
         return running.start(body)
+
+    @app.post("/api/conversations/{cid}/rename", dependencies=[api])
+    def rename_conversation(cid: str, body: RenameConversationBody) -> dict[str, Any]:
+        """The person's title for a conversation (13 Oct, slice 2 G1)."""
+        return conversation_view(world, conversations.rename(world, cid, body.title)["id"])
+
+    @app.get("/api/conversations/{cid}/removal", dependencies=[api])
+    def conversation_removal_plan(cid: str) -> dict[str, Any]:
+        """What deleting a conversation would do, before it does (C9)."""
+        return conversation_removal(world, cid)
+
+    @app.delete("/api/conversations/{cid}", dependencies=[api])
+    def delete_conversation(cid: str) -> dict[str, Any]:
+        """Delete a conversation from the lists (C9); the journal keeps its turns."""
+        return remove_conversation(world, cid)
 
     @app.get("/api/turns/{key}", dependencies=[api])
     def turn_state(key: str) -> dict[str, Any]:
