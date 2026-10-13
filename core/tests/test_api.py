@@ -64,6 +64,42 @@ def test_tables_are_read_and_edited_by_the_person(world: World) -> None:
     assert mod["activity"][0]["actor"] == "person"
 
 
+def test_a_records_page_has_its_changes_newest_first_and_its_note(world: World) -> None:
+    seeded(world)
+    c = client(world)
+    rec = c.get("/api/tables/openings").json()["records"][0]
+    rid = rec["id"]
+    one = c.patch(f"/api/tables/openings/records/{rid}",
+                  json={"values": {"status": "applied"}, "revision": rec["revision"]}).json()
+    c.patch(f"/api/tables/openings/records/{rid}",
+            json={"values": {"fit": 90}, "revision": one["revision"]})
+    page = c.get(f"/api/tables/openings/records/{rid}/history").json()
+    newest, older = page["changes"]
+    assert newest["fields"] == [{"field": "fit", "before": 88, "after": 90}]
+    assert newest["by"]["by"] == "person" and newest["at"]
+    assert older["fields"] == [{"field": "status", "before": "new", "after": "applied"}]
+    assert page["more"] is False and page["added"]["by"]["by"] == "alpha"
+    # a page at a time: nothing dropped, the older page is there to ask for
+    first = c.get(f"/api/tables/openings/records/{rid}/history?count=1").json()
+    assert len(first["changes"]) == 1 and first["more"] is True
+    rest = c.get(f"/api/tables/openings/records/{rid}/history"
+                 f"?before={first['changes'][0]['revision']}").json()
+    assert rest["changes"] == [older]
+    # its note, on its page, journaled with the record
+    assert c.get(f"/api/tables/openings/records/{rid}").json()["note"] is None
+    wrote = c.post("/api/notes", json={"scope": f"record:openings/{rid}", "title": "Notes",
+                                       "body": "Recruiter is Priya"})
+    assert wrote.status_code == 200
+    note = c.get(f"/api/tables/openings/records/{rid}").json()["note"]
+    assert note["body"] == "Recruiter is Priya"
+    said = world.journal.recent(1)[0]
+    assert said["text"] == "You wrote the note on a row of Openings."
+    assert said["data"] == {"collection": "openings", "record": rid}
+    nowhere = c.post("/api/notes", json={"scope": "record:openings/r_none", "title": "Notes",
+                                         "body": "x"})
+    assert nowhere.status_code == 400 and "no record" in nowhere.json()["error"]
+
+
 def test_people_and_the_timeline(world: World) -> None:
     seeded(world)
     c = client(world)

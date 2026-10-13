@@ -20,6 +20,8 @@ INSTRUCTIONS = "Standing instructions"
 # Notes that shape how Alpha behaves: changed only on the person's own words.
 GATED_NOTES = ("Standing instructions", "Permissions")
 GOAL_STATES = {"active", "done", "dropped"}
+# the title of a record's note (scope `record:<table>/<id>`): one note per record, on its page
+RECORD_NOTE = "Notes"
 FACT_STATES = {"accepted", "suggested", "rejected"}
 
 
@@ -66,10 +68,16 @@ class Knowledge:
         came from; `summary` is its one line in the always-loaded index (the first line of
         the body when not given)."""
         kind, _, ref = scope.partition(":")
-        if not (scope == "person" or (kind in ("module", "topic", "entity", "skill", "agent")
-                                      and ref.strip())):
+        if not (scope == "person" or (kind in ("module", "topic", "entity", "skill", "agent",
+                                                "record") and ref.strip())):
             raise Problem("A page's scope is 'person', 'module:<name>', 'topic:<slug>',"
-                          " 'entity:<id>', 'skill:<name>' or 'agent:<automation id>'.")
+                          " 'entity:<id>', 'skill:<name>', 'agent:<automation id>' or"
+                          " 'record:<table>/<record id>'.")
+        if kind == "record":
+            table, _, rid = ref.partition("/")
+            if self.store.one("SELECT 1 AS x FROM records WHERE collection = ? AND id = ?"
+                              " AND deleted_at IS NULL", (table, rid)) is None:
+                raise Problem(f"There is no record {rid} in '{table}' to write a note on.")
         if kind == "entity" and self.store.one(
                 "SELECT 1 AS x FROM entities WHERE id = ? AND merged_into IS NULL", (ref,)) is None:
             raise Problem(f"There is no person or company {ref} to write a page about.")

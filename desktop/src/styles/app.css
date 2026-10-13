@@ -962,3 +962,6 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .table thead tr.selecting th.open { z-index: 3; }
 .table thead tr.selecting th:not(.sel):not(.open) > * { visibility: hidden; }
 .selbar { position: absolute; left: 4px; top: 0; bottom: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: var(--text-sm); font-weight: 400; color: var(--text); }
+/* a record's History: a long text's before and after side by side, on Show (13 Oct, section 2b) */
+.history__long { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; color: var(--text-2); }
+.history__long p { margin: 2px 0 0; white-space: pre-wrap; max-height: 240px; overflow: auto; }

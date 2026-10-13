@@ -28,7 +28,8 @@ class Knowledge(Base):
         holds, what was tried, what is open); entity:<id> (a person or company: who they are to
         the person, how they know them, what is going on); topic:<slug> (anything else);
         skill:<name> (site notes for one of your skills: what the page is like, what broke and
-        why, what to watch; skill_read shows them).
+        why, what to watch; skill_read shows them); record:<table>/<record id> with the title
+        'Notes' (a note on one row; the person reads it on the row's page).
         summary: the page's one line in the always-loaded index. Write only what the person
         said or what you verified. Standing instructions are not written here: see
         instruction_add."""

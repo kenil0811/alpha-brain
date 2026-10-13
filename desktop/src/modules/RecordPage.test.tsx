@@ -19,7 +19,15 @@ const parts: Part[] = [
 
 function mount(table: TableDesc = sites) {
   const client = {
-    record: vi.fn(async () => ({ table, record: site, relations: {} })),
+    record: vi.fn(async () => ({ table, record: site, relations: {}, note: null as null | { id: string; scope: string; title: string; body: string; updated_at: string } })),
+    recordHistory: vi.fn(async (_t: string, _id: string, before?: number) =>
+      before === undefined
+        ? { changes: [
+            { revision: 4, at: "2026-10-11T19:29:00+00:00", by: { by: "alpha", fields: { traffic_aadt: { part: "traffic" } } }, fields: [{ field: "traffic_aadt", before: 30403, after: 37900 }] },
+            { revision: 3, at: "2026-10-11T18:00:00+00:00", by: { by: "person" }, fields: [{ field: "address", before: "1600 Lamar", after: "1600 S Lamar" }] },
+          ], more: true, added: null }
+        : { changes: [{ revision: 2, at: "2026-10-11T17:59:00+00:00", by: { by: "alpha", reader: "census_sites" }, fields: [{ field: "households_3mi", before: 1, after: null }] }], more: false, added: { at: "2026-10-11T17:59:00+00:00", by: { by: "alpha", reader: "census_sites" } } }),
+    writeNote: vi.fn(async () => ({})),
     parts: vi.fn(async () => parts),
     editRecord: vi.fn(async (_t: string, _id: string, values: Record<string, unknown>) => ({ ...site, revision: 5, values: { ...site.values, ...values } })),
     deleteRecord: vi.fn(async () => ({ removed: "r1" })),
@@ -82,5 +90,42 @@ describe("a record's own page", () => {
     expect(await screen.findByText("Built by the module · read-only")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
     expect(screen.queryByRole("group", { name: "What Alpha can do" })).toBeNull();
+  });
+
+  it("shows its history newest first, who and what changed, with Show older to the record's start", async () => {
+    const user = userEvent.setup();
+    const { client } = mount();
+    const history = (await screen.findByRole("heading", { name: "History" })).closest(".section") as HTMLElement;
+    expect(await within(history).findByText("Traffic aadt: 30,403 → 37,900")).toBeInTheDocument();
+    expect(within(history).getByText("You")).toBeInTheDocument();
+    expect(within(history).getByText("Address: 1600 Lamar → 1600 S Lamar")).toBeInTheDocument();
+    await user.click(within(history).getByRole("button", { name: "Show older" }));
+    expect(await within(history).findByText("Reader Census sites")).toBeInTheDocument();
+    expect(client.recordHistory).toHaveBeenLastCalledWith("car_wash_sites", "r1", 3);
+    expect(within(history).getByText("Added")).toBeInTheDocument();
+    expect(within(history).queryByRole("button", { name: "Show older" })).toBeNull();
+  });
+
+  it("Undo puts back what a change replaced, only while the field still holds what it wrote", async () => {
+    const user = userEvent.setup();
+    const { client } = mount();
+    const history = (await screen.findByRole("heading", { name: "History" })).closest(".section") as HTMLElement;
+    await within(history).findByText("Traffic aadt: 30,403 → 37,900");
+    const [latest, older] = within(history).getAllByRole("button", { name: "Undo" });
+    expect(older).toBeDisabled(); // the address changed again since: undo the later change first
+    expect(older).toHaveAttribute("title", "Changed again since; undo the later change first.");
+    await user.click(latest);
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("car_wash_sites", "r1", { traffic_aadt: 30403 }, 4));
+  });
+
+  it("keeps the person's note: Write opens the box, Save writes it on the record", async () => {
+    const user = userEvent.setup();
+    const { client } = mount();
+    const notes = (await screen.findByRole("heading", { name: "Notes" })).closest(".section") as HTMLElement;
+    expect(within(notes).getByText("No notes yet.")).toBeInTheDocument();
+    await user.click(within(notes).getByRole("button", { name: "Write" }));
+    await user.type(within(notes).getByRole("textbox", { name: "Your note on this record" }), "Ask about the lease");
+    await user.click(within(notes).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(client.writeNote).toHaveBeenCalledWith("record:car_wash_sites/r1", "Notes", "Ask about the lease"));
   });
 });

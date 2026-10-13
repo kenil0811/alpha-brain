@@ -31,6 +31,7 @@ from alpha.api.views import (
 from alpha.connectors.files import Files, unique_path
 from alpha.context.summary import module_summary
 from alpha.runtime import parts
+from alpha.world.knowledge import RECORD_NOTE
 from alpha.world.modtables import is_qualified
 from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
@@ -143,7 +144,17 @@ def routes(app: FastAPI, s: Served) -> None:
                     "record": world.modtables.get(name, rid), "relations": {}}
         desc = world.collections.describe(name)
         row = world.collections.get(name, rid)
-        return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row])}
+        return {"table": desc, "record": row, "relations": relation_titles(world, desc, [row]),
+                "note": world.knowledge.find_note(f"record:{name}/{rid}", RECORD_NOTE)}
+
+    @app.get("/api/tables/{name}/records/{rid}/history", dependencies=[api])
+    def record_history(name: str, rid: str, before: int | None = None,
+                       count: int = 20) -> dict[str, Any]:
+        """A record's changes, newest first, a page at a time (its page's History). A program
+        module's own table is read from its database and keeps no versions here."""
+        if is_qualified(name):
+            return {"changes": [], "more": False, "added": None}
+        return world.collections.record_changes(name, rid, before=before, count=count)
 
     @app.get("/api/tables/{name}/lists", dependencies=[api])
     def lists(name: str) -> list[dict[str, Any]]:

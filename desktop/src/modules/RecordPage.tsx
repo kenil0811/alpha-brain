@@ -4,19 +4,21 @@
  * when it was added and last changed, what Alpha can do with it (the parts run when asked, Try
  * again for one that could not fill its fields) and Remove, then its details: every field
  * editable in place with where its value came from. A related record opens its own page the same
- * way. It replaces the drawer that opened under the table.
+ * way. It replaces the drawer that opened under the table. Under the details: the record's
+ * History, with Undo, and the person's Notes (section 2b, `RecordHistory`).
  */
 import { useEffect, useState } from "react";
-import type { Client, Part, RecordRow, Relations, TableDesc } from "../core/client";
+import type { Client, Note, Part, RecordRow, Relations, TableDesc } from "../core/client";
 import type { Surface } from "../shell/Rail";
 import { Button, Confirm } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 import { coerce, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize, when } from "./format";
+import { RecordHistory, RecordNote } from "./RecordHistory";
 import { actionsFor, RecordFields, ThingActions } from "./views/RecordFields";
 
 export function RecordPage({ client, table, id, version, onChanged, onGo }: { client: Client; table: string; id: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
-  const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations } | null>(null);
+  const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations; note: Note | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [parts, setParts] = useState<Part[]>([]);
@@ -135,6 +137,8 @@ export function RecordPage({ client, table, id, version, onChanged, onGo }: { cl
           <RecordFields page row={row} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} />
         </div>
       </div>
+      <RecordHistory client={client} table={data.table.name} row={row} fields={fields} parts={parts} readonly={readonly} version={version} onUndone={(saved) => { setData({ ...data, record: saved }); onChanged(); }} />
+      <RecordNote client={client} table={data.table.name} id={row.id} note={data.note} readonly={readonly} onSaved={() => { setTick((n) => n + 1); onChanged(); }} />
     </div>
   );
 }

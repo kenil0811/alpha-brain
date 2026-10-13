@@ -102,6 +102,9 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             records += db.execute("DELETE FROM records WHERE collection = ?", (table,)).rowcount
             db.execute("DELETE FROM records_fts WHERE collection = ?", (table,))
             db.execute("DELETE FROM record_versions WHERE collection = ?", (table,))
+            prefix = f"record:{table}/"  # each record's note goes with its table
+            counts["record notes"] = counts.get("record notes", 0) + db.execute(
+                "DELETE FROM notes WHERE substr(scope, 1, ?) = ?", (len(prefix), prefix)).rowcount
             db.execute("DELETE FROM collections WHERE name = ?", (table,))
             counts["lists"] = counts.get("lists", 0) + Views.remove_table(db, table)
         counts["tables"], counts["rows"] = len(tables), records

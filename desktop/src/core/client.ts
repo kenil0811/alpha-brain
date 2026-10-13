@@ -93,6 +93,8 @@ export interface Provenance {
   estimated?: boolean;
   source?: string;
   assumed?: string;
+  /** The reader that wrote these values, when one did. */
+  reader?: string;
   /** Per value, what a part wrote (§12): where it came from and when, or why it could not. */
   fields?: Record<string, { source?: string; fetched_at?: string; problem?: string; part?: string; attempts?: number }>;
 }
@@ -189,6 +191,22 @@ export interface Note {
   body: string;
   summary?: string | null;
   updated_at: string;
+}
+
+/** One change to a record (its page's History): the fields that differ from the revision
+ *  before, what they were and became, when, and the provenance of the new values. */
+export interface RecordChange {
+  revision: number;
+  at: string | null;
+  by: Provenance;
+  fields: { field: string; before: unknown; after: unknown }[];
+}
+
+/** A page of a record's changes, newest first; `more` says an older page is there. */
+export interface RecordHistory {
+  changes: RecordChange[];
+  more: boolean;
+  added: { at: string; by: Provenance } | null;
 }
 
 export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
@@ -746,10 +764,13 @@ export class Client {
     return { table: data.table, records: data.records.map(toRow), files: data.files ?? {}, lists: data.lists ?? [], relations: data.relations ?? {} };
   }
   /** One record of a table, for a relation followed into another table. */
-  async record(table: string, id: string): Promise<{ table: TableDesc; record: RecordRow; relations: Relations }> {
-    const data = await this.call<{ table: TableDesc; record: Raw; relations?: Relations }>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}`);
-    return { table: data.table, record: toRow(data.record), relations: data.relations ?? {} };
+  async record(table: string, id: string): Promise<{ table: TableDesc; record: RecordRow; relations: Relations; note: Note | null }> {
+    const data = await this.call<{ table: TableDesc; record: Raw; relations?: Relations; note?: Note | null }>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}`);
+    return { table: data.table, record: toRow(data.record), relations: data.relations ?? {}, note: data.note ?? null };
   }
+  /** A record's changes, newest first, a page at a time; `before` asks for the ones older than a revision. */
+  recordHistory = (table: string, id: string, before?: number) =>
+    this.call<RecordHistory>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}/history${before === undefined ? "" : `?before=${before}`}`);
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
     toRow(await this.call<Raw>("PATCH", `/api/tables/${encodeURIComponent(table)}/records/${id}`, { values, revision }));

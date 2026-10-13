@@ -92,8 +92,41 @@ test failed once while the app compiled in parallel and passed in nine runs afte
 Left from it: switching a module's table by hand keeps the old table in the address, so a
 reload reopens the one Back named.
 
+## Section 2b: a record's History, with Undo, and its Notes (13 Oct, this commit)
+
+Proposed in writing; Kenil asked first how a large history is kept and shown, and whether it
+should come from Activity at all ("i dont think relying on activity for history lookup is
+efficient at all, each table should maintain it's own history maybe?"). The store already
+keeps it: `record_versions` holds a record's values before every change, by (table, record,
+revision), from every way a value is written (the person, Alpha's tools, a part, a reader's
+upsert, which keeps a version only when values really change). In Kenil's world: 242 versions
+in 0.11 MB after two weeks, at most 11 on one record. The proposal was revised on that ("ok").
+
+Built: `Collections.record_changes` turns one record's versions into its changes (the fields
+that differ from the revision before, what they were and became, when, the provenance of the
+new values), newest first, a page at a time, nothing dropped (`more` says an older page is
+there), and when the record was added and by whom; `GET /api/tables/<t>/records/<id>/history`
+serves it (the query plan: a search of `record_versions` by its key, `collection=? AND
+record_id=?`). A record's note is a page of its own scope, `record:<table>/<id>`, titled
+"Notes" (`RECORD_NOTE`), loaded with the record and journaled with it in its module; a note on
+a record that isn't there is refused; removing a module removes its tables' record notes with
+the versions. Alpha's `note_write` names the new scope. On the page (`RecordHistory.tsx`), in
+the person page's own markup: History under the details, each change with when, who (You,
+Alpha, a reader by name, or the part by its title) and field: before → after, a long text as
+"changed" with Show for before and after side by side, Show older, "Added … by …" at the
+start; Undo writes the old values back as an ordinary edit, only while the fields still hold
+what the change wrote. Notes under it, with Edit or Write, Save and Cancel.
+
+What ran: `just lint` clean; 227 core tests (one new: the history newest first, a page at a
+time, the note and its journal, the refusal; the purge test now proves a record's note goes
+with its table and another module's stays); 100 desktop tests in 30 files (three new); the
+Mac app rebuilt and the car wash site's page seen in WebKit: eleven versions shown as four
+changes by the module's parts plus "Added by Alpha", Undo greyed where the memo changed again
+later, the memo's before and after side by side; Undo, Write and Save were not clicked in
+Kenil's world (they write to it), the tests cover them. `just check-desktop`: 81 of 81 pages
+clean at every size (`docs/checks/2026-10-13-0835.md`).
+
 ## Left
 
-Section 2b (History with Undo, and Notes, on the record page) proposed in writing (Kenil: "no
-need for screenshots now, lets just have it in writing, thats enough"), with the four core
-changes it needs; waiting for his yes. The rest one at a time.
+Section 3 (the table's toolbar: saved views, filter rules, sort, group) proposed in writing
+next; the rest one at a time.

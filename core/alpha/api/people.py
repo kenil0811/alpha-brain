@@ -55,5 +55,13 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/notes", dependencies=[api])
     def write_note(body: NoteBody) -> dict[str, Any]:
         note = world.knowledge.write_note(body.scope, body.title, body.body, summary=body.summary)
-        world.journal.append("changed", f"You edited the page {body.title}.", actor="person")
+        kind, _, ref = body.scope.partition(":")
+        if kind == "record":  # a record's note: journaled with the record, in its module
+            table, _, rid = ref.partition("/")
+            desc = world.collections.describe(table)
+            world.journal.append("changed", f"You wrote the note on a row of {desc['title']}.",
+                                 actor="person", module=desc["module"],
+                                 data={"collection": table, "record": rid})
+        else:
+            world.journal.append("changed", f"You edited the page {body.title}.", actor="person")
         return note

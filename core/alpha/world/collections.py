@@ -310,6 +310,41 @@ class Collections:
                     "SELECT * FROM record_versions WHERE collection = ? AND record_id = ?"
                     " ORDER BY revision DESC", (name, rid))]
 
+    def record_changes(self, name: str, rid: str, before: int | None = None,
+                count: int = 20) -> dict[str, Any]:
+        """A record's changes, newest first, for its page's History: for each revision, the
+        fields that differ from the revision before it (what they were, what they became),
+        when, and the provenance of the new values. Read from `record_versions` by the
+        record's own key, never from the journal. `before` asks for the changes older than a
+        revision and `count` is how many one page holds; nothing is dropped, `more` says an
+        older page is there. `added` is when the record was made and by whom."""
+        current = self.store.one(
+            'SELECT revision, "values", provenance, created_at FROM records'
+            " WHERE collection = ? AND id = ?", (name, rid))
+        if current is None:
+            raise Problem(f"There is no record {rid} in '{name}'.")
+        states = [{"revision": r["revision"], "values": loads(r["values"], {}),
+                   "by": loads(r["provenance"], {}), "until": r["replaced_at"]}
+                  for r in self.store.all(
+                      'SELECT revision, "values", provenance, replaced_at FROM record_versions'
+                      " WHERE collection = ? AND record_id = ? ORDER BY revision", (name, rid))]
+        if not states or states[-1]["revision"] != current["revision"]:
+            states.append({"revision": current["revision"], "values": loads(current["values"], {}),
+                           "by": loads(current["provenance"], {}), "until": None})
+        found: list[dict[str, Any]] = []
+        for old, new in zip(states, states[1:], strict=False):
+            names = sorted(set(old["values"]) | set(new["values"]))
+            fields = [{"field": f, "before": old["values"].get(f), "after": new["values"].get(f)}
+                      for f in names if old["values"].get(f) != new["values"].get(f)]
+            if fields:
+                found.append({"revision": new["revision"], "at": old["until"], "by": new["by"],
+                              "fields": fields})
+        found.reverse()
+        if before is not None:
+            found = [c for c in found if c["revision"] < before]
+        return {"changes": found[:count], "more": len(found) > count,
+                "added": {"at": current["created_at"], "by": states[0]["by"]}}
+
     def describe(self, name: str) -> dict[str, Any]:
         row = self.store.one("SELECT * FROM collections WHERE name = ?", (name,))
         if row is None:
