@@ -4,13 +4,14 @@
  * (accepted, or suggested with a yes or no), who else might be the same, and everything in the
  * journal that involves them.
  */
-import { useEffect, useState } from "react";
-import type { Client, Entity, EntityDetail } from "../core/client";
+import { useEffect, useRef, useState } from "react";
+import type { Client, Entity, EntityDetail, FileItem } from "../core/client";
 import { initials, when } from "../modules/format";
 import { factOrigin } from "./facts";
 import { Button, Badge, Trouble } from "../ui";
 import { ArrowLeft } from "../ui/icons";
 import { say } from "../core/client";
+import { FilesView } from "../modules/FilesView";
 
 export function People({ client, version, onOpen }: { client: Client; version: number; onOpen: (id: string) => void }) {
   const [people, setPeople] = useState<Entity[] | null>(null);
@@ -220,6 +221,8 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
         ) : null}
       </div>
 
+      <EntityFiles client={client} entity={entity} version={version} onChanged={onChanged} />
+
       {entity.maybe_same.length ? (
         <div className="section">
           <div className="section__head">
@@ -260,6 +263,62 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The files kept about a person or company (13 Oct, slice 2 B11): added with the button or
+ *  dropped on the section, listed with their dates, opened, shown in Finder or deleted. */
+function EntityFiles({ client, entity, version, onChanged }: { client: Client; entity: EntityDetail; version: number; onChanged: () => void }) {
+  const [files, setFiles] = useState<FileItem[] | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [tick, setTick] = useState(0);
+  const picker = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    client
+      .entityFiles(entity.id)
+      .then(setFiles)
+      .catch((e: unknown) => setNote(say(e)));
+  }, [client, entity.id, version, tick]);
+  async function added(list: File[]) {
+    if (!list.length) return;
+    try {
+      const out = await client.addFiles(list, { about: entity.id });
+      setNote(`Added ${out.documents.map((d) => d.title).join(", ")}.`);
+      setTick((t) => t + 1);
+      onChanged();
+    } catch (e) {
+      setNote(`Couldn't add ${list.map((f) => f.name).join(", ")}: ${say(e)}`);
+    }
+  }
+  return (
+    <div
+      className={`section${dragging ? " section--drop" : ""}`}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); void added(Array.from(e.dataTransfer.files ?? [])); }}
+    >
+      <div className="section__head">
+        <h2>Files</h2>
+        <span className="faint">About {entity.name}; drop files here or add them</span>
+        <span className="section__right">
+          <Button size="sm" onClick={() => picker.current?.click()}>
+            Add files
+          </Button>
+        </span>
+        <input ref={picker} type="file" multiple style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={(e) => { const list = Array.from(e.target.files ?? []); e.target.value = ""; void added(list); }} />
+      </div>
+      {note ? <p className={`notice${note.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{note}</p> : null}
+      {files && files.length ? (
+        <div className="intel__table">
+          <FilesView client={client} files={files} tableKey={`files_${entity.id}`} onChanged={() => { setTick((t) => t + 1); onChanged(); }} />
+        </div>
+      ) : files ? (
+        <div className="card">
+          <p className="empty">No files about {entity.name} yet.</p>
+        </div>
+      ) : null}
     </div>
   );
 }

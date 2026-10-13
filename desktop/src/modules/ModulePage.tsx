@@ -4,7 +4,7 @@
  */
 import { type DragEvent, useEffect, useMemo, useState, useRef } from "react";
 import { moduleWords, say } from "../core/client";
-import type { Client, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
+import type { Client, FileItem, ModuleDetail, ModuleSummary, Note, Source, ModuleCard } from "../core/client";
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
@@ -13,6 +13,7 @@ import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 import { ModuleGlyph } from "../shell/moduleIcons";
 import { RemoveModuleDialog } from "../shell/RemoveModule";
+import { FilesView } from "./FilesView";
 import { fieldLabel } from "./fields";
 
 type Section = "app" | "activity" | "settings";
@@ -73,6 +74,15 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
   }, [client, moduleId, version]);
 
   const table = useMemo(() => detail?.tables.find((t) => t.name === tab) ?? null, [detail, tab]);
+  // the files it holds (slice 2 B8), a tab beside its tables once it holds one
+  const [files, setFiles] = useState<FileItem[]>([]);
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => client.moduleFiles(moduleId))
+      .then(setFiles)
+      .catch(() => setFiles([])); // none to show; the tables are the page
+  }, [client, moduleId, version]);
+  const showFiles = tab === "files" && files.length > 0;
   // Where this module could go (never itself, what it holds, or where it already is), and
   // what could come in (never itself, what is already here, or anything above it).
   const canHoldMe = useMemo(() => modules.filter((m) => m.id !== moduleId && m.id !== (detail?.parent ?? null) && !(m.path ?? []).includes(detail?.name ?? "")), [modules, moduleId, detail?.parent, detail?.name]);
@@ -145,7 +155,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
   }
   const subtitle = [detail.goal, `${detail.tables.length} ${detail.tables.length === 1 ? "table" : "tables"}`].filter(Boolean).join(" · ");
   return (
-    <div className={`page page--wide${section === "app" && table ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
+    <div className={`page page--wide${section === "app" && (table || showFiles) ? " page--fill" : ""}${dragging ? " page--drop" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }} onDragLeave={() => setDragging(false)} onDrop={(e) => void dropped(e)}>
       {dragging ? <div className="dropnote">Drop files to add them to {detail.name}; Alpha reads them into its tables.</div> : null}
       {dropNote ? <p className={`notice${dropNote.startsWith("Couldn") ? "" : " notice--ok"}`} role="status">{dropNote}</p> : null}
       <div className="modhead">
@@ -181,7 +191,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
         <>
           <Tabs
             label="Tables"
-            value={table ? tab : "summary"}
+            value={table || showFiles ? tab : "summary"}
             onChange={setTab}
             items={[
               { id: "summary", label: "Summary" },
@@ -193,9 +203,20 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
                   </>
                 ),
               })),
+              ...(files.length
+                ? [{ id: "files", label: (
+                    <>
+                      Files <span className="faint num">{files.length}</span>
+                    </>
+                  ) }]
+                : []),
             ]}
           />
-          {table ? (
+          {showFiles ? (
+            <div className="stack stack--fill">
+              <FilesView client={client} files={files} tableKey={`files_${detail.id}`} onChanged={onChanged} />
+            </div>
+          ) : table ? (
             <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onOpenRecord={(t, id) => onGo({ kind: "record", table: t, id })} />
           ) : (
             <>

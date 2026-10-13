@@ -358,6 +358,8 @@ export interface FileInfo {
   path: string;
   size: number;
   kind: string;
+  /** When it was added (slice 2 G6). */
+  added_at?: string;
 }
 
 export interface DocumentInfo {
@@ -368,6 +370,17 @@ export interface DocumentInfo {
   size: number;
   module: string | null;
   origin: string | null;
+  /** When Alpha took or first read it (slice 2 G6). */
+  added_at?: string;
+  /** A connected folder's own file: never deleted here. */
+  from_folder?: boolean;
+  /** The person or company it is kept about (B11). */
+  about?: string | null;
+}
+
+/** A file as a module or a person's page lists it (B8, B11): with the records that hold it. */
+export interface FileItem extends DocumentInfo {
+  used_by: { collection: string; table: string; record: string; title: string; field: string }[];
 }
 
 export interface Permission {
@@ -860,16 +873,29 @@ export class Client {
   search = (q: string) => this.call<SearchResult>("GET", `/api/search?q=${encodeURIComponent(q)}`);
 
   /** Files the person dropped: kept for the module and read by Alpha. */
-  addFiles = async (files: File[], where: { module?: string | null; table?: string; record?: string; field?: string }): Promise<{ documents: DocumentInfo[]; turn: Turn | null }> => {
+  /** Files (13 Oct, slice 2 B8, B11, G4): a module's, a person's or company's; what deleting
+   *  one would do; deleting it. */
+  moduleFiles = (ref: string) => this.call<FileItem[]>("GET", `/api/modules/${encodeURIComponent(ref)}/files`);
+  entityFiles = (eid: string) => this.call<FileItem[]>("GET", `/api/entities/${encodeURIComponent(eid)}/files`);
+  documentRemoval = (did: string) => this.call<{ document: string; title: string; what: string; used_by: FileItem["used_by"] }>("GET", `/api/documents/${encodeURIComponent(did)}/removal`);
+  deleteDocument = (did: string) => this.call<Record<string, unknown>>("DELETE", `/api/documents/${encodeURIComponent(did)}`);
+  addFiles = async (files: File[], where: { module?: string | null; table?: string; record?: string; field?: string; about?: string }): Promise<{ documents: DocumentInfo[]; turn: Turn | null }> => {
     const form = new FormData();
     for (const f of files) form.append("files", f, f.name);
     if (where.module) form.append("module", where.module);
     if (where.table) form.append("table", where.table);
     if (where.record) form.append("record", where.record);
     if (where.field) form.append("field", where.field);
-    const response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form });
-    const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string; documents?: DocumentInfo[]; turn?: Turn | null };
-    if (!response.ok) throw new CoreError(data.error ?? data.detail ?? `The core answered ${response.status}.`, response.status);
+    if (where.about) form.append("about", where.about);
+    let response: Response;
+    try {
+      response = await fetch(`${this.session.baseUrl}/api/files`, { method: "POST", headers: { Authorization: `Bearer ${this.session.token}` }, body: form });
+    } catch (e) {
+      console.error("Alpha's core isn't answering", e);
+      throw new CoreError(NOT_ANSWERING, 0);
+    }
+    const data = (await response.json().catch(() => ({}))) as { error?: unknown; detail?: unknown; documents?: DocumentInfo[]; turn?: Turn | null };
+    if (!response.ok) throw new CoreError(plainError(response.status, data), response.status);
     return { documents: data.documents ?? [], turn: data.turn ?? null };
   };
   exportTable = (name: string, format: "csv" | "xlsx") => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format });

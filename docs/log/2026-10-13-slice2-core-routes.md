@@ -87,7 +87,42 @@ his world). In the browser pane on the check copy: "Body fat" added as a number 
 Weight Log, empty on its row, renamed from its menu to "Body fat share" (fields can't be deleted
 yet, so it stays in that copy). "ok commit it, then tell me what step 3 is".
 
+## Step 3: files listed, dated, deleted, and kept about people (B8, B11, G4, G6, this commit)
+
+Proposed in writing with one decision: what happens to the rows Alpha read from a deleted file.
+A row names its source in words, not by the file, so they can't be found reliably; Kenil: "ok keep
+the rows, go ahead with step 3". Built:
+
+- **B8 A module's files** (`GET /api/modules/{ref}/files`, `Files.used_by`; the window's
+  `FilesView`, a "Files N" tab beside the tables once it holds one): the one data view: Name,
+  Kind, Size, Added, Used by (which records' file fields hold it), From (added here or the
+  person's folder); Open and Show in Finder (the Mac app), Delete….
+- **G6 A file's date**: every file the core sends has `added_at` (when Alpha took or first read
+  it); shown in the Files tab, a record's file cell, a person's page.
+- **G4 Delete a file** (`document_removal`, `remove_document`, `GET …/removal`,
+  `DELETE /api/documents/{did}`): asks with what goes; Alpha's copy, the text read from it (out of
+  search), each file field that held it emptied as the person's edit (in the record's history);
+  the rows Alpha read from it stay, said in the confirm; journaled ("Removed march.txt: …"). A
+  connected folder's own file is the person's: refused in the core, greyed with why in the window.
+- **B11 Files about a person or company** (`documents.about`, `GET /api/entities/{eid}/files`,
+  `POST /api/files` with `about`): a Files section on their page, with Add files and drop; read
+  and searchable, no turn; in their "Everything with…"; a merge moves them to the one kept.
+- Fixed on the way: adding files showed the core's raw status on a failure (section 9a had missed
+  this path); it uses the plain words now.
+
+Open, small: the "Removed intro.txt…" line is journaled but not linked to the person, so it
+isn't in their "Everything with…".
+
+What ran: `just lint` clean; 240 core tests (4 new: a module's files with dates and the records
+using them; a delete emptying its fields, keeping the rows, out of search, the file gone; a
+connected folder's file refused; files about a person following a merge); 181 desktop tests in
+41 files (2 new: who uses a file in words; the list, the folder file's Delete greyed, the confirm
+with what goes and that rows stay); `just check-desktop`: 79 of 79 pages clean at every size
+(`docs/checks/2026-10-13-1717.md`). In the browser pane on the check copy: Advisory's Files tab
+(its 7 statements, dated 2 and 3 Oct), Cevina Feng's page with a file added about her, listed and
+in her journal, then deleted through the confirm. Not seen in the Mac app (Open and Show in
+Finder are the app's). "ok commit it, then tell me what step 5 is".
+
 ## Left
 
-Step 3 (files: a module's files listed, files on a person's or company's page, delete a file,
-each file's date) proposed next; then steps 4–9. Nothing pushed.
+Step 5 (conversations: rename, delete) proposed next; then 4, 6–9. Nothing pushed.

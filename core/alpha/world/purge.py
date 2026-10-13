@@ -196,6 +196,54 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     return counts
 
 
+def document_removal(world: World, did: str) -> dict[str, Any]:
+    """What deleting a file would do, before it does (13 Oct, slice 2 G4): the records whose
+    file fields hold it, which are emptied; the rows Alpha read from it stay (Kenil, 13 Oct:
+    "keep the rows"; a row names its source in words, not by the file). A connected folder's
+    file is the person's own and is refused here."""
+    from alpha.connectors.files import Files
+
+    files = Files(world)
+    doc = files.document(did)
+    if doc["from_folder"]:
+        raise Problem(f"{doc['title']} is in a folder you connected: it is your own file. Remove"
+                      " it in that folder, or disconnect the folder in Intelligence ›"
+                      " Connections.")
+    used = files.used_by(did)
+    what = "its text Alpha read" + (
+        f", and the file is taken out of {plural(len(used), 'record')}" if used else "")
+    return {"document": did, "title": doc["title"], "used_by": used, "what": what}
+
+
+def remove_document(world: World, did: str) -> dict[str, Any]:
+    """Delete a file given to Alpha: its copy in Alpha's folder, the text read from it, and the
+    file fields that held it (each emptied as the person's edit, kept in the record's history);
+    the journal keeps that it was here."""
+    plan = document_removal(world, did)
+    for use in plan["used_by"]:
+        rec = world.collections.get(use["collection"], use["record"])
+        prov = dict(rec.get("_provenance") or {})
+        fields = dict(prov.get("fields") or {})
+        fields[use["field"]] = {"source": "you", "fetched_at": now()}
+        prov.update({"by": "person", "fields": fields})
+        world.collections.update(use["collection"], use["record"], {use["field"]: None},
+                                 rec["revision"], prov)
+    row = world.store.one("SELECT path, entity_id FROM documents WHERE id = ?", (did,))
+    with world.store.tx() as db:
+        db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text) SELECT"
+                   " 'delete', rowid, title, text FROM documents WHERE id = ?", (did,))
+        db.execute("DELETE FROM documents WHERE id = ?", (did,))
+        if row and row["entity_id"]:
+            db.execute("DELETE FROM entity_keys WHERE entity_id = ?", (row["entity_id"],))
+            db.execute("DELETE FROM facts WHERE subject = ?", (row["entity_id"],))
+            db.execute("DELETE FROM entities WHERE id = ?", (row["entity_id"],))
+    if row:
+        _unlink_files([row["path"]])
+    _record_removal(world, "document", did, plan["title"], plan["what"], threads=[],
+                    automations=[], readers=[])
+    return plan
+
+
 def clear_conversation(world: World) -> dict[str, int]:
     marks = ",".join("?" * len(CONVERSATION_KINDS))
     with world.store.tx() as db:

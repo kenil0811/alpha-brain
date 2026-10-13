@@ -36,7 +36,7 @@ from alpha.context.summary import module_summary
 from alpha.runtime import parts
 from alpha.world.knowledge import RECORD_NOTE
 from alpha.world.modtables import is_qualified
-from alpha.world.purge import removal_plan, remove_module
+from alpha.world.purge import document_removal, removal_plan, remove_document, remove_module
 from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
 
@@ -186,7 +186,8 @@ def routes(app: FastAPI, s: Served) -> None:
                 row = world.store.one("SELECT * FROM documents WHERE id = ?", (did,))
                 if row is not None:
                     files[did] = {"id": did, "name": row["title"], "path": row["path"],
-                                  "size": row["size"], "kind": row["kind"]}
+                                  "size": row["size"], "kind": row["kind"],
+                                  "added_at": row["indexed_at"]}
         return {"table": desc, "records": records, "files": files,
                 "lists": world.views.for_table(name),
                 "relations": relation_titles(world, desc, records)}
@@ -281,14 +282,43 @@ def routes(app: FastAPI, s: Served) -> None:
     def document(did: str) -> dict[str, Any]:
         return Files(world).document(did)
 
+    @app.get("/api/modules/{ref}/files", dependencies=[api])
+    def module_files(ref: str) -> list[dict[str, Any]]:
+        """Every file a module holds (13 Oct, slice 2 B8), newest first, each with the date it
+        was added and the records whose file fields hold it."""
+        files = Files(world)
+        return [{**d, "used_by": files.used_by(d["id"])}
+                for d in files.of_module(world.modules.get(ref)["id"])]
+
+    @app.get("/api/entities/{eid}/files", dependencies=[api])
+    def entity_files(eid: str) -> list[dict[str, Any]]:
+        """The files kept about a person or company (B11)."""
+        files = Files(world)
+        return [{**d, "used_by": files.used_by(d["id"])}
+                for d in files.of_entity(world.entities.get(eid)["id"])]
+
+    @app.get("/api/documents/{did}/removal", dependencies=[api])
+    def document_removal_plan(did: str) -> dict[str, Any]:
+        """What deleting a file would do, before it does (G4)."""
+        return document_removal(world, did)
+
+    @app.delete("/api/documents/{did}", dependencies=[api])
+    def delete_document(did: str) -> dict[str, Any]:
+        """Delete a file given to Alpha (G4); a connected folder's own file is refused."""
+        return remove_document(world, did)
+
     @app.post("/api/files", dependencies=[api])
     async def add_files(files: list[UploadFile], module: str | None = Form(None),
                         table: str | None = Form(None), record: str | None = Form(None),
-                        field: str | None = Form(None)) -> dict[str, Any]:
+                        field: str | None = Form(None),
+                        about: str | None = Form(None)) -> dict[str, Any]:
         """Files the person dropped onto a module or a row: kept in Alpha's folder for the
         module, made documents, and read by Alpha into the module's tables in a turn that
-        follows. With table/record/field, the first file is put on that row's file field."""
+        follows. With table/record/field, the first file is put on that row's file field.
+        With `about`, they are kept about a person or company, on their page (B11): read and
+        searchable, no turn."""
 
+        about_id = world.entities.get(about)["id"] if about else None
         taken = []
         module_id = world.modules.get(module)["id"] if module else None
         if table and not module_id:
@@ -298,7 +328,8 @@ def routes(app: FastAPI, s: Served) -> None:
                                              ) as tmp:
                 tmp.write(await up.read())
             doc = Files(world).take(Path(tmp.name), module=module_id, origin="the person",
-                                    name=up.filename or "file", move=True, by="person")
+                                    name=up.filename or "file", move=True, by="person",
+                                    about=about_id)
             taken.append(doc)
         if table and record and field and taken:
             current = world.collections.get(table, record)

@@ -423,6 +423,8 @@ ADDED_COLUMNS = [
     ("modules", "workspace", "TEXT"),
     # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
+    # a file kept about a person or company, on their page (13 Oct, slice 2 B11)
+    ("documents", "about", "TEXT"),
     ("documents", "origin", "TEXT"),
     # a page of the wiki carries a one-line summary for the always-loaded index
     ("notes", "summary", "TEXT"),

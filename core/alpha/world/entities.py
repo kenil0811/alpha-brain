@@ -178,6 +178,8 @@ class Entities:
             db.execute(
                 "UPDATE entity_keys SET entity_id = ? WHERE entity_id = ?", (a["id"], b["id"])
             )
+            # the files kept about the one merged in go to the one kept (slice 2 B11)
+            db.execute("UPDATE documents SET about = ? WHERE about = ?", (a["id"], b["id"]))
         return self.get(a["id"])
 
     def unmerge(self, eid: str) -> dict[str, Any]:

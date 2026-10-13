@@ -136,7 +136,10 @@ export function FileCell({ row, field, files, onFile }: { row: RecordRow; field:
         <button type="button" className="linkbtn" title={host.available() ? "Open" : info.path} onClick={() => void host.openPath(info.path)}>
           {info.name}
         </button>
-        <span className="faint"> · {formatBytes(info.size)}</span>
+        <span className="faint">
+          {" "}· {formatBytes(info.size)}
+          {info.added_at ? ` · ${dayText(new Date(info.added_at))}` : ""}
+        </span>
         {host.available() ? (
           <IconButton label="Show in Finder" icon={<FolderOpen />} onClick={() => void host.revealPath(info.path)} />
         ) : null}

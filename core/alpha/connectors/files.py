@@ -8,6 +8,7 @@ While the core runs, FSEvents (through watchdog) triggers the same sync for the 
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import sqlite3
@@ -133,6 +134,10 @@ def document_view(row: sqlite3.Row, *, full: bool = False) -> dict[str, Any]:
         "chars": len(row["text"]),
         "module": row["module"] if "module" in row.keys() else None,
         "origin": row["origin"] if "origin" in row.keys() else None,
+        # when Alpha took or first read it (slice 2 G6); a connected folder's own file
+        "added_at": row["indexed_at"],
+        "from_folder": bool(row["connection"]),
+        "about": row["about"] if "about" in row.keys() else None,
     }
     if full:
         out["text"] = row["text"]
@@ -263,7 +268,8 @@ class Files:
     # ---- taking a file in: fetched from a connection, or given by the person ----
 
     def take(self, source: Path, *, module: str | None, origin: str, name: str | None = None,
-             move: bool = False, turn: str | None = None, by: str = "alpha") -> dict[str, Any]:
+             move: bool = False, turn: str | None = None, by: str = "alpha",
+             about: str | None = None) -> dict[str, Any]:
         """Keep a file in Alpha's folder for the module and make it a document (its text
         extracted where Alpha reads the kind; otherwise kept as a file alone). `origin` says
         where it came from (a page or message address, or "the person"). Returns the
@@ -290,13 +296,17 @@ class Files:
         with self.world.store.tx() as db:
             db.execute(
                 "INSERT INTO documents (id, entity_id, connection, path, title, kind, text, size,"
-                " modified_at, indexed_at, module, origin) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                " modified_at, indexed_at, module, origin, about)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (did, entity["id"], None, str(target), target.name,
                  target.suffix.lower().lstrip("."), text, target.stat().st_size,
-                 _mtime(target), stamp, module_row["id"] if module_row else None, origin),
+                 _mtime(target), stamp, module_row["id"] if module_row else None, origin,
+                 about),
             )
         words = len(text.split())
-        where = f" into {module_row['name']}" if module_row else ""
+        person = self.world.entities.get(about) if about else None
+        where = (f" into {module_row['name']}" if module_row else
+                 f" about {person['name']}" if person else "")
         self.world.journal.append(
             "did" if by == "alpha" else "changed",
             (f"Kept {target.name}{where} from {origin}" if by == "alpha" else
@@ -305,7 +315,8 @@ class Files:
                                                         " reads)") + ".",
             actor=by, data={"document": did, "path": str(target), "origin": origin,
                             "turn": turn},
-            entity_ids=[entity["id"]], module=module_row["id"] if module_row else None,
+            entity_ids=[entity["id"]] + ([about] if about else []),
+            module=module_row["id"] if module_row else None,
             source=None if by == "person" else "connector:files",
         )
         return self.document(did)
@@ -320,6 +331,27 @@ class Files:
         return [document_view(r) for r in self.world.store.all(
             "SELECT * FROM documents WHERE module = ? AND removed_at IS NULL"
             " ORDER BY indexed_at DESC", (module_id,))]
+
+    def of_entity(self, entity_id: str) -> list[dict[str, Any]]:
+        """The files kept about a person or company (B11), newest first."""
+        return [document_view(r) for r in self.world.store.all(
+            "SELECT * FROM documents WHERE about = ? AND removed_at IS NULL"
+            " ORDER BY indexed_at DESC", (entity_id,))]
+
+    def used_by(self, did: str) -> list[dict[str, Any]]:
+        """The records whose file fields hold this file: table, record, its title, the field."""
+        out: list[dict[str, Any]] = []
+        for row in self.world.store.all(
+            "SELECT collection, id, \"values\" FROM records WHERE deleted_at IS NULL AND"
+            " \"values\" LIKE ?", (f"%{did}%",)):
+            desc = self.world.collections.describe(row["collection"])
+            values = json.loads(row["values"] or "{}")
+            for f in desc["fields"]:
+                if f["kind"] == "file" and values.get(f["name"]) == did:
+                    title = values.get(desc.get("title_field") or "") or row["id"]
+                    out.append({"collection": row["collection"], "table": desc["title"],
+                                "record": row["id"], "title": str(title), "field": f["name"]})
+        return out
 
     # ---- reading ----
 

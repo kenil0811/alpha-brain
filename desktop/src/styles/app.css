@@ -1100,3 +1100,4 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .fieldform__row--top { align-items: start; }
 .fieldform__row .textfield { min-width: 0; width: 100%; }
 .fieldform__note { margin: 0; font-size: var(--text-xs); }
+.section--drop { outline: 2px dashed var(--primary); outline-offset: 6px; border-radius: 8px; }
