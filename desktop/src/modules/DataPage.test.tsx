@@ -23,11 +23,11 @@ function fakeClient(rows: RecordRow[]) {
   return client as unknown as Client & typeof client;
 }
 
-function page(rows: RecordRow[]) {
+function page(rows: RecordRow[], onOpenRecord = vi.fn()) {
   const client = fakeClient(rows);
   render(
     <TooltipProvider>
-      <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} />
+      <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} onOpenRecord={onOpenRecord} />
     </TooltipProvider>,
   );
   return client;
@@ -41,18 +41,32 @@ describe("the table page", () => {
     expect(screen.getByText(/1 estimated/)).toBeInTheDocument();
   });
 
-  it("a click opens the row; a double-click edits a cell and Enter saves it with its revision", async () => {
+  it("a click on a row opens nothing, its › opens the row's page; a double-click edits a cell and Enter saves it", async () => {
     const user = userEvent.setup();
-    const client = page([row("r1", "Bakery", 300)]);
+    const onOpenRecord = vi.fn();
+    const client = page([row("r1", "Bakery", 300)], onOpenRecord);
     await screen.findByText("Bakery");
-    await user.click(screen.getByRole("row", { name: "Open Bakery" }));
-    expect(screen.getByRole("region", { name: "Bakery" })).toBeInTheDocument(); // the record panel
-    const cell = within(screen.getByRole("row", { name: "Open Bakery" })).getByText("300");
+    await user.click(screen.getByText("Bakery"));
+    expect(onOpenRecord).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Open Bakery" }));
+    expect(onOpenRecord).toHaveBeenCalledWith("deals", "r1");
+    const cell = within(screen.getByRole("row", { name: "Bakery" })).getByText("300");
     await user.dblClick(cell);
     const input = screen.getByRole("spinbutton", { name: "Price" });
     await user.clear(input);
     await user.type(input, "350{Enter}");
     await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 350 }, 3));
+  });
+
+  it("Clear unticks every row and gives the header its labels back", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("checkbox", { name: "Select Bakery" }));
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("checkbox", { name: "Select Bakery" })).not.toBeChecked();
+    expect(screen.getAllByRole("row")[0]).not.toHaveClass("selecting");
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("selected rows are removed together, after a yes", async () => {
@@ -61,23 +75,15 @@ describe("the table page", () => {
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("checkbox", { name: "Select Bakery" }));
     await user.click(screen.getByRole("checkbox", { name: "Select Cafe" }));
-    expect(screen.getByRole("status")).toHaveTextContent("2 selected");
+    // the header row says it, in place of the column labels: no bar of its own pushes the rows down
+    const header = screen.getAllByRole("row")[0];
+    expect(within(header).getByRole("status")).toHaveTextContent("2 selected");
+    expect(header).toHaveClass("selecting");
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(client.deleteRecord).not.toHaveBeenCalled(); // not before the yes
     await user.click(screen.getByRole("button", { name: "Remove 2" }));
     await waitFor(() => expect(client.deleteRecord).toHaveBeenCalledTimes(2));
     expect(client.deleteRecord).toHaveBeenCalledWith("deals", "r1", 3);
-  });
-
-  it("the record panel asks before removing", async () => {
-    const user = userEvent.setup();
-    const client = page([row("r1", "Bakery", 300)]);
-    await screen.findByText("Bakery");
-    await user.click(screen.getByRole("row", { name: "Open Bakery" }));
-    await user.click(within(screen.getByRole("region", { name: "Bakery" })).getByRole("button", { name: "Remove" }));
-    expect(screen.getByRole("dialog", { name: "Remove Bakery?" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Remove it" }));
-    await waitFor(() => expect(client.deleteRecord).toHaveBeenCalledWith("deals", "r1", 3));
   });
 });
 
@@ -105,28 +111,22 @@ describe("quick entry", () => {
 });
 
 describe("relations and the form view", () => {
-  const clients: TableDesc = { name: "clients", title: "Clients", module: null, title_field: "name", fields: [{ name: "name", kind: "text" }], records: 1 };
   const withClient: TableDesc = { ...desc, fields: [...desc.fields, { name: "client", kind: "relation", relation: "clients" }] };
   const deal = row("r1", "Bakery", 300, { values: { title: "Bakery", price: 300, status: "Active", client: "c1" } });
 
-  it("a relation shows the related record's title, opens it in the drawer, and Back returns", async () => {
+  it("a relation shows the related record's title and opens that record's own page", async () => {
     const user = userEvent.setup();
     const client = fakeClient([deal]);
     client.table = vi.fn(async () => ({ table: withClient, records: [deal], files: {}, lists: [], relations: { client: { c1: "RestoPros" } } }));
-    const record = vi.fn(async () => ({ table: clients, record: { ...row("c1", "", null), values: { name: "RestoPros" } }, relations: {} }));
-    (client as unknown as { record: typeof record }).record = record;
+    const onOpenRecord = vi.fn();
     render(
       <TooltipProvider>
-        <DataPage client={client} table={withClient} version={0} onChanged={vi.fn()} />
+        <DataPage client={client} table={withClient} version={0} onChanged={vi.fn()} onOpenRecord={onOpenRecord} />
       </TooltipProvider>,
     );
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("button", { name: "RestoPros" }));
-    expect(record).toHaveBeenCalledWith("clients", "c1");
-    expect(await screen.findByRole("region", { name: "RestoPros" })).toBeInTheDocument();
-    expect(screen.getByText("Clients")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Back to Deals" }));
-    expect(screen.queryByRole("region", { name: "RestoPros" })).not.toBeInTheDocument();
+    expect(onOpenRecord).toHaveBeenCalledWith("clients", "c1");
   });
 
   it("the form view shows one row at a time with next and previous", async () => {

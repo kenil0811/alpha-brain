@@ -26,7 +26,7 @@ export function BoardView({ rows, field, titleField, fields, onOpen, onMove }: {
               {humanize(column)} <span>{cards.length}</span>
             </h4>
             {cards.map((row) => (
-              <button key={row.id} type="button" className="board__card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", row.id)} onClick={() => onOpen(row.id)}>
+              <button key={row.id} type="button" className="board__card" draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", row.id)} onClick={(e) => { if (e.detail === 0) onOpen(row.id); }} onDoubleClick={() => onOpen(row.id)}>
                 <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
                 {extras.map((f) => (
                   <span key={f.name} className="faint">

@@ -93,8 +93,9 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     );
   }
   const words = showValue(value, field.kind, field.unit);
-  // A click opens the row (it bubbles to the row); a double-click, Enter or F2 edits the cell
-  // (the convention from pull request #3: scanning by click, editing on purpose).
+  // A double-click, Enter or F2 edits the cell (the convention from pull request #3: editing on
+  // purpose); a click does nothing, and the row's › opens its page (12 Oct, Kenil: "single click
+  // should not open the page").
   return (
     <td
       className={`${numeric ? "r num" : ""} editable`.trim()}

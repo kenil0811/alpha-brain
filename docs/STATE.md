@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 12 October 2026, midday.** Last entries: the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
+**As of 13 October 2026, morning.** Last entries: the window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 which features, Q42 how: one section at a time in main's own design; section 1 Home's "Didn't work today" and section 2a a record's own page done, 2b proposed), the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
 ([`log/2026-10-12-clean-sweep.md`](log/2026-10-12-clean-sweep.md), Q40; the research pass, plans, milestones and jobs removed; 5,500 lines fewer), shipped again with a Python that can make a venv ([`log/2026-10-11-shipped-again.md`](log/2026-10-11-shipped-again.md)), questions asked together answered together
 ([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
 the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
@@ -45,19 +45,19 @@ fact origins, the module's page and the item pages
 of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
 contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
 
-## Numbers (`just stats`, 12 Oct, morning)
+## Numbers (`just stats`, 13 Oct, morning)
 
 | | |
 |---|---|
 | Core tests | 226, in about 33 s; ruff and mypy strict clean |
-| Desktop tests | 86, in twenty-seven files; typecheck clean |
+| Desktop tests | 97 passed, 1 skipped, in 30 files; typecheck clean |
 | Tools the model sees | 73 |
 | Journeys | 22 defined; latest `docs/journeys/2026-10-12-0907.md` (the interview after the sweep: the page, the change by chat, nothing built, 507 s; its version check loosened to `version_min`, see the log); `2026-10-12-0906.md` (the question card passed); `2026-10-11-1635.md`, 1 of 1 (the build from the page, 951 s); `2026-10-11-1457.md`, 1 of 1 (the interview and the page, 467 s) |
-| Desktop check | latest full run `docs/checks/2026-10-03-2043.md`, 61 of 61 pages clean at every size; the Assistant page `docs/checks/2026-10-09-1005.md`, 1 of 1 |
+| Desktop check | after section 2a, `docs/checks/2026-10-13-0807.md`, 81 of 81 pages clean at every size (the first record of every table now among the pages); after section 1, `2026-10-12-2211.md`, 66 of 66 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 178 total; 178 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 15,756 Python; tests 5,486; desktop 10,931 TS/TSX |
+| Commits | 180 total; 180 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 15,767 Python; tests 5,507; desktop 11,340 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -176,10 +176,11 @@ pending item 6, people for real, and noticing over what Alpha reads.
    Try again card; identical replies collapsed and a stopped build posting once (the loop that
    posted 19 on 2 Oct); long replies folded; copy and edit-and-resend; a plus for files in the
    composer; Kenil to say whether one stream should replace the per-page conversations.
-11. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
+11. **The window from pull request #5 (Q41, Q42)** ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md)): one section at a time in main's own styles, each a written proposal to Kenil, built on his yes, seen in the Mac app, committed after his review. (1) Home's "Didn't work today" — done 12 Oct, with Dismiss and Clear all; (2a) a record's own page — done 13 Oct (the › at a row's start opens it, a click on a row opens nothing, cards open on a double-click, ticked rows counted in the header row); (2b) History with Undo, and Notes, on the record page — proposed with four core changes (a record's history from the journal, old values kept for part fills, a note per record, the note removed with its record), waiting for Kenil's yes; then (3) the table's toolbar, (4) its extras, (5) the sidebar, (6) Settings as cards, (7) Intelligence, (8) the assistant panel, (9) plain errors, absolute dates, every delete confirmed. The rulebook (`design/research/ui-rulebook.md`) is guidance only. Then the core's routes the window asks for (rename, delete and Removed for a module, a field added by the person, export, a goal, a memory page), then the behaviour items, then the design sessions (persisted decisions, several dedicated agents).
+12. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
-12. People for real: readers declare their rows as people; a pass links existing rows.
-13. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
+13. People for real: readers declare their rows as people; a pass links existing rows.
+14. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
    first-run experience on a clean Mac, the smaller

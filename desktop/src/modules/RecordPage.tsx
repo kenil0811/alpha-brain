@@ -1,0 +1,140 @@
+/**
+ * One record's own page (12 Oct, Q42 section 2a; the feature from pull request #5, the layout
+ * main's own, an automation's page): a back button named for its table, the record's title and
+ * when it was added and last changed, what Alpha can do with it (the parts run when asked, Try
+ * again for one that could not fill its fields) and Remove, then its details: every field
+ * editable in place with where its value came from. A related record opens its own page the same
+ * way. It replaces the drawer that opened under the table.
+ */
+import { useEffect, useState } from "react";
+import type { Client, Part, RecordRow, Relations, TableDesc } from "../core/client";
+import type { Surface } from "../shell/Rail";
+import { Button, Confirm } from "../ui";
+import { ArrowLeft } from "../ui/icons";
+import { coerce, titleFieldOf, type FieldInfo } from "./fields";
+import { humanize, when } from "./format";
+import { actionsFor, RecordFields, ThingActions } from "./views/RecordFields";
+
+export function RecordPage({ client, table, id, version, onChanged, onGo }: { client: Client; table: string; id: string; version: number; onChanged: () => void; onGo: (s: Surface) => void }) {
+  const [data, setData] = useState<{ table: TableDesc; record: RecordRow; relations: Relations } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    let live = true;
+    client
+      .record(table, id)
+      .then((d) => {
+        if (!live) return;
+        setData(d);
+        setError(null);
+      })
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [client, table, id, version, tick]);
+  const module = data?.table.module ?? null;
+  useEffect(() => {
+    if (!module) {
+      setParts([]);
+      return;
+    }
+    client.parts(module).then(setParts).catch(() => setParts([]));
+  }, [client, module, version]);
+
+  const tableTitle = data ? humanize(data.table.title === data.table.name ? data.table.name : data.table.title) : humanize(table);
+  /** Back to the table it belongs to (the module's page opens on the table last seen), or where the person came from. */
+  const back = () => (module ? onGo({ kind: "module", id: module, table: data?.table.name ?? table }) : window.history.back());
+  const backButton = (
+    <Button size="sm" onClick={back}>
+      <ArrowLeft size={14} aria-hidden="true" /> {tableTitle}
+    </Button>
+  );
+
+  if (error) {
+    return (
+      <div className="page">
+        {backButton}
+        <p className="notice" role="alert" style={{ marginTop: 12 }}>
+          Couldn't open this record: {error}
+        </p>
+      </div>
+    );
+  }
+  if (!data) return <div className="page"><p className="empty">Loading…</p></div>;
+
+  const { record: row, relations } = data;
+  const fields = data.table.fields as FieldInfo[];
+  const titleField = titleFieldOf(fields, data.table.title_field);
+  const title = (titleField && String(row.values[titleField] ?? "")) || "Untitled";
+  const readonly = Boolean(data.table.readonly);
+  const actions = module ? actionsFor(parts, data.table.name, row) : [];
+  const dates = [row.created_at ? `Added ${when(row.created_at)}` : "", row.updated_at && row.updated_at !== row.created_at ? `last changed ${when(row.updated_at)}` : ""].filter(Boolean).join(" · ");
+
+  const commit = (field: FieldInfo, text: string) => {
+    if (readonly) return;
+    const value = coerce(text, field.kind);
+    if (JSON.stringify(value) === JSON.stringify(row.values[field.name] ?? null)) return;
+    client
+      .editRecord(data.table.name, row.id, { [field.name]: value }, row.revision)
+      .then((saved) => {
+        setData({ ...data, record: saved });
+        setMessage(null);
+        onChanged();
+      })
+      .catch((e: unknown) => setMessage({ ok: false, text: `Couldn't save the change: ${e instanceof Error ? e.message : String(e)}` }));
+  };
+  const remove = async () => {
+    setAsking(false);
+    try {
+      await client.deleteRecord(data.table.name, row.id, row.revision);
+      onChanged();
+      back();
+    } catch (e) {
+      setMessage({ ok: false, text: `Couldn't remove it: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
+  const run = (part: string) =>
+    client.runPart(module!, part, row.id).then(() => {
+      onChanged();
+      setTick((n) => n + 1);
+    });
+
+  return (
+    <div className="page">
+      <Confirm open={asking} title={`Remove ${title}?`} action="Remove it" onConfirm={() => void remove()} onCancel={() => setAsking(false)}>
+        It leaves the table; Activity keeps that it was here.
+      </Confirm>
+      {backButton}
+      <div className="modhead" style={{ marginTop: 12 }}>
+        <div className="modhead__title" style={{ display: "block" }}>
+          <h1 style={title.length > 60 ? { fontSize: "var(--text-xl)", lineHeight: 1.3 } : undefined}>{title}</h1>
+          {dates ? <div className="faint" style={{ marginTop: 6 }}>{dates}</div> : null}
+        </div>
+        <div className="row">
+          {readonly ? <span className="faint">Built by the module · read-only</span> : null}
+          {!readonly && actions.length ? <ThingActions actions={actions} onRun={run} /> : null}
+          {!readonly ? (
+            <Button size="sm" variant="danger" onClick={() => setAsking(true)}>
+              Remove
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {message ? <p className={message.ok ? "notice notice--ok" : "notice"} role="status">{message.text}</p> : null}
+      <div className="section">
+        <div className="section__head">
+          <h2>Details</h2>
+          <span className="faint">Each value says where it came from</span>
+        </div>
+        <div className="card card--pad">
+          <RecordFields page row={row} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={(collection, rid) => onGo({ kind: "record", table: collection, id: rid })} />
+        </div>
+      </div>
+    </div>
+  );
+}

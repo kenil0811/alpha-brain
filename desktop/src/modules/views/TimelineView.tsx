@@ -13,7 +13,7 @@ export function TimelineView({ rows, field, titleField, fields, onOpen }: { rows
         <section key={m.month} className="timeline__month" aria-label={monthName(m.month)}>
           <h4>{monthName(m.month)}</h4>
           {m.rows.map((row) => (
-            <button key={row.id} type="button" className="timeline__row" onClick={() => onOpen(row.id)}>
+            <button key={row.id} type="button" className="timeline__row" onClick={(e) => { if (e.detail === 0) onOpen(row.id); }} onDoubleClick={() => onOpen(row.id)}>
               <span className="timeline__day num">{String(row.values[field.name]).slice(8, 10)}</span>
               <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
               <span className="faint">{extras.map((f) => showValue(row.values[f.name], f.kind, f.unit)).filter(Boolean).join(" · ")}</span>

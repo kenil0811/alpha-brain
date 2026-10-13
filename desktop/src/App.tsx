@@ -5,7 +5,7 @@
  * poll, versions per scope, nothing while the window is hidden), and when the person does
  * something here. When the core stops answering the window says so and the host brings it back.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Client, moduleWords } from "./core/client";
 import { useChanges } from "./core/changes";
 import { host } from "./core/host";
@@ -20,9 +20,10 @@ import { CommandMenu } from "./shell/CommandMenu";
 import { SkillPage } from "./shell/SkillPage";
 import { EntityPage, People } from "./shell/People";
 import { Rail, knownSurface, type Surface } from "./shell/Rail";
-import { currentHashSurface, pushAddress } from "./shell/address";
+import { currentHashSurface, pathFor, pushAddress } from "./shell/address";
 import { useDragWidth } from "./shell/useDragWidth";
 import { ModulePage } from "./modules/ModulePage";
+import { RecordPage } from "./modules/RecordPage";
 import { BrowserRow, ClaudeRow, Settings } from "./shell/Settings";
 import { useTheme } from "./shell/theme";
 import type { ClaudeStatus, ModuleCard, Thinking, BrowserStatus } from "./core/client";
@@ -31,6 +32,14 @@ import { Button } from "./ui";
 const SURFACE_KEY = "alpha.surface";
 const PANEL_KEY = "alpha.panel";
 export const HANDOFF_KEY = "alpha.handoff";
+
+/** A record's page sits inside the module its table belongs to: the window's list of modules
+ *  says which, so its address, the sidebar and the assistant all know (12 Oct, section 2a). */
+function placed(wanted: Surface, list: ModuleCard[]): Surface {
+  if (wanted.kind !== "record" || wanted.module) return wanted;
+  const home = list.find((m) => m.tables.some((t) => t.name === wanted.table))?.id;
+  return home ? { ...wanted, module: home } : wanted;
+}
 
 function remembered<T>(key: string, fallback: T): T {
   try {
@@ -69,11 +78,22 @@ export function App({ client: injected }: { client?: Client } = {}) {
   const [claude, setClaude] = useState<ClaudeStatus | null>(null);
   const [thinking, setThinking] = useState<Thinking | null>(null);
 
-  const setSurface = useCallback((next: Surface) => {
+  const modulesNow = useRef(modules);
+  modulesNow.current = modules;
+  const setSurface = useCallback((wanted: Surface) => {
+    const next = placed(wanted, modulesNow.current);
     setSurfaceState(next);
     remember(SURFACE_KEY, next);
     pushAddress(next);
   }, []);
+  // a record's page opened from an address that doesn't name its module is placed once the modules are known
+  useEffect(() => {
+    const next = placed(surface, modules);
+    if (next === surface) return;
+    setSurfaceState(next);
+    remember(SURFACE_KEY, next);
+    window.history.replaceState(null, "", `#${pathFor(next)}`);
+  }, [surface, modules]);
   // Back and forward move between pages; a typed address opens one.
   useEffect(() => {
     const onPop = () => {
@@ -229,9 +249,11 @@ export function App({ client: injected }: { client?: Client } = {}) {
     togglePanel(true);
   };
 
-  const scopeModule = surface.kind === "module" ? (modules.find((m) => m.id === surface.id) ?? null) : null;
+  // a record's page talks to the assistant in its module, as the module's page does
+  const scopeModuleId = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : undefined;
+  const scopeModule = scopeModuleId ? (modules.find((m) => m.id === scopeModuleId) ?? null) : null;
   const scopeName =
-    surface.kind === "module" ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
+    surface.kind === "module" || (surface.kind === "record" && scopeModule) ? (scopeModule ? moduleWords(scopeModule) : "Module") : surface.kind === "record" ? "Record" : surface.kind === "assistant" ? "Assistant" : surface.kind === "home" ? "Home" : surface.kind === "activity" ? "Activity" : surface.kind === "settings" ? "Settings" : surface.kind === "people" || surface.kind === "entity" ? "People & Companies" : "Intelligence";
 
   return (
     <div
@@ -295,7 +317,9 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "home" ? (
           <Home client={runtime.client} version={versions.home} onGo={setSurface} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} onNew={startNew} onOpenThread={(id) => { setFocusThread({ id, at: Date.now() }); togglePanel(true); }} />
         ) : surface.kind === "module" ? (
-          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
+          <ModulePage key={surface.id} client={runtime.client} moduleId={surface.id} table={surface.table} version={(versions.modules[surface.id] ?? 0) + versions.all} onChanged={changed} onGo={setSurface} onSay={(text) => { setDraft({ text, send: true }); togglePanel(true); }} modules={modules} />
+        ) : surface.kind === "record" ? (
+          <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} table={surface.table} id={surface.id} version={(surface.module ? (versions.modules[surface.module] ?? 0) : 0) + versions.all} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "settings" ? (
           <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} />
         ) : surface.kind === "people" ? (

@@ -33,7 +33,7 @@ export function CalendarView({ rows, field, titleField, month, onMonth, onOpen }
             <div key={i} className={`calendar__day${day ? "" : " calendar__day--pad"}`}>
               {day ? <span className="calendar__num">{day}</span> : null}
               {items.slice(0, 3).map((row) => (
-                <button key={row.id} type="button" className="calendar__chip" onClick={() => onOpen(row.id)}>
+                <button key={row.id} type="button" className="calendar__chip" onClick={(e) => { if (e.detail === 0) onOpen(row.id); }} onDoubleClick={() => onOpen(row.id)}>
                   {titleField ? String(row.values[titleField] ?? "Untitled") : row.id}
                 </button>
               ))}

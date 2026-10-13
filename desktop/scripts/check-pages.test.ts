@@ -6,6 +6,7 @@ const world = {
   skills: [{ name: "linkedin_connections" }],
   automations: [{ id: "a_1", title: "Daily deals" }],
   people: [{ id: "e_1", name: "Ada" }],
+  records: [{ module: "m_1", table: "deals", id: "r_1" }],
 };
 
 describe("the pages of a world", () => {
@@ -15,6 +16,7 @@ describe("the pages of a world", () => {
     expect(paths).toContain("/home");
     expect(paths).toContain("/people/e_1");
     expect(paths).toContain("/m/m_1");
+    expect(paths).toContain("/m/m_1/deals/r_1");
     expect(paths).toContain("/intelligence/knowledge");
     expect(paths).toContain("/intelligence/skills/linkedin_connections");
     expect(paths).toContain("/intelligence/automations/a_1");

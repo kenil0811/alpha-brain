@@ -14,7 +14,8 @@ import { ModuleIcon } from "../ui/icons";
 
 type Section = "app" | "activity" | "settings";
 
-export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, modules = [] }: { client: Client; moduleId: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void; modules?: ModuleCard[] }) {
+/** `table`: open on that table's tab (a record's page going back to it); otherwise the tab last seen. */
+export function ModulePage({ client, moduleId, table: wantedTable, version, onChanged, onGo, onSay, modules = [] }: { client: Client; moduleId: string; table?: string; version: number; onChanged: () => void; onGo: (s: Surface) => void; onSay?: (sentence: string) => void; modules?: ModuleCard[] }) {
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<Section>("app");
@@ -41,12 +42,16 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
     await added(Array.from(e.dataTransfer.files ?? []));
   }
   const [tab, setTab] = useState<string>(() => {
+    if (wantedTable) return wantedTable;
     try {
       return localStorage.getItem(`alpha.module.${moduleId}.tab`) ?? "summary";
     } catch {
       return "summary";
     }
   });
+  useEffect(() => {
+    if (wantedTable) setTab(wantedTable);
+  }, [wantedTable]);
   useEffect(() => {
     try {
       localStorage.setItem(`alpha.module.${moduleId}.tab`, tab);
@@ -172,7 +177,7 @@ export function ModulePage({ client, moduleId, version, onChanged, onGo, onSay, 
             ]}
           />
           {table ? (
-            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} />
+            <DataPage key={table.name} client={client} table={table} version={version} onChanged={onChanged} onSay={onSay} onOpenRecord={(t, id) => onGo({ kind: "record", table: t, id })} />
           ) : (
             <>
               {detail.inside?.length ? (

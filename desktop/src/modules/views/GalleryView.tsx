@@ -10,7 +10,7 @@ export function GalleryView({ rows, fields, titleField, onOpen }: { rows: Record
   return (
     <div className="gallery">
       {rows.map((row) => (
-        <button key={row.id} type="button" className="gallery__card" onClick={() => onOpen(row.id)}>
+        <button key={row.id} type="button" className="gallery__card" onClick={(e) => { if (e.detail === 0) onOpen(row.id); }} onDoubleClick={() => onOpen(row.id)}>
           <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
           {shown.map((f) => {
             const words = showValue(row.values[f.name], f.kind, f.unit);

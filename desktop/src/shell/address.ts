@@ -2,7 +2,9 @@
  * Pages have addresses: the place the window shows is in `location.hash`, so back and forward
  * work and the companion or ⌘K can open a page by its address (an idea from pull request #3,
  * rebuilt on main's Surface). `#/home`, `#/activity`, `#/people`, `#/people/<id>`, `#/m/<id>`,
- * `#/assistant`, `#/assistant/<conversation>`, `#/intelligence/<tab>`, `#/settings`. Nothing
+ * `#/m/<id>/<table>` (a module on one of its tables), `#/m/<id>/<table>/<record>` (a record's own page; `#/records/<table>/<record>` for a table that
+ * belongs to no module), `#/assistant`, `#/assistant/<conversation>`, `#/intelligence/<tab>`,
+ * `#/settings`. Nothing
  * else is in the address: what is open inside a
  * page stays where it was.
  */
@@ -19,7 +21,7 @@ export function pathFor(surface: Surface): string {
     case "entity":
       return `/people/${encodeURIComponent(surface.id)}`;
     case "module":
-      return `/m/${encodeURIComponent(surface.id)}`;
+      return surface.table ? `/m/${encodeURIComponent(surface.id)}/${encodeURIComponent(surface.table)}` : `/m/${encodeURIComponent(surface.id)}`;
     case "assistant":
       return surface.id ? `/assistant/${encodeURIComponent(surface.id)}` : "/assistant";
     case "intelligence":
@@ -30,6 +32,8 @@ export function pathFor(surface: Surface): string {
       return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
     case "settings":
       return "/settings";
+    case "record":
+      return surface.module ? `/m/${encodeURIComponent(surface.module)}/${encodeURIComponent(surface.table)}/${encodeURIComponent(surface.id)}` : `/records/${encodeURIComponent(surface.table)}/${encodeURIComponent(surface.id)}`;
   }
 }
 
@@ -42,7 +46,10 @@ export function surfaceFromPath(path: string): Surface | null {
     if (head === "people" && rest) return { kind: "entity", id: rest };
     return knownSurface({ kind: head });
   }
+  if (head === "m" && rest && third && parts[3]) return { kind: "record", module: rest, table: third, id: parts[3] };
+  if (head === "m" && rest && third) return { kind: "module", id: rest, table: third };
   if (head === "m" && rest) return { kind: "module", id: rest };
+  if (head === "records" && rest && third) return { kind: "record", table: rest, id: third };
   if (head === "assistant") return rest ? { kind: "assistant", id: rest } : { kind: "assistant" };
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };

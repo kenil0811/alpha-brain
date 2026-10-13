@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RecordRow } from "../../core/client";
-import { RecordFields } from "./RecordPanel";
+import { RecordFields } from "./RecordFields";
 
 const row: RecordRow = {
   id: "r_1", revision: 2, created_at: "2026-10-11T10:00:00Z", updated_at: "2026-10-11T10:05:00Z",

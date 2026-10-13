@@ -66,7 +66,9 @@ export interface PageAddress {
 const INTEL_TABS = ["skills", "automations", "connections", "knowledge"];
 
 interface WorldPages {
-  modules: { id: string; name?: string }[];
+  modules: { id: string; name?: string; tables?: { name: string }[] }[];
+  /** The first record of every module's table: its own page (`#/m/<module>/<table>/<record>`). */
+  records?: { module: string; table: string; id: string }[];
   skills: { name: string }[];
   automations: { id: string; title?: string }[];
   people: { id: string; name?: string }[];
@@ -82,6 +84,7 @@ export function pagesFor(world: WorldPages): PageAddress[] {
     { path: "/assistant", title: "Assistant" },
     ...world.people.map((e) => ({ path: `/people/${enc(e.id)}`, title: `Person: ${e.name ?? e.id}` })),
     ...world.modules.map((m) => ({ path: `/m/${enc(m.id)}`, title: `Module: ${m.name ?? m.id}` })),
+    ...(world.records ?? []).map((r) => ({ path: `/m/${enc(r.module)}/${enc(r.table)}/${enc(r.id)}`, title: `Record: ${r.table}` })),
     { path: "/intelligence", title: "Intelligence" },
     ...INTEL_TABS.map((t) => ({ path: `/intelligence/${t}`, title: `Intelligence: ${t}` })),
     ...world.skills.map((s) => ({ path: `/intelligence/skills/${enc(s.name)}`, title: `Skill: ${s.name}` })),
@@ -126,7 +129,16 @@ async function worldPages(job: Job): Promise<WorldPages> {
     get<{ skills: WorldPages["skills"]; automations: WorldPages["automations"] }>("/api/intelligence"),
     get<WorldPages["people"]>("/api/people"),
   ]);
-  return { modules, skills: intel.skills, automations: intel.automations, people };
+  const tables = modules.flatMap((m) => (m.tables ?? []).map((t) => ({ module: m.id, table: t.name })));
+  const records = (
+    await Promise.all(
+      tables.map(async ({ module, table }) => {
+        const first = (await get<{ records: { id: string }[] }>(`/api/tables/${encodeURIComponent(table)}?limit=1`)).records[0];
+        return first ? [{ module, table, id: first.id }] : [];
+      }),
+    )
+  ).flat();
+  return { modules, skills: intel.skills, automations: intel.automations, people, records };
 }
 
 /**

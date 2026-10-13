@@ -5,7 +5,7 @@
  * and are journaled as theirs.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Client, FileInfo, Part, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
+import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
@@ -20,7 +20,6 @@ import { BoardView } from "./views/BoardView";
 import { CalendarView } from "./views/CalendarView";
 import { ChartView } from "./views/ChartView";
 import { ListView } from "./views/ListView";
-import { RecordPanel, type ThingAction } from "./views/RecordPanel";
 import { FormView } from "./views/FormView";
 import { TableView } from "./views/TableView";
 
@@ -68,15 +67,9 @@ function remember(key: string, value: unknown) {
   }
 }
 
-/** What Back returns to: the record under the top of the stack, else the opened row, else the table. */
-function backTo(stack: { table: TableDesc; row: RecordRow }[], openRow: RecordRow | null, titleField: string | undefined, tableTitle: string): string {
-  const under = stack.length > 1 ? stack[stack.length - 2] : null;
-  if (under) return String((under.table.title_field && under.row.values[under.table.title_field]) || under.table.title);
-  if (openRow && titleField && openRow.values[titleField]) return String(openRow.values[titleField]);
-  return tableTitle;
-}
-
-export function DataPage({ client, table, version, onChanged, onSay }: { client: Client; table: TableDesc; version: number; onChanged: () => void; onSay?: (sentence: string) => void }) {
+/** `onOpenRecord` opens a record's own page (a row of this table, or a related one followed
+ *  from a cell); without it a row opens nothing. */
+export function DataPage({ client, table, version, onChanged, onSay, onOpenRecord }: { client: Client; table: TableDesc; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void }) {
   const fields = table.fields as FieldInfo[];
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
   const key = `alpha.page.${table.name}`;
@@ -137,31 +130,13 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
   const bodyRef = useRef<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relations>({});
-  // Records followed from a relation into another table, newest last: the drawer shows the
-  // last one, Back pops it.
-  const [related, setRelated] = useState<{ table: TableDesc; row: RecordRow; relations: Relations }[]>([]);
   const [formAt, setFormAt] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [removing, setRemoving] = useState(false);
   const [adding, setAdding] = useState(false);
   // A program module's own table (Q38) is read from its database: no adding, editing or removing here.
   const readonly = Boolean(table.readonly);
-  // The parts of the module this table belongs to (§12): run when asked from a thing's page.
-  const [parts, setParts] = useState<Part[]>([]);
-  useEffect(() => {
-    if (!table.module) { setParts([]); return; }
-    client.parts(table.module).then(setParts).catch(() => setParts([]));
-  }, [client, table.module, version]);
-  const actionsFor = (row: RecordRow): ThingAction[] => {
-    const mine = parts.filter((p) => p.fills.thing === table.name || table.name.endsWith(`_${p.fills.thing}`));
-    const asked = mine.filter((p) => p.when === "asked").map((p) => ({ id: p.id, title: p.title }));
-    const failed = new Set(Object.values(row.provenance.fields ?? {}).filter((o) => o.problem && o.part).map((o) => o.part as string));
-    const again = mine.filter((p) => failed.has(p.id) && p.when !== "asked").map((p) => ({ id: p.id, title: p.title, again: true }));
-    return [...asked, ...again];
-  };
-  const runPart = (row: RecordRow, part: string) => (table.module ? client.runPart(table.module, part, row.id).then(() => { onChanged(); }) : Promise.resolve());
   const [naming, setNaming] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -282,25 +257,6 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
     if (JSON.stringify(value) === JSON.stringify(current)) return;
     void run(() => client.editRecord(table.name, row.id, { [field.name]: value }, row.revision), "Couldn't save the change");
   }
-  function remove(row: RecordRow) {
-    if (readonly) return;
-    setOpenId(null);
-    void run(() => client.deleteRecord(table.name, row.id, row.revision), "Couldn't remove it");
-  }
-  function openRelated(collection: string, id: string) {
-    client
-      .record(collection, id)
-      .then((r) => setRelated((stack) => [...stack, { table: r.table, row: r.record, relations: r.relations }]))
-      .catch((e) => setStatus({ ok: false, text: `Couldn't open it: ${e instanceof Error ? e.message : String(e)}` }));
-  }
-  function commitRelated(entry: { table: TableDesc; row: RecordRow }, field: FieldInfo, text: string) {
-    const value = coerce(text, field.kind);
-    if (JSON.stringify(value) === JSON.stringify(entry.row.values[field.name] ?? null)) return;
-    client
-      .editRecord(entry.table.name, entry.row.id, { [field.name]: value }, entry.row.revision)
-      .then((row) => setRelated((stack) => stack.map((e) => (e.row.id === entry.row.id && e.table.name === entry.table.name ? { ...e, row } : e))))
-      .catch((e) => setStatus({ ok: false, text: `Couldn't save the change: ${e instanceof Error ? e.message : String(e)}` }));
-  }
   /** Remove every selected row, one at a time, and say how many went when any refused. */
   async function removeSelected() {
     setRemoving(false);
@@ -317,7 +273,6 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
       }
     }
     setSelected(new Set());
-    setOpenId(null);
     load();
     onChanged();
     setStatus(problem ? { ok: false, text: `Removed ${done} of ${chosen.length}; then: ${problem}` } : { ok: true, text: `Removed ${done} ${done === 1 ? "row" : "rows"}.` });
@@ -382,8 +337,8 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
     applyList("all");
   }
 
+  const openRow = (id: string) => onOpenRecord?.(table.name, id);
   const shownColumns = columns.filter((c) => byName.has(c));
-  const openRow = openId ? (all?.find((r) => r.id === openId) ?? null) : null;
   const filtered = Boolean(search || Object.values(filters).some(Boolean) || hideDone);
   const count = (n: number) => n.toLocaleString();
   const rowsWord = (n: number) => (n === 1 ? "row" : "rows");
@@ -525,17 +480,6 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
           </Popover>
         </div>
         {adding && !readonly ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
-        {selected.size ? (
-          <div className="selectbar" role="status">
-            <b>{count(selected.size)} selected</b>
-            <Button size="sm" variant="danger" onClick={() => setRemoving(true)}>
-              Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-              Clear
-            </Button>
-          </div>
-        ) : null}
         <Confirm open={removing} title={`Remove ${count(selected.size)} ${selected.size === 1 ? "row" : "rows"}?`} action={`Remove ${count(selected.size)}`} onConfirm={() => void removeSelected()} onCancel={() => setRemoving(false)}>
           They leave the table; Activity keeps that they were here.
         </Confirm>
@@ -561,43 +505,27 @@ export function DataPage({ client, table, version, onChanged, onSay }: { client:
               onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))}
               sort={sort}
               onSort={setSort}
-              openId={openId}
-              onOpen={(id) => setOpenId((current) => (current === id ? null : id))}
+              onOpen={openRow}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}
               files={files}
               onFile={(row, field, file) => void addFile(row, field, file)}
               selected={selected}
+              selection={{ count: selected.size, onRemove: readonly ? undefined : () => setRemoving(true), onClear: () => setSelected(new Set()) }}
               onSelect={(id, on) => setSelected((s) => { const next = new Set(s); if (on) next.add(id); else next.delete(id); return next; })}
               onSelectAll={(on) => setSelected((s) => { const next = new Set(s); for (const r of shownRows ?? []) if (on) next.add(r.id); else next.delete(r.id); return next; })}
               relations={relations}
-              onOpenRelated={openRelated}
+              onOpenRelated={onOpenRecord}
             />
           ) : null}
-          {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={openRelated} empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
-          {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={setOpenId} onMove={(row, value) => move(row, groupField, value)} /> : null}
-          {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={setOpenId} /> : null}
-          {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={setOpenId} /> : null}
-          {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={setOpenId} /> : null}
-          {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={setOpenId} /> : null}
+          {view === "form" ? <FormView rows={rows ?? []} at={formAt} onAt={setFormAt} fields={fields} titleField={titleField} relations={relations} onCommit={commit} onOpenRelated={onOpenRecord} empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null} /> : null}
+          {view === "board" && groupField ? <BoardView rows={rows ?? []} field={groupField} titleField={titleField} fields={fields} onOpen={openRow} onMove={(row, value) => move(row, groupField, value)} /> : null}
+          {view === "list" ? <ListView rows={shownRows ?? []} bodyRef={bodyRef} titleField={titleField} columns={shownColumns} byName={byName} onOpen={openRow} /> : null}
+          {view === "gallery" ? <GalleryView rows={rows ?? []} fields={fields.filter((f) => shownColumns.includes(f.name))} titleField={titleField} onOpen={openRow} /> : null}
+          {view === "timeline" && dateField ? <TimelineView rows={rows ?? []} field={dateField} titleField={titleField} fields={fields} onOpen={openRow} /> : null}
+          {view === "calendar" && dateField ? <CalendarView rows={rows ?? []} field={dateField} titleField={titleField} month={month} onMonth={setMonth} onOpen={openRow} /> : null}
           {view === "chart" && dateField ? <ChartView rows={rows ?? []} dateField={dateField} valueField={numericField ?? null} /> : null}
         </div>
-        {related.length ? (
-          <RecordPanel
-            key={`${related[related.length - 1].table.name}:${related[related.length - 1].row.id}`}
-            row={related[related.length - 1].row}
-            fields={related[related.length - 1].table.fields as FieldInfo[]}
-            titleField={related[related.length - 1].table.title_field ?? undefined}
-            relations={related[related.length - 1].relations}
-            tableTitle={related[related.length - 1].table.title}
-            onClose={() => { setRelated([]); setOpenId(null); }}
-            onCommit={(field, text) => commitRelated(related[related.length - 1], field, text)}
-            onOpenRelated={openRelated}
-            back={{ to: backTo(related, openRow, titleField, table.title), onBack: () => setRelated((stack) => stack.slice(0, -1)) }}
-          />
-        ) : openRow ? (
-          <RecordPanel row={openRow} fields={fields} titleField={titleField} relations={relations} onClose={() => setOpenId(null)} onCommit={(field, text) => commit(openRow, field, text)} onRemove={() => remove(openRow)} onOpenRelated={openRelated} actions={actionsFor(openRow)} onRun={(part) => runPart(openRow, part)} />
-        ) : null}
         {view !== "form" ? (
         <div className="pager">
           <span className="num">

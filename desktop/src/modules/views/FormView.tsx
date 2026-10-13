@@ -5,7 +5,7 @@ import type { RecordRow, Relations } from "../../core/client";
 import type { FieldInfo } from "../fields";
 import { IconButton } from "../../ui";
 import { ChevronLeft, ChevronRight } from "../../ui/icons";
-import { RecordFields } from "./RecordPanel";
+import { RecordFields } from "./RecordFields";
 
 export function FormView({ rows, at, onAt, fields, titleField, relations, onCommit, onOpenRelated, empty }: { rows: RecordRow[]; at: number; onAt: (i: number) => void; fields: FieldInfo[]; titleField: string | undefined; relations?: Relations; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; onOpenRelated?: (collection: string, id: string) => void; empty: string | null }) {
   if (!rows.length) return <p className="empty">{empty ?? "Nothing here yet."}</p>;

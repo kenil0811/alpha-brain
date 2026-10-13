@@ -54,3 +54,46 @@ What ran: typecheck clean; 90 desktop tests in 28 files (four new); the Mac app 
 seen in WebKit at 1240×820 with today's two reader failures; `just check-desktop`: 66 of 66
 pages clean at every size (`docs/checks/2026-10-12-2211.md`). Dismiss and Clear all were not
 clicked in Kenil's world (they write to it); the tests cover them.
+
+## Section 2a: a record's own page (13 Oct, this commit)
+
+Proposed in two halves (2a the page, 2b History with Undo and Notes) with screenshots of main's
+drawer, the branch's record page and main's automation page as the pattern; Kenil: "yes do 2a,
+stop after and i will review". Built: a row opens its own page (`RecordPage`, at
+`#/m/<module>/<table>/<record>`, `#/records/<table>/<record>` for a table in no module) in the
+automation page's markup: a back button named for the table (it opens the module on that
+table, `#/m/<module>/<table>`), the title in the serif, when it was added and last changed, the
+parts run when asked and Try again for one that could not fill (`ThingActions`, `actionsFor`,
+moved out of the data page), Remove after a yes, then Details: the drawer's own field table,
+every value editable in place with its origin, the title among them, values wrapping instead of
+cut. A related record opens its own page; the window places a record in the module its table
+belongs to, so the sidebar and the assistant know. The drawer is gone with its stack, its
+state and its styles (`RecordPanel` became `RecordFields`, which the form view also shows).
+
+Kenil's review, while it ran: "single click should not open the page, maybe double click".
+A double-click on a table cell already edits it, so in the table a › at the start of each row
+opens the page (first put at the end, it was scrolled out of view on a wide table) and a click
+on a row does nothing; in the card views (board, list, gallery, calendar, timeline) a double-
+click opens, Enter from the keyboard everywhere. Then: "when i select a row, a new row for
+remove/clear comes up … everything else goes down by one row, so its flaky". Three ways were
+offered; Kenil: "go with 1": ticked rows are counted in the table's header row, which shows
+"2 selected · Remove · Clear" over its labels (kept in place, hidden, so no column changes
+width); the separate bar is gone. Found on the way, all main's own: a stray "…" before every
+row's title (the checkbox cell narrower than its padding), the checkbox column taking the
+table's spare width, and the header's rule for its sort buttons stripping every button in a
+header cell; fixed in the same lines. "yes" on the screenshots of the app.
+
+What ran: typecheck clean; 97 desktop tests in 30 files; in the browser pane, ticking a row
+moved the first row by 0px, the header stayed 34px and no column changed width; the Mac app
+rebuilt and seen in WebKit on a car wash score, the site it links to, a Network person and the
+job listings with rows ticked; `just check-desktop` with the first record of every table added
+to its pages: 81 of 81 pages clean at every size (`docs/checks/2026-10-13-0807.md`). One Home
+test failed once while the app compiled in parallel and passed in nine runs after; not changed.
+Left from it: switching a module's table by hand keeps the old table in the address, so a
+reload reopens the one Back named.
+
+## Left
+
+Section 2b (History with Undo, and Notes, on the record page) proposed in writing (Kenil: "no
+need for screenshots now, lets just have it in writing, thats enough"), with the four core
+changes it needs; waiting for his yes. The rest one at a time.

@@ -8,7 +8,7 @@ export function ListView({ rows, bodyRef, titleField, columns, byName, onOpen }:
   return (
     <div className="list" ref={(el) => { bodyRef.current = el; }}>
       {rows.map((row) => (
-        <button key={row.id} type="button" className="list__row" onClick={() => onOpen(row.id)}>
+        <button key={row.id} type="button" className="list__row" onClick={(e) => { if (e.detail === 0) onOpen(row.id); }} onDoubleClick={() => onOpen(row.id)}>
           <b>{titleField ? String(row.values[titleField] ?? "Untitled") : row.id}</b>
           <span className="faint">
             {secondary
