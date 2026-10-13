@@ -215,3 +215,64 @@ export function FooterCell({ field, op, value, onOp, first }: { field: FieldInfo
     </Popover>
   );
 }
+
+/** What can be set on several ticked rows at once (section 4b): not the title, not a link to
+ *  another record, not a file. */
+export const settable = (f: FieldInfo, titleField: string | undefined) => f.name !== titleField && !["relation", "file", "long_text"].includes(f.kind);
+
+/** Set… on the ticked rows (section 4b): a field, a value that fits it, then one edit per row,
+ *  with how far it got; a refusal stops it and says how many were set and why the rest weren't. */
+export function SetOnRows({ fields, count, onSet }: { fields: FieldInfo[]; count: number; onSet: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(fields[0]?.name ?? "");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState<number | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
+  const field = fields.find((f) => f.name === name) ?? fields[0];
+  if (!field) return null;
+  const rows = count === 1 ? "1 row" : `${count.toLocaleString()} rows`;
+  const kind = field.kind;
+  const go = async () => {
+    setBusy(0);
+    setSaid(null);
+    const out = await onSet(field, text, (done) => setBusy(done));
+    setBusy(null);
+    if (out.problem) setSaid(`Set on ${out.done} of ${count}; then: ${out.problem}`);
+    else setOpen(false);
+  };
+  const label = (f: FieldInfo) => (f.label && f.label !== f.name ? f.label : humanize(f.name));
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSaid(null); }} label="Set a field on the ticked rows" align="start" trigger={<Button size="sm">Set…</Button>}>
+      <div className="colmenu colmenu__cond">
+        <select className="btn btn--sm" value={field.name} onChange={(e) => { setName(e.target.value); setText(""); }} aria-label="Field to set">
+          {fields.map((f) => (
+            <option key={f.name} value={f.name}>
+              {label(f)}
+            </option>
+          ))}
+        </select>
+        {kind === "bool" ? (
+          <select className="btn btn--sm" value={text || "false"} onChange={(e) => setText(e.target.value)} aria-label="Value">
+            <option value="true">Ticked</option>
+            <option value="false">Not ticked</option>
+          </select>
+        ) : (kind === "choice" || kind === "status") && field.choices?.length ? (
+          <select className="btn btn--sm" value={text} onChange={(e) => setText(e.target.value)} aria-label="Value">
+            <option value="">Empty</option>
+            {field.choices.map((c) => (
+              <option key={c} value={c}>
+                {humanize(c)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input className="textfield colmenu__input" type={isNumeric(kind) ? "number" : kind === "date" ? "date" : "text"} value={text} onChange={(e) => setText(e.target.value)} aria-label="Value" placeholder="empty clears it" />
+        )}
+        <Button size="sm" variant="primary" disabled={busy !== null} onClick={() => void go()}>
+          {busy !== null ? `Setting ${Math.min(busy + 1, count)} of ${count}…` : text === "" && kind !== "bool" ? `Clear on ${rows}` : `Set on ${rows}`}
+        </Button>
+        {said ? <p className="notice" role="alert">{said}</p> : null}
+      </div>
+    </Popover>
+  );
+}

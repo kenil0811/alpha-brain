@@ -9,7 +9,7 @@ export function Popover({ trigger, children, label, align = "end", open, onOpenC
     <RadixPopover.Root open={open} onOpenChange={onOpenChange}>
       <RadixPopover.Trigger asChild>{trigger}</RadixPopover.Trigger>
       <RadixPopover.Portal>
-        <RadixPopover.Content className="menu__list" align={align} sideOffset={4} aria-label={label}>
+        <RadixPopover.Content className="menu__list popover" align={align} sideOffset={4} collisionPadding={8} aria-label={label}>
           {children}
         </RadixPopover.Content>
       </RadixPopover.Portal>

@@ -1001,3 +1001,5 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .table tfoot tr:hover .footcell--none, .footcell--none:focus-visible { opacity: 1; }
 .footcell__tick { display: inline-flex; width: 14px; }
 .grouprow__total { background: var(--surface-2); font-size: var(--text-sm); color: var(--text-2); }
+/* a pop-up is placed by Radix: the older menus' own placement (absolute, right: 0) must not move it (13 Oct: Set… opened off the window's left edge) */
+.menu__list.popover { position: relative; top: auto; right: auto; }

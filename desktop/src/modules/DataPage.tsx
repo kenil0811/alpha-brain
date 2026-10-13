@@ -12,7 +12,7 @@ import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type FooterOp, type Rules, type Sort } from "./views/engine";
-import { ViewState } from "./views/RulesUI";
+import { settable, ViewState } from "./views/RulesUI";
 import { ListTabs } from "./views/ListTabs";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
@@ -338,6 +338,32 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     if (JSON.stringify(value) === JSON.stringify(current)) return;
     void run(() => client.editRecord(table.name, row.id, { [field.name]: value }, row.revision), "Couldn't save the change");
   }
+  /** Set one field on every ticked row, one edit per row (each in its record's History); a
+   *  refusal stops it and says how far it got (section 4b). The ticks stay. */
+  async function setOnSelected(field: FieldInfo, text: string, progress: (done: number) => void): Promise<{ done: number; problem?: string }> {
+    const value = coerce(text, field.kind);
+    const chosen = (all ?? []).filter((r) => selected.has(r.id));
+    let done = 0;
+    let problem: string | undefined;
+    for (const row of chosen) {
+      progress(done);
+      if (JSON.stringify(row.values[field.name] ?? null) === JSON.stringify(value)) {
+        done += 1;
+        continue;
+      }
+      try {
+        await client.editRecord(table.name, row.id, { [field.name]: value }, row.revision);
+        done += 1;
+      } catch (e) {
+        problem = e instanceof Error ? e.message : String(e);
+        break;
+      }
+    }
+    load();
+    onChanged();
+    setStatus(problem ? { ok: false, text: `Set on ${done} of ${chosen.length}; then: ${problem}` } : { ok: true, text: `Set ${humanize(field.name)} on ${done} ${done === 1 ? "row" : "rows"}.` });
+    return { done, problem };
+  }
   /** Remove every selected row, one at a time, and say how many went when any refused. */
   async function removeSelected() {
     setRemoving(false);
@@ -580,7 +606,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               files={files}
               onFile={(row, field, file) => void addFile(row, field, file)}
               selected={selected}
-              selection={{ count: selected.size, onRemove: readonly ? undefined : () => setRemoving(true), onClear: () => setSelected(new Set()) }}
+              selection={{ count: selected.size, onRemove: readonly ? undefined : () => setRemoving(true), onClear: () => setSelected(new Set()), setFields: readonly ? undefined : fields.filter((f) => settable(f, titleField)), onSet: readonly ? undefined : setOnSelected }}
               onSelect={(id, on) => setSelected((s) => { const next = new Set(s); if (on) next.add(id); else next.delete(id); return next; })}
               onSelectAll={(on) => setSelected((s) => { const next = new Set(s); for (const r of shownRows ?? []) if (on) next.add(r.id); else next.delete(r.id); return next; })}
               relations={relations}

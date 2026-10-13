@@ -232,7 +232,30 @@ text, a group's own average in its header); in the browser pane the car wash sco
 "Score: Sum 19.5" and nothing past the window; `just check-desktop`: 81 of 81 pages clean at
 every size (`docs/checks/2026-10-13-1112.md`).
 
+## Section 4b: editing several ticked rows at once (13 Oct, this commit)
+
+Proposed in writing ("ok"). Built: the header row of ticked rows says "3 selected · Set… ·
+Remove · Clear"; Set… (`SetOnRows`) takes a field and a value that fits it (a choice's
+dropdown with Empty, ticked or not, a number, a date, text) and writes one edit per row
+(`setOnSelected`), each in that record's History with its Undo; "Setting 2 of 3…" while it
+runs; a row already holding the value is passed over; a refusal stops it with "Set on 1 of 2;
+then: …"; the ticks stay. Not offered: the title, links, files, long text; nothing on a
+module's read-only table. No core change.
+
+Kenil's review, with a screenshot: "its getting hidden away": the pop-up opened off the
+window's left edge. Main's older menus place themselves (`.menu__list`: absolute, right 0),
+which moved every Radix pop-up meant to open to the right of its button to the left of it; the
+column menus looked right only because they open leftwards. `Popover` adds `popover` to its
+class and that rule gives the placement back to Radix, with 8px from the window's edges; the
+list tabs' + and More and the footer's totals had the same flaw.
+
+What ran: `just lint` clean; 122 desktop tests in 30 files (three new: a choice set on two
+rows with their revisions, a refusal stopping with the count, nothing on a read-only table);
+in the browser pane at 1240 Set… opens under its button, left edges together, inside the
+window, and a column's menu still opens right-aligned under its ⋮; `just check-desktop`: 81 of
+81 pages clean at every size (`docs/checks/2026-10-13-1143.md`).
+
 ## Left
 
-Section 4b (editing several ticked rows at once) proposed in writing next, then 4c pasting, 4d
-colour, 4e the numbers strip.
+Section 4c (pasting from a spreadsheet) proposed in writing next, then 4d colour, 4e the
+numbers strip.

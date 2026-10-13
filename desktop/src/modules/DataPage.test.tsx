@@ -322,6 +322,51 @@ describe("totals you choose per column (section 4a)", () => {
   });
 });
 
+describe("editing several ticked rows at once (section 4b)", () => {
+  it("Set… writes the value on each ticked row, one edit per row, and the ticks stay", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Diner", 90)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("checkbox", { name: "Select Bakery" }));
+    await user.click(screen.getByRole("checkbox", { name: "Select Diner" }));
+    await user.click(screen.getByRole("button", { name: "Set…" }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Field to set" }), "status");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Value" }), "Sold");
+    await user.click(screen.getByRole("button", { name: "Set on 2 rows" }));
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledTimes(2));
+    expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { status: "Sold" }, 3);
+    expect(client.editRecord).toHaveBeenCalledWith("deals", "r3", { status: "Sold" }, 3);
+    expect(screen.getByRole("checkbox", { name: "Select Bakery" })).toBeChecked();
+    expect(screen.queryByRole("combobox", { name: "Field to set" })).toBeNull(); // done: the menu closed
+  });
+
+  it("a refused row stops it, saying how many were set and why", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    client.editRecord = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("Record r2 changed since revision 3")) as never;
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("checkbox", { name: "Select every row on this page" }));
+    await user.click(screen.getByRole("button", { name: "Set…" }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Field to set" }), "price");
+    await user.type(screen.getByRole("spinbutton", { name: "Value" }), "99");
+    await user.click(screen.getByRole("button", { name: "Set on 2 rows" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Set on 1 of 2; then: Record r2 changed since revision 3");
+  });
+
+  it("offers no Set… on a module's read-only table", async () => {
+    const user = userEvent.setup();
+    const client = fakeClient([row("r1", "Bakery", 300)]);
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={{ ...desc, readonly: true }} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("checkbox", { name: "Select Bakery" }));
+    expect(screen.queryByRole("button", { name: "Set…" })).toBeNull();
+  });
+});
+
 describe("quick entry", () => {
   it("a sentence goes to Alpha naming the table, and the field clears", async () => {
     const user = userEvent.setup();
