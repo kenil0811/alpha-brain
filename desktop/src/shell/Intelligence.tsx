@@ -4,10 +4,12 @@
  * read, switch or correct, never a configuration form.
  */
 import { WorkMap } from "./map/WorkMap";
-import { type FormEvent, useEffect, useState } from "react";
-import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note, Skill } from "../core/client";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import type { Client, Connection, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
+import { DataPage } from "../modules/DataPage";
 import { AutomationList } from "./Automations";
+import { skillsHeld, skillsTable } from "./intel/skillsTable";
 import type { Surface } from "./Rail";
 import { factOrigin } from "./facts";
 import { Button, Badge, Tabs } from "../ui";
@@ -167,48 +169,6 @@ function Connections({ client, data, onChanged }: { client: Client; data: Data; 
   );
 }
 
-const KIND_LABEL: Record<Skill["kind"], string> = { read: "Reads", act: "Does", run: "Runs" };
-
-function SkillCard({ skill, modules, onOpen }: { skill: Skill; modules: Record<string, string>; onOpen?: () => void }) {
-  const [open, setOpen] = useState(false);
-  const where = skill.site ?? (skill.module ? modules[skill.module] ?? "a module" : "");
-  const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
-  return (
-    <div className="card card--pad intel__card">
-      <div className="intel__head">
-        <h3>
-          {onOpen ? (
-            <button type="button" className="linkbtn" onClick={onOpen}>
-              {skill.description}
-            </button>
-          ) : (
-            skill.description
-          )}
-        </h3>
-        <Badge tone={skill.health === "ok" ? "good" : skill.health === "broken" ? "bad" : "gray"}>{health}</Badge>
-      </div>
-      <p className="muted">
-        <Badge tone="info" style={{ marginRight: 8 }}>
-          {KIND_LABEL[skill.kind]}
-        </Badge>
-        {where ? `${where} · ` : ""}version {skill.version}
-        {skill.effect ? ` · ${skill.effect === "send" ? "sends, asks every time" : "prepares, stays in your account"}` : ""}
-        {skill.last_run_at ? ` · last ${skill.kind === "read" ? `read ${skill.last_count ?? 0} rows` : "run"} ${when(skill.last_run_at)}` : ""}
-      </p>
-      {skill.when_to_use ? <p className="faint">When: {skill.when_to_use}</p> : null}
-      {skill.last_problem ? <p className="notice" style={{ fontSize: "var(--text-sm)" }}>{skill.last_problem}</p> : null}
-      {skill.notes ? (
-        <>
-          <Button size="sm" style={{ marginTop: 6 }} onClick={() => setOpen(!open)}>
-            {open ? "Hide notes" : "Alpha's notes"}
-          </Button>
-          {open ? <div className="people__page" style={{ marginTop: 8 }}>{skill.notes}</div> : null}
-        </>
-      ) : null}
-    </div>
-  );
-}
-
 function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onChanged: () => void }) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(note.body);
@@ -332,6 +292,9 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
       .then((list) => setModules(Object.fromEntries(list.map((m) => [m.id, m.name]))))
       .catch(() => setModules({}));
   }, [client, version]);
+  // Skills as a table (section 7a): the columns and the rows, kept the same until either changes
+  const skillTable = useMemo(() => skillsTable(data?.skills ?? [], modules), [data, modules]);
+  const skillRows = useMemo(() => skillsHeld(data?.skills ?? [], modules), [data, modules]);
   return (
     <div className="page">
       <div className="home__head">
@@ -346,7 +309,9 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
       ) : tab === "skills" ? (
         <div className="intel">
           {data.skills.length ? (
-            data.skills.map((s) => <SkillCard key={s.name} skill={s} modules={modules} onOpen={onGo ? () => onGo({ kind: "skill", name: s.name }) : undefined} />)
+            <div className="intel__table">
+              <DataPage client={client} table={skillTable} held={skillRows} version={version} onChanged={onChanged} onOpenRecord={onGo ? (_t, name) => onGo({ kind: "skill", name }) : undefined} />
+            </div>
           ) : (
             <div className="card card--pad intel__card modcard--new">
               <b>Skills Alpha learns</b>

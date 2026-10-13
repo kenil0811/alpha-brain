@@ -373,7 +373,31 @@ Removed modules empty and Help's keys, the workspace's rename); `just check-desk
 pages clean at every size (`docs/checks/2026-10-13-1251.md`). The Mac app rebuilt and seen on
 Settings (both stacks in WebKit). "ok".
 
+## Section 7a: Intelligence's skills as a table (13 Oct, this commit)
+
+Section 7 proposed in writing in four steps (7a skills, 7b connections, 7c agents with a look
+each, 7d facts as a table; the Map's World view already is the graph, kept; no saved lists on
+these tables for now). Kenil: "yes, do 7a, stop after and i will review". Built:
+
+- **The data view draws rows it is handed** (`HeldRows` in `DataPage`): read-only (no editor
+  opens, no ticks, Add, saved lists or Download), the toolbar's end says why; everything else of
+  the view works (column menus, search, sorts, groups, colours, views, paging, the working state
+  per session). Default colours can come with the rows. A program module's own table is now
+  read-only the same way (its cells opened an editor that couldn't save; its Board's drag wrote).
+- **Skills** (`shell/intel/skillsTable.ts`): Name, Kind (Reader, Action, Run), Module (only when
+  some skill has one), Site, What it does, Health (main's words: Working, Being repaired, Not tried
+  yet; green, red, grey until the person colours it), Last run, Rows last read. The › opens the
+  skill's page; the cards went (everything they showed is on that page). The built-in hands stay
+  as cards under the table.
+
+What ran: `just lint` clean; 150 desktop tests in 33 files (2 new: the rows in words and the
+module column only when used; read-only in the view with health coloured and › opening the
+page); `just check-desktop`: 81 of 81 pages clean at every size (`docs/checks/2026-10-13-1309.md`).
+In the browser pane on the check copy: the Kind menu's ticklist (22 readers, 3 actions, 4 runs),
+the pills, paging (19 of 29 on page 1). The Mac app rebuilt and seen on Skills. "ok commit it,
+then do 7b".
+
 ## Left
 
-Section 7 (Intelligence) proposed in writing next; then 8 the assistant panel, 9 plain errors,
-absolute dates, delete confirms.
+7b (connections as a table) next; then 7c, 7d; 8 the assistant panel, 9 plain errors, absolute
+dates, delete confirms.

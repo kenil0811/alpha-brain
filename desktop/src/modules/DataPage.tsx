@@ -130,9 +130,20 @@ function withQuickFilters(rules: Rules, quick: Record<string, string>): Rules {
   return extra.length ? { ...rules, rules: [...rules.rules, ...extra] } : rules;
 }
 
+/** Rows the window already holds, drawn by the same view as a table the core keeps (13 Oct, Q42
+ *  section 7a: Intelligence's skills): read-only, without saved lists, ticks or a download;
+ *  `words` says why at the toolbar's end. `table` then only describes the columns. */
+export interface HeldRows {
+  /** Kept the same between renders (a memo): a new one loads the rows again. */
+  load: () => Promise<RecordRow[]>;
+  words: string;
+  /** The colours the table wears until the person sets their own (a skill's health). */
+  colours?: Colours;
+}
+
 /** `onOpenRecord` opens a record's own page (a row of this table, or a related one followed
  *  from a cell); without it a row opens nothing. */
-export function DataPage({ client, table, version, onChanged, onSay, onOpenRecord }: { client: Client; table: TableDesc; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void }) {
+export function DataPage({ client, table, held, version, onChanged, onSay, onOpenRecord }: { client: Client; table: TableDesc; held?: HeldRows; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void }) {
   const fields = table.fields as FieldInfo[];
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
   const key = `alpha.page.${table.name}`;
@@ -181,7 +192,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [footers, setFooters] = useState<Record<string, FooterOp>>(restored?.footers ?? {});
   // the table's colours (section 4d): the table's, not a list's, so kept with the core's preferences
   const coloursKey = `colours_${table.name}`.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 64);
-  const [colours, setColoursState] = useState<Colours>(NO_COLOURS);
+  const [colours, setColoursState] = useState<Colours>(held?.colours ?? NO_COLOURS);
   useEffect(() => {
     let live = true;
     Promise.resolve()
@@ -217,7 +228,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [pasting, setPasting] = useState<PastePlan | null>(null);
   const [adding, setAdding] = useState(false);
   // A program module's own table (Q38) is read from its database: no adding, editing or removing here.
-  const readonly = Boolean(table.readonly);
+  const readonly = Boolean(table.readonly) || Boolean(held);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { y: now.getFullYear(), m: now.getMonth() };
@@ -242,6 +253,16 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const searchable = useMemo(() => fields.filter((f) => f.kind === "text" || f.kind === "long_text" || f.kind === "url").map((f) => f.name), [fields]);
 
   const load = useCallback(() => {
+    if (held) {
+      held
+        .load()
+        .then((records) => {
+          setAll(records);
+          setError(null);
+        })
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      return;
+    }
     client
       .table(table.name)
       .then(async (result) => {
@@ -269,7 +290,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
         setLists(kept);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [client, table.name, key]);
+  }, [client, table.name, key, held]);
   useEffect(load, [load, version]);
 
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters: NO_FILTERS, rules, byName, hideDone, statusField, showGone, sorts }) : null), [all, search, searchable, rules, byName, hideDone, showGone, statusField, sorts]);
@@ -456,7 +477,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     setStatus(problem ? { ok: false, text: `Removed ${done} of ${chosen.length}; then: ${problem}` } : { ok: true, text: `Removed ${done} ${done === 1 ? "row" : "rows"}.` });
   }
   function move(row: RecordRow, field: FieldInfo, value: string) {
-    if ((row.values[field.name] ?? null) === value) return;
+    if (readonly || (row.values[field.name] ?? null) === value) return;
     void run(() => client.editRecord(table.name, row.id, { [field.name]: value }, row.revision), "Couldn't move it");
   }
 
@@ -567,6 +588,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               ))}
             </select>
           ) : null}
+          {held ? null : (
           <ListTabs
             lists={lists}
             current={listId}
@@ -578,6 +600,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
             onDefault={starList}
             onRemove={dropList}
           />
+          )}
           <ViewState
             board={view === "board"}
             groupedBy={view === "board" ? (groupField ? labelOf(groupField) : null) : view === "table" && tableGroupField ? labelOf(tableGroupField) : null}
@@ -591,7 +614,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
           />
           <span className="spacer" />
           {readonly ? (
-            <span className="faint">Built by the module · read-only</span>
+            <span className="faint">{held ? held.words : "Built by the module · read-only"}</span>
           ) : (
             <Button size="sm" variant="primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
               {adding ? "Cancel" : "Add"}
@@ -599,13 +622,17 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
           )}
           <Popover label="Table options" trigger={<IconButton label="More" icon={<MoreHorizontal />} />}>
             <div>
-                <div className="menu__head">Download</div>
-                <button type="button" className="menu__item" onClick={() => void exportAs("csv")}>
-                  As CSV
-                </button>
-                <button type="button" className="menu__item" onClick={() => void exportAs("xlsx")}>
-                  As Excel
-                </button>
+                {held ? null : (
+                  <>
+                    <div className="menu__head">Download</div>
+                    <button type="button" className="menu__item" onClick={() => void exportAs("csv")}>
+                      As CSV
+                    </button>
+                    <button type="button" className="menu__item" onClick={() => void exportAs("xlsx")}>
+                      As Excel
+                    </button>
+                  </>
+                )}
                 <div className="menu__head">Columns</div>
                 {[...shownColumns, ...fields.map((f) => f.name).filter((n) => !shownColumns.includes(n))].map((name) => {
                   const at = shownColumns.indexOf(name);
@@ -699,13 +726,14 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               onColours={setColours}
               onOpen={openRow}
               onCommit={commit}
+              readonly={readonly}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}
               files={files}
               onFile={(row, field, file) => void addFile(row, field, file)}
               selected={selected}
-              selection={{ count: selected.size, onRemove: readonly ? undefined : () => setRemoving(true), onClear: () => setSelected(new Set()), setFields: readonly ? undefined : fields.filter((f) => settable(f, titleField)), onSet: readonly ? undefined : setOnSelected }}
-              onSelect={(id, on) => setSelected((s) => { const next = new Set(s); if (on) next.add(id); else next.delete(id); return next; })}
-              onSelectAll={(on) => setSelected((s) => { const next = new Set(s); for (const r of shownRows ?? []) if (on) next.add(r.id); else next.delete(r.id); return next; })}
+              selection={held ? undefined : { count: selected.size, onRemove: readonly ? undefined : () => setRemoving(true), onClear: () => setSelected(new Set()), setFields: readonly ? undefined : fields.filter((f) => settable(f, titleField)), onSet: readonly ? undefined : setOnSelected }}
+              onSelect={held ? undefined : (id, on) => setSelected((s) => { const next = new Set(s); if (on) next.add(id); else next.delete(id); return next; })}
+              onSelectAll={held ? undefined : (on) => setSelected((s) => { const next = new Set(s); for (const r of shownRows ?? []) if (on) next.add(r.id); else next.delete(r.id); return next; })}
               relations={relations}
               onOpenRelated={onOpenRecord}
             />

@@ -41,7 +41,9 @@ export function RelationCell({ row, field, relations, onOpenRelated }: { row: Re
   );
 }
 
-export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, tone }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; tone?: "good" | "warn" | "bad" | "info" | "gray" | null; onOpenRelated?: (collection: string, id: string) => void }) {
+/** Without `onCommit` the cell is read-only: no editor opens (a table the window is handed, or a
+ *  program module's own). */
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, tone }: { row: RecordRow; field: FieldInfo; onCommit?: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; tone?: "good" | "warn" | "bad" | "info" | "gray" | null; onOpenRelated?: (collection: string, id: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} />;
@@ -54,13 +56,14 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
   const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
   function begin(e?: { stopPropagation: () => void }) {
+    if (!onCommit) return;
     e?.stopPropagation();
     setText(editText(value, field.kind));
     setEditing(true);
   }
   function finish(commit: boolean) {
     setEditing(false);
-    if (commit) onCommit(text);
+    if (commit) onCommit?.(text);
   }
   function key(e: KeyboardEvent) {
     if (e.key === "Enter" && field.kind !== "long_text") finish(true);
@@ -98,7 +101,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   // should not open the page").
   return (
     <td
-      className={`${numeric ? "r num" : ""} editable`.trim()}
+      className={`${numeric ? "r num" : ""}${onCommit ? " editable" : ""}`.trim()}
       onDoubleClick={(e) => begin(e)}
       tabIndex={0}
       onKeyDown={(e) => {
@@ -107,7 +110,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
           begin(e);
         }
       }}
-      title={rests ? `${rests} Double-click to correct it.` : "Double-click to edit"}
+      title={!onCommit ? rests || undefined : rests ? `${rests} Double-click to correct it.` : "Double-click to edit"}
     >
       {words === "" ? <span className={tone ? `toned toned--${tone}` : "faint"}>—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill pill--${tone ?? (field.done_choices?.includes(String(value)) ? "good" : "gray")}`}>{words}</span> : field.kind === "bool" ? (value ? "✓" : <span className="faint">—</span>) : tone ? <span className={`toned toned--${tone}`}>{words}</span> : words}
       {estimate ? (

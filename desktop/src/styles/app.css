@@ -1056,3 +1056,6 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .setkeys > div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: baseline; }
 .setkeys dd { margin: 0; font-size: var(--text-md); color: var(--text-2); }
 .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); padding: 1px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; background: var(--surface-2); color: var(--text); white-space: nowrap; }
+
+/* Intelligence's lists as tables (13 Oct, Q42 section 7): the table spans the tab's width. */
+.intel__table { grid-column: 1 / -1; min-width: 0; }
