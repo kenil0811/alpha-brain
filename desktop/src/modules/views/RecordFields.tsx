@@ -4,8 +4,8 @@
  *  what Alpha can do with the record: the parts that run when asked, and Try again for a part
  *  that could not fill its fields. */
 import type { Part, Provenance, RecordRow, Relations } from "../../core/client";
-import type { FieldInfo } from "../fields";
-import { dayText, humanize, when as whenText } from "../format";
+import { fieldLabel, type FieldInfo } from "../fields";
+import { dayText, when as whenText } from "../format";
 import { useState } from "react";
 import { Button } from "../../ui";
 import { Cell, LongText } from "./cells";
@@ -25,7 +25,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
             const origin = row.provenance.fields?.[f.name];
             return (
               <tr key={f.name}>
-                <th scope="row">{humanize(f.name)}</th>
+                <th scope="row">{fieldLabel(f)}</th>
                 <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} />
                 {origin ? <FieldOrigin origin={origin} /> : <td />}
               </tr>
@@ -52,7 +52,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
         return (
           <div key={f.name} className="drawer__long">
             <h4>
-              {humanize(f.name)}
+              {fieldLabel(f)}
               {origin?.source && row.values[f.name] != null ? <span className="faint origin"> · from {origin.source}</span> : null}
             </h4>
             {origin?.problem && row.values[f.name] == null ? <p className="origin origin--problem">Not filled: {origin.problem}</p> : null}

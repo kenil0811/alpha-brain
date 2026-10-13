@@ -207,6 +207,17 @@ def _view(row: sqlite3.Row) -> dict[str, Any]:
     return out
 
 
+def _things_named_apart(title: str, body: dict[str, Any]) -> None:
+    """A thing kept never has the workflow's own name, which the module it builds will carry
+    (13 Oct, slice 2 A2: a build made "Deals" inside "Deals"); refused while the page is written,
+    so the thing is named for what each row is instead."""
+    own = title.strip().lower()
+    for k in body.get("keeps") or []:
+        if str(k.get("thing", "")).strip().lower() == own:
+            raise Problem(f"\"{k['thing']}\" is the workflow's own name, which its module will"
+                          " carry; name the thing for what each row is (e.g. 'Listings').")
+
+
 class Workflows:
     def __init__(self, store: Store) -> None:
         self.store = store
@@ -218,6 +229,7 @@ class Workflows:
             raise Problem("A workflow needs a title: the task, in the person's words.")
         clean = clean_body(body)
         clean.pop("dropped", None)
+        _things_named_apart(title, clean)
         wid = new_id("wf")
         stamp = now()
         with self.store.tx() as db:
@@ -236,6 +248,7 @@ class Workflows:
             raise Problem(f"The workflow '{current['title']}' is {current['state']}.")
         clean = clean_body(body, previous=current["body"])
         dropped = clean.pop("dropped", [])
+        _things_named_apart(current["title"], clean)
         stamp = now()
         with self.store.tx() as db:
             db.execute(
@@ -352,6 +365,29 @@ class Workflows:
         row = self.store.one("SELECT * FROM workflows WHERE module = ? AND state != 'removed'"
                              " ORDER BY created_at DESC LIMIT 1", (module,))
         return _view(row) if row else None
+
+    def follow_field(self, module: str, table: str, field: dict[str, Any], why: str
+                     ) -> dict[str, Any] | None:
+        """A field the person added or renamed on one of the module's tables (13 Oct, slice 2
+        B1, B2) goes onto its workflow page as a new version, the one before kept: the thing
+        the table was made for gains the field, or its label. Nothing when the module has no
+        page or the table was not made from one of its things."""
+        wf = self.of_module(module)
+        if wf is None or wf["state"] in ("declined", "removed"):
+            return None
+        body = json.loads(json.dumps(wf["body"]))
+        thing = next((k for k in body.get("keeps") or []
+                      if table == k["key"] or table.endswith(f"_{k['key']}")), None)
+        if thing is None:
+            return None
+        fields = thing.setdefault("fields", [])
+        hit = next((f for f in fields if f.get("name") == field["name"]), None)
+        if hit is not None:
+            hit["label"] = field.get("label") or hit.get("label")
+        else:
+            fields.append({"name": field["name"], "label": field.get("label") or field["name"],
+                           "kind": field.get("kind", "text"), "unit": field.get("unit")})
+        return self.revise(wf["id"], body, why=why)
 
     def versions(self, wid: str) -> list[dict[str, Any]]:
         rows = self.store.all("SELECT * FROM workflow_versions WHERE workflow = ?"

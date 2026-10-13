@@ -1,8 +1,7 @@
 /** Cards in a grid: the title, a few values, a link when there is one; for browsing rather
  *  than scanning. */
 import type { RecordRow } from "../../core/client";
-import { showValue, type FieldInfo } from "../fields";
-import { humanize } from "../format";
+import { fieldLabel, showValue, type FieldInfo } from "../fields";
 
 export function GalleryView({ rows, fields, titleField, onOpen }: { rows: RecordRow[]; fields: FieldInfo[]; titleField: string | undefined; onOpen: (id: string) => void }) {
   const shown = fields.filter((f) => f.name !== titleField && f.kind !== "long_text" && f.kind !== "file").slice(0, 4);
@@ -17,7 +16,7 @@ export function GalleryView({ rows, fields, titleField, onOpen }: { rows: Record
             if (!words) return null;
             return (
               <span key={f.name} className="gallery__line">
-                <span className="faint">{f.label ?? humanize(f.name)}</span> {words}
+                <span className="faint">{fieldLabel(f)}</span> {words}
               </span>
             );
           })}

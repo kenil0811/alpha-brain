@@ -7,12 +7,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } from "../core/client";
 import { host } from "../core/host";
-import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
+import { DATE_KINDS, coerce, fieldLabel, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
 import { Button, Confirm, IconButton, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type Colours, type FooterOp, type Rules, type Sort, NO_COLOURS } from "./views/engine";
-import { settable, ViewState } from "./views/RulesUI";
+import { AddFieldButton, settable, ViewState, type NewField } from "./views/RulesUI";
 import { parseClipboard, planPaste, type PastePlan } from "./views/paste";
 import { ListTabs } from "./views/ListTabs";
 import { ViewPicker } from "./views/ViewPicker";
@@ -121,7 +121,7 @@ function sameView(a: SavedList["config"], b: SavedList["config"]): boolean {
 }
 
 /** A field's name for the eye: its own label when it has one, else its name in words. */
-const labelOf = (f: FieldInfo) => (f.label && f.label !== f.name ? f.label : humanize(f.name));
+const labelOf = fieldLabel;
 
 const NO_RULES: Rules = { match: "all", rules: [] };
 const NO_FILTERS: Record<string, string> = {};
@@ -459,7 +459,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
     }
     load();
     onChanged();
-    setStatus(problem ? { ok: false, text: `Set on ${done} of ${chosen.length}; then: ${problem}` } : { ok: true, text: `Set ${humanize(field.name)} on ${done} ${done === 1 ? "row" : "rows"}.` });
+    setStatus(problem ? { ok: false, text: `Set on ${done} of ${chosen.length}; then: ${problem}` } : { ok: true, text: `Set ${fieldLabel(field)} on ${done} ${done === 1 ? "row" : "rows"}.` });
     return { done, problem };
   }
   /** Remove every selected row, one at a time, and say how many went when any refused. */
@@ -555,6 +555,34 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
     applyList("all");
   }
 
+  const colLabel = (name: string) => (byName.get(name) ? fieldLabel(byName.get(name)!) : humanize(name));
+  // fields by hand (slice 2 B1, B2): the person's own edits; the page reads the table again
+  const addField = async (field: NewField): Promise<string | null> => {
+    try {
+      await client.addField(table.name, field);
+      onChanged();
+      return null;
+    } catch (e) {
+      return say(e);
+    }
+  };
+  const renameField = async (field: string, label: string): Promise<string | null> => {
+    try {
+      await client.renameField(table.name, field, label);
+      onChanged();
+      return null;
+    } catch (e) {
+      return say(e);
+    }
+  };
+  /** A row added by hand, then its files (slice 2 B6): the record first, each file attached
+   *  to it after, so a file can be chosen before the row exists. */
+  async function addRow(values: Record<string, unknown>, files: Record<string, File>): Promise<boolean> {
+    return run(async () => {
+      const saved = await client.addRecord(table.name, values);
+      for (const [field, file] of Object.entries(files)) await client.addFiles([file], { table: table.name, record: saved.id, field });
+    }, "Couldn't add it");
+  }
   const openRow = (id: string) => onOpenRecord?.(table.name, id);
   const shownColumns = columns.filter((c) => byName.has(c));
   const filterCount = activeRules(rules, byName).length + (hideDone ? 1 : 0);
@@ -589,7 +617,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
             <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
               {dateFields.map((f) => (
                 <option key={f.name} value={f.name}>
-                  By {humanize(f.name).toLowerCase()}
+                  By {fieldLabel(f).toLowerCase()}
                 </option>
               ))}
             </select>
@@ -645,12 +673,12 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
                   return (
                     <div key={name} className="menu__item menu__item--col">
                       <label>
-                        <input type="checkbox" checked={at >= 0} onChange={(e) => setHidden((h) => (e.target.checked ? h.filter((n) => n !== name) : [...h, name]))} /> {humanize(name)}
+                        <input type="checkbox" checked={at >= 0} onChange={(e) => setHidden((h) => (e.target.checked ? h.filter((n) => n !== name) : [...h, name]))} /> {colLabel(name)}
                       </label>
                       {at >= 0 ? (
                         <span className="menu__arrows">
-                          <IconButton size="sm" label={`Move ${humanize(name)} left`} icon={<ArrowLeft />} disabled={at === 0} onClick={() => moveColumn(name, -1)} />
-                          <IconButton size="sm" label={`Move ${humanize(name)} right`} icon={<ArrowRight />} disabled={at === shownColumns.length - 1} onClick={() => moveColumn(name, 1)} />
+                          <IconButton size="sm" label={`Move ${colLabel(name)} left`} icon={<ArrowLeft />} disabled={at === 0} onClick={() => moveColumn(name, -1)} />
+                          <IconButton size="sm" label={`Move ${colLabel(name)} right`} icon={<ArrowRight />} disabled={at === shownColumns.length - 1} onClick={() => moveColumn(name, 1)} />
                         </span>
                       ) : null}
                     </div>
@@ -664,12 +692,12 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
             </div>
           </Popover>
         </div>
-        {adding && !readonly ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
+        {adding && !readonly ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={addRow} /> : null}
         <Confirm open={Boolean(pasting)} danger={false} title={pasting ? `Paste ${pasting.lines} ${pasting.lines === 1 ? "row" : "rows"} × ${pasting.width} ${pasting.width === 1 ? "column" : "columns"}?` : ""} action="Paste" onConfirm={() => pasting && void writePaste(pasting)} onCancel={() => setPasting(null)}>
           {pasting ? (
             <>
               <p>
-                Into {pasting.columns.map((c) => humanize(c)).join(", ") || "no column"}
+                Into {pasting.columns.map((c) => colLabel(c)).join(", ") || "no column"}
                 {pasting.updates.length ? `, on ${pasting.updates.length} ${pasting.updates.length === 1 ? "row" : "rows"}` : ""}.
                 {pasting.replaced ? ` ${pasting.replaced} ${pasting.replaced === 1 ? "value replaces" : "values replace"} what's there.` : ""}
                 {pasting.adds.length ? ` ${pasting.adds.length} new ${pasting.adds.length === 1 ? "row is" : "rows are"} added for the lines past the end.` : ""}
@@ -733,6 +761,8 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               onOpen={openRow}
               canOpen={Boolean(onOpenRecord)}
               rowActions={held?.actions}
+              addField={readonly ? undefined : <AddFieldButton onAdd={addField} />}
+              onRename={readonly ? undefined : renameField}
               rowIcon={held?.icon}
               onCommit={commit}
               readonly={readonly}

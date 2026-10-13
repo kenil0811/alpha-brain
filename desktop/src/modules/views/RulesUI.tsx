@@ -11,8 +11,8 @@
 import { useState, type ReactNode } from "react";
 import type { RecordRow } from "../../core/client";
 import { Button, IconButton, Popover } from "../../ui";
-import { Check, ChevronDown, ColumnMenuIcon } from "../../ui/icons";
-import { isNumeric, type FieldInfo } from "../fields";
+import { Check, ChevronDown, ColumnMenuIcon, PlusIcon } from "../../ui/icons";
+import { fieldLabel, isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 import { FOOTER_WORDS, footerOpsFor, groupable, needsValue, OP_WORDS, opsFor, TONE_WORDS, type Colours, type FilterOp, type FilterRule, type FooterOp, type Tone } from "./engine";
 
@@ -31,7 +31,7 @@ function Ticklist({ field, rows, rule, onRule }: { field: FieldInfo; rows: Recor
   const kept = new Set(rule?.op === "in" && rule.values ? rule.values : all);
   const set = (next: Set<string>) => onRule(next.size === all.length ? null : { field: field.name, op: "in", value: "", values: all.filter((v) => next.has(v)) });
   return (
-    <div className="colmenu__list" role="group" aria-label={`Values of ${humanize(field.name)}`}>
+    <div className="colmenu__list" role="group" aria-label={`Values of ${fieldLabel(field)}`}>
       <label className="menu__item">
         <input type="checkbox" checked={kept.size === all.length} onChange={(e) => set(new Set(e.target.checked ? all : []))} /> Select all
       </label>
@@ -81,20 +81,51 @@ function Condition({ field, rule, onRule }: { field: FieldInfo; rule?: FilterRul
 }
 
 /** `grouped`/`onGroup`: the column can group the table (section 3b): Group by this column, or Ungroup. */
-export function ColumnMenu({ field, rows, rule, onRule, extra, grouped, onGroup, colours, onColours }: { field: FieldInfo; rows: RecordRow[]; rule?: FilterRule; onRule: (r: FilterRule | null) => void; extra?: ReactNode; grouped?: boolean; onGroup?: (on: boolean) => void; colours?: Colours; onColours?: (c: Colours) => void }) {
-  const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
+/** `onRename`: the column's name can be changed here (slice 2 B2); resolves to null or why not. */
+export function ColumnMenu({ field, rows, rule, onRule, extra, grouped, onGroup, colours, onColours, onRename }: { field: FieldInfo; rows: RecordRow[]; rule?: FilterRule; onRule: (r: FilterRule | null) => void; extra?: ReactNode; grouped?: boolean; onGroup?: (on: boolean) => void; colours?: Colours; onColours?: (c: Colours) => void; onRename?: (label: string) => Promise<string | null> }) {
+  const name = fieldLabel(field);
   const on = Boolean(rule) || Boolean(grouped);
   const kind = field.kind;
   const [open, setOpen] = useState(false);
   const [colouring, setColouring] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameProblem, setRenameProblem] = useState<string | null>(null);
   const colourable = Boolean(colours && onColours) && (kind === "choice" || kind === "status" || isNumeric(kind) || kind === "date" || kind === "datetime" || kind === "text" || kind === "url");
   return (
     <span className={`th__menu${on ? " th__menu--on" : ""}`}>
-      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setColouring(false); }} label={`${name}: filter`} align="end" trigger={<IconButton size="sm" label={`Filter ${name}`} icon={<ColumnMenuIcon />} />}>
-        {colouring && colours && onColours ? (
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setColouring(false); setRenaming(false); setRenameProblem(null); } }} label={`${name}: filter`} align="end" trigger={<IconButton size="sm" label={`Filter ${name}`} icon={<ColumnMenuIcon />} />}>
+        {renaming && onRename ? (
+          <form
+            className="colmenu fieldform"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const text = String(new FormData(e.currentTarget).get("label") ?? "");
+              void onRename(text).then((err) => (err ? setRenameProblem(err) : setOpen(false)));
+            }}
+          >
+            <label className="fieldform__row">
+              <span>Name</span>
+              <input className="textfield" name="label" defaultValue={name} autoFocus aria-label={`New name for ${name}`} onFocus={(e) => e.currentTarget.select()} />
+            </label>
+            {renameProblem ? <p className="notice" role="alert">{renameProblem}</p> : null}
+            <div className="row">
+              <Button size="sm" variant="primary" type="submit">
+                Rename
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setRenaming(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : colouring && colours && onColours ? (
           <ColourEditor field={field} rows={rows} colours={colours} onColours={onColours} />
         ) : (
         <div className="colmenu">
+          {onRename ? (
+            <button type="button" className="menu__item" onClick={() => setRenaming(true)}>
+              Rename…
+            </button>
+          ) : null}
           {colourable ? (
             <button type="button" className="menu__item" onClick={() => setColouring(true)}>
               Colours…
@@ -152,7 +183,7 @@ function ToneSelect({ value, onChange, label }: { value: Tone | null; onChange: 
  *  (text too since 13 Oct, at Kenil's ask: "contains London", "is empty"). */
 function ColourEditor({ field, rows, colours, onColours }: { field: FieldInfo; rows: RecordRow[]; colours: Colours; onColours: (c: Colours) => void }) {
   const kind = field.kind;
-  const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
+  const name = fieldLabel(field);
   const clear = () => {
     const { [field.name]: _v, ...values } = colours.values;
     const { [field.name]: _r, ...rules } = colours.rules;
@@ -289,7 +320,7 @@ export function ViewState({ groupedBy, groupValue, groupOptions, board, count, m
  *  another (Sum, Average, Lowest, Highest, Count, Empty, Filled, Unique, Earliest, Latest, None). */
 export function FooterCell({ field, op, value, onOp, first }: { field: FieldInfo; op: FooterOp; value: string | null; onOp: (op: FooterOp) => void; first: boolean }) {
   const [open, setOpen] = useState(false);
-  const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
+  const name = fieldLabel(field);
   return (
     <Popover open={open} onOpenChange={setOpen} label={`${name}: total`} align="start" trigger={
       <button type="button" className={`footcell${op === "none" ? " footcell--none" : ""}`} aria-label={op === "none" ? `Choose a total for ${name}` : `${name}: ${FOOTER_WORDS[op]} ${value}`}>
@@ -332,7 +363,7 @@ export function SetOnRows({ fields, count, onSet }: { fields: FieldInfo[]; count
     if (out.problem) setSaid(`Set on ${out.done} of ${count}; then: ${out.problem}`);
     else setOpen(false);
   };
-  const label = (f: FieldInfo) => (f.label && f.label !== f.name ? f.label : humanize(f.name));
+  const label = fieldLabel;
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSaid(null); }} label="Set a field on the ticked rows" align="start" trigger={<Button size="sm">Set…</Button>}>
       <div className="colmenu colmenu__cond">
@@ -365,6 +396,120 @@ export function SetOnRows({ fields, count, onSet }: { fields: FieldInfo[]; count
         </Button>
         {said ? <p className="notice" role="alert">{said}</p> : null}
       </div>
+    </Popover>
+  );
+}
+
+/** What a person adds a field as (slice 2 B1): the kinds a table holds, in words. A link to
+ *  another table is made by asking Alpha (it needs the table and how they relate). */
+const ADD_KINDS: { kind: string; words: string }[] = [
+  { kind: "text", words: "Text" },
+  { kind: "long_text", words: "Long text" },
+  { kind: "number", words: "Number" },
+  { kind: "date", words: "Date" },
+  { kind: "datetime", words: "Date and time" },
+  { kind: "bool", words: "Yes or no" },
+  { kind: "choice", words: "One choice" },
+  { kind: "multichoice", words: "Several choices" },
+  { kind: "status", words: "Status" },
+  { kind: "url", words: "Web address" },
+  { kind: "file", words: "File" },
+];
+
+export interface NewField {
+  label: string;
+  kind: string;
+  choices?: string[];
+  done_choices?: string[];
+  unit?: string;
+}
+
+/** The + at the end of a table's header row: a small form, name and kind (and the options of a
+ *  choice or status, the unit of a number); the new field goes at the end, empty on every row. */
+export function AddFieldButton({ onAdd }: { onAdd: (field: NewField) => Promise<string | null> }) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [kind, setKind] = useState("text");
+  const [options, setOptions] = useState("");
+  const [done, setDone] = useState<string[]>([]);
+  const [unit, setUnit] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const choices = options.split("\n").map((o) => o.trim()).filter(Boolean);
+  const hasChoices = kind === "choice" || kind === "multichoice" || kind === "status";
+  const reset = () => {
+    setLabel("");
+    setKind("text");
+    setOptions("");
+    setDone([]);
+    setUnit("");
+    setProblem(null);
+  };
+  async function add() {
+    setBusy(true);
+    const err = await onAdd({ label, kind, ...(hasChoices ? { choices } : {}), ...(kind === "status" ? { done_choices: done.filter((d) => choices.includes(d)) } : {}), ...(kind === "number" && unit.trim() ? { unit: unit.trim() } : {}) });
+    setBusy(false);
+    if (err) setProblem(err);
+    else {
+      reset();
+      setOpen(false);
+    }
+  }
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }} label="Add a field" align="end" trigger={<IconButton size="sm" label="Add a field" icon={<PlusIcon />} />}>
+      <form className="colmenu fieldform" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+        <div className="menu__head">Add a field</div>
+        <label className="fieldform__row">
+          <span>Name</span>
+          <input className="textfield" value={label} onChange={(e) => setLabel(e.target.value)} autoFocus placeholder="e.g. Asking price" aria-label="The field's name" />
+        </label>
+        <label className="fieldform__row">
+          <span>Kind</span>
+          <select className="btn btn--sm" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="The field's kind">
+            {ADD_KINDS.map((k) => (
+              <option key={k.kind} value={k.kind}>
+                {k.words}
+              </option>
+            ))}
+          </select>
+        </label>
+        {kind === "number" ? (
+          <label className="fieldform__row">
+            <span>Unit</span>
+            <input className="textfield" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="optional, e.g. $ or kcal" aria-label="The number's unit" />
+          </label>
+        ) : null}
+        {hasChoices ? (
+          <label className="fieldform__row fieldform__row--top">
+            <span>Options</span>
+            <textarea className="textfield" rows={3} value={options} onChange={(e) => setOptions(e.target.value)} placeholder={"One per line"} aria-label="The options, one per line" />
+          </label>
+        ) : null}
+        {kind === "status" && choices.length ? (
+          <div className="fieldform__row fieldform__row--top">
+            <span>Done means</span>
+            <ul className="check" aria-label="The options that mean done">
+              {choices.map((c) => (
+                <li key={c}>
+                  <label>
+                    <input type="checkbox" checked={done.includes(c)} onChange={(e) => setDone((d) => (e.target.checked ? [...d, c] : d.filter((x) => x !== c)))} /> {c}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {problem ? <p className="notice" role="alert">{problem}</p> : null}
+        <div className="row">
+          <Button size="sm" variant="primary" type="submit" disabled={busy || !label.trim()}>
+            {busy ? "Adding…" : "Add field"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </div>
+        <p className="faint fieldform__note">A link to another table: ask Alpha, saying which table and how they relate.</p>
+      </form>
     </Popover>
   );
 }

@@ -13,12 +13,14 @@ from typing import Any
 from fastapi import FastAPI, Form, UploadFile
 
 from alpha.api.bodies import (
+    AddFieldBody,
     AskBody,
     CreateModuleBody,
     ExportBody,
     ListBody,
     MoveModuleBody,
     RecordBody,
+    RelabelFieldBody,
     RenameModuleBody,
     RunPartBody,
 )
@@ -319,6 +321,46 @@ def routes(app: FastAPI, s: Served) -> None:
     def person_did(kind: str, text: str, collection: str, data: dict[str, Any]) -> None:
         world.journal.append(kind, text, actor="person", data={"collection": collection, **data},
                              module=world.collections.describe(collection)["module"])
+
+    def _own_table(name: str) -> dict[str, Any]:
+        if is_qualified(name):
+            raise Problem("This table is built by its module's program and read from it; its"
+                          " fields change by asking Alpha.")
+        return world.collections.describe(name)
+
+    def _follow(desc: dict[str, Any], field: dict[str, Any], why: str) -> None:
+        """The module's workflow page follows the person's change (a new version, B1)."""
+        if desc.get("module"):
+            world.workflows.follow_field(desc["module"], desc["name"], field, why)
+
+    @app.post("/api/tables/{name}/fields", dependencies=[api])
+    def add_field(name: str, body: AddFieldBody) -> dict[str, Any]:
+        """A field the person adds (13 Oct, slice 2 B1): the person's own edit, journaled; the
+        rows already there read as empty in it."""
+        _own_table(name)
+        desc = world.collections.add_field(name, body.label, body.kind, choices=body.choices,
+                                           done_choices=body.done_choices,
+                                           relation=body.relation, unit=body.unit)
+        field = desc["fields"][-1]
+        why = f"You added the field {field['label']} to {desc['title']}."
+        world.journal.append("changed", why, actor="person", module=desc["module"],
+                             data={"collection": name, "field": field["name"]})
+        _follow(desc, field, why)
+        return desc
+
+    @app.post("/api/tables/{name}/fields/{field}/rename", dependencies=[api])
+    def rename_field(name: str, field: str, body: RelabelFieldBody) -> dict[str, Any]:
+        """A field's name for the eye, changed by the person (B2): its id, which the rows,
+        lists and colours keep, stays."""
+        before = next((f for f in _own_table(name)["fields"] if f["name"] == field), None)
+        desc = world.collections.relabel_field(name, field, body.label)
+        after = next(f for f in desc["fields"] if f["name"] == field)
+        old = (before or {}).get("label") or field.replace("_", " ").capitalize()
+        why = f"You renamed the field {old} to {after['label']} in {desc['title']}."
+        world.journal.append("changed", why, actor="person", module=desc["module"],
+                             data={"collection": name, "field": field, "before": old})
+        _follow(desc, after, why)
+        return desc
 
     @app.post("/api/tables/{name}/records", dependencies=[api])
     def add_record(name: str, body: RecordBody) -> dict[str, Any]:

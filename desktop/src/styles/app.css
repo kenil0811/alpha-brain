@@ -1092,3 +1092,11 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .removechoice__item--on { border-color: var(--primary); background: var(--primary-soft); }
 .removechoice__item--danger.removechoice__item--on { border-color: var(--bad); background: var(--bad-soft); }
 .rail__rename { flex: 1 1 auto; min-width: 0; margin: 2px 0; padding: 5px 8px; }
+
+/* Fields by hand (13 Oct, slice 2 B1, B2): the + at the header row's end, the small forms. */
+.table td.addfield, .table th.addfield { width: 36px; min-width: 36px; max-width: 36px; padding: 0 4px; text-align: center; overflow: visible; }
+.fieldform { min-width: 280px; gap: 8px; padding: 4px; }
+.fieldform__row { display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: center; font-size: var(--text-sm); color: var(--text-2); }
+.fieldform__row--top { align-items: start; }
+.fieldform__row .textfield { min-width: 0; width: 100%; }
+.fieldform__note { margin: 0; font-size: var(--text-xs); }

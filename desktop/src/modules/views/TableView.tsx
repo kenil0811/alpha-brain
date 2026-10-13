@@ -3,7 +3,7 @@
  *  nothing; a double-click on a value edits it). */
 import { useRef, type ReactNode } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
-import { isNumeric, type FieldInfo } from "../fields";
+import { isNumeric, type FieldInfo, fieldLabel } from "../fields";
 import { humanize } from "../format";
 import { Button, IconButton } from "../../ui";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, FilterIcon } from "../../ui/icons";
@@ -12,14 +12,14 @@ import { FooterCell, SetOnRows } from "./RulesUI";
 import { ColumnMenu, SeenMenu } from "./RulesUI";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onPaste, colours, onColours, onOpen, canOpen = true, rowActions, rowIcon, onCommit, readonly, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { /** No cell opens for editing. */ readonly?: boolean; /** Rows that have a page wear the › at their start; without one there is no › column. */ canOpen?: boolean; /** A row's own buttons (a connection's Read now and Remove, an agent's switch), right after its ›, so a wide table never scrolls them out of sight. */ rowActions?: (row: RecordRow) => ReactNode; /** A small mark before the row's first field (an agent's face). */ rowIcon?: (row: RecordRow) => ReactNode; files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void; setFields?: FieldInfo[]; onSet?: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onPaste?: (rowId: string, column: string, text: string) => void; colours?: Colours; onColours?: (c: Colours) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onPaste, colours, onColours, onOpen, canOpen = true, rowActions, rowIcon, addField, onRename, onCommit, readonly, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { /** No cell opens for editing. */ readonly?: boolean; /** Rows that have a page wear the › at their start; without one there is no › column. */ canOpen?: boolean; /** A row's own buttons (a connection's Read now and Remove, an agent's switch), right after its ›, so a wide table never scrolls them out of sight. */ rowActions?: (row: RecordRow) => ReactNode; /** A small mark before the row's first field (an agent's face). */ rowIcon?: (row: RecordRow) => ReactNode; /** The + at the header row's end (slice 2 B1). */ addField?: ReactNode; /** A column renamed from its menu (B2). */ onRename?: (field: string, label: string) => Promise<string | null>; files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void; setFields?: FieldInfo[]; onSet?: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onPaste?: (rowId: string, column: string, text: string) => void; colours?: Colours; onColours?: (c: Colours) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const foot = footersOf(columns, byName, footers ?? {});
   // a grouped table's header rows carry each group's totals when any column beyond the first has one
   const groupTotals = columns.slice(1).some((c) => foot[c] !== "none");
   const sortAt = (field: string) => sorts.find((x) => x.field === field);
   // the columns before and after the fields: the tick and the ›; Seen and the row's buttons
   const lead = (onSelect ? 1 : 0) + (canOpen ? 1 : 0) + (rowActions ? 1 : 0) + (rowIcon ? 1 : 0);
-  const tail = seen ? 1 : 0;
+  const tail = (seen ? 1 : 0) + (addField ? 1 : 0);
   const actsCell = (row: RecordRow) => (
     <td className="rowacts" onClick={(e) => e.stopPropagation()}>
       <span className="rowacts__in">{rowActions?.(row)}</span>
@@ -64,6 +64,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                 <Cell key={c} row={row} field={byName.get(c)!} tone={colours ? toneOf(row, byName.get(c)!, colours) : null} onCommit={readonly ? undefined : (text) => onCommit(row, byName.get(c)!, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
               ))}
               {seen ? <SeenCell row={row} /> : null}
+              {addField ? <td className="addfield" /> : null}
             </tr>
   );
   return (
@@ -118,17 +119,17 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
               return (
                 <th key={c} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sortAt(c) ? (sortAt(c)!.direction === "asc" ? "ascending" : "descending") : undefined}>
                   <button type="button" onClick={(e) => onSorts(sortsAfterClick(sorts, c, e.shiftKey))} title="Sort by this column; shift-click to add it as the next level">
-                    {byName.get(c)?.label ?? humanize(c)}
+                    {byName.get(c) ? fieldLabel(byName.get(c)!) : humanize(c)}
                     {sortAt(c) ? (sortAt(c)!.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : ""}
                     {sorts.length > 1 && sortAt(c) ? <span className="th__level">{sorts.findIndex((x) => x.field === c) + 1}</span> : null}
                     {rules && ruleFor(rules, c) && isComplete(ruleFor(rules, c)!) ? <FilterIcon size={12} className="th__funnel" aria-label="filtered" /> : null}
                   </button>
-                  {rules && onRules && byName.get(c) ? <ColumnMenu field={byName.get(c)!} rows={allRows ?? rows} rule={ruleFor(rules, c)} onRule={(rule) => onRules(withRule(rules, c, rule))} extra={columnExtras?.[c]} colours={colours} onColours={onColours} grouped={grouping ? grouping.by === c : undefined} onGroup={grouping ? (on) => grouping.onGroup(on ? c : null) : undefined} /> : null}
+                  {rules && onRules && byName.get(c) ? <ColumnMenu field={byName.get(c)!} rows={allRows ?? rows} rule={ruleFor(rules, c)} onRule={(rule) => onRules(withRule(rules, c, rule))} extra={columnExtras?.[c]} colours={colours} onColours={onColours} grouped={grouping ? grouping.by === c : undefined} onGroup={grouping ? (on) => grouping.onGroup(on ? c : null) : undefined} onRename={onRename ? (label) => onRename(c, label) : undefined} /> : null}
                   <span
                     className="th__grip"
                     role="separator"
                     aria-orientation="vertical"
-                    aria-label={`Resize ${humanize(c)}`}
+                    aria-label={`Resize ${byName.get(c) ? fieldLabel(byName.get(c)!) : humanize(c)}`}
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => {
                       e.preventDefault();
@@ -149,6 +150,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
               );
             })}
             {seen ? <th><span>Seen</span>{gone ? <SeenMenu showGone={gone.showGone} goneCount={gone.count} onShowGone={gone.onShowGone} /> : null}</th> : null}
+            {addField ? <th className="addfield">{addField}</th> : null}
           </tr>
         </thead>
         <tbody
@@ -201,6 +203,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                         })
                       : null}
                     {groupTotals && seen ? <td /> : null}
+                    {groupTotals && addField ? <td /> : null}
                   </tr>
                 ),
               )
@@ -226,6 +229,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                 </td>
               ))}
               {seen ? <td /> : null}
+              {addField ? <td /> : null}
             </tr>
           </tfoot>
         ) : null}

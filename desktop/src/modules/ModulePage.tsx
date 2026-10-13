@@ -13,6 +13,7 @@ import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 import { ModuleGlyph } from "../shell/moduleIcons";
 import { RemoveModuleDialog } from "../shell/RemoveModule";
+import { fieldLabel } from "./fields";
 
 type Section = "app" | "activity" | "settings";
 
@@ -354,7 +355,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
                   <div className="item__body">
                     <b>{t.title}</b>
                     <div className="item__sub">
-                      {t.fields.map((f) => `${f.label ?? humanize(f.name)}${f.unit ? ` (${f.unit})` : ""}`).join(" · ")}
+                      {t.fields.map((f) => `${fieldLabel(f)}${f.unit ? ` (${f.unit})` : ""}`).join(" · ")}
                     </div>
                   </div>
                   <span className="faint num">{t.records} rows</span>

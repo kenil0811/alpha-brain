@@ -829,6 +829,9 @@ export class Client {
   /** A record's changes, newest first, a page at a time; `before` asks for the ones older than a revision. */
   recordHistory = (table: string, id: string, before?: number) =>
     this.call<RecordHistory>("GET", `/api/tables/${encodeURIComponent(table)}/records/${encodeURIComponent(id)}/history${before === undefined ? "" : `?before=${before}`}`);
+  /** A field the person adds, and a field's name changed (13 Oct, slice 2 B1, B2). */
+  addField = (table: string, field: { label: string; kind: string; choices?: string[]; done_choices?: string[]; unit?: string }) => this.call<TableDesc>("POST", `/api/tables/${encodeURIComponent(table)}/fields`, field);
+  renameField = (table: string, field: string, label: string) => this.call<TableDesc>("POST", `/api/tables/${encodeURIComponent(table)}/fields/${encodeURIComponent(field)}/rename`, { label });
   addRecord = async (table: string, values: Record<string, unknown>) => toRow(await this.call<Raw>("POST", `/api/tables/${encodeURIComponent(table)}/records`, { values }));
   editRecord = async (table: string, id: string, values: Record<string, unknown>, revision: number) =>
     toRow(await this.call<Raw>("PATCH", `/api/tables/${encodeURIComponent(table)}/records/${id}`, { values, revision }));

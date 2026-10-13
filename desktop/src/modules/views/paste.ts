@@ -8,7 +8,7 @@
  * or guessed. Pure functions; `DataPage` asks before a block is written, one write per row.
  */
 import type { RecordRow } from "../../core/client";
-import { isNumeric, type FieldInfo } from "../fields";
+import { fieldLabel, isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 
 /** The cells of a pasted block: tab between cells, a line per row, a cell in quotes may hold
@@ -90,12 +90,12 @@ export function readValue(text: string, field: FieldInfo): Read {
   }
   if (kind === "choice" || kind === "status") {
     const found = (field.choices ?? []).find((c) => c.toLowerCase() === t.toLowerCase() || humanize(c).toLowerCase() === t.toLowerCase());
-    return found ? { ok: true, value: found } : { ok: false, why: `isn't one of ${humanize(field.name).toLowerCase()}'s choices` };
+    return found ? { ok: true, value: found } : { ok: false, why: `isn't one of ${fieldLabel(field).toLowerCase()}'s choices` };
   }
   if (kind === "multichoice") {
     const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
     const found = parts.map((p) => (field.choices ?? []).find((c) => c.toLowerCase() === p.toLowerCase()));
-    return found.every(Boolean) ? { ok: true, value: found } : { ok: false, why: `isn't among ${humanize(field.name).toLowerCase()}'s choices` };
+    return found.every(Boolean) ? { ok: true, value: found } : { ok: false, why: `isn't among ${fieldLabel(field).toLowerCase()}'s choices` };
   }
   return { ok: true, value: t };
 }
@@ -127,7 +127,7 @@ export function planPaste(grid: string[][], rows: RecordRow[], startRow: number,
   const usable = target.map((c) => (c && byName.get(c) && pasteable(byName.get(c)!, titleField) ? c : null));
   target.forEach((c, i) => {
     if (!c) skipped.push(`column ${i + 1} of the block: past the table's last column`);
-    else if (!usable[i]) skipped.push(`${humanize(c)}: not pasted into (a title, link, file or long text is edited on its own)`);
+    else if (!usable[i]) skipped.push(`${fieldLabel(byName.get(c) ?? { name: c })}: not pasted into (a title, link, file or long text is edited on its own)`);
   });
   const updates: PastePlan["updates"] = [];
   const adds: PastePlan["adds"] = [];
@@ -140,7 +140,7 @@ export function planPaste(grid: string[][], rows: RecordRow[], startRow: number,
       if (!col) return;
       const read = readValue(text, byName.get(col)!);
       if (!read.ok) {
-        if (text.trim()) skipped.push(`"${text.trim().slice(0, 40)}" in ${humanize(col)}: ${read.why}`);
+        if (text.trim()) skipped.push(`"${text.trim().slice(0, 40)}" in ${fieldLabel(byName.get(col)!)}: ${read.why}`);
         return;
       }
       if (row && JSON.stringify(row.values[col] ?? null) === JSON.stringify(read.value ?? null)) return;

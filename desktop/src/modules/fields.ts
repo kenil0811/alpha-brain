@@ -15,6 +15,12 @@ export interface FieldInfo {
   relation?: string;
 }
 
+/** A field's name for the eye: its own label (a rename sets it, slice 2 B2), else its name in
+ *  words. Every place that names a field uses this, so a rename shows everywhere. */
+export function fieldLabel(f: Pick<FieldInfo, "name" | "label">): string {
+  return f.label && f.label !== f.name ? f.label : humanize(f.name);
+}
+
 export const NUMERIC_KINDS = new Set(["number"]);
 export const TEXT_KINDS = new Set(["text", "long_text", "url"]);
 export const CHOICE_KINDS = new Set(["choice", "status", "multichoice"]);

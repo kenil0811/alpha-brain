@@ -1,11 +1,14 @@
-/** The form that adds one row by hand, one field at a time; the first field takes focus. */
+/** The form that adds one row by hand, one field at a time; the first field takes focus. A file
+ *  field takes a file before the row exists (slice 2 B6): the page saves the row, then attaches
+ *  the file to it. */
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { coerce, inputType, type FieldInfo } from "../fields";
+import { coerce, fieldLabel, inputType, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 import { Button } from "../../ui";
 
-export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; collection: string; onAdd: (values: Record<string, unknown>) => Promise<boolean>; onDone: () => void }) {
+export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInfo[]; collection: string; onAdd: (values: Record<string, unknown>, files: Record<string, File>) => Promise<boolean>; onDone: () => void }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<Record<string, File>>({});
   const [busy, setBusy] = useState(false);
   const first = useRef<HTMLInputElement>(null);
   useEffect(() => first.current?.focus(), []);
@@ -13,15 +16,17 @@ export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInf
     e.preventDefault();
     const values: Record<string, unknown> = {};
     for (const f of fields) {
+      if (f.kind === "file") continue; // attached once the row exists
       const text = draft[f.name] ?? "";
       if (f.kind === "bool") values[f.name] = text === "true";
       else if (text.trim() !== "") values[f.name] = coerce(text, f.kind);
     }
     setBusy(true);
-    const ok = await onAdd(values);
+    const ok = await onAdd(values, files);
     setBusy(false);
     if (ok) {
       setDraft({});
+      setFiles({});
       onDone();
     }
   }
@@ -30,7 +35,7 @@ export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInf
     <form className="addrow" onSubmit={submit} aria-label={`Add to ${humanize(collection)}`}>
       {fields.map((f, i) => {
         const id = `add-${collection}-${f.name}`;
-        const label = `${humanize(f.name)}${f.required ? "" : " (optional)"}`;
+        const label = `${fieldLabel(f)}${f.required ? "" : " (optional)"}`;
         return (
           <div key={f.name} className="field field--compact">
             <label htmlFor={id}>{label}</label>
@@ -48,6 +53,8 @@ export function AddRow({ fields, collection, onAdd, onDone }: { fields: FieldInf
                 <option value="false">No</option>
                 <option value="true">Yes</option>
               </select>
+            ) : f.kind === "file" ? (
+              <input id={id} type="file" onChange={(e) => { const file = e.target.files?.[0]; setFiles((all) => { const next = { ...all }; if (file) next[f.name] = file; else delete next[f.name]; return next; }); }} />
             ) : f.kind === "long_text" ? (
               <textarea id={id} rows={3} value={draft[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} />
             ) : (

@@ -119,3 +119,18 @@ class AgreeWorkflowBody(BaseModel):
 class RunPartBody(BaseModel):
     """The row a part runs on (§12)."""
     row: str
+
+
+class AddFieldBody(BaseModel):
+    """A field the person adds (slice 2 B1): its name in their words and its kind."""
+
+    label: str
+    kind: str = "text"
+    choices: list[str] | None = None
+    done_choices: list[str] | None = None
+    relation: str | None = None
+    unit: str | None = None
+
+
+class RelabelFieldBody(BaseModel):
+    label: str

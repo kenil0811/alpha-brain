@@ -39,6 +39,15 @@ def _check_name(name: str, what: str) -> None:
     check_name(name, what, "food_log")
 
 
+def _label_of(field: dict[str, Any]) -> str:
+    """A field's name for the eye, as the window shows it: its label, else its id in words."""
+    label = field.get("label")
+    if label and label != field["name"]:
+        return str(label)
+    words = str(field["name"]).replace("_", " ").strip()
+    return words[:1].upper() + words[1:]
+
+
 def normalise_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not fields:
         raise Problem("A table needs at least one field.")
@@ -254,6 +263,55 @@ class Collections:
                 "UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
                 (dumps(current), now(), name),
             )
+        return self.describe(name)
+
+    def add_field(self, name: str, label: str, kind: str, *, choices: list[str] | None = None,
+                  done_choices: list[str] | None = None, relation: str | None = None,
+                  unit: str | None = None) -> dict[str, Any]:
+        """A field the person adds (13 Oct, slice 2 B1): named by its label in their words, the
+        id made from it; optional, so the rows already there read as empty. Refused when its
+        label is one the table has."""
+        clean = label.strip()
+        if not clean:
+            raise Problem("A field needs a name.")
+        current = self._schema(name)
+        if clean.lower() in {_label_of(f).lower() for f in current["fields"]}:
+            raise Problem(f"This table has a field called '{clean}' already.")
+        taken = {f["name"] for f in current["fields"]} | SYSTEM_FIELDS
+        base = re.sub(r"[^a-z0-9]+", "_", clean.lower()).strip("_")[:40] or "field"
+        if not base[0].isalpha():
+            base = f"f_{base}"
+        fid, n = base, 2
+        while fid in taken:
+            fid, n = f"{base}_{n}", n + 1
+        field: dict[str, Any] = {"name": fid, "label": clean, "kind": kind}
+        if choices:
+            field["choices"] = [c.strip() for c in choices if c.strip()]
+        if done_choices:
+            field["done_choices"] = [c.strip() for c in done_choices if c.strip()]
+        if relation:
+            field["relation"] = relation
+        if unit and unit.strip():
+            field["unit"] = unit.strip()
+        return self.add_fields(name, [field])
+
+    def relabel_field(self, name: str, field: str, label: str) -> dict[str, Any]:
+        """A field's name for the eye, changed by the person (13 Oct, slice 2 B2): its label,
+        shown in the table, its record pages, filters and lists; its id, which the rows, lists
+        and colours keep, stays."""
+        clean = label.strip()
+        if not clean:
+            raise Problem("A field needs a name.")
+        current = self._schema(name)
+        hit = next((f for f in current["fields"] if f["name"] == field), None)
+        if hit is None:
+            raise Problem(f"'{name}' has no field '{field}'.")
+        if clean.lower() in {_label_of(f).lower() for f in current["fields"] if f is not hit}:
+            raise Problem(f"This table has a field called '{clean}' already.")
+        hit["label"] = clean
+        with self.store.tx() as db:
+            db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
+                       (dumps(current), now(), name))
         return self.describe(name)
 
     def identify(self, name: str, rows_are: str, field: str) -> dict[str, Any]:

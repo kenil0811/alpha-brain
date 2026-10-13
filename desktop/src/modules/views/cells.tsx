@@ -5,7 +5,7 @@
 import { type KeyboardEvent, useState } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
-import { editText, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
+import { editText, fieldLabel, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { dayText, humanize } from "../format";
 import { Badge, IconButton } from "../../ui";
 import { FolderOpen } from "../../ui/icons";
@@ -69,7 +69,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
     if (e.key === "Enter" && field.kind !== "long_text") finish(true);
     if (e.key === "Escape") finish(false);
   }
-  const label = humanize(field.name);
+  const label = fieldLabel(field);
   if (editing) {
     return (
       <td className={numeric ? "r" : undefined} onClick={(e) => e.stopPropagation()}>
