@@ -1,12 +1,14 @@
 /**
  * The companion's look, chosen in Settings: the animal, the fur, the suit, the shirt, the
  * neckwear and glasses. Every change is kept in the world at once (the preference
- * `companion_look`), so the companion window and any other Mac draw the same character.
+ * `companion_look`), so the companion window and any other Mac draw the same character. Since
+ * 13 Oct (Q42 section 7c) the same pickers choose each agent's look on its page (`LookEditor`).
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Client } from "../core/client";
+import { usePreference } from "../core/preferences";
 import { Tabs } from "../ui";
-import { ANIMALS, DEFAULT_LOOK, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Size, type Swatch } from "./looks";
+import { ANIMALS, FURS, SHIRTS, SUITS, TIES, animalOf, normaliseLook, type Look, type Neckwear, type Size, type Swatch } from "./looks";
 import { Rig } from "./Rig";
 
 const KEY = "companion_look";
@@ -29,30 +31,17 @@ function Swatches({ label, choices, value, onPick, none }: { label: string; choi
   );
 }
 
+/** The companion's own look (Settings): kept under `companion_look` in the world. */
 export function LookPicker({ client }: { client: Client }) {
-  const [look, setLook] = useState<Look | null>(null);
+  const [kept, setKept] = usePreference<unknown>(client, KEY, null);
   const [problem, setProblem] = useState<string | null>(null);
+  return <LookEditor look={normaliseLook(kept)} problem={problem} onChange={(next) => { setProblem(null); void setKept(next).then((err) => err && setProblem(err)); }} />;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    client
-      .preference(KEY)
-      .then((p) => !cancelled && setLook(normaliseLook(p.value)))
-      .catch((e) => !cancelled && (setLook(DEFAULT_LOOK), setProblem(e instanceof Error ? e.message : String(e))));
-    return () => {
-      cancelled = true;
-    };
-  }, [client]);
-
-  const change = (patch: Partial<Look>) => {
-    if (!look) return;
-    const next = { ...look, ...patch };
-    setLook(next);
-    setProblem(null);
-    client.setPreference(KEY, next).catch((e) => setProblem(e instanceof Error ? e.message : String(e)));
-  };
-
-  if (!look) return <p className="faint">Loading the look…</p>;
+/** The pickers for a look, for whoever keeps it: the companion (above) or one agent (its page,
+ *  13 Oct, Q42 section 7c). */
+export function LookEditor({ look, onChange, problem }: { look: Look; onChange: (next: Look) => void; problem?: string | null }) {
+  const change = (patch: Partial<Look>) => onChange({ ...look, ...patch });
   const animal = animalOf(look.animal);
   return (
     <div className="look">

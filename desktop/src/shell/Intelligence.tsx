@@ -8,11 +8,12 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { Client, ConnectionRemoval, Intelligence as Data, Note } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage, type HeldRows } from "../modules/DataPage";
-import { AutomationList } from "./Automations";
 import { skillsHeld, skillsTable } from "./intel/skillsTable";
 import { CONNECTION_COLOURS, connectionRow, connectionsTable, reachLines } from "./intel/connectionsTable";
+import { AGENT_COLOURS, agentsTable, alphaRow, automationRow } from "./intel/agentsTable";
+import { FACT_COLOURS, factRow, factsTable } from "./intel/factsTable";
+import { AgentFace, ALPHA_AGENT } from "./AgentFace";
 import type { Surface } from "./Rail";
-import { factOrigin } from "./facts";
 import { Button, Badge, Confirm, Tabs } from "../ui";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
@@ -182,36 +183,51 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
   const { facts, notes, goals } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
   const instructions = notes.find((n) => n.scope === "person" && n.title === "Standing instructions");
+  // About you as a table (section 7d): a suggested fact's Yes and No at its row's end
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const decide = (id: string, accept: boolean) => {
+    setDeciding(id);
+    setProblem(null);
+    client
+      .decideFact(id, accept)
+      .then(onChanged)
+      .catch((e: unknown) => setProblem(`Couldn't keep that: ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => setDeciding(null));
+  };
+  const factTable = useMemo(() => factsTable(facts), [facts]);
+  // the suggested ones first: they wait on the person
+  const factLoad = useMemo(() => () => Promise.resolve([...facts].sort((a, b) => Number(b.state === "suggested") - Number(a.state === "suggested")).map(factRow)), [facts]);
+  const suggested = new Set(facts.filter((f) => f.state === "suggested").map((f) => f.id));
+  const factRows: HeldRows = {
+    load: factLoad,
+    words: "Changed by telling Alpha",
+    colours: FACT_COLOURS,
+    actions: (row) =>
+      suggested.has(row.id) ? (
+        <>
+          <Button size="sm" variant="primary" disabled={deciding !== null} onClick={() => decide(row.id, true)}>
+            Yes
+          </Button>
+          <Button size="sm" variant="ghost" disabled={deciding !== null} onClick={() => decide(row.id, false)}>
+            No
+          </Button>
+        </>
+      ) : null,
+  };
   return (
     <div className="intel">
-      <div className="card card--pad intel__card">
-        <div className="intel__head">
-          <h3>About you</h3>
-          <span className="faint">what you told Alpha, and what it noticed</span>
+      <div className="intel__group">About you · what you told Alpha, and what it noticed</div>
+      {facts.length ? (
+        <div className="intel__table">
+          <DataPage client={client} table={factTable} held={factRows} version={0} onChanged={onChanged} />
         </div>
-        {!facts.length ? <p className="empty">Nothing yet. Tell Alpha about yourself in any conversation and it remembers.</p> : null}
-        <dl className="intel__facts">
-          {facts.map((f) => (
-            <div key={f.id}>
-              <dt>{humanize(f.predicate)}</dt>
-              <dd>
-                {f.value}
-                <div className="faint">{factOrigin(f)}</div>
-                {f.state === "suggested" ? (
-                  <span className="row" style={{ marginTop: 4 }}>
-                    <Button size="sm" variant="primary" onClick={() => void client.decideFact(f.id, true).then(onChanged)}>
-                      Yes
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => void client.decideFact(f.id, false).then(onChanged)}>
-                      No
-                    </Button>
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      ) : (
+        <div className="card card--pad intel__card">
+          <p className="empty">Nothing yet. Tell Alpha about yourself in any conversation and it remembers.</p>
+        </div>
+      )}
+      {problem ? <p className="notice intel__table" role="alert">{problem}</p> : null}
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Goals</h3>
@@ -253,6 +269,60 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
       {notes.map((n) => (
         <NoteCard key={n.id} note={n} client={client} onChanged={onChanged} />
       ))}
+    </div>
+  );
+}
+
+/** Agents (section 7c): Alpha and the automations in one table, each wearing its face; an
+ *  automation's switch and Run now at its row's start (the list had the switch first). */
+function Agents({ client, data, modules, onChanged, onGo }: { client: Client; data: Data; modules: Record<string, string>; onChanged: () => void; onGo?: (s: Surface) => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  async function act(id: string, work: () => Promise<unknown>, words: string) {
+    setBusy(id);
+    setMessage(null);
+    try {
+      await work();
+      setMessage({ ok: true, text: words });
+      onChanged();
+    } catch (e) {
+      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(null);
+    }
+  }
+  const table = useMemo(() => agentsTable(data.automations, modules), [data, modules]);
+  const load = useMemo(() => () => Promise.resolve([alphaRow(), ...data.automations.map((a) => automationRow(a, modules))]), [data, modules]);
+  const byId = new Map(data.automations.map((a) => [a.id, a]));
+  const held: HeldRows = {
+    load,
+    words: "Changed by asking Alpha",
+    colours: AGENT_COLOURS,
+    icon: (row) => <AgentFace client={client} id={row.id} label={`${String(row.values.agent)}'s face`} />,
+    actions: (row) => {
+      const a = byId.get(row.id);
+      if (!a) return null;
+      return (
+        <>
+          <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
+          <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show on its page as it goes.")}>
+            {a.running ? "Running…" : "Run now"}
+          </Button>
+        </>
+      );
+    },
+  };
+  return (
+    <div className="stack">
+      <div className="intel__table">
+        <DataPage client={client} table={table} held={held} version={0} onChanged={onChanged} onOpenRecord={onGo ? (_t, id) => onGo(id === ALPHA_AGENT ? { kind: "assistant" } : { kind: "automation", id }) : undefined} />
+        {!data.automations.length ? <p className="faint intel__reach">No automations yet. Ask Alpha to keep something current ("keep my LinkedIn connections up to date") and it appears here with a switch, a verdict per run and a page you can edit.</p> : null}
+      </div>
+      {message ? (
+        <p className={message.ok ? "notice notice--ok" : "notice"} role="status">
+          {message.text}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -317,7 +387,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
           ))}
         </div>
       ) : tab === "automations" ? (
-        <AutomationList client={client} items={data.automations} onChanged={onChanged} onOpen={onGo ? (id) => onGo({ kind: "automation", id }) : undefined} empty="No agents yet. Ask Alpha to keep something current (“keep my LinkedIn connections up to date”) and it appears here as a sentence with a switch, a verdict per run and a page you can edit." />
+        <Agents client={client} data={data} modules={modules} onChanged={onChanged} onGo={onGo} />
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />
       ) : (

@@ -1,6 +1,7 @@
 /**
- * One automation's page: the sentence, when it runs, the switch and Run now, what it runs (in
- * words, never edited here: the person asks Alpha), and its runs with what each found.
+ * One automation's page: the sentence, when it runs, the switch and Run now, its look (the face
+ * it wears in Agents, section 7c), what it runs (in words, never edited here: the person asks
+ * Alpha), and its runs with what each found.
  */
 import { useEffect, useState } from "react";
 import type { AutomationDetail, Client } from "../core/client";
@@ -10,6 +11,40 @@ import { ArrowLeft, Check, X } from "../ui/icons";
 import type { Surface } from "./Rail";
 import { stepSentence } from "./steps";
 import { VERDICT } from "./Automations";
+import { useAgentLook } from "./AgentFace";
+import { LookEditor } from "../avatar/LookPicker";
+import type { Look } from "../avatar/looks";
+import { usePreference } from "../core/preferences";
+
+/** The face this agent wears in Agents (section 7c): its own look, or Alpha's until one is
+ *  picked; the companion's pickers from Settings. */
+function AgentLookSection({ client, id }: { client: Client; id: string }) {
+  const [look, setLook, own] = useAgentLook(client, id);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [looks, setLooks] = usePreference<Record<string, unknown>>(client, "agent_looks", {});
+  const keep = (next: Look) => {
+    setProblem(null);
+    void setLook?.(next).then((err) => err && setProblem(err));
+  };
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2>Its look</h2>
+        <span className="faint">{own ? "The face it wears in Agents" : "It wears Alpha's look until you pick one"}</span>
+        {own ? (
+          <span className="section__right">
+            <Button size="sm" variant="ghost" onClick={() => { const rest = { ...(looks ?? {}) }; delete rest[id]; void setLooks(rest).then((err) => err && setProblem(err)); }}>
+              Wear Alpha's look
+            </Button>
+          </span>
+        ) : null}
+      </div>
+      <div className="card card--pad">
+        <LookEditor look={look} onChange={keep} problem={problem} />
+      </div>
+    </div>
+  );
+}
 
 export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: { client: Client; id: string; version: number; onGo: (s: Surface) => void; onAsk: (text: string) => void; onChanged: () => void }) {
   const [auto, setAuto] = useState<AutomationDetail | null>(null);
@@ -82,6 +117,8 @@ export function AutomationPage({ client, id, version, onGo, onAsk, onChanged }: 
       ) : auto.last_error ? (
         <p className="notice">Last run didn't work: {auto.last_error}</p>
       ) : null}
+
+      <AgentLookSection client={client} id={auto.id} />
 
       <div className="section">
         <div className="section__head">

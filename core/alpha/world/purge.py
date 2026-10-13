@@ -138,6 +138,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         _unlink_files(files)
         world.workflows.remove_module(db, mid)
         Preferences.forget_module(db, mid, tables)  # its colours, its place in the sidebar
+        Preferences.forget_agents(db, [a["id"] for a in autos])  # its agents' looks
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
     # A program module's workspace goes with it (Q38); the journal keeps what it was.
     from alpha.runtime import workspace as workspace_module
@@ -259,6 +260,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
             db.execute("DELETE FROM runs WHERE automation = ?", (a["id"],))
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
             db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
+        Preferences.forget_agents(db, [a["id"] for a in autos])  # their looks
 
         if documents:
             clause, args = _in("id", documents)

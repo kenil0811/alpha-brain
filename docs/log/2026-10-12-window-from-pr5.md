@@ -424,7 +424,38 @@ covered cells on this page). In the browser pane on the check copy: Remove's dia
 Cancel. Not seen in the Mac app (its window was on another Space or the screen locked). "ok lets
 do both 7c, 7d".
 
+## Sections 7c and 7d: agents with a face each, facts as a table (13 Oct, this commit)
+
+"ok lets do both 7c, 7d". Built:
+
+- **7c Agents** (`shell/intel/agentsTable.ts`, `shell/AgentFace.tsx`): Alpha first ("Alpha — your
+  assistant", whose › opens the Assistant), then every automation: Agent, What it is for, When it
+  runs, State (Running now, On, Off), Next run, Last run, Last verdict (main's verdict words and a
+  "Not judged yet", coloured), Why, Module (only when one has one). Each row starts with its face,
+  main's companion artwork small and still in a round frame. The switch and Run now are its row's
+  buttons. **A look per agent**: an automation's page has "Its look" with the companion's pickers
+  (`LookEditor`, split out of Settings' `LookPicker`, which now reads through the shared
+  preference store), kept in `agent_looks`; until one is picked it wears Alpha's (the companion's)
+  look, and "Wear Alpha's look" goes back. **Removal**: removing an automation (with its module or
+  its connection) takes its look out of `agent_looks` (two core tests).
+- **7d About you** (`shell/intel/factsTable.ts`): Fact, Value, Where it came from (main's
+  `factOrigin` words), Since, How sure (a percent), State (Known, Suggested), the suggested first
+  with main's Yes and No; goals, permissions and notes stay cards under it. No Subject or Until
+  column: the core sends the person's current facts only, so both would be the same on every row.
+- **A row's buttons sit at its start**, after the › (7b's connections too): at the end, the agents'
+  and facts' tables are wider than the page and scrolled them out of sight; main's own agents list
+  had the switch first.
+
+What ran: `just lint` clean; 228 core tests; 157 desktop tests in 35 files (5 new: agents' rows in
+words; Alpha first with a face and no switch, the switch, Run now and › on an automation, Alpha's ›
+to the Assistant; facts' rows; the facts table with Yes on a suggested one; an agent's look picked,
+kept and put back); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-1354.md`). In the browser pane on the check copy: the faces, a cat picked
+for one agent and its face changing in the table (then put back), facts, connections' buttons at
+the start. The Mac app rebuilt; Connections and Knowledge seen in WebKit; Agents not (the app was
+in use). "ok commit it, then propose section 8".
+
 ## Left
 
-7c (agents with a look each) and 7d (facts as a table) next; then 8 the assistant panel, 9 plain
-errors, absolute dates, delete confirms.
+Section 8 (the assistant panel) proposed in writing next; then 9 plain errors, absolute dates,
+delete confirms. Open with Kenil: the view tabs breaking mid-word at 1100 with the panel open.

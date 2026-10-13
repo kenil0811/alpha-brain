@@ -42,7 +42,9 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     world.preferences.set("sidebar_order", [food, network])
     world.preferences.set("sidebar_hidden", [network])
     world.preferences.set("module_icons", {network: "people", food: "food"})
+    world.preferences.set("agent_looks", {auto["id"]: {"animal": "fox"}, "a_x": {"animal": "cat"}})
     out = remove_module(world, "Network")
+    assert world.preferences.get("agent_looks") == {"a_x": {"animal": "cat"}}  # its agent's look
     # the window's colours for its table and its place in the sidebar go; the others' stay
     assert world.preferences.get("colours_connections") is None
     assert world.preferences.get("colours_food_log") is not None
@@ -114,7 +116,9 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     assert plan["readers"] == ["linkedin_connections"]
     assert plan["automations"] == ["Daily LinkedIn sync"] and profile.exists()
 
+    world.preferences.set("agent_looks", {auto["id"]: {"animal": "fox"}})
     remove_connection(world, conn["id"])
+    assert world.preferences.get("agent_looks") == {}  # the removed automation's look goes too
     assert not profile.exists()
     assert [c["target"] for c in Connections(world.store).all()] == [other["target"]]
     assert world.readers.all() == [] and world.automations.all() == []

@@ -2,7 +2,7 @@
  * Intelligence › Connections as a table (13 Oct, Q42 section 7b; the feature from pull request #5,
  * the view main's own): every connection that is on, a row of the one data view with what it is,
  * its kind, its state, when it last read and its last problem. Its buttons (Read now or Check,
- * Remove) sit at the row's end. What a kind can reach is the same for each connection of it, so
+ * Remove) sit at the row's start, where a wide table never scrolls them away. What a kind can reach is the same for each connection of it, so
  * it is said once per kind under the table (`reachLines`), not in a column; the ways to add one
  * stay below that.
  */

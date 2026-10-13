@@ -139,8 +139,10 @@ export interface HeldRows {
   words: string;
   /** The colours the table wears until the person sets their own (a skill's health). */
   colours?: Colours;
-  /** Buttons at a row's end in the table (a connection's Read now and Remove). */
+  /** A row's own buttons in the table, right after its › (a connection's Read now and Remove). */
   actions?: (row: RecordRow) => ReactNode;
+  /** A small mark before a row's first field in the table (an agent's face). */
+  icon?: (row: RecordRow) => ReactNode;
 }
 
 /** `onOpenRecord` opens a record's own page (a row of this table, or a related one followed
@@ -729,6 +731,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               onOpen={openRow}
               canOpen={Boolean(onOpenRecord)}
               rowActions={held?.actions}
+              rowIcon={held?.icon}
               onCommit={commit}
               readonly={readonly}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

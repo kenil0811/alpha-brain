@@ -1059,7 +1059,12 @@ h3 .linkbtn { font: inherit; color: inherit; }
 
 /* Intelligence's lists as tables (13 Oct, Q42 section 7): the table spans the tab's width. */
 .intel__table { grid-column: 1 / -1; min-width: 0; }
-/* a row's own buttons (a connection's Read now and Remove), at the row's end */
-.table td.rowacts, .table th.rowacts { width: 1%; white-space: nowrap; text-align: right; max-width: none; overflow: visible; }
+/* a row's own buttons (a connection's Read now and Remove, an agent's switch), at its start */
+.table td.rowacts, .table th.rowacts { width: 1%; white-space: nowrap; max-width: none; overflow: visible; padding-left: 4px; padding-right: 4px; }
 .intel__reach { margin-top: 8px; font-size: var(--text-sm); }
 .rowacts__in { display: inline-flex; gap: 6px; }
+/* an agent's face before its name (section 7c): the companion, small, still, in a round frame */
+.table td.rowicon, .table th.rowicon { width: 34px; min-width: 34px; max-width: 34px; padding: 0 0 0 4px; overflow: visible; }
+.agentface { display: grid; place-items: center; border-radius: 50%; overflow: hidden; background: var(--surface-2); flex: none; }
+.agentface .rig, .agentface .rig * { animation: none; }
+.rowacts__in .switch { vertical-align: middle; }

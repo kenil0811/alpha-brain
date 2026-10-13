@@ -22,6 +22,9 @@ from alpha.world.store import Problem, Store, dumps, loads, now
 # everything related).
 MODULE_LISTS = ("sidebar_order", "sidebar_hidden")
 MODULE_MAPS = ("module_icons",)
+# Each agent's look (13 Oct, Q42 section 7c): `{automation id: look}`; removing an automation
+# takes its look out.
+AGENT_LOOKS = "agent_looks"
 
 
 def colours_key(table: str) -> str:
@@ -68,15 +71,25 @@ class Preferences:
             changed += db.execute("DELETE FROM preferences WHERE key = ?",
                                   (colours_key(table),)).rowcount
         for key in MODULE_LISTS + MODULE_MAPS:
-            row = db.execute("SELECT value FROM preferences WHERE key = ?", (key,)).fetchone()
-            value = loads(row["value"], None) if row else None
-            if isinstance(value, list) and module in value:
-                kept: Any = [v for v in value if v != module]
-            elif isinstance(value, dict) and module in value:
-                kept = {k: v for k, v in value.items() if k != module}
-            else:
-                continue
-            db.execute("UPDATE preferences SET value = ?, updated_at = ? WHERE key = ?",
-                       (dumps(kept), now(), key))
-            changed += 1
+            changed += Preferences._drop(db, key, frozenset({module}))
         return changed
+
+    @staticmethod
+    def forget_agents(db: sqlite3.Connection, automations: list[str]) -> int:
+        """Inside a removal's transaction: take the removed automations' looks out."""
+        return Preferences._drop(db, AGENT_LOOKS, frozenset(automations)) if automations else 0
+
+    @staticmethod
+    def _drop(db: sqlite3.Connection, key: str, ids: frozenset[str]) -> int:
+        """Take `ids` out of the list or map kept under `key`; 1 when it changed."""
+        row = db.execute("SELECT value FROM preferences WHERE key = ?", (key,)).fetchone()
+        value = loads(row["value"], None) if row else None
+        if isinstance(value, list) and ids.intersection(value):
+            kept: Any = [v for v in value if v not in ids]
+        elif isinstance(value, dict) and ids.intersection(value):
+            kept = {k: v for k, v in value.items() if k not in ids}
+        else:
+            return 0
+        db.execute("UPDATE preferences SET value = ?, updated_at = ? WHERE key = ?",
+                   (dumps(kept), now(), key))
+        return 1
