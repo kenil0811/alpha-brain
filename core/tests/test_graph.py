@@ -16,7 +16,7 @@ from alpha.world.world import World
 def test_the_map_links_what_feeds_what(world: World) -> None:
     t = building(world)
     module = t.module_create("Deals", "find a firm")["id"]
-    t.collection_create("deals", "Deals", [{"name": "title", "kind": "text"}], module=module)
+    t.collection_create("deals", "Listings", [{"name": "title", "kind": "text"}], module=module)
     world.readers.save("brokers", site="brokers.com", url="https://brokers.com",
                        script="return []", description="Reads brokers", to_end=False,
                        count=3, when_to_use="Every broker listing")

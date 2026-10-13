@@ -61,10 +61,23 @@ class Views:
         clean["hidden"] = [h for h in clean.get("hidden") or [] if h in fields]
         return clean
 
+    def _check_title(self, collection: str, title: str, vid: str | None = None) -> None:
+        """A list's title never repeats its table's title or another list's of that table
+        (13 Oct, slice 2 A2)."""
+        clean = title.strip().lower()
+        table = self.store.one("SELECT title FROM collections WHERE name = ?", (collection,))
+        if table and str(table["title"]).strip().lower() == clean:
+            raise Problem(f"'{title}' is the table's own name; name the list for what it shows"
+                          " (e.g. 'Applied this week').")
+        if self.store.one("SELECT 1 FROM views WHERE collection = ? AND LOWER(TRIM(title)) = ?"
+                          " AND id IS NOT ?", (collection, clean, vid)):
+            raise Problem(f"There is a list called '{title}' on this table already.")
+
     def save(self, collection: str, title: str, config: dict[str, Any], *,
              source: str | None = None, default: bool = False) -> dict[str, Any]:
         if not title.strip():
             raise Problem("A list needs a title.")
+        self._check_title(collection, title)
         clean = self._check(collection, config)
         stamp = now()
         vid = new_id("v")
@@ -91,6 +104,8 @@ class Views:
                config: dict[str, Any] | None = None,
                default: bool | None = None) -> dict[str, Any]:
         current = self.get(vid)
+        if title is not None and title.strip() and title.strip() != current["title"]:
+            self._check_title(current["collection"], title, vid)
         clean = self._check(current["collection"], config) if config is not None else None
         with self.store.tx() as db:
             if default:

@@ -155,7 +155,10 @@ class Automations:
             rows = self.store.all("SELECT * FROM automations WHERE module = ? ORDER BY created_at",
                                   (module,))
         else:
-            rows = self.store.all("SELECT * FROM automations ORDER BY created_at")
+            # a removed module's automations are stopped and out of sight with it (A4)
+            rows = self.store.all(
+                "SELECT * FROM automations WHERE module IS NULL OR module NOT IN (SELECT id FROM"
+                " modules WHERE removed_at IS NOT NULL) ORDER BY created_at")
         return [_view(r, self._steps_of(r)) for r in rows]
 
     def update(self, aid: str, *, enabled: bool | None = None, schedule: str | None = None,
@@ -187,7 +190,8 @@ class Automations:
         moment = (at or datetime.now(UTC)).astimezone(UTC).isoformat()
         rows = self.store.all(
             "SELECT * FROM automations WHERE enabled = 1 AND next_run_at IS NOT NULL"
-            " AND next_run_at <= ? ORDER BY next_run_at", (moment,),
+            " AND next_run_at <= ? AND (module IS NULL OR module NOT IN (SELECT id FROM modules"
+            " WHERE removed_at IS NOT NULL)) ORDER BY next_run_at", (moment,),
         )
         return [_view(r, self._steps_of(r)) for r in rows]
 

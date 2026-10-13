@@ -10,13 +10,13 @@
  */
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
-import type { Client, ModuleCard } from "../core/client";
+import { say, type Client, type ModuleCard } from "../core/client";
 import { PREF, usePreference } from "../core/preferences";
 import { Button, IconButton, Popover } from "../ui";
 import { HomeIcon, ActivityIcon, PeopleIcon, AssistantIcon, IntelligenceIcon, SettingsIcon, PlusIcon, ChevronsLeft, ChevronsRight, ChevronRight, Check, HideIcon, X } from "../ui/icons";
 import { iconFor, iconFromName, MODULE_ICONS, useModuleIcons } from "./moduleIcons";
+import { RemoveModuleDialog } from "./RemoveModule";
 import { dropZone, existing, isInside, siblingsOf, treeOf, withPlace, type DropZone, type ModuleBranch } from "./sidebarOrder";
-import { say } from "../core/client";
 
 export type Surface =
   | { kind: "home" }
@@ -133,6 +133,10 @@ export function Rail({
   };
   const [over, setOver] = useState<{ id: string; zone: DropZone } | null>(null);
   const [renaming, setRenaming] = useState(false);
+  // a module renamed in place, and one being taken away (slice 2 A1, A3)
+  const [renamingModule, setRenamingModule] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<ModuleCard | null>(null);
+  const skipRefocus = useRef(false);
   const refocus = useRef<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
 
@@ -202,6 +206,20 @@ export function Rail({
     else delete next[m.id];
     const err = await setIcons(next);
     if (err) fail(`change the icon of ${m.name}`, err);
+  }
+  async function renameModule(m: ModuleCard, next: string) {
+    if (renamingModule !== m.id) return; // Enter saved it already; this is the blur after
+    setRenamingModule(null);
+    const clean = next.trim();
+    if (clean === m.name) return;
+    if (!client) return fail(`rename ${m.name}`, "Alpha's core isn't connected yet.");
+    setNote(null);
+    try {
+      await client.renameModule(m.id, clean);
+      onChanged?.();
+    } catch (e) {
+      fail(`rename ${m.name}`, say(e));
+    }
   }
   async function rename(next: string) {
     setRenaming(false);
@@ -275,6 +293,24 @@ export function Rail({
     const current = sameSurface(surface, target);
     const key = target.kind === "module" || target.kind === "entity" || target.kind === "automation" ? `${target.kind}:${target.id}` : target.kind === "skill" ? `skill:${target.name}` : target.kind;
     const drop = module && over?.id === module.id ? ` navrow--drop-${over.zone}` : "";
+    if (module && renamingModule === module.id && !collapsed) {
+      return (
+        <div key={key} className="navrow" style={depth ? { paddingLeft: depth * 14 } : undefined}>
+          <input
+            className="textfield rail__rename"
+            aria-label={`New name for ${module.name}`}
+            defaultValue={module.name}
+            autoFocus
+            onFocus={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void renameModule(module, e.currentTarget.value);
+              if (e.key === "Escape") setRenamingModule(null);
+            }}
+            onBlur={(e) => void renameModule(module, e.currentTarget.value)}
+          />
+        </div>
+      );
+    }
     return (
       <div key={key} className={`navrow${drop}${module && drag === module.id ? " navrow--dragging" : ""}`} style={depth ? { paddingLeft: depth * 14 } : undefined} {...(module ? dragProps(module) : {})}>
         <button
@@ -438,6 +474,10 @@ export function Rail({
             aria-label={m ? `${m.name}: menu` : undefined}
             onCloseAutoFocus={(e) => {
               e.preventDefault();
+              if (skipRefocus.current) {
+                skipRefocus.current = false; // the rename box or the dialog takes the focus
+                return;
+              }
               if (m) navRef.current?.querySelector<HTMLElement>(`[data-module="${CSS.escape(m.id)}"]`)?.focus();
             }}
           >
@@ -446,6 +486,11 @@ export function Rail({
                 <DropdownMenu.Item className="menu__item" onSelect={() => onGo({ kind: "module", id: m.id })}>
                   Open
                 </DropdownMenu.Item>
+                {!collapsed ? (
+                  <DropdownMenu.Item className="menu__item" onSelect={() => { skipRefocus.current = true; setRenamingModule(m.id); }}>
+                    Rename…
+                  </DropdownMenu.Item>
+                ) : null}
                 <DropdownMenu.Sub>
                   <DropdownMenu.SubTrigger className="menu__item menu__item--sub">
                     Change icon <ChevronRight size={14} aria-hidden="true" />
@@ -492,11 +537,32 @@ export function Rail({
                 <DropdownMenu.Item className="menu__item" onSelect={() => void hide(m)}>
                   Hide from the sidebar
                 </DropdownMenu.Item>
+                {client ? (
+                  <DropdownMenu.Item className="menu__item menu__item--danger" onSelect={() => { skipRefocus.current = true; setRemoving(m); }}>
+                    Remove…
+                  </DropdownMenu.Item>
+                ) : null}
               </>
             ) : null}
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      {client && removing ? (
+        <RemoveModuleDialog
+          client={client}
+          module={removing}
+          open
+          onClose={() => setRemoving(null)}
+          onDone={(how) => {
+            const gone = removing;
+            setRemoving(null);
+            onChanged?.();
+            // a page of what went away is gone too: back Home
+            const here = surface.kind === "module" ? surface.id : surface.kind === "record" ? surface.module : undefined;
+            if (how !== "hide" && here && isInside(modules, here, gone.id)) onGo({ kind: "home" });
+          }}
+        />
+      ) : null}
     </nav>
   );
 }

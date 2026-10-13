@@ -153,6 +153,30 @@ export interface Thread {
   live?: Live | null;
 }
 
+/** What deleting a module for good would take, in numbers and in words. */
+export interface RemovalPlan {
+  module: string;
+  tables: number;
+  rows: number;
+  files: number;
+  readers: string[];
+  automations: number;
+  inside: string[];
+  what: string;
+}
+
+/** A module removed with its data kept (Settings › Removed modules). */
+export interface RemovedModule {
+  id: string;
+  name: string;
+  removed_at: string;
+  path: string[];
+  holds: string;
+  tables: number;
+  rows: number;
+  inside: string[];
+}
+
 export interface ModuleCard {
   id: string;
   name: string;
@@ -780,6 +804,14 @@ export class Client {
   moduleSummary = (ref: string) => this.call<ModuleSummary>("GET", `/api/modules/${encodeURIComponent(ref)}/summary`);
   /** Put a module inside another (or at the top with null); everything in it moves with it. */
   moveModule = (ref: string, parent: string | null) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/move`, { parent });
+  /** A module's lifecycle (13 Oct, slice 2 A1–A4): a new name; what deleting it for good would
+   *  take; removed with its data kept (restorable); restored; deleted for good; the removed ones. */
+  renameModule = (ref: string, name: string) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/rename`, { name });
+  moduleRemoval = (ref: string) => this.call<RemovalPlan>("GET", `/api/modules/${encodeURIComponent(ref)}/removal`);
+  removeModule = (ref: string) => this.call<{ id: string; name: string; removed_at: string }>("POST", `/api/modules/${encodeURIComponent(ref)}/remove`);
+  restoreModule = (ref: string) => this.call<ModuleCard>("POST", `/api/modules/${encodeURIComponent(ref)}/restore`);
+  deleteModule = (ref: string) => this.call<Record<string, unknown>>("DELETE", `/api/modules/${encodeURIComponent(ref)}`);
+  removedModules = () => this.call<RemovedModule[]>("GET", "/api/modules/removed");
   /** A module the person makes here: a place to hold others. Nothing is built. */
   createModule = (name: string, goal: string | null, parent: string | null) => this.call<ModuleCard>("POST", "/api/modules", { name, goal, parent });
   /** The module's page of Alpha's wiki, or none yet. */

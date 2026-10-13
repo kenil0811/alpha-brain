@@ -1082,3 +1082,13 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .toggle button { white-space: nowrap; }
 .pager { flex-wrap: wrap; }
 .pager .btn, .pager button, .pager__size { white-space: nowrap; }
+
+/* Taking a module away (13 Oct, slice 2 A3): one question, three answers, each saying what it does. */
+.removechoice { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.removechoice__item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.removechoice__item input { margin-top: 3px; }
+.removechoice__item b { display: block; font-weight: 500; color: var(--text); }
+.removechoice__words { display: block; font-size: var(--text-sm); color: var(--text-3); margin-top: 2px; }
+.removechoice__item--on { border-color: var(--primary); background: var(--primary-soft); }
+.removechoice__item--danger.removechoice__item--on { border-color: var(--bad); background: var(--bad-soft); }
+.rail__rename { flex: 1 1 auto; min-width: 0; margin: 2px 0; padding: 5px 8px; }

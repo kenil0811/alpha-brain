@@ -3,15 +3,16 @@
  * this Mac), the companion and how the app looks, where their world is kept and copies of it,
  * and the defaults set elsewhere in the app. Each row says what is so and offers the one thing
  * to do about it. Since 13 Oct (Q42 section 6) each part is a card, in two stacks side by side
- * when the page is wide and one under the other when it isn't: Workspace, Thinks with, Reads with, Appearance, Your data, Removed modules (empty until
- * the core keeps removed modules; Kenil: "add in the ui for it now, but keep it empty"),
- * Defaults, Help.
+ * when the page is wide and one under the other when it isn't: Workspace, Thinks with, Reads
+ * with, Appearance, Your data, Removed modules (those removed with their data kept, with Restore
+ * and Delete: slice 2 A4, the card Kenil had kept empty for it), Defaults, Help.
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { LookPicker } from "../avatar/LookPicker";
 import type { ClaudeStatus, Client, DataInfo, ThinkRoute, Thinking, BrowserStatus } from "../core/client";
 import { host } from "../core/host";
 import { PREF, usePreference } from "../core/preferences";
+import { RemovedModulesList } from "./RemoveModule";
 import { PAGE_SIZE_KEY, PAGE_SIZES, type PageSize } from "../modules/DataPage";
 import { when } from "../modules/format";
 import { ThemeControl, type Theme } from "./theme";
@@ -321,7 +322,7 @@ function HelpCard() {
   );
 }
 
-export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void }) {
+export function Settings({ client, theme, onTheme, claude, onClaude, thinking, onThinking, onChanged }: { client: Client; theme: Theme; onTheme: (t: Theme) => void; claude: ClaudeStatus | null; onClaude: (s: ClaudeStatus) => void; thinking?: Thinking | null; onThinking?: (t: Thinking) => void; /** Something changed that other places show (a module restored): they read again. */ onChanged?: () => void }) {
   const [companion, setCompanion] = useState<boolean | null>(null);
   const [data, setData] = useState<DataInfo | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(readPageSize);
@@ -433,8 +434,8 @@ export function Settings({ client, theme, onTheme, claude, onClaude, thinking, o
             </div>
           </SetCard>
 
-          <SetCard title="Removed modules" about="Modules you removed, to bring back">
-            <p className="empty setcard__empty">Nothing here. Removing a module today deletes it for good; keeping it here so you can bring it back comes later.</p>
+          <SetCard title="Removed modules" about="Modules you removed with their data kept, to bring back or delete for good">
+            <RemovedModulesList client={client} onChanged={onChanged} />
           </SetCard>
 
           <SetCard title="Defaults" about="Set here, used across the app">

@@ -321,7 +321,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "record" ? (
           <RecordPage key={`${surface.table}/${surface.id}`} client={runtime.client} table={surface.table} id={surface.id} version={(surface.module ? (versions.modules[surface.module] ?? 0) : 0) + versions.all} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "settings" ? (
-          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} />
+          <Settings client={runtime.client} theme={theme} onTheme={setTheme} claude={claude} onClaude={setClaude} thinking={thinking} onThinking={setThinking} onChanged={changed} />
         ) : surface.kind === "people" ? (
           <People client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} />
         ) : surface.kind === "entity" ? (

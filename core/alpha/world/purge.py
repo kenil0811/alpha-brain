@@ -72,6 +72,56 @@ def _retire_threads(db: Any, threads: list[str]) -> None:
         db.execute("UPDATE threads SET state = 'done', session_ref = NULL WHERE id = ?", (tid,))
 
 
+def _readers_of(store: Any, mid: str, tables: list[str], autos: list[dict[str, Any]]
+                ) -> list[str]:
+    """The readers that feed a module: named after its tables, used by its automations
+    (procedure or steps), recorded on its sources, or the readers its rows came from."""
+    fed = {r["reader"] for t in tables for r in store.all(
+        "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
+    fed |= {r["reader"] for r in store.all(
+        "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
+    return [r["name"] for r in store.all("SELECT name FROM skills WHERE kind = 'read'")
+            if r["name"] in tables or r["name"] in fed
+            or any(r["name"] in (a["procedure"] or "") or r["name"] in (a["steps"] or "")
+                   for a in autos)]
+
+
+def _count(store: Any, sql: str, args: tuple[Any, ...]) -> int:
+    row = store.one(sql, args)
+    return int(row["n"]) if row else 0
+
+
+def removal_plan(world: World, ref: str) -> dict[str, Any]:
+    """What deleting a module for good would take, before anything goes (13 Oct, slice 2 A3):
+    every table and row, file, reader and automation in it and in the modules inside it, and
+    those modules' names; `what` says it in words."""
+    module = world.modules.get(ref)
+    store = world.store
+    ids = world.modules.subtree(module["id"])
+    tables = rows = files = automations = 0
+    readers: set[str] = set()
+    for mid in ids:
+        names = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?",
+                                              (mid,))]
+        tables += len(names)
+        for t in names:
+            rows += _count(store, "SELECT COUNT(*) AS n FROM records WHERE collection = ?", (t,))
+        autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
+            "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
+        automations += len(autos)
+        readers |= set(_readers_of(store, mid, names, autos))
+        files += _count(store, "SELECT COUNT(*) AS n FROM documents WHERE module = ?", (mid,))
+    inside = [world.modules.get(i)["name"] for i in ids[1:]]
+    what = [plural(tables, "table") + (f" ({plural(rows, 'row')})" if rows else "")]
+    what += [plural(files, "file")] if files else []
+    what += [plural(len(readers), "reader")] if readers else []
+    what += [plural(automations, "automation")] if automations else []
+    words = and_join(what) + (f", with {and_join(inside)} inside it" if inside else "")
+    return {"module": module["name"], "tables": tables, "rows": rows, "files": files,
+            "readers": sorted(readers), "automations": automations, "inside": inside,
+            "what": words}
+
+
 def remove_module(world: World, ref: str) -> dict[str, Any]:
     module = world.modules.get(ref)
     mid, name = module["id"], module["name"]
@@ -81,16 +131,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
     autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
         "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
-    # The readers that feed this module: named after its tables, used by its automations
-    # (procedure or steps), recorded on its sources, or the readers its rows came from.
-    fed = {r["reader"] for t in tables for r in store.all(
-        "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
-    fed |= {r["reader"] for r in store.all(
-        "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
-    readers = [r["name"] for r in store.all("SELECT name FROM skills WHERE kind = 'read'")
-               if r["name"] in tables or r["name"] in fed
-               or any(r["name"] in (a["procedure"] or "") or r["name"] in (a["steps"] or "")
-                      for a in autos)]
+    readers = _readers_of(store, mid, tables, autos)
     threads = {r["id"] for r in store.all("SELECT id FROM threads WHERE module = ?", (mid,))}
     threads |= {a["thread"] for a in autos if a["thread"]}
     asks = [a["id"] for a in world.journal.open_asks() if a["module"] == mid]

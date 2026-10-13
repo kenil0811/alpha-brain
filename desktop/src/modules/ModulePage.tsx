@@ -12,6 +12,7 @@ import { AutomationList } from "../shell/Automations";
 import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 import { ModuleGlyph } from "../shell/moduleIcons";
+import { RemoveModuleDialog } from "../shell/RemoveModule";
 
 type Section = "app" | "activity" | "settings";
 
@@ -86,6 +87,22 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
     return ids;
   }, [modules, moduleId]);
   const [moveNote, setMoveNote] = useState<string | null>(null);
+  // its name changed in place, and taking it away (slice 2 A1, A3)
+  const [renaming, setRenaming] = useState(false);
+  const [nameNote, setNameNote] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  async function rename(next: string) {
+    setRenaming(false);
+    const clean = next.trim();
+    if (!detail || clean === detail.name) return;
+    try {
+      await client.renameModule(detail.id, clean);
+      setNameNote(null);
+      onChanged();
+    } catch (e) {
+      setNameNote(`Couldn't rename it: ${say(e)}`);
+    }
+  }
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState("");
   async function moveUnder(parent: string | null) {
@@ -221,6 +238,29 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
         <>
           <div className="section" style={{ marginTop: 0 }}>
             <div className="section__head">
+              <h2>Its name</h2>
+              <span className="faint">The same in the sidebar, on Home and here</span>
+            </div>
+            <div className="card list">
+              <div className="item">
+                <div className="item__body">
+                  {renaming ? (
+                    <input className="textfield" aria-label={`New name for ${detail.name}`} defaultValue={detail.name} autoFocus onFocus={(e) => e.currentTarget.select()} onKeyDown={(e) => { if (e.key === "Enter") void rename(e.currentTarget.value); if (e.key === "Escape") setRenaming(false); }} onBlur={(e) => void rename(e.currentTarget.value)} />
+                  ) : (
+                    <b>{detail.name}</b>
+                  )}
+                  {nameNote ? <div className="item__sub item__sub--warn" role="alert">{nameNote}</div> : null}
+                </div>
+                {!renaming ? (
+                  <Button size="sm" onClick={() => setRenaming(true)}>
+                    Rename
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div className="section">
+            <div className="section__head">
               <h2>Where it sits</h2>
               <span className="faint">A module can live inside another; everything in it moves with it</span>
             </div>
@@ -354,6 +394,24 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
             </div>
             <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="No agents here yet. Ask Alpha to keep something here current and it shows up with a switch and a verdict per run." />
           </div>
+          <div className="section">
+            <div className="section__head">
+              <h2>Take it away</h2>
+              <span className="faint">Hide it, remove it with its data kept, or delete it for good; it asks which</span>
+            </div>
+            <div className="card list">
+              <div className="item">
+                <div className="item__body">
+                  <b>Remove {detail.name}</b>
+                  <div className="item__sub">Whatever you choose, Activity keeps what happened here.</div>
+                </div>
+                <Button size="sm" variant="danger" onClick={() => setRemoving(true)}>
+                  Remove…
+                </Button>
+              </div>
+            </div>
+          </div>
+          <RemoveModuleDialog client={client} module={detail} open={removing} onClose={() => setRemoving(false)} onDone={(how) => { setRemoving(false); onChanged(); if (how !== "hide") onGo({ kind: "home" }); }} />
         </>
       ) : null}
     </div>

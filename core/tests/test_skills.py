@@ -161,7 +161,7 @@ def test_the_index_finds_and_shows_skills_and_their_notes(world: World) -> None:
 def test_removing_a_module_takes_its_run_skills(world: World) -> None:
     mod = world.modules.create("Deals")
     t = building(world)
-    t.collection_create("deals", "Deals", [{"name": "title", "kind": "text"}], module="Deals")
+    t.collection_create("deals", "Listings", [{"name": "title", "kind": "text"}], module="Deals")
     world.readers.save("deals_site", site="d.com", url="https://d.com", script="return []",
                        description="Reads deals", to_end=False, count=3)
     auto = t.automation_create("Daily deals", "daily 07:00", module="Deals",

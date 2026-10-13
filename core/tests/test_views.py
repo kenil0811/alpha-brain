@@ -98,8 +98,8 @@ def test_alpha_keeps_a_list_when_asked(world: World) -> None:
 
 
 def test_removing_the_module_takes_its_lists(world: World) -> None:
-    world.modules.create("Deals")
-    deals(world, module="Deals")
+    world.modules.create("Brokers")
+    deals(world, module="Brokers")
     world.views.save("deals", "Active", {"filters": {"status": "Active"}})
-    out = remove_module(world, "Deals")
+    out = remove_module(world, "Brokers")
     assert out["lists"] == 1 and world.store.one("SELECT 1 AS x FROM views") is None

@@ -401,6 +401,11 @@ CREATE TABLE IF NOT EXISTS preferences (
 # Columns added after a world file was first made; added in place when the file is opened.
 ADDED_COLUMNS = [
     ("modules", "parent", "TEXT"),  # a module inside a module (3 Oct night, Q31)
+    # Removed with its data kept (13 Oct, slice 2 A4): out of sight, its automations stopped,
+    # restorable from Settings; `removed_with` is the module the removal was asked of, the same
+    # on everything removed together.
+    ("modules", "removed_at", "TEXT"),
+    ("modules", "removed_with", "TEXT"),
     ("automations", "goal", "TEXT"),  # the person's words for what the agent is for (Q33)
     ("records", "entity_id", "TEXT"),
     ("notes", "source", "TEXT"),

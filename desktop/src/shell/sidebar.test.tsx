@@ -99,7 +99,7 @@ describe("the sidebar's own arrangement", () => {
     rail(client, [card("m_j", "Job Search"), card("m_n", "Nutrition")]);
     fireEvent.contextMenu(screen.getByRole("button", { name: "Nutrition" }), { clientX: 40, clientY: 200 });
     const menu = await screen.findByRole("menu");
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent?.trim())).toEqual(["Open", "Change icon", "Move to", "Hide from the sidebar"]);
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent?.trim())).toEqual(["Open", "Rename…", "Change icon", "Move to", "Hide from the sidebar", "Remove…"]);
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Hide from the sidebar" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Nutrition" })).toBeNull());
     expect(calls.setPreference).toHaveBeenCalledWith("sidebar_hidden", ["m_n"]);

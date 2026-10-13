@@ -36,6 +36,10 @@ class MoveModuleBody(BaseModel):
     parent: str | None = None
 
 
+class RenameModuleBody(BaseModel):
+    name: str
+
+
 class CreateModuleBody(BaseModel):
     name: str
     goal: str | None = None

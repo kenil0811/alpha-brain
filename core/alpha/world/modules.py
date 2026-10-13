@@ -6,6 +6,11 @@ may sit inside another (Job holds Search and Resume), to any depth: one concept,
 nothing per level (Q31). What a module owns stays its own; a parent is the place that holds
 its children, whose page, activity and conversation reach the whole subtree.
 
+A module can be removed with its data kept (13 Oct, slice 2 A4): it and what it holds leave every
+list (the sidebar, Home, Alpha's context), its automations stop, nothing of it is changed, and it
+can be restored or deleted for good from Settings. The modules removed together carry the id of the
+one the removal was asked of (`removed_with`), so a restore brings back exactly those.
+
 A thread is a piece of work with its own model context (a build, an automation, a long
 job, or a topic the person opened deliberately). The person sees one stream; the to-and-fro of
 the work lives in its thread so it never crowds the stream's context.
@@ -61,6 +66,65 @@ class Modules:
                        (parent_id, now(), module["id"]))
         return self.get(module["id"])
 
+    def rename(self, ref: str, name: str) -> dict[str, Any]:
+        """A new name for a module, everywhere at once; its page (the note `module:<name>`)
+        goes with it. Refused when empty or when another module has the name already."""
+        module = self.get(ref)
+        clean = name.strip()
+        if not clean:
+            raise Problem("A module needs a name.")
+        if clean == module["name"]:
+            return module
+        taken = self.store.one("SELECT id FROM modules WHERE LOWER(name) = LOWER(?) AND id != ?",
+                               (clean, module["id"]))
+        if taken:
+            raise Problem(f"There is a module called '{clean}' already.")
+        old = module["name"]
+        with self.store.tx() as db:
+            db.execute("UPDATE modules SET name = ?, updated_at = ? WHERE id = ?",
+                       (clean, now(), module["id"]))
+            db.execute("UPDATE notes SET scope = ?, title = CASE WHEN title = ? THEN ? ELSE title"
+                       " END WHERE scope = ?", (f"module:{clean}", old, clean, f"module:{old}"))
+        return self.get(module["id"])
+
+    def remove(self, ref: str) -> dict[str, Any]:
+        """Remove a module with its data kept: it and whatever it holds (not removed already)
+        leave every list, stamped together."""
+        module = self.get(ref)
+        if module.get("removed_at"):
+            raise Problem(f"{module['name']} is removed already; restore it from Settings.")
+        stamp = now()
+        ids = self.subtree(module["id"])
+        with self.store.tx() as db:
+            for mid in ids:
+                db.execute("UPDATE modules SET removed_at = ?, removed_with = ?, updated_at = ?"
+                           " WHERE id = ? AND removed_at IS NULL",
+                           (stamp, module["id"], stamp, mid))
+        return self.get(module["id"])
+
+    def restore(self, ref: str) -> dict[str, Any]:
+        """Put a removed module back where it was, with what was removed together with it."""
+        module = self.get(ref)
+        if not module.get("removed_at"):
+            raise Problem(f"{module['name']} isn't removed.")
+        if module.get("parent"):
+            parent = self.get(module["parent"])
+            if parent.get("removed_at"):
+                raise Problem(f"Restore {parent['name']} first: {module['name']} sits inside it.")
+        with self.store.tx() as db:
+            for mid in self.subtree(module["id"]):
+                db.execute("UPDATE modules SET removed_at = NULL, removed_with = NULL, updated_at"
+                           " = ? WHERE id = ? AND removed_with = ?", (now(), mid, module["id"]))
+        return self.get(module["id"])
+
+    def removed(self) -> list[dict[str, Any]]:
+        """The modules removed with their data kept that were removed themselves (not only as
+        part of a module above them), newest first."""
+        rows = self.store.all(
+            "SELECT * FROM modules WHERE removed_at IS NOT NULL AND removed_with = id"
+            " ORDER BY removed_at DESC, name")
+        return [_row(r) for r in rows]
+
     def children(self, mid: str) -> list[dict[str, Any]]:
         return [_row(r) for r in self.store.all(
             "SELECT * FROM modules WHERE parent = ? ORDER BY name", (mid,))]
@@ -101,7 +165,9 @@ class Modules:
         return _row(row)
 
     def all(self) -> list[dict[str, Any]]:
-        return [_row(r) for r in self.store.all("SELECT * FROM modules ORDER BY name")]
+        """The modules in use: a removed one (and what was removed with it) is left out."""
+        return [_row(r) for r in self.store.all(
+            "SELECT * FROM modules WHERE removed_at IS NULL ORDER BY name")]
 
     def set_workspace(self, module_id: str, path: str | None) -> dict[str, Any]:
         """The folder a program module is built in (Q38); None when it is removed."""

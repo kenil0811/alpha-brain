@@ -36,6 +36,7 @@ describe("Settings as cards", () => {
       dataInfo: vi.fn().mockResolvedValue({ folder: "/Users/k/Library/Alpha", size: 4 * 1024 * 1024, backups: [] }),
       claude: vi.fn().mockResolvedValue({ installed: true, signed_in: true }),
       companion: vi.fn().mockResolvedValue(null),
+      removedModules: vi.fn().mockResolvedValue([]),
       preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
       setPreference: vi.fn(async (key: string, value: unknown) => {
         prefs[key] = value;
@@ -45,12 +46,12 @@ describe("Settings as cards", () => {
     return { client: client as unknown as Client, calls: client };
   }
 
-  it("shows each part as its own card, Removed modules empty for now, and the keys in Help", async () => {
+  it("shows each part as its own card, Removed modules saying what shows there, and the keys in Help", async () => {
     const { client } = fake();
     render(<Settings client={client} theme="system" onTheme={vi.fn()} claude={null} onClaude={vi.fn()} />);
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(titles).toEqual(["Workspace", "Thinks with", "Reads with", "Appearance", "Your data", "Removed modules", "Defaults", "Help"]);
-    expect(screen.getByRole("region", { name: "Removed modules" })).toHaveTextContent("Nothing here. Removing a module today deletes it for good");
+    expect(await screen.findByText(/A module you remove while keeping its data shows here/)).toBeInTheDocument();
     const help = screen.getByRole("region", { name: "Help" });
     expect(within(help).getByText("⌘K")).toBeInTheDocument();
     expect(within(help).getByText("Shift+F10")).toBeInTheDocument();

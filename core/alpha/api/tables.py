@@ -19,6 +19,7 @@ from alpha.api.bodies import (
     ListBody,
     MoveModuleBody,
     RecordBody,
+    RenameModuleBody,
     RunPartBody,
 )
 from alpha.api.served import Served
@@ -33,6 +34,7 @@ from alpha.context.summary import module_summary
 from alpha.runtime import parts
 from alpha.world.knowledge import RECORD_NOTE
 from alpha.world.modtables import is_qualified
+from alpha.world.purge import removal_plan, remove_module
 from alpha.world.store import Problem, now
 from alpha.world.world import alpha_home
 
@@ -47,6 +49,19 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/modules", dependencies=[api])
     def modules() -> list[dict[str, Any]]:
         return [module_card(world, m) for m in world.modules.all()]
+
+    @app.get("/api/modules/removed", dependencies=[api])
+    def removed_modules() -> list[dict[str, Any]]:
+        """The modules removed with their data kept (Settings › Removed modules): when, and
+        what each holds, from the removal's own plan."""
+        out = []
+        for m in world.modules.removed():
+            plan = removal_plan(world, m["id"])
+            out.append({"id": m["id"], "name": m["name"], "removed_at": m["removed_at"],
+                        "path": [x["name"] for x in world.modules.path(m["id"])],
+                        "holds": plan["what"], "tables": plan["tables"], "rows": plan["rows"],
+                        "inside": plan["inside"]})
+        return out
 
     @app.get("/api/modules/{ref}", dependencies=[api])
     def module(ref: str) -> dict[str, Any]:
@@ -94,6 +109,45 @@ def routes(app: FastAPI, s: Served) -> None:
         world.journal.append("changed", f"You moved {moved['name']} under {where}.",
                              actor="person", module=moved["id"], data={"module": moved["id"]})
         return module_card(world, moved)
+
+    @app.post("/api/modules/{ref}/rename", dependencies=[api])
+    def rename_module(ref: str, body: RenameModuleBody) -> dict[str, Any]:
+        """A new name for a module (13 Oct, slice 2 A1): everywhere at once, journaled."""
+        before = world.modules.get(ref)["name"]
+        renamed = world.modules.rename(ref, body.name)
+        if renamed["name"] != before:
+            world.journal.append("changed", f"You renamed {before} to {renamed['name']}.",
+                                 actor="person", module=renamed["id"],
+                                 data={"module": renamed["id"], "before": before})
+        return module_card(world, renamed)
+
+    @app.get("/api/modules/{ref}/removal", dependencies=[api])
+    def module_removal(ref: str) -> dict[str, Any]:
+        """What deleting the module for good would take, before anything goes (A3)."""
+        return removal_plan(world, ref)
+
+    @app.post("/api/modules/{ref}/remove", dependencies=[api])
+    def remove_keep(ref: str) -> dict[str, Any]:
+        """Remove a module with its data kept (A3, A4): out of sight with what it holds, its
+        automations stopped, restorable from Settings."""
+        gone = world.modules.remove(ref)
+        world.journal.append("changed", f"You removed {gone['name']}; its data is kept, and"
+                             " Settings › Removed modules can bring it back.", actor="person",
+                             module=gone["id"], data={"module": gone["id"], "kept": True})
+        return {"id": gone["id"], "name": gone["name"], "removed_at": gone["removed_at"]}
+
+    @app.post("/api/modules/{ref}/restore", dependencies=[api])
+    def restore_module(ref: str) -> dict[str, Any]:
+        back = world.modules.restore(ref)
+        world.journal.append("changed", f"You restored {back['name']}.", actor="person",
+                             module=back["id"], data={"module": back["id"]})
+        return module_card(world, back)
+
+    @app.delete("/api/modules/{ref}", dependencies=[api])
+    def delete_module(ref: str) -> dict[str, Any]:
+        """Delete a module for good with everything in it (A3); the journal keeps what it was
+        (the removal journals itself)."""
+        return remove_module(world, ref)
 
     @app.get("/api/modules/{ref}/page", dependencies=[api])
     def module_page(ref: str) -> dict[str, Any]:

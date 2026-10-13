@@ -192,6 +192,20 @@ class Collections:
 
     # ---- tables ----
 
+    def _check_title(self, title: str, module: str | None) -> None:
+        """A table's title never repeats its module's name or a sibling table's title (13 Oct,
+        slice 2 A2: "Deals › Deals"); a table elsewhere may share it."""
+        clean = title.strip().lower()
+        if module:
+            row = self.store.one("SELECT name FROM modules WHERE id = ?", (module,))
+            if row and row["name"].strip().lower() == clean:
+                raise Problem(f"'{title}' is the module's own name; give the table a name of its"
+                              " own (what its rows are, e.g. 'Listings').")
+        if self.store.one("SELECT 1 FROM collections WHERE module IS ? AND LOWER(TRIM(title)) = ?",
+                          (module, clean)):
+            raise Problem(f"There is a table called '{title}' here already; give this one another"
+                          " name.")
+
     def create(
         self,
         name: str,
@@ -205,6 +219,7 @@ class Collections:
         _check_name(name, "table")
         if self.store.one("SELECT 1 FROM collections WHERE name = ?", (name,)):
             raise Problem(f"A table named '{name}' exists already; describe it or add fields.")
+        self._check_title(title, module)
         schema: dict[str, Any] = {"fields": normalise_fields(fields)}
         names = [f["name"] for f in schema["fields"]]
         if title_field is None:
@@ -746,6 +761,9 @@ class Collections:
             "SELECT f.collection, f.record_id, snippet(records_fts, 2, '[', ']', '…', 12) AS snip,"
             " r.updated_at FROM records_fts f JOIN records r ON r.collection = f.collection"
             " AND r.id = f.record_id WHERE records_fts MATCH ? AND r.deleted_at IS NULL"
+            # a removed module's rows are out of sight with it (slice 2 A4)
+            " AND f.collection NOT IN (SELECT c.name FROM collections c JOIN modules m ON"
+            " m.id = c.module WHERE m.removed_at IS NOT NULL)"
             " ORDER BY bm25(records_fts), r.updated_at DESC LIMIT ?",
             (query, max(1, min(limit, 100))),
         )
