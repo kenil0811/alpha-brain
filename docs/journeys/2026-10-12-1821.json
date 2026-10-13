@@ -1,0 +1,58 @@
+[
+ {
+  "name": "network_merge",
+  "title": "Asked to merge a module of contacts into Network, Alpha merges it and makes their companies organisations",
+  "steps": [
+   {
+    "seed": "table old_contacts, 3 rows",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "Merge my Old contacts module into Network, and make their companies the organisations they work at.",
+    "ok": true,
+    "reply": "I merged Old contacts into Network, so its table of three contacts now sits there and the old module is gone.\n\nI treated each contact as a person, identified by their LinkedIn profile address. Their companies are now organisations, each linked to the people who work there:\n- **Acme:** Bo Diaz and Ann Lee\n- **Globex:** Cy Park\n\nI didn't touch your LinkedIn connections module. Earlier today you asked to rename it to Network, and that's still open. Say so if you want me to do it, or fold it into Network the same way.",
+    "steps": 5,
+    "seconds": 26.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "Merged Old contacts into Network"
+    },
+    "ok": true,
+    "why": "1 changed entry: Merged Old contacts into Network (1 collections)..",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "company to organisations"
+    },
+    "ok": true,
+    "why": "1 changed entry: Linked Old contacts's company to organisations: 3 rows linked to 2 organisations..",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Did Alpha say it merged Old contacts into Network and linked the people to their companies (Acme, Globex) as organisations, without claiming anything it didn't do?",
+    "ok": true,
+    "why": "The answer states Old contacts was merged into Network and that people are linked to their companies as organisations (Acme: Bo Diaz, Ann Lee; Globex: Cy Park), and it explicitly notes it did not touch the LinkedIn connections module, so it claims nothing beyond what was done.",
+    "seconds": 5.3
+   }
+  ],
+  "seconds": 31.8,
+  "error": null
+ }
+]

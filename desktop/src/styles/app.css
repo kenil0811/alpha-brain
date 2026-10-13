@@ -606,6 +606,12 @@ body.avatar-window #root { height: 100vh; }
 .avatar__panel { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-composer); box-shadow: var(--shadow-float); overflow: hidden; }
 .avatar__head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); cursor: grab; }
 .avatar__head .faint { flex: 1; }
+.avatar__open { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; background: none; border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); color: var(--text); font: inherit; cursor: pointer; }
+.avatar__open:hover { background: var(--hover); }
+.avatar__open-main { font-size: var(--text-md); font-weight: 600; }
+.avatar__open-sub { font-size: var(--text-sm); color: var(--text-2); }
+button.avatar__bubble--answer { text-align: left; font: inherit; cursor: pointer; }
+button.avatar__bubble--answer:hover { background: var(--hover); }
 .avatar__turns { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .avatar__turn { display: flex; flex-direction: column; gap: var(--space-1); }
 .avatar__said { align-self: flex-end; background: var(--primary); color: var(--primary-ink); border-radius: var(--radius-card) var(--radius-card) var(--radius-control) var(--radius-card); padding: var(--space-2) var(--space-2); font-size: var(--text-md); max-width: 90%; }

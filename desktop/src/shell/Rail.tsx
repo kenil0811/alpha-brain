@@ -186,7 +186,8 @@ export function Rail({
   const name = typeof workspace === "string" && workspace.trim() ? workspace.trim() : DEFAULT_WORKSPACE;
   const stored = ids(orderPref);
   const order = stored.includes(NETWORK) ? stored : [NETWORK, ...stored]; // Network first until moved
-  const all = [...modules, { ...NETWORK_CARD, name: names[NETWORK] || NETWORK_CARD.name }];
+  // the Network project (A6) is the Network row, never a second row of its own
+  const all = [...modules.filter((m) => !m.network), { ...NETWORK_CARD, name: names[NETWORK] || NETWORK_CARD.name }];
   const hidden = ids(hiddenPref);
   const icons = iconsPref && typeof iconsPref === "object" ? iconsPref : NO_ICONS;
 
@@ -301,7 +302,7 @@ export function Rail({
     }));
   const moveItems = (m: ModuleCard): ContextItem[] => [
     ...(m.parent ? [{ label: "The top level", onSelect: () => void moveTo(m, null) }] : []),
-    ...modules.filter((x) => x.id !== m.parent && !isInside(modules, x.id, m.id)).map((x) => ({ label: moduleWords(x), onSelect: () => void moveTo(m, x.id) })),
+    ...modules.filter((x) => !x.network && x.id !== m.parent && !isInside(modules, x.id, m.id)).map((x) => ({ label: moduleWords(x), onSelect: () => void moveTo(m, x.id) })),
   ];
   const hiddenModules = hidden.map(byId).filter((x): x is ModuleCard => Boolean(x));
   const hiddenItem: ContextItem = {
@@ -467,7 +468,7 @@ export function Rail({
       const m = b.module;
       if (m.id === NETWORK) {
         const icon = icons[NETWORK] ? iconNamed(icons[NETWORK], ICON) : <PeopleIcon />;
-        return [item({ key: "people", icon, label: m.name, depth, current: sameSurface(surface, { kind: "people" }), onClick: () => onGo({ kind: "people" }), menu: { kind: "module", module: m }, module: m })];
+        return [item({ key: "people", icon, label: m.name, depth, current: sameSurface(surface, { kind: "people" }) || (surface.kind === "record" && surface.module === modules.find((x) => x.network)?.id), onClick: () => onGo({ kind: "people" }), menu: { kind: "module", module: m }, module: m })];
       }
       const open = !folded.has(m.id);
       const row = item({

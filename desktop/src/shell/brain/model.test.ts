@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fact, Intelligence, WorkGraph } from "../../core/client";
-import { around, graphOf, place, search, subjectsOf, visible } from "./model";
+import { around, graphOf, groups, overview, place, search, subjectsOf, visible, type GNode } from "./model";
 
 const fact = (id: string, over: Partial<Fact> = {}): Fact => ({ id, subject: "person", predicate: "likes", value: id, valid_from: "", valid_to: null, recorded_at: "", source: "stated", why: null, confidence: 1, state: "accepted", ...over });
 const world: WorkGraph = { at: "", nodes: [{ id: "module:m1", kind: "module", title: "Deals", module: "m1" }, { id: "goal:g1", kind: "goal", title: "Close ten", module: "m1" }], edges: [{ from: "goal:g1", to: "module:m1", kind: "in" }] };
@@ -50,5 +50,48 @@ describe("a project's second brain", () => {
   it("is about whom its work names: named in the project, or a row in one of its collections", () => {
     const w: WorkGraph = { at: "", nodes: [], edges: [{ from: "entity:a", to: "module:m1", kind: "named in" }, { from: "entity:b", to: "table:deals", kind: "row in" }, { from: "entity:c", to: "module:m2", kind: "named in" }] };
     expect([...subjectsOf(w, "m1", ["deals"])].sort()).toEqual(["entity:a", "entity:b"]);
+  });
+});
+
+describe("the overview", () => {
+  // Network holds Connections; six people are rows in it, at three organisations
+  const n = (id: string, kind: GNode["kind"], title = id): GNode => ({ id, kind, title });
+  const people = ["p1", "p2", "p3", "p4", "p5", "p6"];
+  const at: Record<string, string> = { p1: "acme", p2: "acme", p3: "acme", p4: "bigco", p5: "bigco", p6: "solo" };
+  const g = {
+    nodes: [n("you", "you"), n("module:net", "module", "Network"), { ...n("table:connections", "collection", "Connections"), size: 6 }, n("acme", "organisation", "Acme"), n("bigco", "organisation", "BigCo"), n("solo", "organisation", "Solo Ltd"), ...people.map((p) => n(p, "person")), n("record:connections:r1", "record"), n("fact:f1", "fact", "Likes tea"), n("fact:f2", "fact", "Wants a house"), n("ada", "person", "Ada")],
+    edges: [
+      { from: "module:net", to: "you" },
+      { from: "table:connections", to: "module:net" },
+      ...people.flatMap((p) => [{ from: p, to: at[p] }, { from: p, to: "table:connections" }]),
+      { from: "record:connections:r1", to: "table:connections" },
+      { from: "fact:f1", to: "p1" },
+      { from: "fact:f2", to: "you" },
+      { from: "ada", to: "module:net" },
+    ],
+  };
+
+  it("keeps projects and what sits in them, never each record or person, and facts about one person go with them", () => {
+    const o = overview(g);
+    const ids = o.nodes.map((x) => x.id);
+    expect(ids).not.toContain("p1");
+    expect(ids).not.toContain("record:connections:r1");
+    expect(ids).not.toContain("fact:f1");
+    expect(ids).toEqual(expect.arrayContaining(["you", "module:net", "table:connections", "fact:f2", "ada"])); // Ada is named in the project, not a row
+  });
+
+  it("draws the organisations that hold more than one person beside the collection their people are in, the rest as one node", () => {
+    const o = overview(g);
+    expect(o.nodes.find((x) => x.id === "acme")).toMatchObject({ detail: "3 people", size: 3 });
+    expect(o.nodes.find((x) => x.id === "bigco")).toMatchObject({ detail: "2 people" });
+    expect(o.nodes.find((x) => x.id === "solo")).toBeUndefined();
+    expect(o.nodes.find((x) => x.id === "orgs:more")).toMatchObject({ title: "1 more organization", detail: "1 person" });
+    expect(o.edges).toEqual(expect.arrayContaining([{ from: "acme", to: "table:connections" }, { from: "orgs:more", to: "table:connections" }]));
+  });
+
+  it("groups a project with what is in it and what hangs off that", () => {
+    const o = overview(g);
+    const placed = { "module:net": { x: 0, y: 0 }, "table:connections": { x: 30, y: 0 }, acme: { x: 60, y: 0 }, you: { x: -100, y: 0 } };
+    expect(groups(o, placed)).toEqual([{ id: "module:net", x: 30, y: 0, r: 48 }]); // around their middle
   });
 });

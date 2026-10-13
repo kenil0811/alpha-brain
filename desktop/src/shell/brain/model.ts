@@ -86,6 +86,89 @@ export function subjectsOf(world: WorkGraph | null, module: string, tables: stri
   return out;
 }
 
+/** The largest organisations drawn on their own in the overview; the rest are one group.
+ *  ponytail: a fixed count, chosen to keep the picture readable; a zoom-dependent count if asked. */
+export const BIG_ORGS = 24;
+
+/**
+ * The overview (12 Oct, the owner: "show modules and the next layer in them, grouped; for
+ * Network, large organizations that hold most people, without clutter"): projects and what sits
+ * directly in them, never each record or person. A collection stands for its rows; people fold
+ * (when they are rows or at one) into the organisations they are at, the largest drawn on their own beside the collection
+ * their people are rows in, the rest as one "more organizations" node. Facts about one person
+ * go with that person. "Show every record and person" draws the whole graph instead.
+ */
+const peopleWord = (n: number) => (n === 1 ? "1 person" : `${n.toLocaleString()} people`);
+
+export function overview(graph: Graph): Graph {
+  const near = neighbours(graph);
+  const kind = new Map(graph.nodes.map((n) => [n.id, n.kind]));
+  const people = graph.nodes.filter((n) => n.kind === "person").map((n) => n.id);
+  // who is at each organisation, and the collections its people are rows in
+  const members = new Map<string, number>();
+  const homes = new Map<string, Map<string, number>>();
+  for (const p of people) {
+    const orgs = [...(near.get(p) ?? [])].filter((id) => kind.get(id) === "organisation");
+    const tables = [...(near.get(p) ?? [])].filter((id) => kind.get(id) === "collection");
+    for (const o of orgs) {
+      members.set(o, (members.get(o) ?? 0) + 1);
+      const h = homes.get(o) ?? new Map<string, number>();
+      for (const t of tables) h.set(t, (h.get(t) ?? 0) + 1);
+      homes.set(o, h);
+    }
+  }
+  const ranked = [...members.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const big = new Set(ranked.slice(0, BIG_ORGS).map(([id]) => id));
+  // a person a collection or an organisation stands for folds into it; one named only in a
+  // project's work stays, as that project's next layer
+  const folded = (id: string) => [...(near.get(id) ?? [])].some((x) => kind.get(x) === "collection" || kind.get(x) === "organisation");
+  const dropped = new Set(graph.nodes.filter((n) => n.kind === "record" || (n.kind === "person" && folded(n.id)) || (n.kind === "organisation" && members.has(n.id) && !big.has(n.id))).map((n) => n.id));
+  const nodes: GNode[] = [];
+  for (const n of graph.nodes) {
+    if (dropped.has(n.id)) continue;
+    // a fact about one person or record goes with them
+    if ((n.kind === "fact" || n.kind === "hypothesis") && [...(near.get(n.id) ?? [])].every((id) => dropped.has(id)) && near.get(n.id)?.size) continue;
+    nodes.push(big.has(n.id) ? { ...n, size: members.get(n.id), detail: peopleWord(members.get(n.id)!) } : n);
+  }
+  const keep = new Set(nodes.map((n) => n.id));
+  const edges = graph.edges.filter((e) => keep.has(e.from) && keep.has(e.to));
+  const home = (o: string) => [...(homes.get(o) ?? new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  for (const o of big) {
+    const h = home(o);
+    if (h && keep.has(h)) edges.push({ from: o, to: h });
+  }
+  const rest = [...members.keys()].filter((o) => !big.has(o));
+  if (rest.length) {
+    const ppl = new Set(people.filter((p) => [...(near.get(p) ?? [])].some((id) => kind.get(id) === "organisation" && !big.has(id))));
+    // beside the collection most of these people are rows in
+    const tally = new Map<string, number>();
+    for (const o of rest) for (const [t, n] of homes.get(o) ?? []) tally.set(t, (tally.get(t) ?? 0) + n);
+    const h = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    nodes.push({ id: "orgs:more", kind: "organisation", title: `${rest.length.toLocaleString()} more organization${rest.length === 1 ? "" : "s"}`, detail: peopleWord(ppl.size), size: ppl.size, open: { kind: "people" } });
+    if (h && keep.has(h)) edges.push({ from: "orgs:more", to: h });
+  }
+  return { nodes, edges };
+}
+
+/** Each project's group: the project and what is linked to it directly, with what hangs off
+ *  that (an organisation beside a collection), drawn as one soft circle behind them. */
+export function groups(graph: Graph, at: Placed): { id: string; x: number; y: number; r: number }[] {
+  const near = neighbours(graph);
+  const kind = new Map(graph.nodes.map((n) => [n.id, n.kind]));
+  const out = [];
+  for (const m of graph.nodes) {
+    if (m.kind !== "module" || !at[m.id]) continue;
+    const inner = [...(near.get(m.id) ?? [])].filter((id) => kind.get(id) !== "module" && kind.get(id) !== "you");
+    const outer = inner.flatMap((id) => [...(near.get(id) ?? [])].filter((x) => x !== m.id && (kind.get(x) === "organisation" || kind.get(x) === "record")));
+    // around the middle of the project and what it holds, so the circle is no larger than they are
+    const pts = [m.id, ...inner, ...outer].filter((id) => at[id]).map((id) => at[id]);
+    const c = { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+    const r = Math.max(...pts.map((p) => Math.hypot(p.x - c.x, p.y - c.y)));
+    if (inner.length) out.push({ id: m.id, x: Math.round(c.x), y: Math.round(c.y), r: Math.round(r + 18) });
+  }
+  return out;
+}
+
 /** Each node's neighbours. */
 export function neighbours(graph: Graph): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>(graph.nodes.map((n) => [n.id, new Set()]));
@@ -145,10 +228,12 @@ export function place(graph: Graph, from: Placed = {}): Placed {
     return { id: n.id, x: was?.x ?? Math.cos(a) * r, y: was?.y ?? Math.sin(a) * r };
   });
   const links = graph.edges.map((e) => ({ source: e.from, target: e.to }));
+  const sizes = new Map(graph.nodes.map((n) => [n.id, n.size ?? 0]));
   const sim = forceSimulation<N>(nodes)
     .force("link", forceLink<N, { source: string; target: string }>(links).id((d) => d.id).distance(40).strength(0.5))
     .force("charge", forceManyBody<N>().strength(-60).distanceMax(400))
-    .force("collide", forceCollide<N>(8))
+    // room for a node's size and its name beneath it
+    .force("collide", forceCollide<N>((d) => 10 + Math.min(12, Math.sqrt(sizes.get(d.id) ?? 0) / 2)))
     .force("x", forceX<N>(0).strength(0.04))
     .force("y", forceY<N>(0).strength(0.04))
     .stop();

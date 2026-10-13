@@ -103,8 +103,12 @@ export function App({ client: injected }: { client?: Client } = {}) {
   // where the person was before the New project page, for its Cancel
   const beforeNew = useRef<Surface>({ kind: "home" });
   const [draftName, setDraftName] = useState("");
+  // the Network project's page is the Network page, wherever a way in names the project
+  const networkRef = useRef<string | null>(null);
+  networkRef.current = coreModules.find((m) => m.network)?.id ?? null;
+  const asNetwork = (s: Surface): Surface => (s.kind === "module" && s.id === networkRef.current ? { kind: "people" } : s);
   const setSurface = useCallback((next: Surface) => {
-    const place = knownSurface(next);
+    const place = asNetwork(knownSurface(next));
     if (place.kind === "activity") {
       setActivityAt(Date.now());
       pushAddress(surfaceRef.current, true); // the address names the page, not the bell
@@ -124,6 +128,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
       const named = currentHashSurface();
       if (!named) return;
       if (named.kind === "activity") return setSurface(named);
+      if (asNetwork(named) !== named) return setSurface(named);
       setSurfaceState(named);
       remember(SURFACE_KEY, named);
       pushAddress(named, true); // an old address (`#/people`) shows its new name
@@ -390,7 +395,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : surface.kind === "goal" || surface.kind === "permission" || surface.kind === "note" ? (
           <KeptPage key={`${surface.kind}/${surface.id}`} client={runtime.client} kind={surface.kind} id={surface.id} version={versions.intelligence} onBack={() => setSurface({ kind: "intelligence", tab: "second-brain" })} onChanged={changed} onGo={setSurface} />
         ) : surface.kind === "people" ? (
-          <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
+          <Network client={runtime.client} version={versions.people} onOpen={(id) => setSurface({ kind: "entity", id })} onOpenRecord={(module, table, id) => setSurface({ kind: "record", module, table, id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "entity" ? (
           <EntityPage key={surface.id} client={runtime.client} id={surface.id} version={versions.people} onBack={() => setSurface({ kind: "people" })} onOpen={(id) => setSurface({ kind: "entity", id })} onChanged={changed} onAsk={(text) => { setDraft({ text, send: false }); togglePanel(true); }} />
         ) : surface.kind === "skill" && surface.name.startsWith(BUILT_IN) ? (

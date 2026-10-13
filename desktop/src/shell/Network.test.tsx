@@ -52,4 +52,26 @@ describe("Network", () => {
     await user.click(screen.getByRole("tab", { name: "Organizations" }));
     expect(await within(await screen.findByLabelText("Organizations")).findByText("RestoPros")).toBeInTheDocument();
   });
+
+  it("puts the Network project's own tables left of People, People left of Organizations, and says who is at what", async () => {
+    const rows = [
+      { id: "e1", kind: "person", name: "Ana Ruiz", aliases: [], keys: {}, at: ["o1"] },
+      { id: "e2", kind: "person", name: "Bo Li", aliases: [], keys: {}, at: ["o1"] },
+      { id: "o1", kind: "organisation", name: "Initech", aliases: [], keys: {}, members: 2 },
+    ] as Entity[];
+    const c = { ...client(rows), modules: () => Promise.resolve([{ id: "m1", name: "Network", network: true, tables: [{ name: "connections", title: "Connections", records: 2 }] }]) } as unknown as Client;
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <Network client={c} version={0} onOpen={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByRole("tab", { name: "Connections" });
+    expect(within(screen.getByRole("tablist", { name: "Network" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Connections", "People", "Organizations"]);
+    const people = await screen.findByLabelText("People");
+    expect(await within(people).findAllByText("Initech")).toHaveLength(2);
+    await user.click(screen.getByRole("tab", { name: "Organizations" }));
+    const orgs = await screen.findByLabelText("Organizations");
+    expect(within(await within(orgs).findByText("Initech").then((c) => c.closest("tr")!)).getByText("2")).toBeInTheDocument();
+  });
 });

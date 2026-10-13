@@ -216,9 +216,12 @@ class Collections:
     to that entity in the registry by that hard key, with no model call. Every change keeps the
     record's previous values in `record_versions`."""
 
-    def __init__(self, store: Store, entities: Any = None, geocoder: Any = None) -> None:
+    def __init__(self, store: Store, entities: Any = None, geocoder: Any = None,
+                 knowledge: Any = None) -> None:
         self.store = store
         self.entities = entities
+        # where a row's links to the people and organisations its fields name are kept (facts)
+        self.knowledge = knowledge
         # finds where a place's words are (alpha.connectors.places); None leaves places unlocated
         self.geocoder = geocoder
 
@@ -312,7 +315,73 @@ class Collections:
         with self.store.tx() as db:
             db.execute("UPDATE records SET entity_id = ? WHERE collection = ? AND id = ?",
                        (entity["id"], name, rid))
+        self._relate(name, rid, str(entity["id"]), values)
         return str(entity["id"])
+
+    def link_field(self, name: str, field: str, kind: str) -> dict[str, Any]:
+        """Say that a field's values name people or organisations the row's own person or
+        organisation is related to (a person's Company names the organisation they are at).
+        Each value becomes that entity, found by its name in that kind or made, and the row's
+        entity is linked to it; rows there now are linked now, later ones on every write."""
+        current = self._schema(name)
+        if not current.get("identity"):
+            raise Problem(f"Say first who each row of {name} is (collection_identify).")
+        if field not in [f["name"] for f in current["fields"]]:
+            raise Problem(f"There is no field '{field}' in {name}.")
+        if kind not in ROWS_ARE:
+            raise Problem(f"A field can name {sorted(ROWS_ARE)}; got '{kind}'.")
+        links = [x for x in current.get("links", []) if x["field"] != field]
+        current["links"] = [*links, {"field": field, "kind": kind}]
+        with self.store.tx() as db:
+            db.execute("UPDATE collections SET schema = ?, updated_at = ? WHERE name = ?",
+                       (dumps(current), now(), name))
+        named: set[str] = set()
+        people = 0
+        for row in self.store.all(
+                "SELECT id, entity_id, \"values\" FROM records WHERE collection = ? AND"
+                " deleted_at IS NULL AND entity_id IS NOT NULL", (name,)):
+            at = self._relate(name, row["id"], row["entity_id"], loads(row["values"], {}))
+            named |= at
+            people += bool(at)
+        names = [str(r["canonical"]) for r in self.store.all(
+            f"SELECT canonical FROM entities WHERE id IN ({','.join('?' * len(named))})"
+            " ORDER BY canonical", tuple(named))] if named else []
+        return {**self.describe(name), "named": len(named), "names": names[:20],
+                "rows_linked": people}
+
+    def _relate(self, name: str, rid: str, entity_id: str,
+                values: dict[str, Any]) -> set[str]:
+        """Link a row's entity to the entities its linked fields name, and close the links it
+        made before that its values no longer name (a person who changed company); their ids."""
+        links = self._schema(name).get("links") or []
+        if not links or self.entities is None or self.knowledge is None:
+            return set()
+        out: set[str] = set()
+        for link in links:
+            value = values.get(link["field"])
+            words = str(value).strip() if isinstance(value, (str, int, float)) else ""
+            if not words:
+                continue
+            # ponytail: found by name within the kind; two writes at once may make it twice
+            same = self.store.one(
+                "SELECT id FROM entities WHERE kind = ? AND LOWER(canonical) = LOWER(?) AND"
+                " merged_into IS NULL ORDER BY created_at LIMIT 1", (link["kind"], words))
+            other = str(same["id"]) if same else str(self.entities.resolve(
+                link["kind"], words, source=f"record:{name}/{rid}")["entity"]["id"])
+            if other == entity_id:
+                continue
+            self.knowledge.record_fact(
+                f"entity:{entity_id}", "related_to", f"entity:{other}",
+                source=f"record:{name}/{rid}", state="accepted", confidence=1.0,
+                why=f"{link['field']} in {name}", single=False)
+            out.add(other)
+        with self.store.tx() as db:
+            marks = ",".join("?" * len(out))
+            db.execute("UPDATE facts SET valid_to = ? WHERE source = ? AND predicate ="
+                       " 'related_to' AND valid_to IS NULL"
+                       + (f" AND value NOT IN ({marks})" if out else ""),
+                       (now(), f"record:{name}/{rid}", *(f"entity:{o}" for o in out)))
+        return out
 
     def linked_to(self, entity_id: str) -> list[dict[str, Any]]:
         """The rows, in any table, that are this entity."""
@@ -732,6 +801,9 @@ class Collections:
             db.execute(
                 "DELETE FROM records_fts WHERE collection = ? AND record_id = ?", (name, rid)
             )
+            # what the row said its person is at goes with it
+            db.execute("UPDATE facts SET valid_to = ? WHERE source = ? AND predicate ="
+                       " 'related_to' AND valid_to IS NULL", (now(), f"record:{name}/{rid}"))
 
     # ---- reading ----
 

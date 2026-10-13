@@ -211,7 +211,7 @@ def world_graph(world: World) -> dict[str, Any]:
             edge(f"goal:{g['id']}", "you", "of")
 
     modules_by_name = {m["name"]: m["id"] for m in world.modules.all()}
-    entities = world.entities.find(limit=2000)
+    entities = world.entities.find(limit=-1)
     for e in entities:
         if e["kind"] == "document":
             continue

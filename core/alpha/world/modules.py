@@ -18,6 +18,7 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
+REMOVED = "removed"  # meta.network_module once the person removed Network
 THREAD_KINDS = {"build", "job", "topic", "chat"}
 THREAD_STATES = {"open", "working", "waiting", "done"}
 
@@ -53,6 +54,9 @@ class Modules:
         anything below it."""
         module = self.get(ref)
         parent_id = self.get(parent)["id"] if parent else None
+        if parent_id and parent_id == self.network_id():
+            raise Problem("Network holds people and organisations, not other projects; merge"
+                          f" {module['name']} into it instead.")
         if parent_id and parent_id in self.subtree(module["id"]):
             raise Problem(f"{module['name']} can't go inside itself or inside something it"
                           " holds.")
@@ -60,6 +64,99 @@ class Modules:
             db.execute("UPDATE modules SET parent = ?, updated_at = ? WHERE id = ?",
                        (parent_id, now(), module["id"]))
         return self.get(module["id"])
+
+    def network(self) -> str | None:
+        """Network, the built-in project for the person's people and organisations (A6): made
+        once, or taken over from a module already called Network, and known by its id in `meta`
+        afterwards, so renaming it changes nothing. None once the person removed it: it is not
+        made again behind their back."""
+        with self.store.tx() as db:
+            kept = db.execute("SELECT value FROM meta WHERE key = 'network_module'").fetchone()
+            if kept:
+                return None if kept["value"] == REMOVED else str(kept["value"])
+            same = db.execute("SELECT id FROM modules WHERE LOWER(name) = 'network'").fetchone()
+            mid = str(same["id"]) if same else new_id("m")
+            if not same:
+                db.execute("INSERT INTO modules (id, name, goal, parent, created_at, updated_at)"
+                           " VALUES (?, 'Network', 'The people and organisations you know.',"
+                           " NULL, ?, ?)", (mid, now(), now()))
+            db.execute("INSERT INTO meta (key, value) VALUES ('network_module', ?)", (mid,))
+        return mid
+
+    def network_id(self) -> str | None:
+        row = self.store.one("SELECT value FROM meta WHERE key = 'network_module'")
+        return str(row["value"]) if row and row["value"] != REMOVED else None
+
+    # what a module holds, by its `module` column; the journal keeps the module it was written in
+    HELD = ("collections", "goals", "automations", "sources", "actions", "threads", "skills",
+            "documents", "workflows")
+
+    def merge(self, ref: str, into: str) -> dict[str, Any]:
+        """Move everything a module holds (tables, the projects inside it, goals, automations,
+        sources, skills, threads, documents, its page) into another, then remove the empty
+        module. One change, its reads included: all of it moves or none does."""
+        with self.store.tx() as db:
+            def find(r: str) -> sqlite3.Row:
+                row = db.execute("SELECT * FROM modules WHERE id = ? OR LOWER(name) = LOWER(?)",
+                                 (r, r)).fetchone()
+                if row is None:
+                    raise Problem(f"There is no module '{r}'.")
+                found: sqlite3.Row = row
+                return found
+            module, target = find(ref), find(into)
+            src, dst = str(module["id"]), str(target["id"])
+            if src == dst:
+                raise Problem(f"{module['name']} can't be merged into itself.")
+            below = {str(r["id"]) for r in db.execute(
+                "WITH RECURSIVE down(id, depth) AS (SELECT id, 0 FROM modules WHERE id = ?"
+                " UNION ALL SELECT m.id, depth + 1 FROM modules m JOIN down ON m.parent ="
+                " down.id WHERE depth < 32) SELECT id FROM down", (src,)).fetchall()}
+            if dst in below:
+                raise Problem(f"{module['name']} holds {target['name']}; merge the other way,"
+                              f" or move {target['name']} out first.")
+            if module["workspace"]:
+                raise Problem(f"{module['name']} is built as a program with its own folder;"
+                              " it can't be merged, only moved inside another.")
+            live = "SELECT COUNT(*) AS n FROM workflows WHERE module = ? AND state != 'removed'"
+            both = [db.execute(live, (m,)).fetchone()["n"] for m in (src, dst)]
+            if all(both):
+                raise Problem(f"{module['name']} and {target['name']} each run as a workflow;"
+                              " one module holds one, so they can't be merged.")
+            # a page read by both stays once, in the module it merges into
+            db.execute("DELETE FROM sources WHERE module = ? AND url IN"
+                       " (SELECT url FROM sources WHERE module = ?)", (src, dst))
+            moved: dict[str, int] = {}
+            for table in self.HELD:
+                n = db.execute(f"UPDATE {table} SET module = ? WHERE module = ?",  # noqa: S608
+                               (dst, src)).rowcount
+                if n:
+                    moved[table] = n
+            # Network never nests: what sat in a module merged into it goes to the top
+            network = db.execute("SELECT value FROM meta WHERE key = 'network_module'").fetchone()
+            parent = None if network and network["value"] == dst else dst
+            n = db.execute("UPDATE modules SET parent = ? WHERE parent = ?", (parent, src)).rowcount
+            if n:
+                moved["projects"] = n
+            self._merge_page(db, str(module["name"]), str(target["name"]))
+            db.execute("DELETE FROM modules WHERE id = ?", (src,))
+        return {"merged": _row(module), "into": self.get(dst), "moved": moved}
+
+    @staticmethod
+    def _merge_page(db: sqlite3.Connection, name: str, into: str) -> None:
+        """The merged module's page joins the other's, under its own name as a heading."""
+        page = db.execute("SELECT * FROM notes WHERE scope = ?", (f"module:{name}",)).fetchone()
+        if page is None:
+            return
+        there = db.execute("SELECT * FROM notes WHERE scope = ? ORDER BY title LIMIT 1",
+                           (f"module:{into}",)).fetchone()
+        if there:
+            db.execute("UPDATE notes SET body = ?, updated_at = ? WHERE id = ?",
+                       (f"{there['body'].rstrip()}\n\n## {name}\n\n{page['body'].strip()}\n",
+                        now(), there["id"]))
+            db.execute("DELETE FROM notes WHERE id = ?", (page["id"],))
+        else:
+            db.execute("UPDATE notes SET scope = ?, title = ?, updated_at = ? WHERE id = ?",
+                       (f"module:{into}", into, now(), page["id"]))
 
     def children(self, mid: str) -> list[dict[str, Any]]:
         return [_row(r) for r in self.store.all(

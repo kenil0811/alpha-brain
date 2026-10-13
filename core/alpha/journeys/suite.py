@@ -231,7 +231,10 @@ class Run:
                                                  source="stated", state="accepted")
                 record = {"seed": f"fact {seed['predicate']} = {seed['value']}", "ok": True}
             elif seed.get("kind") == "table":
-                self.world.collections.create(seed["name"], seed["title"], seed["fields"])
+                home = self.world.modules.create(seed["module"])["id"] \
+                    if seed.get("module") else None
+                self.world.collections.create(seed["name"], seed["title"], seed["fields"],
+                                              module=home)
                 self.world.collections.upsert(seed["name"], seed["fields"][0]["name"],
                                               seed.get("rows", []), {"source": "stated"})
                 record = {"seed": f"table {seed['name']}, {len(seed.get('rows', []))} rows",
@@ -720,6 +723,7 @@ def run_suite(names: list[str] | None = None, *, world_path: Path | None = None,
     os.environ["ALPHA_HOME"] = str(home)  # the browser hand keeps its profiles under it
     os.environ["ALPHA_WORLD"] = str(copied)
     world = World(copied)
+    world.modules.network()  # as `alpha serve` does
     outcomes: list[Outcome] = []
     try:
         for journey in load(names):

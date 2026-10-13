@@ -28,6 +28,8 @@ export interface BrainNode {
   agent?: string;
   /** A record's collection node, which it sits around. */
   collection?: string;
+  /** How much it stands for (a collection's rows, an organisation's people): drawn larger. */
+  size?: number;
 }
 export interface BrainEdge {
   from: string;
@@ -70,7 +72,11 @@ export function brainOf(world: WorkGraph | null, data: Pick<Intelligence, "knowl
       add({ id: n.id, kind: "goal", title: n.title });
     }
   }
-  for (const n of world?.nodes ?? []) if (n.kind === "table") collection(n.id, n.title, n.module, n.subtitle);
+  for (const n of world?.nodes ?? []) {
+    if (n.kind !== "table") continue;
+    collection(n.id, n.title, n.module, n.subtitle);
+    if (typeof n.rows === "number") nodes.get(n.id)!.size = n.rows;
+  }
   const nested = new Set<string>();
   for (const e of world?.edges ?? []) {
     if (e.kind === "in" && e.from.startsWith("module:") && e.to.startsWith("module:")) nested.add(e.from);

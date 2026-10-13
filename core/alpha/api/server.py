@@ -152,6 +152,7 @@ def serve(port: int = 53900, *, background: bool = True) -> None:
     sock.bind(("127.0.0.1", port))
     sock.listen(128)
     world = World()
+    world.modules.network()
     ready = {"port": sock.getsockname()[1], "world": str(world.path), "pid": os.getpid()}
     print(READY_PREFIX + json.dumps(ready), flush=True)
     config = uvicorn.Config(create_app(world, live=background), log_level="warning")

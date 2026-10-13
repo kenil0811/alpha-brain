@@ -18,7 +18,7 @@ import { ICON_SM, X } from "../../ui/icons";
 import { HypothesisButtons } from "../intel/Hypothesis";
 import type { TableRecords } from "./collect";
 import type { Surface } from "../Rail";
-import { KINDS, around, cachedWorld, graphOf, keepWorld, neighbours, place, search, visible, type GNode, type GraphKind, type Placed } from "./model";
+import { KINDS, around, cachedWorld, graphOf, groups, keepWorld, neighbours, overview, place, search, visible, type GNode, type GraphKind, type Placed } from "./model";
 
 const W = 1000;
 const H = 700;
@@ -31,12 +31,14 @@ export interface GraphOptions {
   query: string;
   orphans: boolean;
   labels: boolean;
+  /** Every record and person, not the overview of projects, collections and organisations. */
+  every?: boolean;
   /** Bumped by Refresh. */
   refresh: number;
 }
 
 export function GraphView({ client, data, onGo, onChanged, options }: { client: Client; data: Intelligence; onGo?: (s: Surface) => void; onChanged: () => void; options: GraphOptions }) {
-  const { query, orphans, labels, refresh: tick } = options;
+  const { query, orphans, labels, every = false, refresh: tick } = options;
   const [world, setWorld] = useState<WorkGraph | null>(() => cachedWorld(client));
   const [problem, setProblem] = useState<string | null>(null);
   const fetched = useRef(tick); // the Refresh last asked for, so a remount doesn't ask again
@@ -61,7 +63,7 @@ export function GraphView({ client, data, onGo, onChanged, options }: { client: 
   const names = base.nodes.filter((n) => n.kind === "collection" && n.id.startsWith("table:")).map((n) => n.id.slice("table:".length)).join("\n");
   const [tables, setTables] = useState<TableRecords[]>([]);
   useEffect(() => {
-    if (!names) return;
+    if (!names || !every) return; // the overview needs no records
     let live = true;
     void Promise.allSettled(names.split("\n").map(async (name) => client.table(name))).then((got) => {
       if (live) setTables(got.flatMap((g) => (g.status === "fulfilled" && g.value ? [g.value] : [])));
@@ -69,8 +71,8 @@ export function GraphView({ client, data, onGo, onChanged, options }: { client: 
     return () => {
       live = false;
     };
-  }, [client, names, tick]);
-  const graph = useMemo(() => (tables.length ? graphOf(world, data, tables) : base), [base, world, data, tables]);
+  }, [client, names, tick, every]);
+  const graph = useMemo(() => (every ? (tables.length ? graphOf(world, data, tables) : base) : overview(base)), [base, world, data, tables, every]);
   const placed = useRef<Placed>({});
   const at = useMemo(() => (placed.current = place(graph, placed.current)), [graph]);
   const near = useMemo(() => neighbours(graph), [graph]);
@@ -190,6 +192,9 @@ export function GraphView({ client, data, onGo, onChanged, options }: { client: 
         <div className="graph__canvas">
           <svg ref={svg} className="graph__svg" viewBox={`${-W / 2} ${-H / 2} ${W} ${H}`} role="img" aria-label={`The graph: ${shown.nodes.length} things, ${shown.edges.length} links`} onPointerDown={down} onPointerMove={dragMove} onPointerUp={() => (drag.current = null)} onPointerLeave={() => (drag.current = null)}>
             <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
+              {groups(shown, at).map((g) => (
+                <circle key={`group:${g.id}`} className={`ggroup${lit === g.id ? " ggroup--lit" : ""}`} cx={g.x} cy={g.y} r={g.r} aria-hidden="true" />
+              ))}
               {shown.edges.map((e) => {
                 const a = at[e.from];
                 const b = at[e.to];
@@ -200,8 +205,9 @@ export function GraphView({ client, data, onGo, onChanged, options }: { client: 
               {shown.nodes.map((n) => {
                 const p = at[n.id];
                 if (!p) return null;
-                const r = (RADIUS[n.kind] ?? 5) + Math.min(6, Math.sqrt(near.get(n.id)?.size ?? 0));
-                const named = labels || view.k >= 1.6 || n.kind === "you" || n.kind === "module" || litSet?.has(n.id);
+                const r = (RADIUS[n.kind] ?? 5) + (n.size ? Math.min(12, Math.sqrt(n.size) / 2) : Math.min(6, Math.sqrt(near.get(n.id)?.size ?? 0)));
+                // named when it is drawn large enough on screen to carry a name: the larger, the sooner
+                const named = labels || (r * view.k) / unitsPerPixel() >= 14 || n.kind === "you" || n.kind === "module" || n.kind === "collection" || litSet?.has(n.id);
                 return (
                   <g
                     key={n.id}

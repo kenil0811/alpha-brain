@@ -22,18 +22,36 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/people", dependencies=[api])
     def people(kind: str | None = None, q: str | None = None) -> list[dict[str, Any]]:
+        """Every person and organisation (no cap: 12 Oct, a network of thousands showed as 500),
+        each with the last line that named them, their page's summary, and who is at what: a
+        person's `at` (the organisations they are related to) and an organisation's `members`."""
         kinds = [kind] if kind else ["person", "organisation"]
+        found = [e for k in kinds for e in world.entities.find(name=q, kind=k, limit=-1)]
+        last = {r["eid"]: r for r in world.store.all(
+            # SQLite: with MAX, the bare column (text) comes from the row holding the max
+            "SELECT x.value AS eid, MAX(j.at) AS at, j.text FROM journal j,"
+            " json_each(j.entity_ids) x WHERE j.deleted_at IS NULL AND j.entity_ids != '[]'"
+            " GROUP BY x.value")}
+        notes = {r["scope"] for r in world.store.all(
+            "SELECT scope FROM notes WHERE scope LIKE 'entity:%'")}
+        at: dict[str, list[str]] = {}
+        members: dict[str, int] = {}
+        for r in world.store.all(
+                "SELECT f.subject, f.value FROM facts f"
+                " JOIN entities e ON e.id = substr(f.value, 8)"
+                " WHERE f.predicate = 'related_to' AND f.state = 'accepted'"
+                " AND f.valid_to IS NULL AND e.kind = 'organisation'"):
+            at.setdefault(r["subject"][7:], []).append(r["value"][7:])
+            members[r["value"][7:]] = members.get(r["value"][7:], 0) + 1
         out = []
-        for k in kinds:
-            for e in world.entities.find(name=q, kind=k, limit=500):
-                last = world.store.one(
-                    "SELECT j.at, j.text FROM journal j, json_each(j.entity_ids) x WHERE x.value ="
-                    " ? AND j.deleted_at IS NULL ORDER BY j.at DESC LIMIT 1", (e["id"],),
-                )
-                page = world.knowledge.find_note(f"entity:{e['id']}", e["name"])
-                out.append({**e, "last_at": last["at"] if last else None,
-                            "last_text": last["text"] if last else None,
-                            "summary": page.get("summary") if page else None})
+        for e in found:
+            hit = last.get(e["id"])
+            page = world.knowledge.find_note(f"entity:{e['id']}", e["name"]) \
+                if f"entity:{e['id']}" in notes else None
+            out.append({**e, "last_at": hit["at"] if hit else None,
+                        "last_text": hit["text"] if hit else None,
+                        "summary": page.get("summary") if page else None,
+                        "at": at.get(e["id"], []), "members": members.get(e["id"], 0)})
         return sorted(out, key=lambda e: e["last_at"] or "", reverse=True)
 
     @app.get("/api/entities/{eid}", dependencies=[api])

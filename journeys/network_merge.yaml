@@ -1,0 +1,19 @@
+name: network_merge
+title: Asked to merge a module of contacts into Network, Alpha merges it and makes their companies organisations
+why: On 12 Oct the owner asked Alpha to merge the LinkedIn module into Network and Alpha found "no
+  Network module" and stopped. Network is now a real module; module_merge moves a module into it and
+  collection_link makes a Company field the organisations its people are at.
+steps:
+  - seed: {kind: table, module: Old contacts, name: old_contacts, title: Old contacts,
+      fields: [{name: name, kind: text, label: Name}, {name: profile, kind: text, label: Profile},
+               {name: company, kind: text, label: Company}],
+      rows: [{name: Ann Lee, profile: "https://www.linkedin.com/in/ann-lee", company: Acme},
+             {name: Bo Diaz, profile: "https://www.linkedin.com/in/bo-diaz", company: Acme},
+             {name: Cy Park, profile: "https://www.linkedin.com/in/cy-park", company: Globex}]}
+  - say: "Merge my Old contacts module into Network, and make their companies the organisations they work at."
+checks:
+  - journal: {kind: changed, contains: "Merged Old contacts into Network"}
+  - journal: {kind: changed, contains: "company to organisations"}
+  - no_new_tables: {}
+  - judge: "Did Alpha say it merged Old contacts into Network and linked the people to their
+      companies (Acme, Globex) as organisations, without claiming anything it didn't do?"
