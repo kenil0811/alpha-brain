@@ -104,7 +104,7 @@ export interface SavedList {
   id: string;
   collection: string;
   title: string;
-  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; hidden?: string[]; sort?: { field: string; direction: "asc" | "desc" } | null; sorts?: { field: string; direction: "asc" | "desc" }[]; rules?: { match: "all" | "any"; rules: { field: string; op: "is" | "is_not" | "contains" | "not_contains" | "starts" | "ends" | "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "between" | "before" | "after" | "on_before" | "on_after" | "within" | "in" | "checked" | "unchecked" | "empty" | "not_empty"; value: string; value2?: string; values?: string[] }[] }; view?: string; group_by?: string; date_by?: string; measure?: string };
+  config: { search?: string; filters?: Record<string, string>; hide_done?: boolean; show_gone?: boolean; hidden?: string[]; sort?: { field: string; direction: "asc" | "desc" } | null; sorts?: { field: string; direction: "asc" | "desc" }[]; rules?: { match: "all" | "any"; rules: { field: string; op: "is" | "is_not" | "contains" | "not_contains" | "starts" | "ends" | "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "between" | "before" | "after" | "on_before" | "on_after" | "within" | "in" | "checked" | "unchecked" | "empty" | "not_empty"; value: string; value2?: string; values?: string[] }[] }; view?: string; group_by?: string; date_by?: string; measure?: string };
   is_default: boolean;
   source: string | null;
   created_at: string;

@@ -12,7 +12,8 @@ import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type Rules, type Sort } from "./views/engine";
-import { FilterSummary, GroupSummary } from "./views/RulesUI";
+import { ViewState } from "./views/RulesUI";
+import { ListTabs } from "./views/ListTabs";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
 import { AddRow } from "./views/AddRow";
@@ -99,6 +100,24 @@ function keepWorking(key: string, value: Working) {
   }
 }
 
+/** Whether two lists' configs show the same view: what they leave out is the default. */
+function sameView(a: SavedList["config"], b: SavedList["config"]): boolean {
+  const norm = (c: SavedList["config"]) => JSON.stringify({
+    search: c.search ?? "",
+    rules: c.rules?.rules.length ? c.rules : null,
+    sorts: c.sorts ?? (c.sort ? [c.sort] : []),
+    group_by: c.group_by ?? null,
+    hide_done: c.hide_done ?? false,
+    show_gone: c.show_gone ?? false,
+    hidden: [...(c.hidden ?? [])].sort(),
+    view: c.view ?? "table",
+  });
+  return norm(a) === norm(b);
+}
+
+/** A field's name for the eye: its own label when it has one, else its name in words. */
+const labelOf = (f: FieldInfo) => (f.label && f.label !== f.name ? f.label : humanize(f.name));
+
 const NO_RULES: Rules = { match: "all", rules: [] };
 const NO_FILTERS: Record<string, string> = {};
 
@@ -179,7 +198,6 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [adding, setAdding] = useState(false);
   // A program module's own table (Q38) is read from its database: no adding, editing or removing here.
   const readonly = Boolean(table.readonly);
-  const [naming, setNaming] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { y: now.getFullYear(), m: now.getMonth() };
@@ -348,6 +366,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
       const c = from.find((l) => l.id === id)?.config;
       setSearch(c?.search ?? "");
       setHideDone(c?.hide_done ?? false);
+      setShowGone(c?.show_gone ?? false);
       if (!c) setRules(NO_RULES); // All: every row, as the quick dropdowns were reset before
       if (c) {
         setHidden(c.hidden ?? []);
@@ -368,15 +387,25 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     const starred = lists.find((l) => l.is_default);
     if (starred) applyList(starred.id, lists);
   }, [lists, applyList]);
-  const currentConfig = (): SavedList["config"] => ({ search, rules, sorts, hide_done: hideDone, hidden, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
-  async function saveList(title: string) {
-    if (!title.trim()) return;
-    const ok = await run(async () => {
+  const currentConfig = (): SavedList["config"] => ({ search, rules, sorts, hide_done: hideDone, show_gone: showGone, hidden, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
+  // the current list's view changed since it was saved: its tab shows a dot, Save changes is on
+  const listDirty = (() => {
+    const kept = lists.find((l) => l.id === listId)?.config;
+    return kept ? sameView(kept, currentConfig()) === false : false;
+  })();
+  async function saveList(title: string): Promise<boolean> {
+    if (!title.trim()) return false;
+    return run(async () => {
       const saved = await client.saveList(table.name, title.trim(), currentConfig());
       setLists((existing) => [...existing, saved]);
       setListId(saved.id);
     }, "Couldn't save the list");
-    if (ok) setNaming(null);
+  }
+  async function renameList(id: string, title: string): Promise<boolean> {
+    return run(async () => {
+      const changed = await client.updateList(id, { title });
+      setLists((existing) => existing.map((l) => (l.id === changed.id ? changed : l)));
+    }, "Couldn't rename the list");
   }
   function updateList() {
     void run(async () => {
@@ -390,8 +419,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
       setLists((existing) => existing.map((l) => ({ ...l, is_default: l.id === changed.id })));
     }, "Couldn't make it the default");
   }
-  function dropList() {
-    const id = listId;
+  function dropList(id: string) {
     void run(async () => {
       await client.deleteList(id);
       setLists((existing) => existing.filter((l) => l.id !== id));
@@ -421,7 +449,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     <div className="stack stack--fill" aria-label={table.title}>
       <div className="card card--fill">
         {onSay && !readonly ? <QuickEntry table={table} onSay={onSay} /> : null}
-        <div className="toolbar toolbar--page">
+        <div className="toolbar toolbar--page toolbar--table">
           {searchable.length ? (
             <div className="search">
               <span aria-hidden="true">⌕</span>
@@ -429,15 +457,6 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
             </div>
           ) : null}
           <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
-          {view === "board" && choiceFields.length > 1 ? (
-            <select className="btn btn--sm" value={groupField?.name ?? ""} onChange={(e) => setGroupBy(e.target.value)} aria-label="Group by">
-              {choiceFields.map((f) => (
-                <option key={f.name} value={f.name}>
-                  By {humanize(f.name).toLowerCase()}
-                </option>
-              ))}
-            </select>
-          ) : null}
           {(view === "calendar" || view === "timeline" || view === "chart") && dateFields.length > 1 ? (
             <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
               {dateFields.map((f) => (
@@ -447,18 +466,28 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               ))}
             </select>
           ) : null}
-          {lists.length ? (
-            <select className="btn btn--sm" value={listId} onChange={(e) => applyList(e.target.value)} aria-label="Saved list">
-              <option value="all">All</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.is_default ? "★ " : ""}{l.title}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          <GroupSummary by={tableGroupField ? (tableGroupField.label && tableGroupField.label !== tableGroupField.name ? tableGroupField.label : humanize(tableGroupField.name)) : null} onUngroup={() => setGroupBy(null)} />
-          <FilterSummary count={filterCount} match={rules.match} onMatch={(match) => setRules((r) => ({ ...r, match }))} onClear={() => { setRules(NO_RULES); setHideDone(false); }} />
+          <ListTabs
+            lists={lists}
+            current={listId}
+            dirty={listDirty}
+            onPick={(id) => applyList(id)}
+            onSave={saveList}
+            onRename={renameList}
+            onUpdate={updateList}
+            onDefault={starList}
+            onRemove={dropList}
+          />
+          <ViewState
+            board={view === "board"}
+            groupedBy={view === "board" ? (groupField ? labelOf(groupField) : null) : view === "table" && tableGroupField ? labelOf(tableGroupField) : null}
+            groupValue={view === "board" ? (groupField?.name ?? null) : (tableGroupField?.name ?? null)}
+            groupOptions={(view === "board" ? choiceFields : fields.filter((f) => groupable(f.kind))).map((f) => ({ name: f.name, label: labelOf(f) }))}
+            count={filterCount}
+            match={rules.match}
+            onMatch={(match) => setRules((r) => ({ ...r, match }))}
+            onClear={() => { setRules(NO_RULES); setHideDone(false); }}
+            onGroupBy={setGroupBy}
+          />
           <span className="spacer" />
           {readonly ? (
             <span className="faint">Built by the module · read-only</span>
@@ -497,31 +526,6 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
                   <button type="button" className="menu__item" onClick={() => setWidths({})}>
                     Reset column widths
                   </button>
-                ) : null}
-                <div className="menu__head">Lists</div>
-                {naming !== null ? (
-                  <form className="menu__item" onSubmit={(e) => { e.preventDefault(); saveList(naming); }}>
-                    <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} placeholder="Name this list" aria-label="List name" />
-                  </form>
-                ) : (
-                  <button type="button" className="menu__item" onClick={() => setNaming("")} disabled={!filtered}>
-                    Save the current filters as a list
-                  </button>
-                )}
-                {listId !== "all" ? (
-                  <>
-                    <button type="button" className="menu__item" onClick={updateList}>
-                      Save the current filters to this list
-                    </button>
-                    {!lists.find((l) => l.id === listId)?.is_default ? (
-                      <button type="button" className="menu__item" onClick={() => starList(listId)}>
-                        Open this table on this list
-                      </button>
-                    ) : null}
-                    <button type="button" className="menu__item menu__item--danger" onClick={dropList}>
-                      Remove this list
-                    </button>
-                  </>
                 ) : null}
             </div>
           </Popover>

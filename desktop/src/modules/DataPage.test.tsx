@@ -90,7 +90,7 @@ describe("the table page", () => {
 describe("filters and sorts in the columns (section 3a)", () => {
   const withStatus = (r: RecordRow, status: string): RecordRow => ({ ...r, values: { ...r.values, status } });
 
-  it("a number column's menu narrows the rows; the header shows a funnel and the toolbar one line with Clear all", async () => {
+  it("a number column's menu narrows the rows; the header shows a funnel and the toolbar a filters word with Clear all", async () => {
     const user = userEvent.setup();
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
     await screen.findByText("Bakery");
@@ -102,7 +102,8 @@ describe("filters and sorts in the columns (section 3a)", () => {
     await user.keyboard("{Escape}");
     const summary = screen.getByRole("status");
     expect(summary).toHaveTextContent("1 filter");
-    await user.click(within(summary).getByRole("button", { name: "Clear all" }));
+    await user.click(within(summary).getByRole("button", { name: /1 filter/ }));
+    await user.click(await screen.findByRole("button", { name: "Clear all filters" }));
     expect(screen.getByText("Cafe")).toBeInTheDocument();
   });
 
@@ -161,7 +162,8 @@ describe("filters and sorts in the columns (section 3a)", () => {
     await user.click(within(await screen.findByRole("group", { name: "Values of Status" })).getByRole("checkbox", { name: /Active/ }));
     await user.keyboard("{Escape}");
     expect(screen.queryByText("Bakery")).toBeNull(); // more than 200 and not Active: none
-    await user.selectOptions(screen.getByRole("combobox", { name: "Rows that match" }), "any");
+    await user.click(screen.getByRole("button", { name: /Grouped · 2 filters|2 filters/ }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Rows that match" }), "any");
     expect(screen.getByText("Bakery")).toBeInTheDocument();
     expect(screen.getByText("Cafe")).toBeInTheDocument();
     expect(screen.queryByText("Diner")).toBeNull();
@@ -185,7 +187,8 @@ describe("grouping the table (section 3b)", () => {
     expect(active).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("Bakery")).toBeNull();
     expect(screen.getByText("Cafe")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Ungroup" }));
+    await user.click(screen.getByRole("button", { name: /Grouped: Status/ }));
+    await user.click(await screen.findByRole("button", { name: "Ungroup" }));
     expect(screen.queryByRole("button", { name: /Active · 2/ })).toBeNull();
     expect(screen.getByText("Bakery")).toBeInTheDocument();
   });
@@ -216,8 +219,86 @@ describe("coming back to a table", () => {
     );
     expect(await screen.findByRole("button", { name: /Active · 1/ })).toBeInTheDocument();
     expect(screen.queryByText("Cafe")).toBeNull();
-    expect(screen.getByText("Grouped by Status")).toBeInTheDocument();
-    expect(screen.getAllByRole("status").some((s) => s.textContent?.includes("1 filter"))).toBe(true);
+    expect(screen.getByRole("button", { name: /Grouped · 1 filter/ })).toBeInTheDocument();
+  });
+});
+
+describe("saved lists as tabs (section 3c)", () => {
+  const list = (id: string, title: string, config: Record<string, unknown>, is_default = false) => ({ id, collection: "deals", title, config, is_default, source: null, created_at: "", updated_at: "" });
+  function withLists(lists: ReturnType<typeof list>[]) {
+    const rows = [row("r1", "Bakery", 300), { ...row("r2", "Cafe", 120), values: { title: "Cafe", price: 120, status: "Sold" } }];
+    const client = fakeClient(rows);
+    // the core keeps the lists: a save, a change or a removal is there when the page reads them again
+    let kept = [...lists];
+    (client as unknown as { table: unknown }).table = vi.fn(async () => ({ table: desc, records: rows, files: {}, lists: kept, relations: {} }));
+    client.saveList = vi.fn(async (_t: string, title: string, config: unknown) => {
+      const made = list("l9", title, config as Record<string, unknown>);
+      kept = [...kept, made];
+      return made;
+    }) as never;
+    client.updateList = vi.fn(async (id: string, change: { title?: string; config?: Record<string, unknown> }) => {
+      kept = kept.map((l) => (l.id === id ? { ...l, title: change.title ?? l.title, config: change.config ?? l.config } : l));
+      return kept.find((l) => l.id === id)!;
+    }) as never;
+    client.deleteList = vi.fn(async (id: string) => {
+      kept = kept.filter((l) => l.id !== id);
+      return {};
+    }) as never;
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    return client;
+  }
+
+  it("shows All and each list as a tab; a tab shows its rows; ★ marks the one the table opens on", async () => {
+    const user = userEvent.setup();
+    withLists([list("l1", "Sold ones", { rules: { match: "all", rules: [{ field: "status", op: "in", value: "", values: ["Sold"] }] } }), list("l2", "Big ones", {}, true)]);
+    const tabs = await screen.findByRole("tablist", { name: "Saved lists" });
+    expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["All", "Sold ones", "★ Big ones"]);
+    await user.click(within(tabs).getByRole("tab", { name: "Sold ones" }));
+    expect(screen.queryByText("Bakery")).toBeNull();
+    expect(within(tabs).getByRole("tab", { name: "Sold ones" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("+ saves the current view under a name, a sort alone included", async () => {
+    const user = userEvent.setup();
+    const client = withLists([]);
+    await screen.findByText("Bakery");
+    await user.click(within(screen.getByRole("columnheader", { name: /^Price/ })).getAllByRole("button")[0]);
+    await user.click(screen.getByRole("button", { name: "Save the current view as a list" }));
+    await user.type(await screen.findByRole("textbox", { name: "List name" }), "Cheapest first");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(client.saveList).toHaveBeenCalled());
+    const [, title, config] = (client.saveList as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(title).toBe("Cheapest first");
+    expect(config.sorts).toEqual([{ field: "price", direction: "asc" }]);
+    expect(await screen.findByRole("tab", { name: "Cheapest first" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("a change shows a dot; the list's menu saves it, renames it, and removes it after a yes", async () => {
+    const user = userEvent.setup();
+    const client = withLists([list("l1", "Sold ones", {})]);
+    await user.click(await screen.findByRole("tab", { name: "Sold ones" }));
+    expect(screen.queryByLabelText("changed since saved")).toBeNull();
+    await user.click(within(screen.getByRole("columnheader", { name: /^Price/ })).getAllByRole("button")[0]);
+    expect(screen.getByLabelText("changed since saved")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More for the list Sold ones" }));
+    await user.click(await screen.findByRole("button", { name: "Save changes to this list" }));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("l1", { config: expect.objectContaining({ sorts: [{ field: "price", direction: "asc" }] }) }));
+    await user.click(screen.getByRole("button", { name: "More for the list Sold ones" }));
+    await user.click(await screen.findByRole("button", { name: "Rename…" }));
+    const name = screen.getByRole("textbox", { name: "List name" });
+    await user.clear(name);
+    await user.type(name, "Sold");
+    await user.click(screen.getByRole("button", { name: "Rename" }));
+    await waitFor(() => expect(client.updateList).toHaveBeenCalledWith("l1", { title: "Sold" }));
+    await user.click(await screen.findByRole("button", { name: "More for the list Sold" }));
+    await user.click(await screen.findByRole("button", { name: "Remove this list…" }));
+    expect(client.deleteList).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Remove it" }));
+    await waitFor(() => expect(client.deleteList).toHaveBeenCalledWith("l1"));
   });
 });
 

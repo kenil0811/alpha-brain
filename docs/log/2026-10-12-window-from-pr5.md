@@ -184,7 +184,38 @@ open, the job listings grouped by Remote/Onsite (4 groups), Remote folded, page 
 "Remote · 29 continued", the toolbar one line, nothing past the window; `just check-desktop`:
 81 of 81 pages clean at every size (`docs/checks/2026-10-13-1004.md`).
 
+## Section 3c: saved lists as tabs (13 Oct, this commit)
+
+Proposed in writing with two layouts; Kenil: "A". Built (`ListTabs.tsx`): the lists as tabs in
+the toolbar after the view switch, in its pill: All, each list (★ on the one the table opens
+on), + to save the current view under a name; the current tab's ⋮ holds Rename…, Save changes
+to this list, Open the table on this list, Remove this list… (after a yes); a dot while the
+view differs from what was saved; lists that don't fit go under More, measured against the
+toolbar, the current one always a tab. A list keeps the whole view (search, column filters
+with all or any, sorts, grouping, Hide done, Show gone, hidden columns, the view); a sort alone
+can be saved. The core: a list may hold `show_gone`. The ⋯ menu has no Lists section now.
+
+To keep the toolbar one line (measured in the browser pane at 1240 with the sidebar open and a
+grouping, two filters and six lists on: 964px wanted against 918), the grouping's and the
+filters' words became one button, "Grouped · 2 filters ▾" (`ViewState`), whose menu holds what
+the rows are grouped by, Ungroup, all or any, Clear all filters. Kenil's review: "the search
+bar in toolbar should have fixed width. if i currently click on a view, the hwole row shifts to
+left since search text size decreases, which is very flaky": the table toolbar's search is
+200px, and the Board's own "By …" dropdown moved into the same button's menu, so switching
+between Table, Board, List, Gallery and Form keeps the toolbar 55px tall and the view switch
+where it is (measured). At 1100 with the sidebar open and many things on at once, the toolbar
+can still take two lines.
+
+Found on the way: the two Home tests that failed now and then made their failures "now", so
+their newest-first order hung on the millisecond; they are a second and two seconds old now
+(nine full runs clean). A longer wait added first, on the wrong reading that the Mac was
+busy, was taken out again.
+
+What ran: `just lint` clean; 228 core tests; 118 desktop tests in 30 files (three new: the tabs
+and ★, + saving a sort alone, the dot, Save changes, Rename, Remove after a yes);
+`just check-desktop`: 81 of 81 pages clean at every size (`docs/checks/2026-10-13-1056.md`).
+
 ## Left
 
-Section 3c (how saved lists are shown and switched) proposed in writing next; the rest one at a
-time.
+Section 4 (the table's extras: totals, colour, editing several rows, paste one write per row,
+the numbers strip) proposed in writing next; the rest one at a time.

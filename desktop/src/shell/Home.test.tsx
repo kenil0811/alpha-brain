@@ -6,6 +6,8 @@ import { TooltipProvider } from "../ui";
 import { Home, failedToday } from "./Home";
 
 const quiet: HomeData = { date: "2026-10-12T09:00:00+00:00", needs_you: [], ran_today: 4, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [], brief: null };
+/** A moment a few seconds ago: failures made in one test keep a fixed newest-first order. */
+const secondsAgo = (n: number) => new Date(Date.now() - n * 1000).toISOString();
 const failed = (id: string, text: string, data: Record<string, unknown>, extra: Partial<JournalEntry> = {}): JournalEntry => ({ id, at: new Date().toISOString(), kind: "failed", actor: "alpha", text, data, module: null, thread: null, entity_ids: [], source: null, ...extra });
 
 function mount(over: Partial<Record<keyof Client, unknown>>) {
@@ -31,7 +33,7 @@ describe("Home: didn't work today", () => {
     const runAutomation = vi.fn(async () => ({}));
     const { client, onGo } = mount({
       home: vi.fn(async () => ({ ...quiet, failed_today: 2 })),
-      activity: vi.fn(async () => [failed("j1", "Run of Daily brokers failed", { automation: "a_1" }), failed("j2", "That didn't work", { error: "the model timed out" }, { module: "m1" })]),
+      activity: vi.fn(async () => [failed("j1", "Run of Daily brokers failed", { automation: "a_1" }, { at: secondsAgo(1) }), failed("j2", "That didn't work", { error: "the model timed out" }, { module: "m1", at: secondsAgo(2) })]),
       runAutomation,
     });
     const card = await screen.findByRole("region", { name: "Didn't work today" });
@@ -48,7 +50,8 @@ describe("Home: didn't work today", () => {
     const user = userEvent.setup();
     const { client } = mount({
       home: vi.fn(async () => ({ ...quiet, failed_today: 2 })),
-      activity: vi.fn(async () => [failed("j1", "First failure", {}), failed("j2", "Second failure", {})]),
+      // the newest first, by when each happened (both made "now", their order hung on the millisecond)
+      activity: vi.fn(async () => [failed("j1", "First failure", {}, { at: secondsAgo(1) }), failed("j2", "Second failure", {}, { at: secondsAgo(2) })]),
     });
     const card = await screen.findByRole("region", { name: "Didn't work today" });
     await within(card).findByText("First failure");

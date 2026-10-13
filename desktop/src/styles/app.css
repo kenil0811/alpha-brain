@@ -979,7 +979,19 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .colmenu__input { width: 100%; min-width: 0; padding: 4px 8px; }
 .colmenu__note { margin: 0; padding: 0 8px 6px; font-size: var(--text-sm); max-width: 260px; }
 /* the toolbar's line while filters are on */
-.filtersum { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text-2); }
+.filtersum { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text-2); white-space: nowrap; }
 /* a grouped table's header row per group: a click folds it (13 Oct, section 3b) */
 .grouprow td { background: var(--surface-2); padding: 6px 12px; max-width: none; }
 .grouprow__btn { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; }
+/* a table's saved lists as tabs in its toolbar, the view switch's pill (13 Oct, section 3c) */
+.listtabs { flex-wrap: nowrap; align-items: center; }
+.listtab { display: inline-flex; align-items: center; }
+.listtabs .iconbtn { padding: 0 4px; width: auto; height: 24px; }
+.listtab__dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--primary); vertical-align: middle; }
+.listtabs__more { display: inline-flex; align-items: center; gap: 4px; }
+.listtabs__form { display: flex; gap: 6px; padding: 6px; }
+.listtabs--measure { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
+.listtabs--measure > * { flex: none; }
+.listtab__menu-room { display: inline-block; width: 24px; }
+/* a table toolbar's search keeps one width, so nothing after it moves when the toolbar's content changes (13 Oct, Kenil) */
+.toolbar--table > .search { flex: none; width: 200px; }

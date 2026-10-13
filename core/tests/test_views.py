@@ -52,8 +52,10 @@ def test_a_list_keeps_filter_rules_and_several_sorts_on_its_own_fields(world: Wo
     rules = {"match": "any", "rules": [{"field": "price", "op": "gt", "value": "100"},
                                         {"field": "title", "op": "contains", "value": "bakery"}]}
     sorts = [{"field": "status", "direction": "asc"}, {"field": "price", "direction": "desc"}]
-    kept = world.views.save("deals", "Big or bakeries", {"rules": rules, "sorts": sorts})
+    kept = world.views.save("deals", "Big or bakeries", {"rules": rules, "sorts": sorts,
+                                                          "show_gone": True})
     assert kept["config"]["rules"] == rules and kept["config"]["sorts"] == sorts
+    assert kept["config"]["show_gone"] is True
     with pytest.raises(Problem, match="no field 'city' to filter on"):
         world.views.save("deals", "x", {"rules": {"match": "all", "rules": [
             {"field": "city", "op": "is", "value": "Austin"}]}})

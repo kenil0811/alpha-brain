@@ -6,13 +6,12 @@
  * or not), and what belongs to that column (Hide done on the status, Show gone on Seen).
  * Sorting is not in it (Kenil, 13 Oct: "sort should not be in the menu, because its already
  * possible by clicking on column name"): a header click sorts, a shift-click adds a level.
- * `FilterSummary` is the toolbar's one quiet line while filters are on: how many, all or any,
- * Clear all.
+ * `ViewState` is the toolbar's one word for the grouping and the filters, with their menu.
  */
 import { useState, type ReactNode } from "react";
 import type { RecordRow } from "../../core/client";
 import { Button, IconButton, Popover } from "../../ui";
-import { ColumnMenuIcon } from "../../ui/icons";
+import { ChevronDown, ColumnMenuIcon } from "../../ui/icons";
 import { isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
 import { groupable, needsValue, OP_WORDS, opsFor, type FilterRule } from "./engine";
@@ -138,40 +137,58 @@ export function SeenMenu({ showGone, goneCount, onShowGone }: { showGone: boolea
   );
 }
 
-/** The toolbar's line while filters are on, in place of any control of its own. */
-export function FilterSummary({ count, match, onMatch, onClear }: { count: number; match: "all" | "any"; onMatch: (m: "all" | "any") => void; onClear: () => void }) {
-  if (!count) return null;
+/** The toolbar's one word for what arranges and narrows the rows (13 Oct: grouping and filters
+ *  in one button, so the toolbar stays one line beside a fixed-width search and switching views
+ *  moves nothing): "Grouped · 2 filters ▾", "By Status ▾" on the Board, or either alone. Its
+ *  menu: what the rows are grouped by (the Board's choice too), how the filters combine (all or
+ *  any), Clear all filters. */
+export function ViewState({ groupedBy, groupValue, groupOptions, board, count, match, onMatch, onClear, onGroupBy }: { groupedBy: string | null; groupValue: string | null; groupOptions: { name: string; label: string }[]; board: boolean; count: number; match: "all" | "any"; onMatch: (m: "all" | "any") => void; onClear: () => void; onGroupBy: (field: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const choosing = board && groupOptions.length > 1;
+  if (!groupedBy && !count && !choosing) return null;
+  const filters = count === 1 ? "1 filter" : `${count} filters`;
+  const group = groupedBy ? (board ? `By ${groupedBy}` : count ? "Grouped" : `Grouped: ${groupedBy}`) : "";
+  const words = [group, count ? filters : ""].filter(Boolean).join(" · ");
   return (
     <span className="filtersum" role="status">
-      <span>{count === 1 ? "1 filter" : `${count} filters`}</span>
-      {count > 1 ? (
-        <>
-          <span aria-hidden="true">·</span>
-          <label>
-            matching{" "}
-            <select className="btn btn--sm" value={match} onChange={(e) => onMatch(e.target.value === "any" ? "any" : "all")} aria-label="Rows that match">
-              <option value="all">all</option>
-              <option value="any">any</option>
-            </select>
-          </label>
-        </>
-      ) : null}
-      <Button size="sm" variant="ghost" onClick={onClear}>
-        Clear all
-      </Button>
-    </span>
-  );
-}
-
-/** The toolbar's line while the table is grouped: by what, and Ungroup. */
-export function GroupSummary({ by, onUngroup }: { by: string | null; onUngroup: () => void }) {
-  if (!by) return null;
-  return (
-    <span className="filtersum">
-      <span>Grouped by {by}</span>
-      <Button size="sm" variant="ghost" onClick={onUngroup}>
-        Ungroup
-      </Button>
+      <Popover open={open} onOpenChange={setOpen} label="What shapes these rows" align="start" trigger={<Button size="sm">{words} <ChevronDown size={12} aria-hidden="true" /></Button>}>
+        <div className="colmenu">
+          {groupedBy || choosing ? (
+            <label className="menu__item">
+              {board ? "Columns by" : "Grouped by"}{" "}
+              <select className="btn btn--sm" value={groupValue ?? ""} onChange={(e) => { onGroupBy(e.target.value || null); setOpen(false); }} aria-label="Group by">
+                {!board ? <option value="">nothing</option> : null}
+                {groupOptions.map((f) => (
+                  <option key={f.name} value={f.name}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {!board && groupedBy ? (
+            <button type="button" className="menu__item" onClick={() => { onGroupBy(null); setOpen(false); }}>
+              Ungroup
+            </button>
+          ) : null}
+          {count ? <div className="menu__head">{filters}</div> : null}
+          {count > 1 ? (
+            <label className="menu__item">
+              Rows that match{" "}
+              <select className="btn btn--sm" value={match} onChange={(e) => onMatch(e.target.value === "any" ? "any" : "all")} aria-label="Rows that match">
+                <option value="all">all</option>
+                <option value="any">any</option>
+              </select>{" "}
+              of them
+            </label>
+          ) : null}
+          {count ? (
+            <button type="button" className="menu__item" onClick={() => { onClear(); setOpen(false); }}>
+              Clear all filters
+            </button>
+          ) : null}
+        </div>
+      </Popover>
     </span>
   );
 }

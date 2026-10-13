@@ -16,8 +16,8 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-CONFIG_KEYS = {"search", "filters", "rules", "hide_done", "hidden", "sort", "sorts", "view",
-               "group_by", "date_by", "measure"}
+CONFIG_KEYS = {"search", "filters", "rules", "hide_done", "show_gone", "hidden", "sort", "sorts",
+               "view", "group_by", "date_by", "measure"}
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
