@@ -1,7 +1,9 @@
 /**
  * The conversation beside the workspace: one stream, scoped by the page (a message sent from a
  * module's page is about that module), with Alpha's threads as cards that open into their own
- * view. The companion is the same stream.
+ * view. The companion is the same stream. Since 13 Oct (Q42 section 8, features from pull request
+ * #5): a conversation picker always under the panel's header, a line under each of Alpha's replies
+ * saying how long it took and how many steps it ran, and Retry on a turn that didn't finish.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords } from "../core/client";
@@ -9,8 +11,8 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Th
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { MicButton, useSpeech } from "../shell/voice";
-import { Button, IconButton, Trouble, Rich } from "../ui";
-import { ChevronRight, ChevronDown, Check, X } from "../ui/icons";
+import { Button, IconButton, Popover, Trouble, Rich } from "../ui";
+import { ChevronRight, ChevronDown, Check, PlusIcon, X } from "../ui/icons";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
@@ -339,17 +341,56 @@ export function withoutCarded(text: string, asks: Ask[], turn: unknown): string 
   return rest.length ? rest : null;
 }
 
-function Message({ e, asks }: { e: JournalEntry; asks?: Ask[] }) {
+/** What a turn already says about itself (13 Oct, Q42 section 8b; the journal's own fields,
+ *  nothing guessed): how long it took and how many steps it ran. Who answered and which records
+ *  it used aren't recorded per turn, so they aren't shown. */
+export function provenance(e: JournalEntry): string {
+  const parts: string[] = [];
+  if (typeof e.data.duration_ms === "number") parts.push(`${Math.max(1, Math.round(e.data.duration_ms / 1000))} s`);
+  if (typeof e.data.num_turns === "number" && e.data.num_turns > 0) parts.push(e.data.num_turns === 1 ? "1 step" : `${e.data.num_turns} steps`);
+  return parts.join(" · ");
+}
+
+/** The sentence a failed turn answered, when the turn ended without a reply (section 8c): Retry
+ *  sends it again. Never offered on a reply that worked: sending "log two eggs" again would log
+ *  four. */
+export function retryOf(e: JournalEntry, turns: JournalEntry[]): string | null {
+  if (e.kind !== "failed") return null;
+  const turn = e.data.turn;
+  if (turn !== undefined && turns.some((x) => x.kind === "replied" && x.data.turn === turn)) return null;
+  const at = turns.indexOf(e);
+  for (let i = at - 1; i >= 0; i--) {
+    if (turns[i].kind === "said") return turns[i].text;
+    if (turns[i].kind === "replied") return null; // the failure belongs to no sentence of the person's
+  }
+  return null;
+}
+
+/** One message: the person's on the right; Alpha's on the left with a faint line under it saying
+ *  how long it took and how many steps it ran, and Retry when the turn didn't finish. */
+function Message({ e, asks, onRetry }: { e: JournalEntry; asks?: Ask[]; onRetry?: () => void }) {
   if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
   const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
   let text: string | null = e.text;
   if (e.kind === "replied" && asks) text = withoutCarded(e.text, asks, e.data.turn);
   if (text === null) return null;
+  const prov = provenance(e);
   return (
-    <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
-      {fromThread ? <div className="msg__label">From the thread · {fromThread}</div> : null}
-      <Rich text={text} />
-      {typeof e.data.duration_ms === "number" ? <span className="msg__cite">{(e.data.duration_ms / 1000).toFixed(0)} s</span> : null}
+    <div className="turn">
+      <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
+        {fromThread ? <div className="msg__label">From the thread · {fromThread}</div> : null}
+        <Rich text={text} />
+      </div>
+      {prov || onRetry ? (
+        <div className="turn__meta">
+          {prov ? <span>{prov}</span> : null}
+          {onRetry ? (
+            <Button size="sm" variant="ghost" onClick={onRetry}>
+              Retry
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -399,6 +440,7 @@ export function Conversation({
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [convos, setConvos] = useState<Convo[]>([]);
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const body = useRef<HTMLDivElement>(null);
@@ -630,18 +672,42 @@ export function Conversation({
           {layout === "panel" ? <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onClose?.()} /> : null}
         </div>
       )}
-      {layout === "panel" && !threadView && (chats.length > 1 || (chats.length === 1 && chats[0].id !== active)) ? (
-        <div className="convstrip" role="tablist" aria-label="Live conversations">
-          {chats.map((c) => (
-            <button key={c.id} type="button" role="tab" aria-selected={c.id === active} className={`convchip${c.id === active ? " convchip--active" : ""}${c.state === "waiting" ? " convchip--needs" : ""}`} title={`${c.scope}: ${c.title}${c.question ? ` · asked: ${c.question}` : ""}`} onClick={() => { setThreadView(null); setActive(c.id); }}>
-              <span className={`convchip__dot convchip__dot--${c.state}`} aria-hidden="true" />
-              <span className="convchip__scope">{c.scope}</span>
-              <span className="convchip__title">{c.title}</span>
-            </button>
-          ))}
-          <button type="button" className="convchip convchip--new" title="A new conversation here" onClick={() => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); })}>
-            +
-          </button>
+      {layout === "panel" && !threadView ? (
+        // the conversation picker (section 8a): always here, so nothing moves when a second one starts
+        <div className="convpick">
+          <Popover
+            open={picking}
+            onOpenChange={setPicking}
+            label="Conversations"
+            align="start"
+            trigger={
+              <button type="button" className="convpick__btn" aria-label={`Conversation: ${activeConvo ? activeConvo.title : "new"}. Pick another`}>
+                {activeConvo ? <span className={`convchip__dot convchip__dot--${activeConvo.state}`} aria-hidden="true" /> : null}
+                <span className="convpick__title">{activeConvo ? activeConvo.title : "New conversation"}</span>
+                <ChevronDown size={13} aria-hidden="true" />
+              </button>
+            }
+          >
+            <div className="colmenu convpick__list">
+              <div className="menu__head">Live conversations</div>
+              {chats.map((c) => (
+                <button key={c.id} type="button" className={`menu__item convpick__item${c.id === active ? " convpick__item--on" : ""}`} aria-current={c.id === active ? "true" : undefined} onClick={() => { setPicking(false); setThreadView(null); setActive(c.id); }}>
+                  <span className={`convchip__dot convchip__dot--${c.state}`} aria-hidden="true" />
+                  <span className="convpick__words">
+                    <span className="convpick__title">{c.title}</span>
+                    <span className="faint">
+                      {c.scope}
+                      {c.state === "waiting" ? " · needs you" : ""}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              {!chats.length ? <p className="faint convpick__none">None yet: what you say starts one.</p> : null}
+            </div>
+          </Popover>
+          <Button size="sm" variant="ghost" onClick={() => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); })}>
+            <PlusIcon size={14} aria-hidden="true" /> New
+          </Button>
         </div>
       ) : null}
       <div className="assist__body" ref={body} onScroll={onScroll}>
@@ -697,9 +763,10 @@ export function Conversation({
               </div>
             ) : null}
             {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
-            {turns.map((e) => (
-              <Message key={e.id} e={e} asks={openAsks} />
-            ))}
+            {turns.map((e) => {
+              const again = !pending ? retryOf(e, turns) : null;
+              return <Message key={e.id} e={e} asks={openAsks} onRetry={again ? () => void send(again) : undefined} />;
+            })}
             {workflows.map((w) => (
               <WorkflowCard key={w.id} workflow={w} client={client} onDecided={() => { load(); onChanged(); }} />
             ))}

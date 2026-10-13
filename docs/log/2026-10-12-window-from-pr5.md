@@ -455,7 +455,32 @@ for one agent and its face changing in the table (then put back), facts, connect
 the start. The Mac app rebuilt; Connections and Knowledge seen in WebKit; Agents not (the app was
 in use). "ok commit it, then propose section 8".
 
+## Section 8: the assistant panel (13 Oct, this commit)
+
+Proposed in writing (8a the picker, 8b each turn's line, 8c Retry); Kenil: "ok do all of this".
+Built in `assistant/AssistantPanel.tsx`:
+
+- **8a** A conversation picker always under the panel's header: the current conversation's title
+  with ▾ (main's pop-up listing the live ones: state dot, title, where started, "needs you"),
+  and + New. The chip strip that appeared only with a second conversation, and pushed the
+  messages down, is gone (its styles too; the dots stay, the Assistant page uses them).
+- **8b** A faint line under each of Alpha's replies from the turn's own record: how long it took
+  and how many steps it ran ("12 s · 4 steps"); the "12 s" left the bubble. Nothing guessed: who
+  answered and which records it used aren't recorded per turn; the stored cost estimate isn't
+  shown (subscription).
+- **8c** Retry under a turn that failed without a reply: it sends the sentence that turn answered
+  again, as Send does. Never on a reply that worked (pull request #5 offered it on the last reply
+  too: "log two eggs" again would log four), nor on a failure its turn went on from.
+
+What ran: `just lint` clean; 162 desktop tests in 36 files (5 new: the line's words; Retry only
+where a turn failed without a reply; the picker with one conversation and switching; + New;
+Retry sending the sentence again); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-1424.md`). In the browser pane on the check copy: the picker row and its
+pop-up (no live conversation in his world, so "None yet"); nothing sent (the copy answers
+through his subscription). The Mac app rebuilt; the panel not seen there (its window was on
+another Space). Open: the pager's Previous/Next break mid-word with the panel open, like the view
+tabs (main's toolbar at narrow widths), put to Kenil. "ok commit it, then propose section 9".
+
 ## Left
 
-Section 8 (the assistant panel) proposed in writing next; then 9 plain errors, absolute dates,
-delete confirms. Open with Kenil: the view tabs breaking mid-word at 1100 with the panel open.
+Section 9 (plain errors, absolute dates, every delete confirming) proposed in writing next.

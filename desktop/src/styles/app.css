@@ -657,7 +657,6 @@ ul.check { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 .rich__list li { margin: 2px 0; }
 .msg code, .avatar__reply code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .avatar__reply { line-height: 1.45; }
-.msg__cite { display: block; font-size: var(--text-xs); color: var(--text-3); margin-top: 4px; }
 .msg--failed { background: var(--bad-soft); }
 .msg--working { color: var(--text-2); }
 .thread__step { padding: 0 4px; }
@@ -780,15 +779,6 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .askcard__other input { flex: 1; min-width: 120px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
 
 /* live conversations: a strip to switch between them */
-.convstrip { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: none; }
-.convstrip::-webkit-scrollbar { display: none; }
-.convchip { flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--text-sm); cursor: pointer; }
-.convchip:hover { color: var(--text); background: var(--hover); }
-.convchip--active { color: var(--text); border-color: var(--text-3); background: var(--surface-2); }
-.convchip--needs { border-color: var(--warn); }
-.convchip--new { width: 28px; justify-content: center; padding: 4px 0; }
-.convchip__scope { color: var(--text-3); }
-.convchip__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .convchip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
 .convchip__dot--working { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
 .convchip__dot--waiting { background: var(--warn); }
@@ -1068,3 +1058,19 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .agentface { display: grid; place-items: center; border-radius: 50%; overflow: hidden; background: var(--surface-2); flex: none; }
 .agentface .rig, .agentface .rig * { animation: none; }
 .rowacts__in .switch { vertical-align: middle; }
+
+/* The assistant panel (13 Oct, Q42 section 8): the conversation picker, always in its place under
+   the header; a faint line under Alpha's reply (how long, how many steps) with Retry when the
+   turn didn't finish. */
+.convpick { display: flex; align-items: center; gap: 6px; padding: 8px 12px 0; min-width: 0; }
+.convpick__btn { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-sm); cursor: pointer; text-align: left; }
+.convpick__btn:hover { background: var(--hover); }
+.convpick__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convpick__list { min-width: 280px; max-width: 360px; }
+.convpick__item { align-items: flex-start; gap: 8px; }
+.convpick__item .convchip__dot { margin-top: 6px; }
+.convpick__item--on { background: var(--primary-soft); }
+.convpick__words { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.convpick__none { padding: 6px 8px; margin: 0; }
+.turn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.turn__meta { display: flex; align-items: center; gap: 6px; padding-left: 4px; font-size: var(--text-xs); color: var(--text-3); }
