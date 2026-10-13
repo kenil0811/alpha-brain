@@ -1021,3 +1021,26 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .row--tint-gray td { background: var(--surface-2); }
 .colours { min-width: 260px; }
 .colours__row { justify-content: space-between; }
+
+/* The sidebar's own arrangement (13 Oct, Q42 section 5): a module's right-click menu, its drop
+   places while dragging, hidden modules, the workspace's name. */
+.ctxanchor { position: fixed; width: 0; height: 0; pointer-events: none; }
+.navrow--dragging { opacity: 0.5; }
+.navrow--drop-before { box-shadow: inset 0 2px 0 var(--primary); }
+.navrow--drop-after { box-shadow: inset 0 -2px 0 var(--primary); }
+.navrow--drop-inside > .navbtn { background: var(--primary-soft); box-shadow: inset 0 0 0 1px var(--primary); }
+.brand__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 4px; cursor: default; }
+.brand__input { flex: 1 1 auto; min-width: 0; width: 100%; padding: 3px 6px; font-weight: 600; }
+.rail--collapsed .brand__name, .rail--collapsed .brand__input { display: none; }
+.rail__note { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0; padding: 6px 8px; border-radius: 8px; font-size: var(--text-sm); color: var(--bad); background: var(--bad-soft); }
+.rail__hiddenrow { gap: 8px; min-width: 280px; }
+.rail__hiddenrow .navbtn__text { flex: 1 1 auto; }
+.menu__sep { height: 1px; margin: 4px 2px; background: var(--border); }
+.menu__item--sub { justify-content: space-between; cursor: default; }
+.menu__item[data-state="open"] { background: var(--hover); }
+.menu__item[data-disabled] { color: var(--text-3); }
+.menu__item svg { flex: none; color: var(--text-2); }
+.iconmenu { min-width: 300px; }
+.iconmenu__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2px; margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--border); }
+.iconmenu__tick { margin-left: auto; }
+.menu__item .iconmenu__tick { color: var(--primary); }

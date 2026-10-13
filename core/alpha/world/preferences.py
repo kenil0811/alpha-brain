@@ -5,14 +5,28 @@ wardrobe, design §11 Q27). The core keeps a value as given and hands it back: t
 its shape and fills in its own defaults for anything missing, so a key the window no longer
 knows is harmless and a value from a newer window is kept whole. These are choices of look,
 never settings of Alpha's behaviour (there are none to choose, Q18), so a change is not
-journaled: it changes nothing Alpha does or knows.
+journaled: it changes nothing Alpha does or knows. The one thing the core does with a value is
+take a removed module and its tables out of the keys that name them (`forget_module`).
 """
 
 from __future__ import annotations
 
+import re
+import sqlite3
 from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, loads, now
+
+# The window's keys that name modules and tables (13 Oct, Q42 sections 4d and 5): removing a
+# module takes it out of these, so nothing kept points at what is gone (removal deletes
+# everything related).
+MODULE_LISTS = ("sidebar_order", "sidebar_hidden")
+MODULE_MAPS = ("module_icons",)
+
+
+def colours_key(table: str) -> str:
+    """The key a table's colours are kept under, as the window makes it (`DataPage`)."""
+    return re.sub(r"[^A-Za-z0-9_]", "_", f"colours_{table}")[:64]
 
 
 class Preferences:
@@ -44,3 +58,25 @@ class Preferences:
     def all(self) -> dict[str, Any]:
         return {r["key"]: loads(r["value"], None)
                 for r in self.store.all("SELECT key, value FROM preferences ORDER BY key")}
+
+    @staticmethod
+    def forget_module(db: sqlite3.Connection, module: str, tables: list[str]) -> int:
+        """Inside a removal's transaction: drop the module's tables' colours and take the module
+        out of the sidebar's order, hidden list and icons. How many keys changed."""
+        changed = 0
+        for table in tables:
+            changed += db.execute("DELETE FROM preferences WHERE key = ?",
+                                  (colours_key(table),)).rowcount
+        for key in MODULE_LISTS + MODULE_MAPS:
+            row = db.execute("SELECT value FROM preferences WHERE key = ?", (key,)).fetchone()
+            value = loads(row["value"], None) if row else None
+            if isinstance(value, list) and module in value:
+                kept: Any = [v for v in value if v != module]
+            elif isinstance(value, dict) and module in value:
+                kept = {k: v for k, v in value.items() if k != module}
+            else:
+                continue
+            db.execute("UPDATE preferences SET value = ?, updated_at = ? WHERE key = ?",
+                       (dumps(kept), now(), key))
+            changed += 1
+        return changed

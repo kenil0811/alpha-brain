@@ -36,7 +36,19 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
                              {"by": "alpha", "reader": "people_feed"}, seen_by="people_feed")
     world.runs.finish(world.runs.start(auto["id"]), verdict="succeeded", line="Read 1 of 1.")
     world.knowledge.write_note(f"agent:{auto['id']}", "Sync", "Its page.")
+    network, food = (world.modules.get(n)["id"] for n in ("Network", "Food"))
+    world.preferences.set("colours_connections", {"tint": None, "values": {}, "rules": {}})
+    world.preferences.set("colours_food_log", {"tint": None, "values": {}, "rules": {}})
+    world.preferences.set("sidebar_order", [food, network])
+    world.preferences.set("sidebar_hidden", [network])
+    world.preferences.set("module_icons", {network: "people", food: "food"})
     out = remove_module(world, "Network")
+    # the window's colours for its table and its place in the sidebar go; the others' stay
+    assert world.preferences.get("colours_connections") is None
+    assert world.preferences.get("colours_food_log") is not None
+    assert world.preferences.get("sidebar_order") == [food]
+    assert world.preferences.get("sidebar_hidden") == []
+    assert world.preferences.get("module_icons") == {food: "food"}
     assert out["tables"] == 1 and out["rows"] == 2 and out["readers"] == 2
     assert world.runs.of(auto["id"]) == []
     assert world.knowledge.find_note(f"agent:{auto['id']}", "Sync") is None

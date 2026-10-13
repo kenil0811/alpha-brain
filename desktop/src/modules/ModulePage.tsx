@@ -11,6 +11,7 @@ import type { Surface } from "../shell/Rail";
 import { AutomationList } from "../shell/Automations";
 import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
+import { ModuleGlyph } from "../shell/moduleIcons";
 
 type Section = "app" | "activity" | "settings";
 
@@ -132,7 +133,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
       <div className="modhead">
         <div className="modhead__title">
           <div className="modhead__ico" aria-hidden="true">
-            <ModuleIcon size={20} />
+            <ModuleGlyph client={client} id={detail.id} name={detail.name} size={20} />
           </div>
           <div style={{ minWidth: 0 }}>
             {detail.path && detail.path.length > 1 ? (
@@ -190,7 +191,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
                     {detail.inside.map((m) => (
                       <div key={m.id} className="item">
                         <div className="item__ico" aria-hidden="true">
-                          <ModuleIcon size={16} />
+                          <ModuleGlyph client={client} id={m.id} name={m.name} size={16} />
                         </div>
                         <div className="item__body">
                           <b>{m.name}</b>
@@ -226,7 +227,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
             <div className="card list">
               <div className="item">
                 <div className="item__ico" aria-hidden="true">
-                  <ModuleIcon size={16} />
+                  <ModuleGlyph client={client} id={detail.id} name={detail.name} size={16} />
                 </div>
                 <div className="item__body">
                   <b>{detail.name}</b>

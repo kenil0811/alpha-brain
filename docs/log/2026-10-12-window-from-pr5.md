@@ -301,7 +301,54 @@ a number's condition and Clear, a text column's condition and "is empty", openin
 kept colours); `just check-desktop`: 81 of 81 pages clean at every size
 (`docs/checks/2026-10-13-1214.md`). "ok cool, lets move on".
 
+## Section 4e: the numbers strip, skipped (13 Oct)
+
+Proposed in writing (one fixed line above the data: rows and this week's, the core's totals, the
+split as pills that filter). Kenil: "ok lets skip this altogether for now, lets move on". Not
+built; the module's Summary tab keeps these numbers.
+
+## Section 5: the sidebar (13 Oct, this commit)
+
+Proposed in writing; Kenil: "ok makes sense, couple of things - 1. module icons should be auto
+picked based on name by default. 2. i dont want three dot, just right click is enough". Built:
+
+- **An icon per module**, the same in the sidebar, on Home's card, at the top of its page and in
+  ⌘K: picked from the first word of its name that suggests one (plain common words, a look and
+  nothing Alpha knows), else main's table icon; the person's pick (34 lucide icons) wins, "From
+  its name" goes back. In his world: Job Search, Deal Tracker, Advisory a briefcase, Nutrition a
+  plate, Network people, Notes a page, the car wash scorecard a car, Avilo the table.
+- **A right-click menu** on a module (the menu key or Shift+F10 too): Open, Change icon, Move to
+  (the core's move, journaled as on the module's page), Hide from the sidebar. No ⋮.
+- **The person's order**: dragged above or below another, or onto a row's middle to go inside;
+  Alt+↑/↓ reorder, Alt+→ inside the one above, Alt+← out. A new module goes at the end of its
+  level. WebKit drops only where dragenter was cancelled too (pull request #5's finding, kept).
+- **Hiding**: a hidden module leaves the sidebar with what is inside it, nothing else changes;
+  "Hidden · N" under New (only when something is hidden) opens beside the sidebar with "Show in
+  the sidebar".
+- **The workspace's name**: a double-click on "Alpha" renames it; empty goes back to "Alpha".
+- Kept in the world's preferences (`sidebar_order`, `sidebar_hidden`, `module_icons`,
+  `workspace_name`) through one shared store in the window (`core/preferences.ts`), so a change
+  shows everywhere at once. **Removal**: the core's module removal now takes the module out of
+  these and deletes its tables' colours (`colours_<table>`, which section 4d had left behind:
+  found while proposing this section).
+
+Skipped from the branch: its logo picker, "Manage workspace" and "Sign out" (disabled items for
+things that don't exist), a Network item, the heading and status line removed (Q41 keeps main's
+layout).
+
+Found in the browser pane: the first drop landed above a module instead of inside it, the drop
+reading a place the window hadn't drawn yet; fixed (the drop reads its own position, the drag
+id is held outside React's state). Then into, out of and below all worked live on the check
+copy, which was put back after.
+
+What ran: `just lint` clean; 228 core tests (removal clears the preferences); 146 desktop tests
+in 32 files (8 new: icons from names, the order, drop places, keyboard moves, the menu's hide
+and show, icon and move from the menu, the rename, a refused move); `just check-desktop`: 81 of
+81 pages clean at every size (`docs/checks/2026-10-13-1239.md`). The Mac app rebuilt and seen:
+the icons and the right-click menu in WebKit; no drag tried there (a drop moves his real
+modules). "ok commit it, then propose section 6".
+
 ## Left
 
-Section 4e (the numbers strip) proposed in writing next; then 5 the sidebar, 6 Settings as
-cards, 7 Intelligence, 8 the assistant panel, 9 plain errors, absolute dates, delete confirms.
+Section 6 (Settings as cards) proposed in writing next; then 7 Intelligence, 8 the assistant
+panel, 9 plain errors, absolute dates, delete confirms.

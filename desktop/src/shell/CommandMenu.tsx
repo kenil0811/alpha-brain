@@ -9,12 +9,15 @@ import { moduleWords } from "../core/client";
 import type { Client, ModuleCard, SearchResult } from "../core/client";
 import { host } from "../core/host";
 import { Dialog } from "../ui";
+import { ModuleGlyph } from "./moduleIcons";
 import { ActivityIcon, AssistantIcon, File, HomeIcon, IntelligenceIcon, ModuleIcon, PeopleIcon, SettingsIcon } from "../ui/icons";
 import type { Surface } from "./Rail";
 
 interface Item {
   key: string;
   kind: "page" | "module" | "person" | "record" | "document" | "journal" | "ask";
+  /** A module's own id, for its icon. */
+  module?: ModuleCard;
   label: string;
   hint?: string;
   go: () => void;
@@ -77,7 +80,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
     const close = () => onOpenChange(false);
     const out: Item[] = [];
     for (const p of PAGES) if (!q || p.label.toLowerCase().includes(q)) out.push({ key: `page:${p.label}`, kind: "page", label: p.label, go: () => { onGo(p.surface); close(); } });
-    for (const m of modules) if (!q || moduleWords(m).toLowerCase().includes(q)) out.push({ key: `module:${m.id}`, kind: "module", label: moduleWords(m), hint: m.goal ?? undefined, go: () => { onGo({ kind: "module", id: m.id }); close(); } });
+    for (const m of modules) if (!q || moduleWords(m).toLowerCase().includes(q)) out.push({ key: `module:${m.id}`, kind: "module", module: m, label: moduleWords(m), hint: m.goal ?? undefined, go: () => { onGo({ kind: "module", id: m.id }); close(); } });
     if (hits) {
       for (const p of hits.people.slice(0, 5)) out.push({ key: `person:${p.id}`, kind: "person", label: p.name, hint: p.kind === "person" ? "Person" : "Organisation", go: () => { onGo({ kind: "entity", id: p.id }); close(); } });
       for (const r of hits.records.slice(0, 6)) {
@@ -125,7 +128,7 @@ export function CommandMenu({ open, onOpenChange, client, modules, onGo, onAsk }
         {items.map((item, i) => (
           <li key={item.key} id={`command-${item.key}`} role="option" aria-selected={i === active} className={`command__item${i === active ? " command__item--active" : ""}`} onMouseEnter={() => setActive(i)} onClick={item.go}>
             <span className="command__ico" aria-hidden="true">
-              {item.kind === "page" ? PAGES.find((p) => p.label === item.label)?.icon : item.kind === "module" ? <ModuleIcon size={14} /> : item.kind === "person" ? <PeopleIcon size={14} /> : item.kind === "document" ? <File size={14} /> : item.kind === "journal" ? <ActivityIcon size={14} /> : item.kind === "ask" ? <IntelligenceIcon size={14} /> : <ModuleIcon size={14} />}
+              {item.kind === "page" ? PAGES.find((p) => p.label === item.label)?.icon : item.kind === "module" && item.module ? <ModuleGlyph client={client} id={item.module.id} name={item.module.name} size={14} /> : item.kind === "person" ? <PeopleIcon size={14} /> : item.kind === "document" ? <File size={14} /> : item.kind === "journal" ? <ActivityIcon size={14} /> : item.kind === "ask" ? <IntelligenceIcon size={14} /> : <ModuleIcon size={14} />}
             </span>
             <span className="command__label">{item.label}</span>
             {item.hint ? <span className="faint command__hint">{item.hint}</span> : null}

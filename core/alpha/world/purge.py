@@ -29,6 +29,7 @@ from typing import Any
 
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites
+from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
 from alpha.world.store import Problem, now
 from alpha.world.views import Views
@@ -136,6 +137,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["files"] = db.execute("DELETE FROM documents WHERE module = ?", (mid,)).rowcount
         _unlink_files(files)
         world.workflows.remove_module(db, mid)
+        Preferences.forget_module(db, mid, tables)  # its colours, its place in the sidebar
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
     # A program module's workspace goes with it (Q38); the journal keeps what it was.
     from alpha.runtime import workspace as workspace_module

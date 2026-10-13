@@ -10,7 +10,8 @@ import { when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 import { Badge, Button, IconButton } from "../ui";
-import { ModuleIcon, ArrowRight, Check, X, Eye } from "../ui/icons";
+import { ArrowRight, Check, X, Eye } from "../ui/icons";
+import { ModuleGlyph } from "./moduleIcons";
 
 /** Questions asked in one turn are one card with one Answer; everything else stands alone. */
 export function groupNeeds(items: NeedItem[]): NeedItem[][] {
@@ -385,7 +386,7 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             <div key={m.id} className="card modcard">
               <div className="modcard__top">
                 <div className="modcard__ico" aria-hidden="true">
-                  <ModuleIcon size={18} />
+                  <ModuleGlyph client={client} id={m.id} name={m.name} size={18} />
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <h3>{m.name}</h3>
