@@ -41,6 +41,30 @@
 .setname .wstile { width: var(--space-8); height: var(--space-8); border-radius: var(--radius-control); font-size: var(--text-md); }
 .setkeys { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-1) var(--space-3); margin: 0 0 var(--space-2); }
 .setkeys > div { display: contents; }
+/* Settings › Models: the spend page (12 Oct) — a ranked list like SuperPenguin's Projects */
+/* a table wants the room: the Models section is as wide as the page, not one card's width */
+.setone:has(.spend__bar) { max-width: none; }
+.spend__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.spend__bar > :last-child:not(:first-child, .subtabs) { margin-left: auto; }
+/* the metrics strip: one row, side-scroll when the page is narrow (the owner, 9 Oct) */
+.spend__tiles { display: flex; gap: var(--space-3); margin: 0 0 var(--space-3); overflow-x: auto; }
+.spend__tiles > * { flex: none; }
+.spend__budget { width: calc(var(--space-12) * 2); }
+.spend { width: 100%; border-collapse: collapse; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.spend th { text-align: left; font-weight: 500; color: var(--text-2); padding: var(--space-2); border-bottom: 1px solid var(--border); }
+.spend td { padding: var(--space-2); border-bottom: 1px solid var(--line); vertical-align: middle; }
+.spend .spend__num { text-align: right; white-space: nowrap; }
+.spend .spend__n { width: var(--space-6); color: var(--text-2); }
+/* the name column takes what is left and cuts long names short; the numbers never squeeze */
+.spend__scroll { overflow-x: auto; }
+.spend td:nth-child(2) { width: 100%; max-width: 0; min-width: calc(var(--space-12) * 3); }
+.spend__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.spend__name { font: inherit; font-weight: 500; color: var(--text); background: none; border: 0; padding: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.spend__name { cursor: pointer; }
+button.spend__name:hover { text-decoration: underline; }
+.spend__track { display: block; height: var(--space-1); margin-top: var(--space-1); border-radius: var(--radius-pill); background: var(--line); max-width: calc(var(--space-12) * 6); }
+.spend__fill { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--primary); }
+
 .setkeys dd { margin: 0; color: var(--text-2); font-size: var(--text-sm); }
 
 /* Home: tiles as wide as what they hold; a module card with no description draws no gap. */
