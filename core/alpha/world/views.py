@@ -17,7 +17,7 @@ from typing import Any
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
 CONFIG_KEYS = {"search", "filters", "rules", "hide_done", "show_gone", "hidden", "sort", "sorts",
-               "view", "group_by", "date_by", "measure"}
+               "view", "group_by", "date_by", "measure", "footers"}
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -47,6 +47,10 @@ class Views:
         for sort in [clean.get("sort"), *(clean.get("sorts") or [])]:
             if sort and sort.get("field") not in fields:
                 raise Problem(f"'{collection}' has no field '{sort.get('field')}' to sort by.")
+        # each column's chosen total (13 Oct): a field of this table
+        for name in (clean.get("footers") or {}):
+            if name not in fields:
+                raise Problem(f"'{collection}' has no field '{name}' to total.")
         # the Filter button's rules (13 Oct): each names a field of this table
         for rule in (clean.get("rules") or {}).get("rules") or []:
             if rule.get("field") not in fields:

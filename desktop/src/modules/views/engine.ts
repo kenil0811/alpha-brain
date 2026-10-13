@@ -6,7 +6,7 @@
  */
 import type { RecordRow, Relations } from "../../core/client";
 import { isNumeric, openChoices, type FieldInfo } from "../fields";
-import { humanize } from "../format";
+import { formatDay, formatNumber, humanize } from "../format";
 
 export interface Sort {
   field: string;
@@ -224,11 +224,53 @@ export function pageOf<T>(rows: T[], at: number, size: number): { rows: T[]; at:
   return { rows: rows.slice(page * size, page * size + size), at: page, pages };
 }
 
-/** Column totals for the numeric columns, over every row the view shows (not only the page). */
-export function totalsFor(rows: RecordRow[], columns: string[], byName: Map<string, FieldInfo>): { field: string; value: number }[] {
-  return columns
-    .filter((c) => isNumeric(byName.get(c)?.kind ?? ""))
-    .map((c) => ({ field: c, value: rows.reduce((sum, r) => sum + (typeof r.values[c] === "number" ? (r.values[c] as number) : 0), 0) }));
+/** What a column's footer says (13 Oct, Q42 section 4a; the feature from pull request #5): chosen
+ *  per column from the footer cell, over every row the view shows (not only the page), and per
+ *  group in a grouped table's header rows. */
+export type FooterOp = "none" | "sum" | "avg" | "min" | "max" | "count" | "empty" | "filled" | "unique" | "earliest" | "latest";
+
+export const FOOTER_WORDS: Record<FooterOp, string> = {
+  none: "None", sum: "Sum", avg: "Average", min: "Lowest", max: "Highest", count: "Count", empty: "Empty", filled: "Filled", unique: "Unique", earliest: "Earliest", latest: "Latest",
+};
+
+/** The footers a kind of column offers. */
+export function footerOpsFor(kind: string): FooterOp[] {
+  if (isNumeric(kind)) return ["sum", "avg", "min", "max", "count", "empty", "filled", "none"];
+  if (kind === "date" || kind === "datetime") return ["count", "empty", "filled", "unique", "earliest", "latest", "none"];
+  return ["count", "empty", "filled", "unique", "none"];
+}
+
+/** A column's footer until the person chooses: a sum under numbers (as before), nothing else. */
+export const defaultFooter = (kind: string): FooterOp => (isNumeric(kind) ? "sum" : "none");
+
+/** The footer each shown column has: the person's choice, else its default. */
+export function footersOf(columns: string[], byName: Map<string, FieldInfo>, chosen: Record<string, FooterOp>): Record<string, FooterOp> {
+  return Object.fromEntries(columns.map((c) => [c, chosen[c] ?? defaultFooter(byName.get(c)?.kind ?? "text")]));
+}
+
+/** A footer's figure over some rows, in words, or null for "none". */
+export function footerValue(rows: RecordRow[], field: FieldInfo, op: FooterOp): string | null {
+  if (op === "none") return null;
+  const values = rows.map((r) => r.values[field.name]);
+  const filled = values.filter((v) => !isEmpty(v));
+  const unit = field.unit;
+  const nums = filled.filter((v): v is number => typeof v === "number");
+  switch (op) {
+    case "count": return rows.length.toLocaleString();
+    case "empty": return (values.length - filled.length).toLocaleString();
+    case "filled": return filled.length.toLocaleString();
+    case "unique": return new Set(filled.map((v) => JSON.stringify(v))).size.toLocaleString();
+    case "sum": return formatNumber(nums.reduce((a, b) => a + b, 0), unit);
+    case "avg": return nums.length ? formatNumber(Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100, unit) : "—";
+    case "min": return nums.length ? formatNumber(Math.min(...nums), unit) : "—";
+    case "max": return nums.length ? formatNumber(Math.max(...nums), unit) : "—";
+    case "earliest":
+    case "latest": {
+      const days = filled.map((v) => String(v).slice(0, 10)).sort();
+      if (!days.length) return "—";
+      return formatDay(op === "earliest" ? days[0] : days[days.length - 1]);
+    }
+  }
 }
 
 /** Rows by the value of one field, in the field's own order of choices, unknown values last. */
@@ -363,12 +405,12 @@ export function groupRows(rows: RecordRow[], field: FieldInfo, relations: Relati
 }
 
 /** One line of a grouped table: a group's header, or a row. */
-export type GroupItem = { kind: "group"; key: string; label: string; count: number; folded: boolean; continued?: boolean } | { kind: "row"; row: RecordRow; group: string };
+export type GroupItem = { kind: "group"; key: string; label: string; count: number; folded: boolean; continued?: boolean; rows: RecordRow[] } | { kind: "row"; row: RecordRow; group: string };
 
 /** A grouped table as lines: each group's header, then its rows unless folded. */
 export function groupItems(groups: RowGroup[], folded: Set<string>): GroupItem[] {
   return groups.flatMap((g): GroupItem[] => [
-    { kind: "group", key: g.key, label: g.label, count: g.rows.length, folded: folded.has(g.key) },
+    { kind: "group", key: g.key, label: g.label, count: g.rows.length, folded: folded.has(g.key), rows: g.rows },
     ...(folded.has(g.key) ? [] : g.rows.map((row): GroupItem => ({ kind: "row", row, group: g.key }))),
   ]);
 }

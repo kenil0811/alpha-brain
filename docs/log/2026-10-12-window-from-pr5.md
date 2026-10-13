@@ -215,7 +215,24 @@ What ran: `just lint` clean; 228 core tests; 118 desktop tests in 30 files (thre
 and ★, + saving a sort alone, the dot, Save changes, Rename, Remove after a yes);
 `just check-desktop`: 81 of 81 pages clean at every size (`docs/checks/2026-10-13-1056.md`).
 
+## Section 4a: totals chosen per column (13 Oct, this commit)
+
+Section 4 proposed in five steps (4a totals, 4b editing several rows, 4c pasting, 4d colour, 4e
+the numbers strip); Kenil: "ok, lets do it quickly". Built: each footer cell is a chooser
+(`FooterCell`): numbers Sum (the default, so "Sum 19.5" reads as main's "Total 19.5" did),
+Average, Lowest, Highest, Count, Empty, Filled; text, choices and links Count, Empty, Filled,
+Unique; dates Earliest and Latest too; None. A column with none shows a faint "+" on hover. A
+grouped table's header rows carry each group's totals under the columns. The choices are kept
+for the session and in saved lists (the core: a list may hold `footers`, each a field the table
+has). `footerValue`, `footersOf` replace `totalsFor`.
+
+What ran: `just lint` clean; 228 core tests (the list test also keeps totals and refuses a field
+the table lacks); 119 desktop tests in 30 files (one new: the default sum, Average, a Count on
+text, a group's own average in its header); in the browser pane the car wash scores' footer
+"Score: Sum 19.5" and nothing past the window; `just check-desktop`: 81 of 81 pages clean at
+every size (`docs/checks/2026-10-13-1112.md`).
+
 ## Left
 
-Section 4 (the table's extras: totals, colour, editing several rows, paste one write per row,
-the numbers strip) proposed in writing next; the rest one at a time.
+Section 4b (editing several ticked rows at once) proposed in writing next, then 4c pasting, 4d
+colour, 4e the numbers strip.

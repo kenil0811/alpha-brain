@@ -4,15 +4,18 @@
 import type { ReactNode } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, type FieldInfo } from "../fields";
-import { formatNumber, humanize } from "../format";
+import { humanize } from "../format";
 import { Button, IconButton } from "../../ui";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, FilterIcon } from "../../ui/icons";
-import { isComplete, ruleFor, sortsAfterClick, totalsFor, withRule, type GroupItem, type Rules, type Sort } from "./engine";
+import { FOOTER_WORDS, footersOf, footerValue, isComplete, ruleFor, sortsAfterClick, withRule, type FooterOp, type GroupItem, type Rules, type Sort } from "./engine";
+import { FooterCell } from "./RulesUI";
 import { ColumnMenu, SeenMenu } from "./RulesUI";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
-  const totals = totalsFor(totalOf, columns, byName);
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+  const foot = footersOf(columns, byName, footers ?? {});
+  // a grouped table's header rows carry each group's totals when any column beyond the first has one
+  const groupTotals = columns.slice(1).some((c) => foot[c] !== "none");
   const sortAt = (field: string) => sorts.find((x) => x.field === field);
   const renderRow = (row: RecordRow) => (
             <tr
@@ -114,7 +117,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                   renderRow(item.row)
                 ) : (
                   <tr key={`g:${item.key}${item.continued ? ":cont" : ""}`} className="grouprow">
-                    <td colSpan={columns.length + 1 + (onSelect ? 1 : 0) + (seen ? 1 : 0)}>
+                    <td colSpan={groupTotals ? 2 + (onSelect ? 1 : 0) : columns.length + 1 + (onSelect ? 1 : 0) + (seen ? 1 : 0)}>
                       <button type="button" className="grouprow__btn" aria-expanded={!item.folded} onClick={() => onToggleGroup?.(item.key)}>
                         {item.folded ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
                         <b>{item.label}</b>{" "}
@@ -122,6 +125,17 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                         {item.continued ? <span className="faint"> continued</span> : null}
                       </button>
                     </td>
+                    {groupTotals
+                      ? columns.slice(1).map((c) => {
+                          const v = byName.get(c) ? footerValue(item.rows, byName.get(c)!, foot[c]) : null;
+                          return (
+                            <td key={c} className={`grouprow__total${isNumeric(byName.get(c)?.kind ?? "") ? " r num" : ""}`}>
+                              {v !== null ? <span title={`${FOOTER_WORDS[foot[c]]} in ${item.label}`}>{v}</span> : null}
+                            </td>
+                          );
+                        })
+                      : null}
+                    {groupTotals && seen ? <td /> : null}
                   </tr>
                 ),
               )
@@ -134,19 +148,16 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
             </tr>
           ) : null}
         </tbody>
-        {totals.length && totalOf.length > 1 ? (
+        {totalOf.length > 1 && onFooter ? (
           <tfoot>
             <tr>
               {onSelect ? <td /> : null}
               <td />
-              {columns.map((c, i) => {
-                const t = totals.find((x) => x.field === c);
-                return (
-                  <td key={c} className={t ? "r num" : undefined}>
-                    {t ? formatNumber(t.value) : i === 0 ? "Total" : ""}
-                  </td>
-                );
-              })}
+              {columns.map((c, i) => (
+                <td key={c} className={isNumeric(byName.get(c)?.kind ?? "") ? "r num" : undefined}>
+                  {byName.get(c) ? <FooterCell field={byName.get(c)!} op={foot[c]} value={footerValue(totalOf, byName.get(c)!, foot[c])} onOp={(op) => onFooter(c, op)} first={i === 0} /> : null}
+                </td>
+              ))}
               {seen ? <td /> : null}
             </tr>
           </tfoot>

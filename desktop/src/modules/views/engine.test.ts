@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { activeRules, applyQuery, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, totalsFor, withRule, type FilterRule } from "./engine";
+import { activeRules, applyQuery, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, footerValue, footersOf, withRule, type FilterRule } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -43,7 +43,8 @@ describe("a view's query", () => {
   });
   it("totals numeric columns and counts estimates and assumptions", () => {
     const byName = new Map([["price", { name: "price", kind: "number" }], ["title", { name: "title", kind: "text" }]]);
-    expect(totalsFor(rows, ["title", "price"], byName)).toEqual([{ field: "price", value: 470 }]);
+    expect(footersOf(["title", "price"], byName, {})).toEqual({ title: "none", price: "sum" });
+    expect(footerValue(rows, { name: "price", kind: "number" }, "sum")).toBe("470");
     expect(provenanceCounts(rows)).toEqual({ estimated: 1, assumed: 1 });
   });
   it("groups by a field in the field's own order and buckets days", () => {

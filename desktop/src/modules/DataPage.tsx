@@ -11,7 +11,7 @@ import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from ".
 import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
-import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type Rules, type Sort } from "./views/engine";
+import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type FooterOp, type Rules, type Sort } from "./views/engine";
 import { ViewState } from "./views/RulesUI";
 import { ListTabs } from "./views/ListTabs";
 import { GalleryView } from "./views/GalleryView";
@@ -83,6 +83,7 @@ interface Working {
   showGone: boolean;
   pageAt: number;
   folded: string[];
+  footers?: Record<string, FooterOp>;
 }
 function readWorking(key: string): Working | null {
   try {
@@ -111,6 +112,7 @@ function sameView(a: SavedList["config"], b: SavedList["config"]): boolean {
     show_gone: c.show_gone ?? false,
     hidden: [...(c.hidden ?? [])].sort(),
     view: c.view ?? "table",
+    footers: c.footers && Object.keys(c.footers).length ? c.footers : null,
   });
   return norm(a) === norm(b);
 }
@@ -175,6 +177,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [showGone, setShowGone] = useState(restored?.showGone ?? false);
   const [sorts, setSorts] = useState<Sort[]>(restored?.sorts ?? []);
   const [rules, setRules] = useState<Rules>(restored?.rules ?? NO_RULES);
+  const [footers, setFooters] = useState<Record<string, FooterOp>>(restored?.footers ?? {});
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
   const [widths, setWidths] = useState<Record<string, number>>(() => remembered<Record<string, number>>(`${key}.widths`, {}));
@@ -303,7 +306,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     lastGroupBy.current = groupBy;
     setFolded(new Set());
   }, [groupBy]);
-  useEffect(() => keepWorking(`${key}.working`, { listId, search, rules, sorts, groupBy, hideDone, showGone, pageAt, folded: [...folded] }), [key, listId, search, rules, sorts, groupBy, hideDone, showGone, pageAt, folded]);
+  useEffect(() => keepWorking(`${key}.working`, { listId, search, rules, sorts, groupBy, hideDone, showGone, pageAt, folded: [...folded], footers }), [key, listId, search, rules, sorts, groupBy, hideDone, showGone, pageAt, folded, footers]);
   const groups = useMemo(() => (rows && tableGroupField && view === "table" ? groupRows(rows, tableGroupField, relations) : null), [rows, tableGroupField, view, relations]);
   const grouped = groups ? pageOfGroups(groupItems(groups, folded), pageAt, size) : null;
   const page = rows && !grouped ? pageOf(rows, pageAt, size) : null;
@@ -373,6 +376,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
         setSorts(c.sorts ?? (c.sort ? [c.sort] : []));
         // a list saved with the old quick dropdowns: each one becomes its column's ticklist
         setRules(withQuickFilters(c.rules ?? NO_RULES, c.filters ?? {}));
+        setFooters((c.footers ?? {}) as Record<string, FooterOp>);
         if (c.view) setView(c.view as PageView);
         setGroupBy(c.group_by ?? null);
         setDateBy(c.date_by ?? null);
@@ -387,7 +391,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     const starred = lists.find((l) => l.is_default);
     if (starred) applyList(starred.id, lists);
   }, [lists, applyList]);
-  const currentConfig = (): SavedList["config"] => ({ search, rules, sorts, hide_done: hideDone, show_gone: showGone, hidden, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
+  const currentConfig = (): SavedList["config"] => ({ search, rules, sorts, footers, hide_done: hideDone, show_gone: showGone, hidden, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
   // the current list's view changed since it was saved: its tab shows a dot, Save changes is on
   const listDirty = (() => {
     const kept = lists.find((l) => l.id === listId)?.config;
@@ -568,6 +572,8 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               items={grouped?.items}
               onToggleGroup={(key) => setFolded((f) => { const next = new Set(f); if (next.has(key)) next.delete(key); else next.add(key); return next; })}
               grouping={{ by: tableGroupField?.name ?? null, onGroup: setGroupBy }}
+              footers={footers}
+              onFooter={(field, op) => setFooters((f) => ({ ...f, [field]: op }))}
               onOpen={openRow}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

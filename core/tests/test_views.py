@@ -59,6 +59,10 @@ def test_a_list_keeps_filter_rules_and_several_sorts_on_its_own_fields(world: Wo
     with pytest.raises(Problem, match="no field 'city' to filter on"):
         world.views.save("deals", "x", {"rules": {"match": "all", "rules": [
             {"field": "city", "op": "is", "value": "Austin"}]}})
+    totals = world.views.save("deals", "Totals", {"footers": {"price": "avg", "title": "count"}})
+    assert totals["config"]["footers"] == {"price": "avg", "title": "count"}
+    with pytest.raises(Problem, match="no field 'city' to total"):
+        world.views.save("deals", "x", {"footers": {"city": "count"}})
     with pytest.raises(Problem, match="no field 'city' to sort by"):
         world.views.save("deals", "x", {"sorts": [{"field": "city", "direction": "asc"}]})
 

@@ -995,3 +995,9 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .listtab__menu-room { display: inline-block; width: 24px; }
 /* a table toolbar's search keeps one width, so nothing after it moves when the toolbar's content changes (13 Oct, Kenil) */
 .toolbar--table > .search { flex: none; width: 200px; }
+/* a column's footer: its total and what it is, a click to choose another (13 Oct, section 4a) */
+.footcell { padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+.footcell--none { color: var(--text-3); opacity: 0; }
+.table tfoot tr:hover .footcell--none, .footcell--none:focus-visible { opacity: 1; }
+.footcell__tick { display: inline-flex; width: 14px; }
+.grouprow__total { background: var(--surface-2); font-size: var(--text-sm); color: var(--text-2); }

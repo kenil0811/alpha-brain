@@ -302,6 +302,26 @@ describe("saved lists as tabs (section 3c)", () => {
   });
 });
 
+describe("totals you choose per column (section 4a)", () => {
+  it("a number column sums by default; a footer cell offers other totals; a group's header shows its own", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), { ...row("r2", "Cafe", 120), values: { title: "Cafe", price: 120, status: "Sold" } }, row("r3", "Diner", 90)]);
+    await screen.findByText("Bakery");
+    expect(screen.getByRole("button", { name: "Price: Sum 510" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Price: Sum 510" }));
+    await user.click(within(await screen.findByRole("group", { name: "Total for Price" })).getByRole("button", { name: /Average/ }));
+    expect(screen.getByRole("button", { name: "Price: Average 170" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Choose a total for Title" }));
+    await user.click(within(await screen.findByRole("group", { name: "Total for Title" })).getByRole("button", { name: /Count/ }));
+    expect(screen.getByRole("button", { name: "Title: Count 3" })).toBeInTheDocument();
+    // grouped: each group's header carries its totals under the columns
+    await user.click(screen.getByRole("button", { name: "Filter Status" }));
+    await user.click(await screen.findByRole("button", { name: "Group by this column" }));
+    const active = screen.getByRole("button", { name: /Active · 2/ }).closest("tr")!;
+    expect(within(active).getByText("195")).toBeInTheDocument(); // (300 + 90) / 2
+  });
+});
+
 describe("quick entry", () => {
   it("a sentence goes to Alpha naming the table, and the field clears", async () => {
     const user = userEvent.setup();

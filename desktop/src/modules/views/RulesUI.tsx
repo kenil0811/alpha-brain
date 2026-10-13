@@ -11,10 +11,10 @@
 import { useState, type ReactNode } from "react";
 import type { RecordRow } from "../../core/client";
 import { Button, IconButton, Popover } from "../../ui";
-import { ChevronDown, ColumnMenuIcon } from "../../ui/icons";
+import { Check, ChevronDown, ColumnMenuIcon } from "../../ui/icons";
 import { isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { groupable, needsValue, OP_WORDS, opsFor, type FilterRule } from "./engine";
+import { FOOTER_WORDS, footerOpsFor, groupable, needsValue, OP_WORDS, opsFor, type FilterRule, type FooterOp } from "./engine";
 
 const empty = (v: unknown) => v === null || v === undefined || v === "";
 
@@ -190,5 +190,28 @@ export function ViewState({ groupedBy, groupValue, groupOptions, board, count, m
         </div>
       </Popover>
     </span>
+  );
+}
+
+/** A column's footer cell (section 4a): its figure with what it is ("Sum 19.5"), a click to choose
+ *  another (Sum, Average, Lowest, Highest, Count, Empty, Filled, Unique, Earliest, Latest, None). */
+export function FooterCell({ field, op, value, onOp, first }: { field: FieldInfo; op: FooterOp; value: string | null; onOp: (op: FooterOp) => void; first: boolean }) {
+  const [open, setOpen] = useState(false);
+  const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
+  return (
+    <Popover open={open} onOpenChange={setOpen} label={`${name}: total`} align="start" trigger={
+      <button type="button" className={`footcell${op === "none" ? " footcell--none" : ""}`} aria-label={op === "none" ? `Choose a total for ${name}` : `${name}: ${FOOTER_WORDS[op]} ${value}`}>
+        {op === "none" ? (first ? "Total…" : "+") : <><span className="faint">{FOOTER_WORDS[op]}</span> {value}</>}
+      </button>
+    }>
+      <div className="colmenu" role="group" aria-label={`Total for ${name}`}>
+        {footerOpsFor(field.kind).map((o) => (
+          <button key={o} type="button" className="menu__item" aria-pressed={o === op} onClick={() => { onOp(o); setOpen(false); }}>
+            <span className="footcell__tick">{o === op ? <Check size={12} aria-hidden="true" /> : null}</span>
+            {FOOTER_WORDS[o]}
+          </button>
+        ))}
+      </div>
+    </Popover>
   );
 }
