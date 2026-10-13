@@ -1105,3 +1105,12 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* A conversation renamed in place (13 Oct, slice 2 G1). */
 .convrename { flex: 1 1 auto; min-width: 0; width: 100%; padding: 4px 8px; }
 .convrow--renaming { padding: 4px 6px; }
+
+/* What Alpha knows, changed by hand (13 Oct, slice 2 D1, D11, D1b). */
+.intel__group--row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.goaladd { margin-bottom: 10px; }
+.goaladd .textfield { flex: 1 1 auto; }
+.goalrow { display: flex; align-items: flex-start; gap: 10px; }
+.goalrow__body { flex: 1 1 auto; min-width: 0; }
+.goalrow__body .textfield { width: 100%; }
+.goalrow__acts { display: inline-flex; gap: 4px; flex: none; }

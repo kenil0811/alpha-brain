@@ -157,7 +157,39 @@ Proposed in writing (a person or company made by hand, with keys that open the e
 rather than duplicate it; "Your organisations" as facts about the person); Kenil: "ok actually
 lets skip this for now." Not built.
 
+## Step 6: what Alpha knows, by hand (13 Oct)
+
+Proposed in writing; Kenil: "ok go ahead with step 6".
+
+- **D1 Correct and forget a fact** (`Knowledge.correct_fact`, `forget_fact`; `POST
+  /api/facts/{fid}/correct`, `DELETE /api/facts/{fid}`): a known fact in About you has Correct…
+  and Forget… at its row's start (a suggested one keeps Yes and No). A correction is a new fact,
+  the person's ("You said so"), the old one superseded and kept in its history; journaled "You
+  corrected city: Londn → London." Forget asks first, then deletes the fact and the earlier values
+  it replaced; journaled "You asked Alpha to forget: City." An empty correction is refused (forget
+  it instead).
+- **D1, D11 Goals by hand** (`Knowledge.edit_goal`; `POST /api/goals`, `PATCH
+  /api/goals/{gid}`): the Goals card in Intelligence › Knowledge gains "A new goal" with Add, Edit
+  in place, Done and Drop, "Pick up again" for an ended one, and when it ended; each change
+  journaled in the person's words. Agents and automations are still made through Alpha.
+- **D1b Export everything Alpha remembers** (`context/memory_export.py`; `POST
+  /api/memory/export`): a button beside the About you heading writes "What Alpha remembers
+  <date time>.md" and its .json to Alpha's exports folder and shows it in Finder: about you, goals,
+  standing instructions, permissions, each module's page, people's and companies' pages and facts,
+  and Alpha's other notes, every item with its source and date; journaled.
+
+Fixed while building: the export's name and header were in UTC (20:40 at 21:40 here); now the
+Mac's own time. A module page's own headings broke the document's outline; they now sit under
+the page.
+
+What ran: `just lint` clean; 247 core tests (4 new: a correction superseding, a forget taking the
+chain, goals added, rewritten and ended, the export); 186 desktop tests in 43 files (3 new);
+`just check-desktop`: 79 of 79 pages clean at every size (`docs/checks/2026-10-13-2141.md`). In
+the browser pane on the check copy: Correct… and Forget… on known facts, an export of 33 items
+(341 lines) with its outline whole. Not looked at in the Mac app. "ok commit it, then tell me what
+step 7 is".
+
 ## Left
 
-Step 6 (what Alpha knows: correct and forget a fact, edit and finish a goal, add one by hand,
-export everything Alpha remembers) proposed next; then 7–9. Nothing pushed.
+Step 7 (finding and redoing: D5, D9, D12) proposed next; then 8–9; step 4 people skipped for
+now. Nothing pushed.

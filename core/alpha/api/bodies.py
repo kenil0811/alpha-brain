@@ -138,3 +138,15 @@ class RelabelFieldBody(BaseModel):
 
 class RenameConversationBody(BaseModel):
     title: str
+
+
+class CorrectFactBody(BaseModel):
+    value: str
+
+
+class GoalBody(BaseModel):
+    """A goal the person types (slice 2 D11), or a change to one (D1): its words, its state."""
+
+    text: str | None = None
+    state: str | None = None
+    module: str | None = None

@@ -5,7 +5,7 @@
  */
 import { WorkMap } from "./map/WorkMap";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { Client, ConnectionRemoval, Intelligence as Data, Note, Permission } from "../core/client";
+import type { Client, ConnectionRemoval, Fact, Goal, Intelligence as Data, Note, Permission } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage, type HeldRows } from "../modules/DataPage";
 import { skillsHeld, skillsTable } from "./intel/skillsTable";
@@ -14,7 +14,8 @@ import { AGENT_COLOURS, agentsTable, alphaRow, automationRow } from "./intel/age
 import { FACT_COLOURS, factRow, factsTable } from "./intel/factsTable";
 import { AgentFace, ALPHA_AGENT } from "./AgentFace";
 import type { Surface } from "./Rail";
-import { Button, Badge, Confirm, Tabs } from "../ui";
+import { Button, Badge, Confirm, Dialog, Tabs } from "../ui";
+import { host } from "../core/host";
 import { say } from "../core/client";
 
 export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
@@ -180,6 +181,83 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
   );
 }
 
+/** Goals (slice 2 D1, D11): typed straight in, their words rewritten in place, marked done or
+ *  dropped (kept with their date), or picked up again. */
+function GoalsCard({ client, goals, onChanged }: { client: Client; goals: Goal[]; onChanged: () => void }) {
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const act = (work: () => Promise<unknown>, what: string) => {
+    setProblem(null);
+    return work()
+      .then(onChanged)
+      .catch((e: unknown) => setProblem(`Couldn't ${what}: ${say(e)}`));
+  };
+  return (
+    <div className="card card--pad intel__card">
+      <div className="intel__head">
+        <h3>Goals</h3>
+      </div>
+      <form className="row goaladd" onSubmit={(e) => { e.preventDefault(); const t = text; setText(""); void act(() => client.addGoal(t), "add the goal"); }}>
+        <input className="textfield" value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a goal, e.g. under 2,000 kcal on weekdays" aria-label="A new goal" />
+        <Button size="sm" variant="primary" type="submit" disabled={!text.trim()}>
+          Add
+        </Button>
+      </form>
+      {problem ? <p className="notice" role="alert">{problem}</p> : null}
+      {!goals.length ? <p className="empty">No goals yet. Add one, or say one and Alpha works towards it.</p> : null}
+      <div className="stack">
+        {goals.map((g) => (
+          <div key={g.id} className="goalrow">
+            <div className="goalrow__body">
+              {editing === g.id ? (
+                <input
+                  className="textfield"
+                  defaultValue={g.text}
+                  autoFocus
+                  aria-label={`New words for ${g.text}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { const t = e.currentTarget.value; setEditing(null); void act(() => client.changeGoal(g.id, { text: t }), "rewrite the goal"); }
+                    if (e.key === "Escape") setEditing(null);
+                  }}
+                  onBlur={(e) => { const t = e.currentTarget.value; setEditing(null); if (t.trim() !== g.text) void act(() => client.changeGoal(g.id, { text: t }), "rewrite the goal"); }}
+                />
+              ) : (
+                <b style={{ fontWeight: 500 }}>{g.text}</b>
+              )}
+              <div className="item__sub">
+                {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
+                {g.state !== "active" && g.until ? ` · until ${when(g.until)}` : ""}
+              </div>
+            </div>
+            <span className="goalrow__acts">
+              {editing !== g.id ? (
+                <Button size="sm" variant="ghost" onClick={() => setEditing(g.id)}>
+                  Edit
+                </Button>
+              ) : null}
+              {g.state === "active" ? (
+                <>
+                  <Button size="sm" onClick={() => void act(() => client.changeGoal(g.id, { state: "done" }), "mark it done")}>
+                    Done
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => void act(() => client.changeGoal(g.id, { state: "dropped" }), "drop it")}>
+                    Drop
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" variant="ghost" onClick={() => void act(() => client.changeGoal(g.id, { state: "active" }), "pick it up again")}>
+                  Pick up again
+                </Button>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Knowledge({ client, data, onChanged }: { client: Client; data: Data; onChanged: () => void }) {
   const { facts, notes, goals } = data.knowledge;
   const permissions = data.knowledge.permissions ?? [];
@@ -201,9 +279,28 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
   // the suggested ones first: they wait on the person
   const factLoad = useMemo(() => () => Promise.resolve([...facts].sort((a, b) => Number(b.state === "suggested") - Number(a.state === "suggested")).map(factRow)), [facts]);
   const suggested = new Set(facts.filter((f) => f.state === "suggested").map((f) => f.id));
+  // a known fact corrected or forgotten (slice 2 D1); everything exported (D1b)
+  const [correcting, setCorrecting] = useState<Fact | null>(null);
+  const [forgetting, setForgetting] = useState<Fact | null>(null);
+  const [exported, setExported] = useState<string | null>(null);
+  const byFact = new Map(facts.map((f) => [f.id, f]));
+  const act = (work: () => Promise<unknown>, what: string) =>
+    work()
+      .then(onChanged)
+      .catch((e: unknown) => setProblem(`Couldn't ${what}: ${say(e)}`));
+  const exportAll = () => {
+    setProblem(null);
+    client
+      .exportMemory()
+      .then((out) => {
+        setExported(`Exported ${out.items} items to ${out.markdown.split("/").pop()} and its JSON copy, in Alpha's exports folder.`);
+        if (host.available()) void host.revealPath(out.markdown);
+      })
+      .catch((e: unknown) => setProblem(`Couldn't export: ${say(e)}`));
+  };
   const factRows: HeldRows = {
     load: factLoad,
-    words: "Changed by telling Alpha",
+    words: "Tell Alpha, or correct one here",
     colours: FACT_COLOURS,
     actions: (row) =>
       suggested.has(row.id) ? (
@@ -215,11 +312,26 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
             No
           </Button>
         </>
+      ) : byFact.get(row.id) ? (
+        <>
+          <Button size="sm" onClick={() => setCorrecting(byFact.get(row.id)!)}>
+            Correct…
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setForgetting(byFact.get(row.id)!)}>
+            Forget…
+          </Button>
+        </>
       ) : null,
   };
   return (
     <div className="intel">
-      <div className="intel__group">About you · what you told Alpha, and what it noticed</div>
+      <div className="intel__group intel__group--row">
+        <span>About you · what you told Alpha, and what it noticed</span>
+        <Button size="sm" onClick={exportAll}>
+          Export everything Alpha remembers
+        </Button>
+      </div>
+      {exported ? <p className="notice notice--ok intel__table" role="status">{exported}</p> : null}
       {facts.length ? (
         <div className="intel__table">
           <DataPage client={client} table={factTable} held={factRows} version={0} onChanged={onChanged} />
@@ -230,22 +342,36 @@ function Knowledge({ client, data, onChanged }: { client: Client; data: Data; on
         </div>
       )}
       {problem ? <p className="notice intel__table" role="alert">{problem}</p> : null}
-      <div className="card card--pad intel__card">
-        <div className="intel__head">
-          <h3>Goals</h3>
-        </div>
-        {!goals.length ? <p className="empty">No goals yet. Say one ("under 2,000 kcal on weekdays") and Alpha works towards it.</p> : null}
-        <div className="stack">
-          {goals.map((g) => (
-            <div key={g.id}>
-              <b style={{ fontWeight: 500 }}>{g.text}</b>
-              <div className="item__sub">
-                {g.state === "active" ? "Active" : humanize(g.state)} · since {when(g.since)}
-              </div>
+      <GoalsCard client={client} goals={goals} onChanged={onChanged} />
+      <Dialog open={correcting !== null} onOpenChange={(o) => !o && setCorrecting(null)} title={correcting ? `Correct ${humanize(correcting.predicate).toLowerCase()}` : ""}>
+        {correcting ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const value = String(new FormData(e.currentTarget).get("value") ?? "");
+              const f = correcting;
+              setCorrecting(null);
+              void act(() => client.correctFact(f.id, value), "correct it");
+            }}
+          >
+            <div className="dialog__body">
+              <input className="textfield" name="value" defaultValue={correcting.value} autoFocus aria-label="The right value" style={{ width: "100%" }} />
+              <p className="faint" style={{ marginTop: 8 }}>Kept as yours ("You said so"); the old value stays in its history.</p>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="row dialog__actions">
+              <Button variant="primary" type="submit">
+                Save
+              </Button>
+              <Button variant="ghost" onClick={() => setCorrecting(null)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </Dialog>
+      <Confirm open={forgetting !== null} title={forgetting ? `Forget ${humanize(forgetting.predicate).toLowerCase()}?` : ""} action="Forget it" onConfirm={() => { const f = forgetting; setForgetting(null); if (f) void act(() => client.forgetFact(f.id), "forget it"); }} onCancel={() => setForgetting(null)}>
+        {forgetting ? `Alpha forgets that ${humanize(forgetting.predicate).toLowerCase()} is ${forgetting.value}. The journal keeps what was said, but Alpha no longer knows it.` : null}
+      </Confirm>
       <div className="card card--pad intel__card">
         <div className="intel__head">
           <h3>Standing permissions</h3>

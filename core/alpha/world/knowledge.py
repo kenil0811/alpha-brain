@@ -219,6 +219,17 @@ class Knowledge:
                 raise Problem(f"There is no goal {gid}.")
         return self.goal(gid)
 
+    def edit_goal(self, gid: str, text: str) -> dict[str, Any]:
+        """A goal's words, rewritten by the person (13 Oct, slice 2 D1)."""
+        clean = " ".join(text.split())
+        if not clean:
+            raise Problem("A goal needs words.")
+        self.goal(gid)
+        with self.store.tx() as db:
+            db.execute("UPDATE goals SET text = ?, updated_at = ? WHERE id = ?",
+                       (clean, now(), gid))
+        return self.goal(gid)
+
     def goals(self, state: str | None = "active") -> list[dict[str, Any]]:
         if state is None:
             rows = self.store.all("SELECT * FROM goals ORDER BY since")
@@ -290,6 +301,44 @@ class Knowledge:
             (subject, *states),
         )
         return [_fact(r) for r in rows]
+
+    def correct_fact(self, fid: str, value: str) -> dict[str, Any]:
+        """The person's own value for a known fact (13 Oct, slice 2 D1): a new fact, stated,
+        that replaces this one; the old one is kept as replaced (its history)."""
+        f = self.fact(fid)
+        clean = value.strip()
+        if not clean:
+            raise Problem("A fact needs a value; to have Alpha stop knowing it, forget it.")
+        if f["state"] != "accepted" or f["valid_to"]:
+            raise Problem("Only a fact Alpha knows now can be corrected.")
+        if clean == f["value"]:
+            return f
+        stamp = now()
+        new = new_id("f")
+        with self.store.tx() as db:
+            db.execute(
+                "INSERT INTO facts (id, subject, predicate, value, valid_from, recorded_at,"
+                " source, why, confidence, state) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (new, f["subject"], f["predicate"], clean, stamp, stamp, "stated",
+                 "You corrected it.", 1.0, "accepted"))
+            db.execute("UPDATE facts SET valid_to = ?, superseded_by = ? WHERE id = ?",
+                       (stamp, new, fid))
+        return self.fact(new)
+
+    def forget_fact(self, fid: str) -> dict[str, Any]:
+        """The person asks Alpha to forget a fact (D1): it and the values it replaced are
+        deleted, so Alpha no longer knows it; the journal keeps what was said."""
+        f = self.fact(fid)
+        gone = [fid]
+        with self.store.tx() as db:
+            frontier = [fid]
+            while frontier:
+                rows = db.execute(f"SELECT id FROM facts WHERE superseded_by IN"
+                                  f" ({','.join('?' * len(frontier))})", frontier).fetchall()
+                frontier = [r["id"] for r in rows if r["id"] not in gone]
+                gone += frontier
+            db.execute(f"DELETE FROM facts WHERE id IN ({','.join('?' * len(gone))})", gone)
+        return {**f, "forgotten": len(gone)}
 
     def decide_fact(self, fid: str, accept: bool) -> dict[str, Any]:
         """The person's yes or no on a suggested fact. A yes supersedes the accepted value."""

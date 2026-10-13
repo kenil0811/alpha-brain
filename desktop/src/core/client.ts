@@ -206,6 +206,8 @@ export interface Goal {
   state: string;
   module: string | null;
   since: string;
+  /** When it was marked done or dropped. */
+  until?: string | null;
 }
 
 export interface Note {
@@ -988,5 +990,11 @@ export class Client {
   resumeWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/resume`);
   stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
   decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
+  /** What Alpha knows, changed by the person (13 Oct, slice 2 D1, D11, D1b). */
+  correctFact = (id: string, value: string) => this.call<Fact>("POST", `/api/facts/${encodeURIComponent(id)}/correct`, { value });
+  forgetFact = (id: string) => this.call<Fact>("DELETE", `/api/facts/${encodeURIComponent(id)}`);
+  addGoal = (text: string, module?: string | null) => this.call<Goal>("POST", "/api/goals", { text, module: module ?? null });
+  changeGoal = (id: string, change: { text?: string; state?: "active" | "done" | "dropped" }) => this.call<Goal>("PATCH", `/api/goals/${encodeURIComponent(id)}`, change);
+  exportMemory = () => this.call<{ markdown: string; json: string; items: number }>("POST", "/api/memory/export");
   decideFact = (id: string, accept: boolean) => this.call<Fact>("POST", `/api/facts/${id}/decide`, { accept });
 }
