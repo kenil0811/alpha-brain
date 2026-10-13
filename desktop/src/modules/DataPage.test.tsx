@@ -168,6 +168,59 @@ describe("filters and sorts in the columns (section 3a)", () => {
   });
 });
 
+describe("grouping the table (section 3b)", () => {
+  const withStatus = (r: RecordRow, status: string): RecordRow => ({ ...r, values: { ...r.values, status } });
+
+  it("a column's menu groups the table; a group folds; the toolbar says it and ungroups", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), withStatus(row("r2", "Cafe", 120), "Sold"), row("r3", "Diner", 90)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Status" }));
+    await user.click(await screen.findByRole("button", { name: "Group by this column" }));
+    expect(screen.queryByRole("button", { name: "Group by this column" })).toBeNull(); // the menu closed on the choice
+    const active = screen.getByRole("button", { name: /Active · 2/ });
+    expect(screen.getByRole("button", { name: /Sold · 1/ })).toBeInTheDocument();
+    expect(screen.getByText("3 rows in 2 groups")).toBeInTheDocument();
+    await user.click(active);
+    expect(active).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Bakery")).toBeNull();
+    expect(screen.getByText("Cafe")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ungroup" }));
+    expect(screen.queryByRole("button", { name: /Active · 2/ })).toBeNull();
+    expect(screen.getByText("Bakery")).toBeInTheDocument();
+  });
+});
+
+describe("coming back to a table", () => {
+  it("keeps its grouping, filters and page after a record's page, for the session", async () => {
+    const user = userEvent.setup();
+    const rows = [row("r1", "Bakery", 300), { ...row("r2", "Cafe", 120), values: { title: "Cafe", price: 120, status: "Sold" } }];
+    const client = fakeClient(rows);
+    const first = render(
+      <TooltipProvider>
+        <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Status" }));
+    await user.click(await screen.findByRole("button", { name: "Group by this column" }));
+    await user.click(screen.getByRole("button", { name: "Filter Price" }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Condition" }), "gt");
+    await user.type(screen.getByRole("spinbutton", { name: "Value" }), "200");
+    await user.keyboard("{Escape}");
+    first.unmount(); // the record's page opens in its place
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByRole("button", { name: /Active · 1/ })).toBeInTheDocument();
+    expect(screen.queryByText("Cafe")).toBeNull();
+    expect(screen.getByText("Grouped by Status")).toBeInTheDocument();
+    expect(screen.getAllByRole("status").some((s) => s.textContent?.includes("1 filter"))).toBe(true);
+  });
+});
+
 describe("quick entry", () => {
   it("a sentence goes to Alpha naming the table, and the field clears", async () => {
     const user = userEvent.setup();

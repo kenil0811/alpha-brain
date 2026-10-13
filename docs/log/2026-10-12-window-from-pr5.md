@@ -158,7 +158,33 @@ its four values with their counts, inside the window; the Mac app seen with the 
 (one line); `just check-desktop`: 81 of 81 pages clean at every size
 (`docs/checks/2026-10-13-0947.md`).
 
+## Section 3b: grouping in the table (13 Oct, this commit)
+
+Proposed in writing ("yes"): "Group by this column" in a column's menu (choice, status, tick,
+link, short text, a date by month); a header row per group with its count that folds; one
+level; totals per group left for section 4. Built: `groupable`, `groupRows` (a choice keeps its
+own order, a tick is Ticked then Not ticked, months in time order, a link by its title, Empty
+last), `groupItems` and `pageOfGroups` (headers and rows paged together; a page that starts
+inside a group repeats its header, "continued"); the table draws the header rows; the toolbar
+says "Grouped by … · Ungroup"; the pager "195 rows in 4 groups"; the Board uses the same
+grouping; saved lists keep it (`group_by`, no core change).
+
+Kenil's review: "when i group by a column, the popup does not go away, it should go away" (main's
+`Popover` takes `open`/`onOpenChange` now, and the choice closes it), and "when i open detail
+page, and then go back, i lose the groouping": a table's working state (its list, search,
+filters, sorts, grouping, page, folded groups) is kept for the session (`sessionStorage`, per
+table), so a record's page and Back return to it; a new session opens on the default list
+again. Found on the way: a ticklist counted the hidden gone rows (Remote 47 against its group's
+29); it counts what the table can show now.
+
+What ran: `just lint` clean; 115 desktop tests in 30 files (five new: the order and labels, the
+lines and the continued header, the column's Group by closing its menu, folding, Ungroup,
+coming back keeping grouping and a filter); in the browser pane at 1240×820 with the sidebar
+open, the job listings grouped by Remote/Onsite (4 groups), Remote folded, page 2 opening on
+"Remote · 29 continued", the toolbar one line, nothing past the window; `just check-desktop`:
+81 of 81 pages clean at every size (`docs/checks/2026-10-13-1004.md`).
+
 ## Left
 
-Section 3b (grouping in the table) and 3c (how saved lists are shown and switched) next, each
-proposed in writing; the rest one at a time.
+Section 3c (how saved lists are shown and switched) proposed in writing next; the rest one at a
+time.

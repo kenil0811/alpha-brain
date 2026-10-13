@@ -980,3 +980,6 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .colmenu__note { margin: 0; padding: 0 8px 6px; font-size: var(--text-sm); max-width: 260px; }
 /* the toolbar's line while filters are on */
 .filtersum { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text-2); }
+/* a grouped table's header row per group: a click folds it (13 Oct, section 3b) */
+.grouprow td { background: var(--surface-2); padding: 6px 12px; max-width: none; }
+.grouprow__btn { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; }

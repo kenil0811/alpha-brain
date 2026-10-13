@@ -4,8 +4,9 @@
  * tested without a browser and shared by every kind of view (table, board, list, calendar,
  * chart, and the ones to come).
  */
-import type { RecordRow } from "../../core/client";
+import type { RecordRow, Relations } from "../../core/client";
 import { isNumeric, openChoices, type FieldInfo } from "../fields";
+import { humanize } from "../format";
 
 export interface Sort {
   field: string;
@@ -303,4 +304,82 @@ export function sortsAfterClick(sorts: Sort[], field: string, adding: boolean): 
   }
   if (at < 0) return [...sorts, { field, direction: "asc" }];
   return sorts.map((s, i) => (i === at ? { ...s, direction: s.direction === "asc" ? "desc" : "asc" } : s));
+}
+
+/** The kinds a table can be grouped by (13 Oct, Q42 section 3b): one group per value, never one
+ *  per row (long text, web links, files and plain numbers are left out). */
+export function groupable(kind: string): boolean {
+  return ["choice", "status", "bool", "relation", "text", "date", "datetime"].includes(kind);
+}
+
+export interface RowGroup {
+  key: string;
+  label: string;
+  rows: RecordRow[];
+}
+
+const MONTH = (key: string) => new Date(`${key}-01T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+/** The rows in groups by one field, in the field's own order: a choice or status keeps its
+ *  choices' order, a tick is Ticked then Not ticked, a date groups by month, the rest A to Z;
+ *  Empty is last. Rows keep their order inside a group. */
+export function groupRows(rows: RecordRow[], field: FieldInfo, relations: Relations = {}): RowGroup[] {
+  const kind = field.kind;
+  const keyOf = (r: RecordRow): string => {
+    const v = r.values[field.name];
+    if (kind === "bool") return v === true ? "true" : "false";
+    if (isEmpty(v)) return "";
+    if (kind === "date" || kind === "datetime") return String(v).slice(0, 7);
+    if (Array.isArray(v)) return String(v[0] ?? "");
+    return String(v);
+  };
+  const labelOf = (key: string): string => {
+    if (kind === "bool") return key === "true" ? "Ticked" : "Not ticked";
+    if (key === "") return "Empty";
+    if (kind === "date" || kind === "datetime") return MONTH(key);
+    if (kind === "relation") return relations[field.name]?.[key] ?? key;
+    if (kind === "choice" || kind === "status") return humanize(key);
+    return key;
+  };
+  const byKey = new Map<string, RecordRow[]>();
+  for (const r of rows) {
+    const k = keyOf(r);
+    const list = byKey.get(k);
+    if (list) list.push(r);
+    else byKey.set(k, [r]);
+  }
+  let keys = [...byKey.keys()];
+  if (kind === "choice" || kind === "status") {
+    const order = field.choices ?? [];
+    keys.sort((a, b) => (a === "" ? 1 : b === "" ? -1 : (order.indexOf(a) < 0 ? 1e9 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 1e9 : order.indexOf(b)) || a.localeCompare(b)));
+  } else if (kind === "bool") {
+    keys = ["true", "false"].filter((k) => byKey.has(k));
+  } else if (kind === "date" || kind === "datetime") {
+    keys.sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b))); // months in time order
+  } else {
+    keys.sort((a, b) => (a === "" ? 1 : b === "" ? -1 : labelOf(a).localeCompare(labelOf(b), undefined, { numeric: true })));
+  }
+  return keys.map((key) => ({ key, label: labelOf(key), rows: byKey.get(key)! }));
+}
+
+/** One line of a grouped table: a group's header, or a row. */
+export type GroupItem = { kind: "group"; key: string; label: string; count: number; folded: boolean; continued?: boolean } | { kind: "row"; row: RecordRow; group: string };
+
+/** A grouped table as lines: each group's header, then its rows unless folded. */
+export function groupItems(groups: RowGroup[], folded: Set<string>): GroupItem[] {
+  return groups.flatMap((g): GroupItem[] => [
+    { kind: "group", key: g.key, label: g.label, count: g.rows.length, folded: folded.has(g.key) },
+    ...(folded.has(g.key) ? [] : g.rows.map((row): GroupItem => ({ kind: "row", row, group: g.key }))),
+  ]);
+}
+
+/** A page of a grouped table: a page that starts inside a group repeats its header, marked continued. */
+export function pageOfGroups(items: GroupItem[], at: number, size: number): { items: GroupItem[]; at: number; pages: number } {
+  const page = pageOf(items, at, size);
+  const first = page.rows[0];
+  if (first?.kind === "row") {
+    const header = items.find((i): i is Extract<GroupItem, { kind: "group" }> => i.kind === "group" && i.key === first.group);
+    if (header) return { items: [{ ...header, continued: true }, ...page.rows], at: page.at, pages: page.pages };
+  }
+  return { items: page.rows, at: page.at, pages: page.pages };
 }

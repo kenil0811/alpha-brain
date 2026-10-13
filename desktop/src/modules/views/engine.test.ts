@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { activeRules, applyQuery, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, totalsFor, withRule, type FilterRule } from "./engine";
+import { activeRules, applyQuery, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, totalsFor, withRule, type FilterRule } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -131,5 +131,26 @@ describe("a column's header and menu (section 3a)", () => {
     const r = withRule({ match: "all", rules: [] }, "price", { field: "price", op: "gt", value: "1" });
     expect(ruleFor(withRule(r, "price", { field: "price", op: "lt", value: "9" }), "price")?.op).toBe("lt");
     expect(withRule(r, "price", null).rules).toEqual([]);
+  });
+});
+
+describe("grouping a table (section 3b)", () => {
+  it("keeps a choice's own order, puts Empty last, and labels ticks, months and links", () => {
+    const xs = [row("1", { s: "Sold" }), row("2", { s: "Active" }), row("3", { s: null }), row("4", { s: "Active" })];
+    const byStatus = groupRows(xs, { name: "s", kind: "status", choices: ["Active", "Pending", "Sold"] });
+    expect(byStatus.map((g) => [g.label, g.rows.length])).toEqual([["Active", 2], ["Sold", 1], ["Empty", 1]]);
+    expect(groupRows([row("1", { t: true }), row("2", { t: null })], { name: "t", kind: "bool" }).map((g) => g.label)).toEqual(["Ticked", "Not ticked"]);
+    const months = groupRows([row("1", { d: "2026-10-02" }), row("2", { d: "2026-09-30" }), row("3", { d: "2026-10-20" })], { name: "d", kind: "date" });
+    expect(months.map((g) => g.rows.length)).toEqual([1, 2]);
+    const links = groupRows([row("1", { c: "c1" }), row("2", { c: "c2" })], { name: "c", kind: "relation" }, { c: { c1: "Zeta Ltd", c2: "Acme" } });
+    expect(links.map((g) => g.label)).toEqual(["Acme", "Zeta Ltd"]);
+  });
+
+  it("lists each group's header then its rows, a folded group without them; a page inside a group repeats its header", () => {
+    const groups = groupRows([row("1", { s: "A" }), row("2", { s: "A" }), row("3", { s: "B" })], { name: "s", kind: "choice", choices: ["A", "B"] });
+    const items = groupItems(groups, new Set(["B"]));
+    expect(items.map((i) => (i.kind === "group" ? `#${i.key}${i.folded ? "-" : ""}` : i.row.id))).toEqual(["#A", "1", "2", "#B-"]);
+    const second = pageOfGroups(groupItems(groups, new Set()), 1, 2);
+    expect(second.items.map((i) => (i.kind === "group" ? `#${i.key}${i.continued ? "…" : ""}` : i.row.id))).toEqual(["#A…", "2", "#B"]);
   });
 });

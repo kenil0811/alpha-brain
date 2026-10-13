@@ -9,13 +9,13 @@
  * `FilterSummary` is the toolbar's one quiet line while filters are on: how many, all or any,
  * Clear all.
  */
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { RecordRow } from "../../core/client";
 import { Button, IconButton, Popover } from "../../ui";
 import { ColumnMenuIcon } from "../../ui/icons";
 import { isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { needsValue, OP_WORDS, opsFor, type FilterRule } from "./engine";
+import { groupable, needsValue, OP_WORDS, opsFor, type FilterRule } from "./engine";
 
 const empty = (v: unknown) => v === null || v === undefined || v === "";
 
@@ -81,14 +81,21 @@ function Condition({ field, rule, onRule }: { field: FieldInfo; rule?: FilterRul
   );
 }
 
-export function ColumnMenu({ field, rows, rule, onRule, extra }: { field: FieldInfo; rows: RecordRow[]; rule?: FilterRule; onRule: (r: FilterRule | null) => void; extra?: ReactNode }) {
+/** `grouped`/`onGroup`: the column can group the table (section 3b): Group by this column, or Ungroup. */
+export function ColumnMenu({ field, rows, rule, onRule, extra, grouped, onGroup }: { field: FieldInfo; rows: RecordRow[]; rule?: FilterRule; onRule: (r: FilterRule | null) => void; extra?: ReactNode; grouped?: boolean; onGroup?: (on: boolean) => void }) {
   const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
-  const on = Boolean(rule);
+  const on = Boolean(rule) || Boolean(grouped);
   const kind = field.kind;
+  const [open, setOpen] = useState(false);
   return (
     <span className={`th__menu${on ? " th__menu--on" : ""}`}>
-      <Popover label={`${name}: filter`} align="end" trigger={<IconButton size="sm" label={`Filter ${name}`} icon={<ColumnMenuIcon />} />}>
+      <Popover open={open} onOpenChange={setOpen} label={`${name}: filter`} align="end" trigger={<IconButton size="sm" label={`Filter ${name}`} icon={<ColumnMenuIcon />} />}>
         <div className="colmenu">
+          {onGroup && groupable(kind) ? (
+            <button type="button" className="menu__item" onClick={() => { onGroup(!grouped); setOpen(false); }}>
+              {grouped ? "Ungroup" : "Group by this column"}
+            </button>
+          ) : null}
           <div className="menu__head">Filter</div>
           {kind === "choice" || kind === "status" ? (
             <Ticklist field={field} rows={rows} rule={rule} onRule={onRule} />
@@ -151,6 +158,19 @@ export function FilterSummary({ count, match, onMatch, onClear }: { count: numbe
       ) : null}
       <Button size="sm" variant="ghost" onClick={onClear}>
         Clear all
+      </Button>
+    </span>
+  );
+}
+
+/** The toolbar's line while the table is grouped: by what, and Ungroup. */
+export function GroupSummary({ by, onUngroup }: { by: string | null; onUngroup: () => void }) {
+  if (!by) return null;
+  return (
+    <span className="filtersum">
+      <span>Grouped by {by}</span>
+      <Button size="sm" variant="ghost" onClick={onUngroup}>
+        Ungroup
       </Button>
     </span>
   );

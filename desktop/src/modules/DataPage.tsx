@@ -11,8 +11,8 @@ import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from ".
 import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
-import { activeRules, applyQuery, ofKinds, pageOf, provenanceCounts, type Rules, type Sort } from "./views/engine";
-import { FilterSummary } from "./views/RulesUI";
+import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type Rules, type Sort } from "./views/engine";
+import { FilterSummary, GroupSummary } from "./views/RulesUI";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
 import { AddRow } from "./views/AddRow";
@@ -68,6 +68,37 @@ function remember(key: string, value: unknown) {
   }
 }
 
+/** What a table page is doing right now (its list, search, filters, sorts, grouping, page, the
+ *  groups folded), kept for the session so opening a record and coming back returns to it
+ *  (13 Oct, Kenil: "when i open detail page, and then go back, i lose the groouping"). A new
+ *  session opens on the table's default list again. */
+interface Working {
+  listId: string;
+  search: string;
+  rules: Rules;
+  sorts: Sort[];
+  groupBy: string | null;
+  hideDone: boolean;
+  showGone: boolean;
+  pageAt: number;
+  folded: string[];
+}
+function readWorking(key: string): Working | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as Working) : null;
+  } catch {
+    return null;
+  }
+}
+function keepWorking(key: string, value: Working) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* a window without storage starts each table afresh, nothing more */
+  }
+}
+
 const NO_RULES: Rules = { match: "all", rules: [] };
 const NO_FILTERS: Record<string, string> = {};
 
@@ -83,13 +114,14 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const fields = table.fields as FieldInfo[];
   const byName = useMemo(() => new Map(fields.map((f) => [f.name, f])), [fields]);
   const key = `alpha.page.${table.name}`;
+  const [restored] = useState(() => readWorking(`${key}.working`));
   const titleField = titleFieldOf(fields, table.title_field);
   const statusField = useMemo(() => fields.find((f) => f.kind === "status"), [fields]);
   // A board groups by a choice or status field, a calendar, timeline or chart runs on a date
   // field: the first of each by default, the person's pick when there are several.
   const choiceFields = useMemo(() => ofKinds(fields, new Set(["status", "choice"])).sort((a, b) => (a.kind === "status" ? -1 : b.kind === "status" ? 1 : 0)), [fields]);
   const dateFields = useMemo(() => ofKinds(fields, DATE_KINDS), [fields]);
-  const [groupBy, setGroupBy] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<string | null>(restored?.groupBy ?? null);
   const [dateBy, setDateBy] = useState<string | null>(null);
   const groupField = useMemo(() => choiceFields.find((f) => f.name === groupBy) ?? choiceFields[0], [choiceFields, groupBy]);
   const dateField = useMemo(() => dateFields.find((f) => f.name === dateBy) ?? dateFields[0], [dateFields, dateBy]);
@@ -117,13 +149,13 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   }
   // Saved lists live in the world (the person's and Alpha's); the window only shows them.
   const [lists, setLists] = useState<SavedList[]>([]);
-  const [listId, setListId] = useState<string>("all");
-  const openedOnDefault = useRef(false);
-  const [search, setSearch] = useState("");
-  const [hideDone, setHideDone] = useState(false);
-  const [showGone, setShowGone] = useState(false);
-  const [sorts, setSorts] = useState<Sort[]>([]);
-  const [rules, setRules] = useState<Rules>(NO_RULES);
+  const [listId, setListId] = useState<string>(restored?.listId ?? "all");
+  const openedOnDefault = useRef(Boolean(restored)); // coming back keeps what was on, not the default list
+  const [search, setSearch] = useState(restored?.search ?? "");
+  const [hideDone, setHideDone] = useState(restored?.hideDone ?? false);
+  const [showGone, setShowGone] = useState(restored?.showGone ?? false);
+  const [sorts, setSorts] = useState<Sort[]>(restored?.sorts ?? []);
+  const [rules, setRules] = useState<Rules>(restored?.rules ?? NO_RULES);
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
   const [widths, setWidths] = useState<Record<string, number>>(() => remembered<Record<string, number>>(`${key}.widths`, {}));
@@ -133,7 +165,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     return [...placed, ...base.filter((c) => !placed.includes(c))];
   }, [fields, hidden, order]);
   const [all, setAll] = useState<RecordRow[] | null>(null);
-  const [pageAt, setPageAt] = useState(0);
+  const [pageAt, setPageAt] = useState(restored?.pageAt ?? 0);
   const [pageSize, setPageSize] = useState<PageSize>(() => remembered<PageSize>(PAGE_SIZE_KEY, "fit"));
   const [fit, setFit] = useState(20);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -203,7 +235,14 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   useEffect(load, [load, version]);
 
   const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters: NO_FILTERS, rules, byName, hideDone, statusField, showGone, sorts }) : null), [all, search, searchable, rules, byName, hideDone, showGone, statusField, sorts]);
-  useEffect(() => setPageAt(0), [search, rules, hideDone, showGone, sorts]);
+  // a change of what is shown starts at the first page; coming back to the page is no change
+  const narrowing = JSON.stringify([search, rules, hideDone, showGone, sorts]);
+  const lastNarrowing = useRef(narrowing);
+  useEffect(() => {
+    if (lastNarrowing.current === narrowing) return;
+    lastNarrowing.current = narrowing;
+    setPageAt(0);
+  }, [narrowing]);
   // A table with a file field says how files get in: the button above, or a drop on the page.
   const emptyWords = fields.some((f) => f.kind === "file") ? "Nothing here yet. Add files with the button above, or drop them on the page; Alpha keeps each as a row here." : "Nothing here yet.";
   // A table fed by readers: the platform knows when each row was first seen, last seen, gone.
@@ -237,10 +276,22 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
 
   const paged = view === "table" || view === "list";
   const size = pageSize === "fit" ? fit : pageSize;
-  const page = rows ? pageOf(rows, pageAt, size) : null;
-  const pages = page?.pages ?? 1;
-  const at = page?.at ?? 0;
-  const shownRows = page?.rows ?? null;
+  // The table grouped by a column (section 3b): its groups' headers and rows, paged together.
+  const tableGroupField = groupBy && byName.get(groupBy) && groupable(byName.get(groupBy)!.kind) ? byName.get(groupBy)! : null;
+  const [folded, setFolded] = useState<Set<string>>(() => new Set(restored?.folded ?? []));
+  const lastGroupBy = useRef(groupBy);
+  useEffect(() => {
+    if (lastGroupBy.current === groupBy) return;
+    lastGroupBy.current = groupBy;
+    setFolded(new Set());
+  }, [groupBy]);
+  useEffect(() => keepWorking(`${key}.working`, { listId, search, rules, sorts, groupBy, hideDone, showGone, pageAt, folded: [...folded] }), [key, listId, search, rules, sorts, groupBy, hideDone, showGone, pageAt, folded]);
+  const groups = useMemo(() => (rows && tableGroupField && view === "table" ? groupRows(rows, tableGroupField, relations) : null), [rows, tableGroupField, view, relations]);
+  const grouped = groups ? pageOfGroups(groupItems(groups, folded), pageAt, size) : null;
+  const page = rows && !grouped ? pageOf(rows, pageAt, size) : null;
+  const pages = grouped?.pages ?? page?.pages ?? 1;
+  const at = grouped?.at ?? page?.at ?? 0;
+  const shownRows = grouped ? grouped.items.flatMap((i) => (i.kind === "row" ? [i.row] : [])) : (page?.rows ?? null);
   function choosePageSize(next: PageSize) {
     const nextSize = next === "fit" ? fit : next;
     setPageAt(Math.floor((at * size) / nextSize));
@@ -358,7 +409,9 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const resting = !rows || (!guesses && !assumed) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : ""].filter(Boolean).join(", ")}`;
   const counted = !rows
     ? "Loading…"
-    : paged && rows.length > size
+    : groups
+      ? `${count(rows.length)} ${rowsWord(rows.length)} in ${count(groups.length)} ${groups.length === 1 ? "group" : "groups"}${filtered ? ` · ${count(all?.length ?? 0)} in all` : ""}`
+      : paged && rows.length > size
       ? `${count(at * size + 1)}–${count(Math.min(rows.length, at * size + size))} of ${count(rows.length)} ${filtered ? `matching · ${count(all?.length ?? 0)} in all` : rowsWord(rows.length)}`
       : rows.length === all?.length
         ? `${count(rows.length)} ${rowsWord(rows.length)}`
@@ -404,6 +457,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               ))}
             </select>
           ) : null}
+          <GroupSummary by={tableGroupField ? (tableGroupField.label && tableGroupField.label !== tableGroupField.name ? tableGroupField.label : humanize(tableGroupField.name)) : null} onUngroup={() => setGroupBy(null)} />
           <FilterSummary count={filterCount} match={rules.match} onMatch={(match) => setRules((r) => ({ ...r, match }))} onClear={() => { setRules(NO_RULES); setHideDone(false); }} />
           <span className="spacer" />
           {readonly ? (
@@ -500,13 +554,16 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               onSorts={setSorts}
               rules={rules}
               onRules={setRules}
-              allRows={all ?? []}
+              allRows={(all ?? []).filter((r) => showGone || !r.gone_at)}
               columnExtras={statusField && (statusField.done_choices ?? []).length ? { [statusField.name]: (
                 <label className="menu__item">
                   <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide done rows
                 </label>
               ) } : undefined}
               gone={tracked && goneCount ? { showGone, count: goneCount, onShowGone: setShowGone } : undefined}
+              items={grouped?.items}
+              onToggleGroup={(key) => setFolded((f) => { const next = new Set(f); if (next.has(key)) next.delete(key); else next.add(key); return next; })}
+              grouping={{ by: tableGroupField?.name ?? null, onGroup: setGroupBy }}
               onOpen={openRow}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

@@ -6,14 +6,41 @@ import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, type FieldInfo } from "../fields";
 import { formatNumber, humanize } from "../format";
 import { Button, IconButton } from "../../ui";
-import { ArrowDown, ArrowUp, ChevronRight, FilterIcon } from "../../ui/icons";
-import { isComplete, ruleFor, sortsAfterClick, totalsFor, withRule, type Rules, type Sort } from "./engine";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, FilterIcon } from "../../ui/icons";
+import { isComplete, ruleFor, sortsAfterClick, totalsFor, withRule, type GroupItem, type Rules, type Sort } from "./engine";
 import { ColumnMenu, SeenMenu } from "./RulesUI";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = totalsFor(totalOf, columns, byName);
   const sortAt = (field: string) => sorts.find((x) => x.field === field);
+  const renderRow = (row: RecordRow) => (
+            <tr
+              key={row.id}
+              className={`row--open${selected?.has(row.id) ? " row--selected" : ""}`}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onOpen(row.id);
+                }
+              }}
+              aria-label={String(row.values[fields[0]?.name] ?? row.id)}
+            >
+              {onSelect ? (
+                <td className="sel" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" aria-label={`Select ${String(row.values[fields[0]?.name] ?? row.id)}`} checked={selected?.has(row.id) ?? false} onChange={(e) => onSelect(row.id, e.target.checked)} />
+                </td>
+              ) : null}
+              <td className="open">
+                <IconButton size="sm" label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`} icon={<ChevronRight size={14} />} onClick={(e) => { e.stopPropagation(); onOpen(row.id); }} />
+              </td>
+              {columns.map((c) => (
+                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
+              ))}
+              {seen ? <SeenCell row={row} /> : null}
+            </tr>
+  );
   return (
     <div className="tablewrap">
       <table className="table" aria-label={undefined}>
@@ -52,7 +79,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                     {sorts.length > 1 && sortAt(c) ? <span className="th__level">{sorts.findIndex((x) => x.field === c) + 1}</span> : null}
                     {rules && ruleFor(rules, c) && isComplete(ruleFor(rules, c)!) ? <FilterIcon size={12} className="th__funnel" aria-label="filtered" /> : null}
                   </button>
-                  {rules && onRules && byName.get(c) ? <ColumnMenu field={byName.get(c)!} rows={allRows ?? rows} rule={ruleFor(rules, c)} onRule={(rule) => onRules(withRule(rules, c, rule))} extra={columnExtras?.[c]} /> : null}
+                  {rules && onRules && byName.get(c) ? <ColumnMenu field={byName.get(c)!} rows={allRows ?? rows} rule={ruleFor(rules, c)} onRule={(rule) => onRules(withRule(rules, c, rule))} extra={columnExtras?.[c]} grouped={grouping ? grouping.by === c : undefined} onGroup={grouping ? (on) => grouping.onGroup(on ? c : null) : undefined} /> : null}
                   <span
                     className="th__grip"
                     role="separator"
@@ -81,33 +108,24 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
           </tr>
         </thead>
         <tbody ref={(el) => { bodyRef.current = el; }}>
-          {rows.map((row) => (
-            <tr
-              key={row.id}
-              className={`row--open${selected?.has(row.id) ? " row--selected" : ""}`}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                  e.preventDefault();
-                  onOpen(row.id);
-                }
-              }}
-              aria-label={String(row.values[fields[0]?.name] ?? row.id)}
-            >
-              {onSelect ? (
-                <td className="sel" onClick={(e) => e.stopPropagation()}>
-                  <input type="checkbox" aria-label={`Select ${String(row.values[fields[0]?.name] ?? row.id)}`} checked={selected?.has(row.id) ?? false} onChange={(e) => onSelect(row.id, e.target.checked)} />
-                </td>
-              ) : null}
-              <td className="open">
-                <IconButton size="sm" label={`Open ${String(row.values[fields[0]?.name] ?? row.id)}`} icon={<ChevronRight size={14} />} onClick={(e) => { e.stopPropagation(); onOpen(row.id); }} />
-              </td>
-              {columns.map((c) => (
-                <Cell key={c} row={row} field={byName.get(c)!} onCommit={(text) => onCommit(row, byName.get(c)!, text)} relations={relations} onOpenRelated={onOpenRelated} files={files} onFile={onFile ? (file) => onFile(row, byName.get(c)!, file) : undefined} />
-              ))}
-              {seen ? <SeenCell row={row} /> : null}
-            </tr>
-          ))}
+          {items
+            ? items.map((item) =>
+                item.kind === "row" ? (
+                  renderRow(item.row)
+                ) : (
+                  <tr key={`g:${item.key}${item.continued ? ":cont" : ""}`} className="grouprow">
+                    <td colSpan={columns.length + 1 + (onSelect ? 1 : 0) + (seen ? 1 : 0)}>
+                      <button type="button" className="grouprow__btn" aria-expanded={!item.folded} onClick={() => onToggleGroup?.(item.key)}>
+                        {item.folded ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
+                        <b>{item.label}</b>{" "}
+                        <span className="faint num">· {item.count.toLocaleString()}</span>
+                        {item.continued ? <span className="faint"> continued</span> : null}
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )
+            : rows.map(renderRow)}
           {empty ? (
             <tr>
               <td colSpan={columns.length + (seen ? 2 : 1) + (onSelect ? 1 : 0)} className="empty" style={{ whiteSpace: "normal" }}>
