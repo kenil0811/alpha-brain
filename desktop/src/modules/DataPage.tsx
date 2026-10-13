@@ -11,7 +11,8 @@ import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from ".
 import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
-import { applyQuery, ofKinds, pageOf, provenanceCounts, type Sort } from "./views/engine";
+import { activeRules, applyQuery, ofKinds, pageOf, provenanceCounts, type Rules, type Sort } from "./views/engine";
+import { FilterSummary } from "./views/RulesUI";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
 import { AddRow } from "./views/AddRow";
@@ -67,6 +68,15 @@ function remember(key: string, value: unknown) {
   }
 }
 
+const NO_RULES: Rules = { match: "all", rules: [] };
+const NO_FILTERS: Record<string, string> = {};
+
+/** The old quick dropdowns' field → value, as column ticklists. */
+function withQuickFilters(rules: Rules, quick: Record<string, string>): Rules {
+  const extra = Object.entries(quick).filter(([field, value]) => value && !rules.rules.some((r) => r.field === field)).map(([field, value]) => ({ field, op: "in" as const, value: "", values: [value] }));
+  return extra.length ? { ...rules, rules: [...rules.rules, ...extra] } : rules;
+}
+
 /** `onOpenRecord` opens a record's own page (a row of this table, or a related one followed
  *  from a cell); without it a row opens nothing. */
 export function DataPage({ client, table, version, onChanged, onSay, onOpenRecord }: { client: Client; table: TableDesc; version: number; onChanged: () => void; onSay?: (sentence: string) => void; onOpenRecord?: (table: string, id: string) => void }) {
@@ -110,10 +120,10 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [listId, setListId] = useState<string>("all");
   const openedOnDefault = useRef(false);
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
   const [hideDone, setHideDone] = useState(false);
   const [showGone, setShowGone] = useState(false);
-  const [sort, setSort] = useState<Sort | null>(null);
+  const [sorts, setSorts] = useState<Sort[]>([]);
+  const [rules, setRules] = useState<Rules>(NO_RULES);
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
   const [widths, setWidths] = useState<Record<string, number>>(() => remembered<Record<string, number>>(`${key}.widths`, {}));
@@ -160,7 +170,6 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     });
 
   const searchable = useMemo(() => fields.filter((f) => f.kind === "text" || f.kind === "long_text" || f.kind === "url").map((f) => f.name), [fields]);
-  const facets = useMemo(() => fields.filter((f) => (f.kind === "choice" || f.kind === "status") && (f.choices ?? []).length > 0), [fields]);
 
   const load = useCallback(() => {
     client
@@ -193,8 +202,8 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   }, [client, table.name, key]);
   useEffect(load, [load, version]);
 
-  const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters, hideDone, statusField, showGone, sort }) : null), [all, search, searchable, filters, hideDone, showGone, statusField, sort]);
-  useEffect(() => setPageAt(0), [search, filters, hideDone, showGone, sort]);
+  const rows = useMemo(() => (all ? applyQuery(all, { search, searchable, filters: NO_FILTERS, rules, byName, hideDone, statusField, showGone, sorts }) : null), [all, search, searchable, rules, byName, hideDone, showGone, statusField, sorts]);
+  useEffect(() => setPageAt(0), [search, rules, hideDone, showGone, sorts]);
   // A table with a file field says how files get in: the button above, or a drop on the page.
   const emptyWords = fields.some((f) => f.kind === "file") ? "Nothing here yet. Add files with the button above, or drop them on the page; Alpha keeps each as a row here." : "Nothing here yet.";
   // A table fed by readers: the platform knows when each row was first seen, last seen, gone.
@@ -286,12 +295,14 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     (id: string, from: SavedList[] = lists) => {
       setListId(id);
       const c = from.find((l) => l.id === id)?.config;
-      setFilters(c?.filters ?? {});
       setSearch(c?.search ?? "");
       setHideDone(c?.hide_done ?? false);
+      if (!c) setRules(NO_RULES); // All: every row, as the quick dropdowns were reset before
       if (c) {
         setHidden(c.hidden ?? []);
-        setSort(c.sort ?? null);
+        setSorts(c.sorts ?? (c.sort ? [c.sort] : []));
+        // a list saved with the old quick dropdowns: each one becomes its column's ticklist
+        setRules(withQuickFilters(c.rules ?? NO_RULES, c.filters ?? {}));
         if (c.view) setView(c.view as PageView);
         setGroupBy(c.group_by ?? null);
         setDateBy(c.date_by ?? null);
@@ -306,7 +317,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     const starred = lists.find((l) => l.is_default);
     if (starred) applyList(starred.id, lists);
   }, [lists, applyList]);
-  const currentConfig = (): SavedList["config"] => ({ search, filters, hide_done: hideDone, hidden, sort, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
+  const currentConfig = (): SavedList["config"] => ({ search, rules, sorts, hide_done: hideDone, hidden, view, group_by: groupBy ?? undefined, date_by: dateBy ?? undefined });
   async function saveList(title: string) {
     if (!title.trim()) return;
     const ok = await run(async () => {
@@ -339,7 +350,8 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
 
   const openRow = (id: string) => onOpenRecord?.(table.name, id);
   const shownColumns = columns.filter((c) => byName.has(c));
-  const filtered = Boolean(search || Object.values(filters).some(Boolean) || hideDone);
+  const filterCount = activeRules(rules, byName).length + (hideDone ? 1 : 0);
+  const filtered = Boolean(search || filterCount);
   const count = (n: number) => n.toLocaleString();
   const rowsWord = (n: number) => (n === 1 ? "row" : "rows");
   const { estimated: guesses, assumed } = rows ? provenanceCounts(rows) : { estimated: 0, assumed: 0 };
@@ -392,26 +404,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               ))}
             </select>
           ) : null}
-          {facets.map((field) => (
-            <select key={field.name} className="btn btn--sm" value={filters[field.name] ?? ""} onChange={(e) => setFilters((p) => ({ ...p, [field.name]: e.target.value }))} aria-label={`Filter by ${humanize(field.name).toLowerCase()}`}>
-              <option value="">{humanize(field.name)}: any</option>
-              {(field.choices ?? []).map((c) => (
-                <option key={c} value={c}>
-                  {humanize(c)}
-                </option>
-              ))}
-            </select>
-          ))}
-          {statusField && (statusField.done_choices ?? []).length ? (
-            <label className="check">
-              <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide done
-            </label>
-          ) : null}
-          {tracked && goneCount ? (
-            <label className="check">
-              <input type="checkbox" checked={showGone} onChange={(e) => setShowGone(e.target.checked)} /> Show gone ({goneCount})
-            </label>
-          ) : null}
+          <FilterSummary count={filterCount} match={rules.match} onMatch={(match) => setRules((r) => ({ ...r, match }))} onClear={() => { setRules(NO_RULES); setHideDone(false); }} />
           <span className="spacer" />
           {readonly ? (
             <span className="faint">Built by the module · read-only</span>
@@ -503,8 +496,17 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               byName={byName}
               widths={widths}
               onWidth={(name, w) => setWidths((existing) => ({ ...existing, [name]: w }))}
-              sort={sort}
-              onSort={setSort}
+              sorts={sorts}
+              onSorts={setSorts}
+              rules={rules}
+              onRules={setRules}
+              allRows={all ?? []}
+              columnExtras={statusField && (statusField.done_choices ?? []).length ? { [statusField.name]: (
+                <label className="menu__item">
+                  <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide done rows
+                </label>
+              ) } : undefined}
+              gone={tracked && goneCount ? { showGone, count: goneCount, onShowGone: setShowGone } : undefined}
               onOpen={openRow}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

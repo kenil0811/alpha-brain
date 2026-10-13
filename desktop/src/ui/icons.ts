@@ -22,6 +22,8 @@ export {
   ArrowUp,
   ArrowDown,
   ArrowUpRight,
+  Filter as FilterIcon,
+  EllipsisVertical as ColumnMenuIcon,
   Check,
   X,
   Eye,

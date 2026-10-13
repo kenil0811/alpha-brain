@@ -47,6 +47,20 @@ def test_a_list_is_kept_checked_and_one_is_the_default(world: World) -> None:
     assert [x["title"] for x in v.for_table("deals")] == ["All deals", "Board"]
 
 
+def test_a_list_keeps_filter_rules_and_several_sorts_on_its_own_fields(world: World) -> None:
+    deals(world)
+    rules = {"match": "any", "rules": [{"field": "price", "op": "gt", "value": "100"},
+                                        {"field": "title", "op": "contains", "value": "bakery"}]}
+    sorts = [{"field": "status", "direction": "asc"}, {"field": "price", "direction": "desc"}]
+    kept = world.views.save("deals", "Big or bakeries", {"rules": rules, "sorts": sorts})
+    assert kept["config"]["rules"] == rules and kept["config"]["sorts"] == sorts
+    with pytest.raises(Problem, match="no field 'city' to filter on"):
+        world.views.save("deals", "x", {"rules": {"match": "all", "rules": [
+            {"field": "city", "op": "is", "value": "Austin"}]}})
+    with pytest.raises(Problem, match="no field 'city' to sort by"):
+        world.views.save("deals", "x", {"sorts": [{"field": "city", "direction": "asc"}]})
+
+
 def test_the_routes_keep_lists_and_the_table_carries_them(world: World) -> None:
     deals(world)
     c = TestClient(create_app(world, live=False))

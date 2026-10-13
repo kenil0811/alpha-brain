@@ -126,7 +126,39 @@ later, the memo's before and after side by side; Undo, Write and Save were not c
 Kenil's world (they write to it), the tests cover them. `just check-desktop`: 81 of 81 pages
 clean at every size (`docs/checks/2026-10-13-0835.md`).
 
+## Section 3a: filters in the columns, several sorts (13 Oct, this commit)
+
+Proposed first as toolbar buttons (Filter with rules, Sort with levels; "ok"). Built that way,
+the toolbar no longer fitted on one line at 1240 with the sidebar open (measured: about 920px
+for some 1,100px of controls; it only just fitted before), and "Show gone" stacked its
+checkbox above its words, a rule of Activity's checklist catching the toolbar's labels. Kenil,
+asked to choose: "filters- i want them within the columns (similar to aggrid or mui you
+know). Also, what is the "show gone" ?" (rows a reader no longer finds on its site, kept and
+hidden); then Show gone and Hide done "into col menus", and all-or-any "keep as switch"; "yes".
+While it was built: "sort should not be in the menu, because its already possible by clicking
+on column name".
+
+Built: each header has a ⋮ (on hover; kept while the column is filtered) that opens that
+column's filter, fitting its kind (a choice column's ticklist of its values with counts and
+Select all; a condition and a value, two for "between", for text, numbers and dates; ticked or
+not), Clear this filter, and what belongs to the column (Hide done on the status, Show gone on
+Seen). A filtered column shows a funnel. A header click sorts by it alone; shift-click adds it
+as the next level or turns it around; levels are numbered. The quick dropdowns, the
+checkboxes in the toolbar and the first version's buttons are gone; while filters are on the
+toolbar says "2 filters · matching all ▾ · Clear all". The matching and the sorts are pure
+functions (`matchRule`, `matchRules`, `sortRows`, `sortsAfterClick`, `withRule`); a list saved
+with the old quick dropdowns opens with them as ticklists. The core: a saved list may hold
+`rules` and `sorts`, each naming a field the table has. Activity's checklist rule is `ul.check`
+now.
+
+What ran: `just lint` clean; 228 core tests (one new: a list keeps rules and sorts, refuses a
+field the table lacks); 111 desktop tests in 30 files; in the browser pane at 1240×820 with the
+sidebar open the toolbar is one line (55px) with room to spare and the Remote/Onsite menu shows
+its four values with their counts, inside the window; the Mac app seen with the sidebar folded
+(one line); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-0947.md`).
+
 ## Left
 
-Section 3 (the table's toolbar: saved views, filter rules, sort, group) proposed in writing
-next; the rest one at a time.
+Section 3b (grouping in the table) and 3c (how saved lists are shown and switched) next, each
+proposed in writing; the rest one at a time.

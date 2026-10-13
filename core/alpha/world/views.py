@@ -1,11 +1,12 @@
 """Saved lists: a named way of looking at a table, kept in the world.
 
-A saved list is the search, the filters, the columns shown, the sort and the kind of view
-(table, board, …) under a title the person gave it ("Open deals in Missouri"). It belongs to
-the world, not to one window: it follows the person to another Mac, Alpha can make one when
-asked ("keep a list of the sold ones"), and removing the table removes its lists. One list per
-table may be the default the table opens on. The config is the page's own shape, kept as JSON;
-the core only checks that the table exists and that the fields a list names are its fields.
+A saved list is the search, the filters and filter rules, the columns shown, the sorts and the
+kind of view (table, board, …) under a title the person gave it ("Open deals in Missouri"). It
+belongs to the world, not to one window: it follows the person to another Mac, Alpha can make
+one when asked ("keep a list of the sold ones"), and removing the table removes its lists. One
+list per table may be the default the table opens on. The config is the page's own shape, kept
+as JSON; the core only checks that the table exists and that the fields a list names are its
+fields.
 """
 
 from __future__ import annotations
@@ -15,8 +16,8 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, dumps, loads, new_id, now
 
-CONFIG_KEYS = {"search", "filters", "hide_done", "hidden", "sort", "view", "group_by", "date_by",
-               "measure"}
+CONFIG_KEYS = {"search", "filters", "rules", "hide_done", "hidden", "sort", "sorts", "view",
+               "group_by", "date_by", "measure"}
 
 
 def _view(row: sqlite3.Row) -> dict[str, Any]:
@@ -43,9 +44,13 @@ class Views:
         for name in (clean.get("filters") or {}):
             if name not in fields:
                 raise Problem(f"'{collection}' has no field '{name}' to filter on.")
-        sort = clean.get("sort")
-        if sort and sort.get("field") not in fields:
-            raise Problem(f"'{collection}' has no field '{sort.get('field')}' to sort by.")
+        for sort in [clean.get("sort"), *(clean.get("sorts") or [])]:
+            if sort and sort.get("field") not in fields:
+                raise Problem(f"'{collection}' has no field '{sort.get('field')}' to sort by.")
+        # the Filter button's rules (13 Oct): each names a field of this table
+        for rule in (clean.get("rules") or {}).get("rules") or []:
+            if rule.get("field") not in fields:
+                raise Problem(f"'{collection}' has no field '{rule.get('field')}' to filter on.")
         for key in ("group_by", "date_by", "measure"):
             if clean.get(key) and clean[key] not in fields:
                 raise Problem(f"'{collection}' has no field '{clean[key]}' ({key}).")

@@ -1,16 +1,19 @@
 /** The table: columns the person chose, sized by hand, sorted by a header, totals under the
  *  numeric ones, and a › on each row that opens its record's page (a click on the row opens
  *  nothing; a double-click on a value edits it). */
+import type { ReactNode } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, type FieldInfo } from "../fields";
 import { formatNumber, humanize } from "../format";
 import { Button, IconButton } from "../../ui";
-import { ArrowDown, ArrowUp, ChevronRight } from "../../ui/icons";
-import { nextSort, totalsFor, type Sort } from "./engine";
+import { ArrowDown, ArrowUp, ChevronRight, FilterIcon } from "../../ui/icons";
+import { isComplete, ruleFor, sortsAfterClick, totalsFor, withRule, type Rules, type Sort } from "./engine";
+import { ColumnMenu, SeenMenu } from "./RulesUI";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sort, onSort, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sort: Sort | null; onSort: (s: Sort | null) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const totals = totalsFor(totalOf, columns, byName);
+  const sortAt = (field: string) => sorts.find((x) => x.field === field);
   return (
     <div className="tablewrap">
       <table className="table" aria-label={undefined}>
@@ -42,11 +45,14 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
             {columns.map((c) => {
               const kind = byName.get(c)?.kind ?? "text";
               return (
-                <th key={c} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sort?.field === c ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
-                  <button type="button" onClick={() => onSort(nextSort(sort, c))}>
+                <th key={c} className={isNumeric(kind) ? "r th--sizable" : "th--sizable"} style={widths[c] ? { width: widths[c], minWidth: widths[c], maxWidth: widths[c] } : undefined} aria-sort={sortAt(c) ? (sortAt(c)!.direction === "asc" ? "ascending" : "descending") : undefined}>
+                  <button type="button" onClick={(e) => onSorts(sortsAfterClick(sorts, c, e.shiftKey))} title="Sort by this column; shift-click to add it as the next level">
                     {byName.get(c)?.label ?? humanize(c)}
-                    {sort?.field === c ? (sort.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : ""}
+                    {sortAt(c) ? (sortAt(c)!.direction === "asc" ? <ArrowUp size={12} aria-label="ascending" /> : <ArrowDown size={12} aria-label="descending" />) : ""}
+                    {sorts.length > 1 && sortAt(c) ? <span className="th__level">{sorts.findIndex((x) => x.field === c) + 1}</span> : null}
+                    {rules && ruleFor(rules, c) && isComplete(ruleFor(rules, c)!) ? <FilterIcon size={12} className="th__funnel" aria-label="filtered" /> : null}
                   </button>
+                  {rules && onRules && byName.get(c) ? <ColumnMenu field={byName.get(c)!} rows={allRows ?? rows} rule={ruleFor(rules, c)} onRule={(rule) => onRules(withRule(rules, c, rule))} extra={columnExtras?.[c]} /> : null}
                   <span
                     className="th__grip"
                     role="separator"
@@ -71,7 +77,7 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
                 </th>
               );
             })}
-            {seen ? <th><span>Seen</span></th> : null}
+            {seen ? <th><span>Seen</span>{gone ? <SeenMenu showGone={gone.showGone} goneCount={gone.count} onShowGone={gone.onShowGone} /> : null}</th> : null}
           </tr>
         </thead>
         <tbody ref={(el) => { bodyRef.current = el; }}>

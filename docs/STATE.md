@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 13 October 2026, morning.** Last entries: the window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 which features, Q42 how: one section at a time in main's own design; section 1 Home's "Didn't work today" and section 2 the record page with its History, Undo and Notes done, section 3 proposed next), the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
+**As of 13 October 2026, morning.** Last entries: the window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 which features, Q42 how: one section at a time in main's own design; section 1 Home's "Didn't work today" and section 2 the record page with its History, Undo and Notes, and section 3a filters in the columns done), the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
 ([`log/2026-10-12-clean-sweep.md`](log/2026-10-12-clean-sweep.md), Q40; the research pass, plans, milestones and jobs removed; 5,500 lines fewer), shipped again with a Python that can make a venv ([`log/2026-10-11-shipped-again.md`](log/2026-10-11-shipped-again.md)), questions asked together answered together
 ([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
 the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
@@ -49,15 +49,15 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 227, in about 33 s; ruff and mypy strict clean |
-| Desktop tests | 100 passed, 1 skipped, in 30 files; typecheck clean |
+| Core tests | 228, in about 33 s; ruff and mypy strict clean |
+| Desktop tests | 111 passed, 1 skipped, in 30 files; typecheck clean |
 | Tools the model sees | 73 |
 | Journeys | 22 defined; latest `docs/journeys/2026-10-12-0907.md` (the interview after the sweep: the page, the change by chat, nothing built, 507 s; its version check loosened to `version_min`, see the log); `2026-10-12-0906.md` (the question card passed); `2026-10-11-1635.md`, 1 of 1 (the build from the page, 951 s); `2026-10-11-1457.md`, 1 of 1 (the interview and the page, 467 s) |
-| Desktop check | after section 2b, `docs/checks/2026-10-13-0835.md`, 81 of 81 pages clean at every size (the first record of every table among the pages); after section 1, `2026-10-12-2211.md`, 66 of 66 |
+| Desktop check | after section 3a, `docs/checks/2026-10-13-0947.md`, 81 of 81 pages clean at every size (the first record of every table among the pages); after section 2b, `2026-10-13-0835.md`; after section 1, `2026-10-12-2211.md`, 66 of 66 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 181 total; 181 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 15,833 Python; tests 5,549; desktop 11,619 TS/TSX |
+| Commits | 182 total; 182 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 15,838 Python; tests 5,563; desktop 12,114 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -176,7 +176,7 @@ pending item 6, people for real, and noticing over what Alpha reads.
    Try again card; identical replies collapsed and a stopped build posting once (the loop that
    posted 19 on 2 Oct); long replies folded; copy and edit-and-resend; a plus for files in the
    composer; Kenil to say whether one stream should replace the per-page conversations.
-11. **The window from pull request #5 (Q41, Q42)** ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md)): one section at a time in main's own styles, each a written proposal to Kenil, built on his yes, seen in the Mac app, committed after his review. (1) Home's "Didn't work today" — done 12 Oct, with Dismiss and Clear all; (2a) a record's own page — done 13 Oct (the › at a row's start opens it, a click on a row opens nothing, cards open on a double-click, ticked rows counted in the header row); (2b) History with Undo, and Notes, on the record page — done 13 Oct (the history read from the record's kept versions, a page at a time; a note per record, removed with its table); (3) the table's toolbar — proposed next; then (3) the table's toolbar, (4) its extras, (5) the sidebar, (6) Settings as cards, (7) Intelligence, (8) the assistant panel, (9) plain errors, absolute dates, every delete confirmed. The rulebook (`design/research/ui-rulebook.md`) is guidance only. Then the core's routes the window asks for (rename, delete and Removed for a module, a field added by the person, export, a goal, a memory page), then the behaviour items, then the design sessions (persisted decisions, several dedicated agents).
+11. **The window from pull request #5 (Q41, Q42)** ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md)): one section at a time in main's own styles, each a written proposal to Kenil, built on his yes, seen in the Mac app, committed after his review. (1) Home's "Didn't work today" — done 12 Oct, with Dismiss and Clear all; (2a) a record's own page — done 13 Oct (the › at a row's start opens it, a click on a row opens nothing, cards open on a double-click, ticked rows counted in the header row); (2b) History with Undo, and Notes, on the record page — done 13 Oct (the history read from the record's kept versions, a page at a time; a note per record, removed with its table); (3a) filters in the columns (a ⋮ per header: ticklists with counts, conditions, Hide done and Show gone; a header click sorts, shift-click adds a level; "2 filters · matching all · Clear all" in the toolbar) — done 13 Oct; (3b) grouping in the table and (3c) how saved lists show — next; then (3) the table's toolbar, (4) its extras, (5) the sidebar, (6) Settings as cards, (7) Intelligence, (8) the assistant panel, (9) plain errors, absolute dates, every delete confirmed. The rulebook (`design/research/ui-rulebook.md`) is guidance only. Then the core's routes the window asks for (rename, delete and Removed for a module, a field added by the person, export, a goal, a memory page), then the behaviour items, then the design sessions (persisted decisions, several dedicated agents).
 12. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
 13. People for real: readers declare their rows as people; a pass links existing rows.

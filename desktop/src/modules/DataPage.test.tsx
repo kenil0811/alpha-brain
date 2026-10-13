@@ -87,6 +87,87 @@ describe("the table page", () => {
   });
 });
 
+describe("filters and sorts in the columns (section 3a)", () => {
+  const withStatus = (r: RecordRow, status: string): RecordRow => ({ ...r, values: { ...r.values, status } });
+
+  it("a number column's menu narrows the rows; the header shows a funnel and the toolbar one line with Clear all", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Price" }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Condition" }), "gt");
+    await user.type(screen.getByRole("spinbutton", { name: "Value" }), "200");
+    expect(screen.queryByText("Cafe")).toBeNull();
+    expect(screen.getByLabelText("filtered")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    const summary = screen.getByRole("status");
+    expect(summary).toHaveTextContent("1 filter");
+    await user.click(within(summary).getByRole("button", { name: "Clear all" }));
+    expect(screen.getByText("Cafe")).toBeInTheDocument();
+  });
+
+  it("a choice column is a ticklist with counts, and its menu holds Hide done", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), withStatus(row("r2", "Cafe", 120), "Sold"), row("r3", "Diner", 90)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Status" }));
+    const values = await screen.findByRole("group", { name: "Values of Status" });
+    expect(within(values).getByText("2")).toBeInTheDocument(); // two Active
+    await user.click(within(values).getByRole("checkbox", { name: /Active/ }));
+    expect(screen.queryByText("Bakery")).toBeNull();
+    expect(screen.getByText("Cafe")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Hide done rows" })).toBeInTheDocument();
+  });
+
+  it("a click on a header sorts by it, a shift-click adds the next level, numbered", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 300), row("r3", "Diner", 120)]);
+    const sortButton = (name: string) => within(screen.getByRole("columnheader", { name: new RegExp(`^${name}`) })).getAllByRole("button")[0];
+    await screen.findByText("Bakery");
+    await user.click(sortButton("Price"));
+    await user.click(sortButton("Price")); // descending
+    await user.keyboard("{Shift>}");
+    await user.click(sortButton("Title"));
+    await user.click(sortButton("Title")); // the second level turned around
+    await user.keyboard("{/Shift}");
+    const titles = screen.getAllByRole("row").slice(1).map((r) => within(r).queryByText(/Bakery|Cafe|Diner/)?.textContent).filter(Boolean);
+    expect(titles).toEqual(["Cafe", "Bakery", "Diner"]);
+    expect(screen.getByText("2")).toHaveClass("th__level");
+  });
+
+  it("a list saved with the old quick dropdowns opens with them as its column's ticklist", async () => {
+    const client = fakeClient([row("r1", "Bakery", 300), withStatus(row("r2", "Cafe", 120), "Sold")]);
+    const list = { id: "l1", collection: "deals", title: "Sold ones", config: { filters: { status: "Sold" } }, is_default: true, source: null, created_at: "", updated_at: "" };
+    (client as unknown as { table: unknown }).table = vi.fn(async () => ({ table: desc, records: [row("r1", "Bakery", 300), withStatus(row("r2", "Cafe", 120), "Sold")], files: {}, lists: [list], relations: {} }));
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByText("Cafe")).toBeInTheDocument();
+    expect(screen.queryByText("Bakery")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("1 filter");
+  });
+
+  it("with two filters the toolbar's switch matches all or any", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), withStatus(row("r2", "Cafe", 120), "Sold"), row("r3", "Diner", 90)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Price" }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Condition" }), "gt");
+    await user.type(screen.getByRole("spinbutton", { name: "Value" }), "200");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Filter Status" }));
+    await user.click(within(await screen.findByRole("group", { name: "Values of Status" })).getByRole("checkbox", { name: /Active/ }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Bakery")).toBeNull(); // more than 200 and not Active: none
+    await user.selectOptions(screen.getByRole("combobox", { name: "Rows that match" }), "any");
+    expect(screen.getByText("Bakery")).toBeInTheDocument();
+    expect(screen.getByText("Cafe")).toBeInTheDocument();
+    expect(screen.queryByText("Diner")).toBeNull();
+  });
+});
+
 describe("quick entry", () => {
   it("a sentence goes to Alpha naming the table, and the field clears", async () => {
     const user = userEvent.setup();

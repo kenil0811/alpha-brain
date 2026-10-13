@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
-import { applyQuery, byDay, byMonth, compare, groupBy, nextSort, ofKinds, pageOf, provenanceCounts, totalsFor } from "./engine";
+import type { FieldInfo } from "../fields";
+import { activeRules, applyQuery, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, totalsFor, withRule, type FilterRule } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -10,7 +11,7 @@ const rows = [
   row("c", { title: "Dental practice", price: null, status: "Pending", when: "2026-10-05" }, { provenance: { estimated: true } }),
   row("d", { title: "Gone shop", price: 50, status: "Active" }, { gone_at: "2026-10-03T00:00:00+00:00", provenance: { assumed: "the price" } }),
 ];
-const base = { search: "", searchable: ["title"], filters: {}, hideDone: false, statusField: status, showGone: false, sort: null };
+const base = { search: "", searchable: ["title"], filters: {}, hideDone: false, statusField: status, showGone: false, sorts: [] };
 
 describe("a view's query", () => {
   it("hides gone rows unless asked, and done rows when asked", () => {
@@ -24,8 +25,8 @@ describe("a view's query", () => {
     expect(applyQuery(rows, { ...base, filters: { status: "" } }).map((r) => r.id)).toEqual(["a", "b", "c"]);
   });
   it("sorts with empty values last, numbers by value", () => {
-    expect(applyQuery(rows, { ...base, sort: { field: "price", direction: "asc" } }).map((r) => r.id)).toEqual(["b", "a", "c"]);
-    expect(applyQuery(rows, { ...base, sort: { field: "price", direction: "desc" } }).map((r) => r.id)).toEqual(["a", "b", "c"]);
+    expect(applyQuery(rows, { ...base, sorts: [{ field: "price", direction: "asc" }] }).map((r) => r.id)).toEqual(["b", "a", "c"]);
+    expect(applyQuery(rows, { ...base, sorts: [{ field: "price", direction: "desc" }] }).map((r) => r.id)).toEqual(["a", "b", "c"]);
     expect(compare("item 2", "item 10")).toBeLessThan(0);
   });
   it("cycles a column's sort: ascending, descending, none", () => {
@@ -58,5 +59,77 @@ describe("time and field helpers", () => {
     const months = byMonth([...rows, row("e", { title: "Older", when: "2026-09-12" })], { name: "when", kind: "date" });
     expect(months.map((m) => [m.month, m.rows.map((r) => r.id)])).toEqual([["2026-10", ["c", "a", "b"]], ["2026-09", ["e"]]]);
     expect(ofKinds([status, { name: "when", kind: "date" }, { name: "n", kind: "number" }], new Set(["date", "datetime"])).map((f) => f.name)).toEqual(["when"]);
+  });
+});
+
+describe("filter rules and several sorts (section 3a)", () => {
+  const fields = new Map<string, FieldInfo>([
+    ["title", { name: "title", kind: "text" }],
+    ["price", { name: "price", kind: "number" }],
+    ["status", status],
+    ["when", { name: "when", kind: "date" }],
+    ["done", { name: "done", kind: "bool" }],
+    ["tags", { name: "tags", kind: "multichoice", choices: ["red", "blue"] }],
+  ]);
+  const one = (values: Record<string, unknown>, rule: FilterRule, now = new Date("2026-10-13T12:00:00")) => matchRule(row("x", values), rule, fields.get(rule.field), now);
+
+  it("offers conditions that fit the field's kind", () => {
+    expect(opsFor("text")[0]).toBe("is");
+    expect(opsFor("number")).toContain("between");
+    expect(opsFor("date")).toContain("within");
+    expect(opsFor("bool")).toEqual(["checked", "unchecked"]);
+    expect(opsFor("status")).toEqual(["in"]); // a choice column is a ticklist
+  });
+
+  it("matches text, numbers, dates, choices, ticks and empties", () => {
+    expect(one({ title: "Bakery Hill" }, { field: "title", op: "contains", value: "bakery" })).toBe(true);
+    expect(one({ title: "Bakery Hill" }, { field: "title", op: "starts", value: "hill" })).toBe(false);
+    expect(one({ title: "Bakery Hill" }, { field: "title", op: "ends", value: "HILL" })).toBe(true);
+    expect(one({ price: 300 }, { field: "price", op: "gt", value: "120" })).toBe(true);
+    expect(one({ price: 120 }, { field: "price", op: "lte", value: "120" })).toBe(true);
+    expect(one({ price: null }, { field: "price", op: "gt", value: "1" })).toBe(false);
+    expect(one({ when: "2026-10-10" }, { field: "when", op: "within", value: "7" })).toBe(true);
+    expect(one({ when: "2026-10-01" }, { field: "when", op: "within", value: "7" })).toBe(false);
+    expect(one({ when: "2026-10-02" }, { field: "when", op: "before", value: "2026-10-05" })).toBe(true);
+    expect(one({ status: "Sold" }, { field: "status", op: "is_not", value: "Sold" })).toBe(false);
+    expect(one({ tags: ["red"] }, { field: "tags", op: "contains", value: "red" })).toBe(true);
+    expect(one({ done: true }, { field: "done", op: "checked", value: "" })).toBe(true);
+    expect(one({ price: "" }, { field: "price", op: "empty", value: "" })).toBe(true);
+    expect(one({ price: 150 }, { field: "price", op: "between", value: "100", value2: "200" })).toBe(true);
+    expect(one({ price: 250 }, { field: "price", op: "between", value: "", value2: "200" })).toBe(false);
+    expect(one({ status: "Sold" }, { field: "status", op: "in", value: "", values: ["Active", ""] })).toBe(false);
+    expect(one({ status: null }, { field: "status", op: "in", value: "", values: ["Active", ""] })).toBe(true);
+    // a rule still missing its value holds for every row, so a half-made rule hides nothing
+    expect(one({ title: "x" }, { field: "title", op: "is", value: "" })).toBe(true);
+  });
+
+  it("all or any of the rules, through the view's query", () => {
+    const rules = { match: "all" as const, rules: [{ field: "price", op: "gt" as const, value: "100" }, { field: "status", op: "is" as const, value: "Active" }] };
+    expect(applyQuery(rows, { ...base, rules, byName: fields }).map((r) => r.id)).toEqual(["a"]);
+    expect(applyQuery(rows, { ...base, rules: { ...rules, match: "any" }, byName: fields }).map((r) => r.id)).toEqual(["a", "b"]);
+    expect(activeRules({ match: "all", rules: [{ field: "title", op: "is", value: "" }, { field: "price", op: "empty", value: "" }] }, fields)).toHaveLength(1);
+  });
+
+  it("sorts by several fields, the first deciding first, empty values last", () => {
+    const xs = [row("1", { s: "b", p: 1 }), row("2", { s: "a", p: 2 }), row("3", { s: "a", p: 9 }), row("4", { s: null, p: 5 })];
+    expect(sortRows(xs, [{ field: "s", direction: "asc" }, { field: "p", direction: "desc" }]).map((r) => r.id)).toEqual(["3", "2", "1", "4"]);
+    expect(sortRows(xs, [{ field: "s", direction: "desc" }]).map((r) => r.id)).toEqual(["1", "2", "3", "4"]);
+  });
+});
+
+describe("a column's header and menu (section 3a)", () => {
+  it("a click sorts by that column alone; shift adds it as the next level, or turns it around", () => {
+    const one = sortsAfterClick([], "price", false);
+    expect(one).toEqual([{ field: "price", direction: "asc" }]);
+    const two = sortsAfterClick(one, "title", true);
+    expect(two).toEqual([{ field: "price", direction: "asc" }, { field: "title", direction: "asc" }]);
+    expect(sortsAfterClick(two, "title", true)[1].direction).toBe("desc");
+    expect(sortsAfterClick(two, "title", false)).toEqual([{ field: "title", direction: "asc" }]);
+  });
+
+  it("one filter per column, set and taken off", () => {
+    const r = withRule({ match: "all", rules: [] }, "price", { field: "price", op: "gt", value: "1" });
+    expect(ruleFor(withRule(r, "price", { field: "price", op: "lt", value: "9" }), "price")?.op).toBe("lt");
+    expect(withRule(r, "price", null).rules).toEqual([]);
   });
 });
