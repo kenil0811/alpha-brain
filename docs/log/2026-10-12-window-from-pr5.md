@@ -255,7 +255,31 @@ in the browser pane at 1240 Set… opens under its button, left edges together, 
 window, and a column's menu still opens right-aligned under its ⋮; `just check-desktop`: 81 of
 81 pages clean at every size (`docs/checks/2026-10-13-1143.md`).
 
+## Section 4c: pasting from a spreadsheet (13 Oct, this commit)
+
+Proposed in writing ("ok"). Built (`paste.ts`): `parseClipboard` reads a block as Excel,
+Numbers and Sheets copy it (tabs, lines, quoted cells with tabs, breaks and doubled quotes);
+`readValue` reads each value for its column (numbers with commas, currency and percent signs;
+dates as 2026-10-13, 13 Oct 2026, Oct 13, 2026, 13/10/2026; a date that could be read two ways,
+like 03/04/2026, is left out and named, never guessed; ticks; a choice by its name);
+`planPaste` fills from the clicked cell across the shown columns and down the rows in the order
+they show (a grouped table's folded groups passed over), adds rows for the lines past the end,
+counts what it replaces, and names what it leaves out (a value that doesn't fit, a column past
+the last, the title, links, files and long text). A single value is an edit of the cell; a
+block asks first in main's confirm ("Paste 3 rows × 2 columns? Into Price, Status, on 1 row. 2
+values replace what's there. 1 new row is added…", then what is left out) and is written one
+write per row ("Pasting row 2 of 5…"; a refusal stops it with "Pasted 1 of 2; then: …"). Not on
+a module's read-only table. WebKit pastes only into something editable, so ⌘V on a selected
+cell gives a hidden box the paste for a moment and the cell its focus back (also when nothing
+came). No core change. Asked whether a paste should write titles too (new rows come without
+one); "ok", so the title stays out as proposed.
+
+What ran: `just lint` clean; 130 desktop tests in 31 files (nine new: the block's cells, the
+values read and refused, the plan, a single value, a block's confirm and its writes, the ⌘V
+path through the hidden box, a refusal, a read-only table); `just check-desktop`: 81 of 81 pages
+clean at every size (`docs/checks/2026-10-13-1154.md`). Not seen in the Mac app: a real ⌘V
+there would have overwritten Kenil's clipboard; left for him to try.
+
 ## Left
 
-Section 4c (pasting from a spreadsheet) proposed in writing next, then 4d colour, 4e the
-numbers strip.
+Section 4d (colour) proposed in writing next, then 4e the numbers strip.

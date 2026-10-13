@@ -13,6 +13,7 @@ import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type FooterOp, type Rules, type Sort } from "./views/engine";
 import { settable, ViewState } from "./views/RulesUI";
+import { parseClipboard, planPaste, type PastePlan } from "./views/paste";
 import { ListTabs } from "./views/ListTabs";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
@@ -198,6 +199,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [formAt, setFormAt] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [removing, setRemoving] = useState(false);
+  const [pasting, setPasting] = useState<PastePlan | null>(null);
   const [adding, setAdding] = useState(false);
   // A program module's own table (Q38) is read from its database: no adding, editing or removing here.
   const readonly = Boolean(table.readonly);
@@ -337,6 +339,60 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
     const current = row.values[field.name] ?? null;
     if (JSON.stringify(value) === JSON.stringify(current)) return;
     void run(() => client.editRecord(table.name, row.id, { [field.name]: value }, row.revision), "Couldn't save the change");
+  }
+  /** A paste on a cell (section 4c): a single value is an edit of that cell; a block is planned
+   *  against the rows in the order they show, and asks before it is written. */
+  function pasteAt(rowId: string, column: string, text: string) {
+    if (readonly) return;
+    const grid = parseClipboard(text);
+    if (!grid.length) return;
+    const order = groups ? groups.flatMap((g) => (folded.has(g.key) ? [] : g.rows)) : (rows ?? []);
+    const startRow = order.findIndex((r) => r.id === rowId);
+    const startCol = shownColumns.indexOf(column);
+    if (startRow < 0 || startCol < 0) return;
+    const plan = planPaste(grid, order, startRow, shownColumns, startCol, byName, titleField);
+    if (grid.length === 1 && grid[0].length === 1) {
+      if (plan.updates.length) void run(() => client.editRecord(table.name, rowId, plan.updates[0].values, plan.updates[0].row.revision), "Couldn't paste it");
+      else if (plan.skipped.length) setStatus({ ok: false, text: `Not pasted: ${plan.skipped[0]}` });
+      return;
+    }
+    if (!plan.updates.length && !plan.adds.length) {
+      setStatus({ ok: false, text: plan.skipped.length ? `Nothing to paste: ${plan.skipped.slice(0, 2).join("; ")}` : "Nothing to paste: every value is already there." });
+      return;
+    }
+    setPasting(plan);
+  }
+  /** The block written, one write per row (each in its record's History); a refusal stops it. */
+  async function writePaste(plan: PastePlan) {
+    setPasting(null);
+    const total = plan.updates.length + plan.adds.length;
+    let done = 0;
+    let problem: string | undefined;
+    for (const { row, values } of plan.updates) {
+      setStatus({ ok: true, text: `Pasting row ${done + 1} of ${total}…` });
+      try {
+        await client.editRecord(table.name, row.id, values, row.revision);
+        done += 1;
+      } catch (e) {
+        problem = e instanceof Error ? e.message : String(e);
+        break;
+      }
+    }
+    if (!problem) {
+      for (const values of plan.adds) {
+        setStatus({ ok: true, text: `Pasting row ${done + 1} of ${total}…` });
+        try {
+          await client.addRecord(table.name, values);
+          done += 1;
+        } catch (e) {
+          problem = e instanceof Error ? e.message : String(e);
+          break;
+        }
+      }
+    }
+    load();
+    onChanged();
+    setStatus(problem ? { ok: false, text: `Pasted ${done} of ${total}; then: ${problem}` } : { ok: true, text: `Pasted ${done} ${done === 1 ? "row" : "rows"}.` });
   }
   /** Set one field on every ticked row, one edit per row (each in its record's History); a
    *  refusal stops it and says how far it got (section 4b). The ticks stay. */
@@ -561,6 +617,29 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
           </Popover>
         </div>
         {adding && !readonly ? <AddRow fields={fields} collection={table.name} onDone={() => setAdding(false)} onAdd={(values) => run(() => client.addRecord(table.name, values), "Couldn't add it")} /> : null}
+        <Confirm open={Boolean(pasting)} danger={false} title={pasting ? `Paste ${pasting.lines} ${pasting.lines === 1 ? "row" : "rows"} × ${pasting.width} ${pasting.width === 1 ? "column" : "columns"}?` : ""} action="Paste" onConfirm={() => pasting && void writePaste(pasting)} onCancel={() => setPasting(null)}>
+          {pasting ? (
+            <>
+              <p>
+                Into {pasting.columns.map((c) => humanize(c)).join(", ") || "no column"}
+                {pasting.updates.length ? `, on ${pasting.updates.length} ${pasting.updates.length === 1 ? "row" : "rows"}` : ""}.
+                {pasting.replaced ? ` ${pasting.replaced} ${pasting.replaced === 1 ? "value replaces" : "values replace"} what's there.` : ""}
+                {pasting.adds.length ? ` ${pasting.adds.length} new ${pasting.adds.length === 1 ? "row is" : "rows are"} added for the lines past the end.` : ""}
+              </p>
+              {pasting.skipped.length ? (
+                <>
+                  <p>Left out:</p>
+                  <ul className="paste__skipped">
+                    {pasting.skipped.slice(0, 6).map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                    {pasting.skipped.length > 6 ? <li>and {pasting.skipped.length - 6} more</li> : null}
+                  </ul>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </Confirm>
         <Confirm open={removing} title={`Remove ${count(selected.size)} ${selected.size === 1 ? "row" : "rows"}?`} action={`Remove ${count(selected.size)}`} onConfirm={() => void removeSelected()} onCancel={() => setRemoving(false)}>
           They leave the table; Activity keeps that they were here.
         </Confirm>
@@ -600,6 +679,7 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               grouping={{ by: tableGroupField?.name ?? null, onGroup: setGroupBy }}
               footers={footers}
               onFooter={(field, op) => setFooters((f) => ({ ...f, [field]: op }))}
+              onPaste={readonly ? undefined : pasteAt}
               onOpen={openRow}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

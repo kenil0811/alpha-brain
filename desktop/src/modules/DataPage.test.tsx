@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Client, RecordRow, TableDesc } from "../core/client";
@@ -364,6 +364,69 @@ describe("editing several ticked rows at once (section 4b)", () => {
     await screen.findByText("Bakery");
     await user.click(screen.getByRole("checkbox", { name: "Select Bakery" }));
     expect(screen.queryByRole("button", { name: "Set…" })).toBeNull();
+  });
+});
+
+describe("pasting from a spreadsheet (section 4c)", () => {
+  const paste = (cell: HTMLElement, text: string) => fireEvent.paste(cell, { clipboardData: { getData: () => text } });
+
+  it("⌘V on a selected cell pastes through the hidden box and gives the cell its focus back", async () => {
+    const client = page([row("r1", "Bakery", 300)]);
+    await screen.findByText("Bakery");
+    const cell = within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!;
+    cell.focus();
+    fireEvent.keyDown(cell, { key: "v", metaKey: true });
+    const box = document.querySelector("textarea.pastebox") as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(box);
+    fireEvent.paste(box, { clipboardData: { getData: () => "275" } });
+    expect(document.activeElement).toBe(cell);
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 275 }, 3));
+  });
+
+  it("a single value goes into the cell like an edit", async () => {
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    paste(within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!, "$450");
+    await waitFor(() => expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 450 }, 3));
+  });
+
+  it("a block asks first, saying what it replaces, adds and leaves out, then writes one row at a time", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    paste(within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!, "310\tSold\nabc\tActive\n90\tSold");
+    const dialog = await screen.findByRole("dialog", { name: "Paste 3 rows × 2 columns?" });
+    expect(dialog).toHaveTextContent("Into Price, Status, on 1 row. 2 values replace what's there.");
+    expect(dialog).toHaveTextContent("1 new row is added for the lines past the end.");
+    expect(dialog).toHaveTextContent('"abc" in Price: isn\'t a number');
+    expect(client.editRecord).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Paste" }));
+    await waitFor(() => expect(client.addRecord).toHaveBeenCalledWith("deals", { price: 90, status: "Sold" }));
+    expect(client.editRecord).toHaveBeenCalledWith("deals", "r1", { price: 310, status: "Sold" }, 3);
+    expect(client.editRecord).toHaveBeenCalledTimes(1); // Cafe's status was already Active; its "abc" is left out
+  });
+
+  it("a refused row stops the paste with how far it got", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    client.editRecord = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("Record r2 changed since revision 3")) as never;
+    await screen.findByText("Bakery");
+    paste(within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!, "1\n2");
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Paste" }));
+    expect(await screen.findByText("Pasted 1 of 2; then: Record r2 changed since revision 3")).toBeInTheDocument();
+  });
+
+  it("does nothing on a module's read-only table", async () => {
+    const client = fakeClient([row("r1", "Bakery", 300)]);
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={{ ...desc, readonly: true }} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Bakery");
+    paste(within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!, "1\n2");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(client.editRecord).not.toHaveBeenCalled();
   });
 });
 

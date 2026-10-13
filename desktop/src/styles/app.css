@@ -1003,3 +1003,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .grouprow__total { background: var(--surface-2); font-size: var(--text-sm); color: var(--text-2); }
 /* a pop-up is placed by Radix: the older menus' own placement (absolute, right: 0) must not move it (13 Oct: Set… opened off the window's left edge) */
 .menu__list.popover { position: relative; top: auto; right: auto; }
+/* a paste's confirm: what it leaves out (13 Oct, section 4c) */
+.paste__skipped { margin: 4px 0 0; padding-left: 18px; font-size: var(--text-sm); color: var(--text-2); }
+/* takes a paste for a moment on ⌘V over a cell (WebKit pastes only into something editable) */
+.pastebox { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }

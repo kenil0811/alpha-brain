@@ -1,7 +1,7 @@
 /** The table: columns the person chose, sized by hand, sorted by a header, totals under the
  *  numeric ones, and a › on each row that opens its record's page (a click on the row opens
  *  nothing; a double-click on a value edits it). */
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { FileInfo, RecordRow, Relations } from "../../core/client";
 import { isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
@@ -12,14 +12,24 @@ import { FooterCell, SetOnRows } from "./RulesUI";
 import { ColumnMenu, SeenMenu } from "./RulesUI";
 import { Cell, SeenCell } from "./cells";
 
-export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void; setFields?: FieldInfo[]; onSet?: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
+export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byName, widths, onWidth, sorts, onSorts, rules, onRules, allRows, columnExtras, gone, items, onToggleGroup, grouping, footers, onFooter, onPaste, onOpen, onCommit, empty, files, onFile, selected, onSelect, onSelectAll, selection, relations, onOpenRelated }: { files?: Record<string, FileInfo>; onFile?: (row: RecordRow, field: FieldInfo, file: File) => void; selected?: Set<string>; onSelect?: (id: string, on: boolean) => void; selection?: { count: number; onRemove?: () => void; onClear: () => void; setFields?: FieldInfo[]; onSet?: (field: FieldInfo, text: string, progress: (done: number) => void) => Promise<{ done: number; problem?: string }> }; onSelectAll?: (on: boolean) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void; seen?: boolean; rows: RecordRow[]; totalOf: RecordRow[]; bodyRef: { current: HTMLElement | null }; fields: FieldInfo[]; columns: string[]; byName: Map<string, FieldInfo>; widths: Record<string, number>; onWidth: (name: string, width: number) => void; sorts: Sort[]; onSorts: (s: Sort[]) => void; rules?: Rules; onRules?: (r: Rules) => void; allRows?: RecordRow[]; columnExtras?: Record<string, ReactNode>; gone?: { showGone: boolean; count: number; onShowGone: (on: boolean) => void }; items?: GroupItem[]; onToggleGroup?: (key: string) => void; grouping?: { by: string | null; onGroup: (field: string | null) => void }; footers?: Record<string, FooterOp>; onFooter?: (field: string, op: FooterOp) => void; onPaste?: (rowId: string, column: string, text: string) => void; onOpen: (id: string) => void; onCommit: (row: RecordRow, field: FieldInfo, text: string) => void; empty: string | null }) {
   const foot = footersOf(columns, byName, footers ?? {});
   // a grouped table's header rows carry each group's totals when any column beyond the first has one
   const groupTotals = columns.slice(1).some((c) => foot[c] !== "none");
   const sortAt = (field: string) => sorts.find((x) => x.field === field);
+  const pasteBox = useRef<HTMLTextAreaElement | null>(null);
+  const pasteFrom = useRef<HTMLElement | null>(null);
+  /** A paste that landed on a cell: its row and column, and the text. */
+  const pasteInto = (cell: HTMLElement, text: string) => {
+    const line = cell.closest("tr") as HTMLTableRowElement | null;
+    const col = columns[(cell as HTMLTableCellElement).cellIndex - (onSelect ? 1 : 0) - 1];
+    if (!onPaste || !line?.dataset.row || !col) return;
+    onPaste(line.dataset.row, col, text);
+  };
   const renderRow = (row: RecordRow) => (
             <tr
               key={row.id}
+              data-row={row.id}
               className={`row--open${selected?.has(row.id) ? " row--selected" : ""}`}
               tabIndex={0}
               onKeyDown={(e) => {
@@ -46,6 +56,20 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
   );
   return (
     <div className="tablewrap">
+      <textarea
+        ref={pasteBox}
+        className="pastebox"
+        aria-hidden="true"
+        tabIndex={-1}
+        onPaste={(e) => {
+          e.preventDefault();
+          const cell = pasteFrom.current;
+          pasteFrom.current = null;
+          cell?.focus();
+          if (cell) pasteInto(cell, e.clipboardData.getData("text/plain"));
+        }}
+        onBlur={() => { pasteFrom.current?.focus(); pasteFrom.current = null; }}
+      />
       <table className="table" aria-label={undefined}>
         <thead>
           {/* rows ticked: the header row itself says how many, with Remove and Clear, so the table
@@ -111,7 +135,31 @@ export function TableView({ seen, rows, totalOf, bodyRef, fields, columns, byNam
             {seen ? <th><span>Seen</span>{gone ? <SeenMenu showGone={gone.showGone} goneCount={gone.count} onShowGone={gone.onShowGone} /> : null}</th> : null}
           </tr>
         </thead>
-        <tbody ref={(el) => { bodyRef.current = el; }}>
+        <tbody
+          ref={(el) => { bodyRef.current = el; }}
+          onKeyDown={(e) => {
+            // ⌘V on a selected cell: WebKit sends a paste only to something editable, so a hidden
+            // box takes the paste for a moment and the cell gets its focus back (section 4c)
+            if (!onPaste || !(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "v") return;
+            const cell = e.target as HTMLElement;
+            if (cell.tagName !== "TD" || !pasteBox.current) return;
+            pasteFrom.current = cell;
+            pasteBox.current.value = "";
+            pasteBox.current.focus();
+            // a paste comes before the next task; when none came (nothing to paste), the cell gets its focus back
+            window.setTimeout(() => {
+              if (pasteFrom.current !== cell) return;
+              pasteFrom.current = null;
+              cell.focus();
+            });
+          }}
+          onPaste={(e) => {
+            const cell = (e.target as HTMLElement).closest("td");
+            if (!cell || e.target !== cell) return;
+            e.preventDefault();
+            pasteInto(cell, e.clipboardData.getData("text/plain"));
+          }}
+        >
           {items
             ? items.map((item) =>
                 item.kind === "row" ? (
