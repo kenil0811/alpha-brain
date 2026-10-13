@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RecordRow } from "../../core/client";
 import type { FieldInfo } from "../fields";
-import { activeRules, applyQuery, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, footerValue, footersOf, withRule, type FilterRule } from "./engine";
+import { activeRules, applyQuery, tintOf, toneOf, NO_COLOURS, groupItems, groupRows, pageOfGroups, byDay, byMonth, compare, groupBy, matchRule, nextSort, ofKinds, opsFor, pageOf, provenanceCounts, ruleFor, sortRows, sortsAfterClick, footerValue, footersOf, withRule, type FilterRule } from "./engine";
 
 const row = (id: string, values: Record<string, unknown>, extra: Partial<RecordRow> = {}): RecordRow => ({ id, revision: 1, values, created_at: "2026-10-01T08:00:00+00:00", updated_at: "2026-10-01T08:00:00+00:00", provenance: {}, ...extra });
 const status = { name: "status", kind: "status", choices: ["Active", "Pending", "Sold"], done_choices: ["Sold"] };
@@ -153,5 +153,21 @@ describe("grouping a table (section 3b)", () => {
     expect(items.map((i) => (i.kind === "group" ? `#${i.key}${i.folded ? "-" : ""}` : i.row.id))).toEqual(["#A", "1", "2", "#B-"]);
     const second = pageOfGroups(groupItems(groups, new Set()), 1, 2);
     expect(second.items.map((i) => (i.kind === "group" ? `#${i.key}${i.continued ? "…" : ""}` : i.row.id))).toEqual(["#A…", "2", "#B"]);
+  });
+});
+
+describe("a table's colours (section 4d)", () => {
+  const status = { name: "s", kind: "status", choices: ["Active", "Sold"] };
+  it("a value's tone, a row's tint, and a condition's tone", () => {
+    const colours = { ...NO_COLOURS, tint: "s", values: { s: { Sold: "bad" as const } }, rules: { p: { op: "gt" as const, value: "100", tone: "warn" as const } } };
+    expect(toneOf(row("1", { s: "Sold" }), status, colours)).toBe("bad");
+    expect(toneOf(row("1", { s: "Active" }), status, colours)).toBeNull();
+    expect(tintOf(row("1", { s: "Sold" }), colours)).toBe("bad");
+    expect(toneOf(row("1", { p: 150 }), { name: "p", kind: "number" }, colours)).toBe("warn");
+    expect(toneOf(row("1", { p: 50 }), { name: "p", kind: "number" }, colours)).toBeNull();
+    expect(toneOf(row("1", { p: null }), { name: "p", kind: "number" }, colours)).toBeNull();
+    const empties = { ...NO_COLOURS, rules: { t: { op: "empty" as const, value: "", tone: "bad" as const } } };
+    expect(toneOf(row("1", { t: "" }), { name: "t", kind: "text" }, empties)).toBe("bad");
+    expect(toneOf(row("1", { t: "x" }), { name: "t", kind: "text" }, empties)).toBeNull();
   });
 });

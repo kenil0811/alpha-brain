@@ -19,6 +19,8 @@ function fakeClient(rows: RecordRow[]) {
     deleteList: vi.fn(async () => ({})),
     exportTable: vi.fn(async () => ({})),
     addFiles: vi.fn(async () => ({})),
+    preference: vi.fn(async (key: string) => ({ key, value: null as unknown })),
+    setPreference: vi.fn(async () => ({})),
   };
   return client as unknown as Client & typeof client;
 }
@@ -427,6 +429,69 @@ describe("pasting from a spreadsheet (section 4c)", () => {
     paste(within(screen.getByRole("row", { name: "Bakery" })).getByText("300").closest("td")!, "1\n2");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.editRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe("colour (section 4d)", () => {
+  const sold = (r: RecordRow): RecordRow => ({ ...r, values: { ...r.values, status: "Sold" } });
+
+  it("a choice's values take a tone, its rows can be tinted, and the table keeps it", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), sold(row("r2", "Cafe", 120))]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Status" }));
+    await user.click(await screen.findByRole("button", { name: "Colours…" }));
+    const editor = await screen.findByRole("group", { name: "Colours of Status" });
+    await user.selectOptions(within(editor).getByRole("combobox", { name: "Colour of Sold" }), "bad");
+    await user.click(within(editor).getByRole("checkbox", { name: "Tint rows by this column" }));
+    const cafe = screen.getByRole("row", { name: "Cafe" });
+    expect(within(cafe).getByText("Sold", { selector: "td .pill" })).toHaveClass("pill--bad");
+    expect(cafe).toHaveClass("row--tint-bad");
+    expect(screen.getByRole("row", { name: "Bakery" })).not.toHaveClass("row--tint-bad");
+    expect(client.setPreference).toHaveBeenLastCalledWith("colours_deals", { tint: "status", values: { status: { Sold: "bad" } }, rules: {} });
+  });
+
+  it("a number column colours a value by one condition; Clear colours takes it off", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "Filter Price" }));
+    await user.click(await screen.findByRole("button", { name: "Colours…" }));
+    const editor = await screen.findByRole("group", { name: "Colours of Price" });
+    await user.selectOptions(within(editor).getByRole("combobox", { name: "Condition" }), "gt");
+    await user.type(within(editor).getByRole("spinbutton", { name: "Value" }), "200");
+    expect(within(screen.getByRole("row", { name: "Bakery" })).getByText("300")).toHaveClass("toned--bad");
+    expect(within(screen.getByRole("row", { name: "Cafe" })).getByText("120")).not.toHaveClass("toned--bad");
+    await user.click(within(editor).getByRole("button", { name: "Clear colours" }));
+    expect(within(screen.getByRole("row", { name: "Bakery" })).getByText("300")).not.toHaveClass("toned--bad");
+  });
+
+  it("a text column colours by a condition, including what is empty", async () => {
+    const user = userEvent.setup();
+    page([row("r1", "Bakery Hill", 300), row("r2", "Cafe", 120)]);
+    await screen.findByText("Bakery Hill");
+    await user.click(screen.getByRole("button", { name: "Filter Title" }));
+    await user.click(await screen.findByRole("button", { name: "Colours…" }));
+    const editor = await screen.findByRole("group", { name: "Colours of Title" });
+    await user.selectOptions(within(editor).getByRole("combobox", { name: "Condition" }), "contains");
+    await user.type(within(editor).getByRole("textbox", { name: "Value" }), "hill");
+    await user.selectOptions(within(editor).getByRole("combobox", { name: "Colour" }), "good");
+    expect(within(screen.getByRole("row", { name: "Bakery Hill" })).getByText("Bakery Hill")).toHaveClass("toned--good");
+    expect(within(screen.getByRole("row", { name: "Cafe" })).getByText("Cafe")).not.toHaveClass("toned--good");
+    await user.selectOptions(within(editor).getByRole("combobox", { name: "Condition" }), "empty");
+    expect(within(editor).queryByRole("textbox", { name: "Value" })).toBeNull(); // "is empty" needs no value
+  });
+
+  it("opens with the colours the table keeps", async () => {
+    const client = fakeClient([sold(row("r2", "Cafe", 120))]);
+    client.preference = vi.fn(async (key: string) => ({ key, value: { tint: null, values: { status: { Sold: "warn" } }, rules: {} } as unknown })) as never;
+    render(
+      <TooltipProvider>
+        <DataPage client={client} table={desc} version={0} onChanged={vi.fn()} />
+      </TooltipProvider>,
+    );
+    await screen.findByText("Cafe");
+    await waitFor(() => expect(within(screen.getByRole("row", { name: "Cafe" })).getByText("Sold", { selector: "td .pill" })).toHaveClass("pill--warn"));
   });
 });
 

@@ -425,3 +425,36 @@ export function pageOfGroups(items: GroupItem[], at: number, size: number): { it
   }
   return { items: page.rows, at: page.at, pages: page.pages };
 }
+
+/** Main's five tones (the pills'), the only colours a table's values take (13 Oct, Q42 section 4d). */
+export type Tone = "good" | "warn" | "bad" | "info" | "gray";
+export const TONE_WORDS: Record<Tone, string> = { good: "Green", warn: "Amber", bad: "Red", info: "Blue", gray: "Grey" };
+
+/** A table's colours, kept for the table (not a list): a tone per value of a choice column, one
+ *  condition and its tone for a number, date or text column, and the column whose values tint rows. */
+export interface Colours {
+  tint: string | null;
+  values: Record<string, Record<string, Tone>>;
+  rules: Record<string, { op: FilterOp; value: string; value2?: string; tone: Tone }>;
+}
+export const NO_COLOURS: Colours = { tint: null, values: {}, rules: {} };
+
+/** The tone a value takes in its cell, or none. */
+export function toneOf(row: RecordRow, field: FieldInfo, colours: Colours, now = new Date()): Tone | null {
+  const byValue = colours.values[field.name];
+  const v = row.values[field.name];
+  if (byValue && !isEmpty(v)) return byValue[String(v)] ?? null;
+  const rule = colours.rules[field.name];
+  if (!rule) return null;
+  const asRule: FilterRule = { field: field.name, op: rule.op, value: rule.value, value2: rule.value2 };
+  // "is empty" colours what is empty; any other condition colours only a value that is there
+  if (!isComplete(asRule) || (isEmpty(v) && rule.op !== "empty")) return null;
+  return matchRule(row, asRule, field, now) ? rule.tone : null;
+}
+
+/** The tone a row is tinted with, from the tinting column's value, or none. */
+export function tintOf(row: RecordRow, colours: Colours): Tone | null {
+  if (!colours.tint) return null;
+  const v = row.values[colours.tint];
+  return isEmpty(v) ? null : (colours.values[colours.tint]?.[String(v)] ?? null);
+}

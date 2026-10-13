@@ -280,6 +280,28 @@ path through the hidden box, a refusal, a read-only table); `just check-desktop`
 clean at every size (`docs/checks/2026-10-13-1154.md`). Not seen in the Mac app: a real ⌘V
 there would have overwritten Kenil's clipboard; left for him to try.
 
+## Section 4d: colour (13 Oct, this commit)
+
+Proposed in writing ("yes lets do it"). Built: "Colours…" in a column's menu, in main's five
+tones only (Green, Amber, Red, Blue, Grey): a tone per value of a choice or status column (its
+pill takes it), "Tint rows by this column" (one column tints at a time), and one condition with
+a tone for a number, date or text column (the filter's conditions; "is empty" colours the
+dash); Clear colours. Kept for the table, not a list, in the core's preferences
+(`colours_<table>`), so no core change. The value stays written in the cell; colour never
+carries meaning alone. Kenil, not finding it: "wait how do i add colors? cant see in app" (the
+⋮ shows on hover, and Job Listings has only two choice columns, its other columns being text);
+of the two ways offered, "yes do the second thing": text columns colour by a condition too.
+Contrast from main's colours: tone text on the page 5.0–5.6 light and 4.6–8.4 dark, text on a
+tinted row 11.0–13.2; main's own green pill (green on its wash) is 4.2, under AA's 4.5, and so
+is a green value on a green-tinted row: not changed, Kenil's to decide (it means darkening
+main's green).
+
+What ran: `just lint` clean; 135 desktop tests in 31 files (five new: tones on pills, the tint,
+a number's condition and Clear, a text column's condition and "is empty", opening with the
+kept colours); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-1214.md`). "ok cool, lets move on".
+
 ## Left
 
-Section 4d (colour) proposed in writing next, then 4e the numbers strip.
+Section 4e (the numbers strip) proposed in writing next; then 5 the sidebar, 6 Settings as
+cards, 7 Intelligence, 8 the assistant panel, 9 plain errors, absolute dates, delete confirms.

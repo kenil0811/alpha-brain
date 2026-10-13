@@ -14,7 +14,7 @@ import { Button, IconButton, Popover } from "../../ui";
 import { Check, ChevronDown, ColumnMenuIcon } from "../../ui/icons";
 import { isNumeric, type FieldInfo } from "../fields";
 import { humanize } from "../format";
-import { FOOTER_WORDS, footerOpsFor, groupable, needsValue, OP_WORDS, opsFor, type FilterRule, type FooterOp } from "./engine";
+import { FOOTER_WORDS, footerOpsFor, groupable, needsValue, OP_WORDS, opsFor, TONE_WORDS, type Colours, type FilterOp, type FilterRule, type FooterOp, type Tone } from "./engine";
 
 const empty = (v: unknown) => v === null || v === undefined || v === "";
 
@@ -81,15 +81,25 @@ function Condition({ field, rule, onRule }: { field: FieldInfo; rule?: FilterRul
 }
 
 /** `grouped`/`onGroup`: the column can group the table (section 3b): Group by this column, or Ungroup. */
-export function ColumnMenu({ field, rows, rule, onRule, extra, grouped, onGroup }: { field: FieldInfo; rows: RecordRow[]; rule?: FilterRule; onRule: (r: FilterRule | null) => void; extra?: ReactNode; grouped?: boolean; onGroup?: (on: boolean) => void }) {
+export function ColumnMenu({ field, rows, rule, onRule, extra, grouped, onGroup, colours, onColours }: { field: FieldInfo; rows: RecordRow[]; rule?: FilterRule; onRule: (r: FilterRule | null) => void; extra?: ReactNode; grouped?: boolean; onGroup?: (on: boolean) => void; colours?: Colours; onColours?: (c: Colours) => void }) {
   const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
   const on = Boolean(rule) || Boolean(grouped);
   const kind = field.kind;
   const [open, setOpen] = useState(false);
+  const [colouring, setColouring] = useState(false);
+  const colourable = Boolean(colours && onColours) && (kind === "choice" || kind === "status" || isNumeric(kind) || kind === "date" || kind === "datetime" || kind === "text" || kind === "url");
   return (
     <span className={`th__menu${on ? " th__menu--on" : ""}`}>
-      <Popover open={open} onOpenChange={setOpen} label={`${name}: filter`} align="end" trigger={<IconButton size="sm" label={`Filter ${name}`} icon={<ColumnMenuIcon />} />}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setColouring(false); }} label={`${name}: filter`} align="end" trigger={<IconButton size="sm" label={`Filter ${name}`} icon={<ColumnMenuIcon />} />}>
+        {colouring && colours && onColours ? (
+          <ColourEditor field={field} rows={rows} colours={colours} onColours={onColours} />
+        ) : (
         <div className="colmenu">
+          {colourable ? (
+            <button type="button" className="menu__item" onClick={() => setColouring(true)}>
+              Colours…
+            </button>
+          ) : null}
           {onGroup && groupable(kind) ? (
             <button type="button" className="menu__item" onClick={() => { onGroup(!grouped); setOpen(false); }}>
               {grouped ? "Ungroup" : "Group by this column"}
@@ -116,8 +126,90 @@ export function ColumnMenu({ field, rows, rule, onRule, extra, grouped, onGroup 
           ) : null}
           {extra}
         </div>
+        )}
       </Popover>
     </span>
+  );
+}
+
+const TONES: Tone[] = ["good", "warn", "bad", "info", "gray"];
+
+function ToneSelect({ value, onChange, label }: { value: Tone | null; onChange: (t: Tone | null) => void; label: string }) {
+  return (
+    <select className={`btn btn--sm tone-select${value ? ` tone-select--${value}` : ""}`} value={value ?? ""} onChange={(e) => onChange((e.target.value || null) as Tone | null)} aria-label={label}>
+      <option value="">No colour</option>
+      {TONES.map((t) => (
+        <option key={t} value={t}>
+          {TONE_WORDS[t]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** A column's colours (section 4d), in main's five tones: a tone per value of a choice column and
+ *  whether its values tint the rows; one condition and its tone for a number, date or text column
+ *  (text too since 13 Oct, at Kenil's ask: "contains London", "is empty"). */
+function ColourEditor({ field, rows, colours, onColours }: { field: FieldInfo; rows: RecordRow[]; colours: Colours; onColours: (c: Colours) => void }) {
+  const kind = field.kind;
+  const name = field.label && field.label !== field.name ? field.label : humanize(field.name);
+  const clear = () => {
+    const { [field.name]: _v, ...values } = colours.values;
+    const { [field.name]: _r, ...rules } = colours.rules;
+    onColours({ tint: colours.tint === field.name ? null : colours.tint, values, rules });
+  };
+  if (kind === "choice" || kind === "status") {
+    const present = new Set(rows.map((r) => r.values[field.name]).filter((v) => !empty(v)).map(String));
+    const all = [...new Set([...(field.choices ?? []), ...present])];
+    const mine = colours.values[field.name] ?? {};
+    const setTone = (v: string, t: Tone | null) => {
+      const next = { ...mine };
+      if (t) next[v] = t;
+      else delete next[v];
+      onColours({ ...colours, values: { ...colours.values, [field.name]: next } });
+    };
+    return (
+      <div className="colmenu colours" role="group" aria-label={`Colours of ${name}`}>
+        {all.map((v) => (
+          <label key={v} className="menu__item colours__row">
+            <span className={`pill pill--${mine[v] ?? "gray"}`}>{humanize(v)}</span>
+            <ToneSelect value={mine[v] ?? null} onChange={(t) => setTone(v, t)} label={`Colour of ${humanize(v)}`} />
+          </label>
+        ))}
+        <label className="menu__item">
+          <input type="checkbox" checked={colours.tint === field.name} onChange={(e) => onColours({ ...colours, tint: e.target.checked ? field.name : null })} /> Tint rows by this column
+        </label>
+        <button type="button" className="menu__item" onClick={clear}>
+          Clear colours
+        </button>
+      </div>
+    );
+  }
+  const rule = colours.rules[field.name] ?? { op: opsFor(kind)[0], value: "", tone: "bad" as Tone };
+  const ops = opsFor(kind);
+  const set = (next: Partial<typeof rule>) => onColours({ ...colours, rules: { ...colours.rules, [field.name]: { ...rule, ...next } } });
+  const type = rule.op === "within" || isNumeric(kind) ? "number" : kind === "date" || kind === "datetime" ? "date" : "text";
+  return (
+    <div className="colmenu colmenu__cond colours" role="group" aria-label={`Colours of ${name}`}>
+      <span className="faint">Colour a value when it is</span>
+      <select className="btn btn--sm" value={rule.op} onChange={(e) => set({ op: e.target.value as FilterOp, value: "", value2: "" })} aria-label="Condition">
+        {ops.map((o) => (
+          <option key={o} value={o}>
+            {OP_WORDS[o]}
+          </option>
+        ))}
+      </select>
+      {needsValue(rule.op) ? (
+        <span className="colmenu__values">
+          <input className="textfield colmenu__input" type={type} value={rule.value} onChange={(e) => set({ value: e.target.value })} aria-label={rule.op === "between" ? "From" : "Value"} placeholder={rule.op === "within" ? "days" : "value"} />
+          {rule.op === "between" ? <input className="textfield colmenu__input" type={type} value={rule.value2 ?? ""} onChange={(e) => set({ value2: e.target.value })} aria-label="To" placeholder="to" /> : null}
+        </span>
+      ) : null}
+      <ToneSelect value={rule.tone} onChange={(t) => set({ tone: t ?? "bad" })} label="Colour" />
+      <button type="button" className="menu__item" onClick={clear}>
+        Clear colours
+      </button>
+    </div>
   );
 }
 

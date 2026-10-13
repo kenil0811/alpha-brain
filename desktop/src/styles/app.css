@@ -1007,3 +1007,17 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .paste__skipped { margin: 4px 0 0; padding-left: 18px; font-size: var(--text-sm); color: var(--text-2); }
 /* takes a paste for a moment on ⌘V over a cell (WebKit pastes only into something editable) */
 .pastebox { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
+/* a table's colours, in main's five tones (13 Oct, section 4d): a value's text, a row's wash */
+.toned { font-weight: 500; }
+.toned--good { color: var(--good); }
+.toned--warn { color: var(--warn); }
+.toned--bad { color: var(--bad); }
+.toned--info { color: var(--primary); }
+.toned--gray { color: var(--text-3); }
+.row--tint-good td { background: var(--good-soft); }
+.row--tint-warn td { background: var(--warn-soft); }
+.row--tint-bad td { background: var(--bad-soft); }
+.row--tint-info td { background: var(--primary-soft); }
+.row--tint-gray td { background: var(--surface-2); }
+.colours { min-width: 260px; }
+.colours__row { justify-content: space-between; }

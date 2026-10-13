@@ -11,7 +11,7 @@ import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from ".
 import { humanize } from "./format";
 import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
-import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type FooterOp, type Rules, type Sort } from "./views/engine";
+import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type Colours, type FooterOp, type Rules, type Sort, NO_COLOURS } from "./views/engine";
 import { settable, ViewState } from "./views/RulesUI";
 import { parseClipboard, planPaste, type PastePlan } from "./views/paste";
 import { ListTabs } from "./views/ListTabs";
@@ -179,6 +179,21 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
   const [sorts, setSorts] = useState<Sort[]>(restored?.sorts ?? []);
   const [rules, setRules] = useState<Rules>(restored?.rules ?? NO_RULES);
   const [footers, setFooters] = useState<Record<string, FooterOp>>(restored?.footers ?? {});
+  // the table's colours (section 4d): the table's, not a list's, so kept with the core's preferences
+  const coloursKey = `colours_${table.name}`.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 64);
+  const [colours, setColoursState] = useState<Colours>(NO_COLOURS);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => client.preference(coloursKey))
+      .then((p) => { if (live && p?.value && typeof p.value === "object") setColoursState({ ...NO_COLOURS, ...(p.value as Colours) }); })
+      .catch(() => undefined); // no colours kept yet, or a window without the core's preferences
+    return () => { live = false; };
+  }, [client, coloursKey]);
+  const setColours = (next: Colours) => {
+    setColoursState(next);
+    client.setPreference(coloursKey, next).catch((e: unknown) => setStatus({ ok: false, text: `Couldn't keep the colours: ${e instanceof Error ? e.message : String(e)}` }));
+  };
   const [hidden, setHidden] = useState<string[]>(() => remembered<string[]>(`${key}.hidden`, []));
   const [order, setOrder] = useState<string[]>(() => remembered<string[]>(`${key}.order`, []));
   const [widths, setWidths] = useState<Record<string, number>>(() => remembered<Record<string, number>>(`${key}.widths`, {}));
@@ -680,6 +695,8 @@ export function DataPage({ client, table, version, onChanged, onSay, onOpenRecor
               footers={footers}
               onFooter={(field, op) => setFooters((f) => ({ ...f, [field]: op }))}
               onPaste={readonly ? undefined : pasteAt}
+              colours={colours}
+              onColours={setColours}
               onOpen={openRow}
               onCommit={commit}
               empty={rows && !rows.length ? (filtered ? "Nothing matches." : emptyWords) : null}

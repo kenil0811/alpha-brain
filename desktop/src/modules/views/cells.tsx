@@ -41,7 +41,7 @@ export function RelationCell({ row, field, relations, onOpenRelated }: { row: Re
   );
 }
 
-export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; onOpenRelated?: (collection: string, id: string) => void }) {
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, tone }: { row: RecordRow; field: FieldInfo; onCommit: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; tone?: "good" | "warn" | "bad" | "info" | "gray" | null; onOpenRelated?: (collection: string, id: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} />;
@@ -109,7 +109,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
       }}
       title={rests ? `${rests} Double-click to correct it.` : "Double-click to edit"}
     >
-      {words === "" ? <span className="faint">—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill ${field.done_choices?.includes(String(value)) ? "pill--good" : "pill--gray"}`}>{words}</span> : field.kind === "bool" ? (value ? "✓" : <span className="faint">—</span>) : words}
+      {words === "" ? <span className={tone ? `toned toned--${tone}` : "faint"}>—</span> : field.kind === "url" ? <a href={String(value)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{words}</a> : field.kind === "status" || field.kind === "choice" ? <span className={`pill pill--${tone ?? (field.done_choices?.includes(String(value)) ? "good" : "gray")}`}>{words}</span> : field.kind === "bool" ? (value ? "✓" : <span className="faint">—</span>) : tone ? <span className={`toned toned--${tone}`}>{words}</span> : words}
       {estimate ? (
         <span className="est" title={`${rests} Double-click the cell to correct it.`} aria-label="estimated">
           ≈
