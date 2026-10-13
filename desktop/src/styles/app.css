@@ -1074,3 +1074,11 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .convpick__none { padding: 6px 8px; margin: 0; }
 .turn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .turn__meta { display: flex; align-items: center; gap: 6px; padding-left: 4px; font-size: var(--text-xs); color: var(--text-3); }
+
+/* A table's views as one menu when its toolbar is narrow (13 Oct): never a tab's word in two. */
+.viewpick { display: inline-flex; flex: none; }
+.viewpick__btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.viewpick__tick { display: inline-flex; width: 14px; color: var(--primary); }
+.toggle button { white-space: nowrap; }
+.pager { flex-wrap: wrap; }
+.pager .btn, .pager button, .pager__size { white-space: nowrap; }

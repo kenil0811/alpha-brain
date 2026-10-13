@@ -98,6 +98,8 @@ export function ListTabs({ lists, current, dirty, onPick, onSave, onRename, onUp
     if (typeof ResizeObserver === "undefined") return;
     const watch = new ResizeObserver(compute);
     watch.observe(toolbar);
+    // a neighbour that changes its width (the views turning into one menu) changes the room
+    for (const el of Array.from(toolbar.children)) if (el !== box.current && el !== measure.current) watch.observe(el);
     return () => watch.disconnect();
   }, [labels, lists.length, current, dirty]);
 

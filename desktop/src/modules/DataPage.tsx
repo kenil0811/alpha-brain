@@ -9,12 +9,13 @@ import type { Client, FileInfo, RecordRow, SavedList, TableDesc, Relations } fro
 import { host } from "../core/host";
 import { DATE_KINDS, coerce, firstOfKind, titleFieldOf, type FieldInfo } from "./fields";
 import { humanize } from "./format";
-import { Button, Confirm, IconButton, Tabs, Popover } from "../ui";
+import { Button, Confirm, IconButton, Popover } from "../ui";
 import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, MoreHorizontal } from "../ui/icons";
 import { activeRules, applyQuery, groupable, groupItems, groupRows, ofKinds, pageOf, pageOfGroups, provenanceCounts, type Colours, type FooterOp, type Rules, type Sort, NO_COLOURS } from "./views/engine";
 import { settable, ViewState } from "./views/RulesUI";
 import { parseClipboard, planPaste, type PastePlan } from "./views/paste";
 import { ListTabs } from "./views/ListTabs";
+import { ViewPicker } from "./views/ViewPicker";
 import { GalleryView } from "./views/GalleryView";
 import { TimelineView } from "./views/TimelineView";
 import { AddRow } from "./views/AddRow";
@@ -583,7 +584,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${table.title.toLowerCase()}`} aria-label="Search" />
             </div>
           ) : null}
-          <Tabs className="toggle toggle--views" label="View" value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
+          <ViewPicker value={view} onChange={setView} items={VIEWS.filter((v) => v.id === "table" || v.id === "list" || v.id === "form" || v.id === "gallery" || (v.id === "board" && groupField) || ((v.id === "calendar" || v.id === "chart" || v.id === "timeline") && dateField))} />
           {(view === "calendar" || view === "timeline" || view === "chart") && dateFields.length > 1 ? (
             <select className="btn btn--sm" value={dateField?.name ?? ""} onChange={(e) => setDateBy(e.target.value)} aria-label="Date field">
               {dateFields.map((f) => (

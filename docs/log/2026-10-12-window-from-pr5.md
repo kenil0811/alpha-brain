@@ -513,10 +513,22 @@ times; no Yesterday; the revoke confirm); `just check-desktop`: 81 of 81 pages c
 was on another Space): whether WebKit reads the Mac's 12-hour clock is the one thing left to see.
 "yes".
 
+## The views as one menu when the toolbar is narrow (13 Oct, this commit)
+
+Kenil: "yes do the view dropdown fix, then propose slice 2". Built (`modules/views/ViewPicker.tsx`):
+a table's views stay a row of tabs while they fit; when the toolbar is too narrow (1100 wide with
+the assistant panel open broke "Table" into "Tabl e") they become one "View: Table ▾" menu. The
+fit is measured as the list tabs' is: the tabs at their own width, out of sight, against the
+room the rest of the toolbar leaves, the list tabs counted at their smallest (All and +); the
+list tabs now also hear a neighbour change width. No tab or pager button breaks a word any more
+(`white-space: nowrap`); the pager wraps whole buttons to a second line when it must.
+
+What ran: `just lint` clean; 170 desktop tests in 38 files (2 new: tabs while they fit, one menu
+when narrow, a pick from it); `just check-desktop`: 81 of 81 pages clean at every size
+(`docs/checks/2026-10-13-1513.md`). In the browser pane: at 1100 with the panel open the menu and
+the pager on two lines without a broken word; at 1240 without the panel the tabs as before.
+
 ## Left
 
-The window's sections from pull request #5 are done (4e skipped). Open with Kenil: a table's view
-tabs and pager words break mid-word at 1100 with the panel open (main's toolbar at narrow
-widths). Next in the plan: slice 2, the small core routes (A1–A4, B1, B2, B4, B6, B8–B11, C9, D1,
-D1b export, D5, D9, D11, D12, G1, G3–G7, E1–E3), then behaviour (slice 3), then the design
-sessions. Nothing pushed; nothing posted on the pull request.
+Slice 2, the small core routes, proposed in writing next. Nothing pushed; nothing posted on the
+pull request.
