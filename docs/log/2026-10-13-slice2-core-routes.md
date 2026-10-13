@@ -151,7 +151,13 @@ picker; a right-click delete on the Assistant page opening the next); `just chec
 copy: one of several "New conversation"s renamed "Car wash next steps" from a right-click, another
 deleted through the confirm and gone from the list. "ok commit it, then tell me what step 4 is".
 
+## Step 4: people, skipped for now (13 Oct)
+
+Proposed in writing (a person or company made by hand, with keys that open the existing one
+rather than duplicate it; "Your organisations" as facts about the person); Kenil: "ok actually
+lets skip this for now." Not built.
+
 ## Left
 
-Step 4 (people: a person or company made by hand, the person's own organisations) proposed next;
-then 6–9. Nothing pushed.
+Step 6 (what Alpha knows: correct and forget a fact, edit and finish a goal, add one by hand,
+export everything Alpha remembers) proposed next; then 7–9. Nothing pushed.
