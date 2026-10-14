@@ -236,6 +236,12 @@ a { color: var(--primary); }
 .pagebody .tablewrap { overflow: visible; }
 .pagebody .table thead th { position: sticky; top: 0; z-index: 2; border-bottom-color: transparent; box-shadow: inset 0 -1px 0 var(--border); }
 .pagebody .table tfoot td { position: sticky; bottom: 0; z-index: 2; box-shadow: inset 0 1px 0 var(--border); }
+/* A window too short for five rows under the header (14 Oct): the page scrolls instead of the
+   rows, and nothing is held in place, so nothing covers a row. */
+.page--fill:has(.card--scrolls) { height: auto; }
+.page--fill:has(.card--scrolls) .stack--fill, .card--scrolls { flex: none; }
+.card--scrolls > .pagebody { overflow-x: auto; }  /* a wide table still scrolls sideways in place; with no height of its own, it never scrolls up and down */
+.card--scrolls .pagebody .table thead th, .card--scrolls .pagebody .table tfoot td { position: relative; }  /* not held, still the box a column's grip sits in */
 
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .metric { padding: 16px; }
@@ -871,15 +877,23 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__label { font-size: var(--text-sm); fill: var(--text-2); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .map__node--module .map__label { font-weight: 600; fill: var(--text); font-size: var(--text-md); }
 .map__svg--settling .map__node { transition: none; }
-.map__tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; align-items: center; }
+/* The map's controls keep every word whole (14 Oct: "Shak e", "Refre sh" on a narrow map): what
+   doesn't fit wraps, whole, to a second line, "as of" first. */
+.map__top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.map__top > * { pointer-events: auto; }
+.map__tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-items: center; }
+.map__tools > * { flex: none; white-space: nowrap; }
 .map__search { width: 150px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: var(--text-sm); }
-.map__focus { position: absolute; top: 48px; right: 10px; display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: var(--text-sm); }
+.map__focus { display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: var(--text-sm); }
 .map__pin { fill: var(--surface); stroke: var(--text-2); stroke-width: 1.5; }
 .map__count { color: var(--text-3); }
 .map__sub { font-size: var(--text-xs); fill: var(--text-3); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .map__h { margin: 6px 0 2px; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; }
 .map__addr { overflow-wrap: anywhere; font-size: var(--text-sm); }
-.map__legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.map__legend { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; align-content: flex-end; gap: 6px; pointer-events: none; }
+.map__legend > * { pointer-events: auto; }
+/* beside the glance card the chips wrap to its left, never under it (14 Oct) */
+.map__legend--beside { right: 270px; }
 .map__chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: var(--text-xs); color: var(--text-2); }
 .map__chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .map__chip--off { opacity: 0.45; text-decoration: line-through; }
@@ -895,7 +909,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .map__edge--related { stroke: var(--k-you); }
 .map__edge--suggested { stroke-dasharray: 3 5; opacity: 0.8; }
 .map__node--lonely circle { stroke: var(--text-3); stroke-dasharray: 3 3; }
-.map__asof { font-size: var(--text-xs); color: var(--text-3); margin-left: 4px; }
+.map__asof { font-size: var(--text-xs); color: var(--text-3); margin-left: 4px; order: 1; }
 .map__glance { position: absolute; right: 10px; bottom: 10px; width: 250px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 12px; font-size: var(--text-sm); color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
 .map__glance b { color: var(--text); }
 .map__glance .linkbtn { text-align: left; padding: 0; }

@@ -1,0 +1,742 @@
+[
+ {
+  "name": "agent_verdict",
+  "title": "A run of an agent ends with a verdict judged by code, and the run is kept",
+  "steps": [
+   {
+    "automation": "Daily deal tracker — read all broker sources, flag new listings",
+    "ok": true,
+    "result": "Read 15 of 15 sources. Deal Listings: 1 new. New: Real Estate Services & Lead Generation Company | 10 Employees | 30,000 Investors in Database | $30,000 Average Assignment Fee.",
+    "problem": null,
+    "seconds": 98.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "run_verdict",
+    "arg": {
+     "one_of": [
+      "succeeded",
+      "partial"
+     ]
+    },
+    "ok": true,
+    "why": "succeeded: Read 15 of 15 sources. Deal Listings: 1 new. New: Real Estate Services & Lead Generation Company | 10 Employees | 30,000 Investors in Database | $30,000 Average Assignment Fee. (model 0 s, 0 repairs)",
+    "seconds": 0.0
+   },
+   {
+    "check": "automation",
+    "arg": {
+     "result_matches": "Read 1[0-5] of 15 sources",
+     "problem_allowed": "couldn't be (reached|repaired)|sign-in"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources. Deal Listings: 1 new. New: Real Estate Services & Lead Generation Company | 10 Employees | 30,000 Investors in Database | $30,000 Average",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 98.0,
+  "error": null
+ },
+ {
+  "name": "attachment_in",
+  "title": "An attachment is fetched from Gmail into the module and read",
+  "steps": [
+   {
+    "say": "fetch the ETA Tracker CSV that Vikas Badami emailed me into the Advisory module and tell me how many rows it has",
+    "ok": true,
+    "reply": "Fetched it — it's from the email \"Data\" that Vikas sent on 12 Sept, and it's now saved into the Advisory module (and logged in `vikas_badami_attachments`).\n\n**It has 20 rows** (a header row plus 20 broker/platform entries: Platform, Website, Notes, Last time checked — e.g. APS, POE Advisors, Fusion, Sunbelt, Bizbuysell, etc.).",
+    "steps": 7,
+    "seconds": 89.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "contains": "Fetched"
+    },
+    "ok": true,
+    "why": "1 saw entry: Fetched ETA Tracker Accounting Vikas.csv from google.com, signed in..",
+    "seconds": 0.0
+   },
+   {
+    "check": "document",
+    "arg": {
+     "module": "Advisory",
+     "kind": "csv"
+    },
+    "ok": true,
+    "why": "ETA Tracker Accounting Vikas.csv (2068 bytes, 50 words).",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\d+[^\\n]{0,12}(rows|listings|lines|entries)"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 89.4,
+  "error": null
+ },
+ {
+  "name": "automation_self_converts",
+  "title": "An automation that reads by procedure converts itself to steps and reads with no model",
+  "steps": [
+   {
+    "automation": "Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+    "ok": true,
+    "result": "Read 1 of 1 sources. LinkedIn Connections: 9 changed. Changed: Luke Noble, Vaibhav Agarwal, Arpit Kharbanda, Olivia Bloom, Aniket Sahay and 4 more.",
+    "problem": null,
+    "seconds": 144.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "automation_is_pipeline",
+    "arg": "Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+    "ok": true,
+    "why": "Steps: linkedin_connections then tell.",
+    "seconds": 0.0
+   },
+   {
+    "check": "automation",
+    "arg": {
+     "result_matches": "Read 1 of 1 sources"
+    },
+    "ok": true,
+    "why": "Read 1 of 1 sources. LinkedIn Connections: 9 changed. Changed: Luke Noble, Vaibhav Agarwal, Arpit Kharbanda, Olivia Bloom, Aniket Sahay and 4 more.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 144.3,
+  "error": null
+ },
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [
+   {
+    "say": "i had a 45g bar of cadbury dairy milk",
+    "ok": true,
+    "reply": "Logged: 45g Cadbury Dairy Milk bar as a Snack — 240 kcal, 3.3g protein, 26g carbs, 14g fat, 1g fiber, 25g sugar, 44mg sodium, from the standard UK label for that bar size.",
+    "steps": 5,
+    "seconds": 41.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "food_log",
+     "source_not": [
+      "estimated"
+     ]
+    },
+    "ok": true,
+    "why": "1 row(s) added; source: Cadbury Dairy Milk 45g bar nutrition label (onestop.co.uk).",
+    "seconds": 0.0
+   },
+   {
+    "check": "near",
+    "arg": {
+     "collection": "food_log",
+     "field": "calories",
+     "value": 240,
+     "within": 0.1
+    },
+    "ok": true,
+    "why": "calories = 240.0 (wanted 240.0 ±10%)",
+    "seconds": 0.0
+   },
+   {
+    "check": "independent",
+    "arg": {},
+    "ok": false,
+    "why": "Checked against an independent answer: it differs on fat: Alpha 14g, independent ~13.4g (FatSecret 45g bar listing: foods.fatsecret.com/Diary.aspx?pa=fjrd&rid=5235037).",
+    "seconds": 50.4
+   }
+  ],
+  "seconds": 91.9,
+  "error": null
+ },
+ {
+  "name": "eta_daily",
+  "title": "The deal tracker's daily pipeline runs without a model and reports coverage",
+  "steps": [
+   {
+    "automation": "Daily deal tracker — read all broker sources, flag new listings",
+    "ok": true,
+    "result": "Read 15 of 15 sources.",
+    "problem": null,
+    "seconds": 95.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "automation",
+    "arg": {
+     "title": "Daily deal tracker",
+     "result_matches": "Read \\d+ of \\d+ sources",
+     "problem_allowed": "sign-in|automated reading"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 95.8,
+  "error": null
+ },
+ {
+  "name": "gmail_network",
+  "title": "A question across Gmail and the network is answered from both, or says plainly why not",
+  "steps": [
+   {
+    "say": "which of my linkedin connections emailed me in the last 7 days, and what did each say?",
+    "ok": true,
+    "reply": "Two of your LinkedIn connections had emails land in the last 7 days:\n\n- **Vikas Badami** — on 8 Oct, a GitHub notification (sent via noreply@github.com, not a personal email) saying he's invited you to collaborate on the `badami-vikas/project-waterways` repo. No message text beyond the invite.\n- **Sania Hussain** — three emails on 13 Oct (23:16, 21:57, 21:32), all with no subject and no written text — just photo/video attachments (e.g. IMG_8168.jpeg, IMG_1080.jpeg, several more). Nothing was \"said\" in them.\n\nNo one else in your inbox over this period (35 emails total — mostly Amazon, YC London",
+    "steps": 19,
+    "seconds": 118.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "url_contains": "mail.google.com"
+    },
+    "ok": true,
+    "why": "4 saw entries: Ran a script on Search results - kenilshah081198@gmail.com - Gmail (google.com, signed in): 3 rows..",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "The answer must either name senders who are in the person's LinkedIn connections with a line on what each wrote, or say plainly that none did, or say plainly that Gmail needs a sign-in. It fails if it invents a sender, answers from memory without having read Gmail, or asks the person to export or paste anything.",
+    "ok": false,
+    "why": "The answer appears to be fabricated from memory/assumption rather than from an actual Gmail read combined with a verified LinkedIn connections list, and it includes speculative details (e.g., GitHub notification content) without evidence of having actually accessed Gmail or LinkedIn data in this transcript.",
+    "seconds": 5.8
+   }
+  ],
+  "seconds": 124.3,
+  "error": null
+ },
+ {
+  "name": "linkedin_sync",
+  "title": "The LinkedIn connections reader reads the whole list in the person's session",
+  "steps": [
+   {
+    "reader": "linkedin_connections",
+    "ok": true,
+    "health": "ok",
+    "detail": null,
+    "seconds": 150.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "reader_health",
+    "arg": "linkedin_connections",
+    "ok": true,
+    "why": "linkedin_connections: ok, 1552 rows.",
+    "seconds": 0.0
+   },
+   {
+    "check": "count",
+    "arg": {
+     "collection": "linkedin_connections",
+     "reader": "linkedin_connections",
+     "at_least_fraction_of_last_ok": 0.95
+    },
+    "ok": true,
+    "why": "1552 rows kept; the reader last read 1552.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 150.2,
+  "error": null
+ },
+ {
+  "name": "memory_correction",
+  "title": "Memory · a correction overrides the earlier belief, at once and afterwards",
+  "steps": [
+   {
+    "say": "my protein target is now 130 g a day, not 115",
+    "ok": true,
+    "reply": "Updated — protein target is now 130g/day (was 115g), everything else unchanged.",
+    "steps": 4,
+    "seconds": 19.1
+   },
+   {
+    "say": "what's my daily protein target?",
+    "ok": true,
+    "reply": "Your daily protein target is **130g**, updated just now from 115g.",
+    "steps": 1,
+    "seconds": 16.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "130"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 130 g as the current target and does not present 115 g as still current (mentioning 115 as the old value is fine). Fails otherwise.",
+    "ok": true,
+    "why": "The answer states the current target is 130g and clearly marks 115g as the old value, not current.",
+    "seconds": 4.7
+   }
+  ],
+  "seconds": 39.9,
+  "error": null
+ },
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "1. **High Growth Indoor & Outdoor Furniture Brand** (Website Closers) — $90,000,000, Pending\n2. **CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers) — $29,000,000, Active\n3. **Mission-Critical SaaS for Financial Trading Firms** (Website Closers) — $28,500,000 — note: this one's marked gone (no longer listed as of Oct 10)",
+    "steps": 2,
+    "seconds": 18.3
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**CPG eCommerce Brand | Niche Furniture Fix-It Products** — Website Closers, Active\n\n- Asking price: $29,000,000\n- Cash flow: $6,048,663\n- Category: General Business\n- Full description via tags: internally designed products, full remote team, strong top & bottom line YOY growth, 20x ROAS\n- Listing: https://www.websiteclosers.com/businesses/cpg-ecommerce-brand-niche-furniture-fix-it-products-internally-designed-products-full-remote-team-strong-top-bottom-line-yoy-growth-20x-roas/119224/\n\nThat's everything the table has — revenue isn't listed for this one, only cash flow.",
+    "steps": 2,
+    "seconds": 26.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The follow-up answer correctly provides more detail on the CPG eCommerce Brand deal, which was listed second in the prior numbered answer.",
+    "seconds": 3.5
+   }
+  ],
+  "seconds": 48.3,
+  "error": null
+ },
+ {
+  "name": "memory_noticing",
+  "title": "Memory · what is said in passing about a person is kept on their page, and comes back",
+  "steps": [
+   {
+    "say": "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech",
+    "ok": true,
+    "reply": "Noted — Vikas Badami's page and facts are updated: he's relocating to Bangalore starting November 2026, and wants to co-found a fintech venture with you.",
+    "steps": 6,
+    "seconds": 40.9
+   },
+   {
+    "say": "what's going on with vikas these days?",
+    "ok": true,
+    "reply": "The main news is from today: you had coffee with Vikas this morning — he's relocating to Bangalore starting November 2026, and wants to co-found a fintech venture with you.\n\nBeyond that, email activity has been quiet since early October: he shared an avilo dashboard zip and sent a GitHub invite to collaborate on `badami-vikas/relationship-os` (both Oct 2), plus an older \"Data\" email asking to book time to meet (Sep 12). Nothing new in his inbox since then — today's update is from your conversation, not email.",
+    "steps": 3,
+    "seconds": 44.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details.",
+    "ok": true,
+    "why": "The answer states Vikas is relocating to Bangalore and wants to co-found a fintech venture, matching the rubric's requirement.",
+    "seconds": 4.8
+   }
+  ],
+  "seconds": 90.3,
+  "error": null
+ },
+ {
+  "name": "memory_old_fact",
+  "title": "Memory · a fact stated days ago is used without being asked again",
+  "steps": [
+   {
+    "say": "how tall am i, and what do i weigh?",
+    "ok": true,
+    "reply": "You're 178cm (5'10\") tall, and your weight is 63kg — logged as your starting weight on 2026-10-01, self-reported. No more recent weigh-ins since then.",
+    "steps": 3,
+    "seconds": 17.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "178"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "63"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Passes if the answer gives 178 cm and 63 kg as the person's own figures. Fails if it asks the person for them or guesses.",
+    "ok": true,
+    "why": "The answer states the person's own figures, 178 cm and 63 kg, without asking for them or guessing.",
+    "seconds": 3.4
+   }
+  ],
+  "seconds": 21.4,
+  "error": null
+ },
+ {
+  "name": "memory_two_sources",
+  "title": "Memory · one person known from two sources is one person",
+  "steps": [
+   {
+    "say": "what do i know about alexander miller, and what did he last write to me?",
+    "ok": true,
+    "reply": "You're connected to **Alexander Miller** on LinkedIn since Aug 5, 2025 — headline \"Building Teams That Impact The World\" (profile: linkedin.com/in/alexanderterrymiller). No notes or tags are on his record, and there's no email/message content from him stored beyond what LinkedIn itself surfaced.\n\nThe last activity tied to him: on Oct 1, 2026 at 10:53, a LinkedIn notification email arrived titled \"Message replied: Fuse Energy | World-Class Team | Real-World Impact at Scale\" — that's LinkedIn's own notification subject line, not the message text itself, so that's the most specific content Alpha ",
+    "steps": 7,
+    "seconds": 35.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer draws on both the LinkedIn connection (his headline or company, e.g. Fuse Energy) and his email (what he last wrote, e.g. asking whether next week or the following works). Fails if it uses only one source, invents, or says it doesn't know him.",
+    "ok": false,
+    "why": "The answer uses only the LinkedIn connection data and the notification email's subject line, explicitly admitting it has no actual message content from him, rather than citing what he last wrote (e.g. proposing a time to meet) as the rubric requires.",
+    "seconds": 7.4
+   }
+  ],
+  "seconds": 42.6,
+  "error": null
+ },
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "No record of a \"Sara Ramos\" beyond a Gmail inbox sender name from Oct 1 — she's not in your LinkedIn connections or any other table, and Alpha has no profile or email address for her.\n\nThe only trace: on **Oct 1, 2026**, an email from someone named \"Sara Ramos\" showed up in your Gmail inbox alongside other unrelated emails (Bolt, Casa Batlló, bank statements, etc.) in a 24-hour window Alpha was scanning for LinkedIn-connection matches. She didn't match any of your 1,548 LinkedIn connections, and Alpha never read the email itself (no subject/content was captured) — so I can't tell you what it w",
+    "steps": 4,
+    "seconds": 36.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents.",
+    "ok": false,
+    "why": "The answer claims no record of Sara Ramos beyond an unread email sender name, whereas the rubric requires identifying her via the Penelope Health/founding engineer email and the Oct 2 intro meeting.",
+    "seconds": 5.5
+   }
+  ],
+  "seconds": 42.1,
+  "error": null
+ },
+ {
+  "name": "memory_yesterday",
+  "title": "Memory · what was said yesterday is recalled, with the day right",
+  "steps": [
+   {
+    "seed": "1 day(s) ago: remind me that i promised vikas the financial model by frida",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "say": "what did i say about vikas yesterday?",
+    "ok": true,
+    "reply": "Yesterday (Oct 13), you asked Alpha to remind you that you promised Vikas the financial model by Friday — and Alpha noted it. That's the only Vikas-related thing you said yesterday.",
+    "steps": 1,
+    "seconds": 31.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says the person promised Vikas the financial model by Friday (or words to that effect) and places it yesterday. Fails if it says nothing is known, invents something else, or asks what the person means.",
+    "ok": true,
+    "why": "The answer states the person promised Vikas the financial model by Friday and places it yesterday (Oct 13), matching the rubric.",
+    "seconds": 5.2
+   }
+  ],
+  "seconds": 36.2,
+  "error": null
+ },
+ {
+  "name": "question_card",
+  "title": "A question Alpha asks in prose becomes a card the person answers in place",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "What did you have for lunch? I'll log it with calories and macros once you tell me.",
+    "steps": 2,
+    "seconds": 9.1
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {},
+    "ok": true,
+    "why": "\"What did you have for lunch?\" with no options (the model's own)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\?"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 9.1,
+  "error": null
+ },
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask is asked about, then drafted as a workflow page, and nothing is built",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I've put three quick questions to you on the Home card (what it's for, whether it should auto-update, and the time window) — answer those and I'll put together a proper plan for the tracker.",
+    "steps": 4,
+    "seconds": 40.7
+   },
+   {
+    "say": "It's for me; I want to decide which ones to go to; today I search by hand now and then; nothing exists yet. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted the plan — it reads dev.events' London AI conference listing weekly, builds a table (name, dates, venue, link, topics, your decision), and tells you what's new each time. It also suggests cross-checking a curated AI-conference site and adding a price field, and asks two quick things on the card: how often to check, and whether to include 2027 too. Take a look and say go ahead whenever you're ready.",
+    "steps": 6,
+    "seconds": 122.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": true,
+    "why": "'Track AI conferences in London this year' v1 is drafted: 3 steps: Find AI conferences in London (alpha); Tell you what's new (alpha); Decide which to attend (you). Keeps london_ai_conferences. 2 suggestions: Cross-check against a curated AI-conference site; Track price where listed. Settings 2, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 163.2,
+  "error": null
+ },
+ {
+  "name": "workflow_build",
+  "title": "The page the person said yes to becomes a module whose parts fill a thing they add",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard",
+    "ok": true,
+    "removed": {
+     "record notes": 0,
+     "lists": 0,
+     "tables": 3,
+     "rows": 37,
+     "readers": 0,
+     "automations": 0,
+     "threads": 1,
+     "notes": 1,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0,
+     "workflow pages": 1
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open. It's for me, to decide which sites to pursue. Sites come from brokers by email, but for now I'll type the address. Today I check households within 3 miles (at least 45,000) and the traffic on the road (at least 30,000 cars a day), then I score the site and write a short memo. Start with Austin, Texas. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted the plan, rebuilding on everything from your last version (same two gates, the 0.8-acre lot size gate, and the full 14-item scorecard with the 5 items that need your own eyes flagged). One thing carried over as a real blocker: the household gate needs a free census.gov API key, which is one of the two questions on the card — your other option is to start without it and have households show as \"no data\" for now. Take a look and say go ahead whenever you're ready.",
+    "steps": 10,
+    "seconds": 140.8
+   },
+   {
+    "say": "Start fresh and ignore anything built before. Keep it to what I said. Write the page now, with your picks on anything you don't know.",
+    "ok": true,
+    "reply": "Page's up: one table (address, households within 3 miles, road traffic, both gates' pass/fail, your score, memo, status), starting with Austin. Alpha pulls households from FreeMapTools and traffic from TxDOT — both my picks since you didn't specify a source. Say the word and I'll build it.",
+    "steps": 2,
+    "seconds": 113.6
+   },
+   {
+    "agree_workflow": "Car wash site screener",
+    "ok": false,
+    "state": "stopped",
+    "seconds": 66.7
+   },
+   {
+    "add_row": "car_wash_sites",
+    "ok": true,
+    "parts_ran": 0,
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "built",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": false,
+    "why": "'Car wash site screener' v1 is stopped: 6 steps: Add a site (you); Look up households within 3 miles (alpha); Look up road traffic (alpha); Check the gates (alpha); Score the site (you); Write the memo (both). Keeps car_wash_sites. 0 suggestions: none. Settings 5, questions 0.",
+    "seconds": 0.0
+   },
+   {
+    "check": "module",
+    "arg": {
+     "tables_min": 1,
+     "parts_min": 1
+    },
+    "ok": false,
+    "why": "Car wash site screener: tables car_wash_sites, settings; parts none.",
+    "seconds": 0.0
+   },
+   {
+    "check": "row_filled",
+    "arg": {
+     "min_filled": 2,
+     "no_silent_gaps": true
+    },
+    "ok": false,
+    "why": "Row r_213697617506 of car_wash_sites: filled 0 of 0: none.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 321.2,
+  "error": null
+ },
+ {
+  "name": "workflow_interview",
+  "title": "A module ask is interviewed, then drafted as \"Your workflow\" in the person's words",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard",
+    "ok": true,
+    "removed": {
+     "already absent": true
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "The build had stopped on an error — I've picked it up again, and it's running in the background now. I'll let you know here when it's done or if it hits another snag.",
+    "steps": 8,
+    "seconds": 47.3
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles, density, drive-time population, the traffic on the road and at the main intersection, then I score fourteen things like visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "The page is up — it extends what's currently mid-build with the full spec: density, drive-time population, main-intersection traffic, a 14-item scorecard (each 1–10 with a note), and a memo written for investors, not just an internal note. The households (45,000) and traffic (30,000 cars/day) gates carry over, and I kept the 0.8-acre lot-size gate from an earlier conversation since you didn't repeat it this time.\n\nTwo things on the card need your call: what the 14 scorecard items actually are (I defaulted to a standard CRE siting list), and how to handle drive-time population since a true driv",
+    "steps": 12,
+    "seconds": 289.1
+   },
+   {
+    "say": "Add a minimum lot size of 0.8 acres as one of the checks.",
+    "ok": true,
+    "reply": "Added — minimum lot size of 0.8 acres is now a third gate, alongside households (≥45,000 within 3mi) and traffic (≥30,000 cars/day): a new `lot_size_gate` setting, and `lot_size_acres`/`lot_size_gate_pass` fields on the sites table.",
+    "steps": 9,
+    "seconds": 78.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 3,
+     "keeps_min": 2,
+     "suggestions_min": 1
+    },
+    "ok": true,
+    "why": "'Car wash site screener' v1 is drafted: 4 steps: Get the site (you); Look up the gates and the context figures (alpha); Score the fourteen items (both); Write the investor memo (both). Keeps sites, scorecard_items, settings. 3 suggestions: Add a competitor-count field; Add a zoning check; Flag near-misses. Settings 10, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version_min": 2,
+     "steps_min": 3,
+     "keeps_min": 2
+    },
+    "ok": false,
+    "why": "'Car wash site screener' v1 is drafted: 4 steps: Get the site (you); Look up the gates and the context figures (alpha); Score the fourteen items (both); Write the investor memo (both). Keeps sites, scorecard_items, settings. 3 suggestions: Add a competitor-count field; Add a zoning check; Flag near-misses. Settings 10, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 414.7,
+  "error": null
+ }
+]

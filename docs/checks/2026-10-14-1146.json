@@ -1,0 +1,4601 @@
+{
+ "began": "2026-10-14T10:46:25.343Z",
+ "ended": "2026-10-14T10:50:23.801Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1276,
+   "shot": "home@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "activity@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "people@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_aadd32d3e057",
+   "title": "Activity: the newest entry",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "activity-j_aadd32d3e057@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_3ffb53125744",
+   "title": "Activity: the newest failure",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "activity-j_3ffb53125744@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_bca9b4fcf4ef",
+   "title": "Conversation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "assistant-t_bca9b4fcf4ef@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_77f3a813ac10",
+   "title": "Person: the person",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "people-e_77f3a813ac10@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_9deb4aa98324",
+   "title": "Person: HARSH SINGH",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 822,
+   "shot": "people-e_9deb4aa98324@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_680469405e46",
+   "title": "Person: Giulia Moretti",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "people-e_680469405e46@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dbf6d5cec9f4",
+   "title": "Person: Sumit Chakraborty",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "people-e_dbf6d5cec9f4@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dae45513ebce",
+   "title": "Person: Mridul Malti",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "people-e_dae45513ebce@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_d391c7f03936",
+   "title": "Person: Noah Grist",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 883,
+   "shot": "people-e_d391c7f03936@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f2f1f7f2b5b8",
+   "title": "Person: Saubhagya Singh",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "people-e_f2f1f7f2b5b8@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_fab1445dc020",
+   "title": "Person: Suchitra Singh Bhadauriya",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "people-e_fab1445dc020@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_ad3692dfa26c",
+   "title": "Person: Ramzi Zayene",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "people-e_ad3692dfa26c@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f21216979d0c",
+   "title": "Person: Andrew Stirling-Martin",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "people-e_f21216979d0c@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_71232d88ccd6",
+   "title": "Person: Carolyn Chan",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "people-e_71232d88ccd6@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_3b98d03f80c2",
+   "title": "Person: Cevina Feng",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "people-e_3b98d03f80c2@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_6b649f91c801",
+   "title": "Person: Arun Aggarwal",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "people-e_6b649f91c801@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_8626095cd0e2",
+   "title": "Person: Florian Dupaty",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 819,
+   "shot": "people-e_8626095cd0e2@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "m-m_dec1df0d2794@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_d2d15b930720",
+   "title": "Module: Avilo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 820,
+   "shot": "m-m_d2d15b930720@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be",
+   "title": "Module: Car Wash Site Scorecard",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "m-m_12ac0a8738be@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "m-m_de9cef440abc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 820,
+   "shot": "m-m_862947c1edc7@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "m-m_023d69129b7e@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_3b1d7964b2df@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients",
+   "title": "Module: Advisory › advisory_clients",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "m-m_dec1df0d2794-advisory_clients@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 950px wide in a 496px area: table.table “ClientIndustryNotesRestoPros (St. Louis,” to 454px past it; thead “ClientIndustryNotes” to 454px past it; tr “ClientIndustryNotes” to 454px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “ClientIndustryNotesRestoPros (St. Louis,” ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “ClientIndustryNotes” ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “ClientIndustryNotes” ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Notes” ends at 1138px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1170px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1163px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “RestoPros (St. Louis, MO)Restoration/mit” ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)Restoration/mit” ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Figures sourced from QuickBooks exports ” ends at 1138px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 1174px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials",
+   "title": "Module: Advisory › advisory_financials",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_dec1df0d2794-advisory_financials@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1386px wide in a 496px area: table.table “ClientPeriod endSectionAccountValueSourc” to 890px past it; thead “ClientPeriod endSectionAccountValueSourc” to 890px past it; tr “ClientPeriod endSectionAccountValueSourc” to 890px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “ClientPeriod endSectionAccountValueSourc” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “ClientPeriod endSectionAccountValueSourc” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “ClientPeriod endSectionAccountValueSourc” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Value” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Value” ends at 1212px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1242px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1235px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Source file” ends at 1574px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Source file” ends at 1344px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1374px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1367px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1606px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1599px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “RestoPros (St. Louis, MO)1 JulOtherTrans” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)1 JulOtherTrans” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “3,805 USD” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “RestoPros - St. Louis, MO_Transaction De” ends at 1574px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 1610px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)30 JunIncome St” ends at 1610px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “276,325.6 USD” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “RestoPros - St. Louis, MO_Profit and Los” ends at 1574px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “48,634.4 USD” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “324,960 USD” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “483,353.4 USD” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tfoot “Total…+++Sum 7,446,920.5 USD+” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Total…+++Sum 7,446,920.5 USD+” ends at 1610px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “Sum 7,446,920.5 USD” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.footcell “Sum 7,446,920.5 USD” ends at 1242px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “Sum” ends at 1137px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1574px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td ends at 1610px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags",
+   "title": "Module: Advisory › advisory_flags",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_dec1df0d2794-advisory_flags@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1077px wide in a 496px area: table.table “ClientPeriod endCheckStatusDetailRestoPr” to 581px past it; thead “ClientPeriod endCheckStatusDetail” to 581px past it; tr “ClientPeriod endCheckStatusDetail” to 581px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “ClientPeriod endCheckStatusDetailRestoPr” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “ClientPeriod endCheckStatusDetail” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “ClientPeriod endCheckStatusDetail” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Detail” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1297px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1290px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “RestoPros (St. Louis, MO)30 JunGross Pro” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)30 JunGross Pro” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Total Income 1,135,278.61 − Total COGS 3” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 1301px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)30 JunAging Buc” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “A/R buckets 0 + 27,433.28 + 10,000.00 + ” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)30 JunA/P vs Ag” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Balance Sheet Accounts Payable 0.00 = A/” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)30 JunA/R vs Ag” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Balance Sheet Accounts Receivable 329,59” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “RestoPros (St. Louis, MO)30 JunAssets = ” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Total Assets 658,446.40 = Total Liabilit” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tfoot “Total…++++” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Total…++++” ends at 1301px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1265px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td ends at 1301px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_attachments",
+   "title": "Module: Advisory › vikas_badami_attachments",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_dec1df0d2794-vikas_badami_attachments@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1012px wide in a 496px area: table.table “DateSubjectFilenameSender addressGmail l” to 516px past it; thead “DateSubjectFilenameSender addressGmail l” to 516px past it; tr “DateSubjectFilenameSender addressGmail l” to 516px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “DateSubjectFilenameSender addressGmail l” ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “DateSubjectFilenameSender addressGmail l” ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “DateSubjectFilenameSender addressGmail l” ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Gmail message ID” ends at 1200px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Gmail message ID” ends at 1158px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1188px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1181px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1232px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1225px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “Nothing here yet.” ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Nothing here yet.” ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.empty “Nothing here yet.” ends at 1236px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails",
+   "title": "Module: Advisory › vikas_badami_emails",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1864px wide in a 496px area: table.table “DateSubjectSnippetSender addressHas atta” to 1368px past it; thead “DateSubjectSnippetSender addressHas atta” to 1368px past it; tr “DateSubjectSnippetSender addressHas atta” to 1368px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “DateSubjectSnippetSender addressHas atta” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “DateSubjectSnippetSender addressHas atta” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “DateSubjectSnippetSender addressHas atta” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Sender address” ends at 1315px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Sender address” ends at 1181px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1211px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1205px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Has attachment” ends at 1476px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Has attachment” ends at 1434px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1457px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Link” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Link” ends at 1515px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1545px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1538px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Gmail message ID” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Gmail message ID” ends at 1922px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1952px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1946px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th “Seen” ends at 2052px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span “Seen” ends at 2008px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 2084px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 2078px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “2 OctItem shared with you: ‘Copy of avil” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “2 OctItem shared with you: ‘Copy of avil” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “drive-shares-dm-noreply@google.com” ends at 1315px in a 1100px window",
+     "count": 2
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “—” ends at 1476px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1338px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “mail.google.com/mail/u/0/#all/1a0fdf147d” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "a “mail.google.com/mail/u/0/#all/1a0fdf147d” ends at 1783px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “1a0fdf147df72859” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.faint “Since 2 Oct” ends at 2052px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 2088px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “2 Octavilo—badami@wustl.edu✓mail.google.” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “badami@wustl.edu” ends at 1315px in a 1100px window",
+     "count": 2
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “✓” ends at 1476px in a 1100px window",
+     "count": 2
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “mail.google.com/mail/u/0/#all/1a0fdf77eb” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "a “mail.google.com/mail/u/0/#all/1a0fdf77eb” ends at 1784px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “1a0fdf77eb3abf8a” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “13 Nov 2021Item shared with you: ‘2021-0” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “mail.google.com/mail/u/0/#all/17d1a3aec9” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "a “mail.google.com/mail/u/0/#all/17d1a3aec9” ends at 1788px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “17d1a3aec9170435” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “10 Sepbadami-vikas invited you to badami” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “noreply@github.com” ends at 1315px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “mail.google.com/mail/u/0/#all/1a08c3ad7e” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "a “mail.google.com/mail/u/0/#all/1a08c3ad7e” ends at 1787px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “1a08c3ad7ed5fe16” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “12 SepDataBook time to meet with mebadam” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “mail.google.com/mail/u/0/#all/1a0974674b” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "a “mail.google.com/mail/u/0/#all/1a0974674b” ends at 1789px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “1a0974674bcc62fc” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tfoot “Total…++++++” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Total…++++++” ends at 2088px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1315px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1476px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1796px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1964px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td ends at 2052px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td ends at 2088px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites",
+   "title": "Module: Car Wash Site Scorecard › car_wash_sites",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 815,
+   "shot": "m-m_12ac0a8738be-car_wash_sites@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 2238px wide in a 496px area: table.table “AddressCity or countyListing priceListin” to 1742px past it; thead “AddressCity or countyListing priceListin” to 1742px past it; tr “AddressCity or countyListing priceListin” to 1742px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “AddressCity or countyListing priceListin” ends at 2462px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “AddressCity or countyListing priceListin” ends at 2462px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “AddressCity or countyListing priceListin” ends at 2462px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Households 3mi” ends at 1110px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Traffic aadt” ends at 1248px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Traffic aadt” ends at 1206px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1236px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1230px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Gate households” ends at 1417px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Gate households” ends at 1375px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1405px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1399px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Gate traffic” ends at 1555px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Gate traffic” ends at 1513px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1543px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1536px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Overall recommendation” ends at 1780px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Overall recommendation” ends at 1738px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1768px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1762px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Memo” ends at 2100px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Memo” ends at 1829px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1859px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1853px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Date added” ends at 2228px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Date added” ends at 2186px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 2216px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 2209px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Car wash site scores” ends at 2426px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Car wash site scores” ends at 2384px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 2414px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 2407px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 2462px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 2458px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 2451px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “1600 S Lamar Blvd, Austin, TXAustin——91,” ends at 2462px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “1600 S Lamar Blvd, Austin, TXAustin——91,” ends at 2462px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “91,299” ends at 1110px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “37,900” ends at 1248px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Pass” ends at 1417px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Pass” ends at 1555px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Needs more info” ends at 1780px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “# Car Wash Site Memo — 1600 S Lamar Blvd” ends at 2100px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “—” ends at 2228px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 2123px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “—” ends at 2426px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 2251px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 2462px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings",
+   "title": "Module: Car Wash Site Scorecard › settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "m-m_12ac0a8738be-settings@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1408px wide in a 496px area: table.table “KeySettingValueUnitWhere it comes fromWh” to 912px past it; thead “KeySettingValueUnitWhere it comes fromWh” to 912px past it; tr “KeySettingValueUnitWhere it comes fromWh” to 912px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “KeySettingValueUnitWhere it comes fromWh” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “KeySettingValueUnitWhere it comes fromWh” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “KeySettingValueUnitWhere it comes fromWh” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Where it comes from” ends at 1276px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Where it comes from” ends at 1234px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1264px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1257px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Why” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Why” ends at 1315px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1345px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1338px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1628px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1621px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “lot_size_gate_minMinimum lot size0.8acre” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “lot_size_gate_minMinimum lot size0.8acre” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “you” ends at 1276px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “\"add a minimum lot size of 0.8 acres\"” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 1632px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “census_api_keyCensus API keye0ef395c8376” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “The Census Bureau's ACS API (households,” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “scoring_scaleScale for each of the 14 it” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Alpha's default” ends at 1276px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “open question below — simplest scale tha” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “city_startStarting cityAustin, TX—you\"St” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “\"Start with Austin\"” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “trade_area_radius_miHousehold trade-area” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “stated alongside the household gate” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tfoot “Total…+++++” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Total…+++++” ends at 1632px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1276px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1596px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td ends at 1632px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log",
+   "title": "Module: Nutrition › food_log",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_3b1d7964b2df-food_log@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1458px wide in a 496px area: table.table “DateMealFood itemQuantityCaloriesProtein” to 962px past it; thead “DateMealFood itemQuantityCaloriesProtein” to 962px past it; tr “DateMealFood itemQuantityCaloriesProtein” to 962px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “DateMealFood itemQuantityCaloriesProtein” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “DateMealFood itemQuantityCaloriesProtein” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “DateMealFood itemQuantityCaloriesProtein” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Carbs” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Carbs” ends at 1133px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1163px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1157px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Fat” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Fat” ends at 1224px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1247px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Notes” ends at 1359px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Notes” ends at 1317px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1347px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1341px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Fiber” ends at 1448px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Fiber” ends at 1406px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1436px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1429px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Sugar” ends at 1543px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Sugar” ends at 1501px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1531px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1525px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Sodium” ends at 1646px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Sodium” ends at 1604px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1634px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1627px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1678px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1671px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “2 OctSnackFor Goodness Shakes protein sh” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “2 OctSnackFor Goodness Shakes protein sh” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “17.2 g?” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “?” ends at 1163px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “0.7 g?” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “?” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “—” ends at 1359px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1289px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “—?” ends at 1448px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1427px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “?” ends at 1436px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “—?” ends at 1543px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1522px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “?” ends at 1531px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “—?” ends at 1646px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1625px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “?” ends at 1634px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 1682px in a 1100px window",
+     "count": 5
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “1 OctDinnerRed pasta (tomato sauce)1 por” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “70 g≈” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “≈” ends at 1163px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “12 g≈” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “≈” ends at 1254px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “4 g≈” ends at 1448px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “≈” ends at 1436px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “9 g≈” ends at 1543px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “≈” ends at 1531px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “600 mg≈” ends at 1646px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.est “≈” ends at 1634px in a 1100px window",
+     "count": 4
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “1 OctBreakfastGreek yoghurt with chia pu” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “18 g≈” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “10 g≈” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “—≈” ends at 1448px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1426px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “—≈” ends at 1543px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1521px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “—≈” ends at 1646px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “—” ends at 1624px in a 1100px window",
+     "count": 3
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “1 OctBreakfastRaspberry croissant1320 kc” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “38 g≈” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “16 g≈” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “1 OctBreakfastAvocado with cottage chees” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “21 g≈” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “27 g≈” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tfoot “Total…+++Sum 1,655 kcalSum 105 gSum 164.” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Total…+++Sum 1,655 kcalSum 105 gSum 164.” ends at 1682px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “Sum 164.2 g” ends at 1175px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.footcell “Sum 164.2 g” ends at 1163px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “Sum” ends at 1114px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “Sum 65.7 g” ends at 1266px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.footcell “Sum 65.7 g” ends at 1254px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “Sum” ends at 1213px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td “+” ends at 1359px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “Sum 4 g” ends at 1448px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.footcell “Sum 4 g” ends at 1436px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “Sum” ends at 1414px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “Sum 9 g” ends at 1543px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.footcell “Sum 9 g” ends at 1531px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “Sum” ends at 1509px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “Sum 600 mg” ends at 1646px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.footcell “Sum 600 mg” ends at 1634px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.faint “Sum” ends at 1584px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td ends at 1682px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets",
+   "title": "Module: Nutrition › nutrition_targets",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 1240px wide in a 496px area: table.table “Effective fromGoalDaily caloriesProteinC” to 744px past it; thead “Effective fromGoalDaily caloriesProteinC” to 744px past it; tr “Effective fromGoalDaily caloriesProteinC” to 744px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “Effective fromGoalDaily caloriesProteinC” ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “Effective fromGoalDaily caloriesProteinC” ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Effective fromGoalDaily caloriesProteinC” ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Fiber” ends at 1108px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.th--sizable “Notes” ends at 1428px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Notes” ends at 1159px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1189px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1183px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1460px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1453px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “1 OctBuild muscle2,200 kcal≈115 g≈290 g≈” ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr.row--open “1 OctBuild muscle2,200 kcal≈115 g≈290 g≈” ends at 1464px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.r.num “30 g≈” ends at 1108px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.editable “Recomposition goal: maintain weight whil” ends at 1428px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.addfield ends at 1464px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/saved_foods",
+   "title": "Module: Nutrition › saved_foods",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 808,
+   "shot": "m-m_3b1d7964b2df-saved_foods@1100x560-light.png",
+   "problems": [
+    {
+     "kind": "page overflows",
+     "detail": "the page is 986px wide in a 496px area: table.table “Food itemTypical quantityMealCaloriesPro” to 490px past it; thead “Food itemTypical quantityMealCaloriesPro” to 490px past it; tr “Food itemTypical quantityMealCaloriesPro” to 490px past it",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "table.table “Food itemTypical quantityMealCaloriesPro” ends at 1210px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "thead “Food itemTypical quantityMealCaloriesPro” ends at 1210px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Food itemTypical quantityMealCaloriesPro” ends at 1210px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.r.th--sizable “Fiber” ends at 1174px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button “Fiber” ends at 1132px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1162px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1155px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "th.addfield ends at 1210px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "button.iconbtn.iconbtn--sm ends at 1206px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "span.iconbtn__ico ends at 1199px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tbody “Nothing here yet.” ends at 1210px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "tr “Nothing here yet.” ends at 1210px in a 1100px window",
+     "count": 1
+    },
+    {
+     "kind": "past the right edge",
+     "detail": "td.empty “Nothing here yet.” ends at 1210px in a 1100px window",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_attachments/r_872590e8ece0",
+   "title": "Record: advisory_attachments",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_dec1df0d2794-advisory_attachments-r_872590e8ece0@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients/r_c2111690635f",
+   "title": "Record: advisory_clients",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_dec1df0d2794-advisory_clients-r_c2111690635f@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials/r_4d8f00feb91c",
+   "title": "Record: advisory_financials",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "m-m_dec1df0d2794-advisory_financials-r_4d8f00feb91c@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags/r_1e3a3940e174",
+   "title": "Record: advisory_flags",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "m-m_dec1df0d2794-advisory_flags-r_1e3a3940e174@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails/r_cb0493be1433",
+   "title": "Record: vikas_badami_emails",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 836,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails-r_cb0493be1433@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_site_scores/r_c8c9e83cb7f2",
+   "title": "Record: car_wash_site_scores",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 814,
+   "shot": "m-m_12ac0a8738be-car_wash_site_scores-r_c8c9e83cb7f2@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites/r_89aaf1c1fc69",
+   "title": "Record: car_wash_sites",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "m-m_12ac0a8738be-car_wash_sites-r_89aaf1c1fc69@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings/r_77022bf1e825",
+   "title": "Record: settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "m-m_12ac0a8738be-settings-r_77022bf1e825@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc/deal_listings/r_9d9cd3aec8da",
+   "title": "Record: deal_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "m-m_de9cef440abc-deal_listings-r_9d9cd3aec8da@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7/job_listings/r_b63a0c3ff30a",
+   "title": "Record: job_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "m-m_862947c1edc7-job_listings-r_b63a0c3ff30a@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e/linkedin_connections/r_eaed035771b3",
+   "title": "Record: linkedin_connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_023d69129b7e-linkedin_connections-r_eaed035771b3@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/body_weight/r_b4c45b6b9c81",
+   "title": "Record: body_weight",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-body_weight-r_b4c45b6b9c81@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log/r_d1d1b1f5d374",
+   "title": "Record: food_log",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "m-m_3b1d7964b2df-food_log-r_d1d1b1f5d374@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets/r_594b3052747f",
+   "title": "Record: nutrition_targets",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets-r_594b3052747f@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 839,
+   "shot": "intelligence-map@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 861,
+   "shot": "intelligence-skills@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence-automations@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 822,
+   "shot": "intelligence-connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-knowledge@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-skills-gmail_draft@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-skills-gmail_send_draft@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-skills-linkedin_message@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-accounting_practice_exchange@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "intelligence-skills-atb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-capstone_ma@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 822,
+   "shot": "intelligence-skills-fusion_advantage@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "intelligence-skills-grand_business_brokers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 815,
+   "shot": "intelligence-skills-kendall_capital@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-skills-linkedin_connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 819,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "intelligence-skills-poe_advisors@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-premier_business_brokers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "intelligence-skills-quiet_light@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 819,
+   "shot": "intelligence-skills-saint_louis_group@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "intelligence-skills-innovative_business_advisors@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-skills-vr_gateway_stl@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 815,
+   "shot": "intelligence-skills-website_closers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 819,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-skills-yc_founding_engineer@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_linkedin_connections_network",
+   "title": "Skill: run_linkedin_connections_network",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-skills-run_linkedin_connections_network@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 839,
+   "shot": "intelligence-automations-a_03ce90642adb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-automations-a_616417b6a351@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_0409af98aa7d",
+   "title": "Goal: Build and maintain a calorie and nutrition tracker",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 819,
+   "shot": "intelligence-goals-g_0409af98aa7d@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1068,
+   "shot": "settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 918,
+   "shot": "home@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 884,
+   "shot": "activity@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 856,
+   "shot": "people@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_aadd32d3e057",
+   "title": "Activity: the newest entry",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 845,
+   "shot": "activity-j_aadd32d3e057@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_3ffb53125744",
+   "title": "Activity: the newest failure",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "activity-j_3ffb53125744@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_bca9b4fcf4ef",
+   "title": "Conversation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "assistant-t_bca9b4fcf4ef@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_77f3a813ac10",
+   "title": "Person: the person",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_77f3a813ac10@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_9deb4aa98324",
+   "title": "Person: HARSH SINGH",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "people-e_9deb4aa98324@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_680469405e46",
+   "title": "Person: Giulia Moretti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "people-e_680469405e46@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dbf6d5cec9f4",
+   "title": "Person: Sumit Chakraborty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "people-e_dbf6d5cec9f4@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dae45513ebce",
+   "title": "Person: Mridul Malti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_dae45513ebce@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_d391c7f03936",
+   "title": "Person: Noah Grist",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_d391c7f03936@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f2f1f7f2b5b8",
+   "title": "Person: Saubhagya Singh",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "people-e_f2f1f7f2b5b8@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_fab1445dc020",
+   "title": "Person: Suchitra Singh Bhadauriya",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_fab1445dc020@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_ad3692dfa26c",
+   "title": "Person: Ramzi Zayene",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "people-e_ad3692dfa26c@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f21216979d0c",
+   "title": "Person: Andrew Stirling-Martin",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "people-e_f21216979d0c@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_71232d88ccd6",
+   "title": "Person: Carolyn Chan",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "people-e_71232d88ccd6@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_3b98d03f80c2",
+   "title": "Person: Cevina Feng",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_3b98d03f80c2@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_6b649f91c801",
+   "title": "Person: Arun Aggarwal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "people-e_6b649f91c801@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_8626095cd0e2",
+   "title": "Person: Florian Dupaty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_8626095cd0e2@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_dec1df0d2794@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_d2d15b930720",
+   "title": "Module: Avilo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 820,
+   "shot": "m-m_d2d15b930720@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be",
+   "title": "Module: Car Wash Site Scorecard",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "m-m_12ac0a8738be@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_de9cef440abc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "m-m_862947c1edc7@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 845,
+   "shot": "m-m_023d69129b7e@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_3b1d7964b2df@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients",
+   "title": "Module: Advisory › advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "m-m_dec1df0d2794-advisory_clients@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials",
+   "title": "Module: Advisory › advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 838,
+   "shot": "m-m_dec1df0d2794-advisory_financials@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags",
+   "title": "Module: Advisory › advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "m-m_dec1df0d2794-advisory_flags@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_attachments",
+   "title": "Module: Advisory › vikas_badami_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "m-m_dec1df0d2794-vikas_badami_attachments@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails",
+   "title": "Module: Advisory › vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites",
+   "title": "Module: Car Wash Site Scorecard › car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "m-m_12ac0a8738be-car_wash_sites@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings",
+   "title": "Module: Car Wash Site Scorecard › settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "m-m_12ac0a8738be-settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log",
+   "title": "Module: Nutrition › food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-food_log@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets",
+   "title": "Module: Nutrition › nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 822,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/saved_foods",
+   "title": "Module: Nutrition › saved_foods",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "m-m_3b1d7964b2df-saved_foods@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_attachments/r_872590e8ece0",
+   "title": "Record: advisory_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 835,
+   "shot": "m-m_dec1df0d2794-advisory_attachments-r_872590e8ece0@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients/r_c2111690635f",
+   "title": "Record: advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "m-m_dec1df0d2794-advisory_clients-r_c2111690635f@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials/r_4d8f00feb91c",
+   "title": "Record: advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "m-m_dec1df0d2794-advisory_financials-r_4d8f00feb91c@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags/r_1e3a3940e174",
+   "title": "Record: advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "m-m_dec1df0d2794-advisory_flags-r_1e3a3940e174@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails/r_cb0493be1433",
+   "title": "Record: vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails-r_cb0493be1433@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_site_scores/r_c8c9e83cb7f2",
+   "title": "Record: car_wash_site_scores",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "m-m_12ac0a8738be-car_wash_site_scores-r_c8c9e83cb7f2@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites/r_89aaf1c1fc69",
+   "title": "Record: car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_12ac0a8738be-car_wash_sites-r_89aaf1c1fc69@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings/r_77022bf1e825",
+   "title": "Record: settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 838,
+   "shot": "m-m_12ac0a8738be-settings-r_77022bf1e825@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc/deal_listings/r_9d9cd3aec8da",
+   "title": "Record: deal_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "m-m_de9cef440abc-deal_listings-r_9d9cd3aec8da@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7/job_listings/r_b63a0c3ff30a",
+   "title": "Record: job_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "m-m_862947c1edc7-job_listings-r_b63a0c3ff30a@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e/linkedin_connections/r_eaed035771b3",
+   "title": "Record: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "m-m_023d69129b7e-linkedin_connections-r_eaed035771b3@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/body_weight/r_b4c45b6b9c81",
+   "title": "Record: body_weight",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "m-m_3b1d7964b2df-body_weight-r_b4c45b6b9c81@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log/r_d1d1b1f5d374",
+   "title": "Record: food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "m-m_3b1d7964b2df-food_log-r_d1d1b1f5d374@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets/r_594b3052747f",
+   "title": "Record: nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets-r_594b3052747f@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "intelligence-map@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 866,
+   "shot": "intelligence-skills@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 863,
+   "shot": "intelligence-automations@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-knowledge@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "intelligence-skills-gmail_draft@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-skills-gmail_send_draft@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-skills-linkedin_message@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 855,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "intelligence-skills-accounting_practice_exchange@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 854,
+   "shot": "intelligence-skills-atb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 853,
+   "shot": "intelligence-skills-capstone_ma@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 865,
+   "shot": "intelligence-skills-fusion_advantage@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 853,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "intelligence-skills-grand_business_brokers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 858,
+   "shot": "intelligence-skills-kendall_capital@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 861,
+   "shot": "intelligence-skills-linkedin_connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "intelligence-skills-poe_advisors@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-skills-premier_business_brokers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 859,
+   "shot": "intelligence-skills-quiet_light@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-skills-saint_louis_group@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 853,
+   "shot": "intelligence-skills-innovative_business_advisors@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-skills-vr_gateway_stl@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 856,
+   "shot": "intelligence-skills-website_closers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "intelligence-skills-yc_founding_engineer@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 858,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 835,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_linkedin_connections_network",
+   "title": "Skill: run_linkedin_connections_network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-skills-run_linkedin_connections_network@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-automations-a_03ce90642adb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 864,
+   "shot": "intelligence-automations-a_616417b6a351@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_0409af98aa7d",
+   "title": "Goal: Build and maintain a calorie and nutrition tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-goals-g_0409af98aa7d@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1080,
+   "shot": "settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 922,
+   "shot": "home@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 871,
+   "shot": "activity@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "people@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_aadd32d3e057",
+   "title": "Activity: the newest entry",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 829,
+   "shot": "activity-j_aadd32d3e057@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_3ffb53125744",
+   "title": "Activity: the newest failure",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 826,
+   "shot": "activity-j_3ffb53125744@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 847,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_bca9b4fcf4ef",
+   "title": "Conversation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "assistant-t_bca9b4fcf4ef@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_77f3a813ac10",
+   "title": "Person: the person",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 830,
+   "shot": "people-e_77f3a813ac10@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_9deb4aa98324",
+   "title": "Person: HARSH SINGH",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "people-e_9deb4aa98324@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_680469405e46",
+   "title": "Person: Giulia Moretti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "people-e_680469405e46@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dbf6d5cec9f4",
+   "title": "Person: Sumit Chakraborty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_dbf6d5cec9f4@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dae45513ebce",
+   "title": "Person: Mridul Malti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 832,
+   "shot": "people-e_dae45513ebce@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_d391c7f03936",
+   "title": "Person: Noah Grist",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 833,
+   "shot": "people-e_d391c7f03936@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f2f1f7f2b5b8",
+   "title": "Person: Saubhagya Singh",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "people-e_f2f1f7f2b5b8@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_fab1445dc020",
+   "title": "Person: Suchitra Singh Bhadauriya",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "people-e_fab1445dc020@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_ad3692dfa26c",
+   "title": "Person: Ramzi Zayene",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 833,
+   "shot": "people-e_ad3692dfa26c@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f21216979d0c",
+   "title": "Person: Andrew Stirling-Martin",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 834,
+   "shot": "people-e_f21216979d0c@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_71232d88ccd6",
+   "title": "Person: Carolyn Chan",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "people-e_71232d88ccd6@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_3b98d03f80c2",
+   "title": "Person: Cevina Feng",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_3b98d03f80c2@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_6b649f91c801",
+   "title": "Person: Arun Aggarwal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 834,
+   "shot": "people-e_6b649f91c801@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_8626095cd0e2",
+   "title": "Person: Florian Dupaty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "people-e_8626095cd0e2@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "m-m_dec1df0d2794@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_d2d15b930720",
+   "title": "Module: Avilo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 832,
+   "shot": "m-m_d2d15b930720@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be",
+   "title": "Module: Car Wash Site Scorecard",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 832,
+   "shot": "m-m_12ac0a8738be@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "m-m_de9cef440abc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 854,
+   "shot": "m-m_862947c1edc7@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "m-m_023d69129b7e@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "m-m_3b1d7964b2df@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients",
+   "title": "Module: Advisory › advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "m-m_dec1df0d2794-advisory_clients@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials",
+   "title": "Module: Advisory › advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "m-m_dec1df0d2794-advisory_financials@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags",
+   "title": "Module: Advisory › advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "m-m_dec1df0d2794-advisory_flags@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_attachments",
+   "title": "Module: Advisory › vikas_badami_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "m-m_dec1df0d2794-vikas_badami_attachments@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails",
+   "title": "Module: Advisory › vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites",
+   "title": "Module: Car Wash Site Scorecard › car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 825,
+   "shot": "m-m_12ac0a8738be-car_wash_sites@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings",
+   "title": "Module: Car Wash Site Scorecard › settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "m-m_12ac0a8738be-settings@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log",
+   "title": "Module: Nutrition › food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "m-m_3b1d7964b2df-food_log@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets",
+   "title": "Module: Nutrition › nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 824,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/saved_foods",
+   "title": "Module: Nutrition › saved_foods",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 823,
+   "shot": "m-m_3b1d7964b2df-saved_foods@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_attachments/r_872590e8ece0",
+   "title": "Record: advisory_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 836,
+   "shot": "m-m_dec1df0d2794-advisory_attachments-r_872590e8ece0@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients/r_c2111690635f",
+   "title": "Record: advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "m-m_dec1df0d2794-advisory_clients-r_c2111690635f@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials/r_4d8f00feb91c",
+   "title": "Record: advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "m-m_dec1df0d2794-advisory_financials-r_4d8f00feb91c@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags/r_1e3a3940e174",
+   "title": "Record: advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 833,
+   "shot": "m-m_dec1df0d2794-advisory_flags-r_1e3a3940e174@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails/r_cb0493be1433",
+   "title": "Record: vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 852,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails-r_cb0493be1433@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_site_scores/r_c8c9e83cb7f2",
+   "title": "Record: car_wash_site_scores",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "m-m_12ac0a8738be-car_wash_site_scores-r_c8c9e83cb7f2@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites/r_89aaf1c1fc69",
+   "title": "Record: car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "m-m_12ac0a8738be-car_wash_sites-r_89aaf1c1fc69@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings/r_77022bf1e825",
+   "title": "Record: settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "m-m_12ac0a8738be-settings-r_77022bf1e825@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc/deal_listings/r_9d9cd3aec8da",
+   "title": "Record: deal_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 834,
+   "shot": "m-m_de9cef440abc-deal_listings-r_9d9cd3aec8da@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7/job_listings/r_b63a0c3ff30a",
+   "title": "Record: job_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 835,
+   "shot": "m-m_862947c1edc7-job_listings-r_b63a0c3ff30a@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e/linkedin_connections/r_eaed035771b3",
+   "title": "Record: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 837,
+   "shot": "m-m_023d69129b7e-linkedin_connections-r_eaed035771b3@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/body_weight/r_b4c45b6b9c81",
+   "title": "Record: body_weight",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "m-m_3b1d7964b2df-body_weight-r_b4c45b6b9c81@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log/r_d1d1b1f5d374",
+   "title": "Record: food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 836,
+   "shot": "m-m_3b1d7964b2df-food_log-r_d1d1b1f5d374@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets/r_594b3052747f",
+   "title": "Record: nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 835,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets-r_594b3052747f@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 860,
+   "shot": "intelligence@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 844,
+   "shot": "intelligence-map@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 872,
+   "shot": "intelligence-skills@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence-automations@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 853,
+   "shot": "intelligence-knowledge@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 854,
+   "shot": "intelligence-skills-gmail_draft@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "intelligence-skills-gmail_send_draft@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "intelligence-skills-linkedin_message@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 830,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "intelligence-skills-accounting_practice_exchange@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "intelligence-skills-atb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 835,
+   "shot": "intelligence-skills-capstone_ma@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "intelligence-skills-fusion_advantage@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "intelligence-skills-grand_business_brokers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 919,
+   "shot": "intelligence-skills-kendall_capital@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "intelligence-skills-linkedin_connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 857,
+   "shot": "intelligence-skills-poe_advisors@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "intelligence-skills-premier_business_brokers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "intelligence-skills-quiet_light@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "intelligence-skills-saint_louis_group@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-skills-innovative_business_advisors@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 834,
+   "shot": "intelligence-skills-vr_gateway_stl@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-skills-website_closers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 844,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-skills-yc_founding_engineer@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 857,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 853,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_linkedin_connections_network",
+   "title": "Skill: run_linkedin_connections_network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 831,
+   "shot": "intelligence-skills-run_linkedin_connections_network@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-automations-a_03ce90642adb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 854,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 863,
+   "shot": "intelligence-automations-a_616417b6a351@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_0409af98aa7d",
+   "title": "Goal: Build and maintain a calorie and nutrition tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "intelligence-goals-g_0409af98aa7d@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1096,
+   "shot": "settings@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

@@ -317,7 +317,12 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   // The page never scrolls; the rows do, inside their own area under a header that stays put.
   // Fit to window: as many rows as that area holds, less the header and totals. Measured when
   // the page first shows rows and when the window changes size, not as rows come and go.
+  // A window too short for the fewest rows under the header (14 Oct: one row showed at
+  // 1100×560, the rest under the totals) lets the page scroll instead (`short`), nothing held
+  // in place; the room is measured from where the rows start, so a toolbar that wraps or the
+  // panel being open count, and it is the same in both ways of laying out.
   const loaded = all !== null;
+  const [short, setShort] = useState(false);
   const measure = useCallback(() => {
     const body = bodyRef.current;
     const scroller = scrollRef.current;
@@ -326,9 +331,23 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
     const rowHeight = first?.getBoundingClientRect().height || 34;
     const table = body.closest("table");
     const chrome = (table?.tHead?.offsetHeight ?? 0) + (table?.tFoot?.offsetHeight ?? 0);
-    // A narrow window stacks everything and lets the page scroll; fit to what is left on screen.
+    const page = scroller.closest(".page--fill");
+    const card = scroller.parentElement;
+    if (page && page.parentElement && card) {
+      const top = scroller.getBoundingClientRect().top - page.getBoundingClientRect().top;
+      const below = card.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom;
+      const room = page.parentElement.clientHeight - top - below - parseFloat(getComputedStyle(page).paddingBottom || "0");
+      const tooShort = room - chrome < FEWEST_ROWS * rowHeight;
+      setShort(tooShort);
+      if (!tooShort) {
+        setFit(Math.max(FEWEST_ROWS, Math.floor((room - chrome - 1) / rowHeight)));
+        return;
+      }
+    }
+    // The page scrolls (a short window, or a table that isn't its page's own): fit to what is
+    // left on screen.
     const fills = getComputedStyle(scroller).overflowY !== "visible";
-    const room = fills ? scroller.clientHeight : window.innerHeight - scroller.getBoundingClientRect().top - 60;
+    const room = fills && !page ? scroller.clientHeight : window.innerHeight - scroller.getBoundingClientRect().top - 60;
     setFit(Math.max(FEWEST_ROWS, Math.floor((room - chrome - 1) / rowHeight)));
   }, []);
   useLayoutEffect(() => {
@@ -607,7 +626,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
 
   return (
     <div className="stack stack--fill" aria-label={table.title}>
-      <div className="card card--fill">
+      <div className={`card card--fill${short ? " card--scrolls" : ""}`}>
         {onSay && !readonly ? <QuickEntry table={table} onSay={onSay} /> : null}
         <div className="toolbar toolbar--page toolbar--table">
           {searchable.length ? (

@@ -49,6 +49,54 @@ the last rows (the first table of each module, the only one checked before, is c
 map, the hint line and the "at a glance" panel cover legend chips at every size. The Mac app
 rebuilt and restarted. "ok commit it, then propose the layout fixes, and ok for journeys".
 
+## The two layout faults the wider check found
+
+Proposed in writing; Kenil: "ok for all".
+
+- **A table on a short window** (`modules/DataPage.tsx`, `styles/app.css`): when the room under
+  the table's header is less than five rows, measured from where the rows start (so a wrapping
+  toolbar and the panel count, the same in both layouts), the card is marked `card--scrolls`:
+  the page scrolls instead of the rows, nothing is held in place, a wide table still scrolls
+  sideways in place. On a normal window nothing changes; a resize switches back. Two misses of
+  the first try, both caught by the check: the rows area stopped scrolling sideways (wide tables
+  ran off the page), and static header cells sent the columns' grips 3px past the edge
+  (`position: relative`, not held).
+- **The map's overlays** (`shell/map/WorkMap.tsx`, CSS): the toolbar never breaks a word ("Shak
+  e", "Refre sh"; the check didn't name it, the screenshot did), what doesn't fit wraps whole,
+  "as of" first; the legend wraps to the left of the glance card, never under it.
+
+What ran: `just check-desktop`: 94 of 94 pages clean, 0 problems
+(`docs/checks/2026-10-14-1156.md`; the runs at 11:46 and 11:50 are the two misses); 195 desktop
+tests; the table at 1100×560 and 1240×820 and the map in the browser pane; the map in Kenil's
+Mac app (WebKit), navigation only.
+
+## The journeys, all 22 (Kenil's ok)
+
+18 that read or work inside the copy (`docs/journeys/2026-10-14-1134.md`): 12 of 18 passed.
+Four that act in Kenil's accounts were held until he said so ("ok for all. for linkedin, create
+draft messdage to sania instead": `linkedin_message` now writes to Sania Hussain, a
+connection), then run (`docs/journeys/2026-10-14-1209.md`): 4 of 4 passed, for real: an email
+sent from his Gmail to his own address and checked in Sent, a Gmail draft to Sania (and
+probably "Skill reuse check", Gmail keeping what is typed), a LinkedIn message to Sania typed
+and stopped before Send.
+
+The six that failed:
+- **workflow_build**: the build stopped on `'str' object has no attribute 'get'` in
+  `claude_cli.count_tools`, an event whose `message` is text, right after a page was read: a
+  real bug, older than today, that can stop any turn. **workflow_interview** ran next in the
+  same copy, picked up that stopped build and went off course.
+- **gmail_network** (never passed): Alpha read Gmail (four reads in the journal), but the
+  judge sees only the answer and called it invented: the check's fault.
+- **memory_two_sources**, **memory_who_emailed**: Alpha answered from memory and said it never
+  read those emails rather than looking in Gmail; on 3 Oct they passed when it looked and
+  failed when it didn't. Behaviour, not a regression.
+- **branded_food**: 240 kcal from the label, right; fat 14 g where the second opinion found
+  13.4 g. A near miss.
+
+Proposed next, to Kenil: the stream bug fixed and both car-wash journeys run again; the judge
+given the turn's own steps and gmail_network run again; the memory gap ("look it up when memory
+is thin") onto the pending list.
+
 ## Left
 
-The layout fixes proposed next; the journeys run (Kenil's ok); then groups 2–5.
+Kenil's yes on those fixes; then groups 2–5.

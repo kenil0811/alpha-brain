@@ -442,6 +442,8 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
   const focusTitle = focusHome ? byId.get(`module:${focusHome}`)?.title ?? graph.nodes.find((n) => n.id === `module:${focusHome}`)?.title : null;
   const areas = shaped.nodes.filter((n) => n.kind === "module").sort((a, b) => (b.activity ?? 0) - (a.activity ?? 0));
   const suggested = shown.edges.filter((e) => e.kind === "related" && e.state === "suggested").length;
+  // the glance card shows on the world map with nothing chosen; the legend keeps clear of it
+  const glance = kind === "world" && graph.nodes.length > 0 && !selectedNode;
 
   return (
     <div className="map" ref={box} aria-label={kind === "world" ? "The map of your world" : "The map of Alpha's work"}>
@@ -510,6 +512,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
           </g>
         </svg>
       )}
+      <div className="map__top">
       <div className="map__tools">
         <div className="toggle toggle--views" role="tablist" aria-label="Which map">
           <button type="button" role="tab" aria-selected={kind === "world"} onClick={() => switchKind("world")}>World</button>
@@ -523,15 +526,16 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
         <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Read the map again and have Alpha look for links" : "Read the map again"}>Refresh</Button>
         {asOf ? <span className="map__asof">as of {timeOf(asOf)}</span> : null}
       </div>
-      {busy ? <div className="map__busy" role="status">{busy}</div> : null}
-      {error && graph ? <div className="map__busy notice" role="alert">{error}</div> : null}
       {focusHome !== null ? (
         <div className="map__focus">
           <span>Showing {focusTitle ?? "one area"}</span>
           <IconButton size="sm" label="Show everything" icon={<X />} onClick={() => focusOn(null)} />
         </div>
       ) : null}
-      <div className="map__legend" role="group" aria-label="Show">
+      </div>
+      {busy ? <div className="map__busy" role="status">{busy}</div> : null}
+      {error && graph ? <div className="map__busy notice" role="alert">{error}</div> : null}
+      <div className={`map__legend${glance ? " map__legend--beside" : ""}`} role="group" aria-label="Show">
         {KINDS[kind].map((k) => (
           <button key={k.kind} type="button" className={`map__chip${hidden.has(k.kind) ? " map__chip--off" : ""}`} aria-pressed={!hidden.has(k.kind)} onClick={() => toggleKind(k.kind)}>
             <i style={{ background: `var(--k-${k.kind})` }} aria-hidden="true" />
@@ -540,7 +544,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
           </button>
         ))}
       </div>
-      {kind === "world" && graph.nodes.length && !selectedNode ? (
+      {glance ? (
         <aside className="map__glance" aria-label="At a glance">
           {areas.length ? (
             <div>
