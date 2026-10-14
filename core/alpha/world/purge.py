@@ -6,19 +6,17 @@ went, and history about a removed thing is marked as such wherever Alpha reads i
 (`Journal.mark_removed`), so Alpha never takes it for something that still exists. Threads stay
 as a record but lose the session the model would resume, and open questions are closed.
 
-`remove_module` deletes a module's tables and their rows, the readers its automations use, its
-automations, its note and its goals. Entities and facts stay (they belong to the person, not to
-a module), and so do connections (a sign-in belongs to Alpha's browser).
+`remove_module` deletes a module's tables and their rows, its files (with the entity each file
+is and that entity's facts), the readers its automations use and their notes, its automations,
+its workflow page with every version of it, its note and its goals. People, companies and
+their facts stay (they belong to the person, not to a module), and so do connections (a
+sign-in belongs to Alpha's browser).
 
 `remove_connection` disconnects Alpha from something: for a site, Alpha's sign-in (its browser
 profile on disk), the readers Alpha wrote for the sites that sign-in covers and the automations
 that use them; for a folder, the documents read from it; for the calendar, its events. What
 Alpha wrote into the person's tables stays: those rows are the person's, and removing the
 module is how they go.
-
-`clear_conversation` deletes the person's conversation with Alpha: everything said and replied
-outside any thread, with the questions Alpha asked there and their answers. What Alpha did and
-read (Activity) and every module's data stay.
 """
 
 from __future__ import annotations
@@ -34,8 +32,6 @@ from alpha.world.sites import site_of
 from alpha.world.store import Problem, now
 from alpha.world.views import Views
 from alpha.world.world import World, alpha_home
-
-CONVERSATION_KINDS = ("said", "replied", "failed", "asked", "answered", "proposed")
 
 
 def _unlink_files(paths: list[str]) -> None:
@@ -65,6 +61,27 @@ def _record_removal(world: World, kind: str, rid: str, name: str, what: str,
         data={"removed": {"kind": kind, "id": rid, "name": name, "threads": threads,
                           "automations": automations, "readers": readers}},
     )
+
+
+def _forget_entities(db: Any, ids: list[str]) -> None:
+    """The entities a removed thing was (a file is one), with their keys, their facts and
+    their page (both kept under `entity:<id>`; before 14 Oct the facts were looked for under
+    the bare id and stayed)."""
+    if not ids:
+        return
+    clause, args = _in("entity_id", ids)
+    db.execute(f"DELETE FROM entity_keys WHERE {clause}", args)
+    clause, args = _in("subject", [f"entity:{i}" for i in ids])
+    db.execute(f"DELETE FROM facts WHERE {clause}", args)
+    clause, args = _in("scope", [f"entity:{i}" for i in ids])
+    db.execute(f"DELETE FROM notes WHERE {clause}", args)
+    clause, args = _in("id", ids)
+    db.execute(f"DELETE FROM entities WHERE {clause}", args)
+
+
+def _forget_skill_note(db: Any, name: str) -> None:
+    """A removed skill's page of notes (what Alpha learned about its site)."""
+    db.execute("DELETE FROM notes WHERE scope = ?", (f"skill:{name}",))
 
 
 def _retire_threads(db: Any, threads: list[str]) -> None:
@@ -152,10 +169,12 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
             db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (reader,))
+            _forget_skill_note(db, reader)
         counts["readers"] = len(readers)
         for a in autos:
             if a["skill"]:
                 db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
+                _forget_skill_note(db, a["skill"])
         db.execute("DELETE FROM runs WHERE automation IN (SELECT id FROM automations WHERE"
                    " module = ?)", (mid,))
         for a in autos:
@@ -169,15 +188,15 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["goals"] = db.execute("DELETE FROM goals WHERE module = ?", (mid,)).rowcount
         counts["sources"] = world.sources.remove_module(db, mid)
         counts["actions"] = world.actions.remove_module(db, mid)
-        files = [r["path"] for r in db.execute("SELECT path FROM documents WHERE module = ?",
-                                               (mid,)).fetchall()]
-        for did in [r["id"] for r in db.execute("SELECT id FROM documents WHERE module = ?",
-                                                (mid,)).fetchall()]:
+        docs = db.execute("SELECT id, path, entity_id FROM documents WHERE module = ?",
+                          (mid,)).fetchall()
+        for d in docs:
             db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text) SELECT"
-                       " 'delete', rowid, title, text FROM documents WHERE id = ?", (did,))
+                       " 'delete', rowid, title, text FROM documents WHERE id = ?", (d["id"],))
         counts["files"] = db.execute("DELETE FROM documents WHERE module = ?", (mid,)).rowcount
-        _unlink_files(files)
-        world.workflows.remove_module(db, mid)
+        _forget_entities(db, [d["entity_id"] for d in docs if d["entity_id"]])
+        _unlink_files([d["path"] for d in docs])
+        counts["workflow pages"] = world.workflows.delete_module(db, mid)
         Preferences.forget_module(db, mid, tables)  # its colours, its place in the sidebar
         Preferences.forget_agents(db, [a["id"] for a in autos])  # its agents' looks
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
@@ -234,9 +253,7 @@ def remove_document(world: World, did: str) -> dict[str, Any]:
                    " 'delete', rowid, title, text FROM documents WHERE id = ?", (did,))
         db.execute("DELETE FROM documents WHERE id = ?", (did,))
         if row and row["entity_id"]:
-            db.execute("DELETE FROM entity_keys WHERE entity_id = ?", (row["entity_id"],))
-            db.execute("DELETE FROM facts WHERE subject = ?", (row["entity_id"],))
-            db.execute("DELETE FROM entities WHERE id = ?", (row["entity_id"],))
+            _forget_entities(db, [row["entity_id"]])
     if row:
         _unlink_files([row["path"]])
     _record_removal(world, "document", did, plan["title"], plan["what"], threads=[],
@@ -284,18 +301,6 @@ def remove_conversation(world: World, cid: str) -> dict[str, Any]:
     _record_removal(world, "conversation", cid, f"the conversation \"{thread['title']}\"",
                     plan["what"], threads=[cid], automations=[], readers=[])
     return plan
-
-
-def clear_conversation(world: World) -> dict[str, int]:
-    marks = ",".join("?" * len(CONVERSATION_KINDS))
-    with world.store.tx() as db:
-        # What the model was shown for those turns quotes the conversation too.
-        db.execute("DELETE FROM turn_contexts WHERE turn IN (SELECT id FROM journal"
-                   " WHERE thread IS NULL AND kind = 'said')")
-        removed = db.execute(
-            f"DELETE FROM journal WHERE thread IS NULL AND kind IN ({marks})", CONVERSATION_KINDS
-        ).rowcount
-    return {"turns": removed}
 
 
 def _steps_text(store: Any, skill: str | None) -> str | None:
@@ -375,8 +380,10 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     with store.tx() as db:
         for name in readers:
             db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (name,))
+            _forget_skill_note(db, name)
         for name in procedures:
             db.execute("DELETE FROM skills WHERE name = ? AND kind = 'act'", (name,))
+            _forget_skill_note(db, name)
             db.execute("UPDATE permissions SET revoked_at = ? WHERE procedure = ?"
                        " AND revoked_at IS NULL", (now(), name))
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE procedure = ?"
@@ -401,13 +408,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         if events:
             clause, args = _in("id", events)
             db.execute(f"DELETE FROM events WHERE {clause}", args)
-        if entity_ids:
-            clause, args = _in("entity_id", entity_ids)
-            db.execute(f"DELETE FROM entity_keys WHERE {clause}", args)
-            clause, args = _in("subject", entity_ids)
-            db.execute(f"DELETE FROM facts WHERE {clause}", args)
-            clause, args = _in("id", entity_ids)
-            db.execute(f"DELETE FROM entities WHERE {clause}", args)
+        _forget_entities(db, entity_ids)
         _retire_threads(db, threads)
         db.execute("DELETE FROM connections WHERE id = ?", (cid,))
     if profile is not None:

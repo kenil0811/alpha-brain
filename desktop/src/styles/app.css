@@ -741,16 +741,16 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .thread__last { display: block; margin-top: 4px; font-size: var(--text-sm); overflow-wrap: anywhere; }
 
 /* files: a drop zone on a module page, a file cell in a table */
-.page--drop { outline: 2px dashed var(--accent); outline-offset: -8px; border-radius: 12px; }
-.dropnote { position: sticky; top: 8px; z-index: 5; margin: 0 0 8px; padding: 10px 14px; border-radius: 10px; background: var(--accent-soft, var(--hover)); color: var(--text); font-size: var(--text-md); text-align: center; }
-.linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.page--drop { outline: 2px dashed var(--primary); outline-offset: -8px; border-radius: 12px; }
+.dropnote { position: sticky; top: 8px; z-index: 5; margin: 0 0 8px; padding: 10px 14px; border-radius: 10px; background: var(--primary-soft); color: var(--text); font-size: var(--text-md); text-align: center; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--primary); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .linkbtn.faint { color: var(--text-3); text-decoration: none; }
 .linkbtn.faint:hover { color: var(--text); }
 
 /* working: a Claude-like state line with motion */
 .working__head { display: flex; align-items: center; gap: 8px; }
 .working__time { margin-left: auto; }
-.working__pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s ease-in-out infinite; flex: none; }
+.working__pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: pulse 1.4s ease-in-out infinite; flex: none; }
 @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
 .shimmer { background: linear-gradient(90deg, var(--text-2) 0%, var(--text) 45%, var(--text-2) 90%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 2.2s linear infinite; font-weight: 500; }
 @keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
@@ -774,14 +774,14 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .askcard__opt--on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
 .askcard--group { display: flex; flex-direction: column; gap: 10px; }
 .askcard__one { border: 0; margin: 0; padding: 0; min-width: 0; }
-.askcard__n { color: var(--muted); margin-right: 2px; }
+.askcard__n { color: var(--text-3); margin-right: 2px; }
 .askcard__input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
 .askcard__other { display: flex; gap: 6px; align-items: center; }
 .askcard__other input { flex: 1; min-width: 120px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
 
 /* live conversations: a strip to switch between them */
 .convchip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
-.convchip__dot--working { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+.convchip__dot--working { background: var(--primary); animation: pulse 1.4s ease-in-out infinite; }
 .convchip__dot--waiting { background: var(--warn); }
 
 /* the companion's choices: a question's options, a decision */
@@ -928,7 +928,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* ---------- the workflow page's questions on its card ---------- */
 /* Where a value came from, beside it on a thing's page (§12). */
 .origin { font-size: var(--text-xs); opacity: 0.75; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.origin--problem { opacity: 1; color: var(--danger, #c33); white-space: normal; }
+.origin--problem { opacity: 1; color: var(--bad); white-space: normal; }
 /* "Your workflow" (§12): the page in the person's words, as a card. */
 .wf__purpose { margin: 4px 0 8px; }
 .wf__section { margin-top: 10px; }

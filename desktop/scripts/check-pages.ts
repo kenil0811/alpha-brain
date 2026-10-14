@@ -63,15 +63,22 @@ export interface PageAddress {
 }
 
 /** The window's intelligence tabs (shell/Intelligence.tsx), each an address. */
-const INTEL_TABS = ["skills", "automations", "connections", "knowledge"];
+const INTEL_TABS = ["map", "skills", "automations", "connections", "knowledge"];
 
 interface WorldPages {
   modules: { id: string; name?: string; tables?: { name: string }[] }[];
   /** The first record of every module's table: its own page (`#/m/<module>/<table>/<record>`). */
   records?: { module: string; table: string; id: string }[];
+  /** The first record of every table that belongs to no module (`#/records/<table>/<record>`). */
+  looseRecords?: { table: string; id: string }[];
   skills: { name: string }[];
   automations: { id: string; title?: string }[];
   people: { id: string; name?: string }[];
+  goals?: { id: string; text?: string }[];
+  /** The newest conversation (`#/assistant/<id>`). */
+  conversations?: { id: string; title?: string }[];
+  /** The newest activity entry and the newest failure (`#/activity/<id>`). */
+  entries?: { id: string; label: string }[];
 }
 
 /** Every address the window answers to (shell/address.ts), for the things this world holds. */
@@ -81,14 +88,20 @@ export function pagesFor(world: WorldPages): PageAddress[] {
     { path: "/home", title: "Home" },
     { path: "/activity", title: "Activity" },
     { path: "/people", title: "People" },
+    ...(world.entries ?? []).map((e) => ({ path: `/activity/${enc(e.id)}`, title: `Activity: ${e.label}` })),
     { path: "/assistant", title: "Assistant" },
+    ...(world.conversations ?? []).map((c) => ({ path: `/assistant/${enc(c.id)}`, title: `Conversation: ${c.title ?? c.id}` })),
     ...world.people.map((e) => ({ path: `/people/${enc(e.id)}`, title: `Person: ${e.name ?? e.id}` })),
     ...world.modules.map((m) => ({ path: `/m/${enc(m.id)}`, title: `Module: ${m.name ?? m.id}` })),
+    // a module on each of its tables after the first, which its own page opens on
+    ...world.modules.flatMap((m) => (m.tables ?? []).slice(1).map((t) => ({ path: `/m/${enc(m.id)}/${enc(t.name)}`, title: `Module: ${m.name ?? m.id} › ${t.name}` }))),
     ...(world.records ?? []).map((r) => ({ path: `/m/${enc(r.module)}/${enc(r.table)}/${enc(r.id)}`, title: `Record: ${r.table}` })),
+    ...(world.looseRecords ?? []).map((r) => ({ path: `/records/${enc(r.table)}/${enc(r.id)}`, title: `Record: ${r.table}` })),
     { path: "/intelligence", title: "Intelligence" },
     ...INTEL_TABS.map((t) => ({ path: `/intelligence/${t}`, title: `Intelligence: ${t}` })),
     ...world.skills.map((s) => ({ path: `/intelligence/skills/${enc(s.name)}`, title: `Skill: ${s.name}` })),
     ...world.automations.map((a) => ({ path: `/intelligence/automations/${enc(a.id)}`, title: `Automation: ${a.title ?? a.id}` })),
+    ...(world.goals ?? []).map((g) => ({ path: `/intelligence/goals/${enc(g.id)}`, title: `Goal: ${g.text ?? g.id}` })),
     { path: "/settings", title: "Settings" },
   ];
 }
@@ -124,10 +137,14 @@ async function worldPages(job: Job): Promise<WorldPages> {
     if (!response.ok) throw new Error(`the core answered ${response.status} to ${path}`);
     return (await response.json()) as T;
   };
-  const [modules, intel, people] = await Promise.all([
+  const [modules, intel, people, home, conversations, newest, failed] = await Promise.all([
     get<WorldPages["modules"]>("/api/modules"),
-    get<{ skills: WorldPages["skills"]; automations: WorldPages["automations"] }>("/api/intelligence"),
+    get<{ skills: WorldPages["skills"]; automations: WorldPages["automations"]; knowledge: { goals: { id: string; text: string }[] } }>("/api/intelligence"),
     get<WorldPages["people"]>("/api/people"),
+    get<{ loose_tables: { name: string }[] }>("/api/home"),
+    get<{ id: string; title?: string }[]>("/api/conversations?done=true"),
+    get<{ id: string }[]>("/api/activity?limit=1"),
+    get<{ id: string }[]>("/api/activity?kind=failed&limit=1"),
   ]);
   const tables = modules.flatMap((m) => (m.tables ?? []).map((t) => ({ module: m.id, table: t.name })));
   const records = (
@@ -138,7 +155,16 @@ async function worldPages(job: Job): Promise<WorldPages> {
       }),
     )
   ).flat();
-  return { modules, skills: intel.skills, automations: intel.automations, people, records };
+  const looseRecords = (
+    await Promise.all(
+      home.loose_tables.map(async ({ name }) => {
+        const first = (await get<{ records: { id: string }[] }>(`/api/tables/${encodeURIComponent(name)}?limit=1`)).records[0];
+        return first ? [{ table: name, id: first.id }] : [];
+      }),
+    )
+  ).flat();
+  const entries = [...newest.map((e) => ({ id: e.id, label: "the newest entry" })), ...failed.filter((e) => !newest.some((n) => n.id === e.id)).map((e) => ({ id: e.id, label: "the newest failure" }))];
+  return { modules, skills: intel.skills, automations: intel.automations, people, records, looseRecords, goals: intel.knowledge.goals, conversations: conversations.slice(0, 1), entries };
 }
 
 /**

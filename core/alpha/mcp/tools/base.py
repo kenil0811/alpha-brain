@@ -115,8 +115,9 @@ class Base:
         """The build thread this turn runs in, if it is one that may make lasting things: a
         thread of kind build that is not a workflow's walled session (that session writes
         files; the core makes the tables from the page, §12). Since 12 Oct 2026 (Q40) no
-        code opens such a thread: lasting things come from the page, and the door for
-        automations and readers of their own is an open question."""
+        code opens such a thread (a plan's old ones became topics on 14 Oct): lasting things
+        come from the page, and the door for automations and readers of their own is an open
+        question."""
         if not self.thread:
             return None
         thread = self.world.modules.thread(self.thread)

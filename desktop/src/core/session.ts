@@ -19,7 +19,8 @@ export function parseSession(value: unknown): CoreSession {
     typeof candidate.token !== "string" ||
     candidate.token.length < 32
   ) {
-    throw new Error(`host returned an invalid core session: ${JSON.stringify(value)}`);
+    // never the value itself: it may hold the token
+    throw new Error("Alpha's Mac app handed back a way in that doesn't work. Quit Alpha and open it again.");
   }
   return { baseUrl: candidate.baseUrl, token: candidate.token };
 }
@@ -37,7 +38,7 @@ export async function resolveSession(): Promise<SessionResolution> {
       const session = parseSession(await invoke<unknown>("core_session"));
       return { kind: "ready", session, source: "tauri" };
     } catch (error) {
-      return { kind: "unavailable", reason: `Runtime did not start: ${String(error)}` };
+      return { kind: "unavailable", reason: error instanceof Error ? error.message : String(error) };
     }
   }
   const baseUrl = import.meta.env.VITE_ALPHA_CORE_URL as string | undefined;

@@ -525,10 +525,19 @@ class Store:
     def _drop_superseded(db: sqlite3.Connection) -> None:
         """The research pass and plans with milestones (Q37, Q38) were superseded by the
         workflow page (§12, Q39) and removed on 12 Oct 2026 (Q40): their tables go; the
-        journal keeps every line about them. Their threads become plain topics."""
+        journal keeps every line about them. Their threads, a plan's build thread included,
+        become plain topics."""
         for table in ("plans", "research", "findings"):
             db.execute(f"DROP TABLE IF EXISTS {table}")
         db.execute("UPDATE threads SET kind = 'topic' WHERE kind IN ('research', 'deepen')")
+        # A plan's build thread (before 11 Oct 2026) opened the gate on making lasting things
+        # to any turn run in it; only a workflow's build has a build thread now (14 Oct).
+        db.execute("UPDATE threads SET kind = 'topic' WHERE kind = 'build' AND id NOT IN"
+                   " (SELECT thread FROM workflows WHERE thread IS NOT NULL)")
+        # A deleted module's workflow page was once only marked removed (14 Oct: it goes).
+        db.execute("DELETE FROM workflow_versions WHERE workflow IN"
+                   " (SELECT id FROM workflows WHERE state = 'removed')")
+        db.execute("DELETE FROM workflows WHERE state = 'removed'")
 
     @staticmethod
     def _move_know_how(db: sqlite3.Connection) -> None:

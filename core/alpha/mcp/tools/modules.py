@@ -54,12 +54,12 @@ class Modules(Base):
         return self.world.modules.threads(state)
 
     @tool
-    def thread_open(self, title: str, kind: str, module: str | None = None) -> dict[str, Any]:
-        """Open a thread for work that will take more than this turn or a long to-and-fro:
-        kind build, job or topic. The person sees it as a card; its
-        conversation stays out of the main stream."""
+    def thread_open(self, title: str, module: str | None = None) -> dict[str, Any]:
+        """Open a thread for a topic that will take more than this turn or a long to-and-fro.
+        The person sees it as a card; its conversation stays out of the main stream. (A build
+        thread comes only with a workflow's build, an agent's with the agent.)"""
         module_id = self.world.modules.get(module)["id"] if module else None
-        thread = self.world.modules.open_thread(title, kind, module_id)
+        thread = self.world.modules.open_thread(title, "topic", module_id)
         self._did("made", f"Opened the thread {title}.", {"thread": thread["id"]}, module_id)
         return thread
 

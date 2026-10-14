@@ -464,7 +464,7 @@ fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let mut dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("app data dir: {e}"))?;
+        .map_err(|e| format!("Alpha's data folder couldn't be found: {e}"))?;
     if cfg!(debug_assertions) {
         if let Ok(home) = std::env::var("ALPHA_HOME") {
             if !home.is_empty() {
@@ -472,7 +472,7 @@ fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
             }
         }
     }
-    std::fs::create_dir_all(&dir).map_err(|e| format!("create data dir: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Alpha's data folder couldn't be made: {e}"))?;
     let _ = DATA_DIR.set(dir.clone());
     Ok(dir)
 }
@@ -484,13 +484,13 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
     let python = core_python(bundled.as_ref());
     if !python.is_file() {
         return Err(format!(
-            "Alpha's core isn't installed ({}). Run `just setup` in the repository.",
+            "It isn't installed ({}). Run `just setup` in the repository.",
             python.display()
         ));
     }
     let data_dir = data_dir(app)?;
     let log_dir = data_dir.join("logs");
-    std::fs::create_dir_all(&log_dir).map_err(|e| format!("create log dir: {e}"))?;
+    std::fs::create_dir_all(&log_dir).map_err(|e| format!("It couldn't make its log folder: {e}"))?;
     let _ = HOST_LOG.set(log_dir.join("host.log"));
     if let Some(dir) = &bundled {
         release_quarantine(dir);
@@ -503,7 +503,7 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
         .create(true)
         .append(true)
         .open(log_dir.join("core.log"))
-        .map_err(|e| format!("open core log: {e}"))?;
+        .map_err(|e| format!("It couldn't open its log: {e}"))?;
     let home = std::env::var("HOME").unwrap_or_default();
     let user = std::env::var("USER").unwrap_or_else(|_| {
         PathBuf::from(&home)
@@ -562,23 +562,23 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
     }
     let mut child = command
         .spawn()
-        .map_err(|e| format!("spawn core ({}): {e}", python.display()))?;
-    let stdout = child.stdout.take().ok_or("core stdout unavailable")?;
+        .map_err(|e| format!("It couldn't start ({}): {e}", python.display()))?;
+    let stdout = child.stdout.take().ok_or("It couldn't be heard while starting.")?;
     let mut reader = BufReader::new(stdout);
     let started = Instant::now();
     let ready_line = loop {
         if started.elapsed() > READY_TIMEOUT {
             let _ = child.kill();
-            return Err(format!("the core didn't start within {}s", READY_TIMEOUT.as_secs()));
+            return Err(format!("It didn't start within {} seconds.", READY_TIMEOUT.as_secs()));
         }
         let mut line = String::new();
         let n = reader
             .read_line(&mut line)
-            .map_err(|e| format!("read core stdout: {e}"))?;
+            .map_err(|e| format!("It couldn't be heard while starting: {e}"))?;
         if n == 0 {
             let status = child.wait().map(|s| s.to_string()).unwrap_or_default();
             return Err(format!(
-                "the core stopped before it was ready ({status}); see {}",
+                "It stopped before it was ready ({status}); its log is {}.",
                 log_dir.join("core.log").display()
             ));
         }
@@ -592,7 +592,7 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
         }
     });
     let ready: serde_json::Value =
-        serde_json::from_str(&ready_line).map_err(|e| format!("bad ready line: {e}"))?;
+        serde_json::from_str(&ready_line).map_err(|e| format!("It started but didn't say where to reach it: {e}"))?;
     let port = ready["port"].as_u64().ok_or("ready line missing port")? as u16;
     Ok(CoreProcess { child, port, token, started: Instant::now() })
 }
@@ -695,9 +695,9 @@ async fn core_session(state: State<'_, HostState>) -> Result<CoreSession, String
     let launch = state.launch.clone();
     tauri::async_runtime::spawn_blocking(move || {
         if !launch.wait(SESSION_WAIT) {
-            return Err("Alpha's core is still starting.".to_string());
+            return Err("It's still starting.".to_string());
         }
-        let guard = launch.core.lock().map_err(|_| "host state poisoned")?;
+        let guard = launch.core.lock().map_err(|_| "Alpha's Mac app hit a problem; quit Alpha and open it again.")?;
         match guard.as_ref() {
             Some(core) => Ok(CoreSession {
                 base_url: format!("http://127.0.0.1:{}", core.port),
@@ -708,7 +708,7 @@ async fn core_session(state: State<'_, HostState>) -> Result<CoreSession, String
                 .lock()
                 .ok()
                 .and_then(|e| e.clone())
-                .unwrap_or_else(|| "the core isn't running".into())),
+                .unwrap_or_else(|| "It isn't running.".into())),
         }
     })
     .await

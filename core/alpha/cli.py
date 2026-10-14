@@ -11,7 +11,6 @@
     alpha turns [--limit 40]        (how long the last turns took: wall, model, steps)
     alpha check [j_turn] [--no-repair]   (a reply against an independent answer)
     alpha remove-module Food        (the module and everything made for it; history stays)
-    alpha clear-conversation        (the stream's turns; the only physical journal delete)
     alpha connect folder|site|calendar [target]
     alpha serve [--port N] [--no-background]   (the HTTP API the app uses; the scheduler runs here)
     alpha journeys [names…] [--world path] [--keep] [--list]   (the journey suite, on a copy)
@@ -67,7 +66,6 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("notes", help="Alpha's notes")
     p = sub.add_parser("remove-module", help="delete a module and everything that belongs to it")
     p.add_argument("module")
-    sub.add_parser("clear-conversation", help="delete the conversation (activity stays)")
     p = sub.add_parser("turns", help="how long the last turns took, measured from the journal")
     p.add_argument("--limit", type=int, default=40)
     p = sub.add_parser("context", help="print what the model was given for a turn")
@@ -233,11 +231,6 @@ def main(argv: list[str] | None = None) -> int:
             from alpha.world.purge import remove_module
 
             print(json.dumps(remove_module(world, args.module)))
-            return 0
-        if args.command == "clear-conversation":
-            from alpha.world.purge import clear_conversation
-
-            print(json.dumps(clear_conversation(world)))
             return 0
         if args.command == "prepack":
             print(prepack.build(world, " ".join(args.text), module=args.module))

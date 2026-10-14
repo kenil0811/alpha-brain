@@ -4,7 +4,7 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 14 October 2026, after midnight.** Last entries: slice 2, the small core routes ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md); steps 1–3 and 5–9 done, step 4 skipped for now), the window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 which features, Q42 how: one section at a time in main's own design; section 1 Home's "Didn't work today" and section 2 the record page with its History, Undo and Notes, and section 3 the table's filters in the columns, grouping and saved lists as tabs done), the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
+**As of 14 October 2026, midday.** Last entries: the review and clean-up ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md); group 1, the real faults, done), slice 2, the small core routes ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md); steps 1–3 and 5–9 done, step 4 skipped for now), the window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 which features, Q42 how: one section at a time in main's own design; section 1 Home's "Didn't work today" and section 2 the record page with its History, Undo and Notes, and section 3 the table's filters in the columns, grouping and saved lists as tabs done), the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
 ([`log/2026-10-12-clean-sweep.md`](log/2026-10-12-clean-sweep.md), Q40; the research pass, plans, milestones and jobs removed; 5,500 lines fewer), shipped again with a Python that can make a venv ([`log/2026-10-11-shipped-again.md`](log/2026-10-11-shipped-again.md)), questions asked together answered together
 ([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
 the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
@@ -49,15 +49,15 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 257, in about 38 s; ruff and mypy strict clean |
-| Desktop tests | 195 passed, 1 skipped, in 44 files (and 1 host test, `cargo test --lib`); typecheck clean |
+| Core tests | 258, in about 37 s; ruff and mypy strict clean |
+| Desktop tests | 195 passed, 1 skipped, in 45 files (and 1 host test, `cargo test --lib`); typecheck clean |
 | Tools the model sees | 73 |
 | Journeys | 22 defined; latest `docs/journeys/2026-10-12-0907.md` (the interview after the sweep: the page, the change by chat, nothing built, 507 s; its version check loosened to `version_min`, see the log); `2026-10-12-0906.md` (the question card passed); `2026-10-11-1635.md`, 1 of 1 (the build from the page, 951 s); `2026-10-11-1457.md`, 1 of 1 (the interview and the page, 467 s) |
-| Desktop check | after slice 2 step 9, `docs/checks/2026-10-14-0145.md`, 79 of 79 pages clean at every size (the entry and goal pages not yet visited); after step 8, `2026-10-14-0055.md`; after step 7, `2026-10-13-2323.md`; after step 6, `2026-10-13-2141.md`; after step 5, `2026-10-13-1742.md` (the first record of every table among the pages; Notes removed from his world); after step 3, `2026-10-13-1717.md`; after step 2, `2026-10-13-1641.md`; after step 1, `2026-10-13-1621.md`, 81 of 81; after the views menu, `2026-10-13-1513.md`; after 9, `2026-10-13-1443.md`; after 8, `2026-10-13-1424.md`; after 7c and 7d, `2026-10-13-1354.md`; after 7b, `2026-10-13-1329.md`; after 7a, `2026-10-13-1309.md`; after 6, `2026-10-13-1251.md`; after 5, `2026-10-13-1239.md`; after 4d, `2026-10-13-1214.md`; after 4c, `2026-10-13-1154.md`; after section 1, `2026-10-12-2211.md`, 66 of 66 |
+| Desktop check | after the clean-up's group 1, `docs/checks/2026-10-14-1123.md`, 88 of 94 pages clean (the check now visits every address; the 6 are two older layout faults: table tabs at 1100×560, the map's legend); after slice 2 step 9, `2026-10-14-0145.md`, 79 of 79; after step 8, `2026-10-14-0055.md`; after step 7, `2026-10-13-2323.md`; after step 6, `2026-10-13-2141.md`; after step 5, `2026-10-13-1742.md` (the first record of every table among the pages; Notes removed from his world); after step 3, `2026-10-13-1717.md`; after step 2, `2026-10-13-1641.md`; after step 1, `2026-10-13-1621.md`, 81 of 81; after the views menu, `2026-10-13-1513.md`; after 9, `2026-10-13-1443.md`; after 8, `2026-10-13-1424.md`; after 7c and 7d, `2026-10-13-1354.md`; after 7b, `2026-10-13-1329.md`; after 7a, `2026-10-13-1309.md`; after 6, `2026-10-13-1251.md`; after 5, `2026-10-13-1239.md`; after 4d, `2026-10-13-1214.md`; after 4c, `2026-10-13-1154.md`; after section 1, `2026-10-12-2211.md`, 66 of 66 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 205 total; 205 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 17,115 Python; tests 6,254; desktop 17,548 TS/TSX |
+| Commits | 206 total; 206 since 1 Oct 2026 (this count includes the commit that records it) |
+| Lines | core 17,120 Python; tests 6,307; desktop 17,549 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -180,6 +180,7 @@ pending item 6, people for real, and noticing over what Alpha reads.
 12. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
 13. People for real: readers declare their rows as people; a pass links existing rows.
+15. **The review and clean-up (14 Oct)** ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)): five groups proposed in writing; (1) the real faults (removal taking everything of a module, the journal's last physical delete gone, the build-thread gap closed, undefined colours, "core" on screen, the journeys' module name, the page check on every address) — done 14 Oct; the two older layout faults it found (table tabs at 1100×560, the map's legend) and the journeys' run — next; then (2) code clean-up, (3) docs, STATE to one page again, (4) memory, (5) disk and outside the repo, each Kenil's call.
 14. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the

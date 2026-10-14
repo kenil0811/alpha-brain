@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { fold, keep, pagesFor, shotName } from "./check-pages";
 
 const world = {
-  modules: [{ id: "m_1", name: "Deals" }],
+  modules: [{ id: "m_1", name: "Deals", tables: [{ name: "deals" }, { name: "brokers" }] }],
   skills: [{ name: "linkedin_connections" }],
   automations: [{ id: "a_1", title: "Daily deals" }],
   people: [{ id: "e_1", name: "Ada" }],
   records: [{ module: "m_1", table: "deals", id: "r_1" }],
+  looseRecords: [{ table: "notes", id: "r_9" }],
+  goals: [{ id: "g_1", text: "An offer by December" }],
+  conversations: [{ id: "t_1", title: "Breakfast" }],
+  entries: [{ id: "j_1", label: "the newest failure" }],
 };
 
 describe("the pages of a world", () => {
@@ -21,6 +25,14 @@ describe("the pages of a world", () => {
     expect(paths).toContain("/intelligence/skills/linkedin_connections");
     expect(paths).toContain("/intelligence/automations/a_1");
     expect(paths).toContain("/settings");
+    // the pages added on 14 Oct: an entry, a goal, a conversation, a loose table's record, the map
+    expect(paths).toContain("/activity/j_1");
+    expect(paths).toContain("/intelligence/goals/g_1");
+    expect(paths).toContain("/assistant/t_1");
+    expect(paths).toContain("/records/notes/r_9");
+    expect(paths).toContain("/intelligence/map");
+    expect(paths).toContain("/m/m_1/brokers"); // a module on a table past its first
+    expect(paths).not.toContain("/m/m_1/deals"); // its own page is on the first already
     expect(new Set(paths).size).toBe(paths.length);
     expect(pages.find((p) => p.path === "/m/m_1")?.title).toBe("Module: Deals");
   });
@@ -34,12 +46,14 @@ describe("the pages of a world", () => {
     const pages = pagesFor(world);
     expect(keep(pages, ["intelligence"]).map((p) => p.path)).toEqual([
       "/intelligence",
+      "/intelligence/map",
       "/intelligence/skills",
       "/intelligence/automations",
       "/intelligence/connections",
       "/intelligence/knowledge",
       "/intelligence/skills/linkedin_connections",
       "/intelligence/automations/a_1",
+      "/intelligence/goals/g_1",
     ]);
     expect(keep(pages, ["/home", "settings"]).map((p) => p.path)).toEqual(["/home", "/settings"]);
     expect(keep(pages, undefined)).toBe(pages);

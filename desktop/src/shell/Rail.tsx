@@ -366,7 +366,7 @@ export function Rail({
       const row = item({ kind: "module", id: b.module.id }, <Icon />, b.module.name, undefined, depth, b.inside.length ? { open, onToggle: () => toggleFold(b.module.id) } : undefined, b.module);
       return open ? [row, ...branches(b.inside, depth + 1)] : [row];
     });
-  const status = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : runtime === "lost" ? "Core not answering" : "Core not running";
+  const status = runtime === "connected" ? "Alpha is running" : runtime === "connecting" ? "Starting" : runtime === "lost" ? "Alpha isn't answering" : "Not running in the background";
   const where = (m: ModuleCard) => (m.path && m.path.length > 1 ? m.path.join(" › ") : m.name);
   const m = menu?.module;
   const pickedIcon = m ? icons[m.id] : undefined;

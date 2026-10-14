@@ -5,7 +5,7 @@ why: "§12, piece 2: the yes on the workflow page makes the module and its table
   the parts with the source of every value. Thin, never garbage: the row must carry real
   values with sources."
 steps:
-  - remove_module: "Car Wash Site Scorecard — Austin"
+  - remove_module: "Car Wash Site Scorecard"
   - say: "I want help picking car wash sites to open. It's for me, to decide which sites to
       pursue. Sites come from brokers by email, but for now I'll type the address. Today I
       check households within 3 miles (at least 45,000) and the traffic on the road (at

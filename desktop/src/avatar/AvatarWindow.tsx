@@ -254,7 +254,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
 
   const state = busy ? "working" : speech.listening ? "listening" : needs.length ? "needs" : "idle";
   const focusName = comp?.focus ? `${comp.focus.scope}: ${comp.focus.title}` : whereNote;
-  const label = trouble ? "Core not answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
+  const label = trouble ? "Alpha isn't answering" : { working: "Working on it…", listening: "Listening…", needs: needs.length === 1 ? "One thing needs you" : `${needs.length} things need you`, idle: focusName ?? "Here" }[state];
   const openAsk = needs.find((n) => n.kind === "ask");
   const openAction = needs.find((n) => n.kind === "action" && n.action);
   const shownBubble = bubble ?? (!expanded && needs.length ? needs[0].text : !expanded && failedRunWords ? failedRunWords : null);

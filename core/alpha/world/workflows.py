@@ -21,7 +21,7 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
-STATES = ("drafted", "agreed", "building", "built", "stopped", "declined", "removed")
+STATES = ("drafted", "agreed", "building", "built", "stopped", "declined")
 WHO = ("alpha", "you", "both")
 ORIGINS = ("you", "your document", "the trade", "Alpha's default")
 DECISIONS = ("accept", "skip")
@@ -244,7 +244,7 @@ class Workflows:
                words: str | None = None, why: str | None = None) -> dict[str, Any]:
         """A new version from the conversation; the one before is kept (versions)."""
         current = self.get(wid)
-        if current["state"] in ("declined", "removed"):
+        if current["state"] == "declined":
             raise Problem(f"The workflow '{current['title']}' is {current['state']}.")
         clean = clean_body(body, previous=current["body"])
         dropped = clean.pop("dropped", [])
@@ -362,7 +362,7 @@ class Workflows:
         return self.all(("drafted", "agreed", "building", "stopped"))
 
     def of_module(self, module: str) -> dict[str, Any] | None:
-        row = self.store.one("SELECT * FROM workflows WHERE module = ? AND state != 'removed'"
+        row = self.store.one("SELECT * FROM workflows WHERE module = ?"
                              " ORDER BY created_at DESC LIMIT 1", (module,))
         return _view(row) if row else None
 
@@ -373,7 +373,7 @@ class Workflows:
         the table was made for gains the field, or its label. Nothing when the module has no
         page or the table was not made from one of its things."""
         wf = self.of_module(module)
-        if wf is None or wf["state"] in ("declined", "removed"):
+        if wf is None or wf["state"] == "declined":
             return None
         body = json.loads(json.dumps(wf["body"]))
         thing = next((k for k in body.get("keeps") or []
@@ -402,10 +402,11 @@ class Workflows:
             out.append(d)
         return out
 
-    def remove_module(self, db: Any, module: str) -> int:
-        return int(db.execute("UPDATE workflows SET state = 'removed', updated_at = ?"
-                              " WHERE module = ? AND state != 'removed'",
-                              (now(), module)).rowcount)
+    def delete_module(self, db: Any, module: str) -> int:
+        """A module deleted for good takes its workflow page and every version of it."""
+        db.execute("DELETE FROM workflow_versions WHERE workflow IN"
+                   " (SELECT id FROM workflows WHERE module = ?)", (module,))
+        return int(db.execute("DELETE FROM workflows WHERE module = ?", (module,)).rowcount)
 
 
 HOST = re.compile(r"(?:https?://)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)(?:[/:?#]|\b)", re.I)

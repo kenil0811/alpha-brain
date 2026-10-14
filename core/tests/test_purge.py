@@ -7,7 +7,9 @@ import pytest
 from conftest import building
 
 from alpha.connectors.base import Connections
-from alpha.world.purge import clear_conversation, remove_connection, remove_module
+from alpha.connectors.files import Files
+from alpha.mcp.tools import Tools
+from alpha.world.purge import remove_connection, remove_module
 from alpha.world.world import World
 
 
@@ -73,13 +75,63 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert world.collections.describe("food_log")["records"] == 1
 
 
-def test_clearing_the_conversation_keeps_activity(world: World) -> None:
-    world.journal.append("said", "hello", actor="person")
-    world.journal.append("replied", "hi")
-    world.journal.append("did", "Added Eggs to Food log.")
-    world.journal.append("said", "in a thread", actor="person", thread="t_1")
-    assert clear_conversation(world)["turns"] == 2
-    assert [e["kind"] for e in world.journal.recent(10)] == ["did", "said"]
+def test_a_module_deleted_takes_its_files_entities_skill_notes_and_workflow_page(
+    world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """14 Oct review: the entity each of its files is (with that entity's facts), the notes of
+    the readers that go, and its workflow page with every version went with nothing before."""
+    monkeypatch.setenv("ALPHA_HOME", str(tmp_path / "home"))
+    t = building(world)
+    t.module_create("Advisory")
+    t.collection_create("statements", "Statements", [{"name": "subject", "kind": "text"}],
+                        module="Advisory")
+    mid = world.modules.get("Advisory")["id"]
+    src = tmp_path / "march.txt"
+    src.write_text("march numbers")
+    doc = Files(world).take(src, module=mid, origin="upload")
+    eid = str(doc["entity_id"])
+    world.knowledge.record_fact(f"entity:{eid}", "pages", "1", source="stated")
+    world.knowledge.write_note(f"entity:{eid}", "march.txt", "Its page.")
+    world.readers.save("statements", site="x.com", url="https://x.com/s", script="return []",
+                       description="d", to_end=False, count=1)
+    world.knowledge.write_note("skill:statements", "statements", "What the site does.")
+    body = {"purpose": "Keep statements.", "steps": [
+        {"title": "A statement arrives", "what": "You drop it.", "who": "you",
+         "gives": "a statement", "when": "monthly"}], "keeps": [{"thing": "Statement",
+                                                                 "fields": ["subject"]}]}
+    wf = world.workflows.draft("Statements", body, module=mid)
+    world.workflows.revise(wf["id"], {**body, "purpose": "Keep the monthly statements."})
+    remove_module(world, "Advisory")
+    for sql, args in [("SELECT 1 FROM entities WHERE id = ?", (eid,)),
+                      ("SELECT 1 FROM entity_keys WHERE entity_id = ?", (eid,)),
+                      ("SELECT 1 FROM facts WHERE subject = ?", (f"entity:{eid}",)),
+                      ("SELECT 1 FROM notes WHERE scope = ?", (f"entity:{eid}",)),
+                      ("SELECT 1 FROM notes WHERE scope = 'skill:statements'", ()),
+                      ("SELECT 1 FROM workflows WHERE id = ?", (wf["id"],)),
+                      ("SELECT 1 FROM workflow_versions WHERE workflow = ?", (wf["id"],))]:
+        assert world.store.one(sql, args) is None, sql
+
+
+def test_a_plans_old_build_thread_becomes_a_topic_and_alpha_opens_only_topics(
+    tmp_path: Path,
+) -> None:
+    """14 Oct review: a plan's build thread (before 11 Oct) still opened the gate on making
+    lasting things to any turn in it, and Alpha's own thread_open could open new ones."""
+    path = tmp_path / "w.sqlite"
+    w = World(path)
+    old = w.modules.open_thread("Build: Car Wash Site Screener", "build", None)
+    wf = w.workflows.draft("Car wash", {"purpose": "Score sites.", "steps": [
+        {"title": "A site arrives", "what": "You type it.", "who": "you", "gives": "a site",
+         "when": "when one arrives"}], "keeps": [{"thing": "Site", "fields": ["address"]}]})
+    built = w.modules.open_thread("Build: Car wash", "build", None)
+    with w.store.tx() as db:
+        db.execute("UPDATE workflows SET thread = ? WHERE id = ?", (built["id"], wf["id"]))
+    w.close()
+    w = World(path)  # the migration runs as a world opens
+    assert w.modules.thread(old["id"])["kind"] == "topic"
+    assert w.modules.thread(built["id"])["kind"] == "build"  # a workflow's build keeps its own
+    assert Tools(w).thread_open("Next steps")["kind"] == "topic"
+    w.close()
 
 
 def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(

@@ -165,9 +165,10 @@ def test_the_page_is_on_home_and_in_the_conversation_and_agreed_in_the_app(
     assert c.get("/api/workflows").json()[0]["state"] == "declined"
 
 
-def test_a_removed_modules_workflow_is_marked_removed(world: World) -> None:
+def test_a_deleted_modules_workflow_page_goes_with_it(world: World) -> None:
     module = world.modules.create("Sites")
     wf = world.workflows.draft("Sites", BODY, module=module["id"])
     purge.remove_module(world, "Sites")
-    assert world.workflows.get(wf["id"])["state"] == "removed"
+    with pytest.raises(Problem, match="no workflow"):
+        world.workflows.get(wf["id"])
     assert world.workflows.of_module(module["id"]) is None
