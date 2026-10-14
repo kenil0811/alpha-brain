@@ -6,7 +6,8 @@ table with every setting and its origin, the workspace with the page in it under
 model, one session in the walled workspace (runtime/workspace.py): a part for every step Alpha
 does (runtime/parts.py), a Markdown template for every document, each part tried on one real
 input, progress written, committed. Then the core registers the parts and the templates, and
-the page is marked built; the parts run on the rows that arrive (runtime/parts.py).
+the page is marked built; the parts run on the rows that arrive (runtime/parts.py). Not built
+yet (§12): the evaluator that runs the workflow through its pages as the person would.
 """
 
 from __future__ import annotations

@@ -1,5 +1,7 @@
 # Research before a build: the evidence (9 October 2026)
 
+> Superseded (14 Oct 2026 note): the research pass (Q37) gave way to the workflow page (§12, Q39) and was removed on 12 Oct (Q40); research is now a lookup for sources and a few suggestions on the page. Kept as the evidence it was.
+
 Why this was looked at: the "Car Wash Site Scoring" module of 9 October (plan in two minutes,
 build in fourteen; five tables, one worked example, a recipe in the note, no skill or
 automation; a weighted average with no gates that called a site with nine washes within 2.7

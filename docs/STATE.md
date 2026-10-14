@@ -4,195 +4,98 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 14 October 2026, midday.** Last entries: the review and clean-up ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md); group 1, the real faults, done), slice 2, the small core routes ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md); steps 1–3 and 5–9 done, step 4 skipped for now), the window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 which features, Q42 how: one section at a time in main's own design; section 1 Home's "Didn't work today" and section 2 the record page with its History, Undo and Notes, and section 3 the table's filters in the columns, grouping and saved lists as tabs done), the review of pull request #5 ([`log/2026-10-12-review-pr5.md`](log/2026-10-12-review-pr5.md); not mergeable as it stands, questions for Kenil), the stop of a running turn restored (lost in the sweep), the superseded shapes go
-([`log/2026-10-12-clean-sweep.md`](log/2026-10-12-clean-sweep.md), Q40; the research pass, plans, milestones and jobs removed; 5,500 lines fewer), shipped again with a Python that can make a venv ([`log/2026-10-11-shipped-again.md`](log/2026-10-11-shipped-again.md)), questions asked together answered together
-([`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md); proven by tests only), modules as workflows, piece 2b, parts on linked things and
-the first run from the app ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md); run for real in Kenil's app), piece 2, the build from the page
-([`log/2026-10-11-build-from-the-page.md`](log/2026-10-11-build-from-the-page.md); run for real), piece 1, the interview and the page
-([`log/2026-10-11-workflow-page.md`](log/2026-10-11-workflow-page.md); run for real), the rethink
-([`log/2026-10-11-modules-as-workflows.md`](log/2026-10-11-modules-as-workflows.md), Q39, §12; no code changed), modules as programs, slice 1, the spine
-([`log/2026-10-10-workspace-spine.md`](log/2026-10-10-workspace-spine.md), Q38; proven by tests only,
-M0 of the car wash ask on Austin is the acceptance), the decision and its prior art
-([`log/2026-10-10-modules-as-programs.md`](log/2026-10-10-modules-as-programs.md); §6.4,
-`design/research/modules-as-programs.md`), the research pass before a build
-([`log/2026-10-09-research-pass.md`](log/2026-10-09-research-pass.md), Q37; run for real on a
-copy of Kenil's world), a plan's questions with their choices
-([`log/2026-10-09-plan-questions.md`](log/2026-10-09-plan-questions.md), Q36), the conversation, closer to Claude
-([`log/2026-10-09-chat.md`](log/2026-10-09-chat.md), Q35), Alpha on another Mac
-([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34), agents, schedule first
-([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md), Q33 built in part), reliability first
-([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)), what went wrong 4–8 October and the agents
-decision ([`log/2026-10-08-what-went-wrong-and-agents.md`](log/2026-10-08-what-went-wrong-and-agents.md), Q33;
-no code changed), replies rendered the same in the panel and
-the companion ([`log/2026-10-03-replies-rendered.md`](log/2026-10-03-replies-rendered.md)), a second way to think, ChatGPT through the
-Codex CLI ([`log/2026-10-03-chatgpt-route.md`](log/2026-10-03-chatgpt-route.md), Q32; built, not
-yet run for real), modules inside modules
-([`log/2026-10-03-nested-modules.md`](log/2026-10-03-nested-modules.md), Q31), a plain yes, a plan not asked about twice,
-Add files ([`log/2026-10-03-yes-and-add-files.md`](log/2026-10-03-yes-and-add-files.md)), the desktop's four
-([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)), fast turns
-([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)), the split
-([`log/2026-10-03-the-split.md`](log/2026-10-03-the-split.md)), the map of the brain
-([`log/2026-10-03-brain-map.md`](log/2026-10-03-brain-map.md)), the map of Alpha's work
-([`log/2026-10-03-work-map.md`](log/2026-10-03-work-map.md)), the companion's sizes, drag and moods
-([`log/2026-10-03-companion-moods.md`](log/2026-10-03-companion-moods.md)), relations followed and the form view
-([`log/2026-10-03-table-views-2.md`](log/2026-10-03-table-views-2.md)), the companion's characters
-([`log/2026-10-03-companion-characters.md`](log/2026-10-03-companion-characters.md)), quick entry on a table
-([`log/2026-10-03-quick-entry.md`](log/2026-10-03-quick-entry.md)), the desktop check and the type scale
-([`log/2026-10-03-desktop-check.md`](log/2026-10-03-desktop-check.md)), the table views, ⌘K,
-fact origins, the module's page and the item pages
-([`log/2026-10-03-table-views-1.md`](log/2026-10-03-table-views-1.md)), the desktop foundations
-([`log/2026-10-03-desktop-foundations.md`](log/2026-10-03-desktop-foundations.md)), the review
-of pull request #3 ([`log/2026-10-03-review-pr3.md`](log/2026-10-03-review-pr3.md)), the
-contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day, the checkpoint.
+**As of 14 October 2026, afternoon.** The last three entries:
+- The review and clean-up after slice 2 ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)). Group 1, the real faults, and group 2, the code, are done; group 3, the docs, is this page. All 22 journeys were run.
+- Slice 2, the small core routes the window asked for ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md)), with step 4 (people) skipped.
+- The window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 and Q42).
 
-## Numbers (`just stats`, 13 Oct, morning)
+Everything before them is listed in [`log/README.md`](log/README.md).
+
+## Numbers (`just stats`, 14 Oct)
 
 | | |
 |---|---|
 | Core tests | 262, in about 36 s; ruff and mypy strict clean |
-| Desktop tests | 195 passed, 1 skipped, in 45 files (and 1 host test, `cargo test --lib`); typecheck clean |
+| Desktop tests | 195 passed, 1 skipped, in 45 files; typecheck clean; 1 host test (`cargo test --lib`) |
 | Tools the model sees | 73 |
-| Journeys | 22 defined; all run 14 Oct, 19 of 22 pass: `docs/journeys/2026-10-14-1134.md` (12 of 18), `1209.md` (the four that act in Kenil's accounts, 4 of 4), then after the stream fix `1250.md` workflow_build, `1305.md` workflow_interview, `1312.md` gmail_network, each passed. Failing: memory_two_sources and memory_who_emailed (answered from memory instead of looking in Gmail), branded_food (fat 14 g vs 13.4 g) |
-| Desktop check | after the clean-up's group 2, `docs/checks/2026-10-14-1357.md`, 94 of 94 pages clean at every size, every screenshot unchanged but for noise; after the layout fixes, `2026-10-14-1156.md`; after group 1, `2026-10-14-1123.md`, 88 of 94 (two older layout faults: a table on a short window, the map's legend); after step 8, `2026-10-14-0055.md`; after step 7, `2026-10-13-2323.md`; after step 6, `2026-10-13-2141.md`; after step 5, `2026-10-13-1742.md` (the first record of every table among the pages; Notes removed from his world); after step 3, `2026-10-13-1717.md`; after step 2, `2026-10-13-1641.md`; after step 1, `2026-10-13-1621.md`, 81 of 81; after the views menu, `2026-10-13-1513.md`; after 9, `2026-10-13-1443.md`; after 8, `2026-10-13-1424.md`; after 7c and 7d, `2026-10-13-1354.md`; after 7b, `2026-10-13-1329.md`; after 7a, `2026-10-13-1309.md`; after 6, `2026-10-13-1251.md`; after 5, `2026-10-13-1239.md`; after 4d, `2026-10-13-1214.md`; after 4c, `2026-10-13-1154.md`; after section 1, `2026-10-12-2211.md`, 66 of 66 |
-| Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
-| Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 210 total; 210 since 1 Oct 2026 (this count includes the commit that records it) |
+| Journeys | 22 defined. All were run on 14 Oct and 19 of 22 pass (the reports in `docs/journeys/2026-10-14-*`). The three that fail: memory_two_sources and memory_who_emailed (Alpha answered from memory instead of looking in Gmail), and branded_food (fat 14 g against 13.4 g) |
+| Desktop check | `docs/checks/2026-10-14-1357.md`: 94 of 94 pages clean at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
+| Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
+| Window's requests | 4 a minute idle (the one poll), none while hidden |
+| Commits | 211 total; 211 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 17,005 Python; tests 6,424; desktop 17,563 TS/TSX |
 
 ## What is built, against the design's order of work
 
 | Step | State |
 |---|---|
-| 1. World store, MCP server, stream, companion | **Built.** One SQLite file per person; the journal verbatim with FTS; what the model saw kept per turn; 72 tools; the companion window and the panel. Modules nest since 3 Oct night (Q31): a module inside a module to any depth, a parent's page, summary, activity and conversation reaching what it holds, the rail as a tree; the person makes a parent and moves modules in from a module's Settings. |
-| 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) kept only after a real run, health-checked, repaired by Alpha; files in and out (§4.17); calendar read-only. Reading LinkedIn's whole list daily is still the slowest thing (read only what is new: open). |
-| 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an automation's "worth telling". |
-| 4. Entities and bi-temporal facts across sources | **Partial.** Facts bi-temporal; entities with hard keys; a page per person (§4.23); noticing after every turn; entity cards in context. But no table in Kenil's world declares its rows as people, so 1,551 connections are rows, not people (20 entities, 6 facts). |
-| 5. Standing things, promotion from verified runs | **Partial.** The workflow page → yes → build by mechanism (§12); automations as pipelines (run skills) or procedures; skills one table with composition (§4.24). Since 9 Oct every automation is an agent's process (Q33): a goal, a page Alpha writes and the person edits (read by the model when it steps in), a row per run with a verdict judged by code, repair at most twice a run, failures in the journal and the companion, the Agents tab and page. Since 12 Oct (Q40) the research pass and plans with milestones are gone; with them went the only door through which the model made a new automation, reader or source: **open question for Kenil** (§6.2's box). No ladder, no promotion from repetition; no event triggers, no digest. |
-| 6. Pending actions and Access | **Built as actions** (§4.13, Q24): dry-run card, the person's yes, prepare-level standing sentences; automations cannot act outward, by code (checkpoint). No Access page; no Undo. |
-| Memory round (design §3.7, Q26) | **Built:** conversations first-class and parallel with resumed sessions and a world delta; routing by structure then the System One judge; the wiki with its index; noticing; context by relevance (cards, day-scoped retrieval); skills unified. **Open:** the Agent Skills folder export, promotion from repetition, fewer tools by principle, a routing journey, "move to…" in the panel, noticing over what Alpha reads, a sleep-time pass. |
-| Trust (design §7) | **Built:** known, assumed or asked with provenance; the second opinion; build trials; actions atomic; where a fact came from, on the page. **Open:** the Activity checklist view, Undo, an Access page. |
-| The desktop (pull request #3's ideas, Q27–Q28) | **Built:** fonts bundled, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit on Radix and lucide; the table views (table, board, list, gallery, timeline, calendar, chart; saved lists in the world; selection; pickers); ⌘K on search; a page per skill and per automation; the module's page on its tab; the desktop check at the window's sizes; the type scale; quick entry on a table through the conversation; the companion's characters (Bridge's art, our rig, ten animals, a wardrobe and three sizes chosen in Settings, kept in the world; dragged from the character; Bridge's eleven moods as poses, driven by what the companion does); relations followed in the drawer with a way back; the form view; the map (Intelligence › Map, Q29–Q30): the person's world as the default view with Alpha's proposed links as suggested facts, the map of work as a toggle, refresh only on demand; the host watches the core and restarts it on the same port, the window asks one question for what changed (nothing while hidden) and says what failed with Try again, the words come back when a send is lost; Add files on every module's page (the Mac's picker, the same route as a drop); the Assistant page above Intelligence with every conversation down the left, the reply shown as it is written with the steps so far, a question left in prose turned into a card with choices by mechanism (9 Oct, Q35); a plan's questions on its card with their choices and Alpha's pick selected, "Build with these" carrying the answers into the brief (Q36). **Left:** the links worth having wait on people-for-real (pending item 6) and noticing over what Alpha reads. |
+| 1. World store, MCP server, stream, companion | **Built.** One SQLite file per person. The journal is kept verbatim with full-text search and is never deleted. What the model saw is kept for each turn. 73 tools. The companion window and the panel. Modules nest to any depth (Q31). |
+| 2. Browser, files, calendar; derived pages | **Built.** Readers (read skills) are kept only after a real run, health-checked and repaired by Alpha. Files go in and out; a module's and a person's files are listed with their dates and deleted with what goes said first. The calendar is read-only. Reading LinkedIn's whole list daily is still the slowest thing; reading only what's new is open. |
+| 3. Sensors, triage, sleep-time pass, digest, Inbox | **Not started.** Nothing proactive exists beyond an agent's "worth telling". |
+| 4. Entities and bi-temporal facts across sources | **Partial.** Facts are bi-temporal, and the person can correct or forget one (13 Oct). Entities have hard keys, a page each and files kept about them. Noticing runs after every turn, and entity cards go into context. But no table in Kenil's world declares its rows as people: 1,553 connections are rows, beside 14 person entities and 36 facts (pending: people for real). |
+| 5. Standing things, promotion from verified runs | **Partial.** The workflow page goes to a yes and then a build, by mechanism (§12), and has run for real. Automations are pipelines (run skills) or procedures. Every automation is an agent's process (Q33): a goal, a page, a row per run with a verdict judged by code, and repair at most twice a run. Try again works on any failure that can be redone. **Open, Kenil's question (Q40):** the model has no door to make a new automation or reader of its own. There are no event triggers, no digest and no promotion from repetition. |
+| 6. Pending actions and Access | **Built as actions** (Q24): a dry-run card, the person's yes, and standing sentences for prepare-level actions. Automations can't act outward, by code. There is no Access page. |
+| Memory round (§3.7, Q26) | **Built:** conversations are first-class and parallel; routing goes by structure, then the System One judge; the wiki and its index; noticing; context by relevance; skills unified. Everything Alpha remembers can be exported, with sources. **Open:** look things up when memory is thin (the two memory journeys of 14 Oct); the person's own words first, by structure; noticing's rule for what a fact about a person is; the Agent Skills export; promotion from repetition; noticing over what Alpha reads; a sleep-time pass. |
+| Trust (§7) | **Built:** every value is known, assumed or asked, with its provenance. The second opinion. Actions are atomic. Facts show their origins. A record's History has Undo. Removal deletes everything related, journals itself and never touches the journal. Every error the window shows is a sentence. **Open:** the Activity checklist view, Undo outside a record's page, an Access page. |
+| The window | **Built:** pull request #3's ideas (Q27–Q30: fonts, contrast, addresses, the UI kit, the table views, ⌘K, item pages, the map of the person's world and of Alpha's work, the companion's characters and moods). Pull request #5's features (Q41, Q42): a page per record with History, Undo and Notes; filters in the columns; grouping; saved lists as tabs; totals; editing ticked rows together; paste; colour; the sidebar's order, nesting, hiding and icons; Settings as cards; Intelligence's tables; agents with a look; the assistant panel's picker and Retry; plain errors, absolute dates, every delete confirmed. Slice 2: modules renamed, removed with their data kept and restored, or deleted; fields added and renamed by hand; files; conversations renamed and deleted; facts corrected and forgotten; goals by hand with their own page; everything remembered exported; Try again on any failure; a page per activity entry; Show earlier; downloads of exactly what a table shows; the companion opening where it was left; hold the mic to talk and send. The window's minimum is 1100×560; on a window too short for five rows, the page scrolls instead of the rows. |
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
-| No limits (Q18) | **Holds.** One floor: 30 minutes between an automation's runs (Q22). |
+| No limits (Q18) | **Holds.** One floor: 30 minutes between an agent's runs (Q22). |
 
-**Two ways to think (Q32):** Claude through Claude Code (runs for real, everything below) or
-ChatGPT through the Codex CLI on his subscription, chosen in Settings › Thinks with; the ChatGPT
-way is proven by tests only until he signs in again (his Codex sign-in lapsed on 16 June).
+**Two ways to think (Q32):** Claude through Claude Code runs everything. ChatGPT through the
+Codex CLI can be chosen in Settings, but from 3 to 8 Oct Codex's own approval gate refused every
+call to Alpha's tools, so it stays off until it passes a real tool call (pending).
 
-**Runs for real, daily, on Kenil's Mac:** four agents (LinkedIn connections; 15 deal
-sites; 4 job boards; Gmail from one sender), each run a row with a verdict judged by code
-(9 Oct 07:40, the first wake: deal tracker succeeded 15 of 15 with no model; LinkedIn
-connections converted itself to steps and succeeded; founding-engineer partial, 3 of 4,
-Wellfound stops automated reading), questions over the tables, drafts and sends with
-previews, files in and out, builds in the background. The four have no goal or page yet:
-Alpha writes one when asked from the agent's page, or when it next builds one. **Proven by tests only:** the calendar
-connect, Claude Code's Install and Sign in on a fresh Mac. **Proven in a clean room on
-Kenil's Mac (9 Oct, a fresh HOME, the shipped app):** see the fresh-Mac log entry for exactly
-what ran; the friend's own first run is the acceptance and hasn't happened yet. **Proven by
-the desktop check:** every page opens clean at 1100×560 and 1240×820, light and dark, on a
-copy of Kenil's world (see the numbers). **Proven in the real app** (3 Oct night): the core
-killed by hand twice came back on the same port within two seconds and the window said so.
+**Runs for real, on Kenil's Mac:**
+- **Five agents.** Three run daily: LinkedIn connections, 15 deal sites, and 4 job boards. One runs weekly: the nutrition check-in. Gmail from one sender is switched off. Each run is a row with a verdict judged by code.
+- **The rest:** questions over the tables, drafts and sends with previews (an email sent for real by the gmail_send journey on 14 Oct), files in and out, the car wash workflow built from its page with its parts filling rows (11 Oct, and again in the workflow_build journey on 14 Oct).
+- **Proven by tests only:** the calendar connect, and Claude Code's Install and Sign in on a fresh Mac.
+- **Proven in a clean room** (9 Oct): the shipped app. The friend's own first run is the acceptance.
+- **Not yet tried by Kenil in the app:** dragging the companion and reopening, holding the mic, Try again on a real failure, and ⌘V paste.
 
-## What is wrong, measured (the checkpoint, updated)
+## What is wrong, measured
 
-- A turn takes 25 s at the median, up to three minutes at p90: the model's steps and the
-  length of its answer, not Alpha's 1.5 s of overhead (measured 3 Oct night; `just turns`). A
-  simple question is 6–13 s fresh on sonnet, about half that on haiku. What would change it is
-  Kenil's to choose: haiku for lookups, a summarise-then-offer rule for long lists, longer-lived
-  conversations (the fast-turns log).
-- ~~The pre-pack is 9–12k characters of a 12k cap~~ — a budget per section since 3 Oct night;
-  10.7–13.8k of 14k on Kenil's world, nothing cut short.
-- ~~Two files hold 2,300 of 11,000 core lines~~ — packages since 3 Oct night (the split).
-- ~~The desktop polls about 26 requests a minute idle and 140 during a turn, never paused when
-  hidden; nothing supervises the core~~ — one poll, 4 a minute idle, none hidden; the host
-  restarts a dead core on the same port (3 Oct night). Failures: the pages, the panel, the
-  command menu, Settings and the companion say what failed with Try again; smaller catches
-  remain where nothing is shown anyway (a screenshot that didn't load, a module-name lookup).
-- The window's minimum is 1100×560 since the desktop check: below 1100 wide the panel used to
-  float over the page.
-- **4–8 Oct, measured:** the daily automations ran only when the laptop fully woke (4 Oct at
-  18:20, never on 5–6 Oct, 7 Oct 21:32, 8 Oct 12:31), by the 3 Oct sleep rule, and the window
-  never says so. The ChatGPT route (Q32), in use from 3 Oct 22:41 to 8 Oct, was refused every
-  call to Alpha's tools by Codex's own approval gate, and the model claimed a build was approved
-  that never was; the LinkedIn connections run, the Sunday summary and the LinkedIn readers'
-  repair all failed with it. Kenil is back on Claude. Since 9 Oct: ~~a run that fails on a
-  network error at wake is not retried~~ (tried again after a minute), ~~failed runs reach
-  nobody but Activity~~ (the companion carries them; every run has a verdict), ~~the LinkedIn
-  connections automation is a procedure and pays a model turn a day~~ (it converted itself to
-  steps at the 9 Oct 07:40 run), and the schedule's words say "or when your Mac next wakes".
-  Still true: a clock-time run waits for the Mac's next full wake, by the sleep rule.
-- Alpha cannot rename a module (seen in the nested-modules journey: a part kept its old name
-  under the new path); a small missing tool.
-- Noticing keeps session state as suggested facts about the person ("using_module =
-  Advisory", 3 Oct 20:21), which then show in Needs you and the companion's bubble; it needs
-  a rule, by mechanism, for what a fact about a person is.
-- "What was said yesterday" fails on this world (2 of 3 runs on 3 Oct): the day's journal is
-  crowded by Alpha's own reader lines naming Vikas, and neither the pack nor a search puts the
-  person's own words first by structure. Sara Ramos across email and calendar passes or fails
-  with the model's own searching (she is not an entity); the Gmail-and-network question fails
-  its judge, which sees no evidence of reads the journal holds.
+- A turn takes 25 s at the median and up to three minutes at p90. That's the model's steps and the length of its answer, not Alpha's 1.5 s. The levers are Kenil's to choose: haiku for lookups, summarise-then-offer for long lists, longer-lived conversations ([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)).
+- A clock-time agent run waits for the Mac's next full wake (the sleep rule of 3 Oct), and the schedule's words say so.
+- Asked about someone it holds little on (Alexander Miller, Sara Ramos), Alpha answered from memory and said it hadn't read their emails, instead of opening Gmail. On 3 Oct the same journeys passed when it looked.
+- Noticing keeps session state as suggested facts about the person ("using_module = Advisory"), which then show in Needs you. It needs a rule, by mechanism, for what a fact about a person is.
+- Alpha (the model) can't rename a module, though the person can since 13 Oct; a missing tool.
+- A label value is a near miss: fat 14 g where the independent look-up found 13.4 g (branded_food).
 
 ## Pending, in order
 
-**The port of pull request #3's ideas (Q27–Q29), all built:** ~~foundations~~ → ~~the table
-views~~ (stage three, relations followed and the form view, 3 Oct evening) → ~~⌘K~~ → ~~item pages, fact origins,
-the module's page~~ → ~~the desktop check and the UI rules~~ → ~~quick entry on a table~~ → ~~the
-companion's characters~~ → ~~a graph~~: the map of Alpha's work (Q29), then the map of the brain
-as the default view with Alpha's links as suggestions (Q30); the links worth having wait on
-pending item 6, people for real, and noticing over what Alpha reads.
-
-1. ~~The docs' shape~~ — done 3 Oct.
-2. ~~Harden the model boundary and the store~~ — done 3 Oct. Left from the review: a schema
-   version, `records_fts` by triggers, the pre-pack budget per section.
-3. ~~Split `tools.py` and `server.py` into packages, no behaviour change; one `site_of`, one
-   name rule, one proposal-answer helper~~ — done 3 Oct night
-   ([`log/2026-10-03-the-split.md`](log/2026-10-03-the-split.md)).
-4. ~~Make turns fast: measure, fewer tools per turn, warm sessions, the judge for table
-   questions~~ — measured and built what the numbers supported, 3 Oct night
-   ([`log/2026-10-03-fast-turns.md`](log/2026-10-03-fast-turns.md)): the fields in the pack, a
-   budget per section, `just turns`; the tools were not cut (cached, not the lever); the levers
-   left are Kenil's to choose (above).
-5. ~~The desktop's four~~ — done 3 Oct night
-   ([`log/2026-10-03-desktop-four.md`](log/2026-10-03-desktop-four.md)).
-6. ~~Reliability first~~ — done 9 Oct
-   ([`log/2026-10-09-reliability.md`](log/2026-10-09-reliability.md)): a failed-tools turn fails
-   with the reason; a route is tried before it is switched to; a transient failure at wake is
-   retried; the schedule's words say the truth; failed runs reach the companion; reading in a run
-   is refused and an old automation converts itself to steps.
-7. ~~Agents (Q33), schedule first~~ — done 9 Oct
-   ([`log/2026-10-09-agents.md`](log/2026-10-09-agents.md)): goal, page, runs with verdicts by
-   code, repair at most twice a run, the window; the build writes each agent's page. Left of
-   Q33: event triggers, escalation as a question, the digest, a brief per agent; the four
-   agents' pages written for real.
-8. ~~Alpha self-sufficient on a fresh Mac~~ — done 9 Oct
-   ([`log/2026-10-09-fresh-mac.md`](log/2026-10-09-fresh-mac.md), Q34): `just ship` carries the
-   runtime inside the app, the host uses it and clears the quarantine mark, the first-run page
-   installs Claude Code and Alpha's browser; shipped again 11 Oct night with `ensurepip` kept so a module's build can make its venv. Left: notarization (no Apple Developer account:
-   right-click › Open for now); the friend's own first run, which decides it.
-9. **Modules as workflows (Q39, design §12)** ([`log/2026-10-11-parts-for-real.md`](log/2026-10-11-parts-for-real.md)): pieces 1–2 built and run for real, the last time in Kenil's own app: the real ask became "Car Wash Site Scorecard — Austin" (module `m_12ac0a8738be`, 16 parts); 1600 S Lamar added; the app's scheduler ran the gates (37,900 AADT, Pass), the fourteen items as linked Score rows (four scored from Austin's and Travis County's open data, five flagged for a look, the Census ones waiting on the key) and the memo ("Needs more info"). Found by running: parts had to fill a linked thing, "after" had to mean ran, and the profile broke a workspace inside Alpha's home. Later that night Kenil's first try ("didnt work") found two more: the Census key refused until activated (theirs), and nothing in Alpha retrying when a setting or a row changes, with an edit wiping the row's provenance (ours); built: a change tries the parts again, an edit keeps provenance, a part after another reruns when that one fills later. **Next: Kenil's acceptance** (the Census fields filled in the app, then one change by chat preserving his rows), then documents drafted from templates with a page, the evaluator through the pages, the library across modules.
-10. **The conversation, the rest of Q35** (questions of one turn are one form since 11 Oct
-   night, [`log/2026-10-11-questions-together.md`](log/2026-10-11-questions-together.md), to
-   be seen on the next interview in the app): one automatic retry of a transient failure with a
-   Try again card; identical replies collapsed and a stopped build posting once (the loop that
-   posted 19 on 2 Oct); long replies folded; copy and edit-and-resend; a plus for files in the
-   composer; Kenil to say whether one stream should replace the per-page conversations.
-11. **The window from pull request #5 (Q41, Q42)** ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md)): one section at a time in main's own styles, each a written proposal to Kenil, built on his yes, seen in the Mac app, committed after his review. (1) Home's "Didn't work today" — done 12 Oct, with Dismiss and Clear all; (2a) a record's own page — done 13 Oct (the › at a row's start opens it, a click on a row opens nothing, cards open on a double-click, ticked rows counted in the header row); (2b) History with Undo, and Notes, on the record page — done 13 Oct (the history read from the record's kept versions, a page at a time; a note per record, removed with its table); (3a) filters in the columns (a ⋮ per header: ticklists with counts, conditions, Hide done and Show gone; a header click sorts, shift-click adds a level; "2 filters · matching all · Clear all" in the toolbar) — done 13 Oct; (3b) grouping in the table (a column's Group by, header rows that fold, "continued" across pages; a table's working state kept for the session, so Back from a record returns to it) — done 13 Oct; (3c) saved lists as tabs in the toolbar (More when they don't fit; a fixed-width search and one "Grouped · 2 filters ▾" button, so switching views moves nothing) — done 13 Oct; (4) the table's extras in five steps: (4a) totals chosen per column, per group too — done 13 Oct; (4b) editing several ticked rows at once (Set… in the header row, one edit per row) — done 13 Oct; (4c) pasting a block from a spreadsheet (asks first, one write per row; ⌘V in the Mac app not yet tried by Kenil) — done 13 Oct; (4d) colour in main's five tones (a choice's values, a row tint, one condition on a number, date or text column; kept with the table) — done 13 Oct; (4e) the numbers strip — skipped at Kenil's call 13 Oct; (5) the sidebar: icons picked from names, a right-click menu, the person's order and nesting by drag or Alt+arrows, hiding, the workspace's name — done 13 Oct; (6) Settings as cards (Workspace, Removed modules kept empty until the core keeps them, Help with the keys and the version) — done 13 Oct; (7) Intelligence in four steps, the Map kept as the graph: (7a) skills as a table, the data view drawing rows it is handed — done 13 Oct; (7b) connections as a table with main's own row buttons — done 13 Oct; (7c) agents with a face and a look each, (7d) facts as a table — done 13 Oct; (8) the assistant panel: a picker always in its place, each turn's time and steps, Retry where a turn failed — done 13 Oct; (9) plain errors, absolute dates written by the window (the Mac's own 12/24-hour clock), every delete confirming — done 13 Oct. The window's sections are done; a table's views become one menu when the toolbar is narrow, no word breaks in two (done 13 Oct); slice 2, the small core routes, in nine steps ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md)): (1) modules renamed, removed with their data kept and restored, deleted with what goes said first, names never repeating a parent or a sibling (A1–A4) — done 13 Oct; (2) fields added and renamed by hand, journaled, the workflow page following, a file on a row not yet saved (B1, B2, B6) — done 13 Oct; (3) files listed with their dates and users, deleted (rows read from them kept), kept about people (B8, B11, G4, G6) — done 13 Oct; (5) conversations renamed and deleted, the journal keeping their turns (G1, C9) — done 13 Oct; (4) people — skipped for now at Kenil's call; (6) what Alpha knows: a fact corrected or forgotten, goals added, rewritten, done or dropped, everything Alpha remembers exported with its sources (D1, D11, D1b) — done 13 Oct; (7) finding and redoing: Try again for any failure that can be redone, a whole day's failures, Show earlier, a page for any entry and any goal (D5, D9, D12) — done 14 Oct, Try again proven by tests only; (8) downloads of exactly what a table shows, every error a sentence, "core" out of what people read (G5, G7) — done 14 Oct; (9) the host: the companion opening where it was left with "back in the corner" in the menu-bar menu, its window titled "Alpha", the mic held to talk and send (E1–E3) — done 14 Oct, the drag and the held mic not tried in the app by Kenil. Slice 2 is done but for (4) people, skipped. The rulebook (`design/research/ui-rulebook.md`) is guidance only. Then the core's routes the window asks for (rename, delete and Removed for a module, a field added by the person, export, a goal, a memory page), then the behaviour items, then the design sessions (persisted decisions, several dedicated agents).
-12. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
-   setting, or not at all).
-13. People for real: readers declare their rows as people; a pass links existing rows.
-15. **The review and clean-up (14 Oct)** ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)): five groups proposed in writing; (1) the real faults (removal taking everything of a module, the journal's last physical delete gone, the build-thread gap closed, undefined colours, "core" on screen, the journeys' module name, the page check on every address) — done 14 Oct; the two older layout faults it found (a table on a short window lets the page scroll; the map's toolbar and legend) — done 14 Oct; all 22 journeys run; the stream bug that stopped a build (`claude_cli`, and the same in `codex_cli`) fixed and the judge given the turn's steps — done 14 Oct, 19 of 22 pass; (2) the code clean-up (dead code, false comments, imports, duplicates, about 150 unused CSS rules; the model's instructions no longer say "plan") — done 14 Oct; (3) docs, STATE to one page again — next; then (4) memory, (5) disk and outside the repo, each Kenil's call.
-14. Then: when memory is thin, look it up (14 Oct journeys: asked about Alexander Miller and Sara Ramos, Alpha answered from what it held and said it never read their emails, instead of opening Gmail; on 3 Oct the same journeys passed when it looked); the memory round's leftovers (and from 3 Oct night: the person's own words first,
-   by structure, in the day's section and in search, so "what did I say yesterday" is not
-   crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
-   first-run experience on a clean Mac, the smaller
-   items in [`log/2026-10-02-4-9-status-at-the-end-of.md`](log/2026-10-02-4-9-status-at-the-end-of.md).
+1. **The clean-up, the rest** ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)): group 4, the memory notes; group 5, disk and the folders outside the repo, item by item at Kenil's call.
+2. **Modules as workflows (Q39, §12):**
+   - Kenil's acceptance: the Census key into Settings, Try again, then one change by chat that keeps his rows.
+   - Then documents drafted from templates with their page, the evaluator through the pages, and the library across modules.
+3. **The conversation, the rest of Q35:**
+   - one automatic retry of a transient failure
+   - identical replies collapsed, and a stopped build posting once
+   - long replies folded
+   - copy, and edit-and-resend
+   - a plus for files in the composer
+   - Kenil to say whether one stream should replace the conversation on each page
+4. **Design sessions with Kenil** (his 12 Oct answers to Vikas's list):
+   - C2, decisions and checkpoints kept ("all decisions / checkpoints should be persisted")
+   - C8, several persisted, dedicated agents, with Q33's leftovers (event triggers, escalation as a question, the digest, a brief per agent) and Q40's door for an agent's own automations and readers
+   - C1, depth
+   - T, a single unified view of Alpha
+   - Deferred but wanted: A5 several workspaces, A6 pre-built projects, B3 overrides, D7 dashboard tiles, D8 notifications and builder rules, D10 formulas
+5. **People for real** (slice 2's step 4, skipped at Kenil's call): readers declare their rows as people, a pass links the existing rows, a person or company is made by hand, and "Your organisations".
+6. **Memory:** look things up when memory is thin; the person's own words first; noticing's rule for a fact about a person; the rest of the memory round (above).
+7. **Small and open:**
+   - B9, saving a dashboard's selection as a list
+   - the removal journal line for a file isn't linked to its person
+   - the window has no buttons for the companion's focus and for moving a sentence to another conversation (the routes are kept for that)
+   - a schema version, and `records_fts` by triggers (from the 3 Oct review)
+   - the smaller items in [`log/2026-10-02-4-9-status-at-the-end-of.md`](log/2026-10-02-4-9-status-at-the-end-of.md)
+8. **The ChatGPT route** stays off until it passes a real tool call: Codex's own pre-approval setting, or not at all.
+9. **A fresh Mac:** notarization (there is no Apple Developer account, so it's right-click › Open for now), and the friend's own first run.
 
 ## How to verify any of this
 
-`just test`, `just lint`, `just test-desktop`, `just stats`, `just turns` (how long the last
-turns took); `just journeys` (all) or
-`just journeys <name>` on a copy of the world, report in `docs/journeys/`;
-`just check-desktop` (every page of the window at its sizes on a copy of the world, report in
-`docs/checks/`, screenshots in `desktop/.check/`); `just app` to rebuild and open the app. A
-core for checks on a copy of a world: `alpha serve --no-background` (never `cp` the world file;
-use SQLite's backup, as `copy_home` does).
+- **Tests and lint:** `just test`, `just lint`, `just test-desktop`, `just stats`.
+- **Timing:** `just turns` shows how long the last turns took.
+- **Journeys:** `just journeys` (all) or `just journeys <name>` runs on a copy of the world; the report lands in `docs/journeys/`. Four of them act in Kenil's real accounts (gmail_send, gmail_draft, skill_reuse, linkedin_message), so they run only on his say.
+- **Pages:** `just check-desktop` checks every page of the window at its sizes on a copy of the world. The report goes in `docs/checks/` and the screenshots in `desktop/.check/`.
+- **The app:** `just app` rebuilds and opens it.
+- **A core for checks** on a copy of a world: `alpha serve --no-background`. Never `cp` the world file; use SQLite's backup, as `copy_home` does.

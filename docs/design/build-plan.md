@@ -24,16 +24,16 @@ the open engineering questions (§6).
 | MCP SDK | `mcp` 2.2.0, `fastmcp` 4.0.10 | `uv run --with mcp --with fastmcp` |
 | Claude Code CLI | 2.1.278 | `claude --version` |
 | Node | the `node@24` Homebrew keg (`/opt/homebrew/opt/node@24/bin`); the machine default Node 25.8.1 is broken (missing `libsimdjson.31.dylib`) and is rejected by Vite 8 / Vitest 5 anyway | `node --version` failed with the dyld error |
-| pnpm | 10.34.5 (per the old repo's pins) | old repo memory |
-| Tauri | 2.11.6, rustc 1.98.1 | old repo memory |
-| Fonts used by the shell | Geist (UI), Source Serif 4 (headings), both on Google Fonts | `apps/desktop/src/styles/app.css` |
+| pnpm | 10.34.5 | `pnpm --version` |
+| Tauri | 2.11.6, rustc 1.98.1 | `desktop/src-tauri/Cargo.toml` (`tauri = "=2.11.6"`), `rust-toolchain.toml` |
+| Fonts used by the shell | Geist (UI), Source Serif 4 (headings), bundled with the app through `@fontsource-variable` (no network; the CSP allows `font-src 'self'`) | `desktop/package.json`, `desktop/src/styles/app.css` |
 | Claude Code sign-in | `claude auth status` prints JSON (`loggedIn`, `authMethod` "claude.ai", `email`, `subscriptionType`) and exits 0 signed in, 1 not; `claude auth login [--claudeai\|--console]`; `claude auth logout`; installer `curl -fsSL https://claude.ai/install.sh \| bash` (per user, `~/.local/bin/claude`, no admin) | run here 1 Oct; code.claude.com docs |
 | Subscription in a product | Agent SDK docs: "Unless previously approved, Anthropic does not allow third party developers to offer claude.ai login or rate limits for their products, including agents built on the Claude Agent SDK." Fine for Kenil's own use; anyone else needs approval or API keys | code.claude.com/docs/en/agent-sdk/getting-started.md, 1 Oct |
 | Playwright / browser | `playwright-core` 1.62.0 driving the person's Google Chrome when it is installed (`channel: "chrome"`), else Playwright's Chromium (build 1234, Chrome for Testing 151) installed by `playwright` 1.62.0's own installer into `~/Library/Caches/ms-playwright` (about 250 MB; Alpha runs it on first run); per-sign-in persistent profiles | `connectors/browser`; the 9 Oct clean room |
 | A shipped Alpha (Q34) | `just ship`: uv's standalone CPython 3.13.9 (`~/.local/share/uv/python/cpython-3.13.9-macos-aarch64-none`, relocatable, pruned to 36 MB), the locked packages into a plain `site-packages` (no venv), the official Node 24.21.0 binary from nodejs.org (Homebrew's links Homebrew libraries and cannot travel), the connectors; Tauri `bundle.resources` as an array keeps the tree (the glob form flattens it); 300 MB on disk, 96 MB zipped; self-signed, not notarized: right-click › Open, and the host clears the quarantine mark from its runtime | `desktop/scripts/ship.sh`, run 9 Oct |
 
-**CLI flags that exist in 2.1.278 and matter to us** (from `claude --help` and the old harness
-`services/core/alpha/builds/harness_claude_cli.py`, which runs in production today):
+**CLI flags that exist in 2.1.278 and matter to us** (from `claude --help`; first taken from the old platform's harness,
+`services/core/alpha/builds/harness_claude_cli.py`):
 `-p/--print`, `--output-format json|stream-json`, `--include-partial-messages` (text deltas as `stream_event`s, used since 9 Oct for the reply as it is written), `--mcp-config <files…>`, `--strict-mcp-config`,
 `--append-system-prompt <text>`, `--system-prompt`, `--allowedTools <tools…>`,
 `--disallowedTools`, `--permission-mode`, `--permission-prompts none` (anything that would prompt
@@ -136,7 +136,9 @@ field kinds add `multichoice` and specs carry `label`, `unit`, `done_choices`, a
 add `url` and `domain` and live in an `entity_keys` table; `facts` has a `why` column; thread
 kind `deepen` never existed in code and `session_ref` is never set; added tables: `meta`,
 `record_versions`, `turn_contexts`, `connections`, `documents` (+FTS), `events`, `automations`,
-`readers`, `plans`, `sources`; added record columns `entity_id`, `reader`, `seen_at`, `gone_at`.*
+`sources`, then `skills` (readers and procedures moved in, 3 Oct), `actions`, `permissions`, `views`,
+`runs`, `workflows`, `workflow_versions`, `preferences` (`plans` came and went, 12 Oct, Q40); added
+record columns `entity_id`, `reader`, `seen_at`, `gone_at`.*
 
 ### 3.3 The pre-pack (`context/prepack.py`)
 
@@ -209,15 +211,15 @@ would leave the machine is not available in this slice, say so; when the ask is 
 person it is being set up (the deepen pass arrives in slice 3); reply with what was done and
 where it is, in two or three sentences.
 
-*Superseded 2 Oct. Today's RULES are ten numbered rules in `runtime/turn.py`: known, assumed or
-asked (1–2); tables never loose, `table_start` for a log with no home (3); answer from the data,
-the journal is history (4); stated facts kept, inferred ones suggested, instructions only in the
-person's words (5); never build on a request, understand → research → look at the sources →
-propose with a trial (6–7); reading is free, sign-ins and bot checks said plainly (8); nothing
-leaves the machine (9); plain replies naming where each number came from (10). Nothing in them
-opens a thread; "do now, deepen later" is gone (§4.7–§4.8). The build, automation, repair,
-independent and judge runs each have their own rules in `build.py`, `automation.py`,
-`pipeline.py` and `check.py`.*
+*Superseded 2 Oct. Today's RULES are ten numbered rules in `runtime/turn.py`: a plain action
+done now, with no needless questions (1); what can't be found out is asked, known or assumed
+(2); tables never loose, `table_start` for a log with no home (3); answer from the data, the
+journal is history (4); stated facts kept, inferred ones suggested, instructions only in the
+person's words (5); never build on a request: the interview, then the workflow page, built only
+on its yes (6–7, §12); reading is free once connected, files kept only when the page says (8);
+acting outward only through a procedure and an action the person approves (9); a few natural
+choices asked as a card (10). The build, automation, repair, independent and judge runs each
+have their own rules in `workflow_build.py`, `automation.py`, `pipeline.py` and `check.py`.*
 
 ### 3.6 MCP tools (`mcp/tools/`, registered in `mcp/server.py`)
 
@@ -246,30 +248,32 @@ words, never raised through the server.
 Server: `FastMCP("alpha")`; tools registered with `mcp.tool(fn)` so the functions stay plain and
 testable; the World path from `ALPHA_WORLD`; stdio transport.
 
-*Thirty-one tools then; 63 on 2 Oct, registered from the `@tool` methods of `Tools` in
-`mcp/tools/` (a package since 3 Oct night, one module per thing the tools touch). Finding: `search` (records, documents, journal; no `kinds`), `journal_recent`,
-`journal_read`, `journal_note`. Tables: `collections_list`, `collection_describe`,
-`collection_create` (gated; `rows_are`, `identity_field`), `collection_identify`,
-`collection_add_fields`, `record_history`, `records_add` (`source`, `assumed`),
-`records_upsert`, `records_update` (`source`, `assumed`), `records_delete`, `records_query`,
-`records_aggregate`, `table_start`, `page_to_table`. Knowledge: `notes_list`, `note_read`,
-`note_write`, `instruction_add`, `instruction_remove`, `instruction_propose`, `thread_brief`,
-`goals_list`, `goal_set`, `goal_update`, `facts_get`, `fact_record` (`stated`). Entities:
-`entities_find`, `entity_resolve`, `entity_read`. Modules and threads: `modules_list`,
-`module_create` (gated), `threads_list`, `thread_open`, `thread_update`. Hands:
-`connections_list`, `folder_watch`, `files_sync`, `documents_list`, `document_read`,
-`page_read`, `page_script`, `reader_save` (gated for a new name), `reader_run`, `readers_list`,
-`browser_signin`, `calendar_connect`, `calendar_sync`, `calendar_events`. Automations:
-`automation_create` (gated), `automations_list`, `automation_update`. Sources: `source_add`
-(gated), `sources_list`. Workflows (§12): `workflow_draft`, `workflow_revise`, `workflow_agree`,
-`workflow_decline`, `workflow_resume` (the `plan_*` and `research_*` tools went 12 Oct, Q40).
-Person: `ask_person`, `propose`.*
+*Thirty-one tools then; 73 since 13 Oct, the `@tool` methods of `Tools` in `mcp/tools/`, one
+module per thing they touch. Finding (4): `search`, `journal_recent`, `journal_read`,
+`journal_note`. Tables (15): `collections_list`, `collection_describe`, `collection_create`
+(gated), `collection_identify`, `collection_add_fields`, `record_history`, `records_add`,
+`records_upsert`, `records_update`, `records_delete`, `records_query`, `records_aggregate`,
+`table_start`, `page_to_table`, `list_save`. Knowledge (14): `notes_list`, `note_read`,
+`note_write`, `instruction_add`, `instruction_remove`, `instruction_propose`, `goals_list`,
+`goal_set`, `goal_update`, `facts_get`, `fact_record`, `entities_find`, `entity_resolve`,
+`entity_read`. Modules and threads (9): `modules_list`, `module_create` (gated), `module_move`,
+`threads_list`, `thread_open` (topics only since 14 Oct), `thread_update`, `thread_brief`,
+`ask_person`, `propose`. Hands (18): `connections_list`, `folder_watch`, `files_sync`,
+`documents_list`, `document_read`, `page_read`, `page_script`, `page_download`, `reader_save`
+(gated for a new name), `reader_run`, `skills_find`, `skill_read`, `source_add` (gated),
+`sources_list`, `browser_signin`, `calendar_connect`, `calendar_sync`, `calendar_events`.
+Automations (3): `automation_create` (gated), `automations_list`, `automation_update`. Acting
+(5): `procedure_save`, `action_propose`, `action_approve`, `action_decline`, `actions_list`.
+Workflows (5, §12): `workflow_draft`, `workflow_revise`, `workflow_agree`, `workflow_decline`,
+`workflow_resume`. (The `plan_*` and `research_*` tools went 12 Oct, Q40.)*
 
 ### 3.7 CLI (`cli.py`, script `alpha`)
 
 `alpha ask "…" [--module] [--thread]`, `journal`, `search`, `tables`, `show`, `notes`, `prepack`,
 `mcp` (slice 1); since then `context <turn>` (what the model saw), `check [turn] [--no-repair]`,
-`remove-module`, `clear-conversation`, `connect folder|site|calendar`, `serve [--port]`. The
+`remove-module`, `connect folder|site|calendar`, `serve [--port] [--no-background]`, `turns`,
+`journeys`, `check-desktop` (`clear-conversation` went 14 Oct: it was the only delete of journal
+rows). The
 default world is `~/Library/Application Support/Alpha Brain/` unless `ALPHA_HOME` is set (the
 app sets it to its own `com.alpha.brain` folder). `alpha ask` runs one turn only; the second
 opinion and the build kick live in `alpha serve`.
@@ -355,13 +359,17 @@ A reference anywhere to "build-plan §4.N" means the file below.
 Never ported: the app contract, the build pipeline, planner, verifier, workers, per-module
 stores, the module-centred assistant.
 
-## 6. Open engineering questions (to settle while building slice 1)
+## 6. Open engineering questions
 
-- Stream turns stateless with the pre-pack (simple, cache-unfriendly) versus resuming one
-  session per day (cheaper, risks context bleed). Start stateless; measure.
-- Where standing instructions live: a reserved note (chosen for slice 1) versus facts with a
-  reserved predicate. Revisit when permissions become sentences with provenance.
-- `records_fts` maintenance in code versus triggers over JSON: code, because the text is derived
-  from typed values.
-- The reply's citations ("Food · Entries") come from the model in slice 1; later the turn
-  records which tools ran and the shell draws the citation from that.
+The slice-1 questions are settled (the stream stateless with the pre-pack, conversations
+resumed, Q21 and Q26; standing instructions as a reserved note; the reply's sources from the
+tools that ran). Open now:
+
+- A schema version for the world, beside the idempotent migrations (from the 3 Oct review).
+- `records_fts` by triggers rather than in code (the 3 Oct review; `documents_fts` has its
+  triggers since 14 Oct).
+- The journaling proxy for a workflow build's session needs the Claude Code CLI at 2.1.285 or
+  later (pinned 2.1.278); `srt` shipped with the app; DuckDB's extensions in `just ship`.
+- Notarization, which needs an Apple Developer account (right-click › Open until then).
+- How an agent gets an automation or a reader of its own now that plans are gone (Q40): with
+  Kenil, in the design session on dedicated agents (C8).

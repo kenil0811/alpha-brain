@@ -164,6 +164,38 @@ before the clean-up; the journeys that read the reworded instructions
 workflow_interview, 3 of 3. The app rebuilt and restarted. "ok commit it, then go ahead with
 group 3".
 
+## Group 3: the docs
+
+- **`STATE.md` is one page again** (197 lines → about 100): the last three entries instead of
+  forty, the latest check report instead of nineteen, the done items gone from the pending list,
+  every number from `just stats` (and the agents from the world: three daily, one weekly, Gmail's
+  switched off), the "not built" that was built (Undo on a record's page, the pack's budgets)
+  corrected, the design sessions and the deferred asks on the pending list in Kenil's own words.
+- **The design's boxes** say what is: plans, trials and the evaluator out of the Built boxes; the
+  pack at 14,000 characters in budgets per section, 73 tools; Intelligence's five tabs, ⌘K, the
+  Assistant page, Activity's entry pages; §8's box rewritten as what the window has rather than
+  the diary of how it came; §6.1's build narrative and its false claim (acting in Mac apps, undo
+  of a draft) gone; §6.3 and §6.4 folded to a paragraph each with their boxes (the full text in
+  git, commit `8ea259e`); the §11 table's break fixed; every box dated 14 Oct; the header's Q
+  range Q1–Q43. §12's own evaluator stays as intent (not built), as does the docstring in
+  `workflow_build.py` that group 2 had dropped.
+- **`build-plan.md`**: fonts bundled, not Google's; the toolchain cited from the repo's own pins;
+  the tables, the ten rules, the 73 tools and the CLI as they are; the open engineering
+  questions replaced by the real ones.
+- **README, CONTRIBUTING, `CLAUDE.md`**: Q1–Q43; the research folder; the workspace as §12's; the
+  data folder's contents; the Assistant page; the host and CSP as they are; the suite's time;
+  `CLAUDE.md`'s plan rule now "lasting things are made only on the person's yes on the workflow
+  page (§12); how an agent gets an automation or a reader of its own is open (Q40)", with
+  `just check-desktop` and the four journeys that act in Kenil's accounts.
+- **Research and proposals**: the two superseded research notes and the graph proposal say so
+  at the top; the rulebook's Q40 named as the branch's; Vikas's list of what the window needed
+  from the core brought in as `design/research/core-changes-for-the-window.md` (the copy Kenil
+  answered; the branch's later G8–G11 noted, not decided).
+- **The log's index**: one line per entry.
+
+What ran: `just lint` clean (one docstring changed in code); every relative link in the edited
+docs resolves. "ok commit it, then go ahead with group 3".
+
 ## Left
 
-Group 3, the docs; then 4 and 5.
+Group 4, the memory notes; group 5, disk and outside the repo, Kenil's call per item.

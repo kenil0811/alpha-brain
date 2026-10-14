@@ -1,5 +1,7 @@
 # Modules as programs: the prior art (10 October 2026)
 
+> Superseded (14 Oct 2026 note): modules as programs (Q38) gave way to modules as workflows (§12, Q39); the milestones, the evaluator and the jobs were removed on 12 Oct (Q40). The workspace, the walled build run and the proxy stay. Kept as the prior art it was.
+
 Why this was looked at: after the research pass (Q37) the second car wash build was still one
 table and a recipe, because a module has nowhere to hold a program. Kenil's bar is his friend's
 Waterways engine (`~/Desktop/dev/project-waterways-main-2`): per-metro data layers, gates then a

@@ -69,7 +69,7 @@ desktop/        the Tauri 2 + React app: shell/ (rail and pages), modules/ (modu
                 pages), assistant/ (the panel), avatar/ (the companion), core/ (client.ts: the
                 only way to the core), src-tauri/ (the host that starts the core).
 journeys/       the real journeys, YAML.
-docs/           STATE.md (now), log/ (then), design/ (intent), journeys/ (reports).
+docs/           STATE.md (now), log/ (then), design/ (intent), journeys/ and checks/ (reports).
 ```
 
 Where a change goes:
@@ -154,7 +154,7 @@ packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a na
 - A tool that makes a lasting thing checks the build gate (`self._gate`); a tool that acts
   outward checks `self._in_automation()`. Walls live in the tool, not in the rules prompt.
 - Before adding a tool, ask whether an existing one with one more argument does it; the model
-  reads every tool's schema on every turn, and the count is 70 (the next slice trims it).
+  reads every tool's schema on every turn, and the count is 73 (`just stats`).
 
 ### 3.5 Prompts
 
@@ -242,14 +242,16 @@ threads (a state move, an upsert) is written as in §3.2.
 
 ### 3.9 The host (Rust)
 
-`src-tauri/src/lib.rs` starts the core from the repository's `.venv`, hands it a random token
-through a cleared environment, forwards its stdout, and exposes a few commands (reveal and
-open a file in Alpha's own folder). A command that takes a path resolves it before checking it
-is inside the data folder. The CSP allows only the loopback core and Google Fonts.
+`src-tauri/src/lib.rs` starts the core (from the repository's `.venv` in the debug app, from the
+runtime inside a shipped one), hands it a random token through a cleared environment, watches it
+and starts it again on the same port if it dies, owns the companion window (where it was left,
+its click-through) and the tray, and exposes a few commands (reveal and open a file in Alpha's
+own folder). A command that takes a path resolves it before checking it is inside the data
+folder. The CSP allows only the loopback core; the fonts ship with the app.
 
 ## 4. Testing
 
-- **Unit tests** (`core/tests`, pytest, 7–12 s for the suite) prove mechanisms: the store,
+- **Unit tests** (`core/tests`, pytest, about 36 s for the suite) prove mechanisms: the store,
   the gates, the state moves, parsing, the pre-pack's sections, routing, the scheduler. They
   use the `world` fixture (a fresh SQLite file in a temp dir) and `building(world)` for tools
   that may make lasting things. They never reach the network, a browser or the real model: a

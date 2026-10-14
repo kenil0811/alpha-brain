@@ -1,8 +1,8 @@
 # Alpha as a second brain — design proposal
 
-30 September 2026, revised the same evening after discussion (sessions → one stream with threads; modules stay first-class; Intelligence stays; interrupts at boundaries, not idleness; explicit asks skip the ladder). **Intent only since 3 October 2026:** each section ends with a status box (built / differs / not built); the current state is `../STATE.md`, the dated history `../log/`. Until 3 October every section ends with an *As built* paragraph that says what exists, what differs from the text above it and why, and what is not built. Where the two disagree, *As built* is current; the original text is kept as the intent. Decisions taken since 30 September are in §11 (Q17–Q26).
+30 September 2026, revised the same evening after discussion (sessions → one stream with threads; modules stay first-class; Intelligence stays; interrupts at boundaries, not idleness; explicit asks skip the ladder). **Intent only since 3 October 2026:** each section ends with a status box (built / differs / not built); the current state is `../STATE.md`, the dated history `../log/`. Until 3 October every section ends with an *As built* paragraph that says what exists, what differs from the text above it and why, and what is not built. Where the two disagree, *As built* is current; the original text is kept as the intent. Decisions taken since 30 September are in §11 (Q17 onwards; Q43 by 14 October).
 
-**How to read.** Numbered principles are the test for every later decision. Evidence is cited inline (arXiv ids, product docs); the research reports behind it and the Jev notes are in `design/research/`. **Q1–Q26** at the end are the decisions, each with the recommendation and what was decided. The engineering side (what ran, commits, tests, what is pending) is `build-plan.md`.
+**How to read.** Numbered principles are the test for every later decision. Evidence is cited inline (arXiv ids, product docs); the research reports behind it and the Jev notes are in `design/research/`. **Q1–Q43** at the end are the decisions, each with the recommendation and what was decided. What ran, commits, tests and what is pending are `../STATE.md` and `../log/`; `build-plan.md` holds what does not change by the day.
 
 ---
 
@@ -23,10 +23,10 @@ Principles:
 9. **Evidence over cleverness.** Verbatim over extraction; fixed rhythms over adaptive timing; verify before keeping.
 10. **Known, assumed or asked** (2 October). Every value Alpha writes or says is stated by the person, looked up from a source it names, or estimated and said so; an unknown the result depends on is asked about or assumed out loud. "It ran" is not "it works": answers and builds are checked against an independent one (§7).
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | 1, 2, 3, 4, 5, 7, 8, 9 and 10 hold in the code; 5 by mechanism (actions with the person's yes; automations cannot act outward, a code guard since the checkpoint). |
-| Differs | 7 has one floor, 30 minutes between an automation's runs (Q22), and mechanism thresholds that are not settings (the pack's 12,000 characters, a conversation idle 30 minutes, a Mac awake 60 s). 2's cross-linking is a mechanism no live table uses yet. |
+| Differs | 7 has one floor, 30 minutes between an automation's runs (Q22), and mechanism thresholds that are not settings (the pack's 14,000 characters in budgets per section, a conversation idle 30 minutes, a Mac awake 60 s). 2's cross-linking is a mechanism no live table uses yet. |
 | Not built | 6: nothing proactive exists (§5, entries 3 and 4). |
 
 ---
@@ -49,11 +49,11 @@ Principles:
 | Sources | "Where this reads from" on the module page, with a status |
 | Readers | Skills (in Intelligence) |
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Home stands for Today (Needs you, Alpha is working on, Coming up, Your modules); People & Companies with a page per person or company; Intelligence (Skills, Automations, Connections, Knowledge); Activity; Settings. |
+| Built | Home stands for Today (Needs you, Didn't work today, Alpha is working on, Coming up, Your modules); People & Companies with a page per person or company; Intelligence (Map, Skills, Agents, Connections, Knowledge); Activity with a page per entry; the Assistant page; Settings; ⌘K. |
 | Differs | Skills are one table of kinds read, act and run (readers, procedures, pipelines). Entities are shown only where Alpha resolved them. |
-| Not built | Today's digest; ⌘K. |
+| Not built | Today's digest. |
 
 ---
 
@@ -70,9 +70,9 @@ This is the layer you called make-or-break. The research ranked three options; t
 5. **Notes** — Markdown Alpha writes and maintains: a profile summary, your standing instructions, one page per module ("what this is for, what is in it, what I have tried, what is open"). A bounded index (the Claude Code pattern: about 200 lines) is loaded on every turn; pages are read on demand. You can read, edit and delete every note.
 6. **Goals** — durable intentions with state ("a backend job in London by December", "under 2,000 kcal on weekdays"). Proactivity is organised around active goals; an ask that attaches to a goal is standing by default.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | All six as tables (`world/store.py`): the journal verbatim with FTS, tombstones and what the model saw per turn; entities with hard keys, merge and unmerge; bi-temporal facts; collections with per-row provenance and versions; notes as wiki pages (person, module, topic, entity, skill scopes; a summary each; an index); goals. Around them modules, threads, plans, sources, skills, actions, permissions, automations, documents, events, connections. |
+| Built | All six as tables (`world/store.py`): the journal verbatim with FTS, tombstones and what the model saw per turn; entities with hard keys, merge and unmerge; bi-temporal facts; collections with per-row provenance and versions; notes as wiki pages (person, module, topic, entity, skill scopes; a summary each; an index); goals. Around them modules, threads, workflows with their versions, sources, skills, actions, permissions, automations and their runs, documents, events, connections, preferences. |
 | Differs | Removal is a purge that keeps the journal, not a re-projection; a module can also be removed with its data kept, a state it is restored from (Q43). The index is every page in one line inside each pre-pack, not a 200-line file. |
 | Not built | The same-person judgement for soft candidates (same-name people are shown with "Same person"); unmerge from the app; linking across sources by itself (no live table declares its rows as people); deleting a page. |
 
@@ -85,11 +85,11 @@ Two mechanisms, in this order:
 1. **Pre-pack** — deterministic, zero model calls, two to four thousand tokens: who you are and your standing instructions (capped); active goals; the notes index; entity cards for anything the sentence or the event names (matched by key or name); the last N journal lines; full-text hits for the sentence's terms; today's calendar; pending asks and notices; connection state. Every line names its source.
 2. **Agentic retrieval** — the model has tools: search the journal (FTS5 with time and kind filters), query collections, look up an entity and its facts, read a note or a document, read a source item verbatim. It decides what else it needs, in as many steps as it needs. Results come back inline, not as files: grep beat vector search on every harness when results were inline and lost when they were delivered as files (2605.15184).
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | The deterministic pre-pack (`context/prepack.py`), capped at 12,000 characters: NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · WHAT ALPHA CAN DO · TODAY'S CALENDAR · WHAT ALPHA KNOWS · THIS MODULE'S PAGE · WHO THE SENTENCE NAMES · THIS CONVERSATION · SINCE YOUR LAST TURN HERE · WHAT WAS SAID <DAY> · MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN. Agentic retrieval through 70 tools. |
-| Differs | The cap is a blind tail cut (the conversation, matches and a build's brief come last); record and document match lines carry no date. |
-| Not built | A budget per section; "so far today" totals in the pack (the module page works them out). |
+| Built | The deterministic pre-pack (`context/prepack.py`), 14,000 characters in a budget per section: NOW · WHO THE PERSON IS · THEIR INSTRUCTIONS · ACTIVE GOALS · WHAT ALPHA HOLDS · WHAT ALPHA CAN REACH · WHAT ALPHA CAN DO · TODAY'S CALENDAR · WHAT ALPHA KNOWS · THIS MODULE'S PAGE · WHO THE SENTENCE NAMES · THIS CONVERSATION · SINCE YOUR LAST TURN HERE · WHAT WAS SAID <DAY> · MATCHES FOR THIS SENTENCE · THIS THREAD · OPEN. Agentic retrieval through 73 tools. |
+| Differs | A section over its budget says what it left out rather than being cut blind; record and document match lines carry no date. |
+| Not built | "So far today" totals in the pack (the module page works them out). |
 
 **Embeddings: not at launch.** The journal's chunk ids and a fusion hook are designed now so an embedding column (sqlite-vec plus a small local MLX/ONNX model) can be added as one more signal later — but only after a personal evaluation (tasks that succeed with history and fail without) shows full-text plus structured recall is the bottleneck. Published rankings flip on the embedding model alone (±6 points, 2606.29914); vendor numbers should not drive this.
 
@@ -101,7 +101,7 @@ Two mechanisms, in this order:
 - **Before compaction** of a long session: flush facts and notes first, then summarise.
 - **Recall is not use.** Agents acted on a correctly retrieved value only 55% of the time (MERIT), and sixteen systems passed recall tests while failing the matching behaviour tests (2607.29433). So the pre-pack states the facts that matter as instructions in context ("calorie target 2,000; 1,450 so far today"), and every action's result is checked against them.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | At write: hard-key facts supersede, rows link to entities by key, no model call. Per turn: stated facts kept, inferred ones suggested; noticing after every turn (§3.7). |
 | Differs | A live conversation's model session is resumed, with a world delta so current facts outrank what it remembers (§3.7). |
@@ -218,7 +218,7 @@ Risks accepted: routing errors (ask when ambiguous, one tap to move); a one-turn
 conversations (noticing after every turn); contention on one sign-in must be shown as waiting;
 Claude Code's session files live under the home folder, outside Alpha's data directory.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | Points 2, 3, 5, 6, 7 and 8 (the wiki with its index; noticing; conversations first-class and parallel with resumed sessions; the companion's focus with rule-then-judge routing; skills as one table with composition; the System One seam), and the retrieval half of 4 (entity cards, the module's page, day-scoped matches). Memory journeys 6 of 7 after, 5 of 6 before (`../log/2026-10-03-4-23-*`). |
 | Differs | Routing never matches names: structure where certain, the judge otherwise. Noticing runs per turn, not at a conversation's close. Run skills are named from an automation's title. |
@@ -252,9 +252,9 @@ An MCP server maps one-to-one; a native macOS framework is tools and resources w
 
 **Module** — a named bundle of collections, skills, automations, connections and a note, around a goal. Made in seconds; no code, no build, no versions. The tool the person works in; first-class in the workspace.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Connectors as Agent Skills directories (browser, files, calendar: `connector.yaml`, `SKILL.md`, `scripts/`). Skills as one table (read, act, run) with health, provenance, when-to-use, site notes and an index in every turn. Automations as a schedule plus a pipeline (a run skill, no model) or a procedure, run by the scheduler in their own threads once the Mac is properly awake, held awake while they run. Modules with their sources and plans. |
+| Built | Connectors as Agent Skills directories (browser, files, calendar: `connector.yaml`, `SKILL.md`, `scripts/`). Skills as one table (read, act, run) with health, provenance, when-to-use, site notes and an index in every turn. Automations as a schedule plus a pipeline (a run skill, no model) or a procedure, run by the scheduler in their own threads once the Mac is properly awake, held awake while they run. Modules with their sources and their workflow page (§12). |
 | Differs | Triggers are schedules only (30-minute floor, Q22). Approval gates are not needed: an automation cannot act outward, by code. |
 | Not built | Alpha-built connectors; source-event and data-condition triggers; Stop on an automation run. |
 
@@ -296,7 +296,7 @@ Enforcement is in the process boundary: Alpha's code runs sandboxed; a browser r
 
 For now the system owner (developer) handles hands, listed in Intelligence. Open: as people ask Alpha to reach their own applications (Adobe and the like), the platform cannot build per-app integrations, and doesn't need to; the open question is how hand gaps are collected and prioritised across many people, and whether vetted, shared know-how (readers for common sites) ships with Alpha.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | The browser (reads read-only by mechanism; acting, downloads and uploads only inside an approved action), files (folders the person names, read-only) and the calendar (read-only); readers with the real-run rule, health against their own last good run and repair by Alpha; site vocabulary out of the hands (Q23). |
 | Differs | Gaps are a module's source statuses (needs sign-in, blocked, broken, not built, unavailable, skipped), not objects. `page_to_table` exists as a first look and is refused inside automations. |
@@ -310,7 +310,7 @@ For now the system owner (developer) handles hands, listed in Intelligence. Open
 - **Email.** Since 2 Oct, Gmail is read through Alpha's signed-in browser (read-only, Kenil's decision revising Q4). Later options: Mail.app locally (its SQLite index and `.emlx` files, Full Disk Access) for Apple Mail users; Anthropic's Gmail connector while on the subscription (available in Claude Code sessions with a claude.ai login; the token lives with Anthropic); our own Google app plus a CASA assessment (about $1k a year, weeks of process) when we move to the API. Gmail read is a Google "restricted" scope; Calendar and Contacts are only "sensitive". Unverified apps hit a permanent 100-user cap, so shipping unverified is not a bridge.
 - **Contacts, Notes, Messages.** Native, cheap, later.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | Browser: Playwright, driving the person's own Chrome when it is on the Mac and Alpha's own Chromium otherwise (installed by Alpha on first run, Q34), a profile per signed-in site, the person signs in themselves in a window Alpha opens, a sign-in covers the sites it passed through. Files: watchdog plus pypdf, python-docx, openpyxl, python-pptx and plain-text kinds into documents with FTS (50 MB and 400k-character limits). Calendar: EventKit, 30 days back and 60 ahead, every five minutes. |
 | Differs | Not Claude in Chrome. A sign-in counts as done when any cookie is set (a heuristic). The file watcher runs only while the core runs. Gmail is read in the browser (Q4 revised). |
@@ -324,7 +324,7 @@ For now the system owner (developer) handles hands, listed in Intelligence. Open
 - **Avoid as the auth layer:** Composio, Nango, Pipedream, Arcade (tokens held in their clouds, no production escape from Google's verification, per-call metering); Zapier MCP (task-metered); Merge, Unified, Paragon (B2B pricing); Unipile (unofficial LinkedIn access).
 - **LinkedIn.** The official API exposes no connections, jobs or messaging. §8.2 of the user agreement forbids bots that download contacts or send messages, and vendors report about 40% of accounts on non-compliant tools restricted in Q1 2026. The lowest-risk posture is: Alpha reads pages in your own Chrome at human pace, proposes outreach, and you send. (Q3)
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | Leveraged: the Claude Code CLI, the Agent Skills shape, Playwright, pyobjc, the document parsers, watchdog. |
 | Differs | Not used: Claude in Chrome, Anthropic's connectors, the MCP filesystem server, MarkItDown, `chrome-devtools-mcp`. |
@@ -359,10 +359,10 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 
 **Cost without knobs.** No model call without an event or a scheduled slot (a heartbeat is a deterministic health check, never a model turn); tiered answerers by layer; isolated, packet-sized runs; per-run caps; an internal daily budget that degrades behaviour (batch more, speculate less) instead of alerting anyone; a scheduled run is skipped when nothing changed.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Entry 1 (`runtime/turn.py`: the sentence, the pre-pack, one run with the world as tools, the reply and what the model saw, journaled); conversations with routing by structure then the judge (§3.7). Entry 2 in part: file changes, the calendar, the scheduler's tick, the plan queue, each journaled as `saw`. The System One seam (`runtime/judge.py`), used for routing and noticing on Haiku. |
-| Differs | Cost has no limits or budget (Q18); the person stops a run. Builds, automations and trials run in their own threads with no resumed session. |
+| Built | Entry 1 (`runtime/turn.py`: the sentence, the pre-pack, one run with the world as tools, the reply and what the model saw, journaled); conversations with routing by structure then the judge (§3.7). Entry 2 in part: file changes, the calendar, the scheduler's tick, the queue of agreed workflow builds, each journaled as `saw`. The System One seam (`runtime/judge.py`), used for routing and noticing on Haiku. |
+| Differs | Cost has no limits or budget (Q18); the person stops a run. Builds and automations run in their own threads with no resumed session. |
 | Not built | Entries 3 and 4: triage, deliberation, sleep time, the digest; the speaking-up ladder; same-person, triage and rerank through the seam; collection-change and person-context signals. |
 
 ---
@@ -379,233 +379,30 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 
 **Know-how as code; AI only for repair and judgement.** A reader is code Alpha writes, tries on a real run, keeps and repairs. An automation that only reads and stores is a **pipeline** of saved steps the scheduler runs with no model: run these readers into this table (with saved value mappings), then tell the person what changed. The platform keeps, for any table fed by readers, when each row was first seen, last seen, and gone (not returned by the reader that found it), so "what's new, what changed, what's gone" is a query, not a model's guess. The model is called only when a step breaks (repair the reader, rerun once) or a step needs judgement. AI-run procedures remain for work that is judgement throughout.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | The yes on the workflow page starts the build (§12; plans, their trial and their questions were removed 12 Oct, Q40); the gate (`Tools._gate`) refuses making modules, tables, readers and automations outside a build; sources with statuses; pipelines. Agents, schedule first (Q33, 9 Oct): every automation is an agent's process with a goal, a page Alpha writes and the person edits (`agent:<id>`, read by the model when it steps into a run or a repair), a row per run in `runs` with a verdict judged by code (succeeded, partial, failed, and why), the model's time and the repairs counted, a broken reader repaired at most twice in a run, a failed run in the journal and the companion, the window's Agents tab and page. |
 | Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap. Since 11 Oct (§12) step 1 is the interview and the workflow page, not a plan in one turn. Since 12 Oct (Q40) no path opens a build in which the model makes lasting things by tools: the page's build makes the tables by code and the walled session writes files; how a new automation or reader of its own gets made is open (automations are made by the person's words only through that door). |
 | Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, the junk rules; of agents (Q33): event triggers, escalation to the person as a question, the digest, a brief per agent; a door for new automations and readers since the plans went (Q40). (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
 
-### 6.3 The research pass before a build (decided 9 October 2026; Q37)
+### 6.3 The research pass before a build (decided 9 October 2026; Q37; superseded by §12, removed 12 October, Q40)
 
-Why: the "Car Wash Site Scoring" module of 9 October. The ask was "something similar to
-growthfactor.ai" and four one-word answers; Alpha wrote the spec itself in two chat turns,
-planned in two minutes and built in fourteen: five tables, one worked example, a recipe in the
-note, no skill and no automation, and a weighted average with no gates that called a site with
-nine washes within 2.7 miles "Favorable". The person said yes to Alpha's own proposal. Compared
-with a site engine a friend built over a week from the client's own process documents (gates
-first, trade areas, a map, a per-site report), the gap was in kind, not polish. Kenil: Alpha
-should scan what could help, how well each piece can be built, suggest it, and let the person
-decide; not time-boxed deliveries, and not the friend's everything-list either. The evidence is
-in `research/research-before-build.md`: silent assumption is the default failure (models fill
-unspecified requirements silently 41% of the time); research before building measurably helps
-only when its output is checked; goal questions are worth asking only before the work; people
-tolerate a round of about 4–7 specific questions with choices; no builder on the market
-researches alternatives before proposing; good product people pre-keep the table stakes, offer
-the differentiators as a few choices with a recommended default, and name the won't-haves.
-
-**The job, first.** Step 1 of §6 begins with the questions research cannot answer and that
-change the goal: who uses it, what decision it serves, what happens today, what already exists
-(a process, a scorecard, files, a module of Alpha's). Asked as cards with choices, only the ones
-not already known, before any work; never during a build.
-
-**Alpha looks into it, in the background.** Every build ask gets a research pass, its breadth
-scaled to the ask by rule (a simple log: one look; a product-like thing: what the products in
-this space have, what the trade's own practice says, what open data and open-source tools exist,
-and what the person's own world already holds). It is a thread of kind `research` with its own
-session, started by `research_start` from the conversation and run by the scheduler like a
-build, with no limit and a stop. A lead run plans the looks; each look (`research_look`) is an
-independent run with web search only that reads sources and returns findings, each a claim with
-the quote and the page it came from; the core resolves every page by code, keeps the findings
-with the research, and journals what was looked at. The lead merges; a plan may only cite
-findings Alpha actually read, and a piece whose evidence did not resolve is refused, because the
-merge is where research errors come from. The person is told it takes a few minutes and can
-stop it; a plan is never proposed on a timeout.
-
-**The menu is the plan, one yes.** `plan_propose` works only inside a research thread (or for a
-revision of a researched plan), and a researched plan carries **pieces**, each with what it is,
-why it matters for the job, its evidence, how it would be built here, whether it can be built
-now (now; needs a sign-in, a file or a key; not yet, and why), Alpha's recommendation, and its
-kind: *kept for you* (table stakes, pre-kept as one block), *your call* (the differentiators, a
-few, each with why you might and might not), *not this time* (named and kept). The card shows
-the three blocks with keep / skip / defer on each piece and the questions as before, only where
-the products genuinely differ and the answer depends on the person; the button reads "Build
-with these"; the decisions go into the brief the build reads. The trial is the person's job in
-their own words from the first step, not one Alpha invented. The pieces deferred or skipped go
-on the module's page under "Not this time" when the build finishes, so a later pass can bring
-them back; the findings become a page of the wiki for that kind of thing (`topic:`), Alpha-built
-know-how for the next similar ask. A research pass has a verdict judged by code: succeeded
-(every piece's evidence resolved and the plan proposed), partial (some evidence dropped), failed
-(no plan).
-
-What this does not change: computed things (a gate, a weighted score over rows, a report page)
-are still "not yet" in the menu; that column is the measure of which capability to add next.
-"Agents" stays the word for a module's recurring processes (Q33); this is a pass.
+Before a build, Alpha looked at the person's sources and the field, then proposed the module as a menu of
+pieces, each with what made it possible or not yet. The workflow page (§12) replaced it: research is now a
+lookup for sources and a few suggestions on the page. The full text of this section as it was decided is in
+git history (the design document at commit `8ea259e` and before) and `research/research-before-build.md`.
 
 | Status (12 Oct 2026) | |
 |---|---|
 | Removed | Superseded by §12 on 11 Oct and removed on 12 Oct (Q40): the `research` and `findings` tables, `research_start` and `research_look`, the pass's runs, the plan of pieces and its card, the `research_pass` journey, their tests. What stays of it: the sources on the workflow page's suggestions (§12). The prior art stays in `design/research/research-before-build.md` and the run in `../log/2026-10-09-research-pass.md`. |
 
-### 6.4 Modules as programs: the workspace, the design document, milestones (decided 10 October 2026; Q38)
+### 6.4 Modules as programs: the workspace, the design document, milestones (decided 10 October 2026; Q38; superseded by §12, removed in part 12 October, Q40)
 
-Why: after the research pass (§6.3) the second car wash build was still one table of 22
-columns, one row, and a recipe in the note that the model re-executes by hand per address. The
-plan was grounded; the build had nowhere to put what the plan described. Alpha's know-how had
-three kinds (a page reader, a site procedure, a pipeline of readers), none of which can hold a
-data layer, a join over thousands of rows, a gate, a formula or a calibration, so the build
-rule itself said to write such things as prose. Kenil's bar is the Waterways site engine a
-friend built with Claude Code over a week (`~/Desktop/dev/project-waterways-main-2`): per-metro
-data layers, gates first then a weighted score calibrated to the client's own site process and
-benchmark stores, a filterable table with saved lists, a map, a per-site report of about
-seventy-five rows each with value, source, method and confidence, a settings page for every
-parameter, exports; and a process (research documents → a PRD → v0 → rebuilt around the
-client's inputs → a depth roadmap) in which the human steered at every stage. "Okay if it's
-not one shot, but it should be like this." He said yes to four things: modules as programs in
-a workspace Alpha codes in; a design document agreed stage by stage; milestones that each end
-in a real result he opens; a module's own settings page. He asked for the prior art first;
-it is in `research/modules-as-programs.md` and every choice below cites it.
-
-**A module is a workspace.** Under Alpha's home, `modules/<id>/`:
-
-- `DESIGN.md`, the design document (below); `milestones.json`, the machine-checked list of what
-  the build delivers, each item with its acceptance steps and a `passes` flag that only the
-  evaluator flips (JSON because a model tampers with it less than Markdown); `PROGRESS.md`,
-  append-only: what each session did, decided and left. The three artifacts Anthropic's and
-  OpenAI's long-running harnesses both converged on, with distinct jobs.
-- `inputs/`, the person's own files (a process document, a scorecard, a store list, data),
-  read-only; `pipeline.py`, plain Python functions wired as a DAG by Hamilton, so what is
-  upstream and downstream of any value is queryable and the code stays ordinary functions;
-  `data/<layer>.parquet` (GeoParquet) with `data/<layer>.provenance.json` in Data Package
-  shape (sources, fetch URL and parameters, fetched at, vintage, licence, rows, hash, the
-  function that made it); `module.duckdb`, the module's database (DuckDB, pinned, its
-  extensions shipped with the app), whose derived tables carry a source and a method column
-  beside every scored value; `settings.json` with meta per parameter (label, unit, range,
-  help), the person's; `pages.yaml`, the declared surfaces; `jobs.yaml`, what runs when (each
-  job is an agent of Q33, with a verdict per run); `selftest.py` and pointblank plans per layer;
-  a git repository, one commit per milestone.
-- The world store keeps the record, never the data: the module row, its pages, its runs and
-  verdicts, the journal, the index of provenance. The person's own tables stay in the world;
-  the module reads them through DuckDB (the world file attached read-only) when the design
-  says so. Removal deletes the workspace; the journal stays (§7).
-
-**The walls.** A build run is Claude Code with its file and shell tools, inside Claude Code's
-own sandbox driven by Alpha's `--settings` JSON (verified on this Mac with the flags Alpha
-already passes): deny-default Seatbelt, writes only inside the workspace (never `.claude`,
-`.git/config`, rc files), reads denied for secrets and for Alpha's own world file,
-credentials denied, no unsandboxed fallback, fail if the sandbox is unavailable, Apple Events
-off. Network only to the hosts the design names for the current milestone, through Alpha's
-own proxy, which journals every request as `saw`; hostnames narrow (`api.census.gov`, not
-`*.gov`). The non-shell tools are walled by policy (`--tools`, reads confined to the
-workspace, `WebFetch` by domain), and an unattended build is wrapped in `srt` so the whole
-process is inside the wall. A blocked operation comes back to the model as a named constraint
-(so it escalates instead of retrying) and to the journal. Acting outward stays one way only:
-through actions with the person's yes (§6.1); a module's code never sends. No Docker, no VMs:
-not practical on a person's Mac today. The sandbox's semantics are re-read at every pinned CLI
-version bump; the two earlier escapes in the prior art both came from allow-default profiles.
-
-**The design document.** Before any build, Alpha and the person agree `DESIGN.md` stage by
-stage; each stage is a page in the app with Accept / Revise, editable by the person, and the
-conversation about it is the stage's thread. The stages, in order:
-
-1. *The job and the user*: who uses it, what decision it serves, what happens today, what
-   would make it a failure (the questions of §6.3, kept as text).
-2. *What Alpha found*: the research pass's findings and pieces (§6.3), now one stage of the
-   document rather than the whole plan.
-3. *Your inputs*: Alpha asks for the person's own process, scorecard, lists and data, reads
-   them in (§6.2) and writes what they say; the Waterways edge was the client's own gates and
-   four benchmark stores, and Alpha asks for the same.
-4. *The data model*: entities, tables, relations, keys.
-5. *Where every value comes from*: per column, the source, the method, the freshness, what
-   needs a key or a file, what cannot be had (and the host list the sandbox will allow).
-6. *The method*: gates first, then a score; the parameters and their defaults; calibration
-   against the person's benchmarks; what is an estimate and says so.
-7. *The surfaces*: which pages, from `pages.yaml` (below).
-8. *The operating loop*: what runs when, what needs the person, what is told and how.
-9. *Milestones*: each a real result the person can open, in order, with its acceptance
-   checks; the first is always small.
-10. *Open questions*: anything unresolved; an open question that changes the shape blocks the
-    stage's acceptance (Spec Kit's markers, BMAD's intent gaps).
-
-Alpha proposes each stage from the research and the inputs; the person discusses, changes,
-skips or defers; nothing is written to the next stage until the current one is accepted. The
-accepted document is frozen for a milestone; a change is a revision the person accepts, never
-a silent edit by the builder.
-
-**Milestones.** One milestone per build session, from a fresh context: the design document,
-`milestones.json`, `PROGRESS.md`, the git log and a smoke check of the previous milestone;
-the builder does the one highest-priority milestone, commits, writes progress; it ends with a
-*stuck* outcome (what it tried, what blocks it) rather than retrying. Done is never the
-builder's word: a separate evaluator run with a skeptical brief runs the module's self-test and
-the milestone's scripted checks (the layer exists with this many rows; the score of the
-benchmark store lands in its band; the page renders in the desktop check), drives the real
-pages, and only it flips `passes`; an LLM opinion is the last check, not the first (three in
-four "done" claims in the prior art were false, and judges barely beat chance). Then the
-person opens the result and accepts or revises before the next milestone starts. The person
-can stop a build at any point, as now; a session that stalls (no tool use, no diff) is
-reported, not retried. Time is measured per milestone and quoted, never promised.
-
-**The surfaces.** `pages.yaml` is a small contract Alpha's shell renders, catalog-only (the
-A2UI rule, the json-render shape: a flat list of pages, each bound to a declared SQL source
-over the module's database), five kinds: `table` (the existing views, saved lists and item
-pages, plus Datasette-style facets and CSV), `map` (MapLibre with PMTiles and an OpenFreeMap
-style, offline; GeoJSON layers from DuckDB `ST_AsGeoJSON`), `report` (sections of rows with
-value, source, method, confidence and, where there is one, the benchmark; rendered in the app
-and exported to PDF through Typst), `settings` (the module's parameters from `settings.json`
-with their meta; saving re-runs the steps downstream of what changed, by the DAG), `export`
-(CSV, Markdown, PDF). Never an iframe per module, never a Python server per module: one shell,
-one theme, one set of filters, offline.
-
-**The data layer's defaults** (the prior art's recommendations, not rules the platform
-imposes): Python with pinned DuckDB and its spatial, httpfs and h3 extensions shipped by
-`just ship` for that version; GeoParquet per layer; Hamilton; `provenance.json` per layer and
-source and method columns on derived values; pointblank plans and a `selftest.py`; reuse
-`census`, `pygris`, `overturemaps`, `esridump`'s pagination strategies and OSMnx rather than
-rewriting them; ArcGIS REST read as GeoJSON through `read_json` with the caller paginating
-(`ST_Read` over a URL does not work). Freshness per source from `fetched_at` and the source's
-vintage; health per layer from its plan; a module's scheduled jobs are Q33 agents with
-verdicts, repaired by the model on breakage.
-
-**What does not change.** Nothing per use case in the platform: the engine is Alpha's build,
-per module, inside walls the platform owns (Q17). Plan first (Q19), now a document and
-milestones instead of one card. Known, assumed or asked (Q20): provenance per value is checked
-by the evaluator, not asserted. Removal deletes everything related, the journal never (§7). No
-caps (Q18): "stuck" and "stalled" are judgements of a failure, named as such; the person stops
-what isn't going anywhere. And one rule is reversed: "modules are tables, know-how is
-pipelines" becomes "modules are programs and data; a reader or a pipeline is the simple
-case".
-
-**The car wash ask, walked through.** "I want to build something similar to growthfactor.ai,
-specifically for car washes."
-
-- *Stage 1.* Alpha asks: who uses it (you, looking at sites for a wash you might buy or
-  build); what it decides (which sites to pursue, in which metro); what happens today
-  (listings by hand); what would make it a failure (a score you can't defend to a lender).
-- *Stage 2.* The research pass (as on 9 Oct): what GrowthFactor, Placer and SiteZeus show;
-  how operators decide (gates: households within 3 mi, density, 10-minute drive population,
-  site and intersection traffic; then a scorecard); the open data (ACS block groups, state DOT
-  counts, Overture places, FEMA, county parcels); your Deal Tracker module.
-- *Stage 3.* Alpha asks for your inputs: a site process or scorecard if you have one, a list
-  of stores or sites you consider good, any metro you want first. If none, it says so and
-  proposes the trade's thresholds as defaults, marked as such.
-- *Stages 4–6.* The data model: metros, block groups, parcels, traffic segments, washes,
-  anchors, candidates, scores, pipeline stages. Per value its source and method. The method:
-  six gates with defaults and your overrides; a 0–100 score over what passes; calibration
-  against your benchmark sites when you give them. What can't be had: foot traffic (paid),
-  zoning outside counties that publish it, your pro forma.
-- *Stage 7.* Pages: a Sites table with facets and saved lists; a map of candidates over
-  parcels, traffic and washes; a per-site report; Settings for gates and weights; a Pipeline
-  board; exports.
-- *Stage 8.* The loop: a monthly refresh of places and counts as an agent; a new metro on
-  request; a flag when a planned wash appears near a candidate.
-- *Stage 9, the milestones.* M0: one metro (the one you name), the block-group and traffic
-  layers built by code with provenance, one scored address you can open, the self-test green
-  (hours, measured). M1: every commercial parcel in that metro screened by the gates, the
-  Sites table and the shortlist with why each near-miss failed. M2: the map and the per-site
-  report. M3: Settings, your gates and benchmarks fitted, the pipeline board. M4: a second
-  metro, the refresh agent, exports. Each ends with you looking at real data.
-- *Stage 10.* Open: which metro first; your thresholds or the trade's; the intersection count
-  method; whether a Census key is yours to get.
-
-Then M0 builds, the evaluator judges it, you open it, and M1 starts when you say.
+A module as a program: a workspace under git where Alpha writes code, a design document in stages,
+milestones judged by an evaluator, and jobs with forms. §12 kept the workspace, the walled build run and the
+proxy, and dropped the rest; the unit of a build is the whole first version of the person's workflow. The full
+text as decided is in git history (the design document at commit `8ea259e` and before) and
+`research/modules-as-programs.md`.
 
 | Status (12 Oct 2026; detail in `../log/2026-10-10-workspace-spine.md` and `../log/2026-10-11-parts-for-real.md`) | |
 |---|---|
@@ -652,22 +449,11 @@ guardrails and governance and approvals". The split of §4.0 decides the shape.
   and Alpha looks at the page again, repairs the procedure and proposes the action afresh
   with a new preview.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | Procedures (act skills) with steps, fields, verify checks and placeholders filled from the payload; actions with a dry-run preview card, the person's yes in the app or in their words, decline; prepare-level standing permissions as sentences with Revoke; repair after a failure; "Sent, not confirmed" when only the check after the commit failed; upload steps restricted to Alpha's own folder; automations refused. |
 | Differs | A send is never standing. A repair never re-proposes an action that committed. |
 | Not built | Undo; sentences for sends; saying on the card when a dry run already leaves something behind (autosave). |
-`action_approve`, `action_decline`, `actions_list`; routes for the card, edit, approve,
-decline, screenshots and permissions; the action card in Home and the conversation; standing
-permissions in Knowledge; removal of a connection takes its procedures, declines pending
-actions and revokes their permissions; the scheduler performs approved actions the app missed.
-Rule 9 of the turn and the browser skill say how. Journey `gmail_draft`: the first real
-procedure is Alpha's own, written against Kenil's Gmail in about two minutes; the dry run
-filled a real compose window, the yes made the draft (Drafts 1 → 2), and Alpha's own verify
-check then failed because its text had gone, so the platform called it failed and the
-procedure broken, for Alpha to repair (build-plan §4.13).
-**Real (2 Oct, 18:43–18:54, in the app):** the draft was made and then, on "send it as well now", Alpha wrote a send procedure and the email went to Sania with the verify passing. The trace found a false "Sent" on a thrown error, cards approvable before their preview, and two Chromes colliding on one profile; all three fixed the same evening (build-plan §4.15): any error is a failure, a card waits for its preview, one job per profile at a time. Built since §6.2: upload steps, acting in Mac apps, sentences for sends, undo of a draft.
-
 ### 6.2 Files in and out (decided and built 2 October 2026, late evening; Q25)
 
 - **In, from a connection.** `page_download` fetches a file through the person's session (a
@@ -688,10 +474,10 @@ procedure broken, for Alpha to repair (build-plan §4.13).
 - **Out, by the person.** A table downloads as CSV or Excel into Alpha's exports folder,
   revealed in Finder.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn (and, since 3 Oct night, an Add files button on the module's page opening the Mac's picker, the same route), `file` fields, CSV and Excel export, upload steps. |
-| Differs | An upload by Alpha asks every time; the plan decides what is kept. |
+| Built | `page_download` into Alpha's folder per module, documents with module and origin, drag-and-drop onto a module or a row arriving as a turn (and, since 3 Oct night, an Add files button on the module's page opening the Mac's picker, the same route), `file` fields, upload steps; a module's and a person's files listed with their dates and the records that use them, and deleted with what goes said first; downloads of exactly what a table shows as CSV or Excel. |
+| Differs | An upload by Alpha asks every time; the workflow page says what is kept. |
 | Not built | — |
 
 *The text below is the original design of 30 September; where it says an explicit ask is built at once, the revision above applies.*
@@ -722,11 +508,11 @@ Your point 3: the decision of when a one-off is worth turning into a tracker, a 
 - An Access page: every connection, what it reaches and at what level, every grant to a skill.
 - Source content is data, never instruction: an email cannot tell Alpha what to do.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | The journal as Activity (day groups, All / Alpha / You / Failed, a row opens to what was done and why); actions with cards and standing sentences with Revoke; known, assumed or asked with provenance on every value; the second opinion; a trial on every build; automations cannot act outward; an action's state moves atomically. |
-| Differs | Connections in Intelligence says what each connection reaches; there is no Access page. |
-| Not built | Undo; the Access page; the checklist view (asked / done / assumed) in Activity. |
+| Built | The journal as Activity (day groups, All / Alpha / You / Failed, a row opens to what was done and why); actions with cards and standing sentences with Revoke; known, assumed or asked with provenance on every value; the second opinion; automations cannot act outward; an action's state moves atomically; a page per activity entry with Try again for any failure that can be redone; a record's History with Undo; every error a sentence. |
+| Differs | Connections in Intelligence says what each connection reaches; there is no Access page. A build no longer tries a plan's trial (plans went, Q40): a workflow's part is kept only once it worked on real data, and the person's real run is the acceptance (§12). |
+| Not built | Undo outside a record's page; the Access page; the checklist view (asked / done / assumed) in Activity. |
 - **Known, assumed or asked (decided and built 2 October 2026).** Every value Alpha writes or says is one of
   three things, and Alpha knows which: *stated* by the person; *looked up* from a source it can
   name (a label, a listing, a document, a page), which is what happens to anything that can be
@@ -763,11 +549,11 @@ The workspace is where the person *works* — their tables, their flows, their c
 - **Companion** — a non-activating floating panel on all Spaces showing a presence state (idle / listening / working / needs you — a visible state cut disruption 4.6→3.8 in CHI 2025), at most one line and one action, deep-linking to the exact card in the window; the same stream and threads; a keyboard path for every voice action.
 - **Visual** — light, native and spatially stable (Things 3 / Craft rather than developer-tool density): system font, two panes, optimistic updates with undo, motion only for state change, light and dark from day one. Nothing technical shows anywhere.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Rail Home · Activity · People & Companies · modules · Assistant · Intelligence · Settings · New (the Assistant page, 9 Oct, Q35: the conversation at full width with every conversation down the left; the reply shows as it is written, with the steps so far; a question left in prose becomes a card with choices, by mechanism); Home's lanes (Needs you with asks, proposals, plans, suggested facts and action cards; Didn't work today, with Try again for any failure that can be redone and how the try went (slice 2), Open, Dismiss and Clear all, 12 Oct, Q42 section 1; Alpha is working on, live; Coming up; Your modules); module pages with table, board, list, calendar and chart views, inline edit with provenance, filters in the columns (13 Oct, Q42 section 3a: a ⋮ per header with the column's filter; a header click sorts, shift-click adds a level), grouping in the table (section 3b: by one column, groups that fold; the table's working state kept for the session), saved lists as tabs in the toolbar (section 3c), totals chosen per column and per group (section 4a), a field set on several ticked rows at once (section 4b), a block pasted from a spreadsheet (section 4c), colour in main's five tones (section 4d), the sidebar's icons from names, order, nesting by drag and hiding (section 5), Settings as cards with Workspace, an empty Removed modules and Help (section 6), Intelligence's skills, connections, agents (a look each) and facts as tables (section 7), the assistant panel's picker, each turn's line and Retry (section 8), fields added and renamed by hand, a module's and a person's files listed and deleted, conversations renamed and deleted, facts corrected and forgotten, goals set by hand, everything Alpha remembers exported, a page for any activity entry and any goal, Activity back to its first entry, downloads of exactly what a table shows, every error a sentence, the companion opening where it was left, the mic held to talk and send (slice 2), plain errors, absolute dates and every delete confirming (section 9), a page per record (13 Oct, Q42 sections 2a and 2b: the › at a row's start or a double-click on a card opens it, a click on a row opens nothing; ticked rows are counted in the table's header row with Remove and Clear; the page has the record's History from its kept versions, Undo, and the person's Notes), saved lists, sources and automations; person pages; Intelligence's four tabs; the Claude-like panel with the conversation strip and Done; the companion with presence, choice pills, decisions in the bubble and Open to the conversation's page; the character in the person's chosen look (animal, wardrobe, size), with Bridge's moods as poses driven by what it does, dragged from itself (3 Oct night). |
-| Differs | Home stands for Today. Hidden windows keep polling (checkpoint). The window's minimum is 1100×560 (3 Oct: below it the panel floated over the page). |
-| Not built | The digest; decide-once; Undo outside a record's page; the checklist; per-source forget; launch at login; speech out. (Built 3 Oct from pull request #3's ideas, Q27–Q28: fonts bundled, the type scale, AA contrast, the Mac's motion and contrast honoured, addresses, resizable rail and panel, the UI kit, the gallery and timeline views with saved lists, ⌘K, a page per skill and per automation, fact origins, the module's page, quick entry on a table, the desktop check, the companion's characters with Bridge's art, the map of Alpha's work in Intelligence (Q29).) Of pull request #5 (Q41, Q42): its features come one section at a time in main's own design. |
+| Built | The rail: Home · Activity · People & Companies · the modules (the person's order, nesting by drag, hiding, icons from names, a right-click menu) · Assistant · Intelligence · Settings · New. Home's lanes: Needs you (asks, proposals, suggested facts, action cards, workflow pages); Didn't work today (Try again for any failure that can be redone and how the try went, Open, Dismiss, Clear all); Alpha is working on; Coming up; Your modules. A module's page: table, board, list, calendar, chart, gallery and timeline views; inline edit with provenance; filters in the columns, grouping, saved lists as tabs, totals, a field set on ticked rows, paste from a spreadsheet, colour; fields added and renamed by hand; its files; renamed, removed with its data kept and restored, or deleted with what goes said first (Q43). A page per record (History from its kept versions, Undo, Notes), per person or company (with their files), per activity entry, per goal, per skill and per agent. Intelligence: the map of the person's world and of Alpha's work; skills, agents (a look each), connections and facts as tables; facts corrected and forgotten; goals by hand; everything remembered exported. The Assistant page and the panel: every conversation, renamed and deleted from its menu; each turn's time and steps; Retry where a turn failed; questions as cards; hold the mic to talk and send. The companion: presence, moods as poses, the person's chosen look, opening where it was left. Settings as cards. Plain errors, absolute dates, every delete confirmed; Activity back to its first entry; downloads of exactly what a table shows. |
+| Differs | Home stands for Today. One poll for what changed, none while the window is hidden. The window's minimum is 1100×560; on a window too short for five rows, a table's page scrolls instead of its rows. |
+| Not built | The digest; decide-once; Undo outside a record's page; the checklist; per-source forget; launch at login; speech out; buttons for the companion's focus and for moving a sentence to another conversation (their routes exist). |
 
 **Layout and look stay as they are today** (Kenil, 1 October, after seeing a lighter redesign: "keep it similar to current alpha"): the 224px rail with the brand mark, Home, Activity, projects, modules, New and the theme control; serif headings and metric numbers; the module page with its App · Activity · Settings toggle and subtabs; the table toolbar with view toggles and the record drawer; the 380px assistant panel with its header and "uses your Claude subscription" footer; the blob companion with its bubble. The new content (Needs you, the brief, People, threads, provenance, undo, Knowledge) is placed inside that structure. Prototype: https://claude.ai/artifact/5xNamEYxSyYRoGtnX7bQyQ.
 
@@ -779,11 +565,11 @@ The workspace is where the person *works* — their tables, their flows, their c
 - **Later:** the Anthropic API behind the same tool surface with our own loop; Jev or Laya at the System One seam.
 - **Planned to break on the switch:** Claude in Chrome (→ the Chrome 144 bridge) and Anthropic's connectors (→ our own Google app, CASA for Gmail).
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
 | Built | `claude -p` with the rules and the pre-pack appended, the world as a strict MCP server, Alpha's tools plus web search and fetch, the file and shell tools denied; Sonnet by default; independent and judge runs on the same route, Haiku for the System One seam; a live conversation's session resumed, nothing else. |
 | Differs | Claude in Chrome and Anthropic's connectors are not used, so nothing of theirs breaks on a switch; the CLI, not the SDK (its flag support unverified). |
-| Not built | The API route; Jev or Laya at the seam; a third-party login for other people (needs Anthropic's approval); a timeout on a run. The ChatGPT route exists (Q32) but is off until Codex lets Alpha's tool calls through. (Since 9 Oct: a run whose tool calls all failed is a failed run on both routes; switching routes runs one real tool call first.) Since 9 Oct (Q34): a shipped Alpha carries its runtime; Claude Code and the browser are installed on first run inside the window. |
+| Not built | The API route; Jev or Laya at the seam; a third-party login for other people (needs Anthropic's approval); a timeout on a run (a run that goes silent is ended instead). The ChatGPT route exists (Q32) but is off until Codex lets Alpha's tool calls through. |
 
 ---
 
@@ -803,9 +589,9 @@ tests/  docs/
 
 Carried over with their tests, and only where the design calls for that exact thing: `browser_session.mjs`; `voice.tsx`; `avatar/*`; `DataPage.tsx` re-fitted to one store; the record store's compare-and-swap writes and provenance; `sessions.py` (verbatim turns with FTS5); `profile.py` generalised into facts; `scheduler.py`; `harness_claude_cli.py`; `models/gateway` and `structured`. Never the app contract, the build pipeline, the planner, the verifier, the workers, or per-module stores.
 
-| Status (3 Oct 2026; detail in `../log/`) | |
+| Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `core/alpha/{world, context, runtime, mcp, api, connectors, journeys}`, `connectors/{browser, files, calendar}`, `desktop/`, `journeys/`, `docs/{STATE.md, design, log, journeys}`, `core/tests/`. Carried over: the browser driver, the voice and avatar, the data page, compare-and-swap record writes with provenance. |
+| Built | `core/alpha/{world, context, runtime, mcp, api, connectors, journeys}`, `connectors/{browser, files, calendar}`, `desktop/`, `journeys/`, `docs/{STATE.md, design, log, journeys, checks}`, `core/tests/`. Carried over: the browser driver, the voice and avatar, the data page, compare-and-swap record writes with provenance. |
 | Differs | No `skills/` or `sensors/` directories: skills are a table, sensors are the scheduler and the watchers. |
 | Not built | — |
 
@@ -980,9 +766,7 @@ their scores stay.
 | **Q35** | The conversation, closer to Claude (9 Oct 2026; Kenil: "questions are often just asked, there are no multiple choice options, it's flaky, i want the chat interface to be really seamless like claude", and a full-screen Assistant page above Intelligence). Measured first on his world: in a week, 23 replies ending with a question in prose against 2 ask cards, though the card and the rule existed. Decided: the reply's text shows as it is written (`--include-partial-messages`), with the steps so far inline and the first words' time measured per turn; a question left in prose becomes a card by mechanism, with options from the reply's own list, else from the System One seam when it is a choice, none when it is open (the rule to the model stands, the mechanism does not depend on it); the Assistant page is the same conversation at full width with every conversation, live and finished, down the left. Left for later from the same discussion: one automatic retry of a transient failure with a Try again card, identical replies collapsed and a stopped build posting once, long replies folded, copy and edit-and-resend, a plus for files in the composer, whether one stream should replace the per-page conversations. | 9 Oct 2026 (`../log/2026-10-09-chat.md`). |
 | **Q36** | A plan's questions with their choices (9 Oct 2026; Kenil, on the first plan on the Assistant page: "when there are questions, why give build option? … if there are default, those should be visible"). A plan's questions are part of the plan: text, 2 to 4 choices, Alpha's default; the model puts them on `plan_propose`, and questions it leaves in the text are read out by the core with the seam supplying choices and the plan's own lean. The card shows them with Alpha's pick selected, the button reads "Build with these", and the answers (or the defaults, named as such) go into the brief the build reads. | 9 Oct 2026 (`../log/2026-10-09-plan-questions.md`). |
 | **Q37** | The research pass before a build (9 Oct 2026, after the car wash module: Alpha wrote the spec itself from a one-line ask and four one-word answers, and built a weighted average with no gates in fourteen minutes; Kenil: "it needs to be a proper module… alpha should do a good scan of what all could potentially be helpful for such a product, and how well can it be built, and suggest those to the user so that they can decide"). Decided, with the evidence in `research/research-before-build.md`: the job's questions first, as cards, only the ones not known; every build ask gets a research pass in the background, breadth scaled by rule, each look an independent web run returning findings the core resolves by code; the plan is a menu of pieces (kept for you, your call, not this time) with evidence, how it would be built, whether it can be built now and Alpha's recommendation, decided with keep / skip / defer and one yes; `plan_propose` only inside a research thread; deferred pieces kept on the module's page; findings kept as a `topic:` page. Research first; computed things (gates, scores over rows) are a later slice, and the menu's "not yet" column is the measure of what to add. Kept apart from Q33's agents in name. | 9 Oct 2026 (`../log/2026-10-09-research-pass.md`). §6.3 |
-
 | **Q38** | Modules as programs (10 Oct 2026, after the second car wash build: the research pass worked, the build was still one table and a recipe, because a module had nowhere to hold a program; Kenil: "i dont want a half ass working solution … look at the module built by my friend … it should be like this", and "i dont want to reinvent the wheel"). Decided, four yeses: a module is a workspace Alpha codes in (program, data, declared pages) inside Claude Code's own sandbox driven by Alpha's settings (deny-default, writes in the workspace only, network only to the design's hosts through Alpha's journaling proxy, secrets denied, `srt` for unattended runs); a design document agreed stage by stage (job → findings → the person's inputs → data model → sources per value → method with calibration → surfaces → loop → milestones → open questions), frozen per milestone; milestones one per fresh session, each ending in a real result the person opens, done decided by a separate skeptical evaluator with scripted checks first; a `pages.yaml` contract of five kinds rendered by the shell (table, map, report, settings, export); the data layer's defaults DuckDB + GeoParquet + Hamilton + provenance per layer + pointblank; a module's own settings page is the person's, not a platform knob. Prior art in `research/modules-as-programs.md`. Reverses "modules are tables, know-how is pipelines". | 10 Oct 2026 (`../log/2026-10-10-modules-as-programs.md`). §6.4 |
-
 | **Q39** | Modules as workflows (11 Oct 2026, after three car wash builds in two days; Kenil: "such a complicated output is not useful / intuitive for a user at all … modules are workflows that are intended to automate / help the user with their tasks … dont take baggage"). A module is the person's own workflow as their steps, nothing fixed by the platform except what a step needs to run safely (who does it, what it takes and gives, whether it reaches out or acts outward, when it runs); it keeps a normalized model, documents (editable, exportable, usable elsewhere), settings with origins, pages from an open catalog (a map when asked), and one "Your workflow" page in the person's words that Alpha keeps and changes only through chat; every step is a part with a contract, proven on real data, from a library shared across modules now and people later; built from an interview and the person's own documents, suggestions alongside with sources kept and shown on ask, one whole first version accepted by the person running their real flow once, then changed by conversation preserving their own data. One person per module for now. Supersedes the shapes of §6.3 (the research-first menu) and §6.4 (the ten-stage document and milestones); keeps their mechanisms. | 11 Oct 2026 (`../log/2026-10-11-modules-as-workflows.md`). §12 |
 | **Q40** | The superseded shapes go (12 Oct 2026; Kenil: "ensure the code and repo is clean, all old and stale stuff completely gone"). The research pass (Q37) and plans with milestones, the evaluator and jobs (Q38) were unreachable since Q39 closed `research_start` and `plan_propose`; they are removed with their tables (dropped by a migration, the journal keeps every line), routes, cards, tools, journeys and tests. Lasting things are made only inside a build; since no build but a workflow's walled session exists, the model has no door today for a new automation or reader of its own: an open question, not a regression hidden in dead code. | 12 Oct 2026 (`../log/2026-10-12-clean-sweep.md`). §6.2, §6.3, §6.4 |
 | **Q41** | The features taken from pull request #5 (12 Oct 2026; Kenil, after the review and an inventory of the branch against main: "i dont want to blindly copy their code, i want you to review and decide how best to add those exact features we agreed on into the current code in a clean and modular way"). Taken: the data view (filters, several sorts, groups, footers, conditional colours, bulk edit, saved lists as tabs, the numbers strip); a page per record with History, Undo and Notes; each value's source, date and problem visible, Try again and the parts' buttons; a program module's own tables read-only; the Estimated and Assumed marks on the title too, both counted; a paste written one row at a time; plain errors, absolute dates, every delete confirming; the sidebar's order, icons, hiding and nesting, and the workspace's name; Home's tiles and "Didn't work today"; Settings as cards for what exists; Intelligence's graph, its facts as a table, Skills and Connections as tables, the agents as Alpha and the automations (Q33) with a look per agent; the assistant's picker of conversations, each turn's provenance and Retry. Skipped: star defaults, the load limit, the choice of record sections, a Depth knob with a stored default, Governance rules the runtime does not read, empty Settings pages, the new-project page past the interview, a Network item in the sidebar, Activity and the Assistant out of it, the CSV editing grid (B7, later), the branch's rewrite of this document and its Q39–Q42. The core's routes the window asks for (rename, delete and a Removed state for a module, a field added by the person, export, a goal, a memory page…) come after. | 12 Oct 2026 (`../log/2026-10-12-window-from-pr5.md`). §8 |
@@ -998,6 +782,8 @@ their scores stay.
 - `design/research/proactivity-and-standing-things.md` — 17 proactive products, interruption evidence, the four-layer mechanism, the standing-things ladder.
 - `design/research/workspace-ui.md` — 25 second-brain products and 20 agent workspaces compared; the review, approval and explanation evidence; the recommended information architecture.
 - Jev / System One models: TypeSafe docs and cookbooks, arXiv 2609.30216, the Laya comparison (summarised in the chat of 30 Sept 2026).
-- `design/research/modules-as-programs.md` — the prior art behind modules as programs (Q38, 10 Oct 2026): sandboxes for a coding agent on a Mac (Claude Code's own, verified here; Codex and Gemini CLI), declared surfaces (A2UI, json-render, Datasette, Evidence, MapLibre + PMTiles, Typst), the data layer (DuckDB, Hamilton, Data Package provenance, pointblank, reusable public-data libraries), long builds (Anthropic's and OpenAI's harnesses, Spec Kit, BMAD, the Ralph loop, the false-success evidence).
-- `design/research/research-before-build.md` — the evidence behind the research pass (Q37, 9 Oct 2026): agents under-ask and assume silently; research before building helps when checked; when questions are worth asking and how many; how the deep-research products and the builder agents do it; how product people scope from a vague ask.
+- `design/research/modules-as-programs.md` — superseded by §12 (Q39) and in part removed (Q40); the prior art behind modules as programs (Q38, 10 Oct 2026): sandboxes for a coding agent on a Mac (Claude Code's own, verified here; Codex and Gemini CLI), declared surfaces (A2UI, json-render, Datasette, Evidence, MapLibre + PMTiles, Typst), the data layer (DuckDB, Hamilton, Data Package provenance, pointblank, reusable public-data libraries), long builds (Anthropic's and OpenAI's harnesses, Spec Kit, BMAD, the Ralph loop, the false-success evidence).
+- `design/research/research-before-build.md` — superseded by §12 (Q39), the pass removed (Q40); the evidence behind the research pass (Q37, 9 Oct 2026): agents under-ask and assume silently; research before building helps when checked; when questions are worth asking and how many; how the deep-research products and the builder agents do it; how product people scope from a vague ask.
 - `design/research/competitor-kanu.md` — Kanu (getkanu.com, 2 Oct 2026): the same thesis sold top-down to enterprises with forward-deployed engineers; what Alpha lacks (finished deliverables, enterprise connectors, a feedback-to-behaviour loop), what Kanu doesn't show (a person-sized, local, self-serve product with provenance per value), and what it means for the pitch.
+- `design/research/ui-rulebook.md` — Vikas's rulebook for the window (pull request #5), kept as guidance, never a rule over main's look (Q42).
+- `design/research/core-changes-for-the-window.md` — Vikas's list of what the window needed from the core (A1–G7, T), with Kenil's 12 Oct answers; slice 2 built from it.

@@ -71,7 +71,8 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 - Nothing per use case; the platform knows no domain. Never site- or app-specific logic in the
   platform; Alpha's know-how (skills: readers, procedures, pipelines) is never patched by hand —
   ask Kenil.
-- Plan first by mechanism: lasting things are made only inside an approved plan's build.
+- Plan first by mechanism: lasting things are made only on the person's yes on the workflow
+  page (§12); how an agent gets an automation or a reader of its own is open (Q40).
 - No limits, quotas or technical knobs; the person stops what isn't going anywhere.
 - Known, assumed or asked: every value has a source, or is estimated and says so, or is asked.
 - Removal deletes everything related; the journal is never deleted.
@@ -82,6 +83,9 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 ## Toolchain
 
 `uv` (Python 3.13.9), Node from `/opt/homebrew/opt/node@24/bin` (the default Node is broken),
-pnpm 10, Tauri 2.11.6. `just test`, `just lint`, `just test-desktop`, `just journeys`, `just app`,
-`just stats`; `just ship` builds Alpha for another Mac with its runtime inside. The model route is the Claude Code CLI on Kenil's subscription; `claude` must be
-signed in from the default config home and `USER` must be set. Keep `desktop/src-tauri/Cargo.lock`.
+pnpm 10, Tauri 2.11.6. `just test`, `just lint`, `just test-desktop`, `just journeys`,
+`just check-desktop`, `just app`, `just stats`; `just ship` builds Alpha for another Mac with its
+runtime inside. Four journeys act in Kenil's real accounts (gmail_send, gmail_draft, skill_reuse,
+linkedin_message): run them only on his say. The model route is the Claude Code CLI on Kenil's
+subscription; `claude` must be signed in from the default config home and `USER` must be set.
+Keep `desktop/src-tauri/Cargo.lock`.
