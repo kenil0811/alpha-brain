@@ -5,10 +5,10 @@ following the automation's procedure in its own thread, with nobody watching. Th
 checks every half minute while the core runs and starts every due automation in its own thread
 (the hands take turns on a sign-in profile by themselves, so two runs never open one Chrome
 profile twice); a run missed while Alpha was closed happens once on return. It also starts the
-build of every plan the person approved, continues a build whose run ended before its work did,
-and picks builds up again after a restart; each build runs in its own thread so automations never
-wait for it. Nothing here has a limit on how long it may take: the person stops what isn't going
-anywhere.
+build of every workflow page the person said yes to (§12), continues a build whose run ended
+before its work did, and picks builds up again after a restart; each build runs in its own
+thread so automations never wait for it. Nothing here has a limit on how long it may take: the
+person stops what isn't going anywhere.
 
 The Mac's sleep (found 3 Oct 2026, build-plan §4.22): a sleeping Mac wakes for a couple of
 seconds every quarter hour to check mail and the like, and the core runs only in those slices. A
@@ -30,8 +30,8 @@ import threading
 import time
 from typing import Any
 
+from alpha.runtime import acting, conversations, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
-from alpha.runtime import pipeline, route, turn, workflow_build
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -298,8 +298,6 @@ class Scheduler:
     def acts(self) -> None:
         """Perform every action the person approved that hasn't run (the app was closed in
         between, say). The approval route runs them at once; this is the catch-up."""
-        from alpha.runtime import acting
-
         for action in self.world.actions.all(("approved",)):
             if self.stop_event.is_set():
                 return
@@ -314,8 +312,6 @@ class Scheduler:
     def tick(self) -> None:
         settled = self.settled()
         try:
-            from alpha.runtime import conversations
-
             conversations.close_idle(self.world)
         except Exception:
             log.exception("closing quiet conversations")

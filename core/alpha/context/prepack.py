@@ -23,6 +23,7 @@ from typing import Any
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
+from alpha.world.store import local_midnight_utc
 from alpha.world.world import World
 
 # Raised from 12,000 on 3 Oct when every table's fields joined the pack: about 500 more tokens a
@@ -139,13 +140,12 @@ def when(iso: str) -> str:
 
 def clock(at: datetime | None = None) -> list[str]:
     local = (at or datetime.now()).astimezone()
-    midnight = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo)
     offset = local.strftime("%z")
     return [
         f"- {local.strftime('%A %d %B %Y, %H:%M')} local time (UTC{offset[:3]}:{offset[3:]}).",
         f"- Today's date is {local.date().isoformat()}. Record times (created_at, updated_at)"
         f" are stored in UTC: records made today have created_at >="
-        f" {midnight.astimezone(UTC).replace(microsecond=0).isoformat()}.",
+        f" {local_midnight_utc(local)}.",
     ]
 
 

@@ -205,7 +205,7 @@ def test_a_turn_whose_tool_calls_all_failed_is_a_failed_turn() -> None:
 
     tools: dict[str, Any] = {"called": 0, "failed": 0, "first": ""}
     count_tools({"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "name": "mcp__alpha__plan_approve", "input": {}}]}}, tools)
+        {"type": "tool_use", "name": "mcp__alpha__action_approve", "input": {}}]}}, tools)
     count_tools({"type": "user", "message": {"content": [
         {"type": "tool_result", "is_error": True, "content": [
             {"type": "text", "text": "MCP server alpha is not connected"}]}]}}, tools)

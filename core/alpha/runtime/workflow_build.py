@@ -6,7 +6,7 @@ table with every setting and its origin, the workspace with the page in it under
 model, one session in the walled workspace (runtime/workspace.py): a part for every step Alpha
 does (runtime/parts.py), a Markdown template for every document, each part tried on one real
 input, progress written, committed. Then the core registers the parts and the templates, and
-the page is marked built; the evaluator through the pages is the next piece.
+the page is marked built; the parts run on the rows that arrive (runtime/parts.py).
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from alpha.connectors.files import Files
 from alpha.runtime import parts as parts_module
 from alpha.runtime import route, turn
 from alpha.runtime import workspace as workspace_module
@@ -202,8 +203,6 @@ def make_workspace(world: World, wf: dict[str, Any], module_id: str,
 def register(world: World, wf: dict[str, Any], module_id: str, ws: Path) -> dict[str, Any]:
     """What the session left: the parts declared, the document templates kept as documents
     of the module."""
-    from alpha.connectors.files import Files
-
     parts = parts_module.parts_of(ws)
     templates = []
     files = Files(world)
@@ -240,7 +239,7 @@ def run(world: World, wid: str, *, runner: turn.Runner = route.run) -> dict[str,
                              data={"module": module_id, "workflow": wid})
     tables = make_model(world, wf, module_id)
     ws = make_workspace(world, wf, module_id, tables)
-    hosts = workspace_module.hosts_for({"hosts": hosts_of(wf["body"])})
+    hosts = workspace_module.hosts_for(hosts_of(wf["body"]))
     prompt = ("Build the workflow: WORKFLOW.md and workflow.json in this directory are the page"
               " the person said yes to.")
     try:

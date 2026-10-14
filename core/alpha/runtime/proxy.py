@@ -1,11 +1,12 @@
-"""Alpha's own proxy for a module's scripts (design §6.4): the one road out of the sandbox.
+"""Alpha's own proxy for a module's scripts (§12): the one road out of the sandbox.
 
-A script the core runs for a module (a job, a check) reaches the network only through this
-proxy, bound to the loopback on a port of its own for the run; the Seatbelt profile allows
+A script the core runs for a module (a part, a build's session) reaches the network only through
+this proxy, bound to the loopback on a port of its own for the run; the Seatbelt profile allows
 outbound connections to that port and nothing else. The proxy lets through only the hosts the
-plan names (exact, or a subdomain of one), refuses the rest with 403, and counts every request
-per host so the run can journal what was reached and what was refused. HTTPS goes through as a
-CONNECT tunnel (the proxy sees the host, never the content); plain HTTP is forwarded.
+part or the workflow page names (exact, or a subdomain of one), refuses the rest with 403, and
+counts every request per host so the run can journal what was reached and what was refused.
+HTTPS goes through as a CONNECT tunnel (the proxy sees the host, never the content); plain HTTP
+is forwarded.
 """
 
 from __future__ import annotations

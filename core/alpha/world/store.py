@@ -181,6 +181,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
 CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
     INSERT INTO documents_fts(rowid, title, text) VALUES (new.rowid, new.title, new.text);
 END;
+-- a deleted document leaves the index by itself (14 Oct 2026; purge did it by hand in 3 places)
+CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
+    INSERT INTO documents_fts(documents_fts, rowid, title, text)
+        VALUES ('delete', old.rowid, old.title, old.text);
+END;
 CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
     INSERT INTO documents_fts(documents_fts, rowid, title, text)
         VALUES ('delete', old.rowid, old.title, old.text);
@@ -283,8 +288,6 @@ CREATE TABLE IF NOT EXISTS sources (
     updated_at TEXT NOT NULL,
     UNIQUE (module, url)
 );
-
--- know-how Alpha writes to act in a web app: declarative steps for one task on one site
 
 -- an outward effect Alpha proposed; nothing leaves Alpha's space until the person's yes
 CREATE TABLE IF NOT EXISTS actions (
@@ -421,13 +424,13 @@ ADDED_COLUMNS = [
     ("automations", "skill", "TEXT"),
     # a module's workspace folder once it has one (Q38, kept by §12)
     ("modules", "workspace", "TEXT"),
-    # a file Alpha fetched or the person added: whose module it is, and where it came from
     # a conversation the person named keeps their title (13 Oct, slice 2 G1)
     ("threads", "titled", "TEXT"),
+    # a file Alpha fetched or the person added: whose module it is, and where it came from
     ("documents", "module", "TEXT"),
+    ("documents", "origin", "TEXT"),
     # a file kept about a person or company, on their page (13 Oct, slice 2 B11)
     ("documents", "about", "TEXT"),
-    ("documents", "origin", "TEXT"),
     # a page of the wiki carries a one-line summary for the always-loaded index
     ("notes", "summary", "TEXT"),
 ]
@@ -444,6 +447,13 @@ def new_id(prefix: str) -> str:
 
 def now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
+def local_midnight_utc(at: datetime | None = None) -> str:
+    """The start of the Mac's own day, in UTC like every stored time: what "today" means."""
+    local = (at or datetime.now()).astimezone()
+    midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    return midnight.astimezone(UTC).replace(microsecond=0).isoformat()
 
 
 def dumps(value: Any) -> str:

@@ -16,14 +16,13 @@ from alpha.api.bodies import (
 )
 from alpha.api.served import Served
 from alpha.api.views import (
-    _local_midnight_utc,
     module_card,
     needs_you,
     thread_views,
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations
-from alpha.world.store import Problem
+from alpha.world.store import Problem, local_midnight_utc
 
 
 def routes(app: FastAPI, s: Served) -> None:
@@ -35,7 +34,7 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/home", dependencies=[api])
     def home() -> dict[str, Any]:
-        since = _local_midnight_utc()
+        since = local_midnight_utc()
         ran = world.store.one(
             "SELECT COUNT(*) AS n FROM journal WHERE at >= ? AND actor = 'alpha'"
             " AND kind IN ('did','changed','made','saw') AND deleted_at IS NULL", (since,),
@@ -54,7 +53,6 @@ def routes(app: FastAPI, s: Served) -> None:
             "loose_tables": [t for t in world.collections.overview() if t["module"] is None],
             "coming_up": events[:6],
             "threads": thread_views(world),
-            "brief": None,
         }
 
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
@@ -120,18 +118,10 @@ def routes(app: FastAPI, s: Served) -> None:
         """Stop a turn that is still working (the panel's Stop)."""
         return running.stop(key)
 
-    @app.get("/api/workflows", dependencies=[api])
-    def workflows() -> list[dict[str, Any]]:
-        return list(reversed(world.workflows.all()))[:50]
-
-    @app.get("/api/workflows/{wid}", dependencies=[api])
-    def workflow(wid: str) -> dict[str, Any]:
-        return {**world.workflows.get(wid), "versions": world.workflows.versions(wid)}
-
     @app.post("/api/workflows/{wid}/agree", dependencies=[api])
     def agree_workflow(wid: str, body: AgreeWorkflowBody | None = None) -> dict[str, Any]:
         """The yes on the page (§12): suggestions decided, answers kept, then agreed; the
-        build follows in the background (its wiring is the next slice)."""
+        build follows in the background (`scheduler.builds`)."""
         if body:
             for sid, decision in (body.suggestions or {}).items():
                 world.workflows.decide_suggestion(wid, sid, decision)

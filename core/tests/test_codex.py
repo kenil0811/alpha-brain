@@ -128,7 +128,7 @@ def test_the_thinking_routes(world: World, monkeypatch: Any) -> None:
 def test_codex_refusing_every_tool_call_is_a_failed_run() -> None:
     events: list[dict[str, Any]] = [
         {"type": "thread.started", "thread_id": "thr_3"},
-        {"type": "item.completed", "item": {"type": "mcp_tool_call", "tool": "plan_approve",
+        {"type": "item.completed", "item": {"type": "mcp_tool_call", "tool": "action_approve",
                                             "status": "failed",
                                             "error": {"message": "user cancelled MCP tool call"}}},
         {"type": "item.completed", "item": {"type": "agent_message",

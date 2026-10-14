@@ -10,7 +10,7 @@ from typing import Any
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import Browser
 from alpha.connectors.calendar import Calendar
-from alpha.connectors.files import Files
+from alpha.connectors.files import Files, files_dir
 from alpha.mcp.tools.base import ALPHA_SETS, Base, tool
 from alpha.runtime import pipeline
 from alpha.world.readers import health_problem
@@ -61,9 +61,7 @@ class Reading(Base):
         when a control is pressed (click: css, or click_text: the control's words). A read:
         nothing changes on the site. The file becomes a document (document_read for its text)
         and its id can be kept on a row in a `file` field (records_update). Fetch files only
-        when the plan said to keep them or the person asked for one."""
-        from alpha.connectors.files import Files, files_dir
-
+        when their workflow page says to keep them or the person asked for one."""
         module_id = self.world.modules.get(module)["id"] if module else self.module
         module_name = self.world.modules.get(module_id)["name"] if module_id else None
         scratch = files_dir(module_name) / ".incoming"

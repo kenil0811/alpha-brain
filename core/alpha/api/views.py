@@ -18,12 +18,6 @@ from alpha.world.world import World
 STEP_KINDS = {"did", "saw", "made", "changed", "failed", "noticed", "asked", "checked"}
 
 
-def _local_midnight_utc() -> str:
-    local = datetime.now().astimezone()
-    midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
-    return midnight.astimezone(UTC).replace(microsecond=0).isoformat()
-
-
 def _cell(value: Any) -> Any:
     if isinstance(value, list):
         return ", ".join(str(v) for v in value)
@@ -41,6 +35,7 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     answered = {loads(r["data"], {}).get("proposal")
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):
+        # a plan's proposal (before 12 Oct 2026, Q40) can't be answered any more: never shown
         if p["id"] not in answered and not p["data"].get("plan"):
             items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
                           "why": p["data"].get("why"), "at": p["at"], "module": p["module"]})

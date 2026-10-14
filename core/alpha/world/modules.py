@@ -1,7 +1,8 @@
 """Modules and threads.
 
 A module is a named bundle of tables, skills, automations and a note around a goal: the tool the
-person works in. It costs nothing to make (no code, no build) and grows as it is used. A module
+person works in. A plain one costs nothing to make; one made from a workflow page has its
+parts built in its workspace (§12). It grows as it is used. A module
 may sit inside another (Job holds Search and Resume), to any depth: one concept, a `parent`,
 nothing per level (Q31). What a module owns stays its own; a parent is the place that holds
 its children, whose page, activity and conversation reach the whole subtree.
@@ -170,7 +171,7 @@ class Modules:
             "SELECT * FROM modules WHERE removed_at IS NULL ORDER BY name")]
 
     def set_workspace(self, module_id: str, path: str | None) -> dict[str, Any]:
-        """The folder a program module is built in (Q38); None when it is removed."""
+        """The folder a module's workflow is built in (§12); None when it has none."""
         with self.store.tx() as db:
             db.execute("UPDATE modules SET workspace = ?, updated_at = ? WHERE id = ?",
                        (path, now(), module_id))

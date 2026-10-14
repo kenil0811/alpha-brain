@@ -118,13 +118,6 @@ class Skills:
             out.append(s)
         return out
 
-    def for_sites(self, hosts: list[str]) -> list[dict[str, Any]]:
-        seen: dict[str, dict[str, Any]] = {}
-        for h in hosts:
-            for s in self.find(site=h):
-                seen.setdefault(s["name"], s)
-        return list(seen.values())
-
     # ---- writing (each kind's adapter calls these) ----
 
     def save(self, name: str, kind: str, *, description: str, site: str | None = None,

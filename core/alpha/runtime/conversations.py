@@ -20,10 +20,10 @@ Routing, for a sentence that arrives without a conversation (the companion):
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from alpha.runtime import judge
-from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -120,8 +120,6 @@ def reset_working(world: World) -> list[str]:
 
 def close_idle(world: World, *, idle_s: int = IDLE_CLOSE_S) -> list[str]:
     """Conversations nobody has spoken in for a while are over (the scheduler's tick)."""
-    from datetime import UTC, datetime, timedelta
-
     cutoff = (datetime.now(UTC) - timedelta(seconds=idle_s)).replace(microsecond=0).isoformat()
     closed = []
     for chat in world.modules.chats(live=True, limit=100):
@@ -270,13 +268,3 @@ def routed_answer(world: World, ask: dict[str, Any], answer: str) -> dict[str, A
     cid = routing["choices"][chosen] or open_conversation(world, routing["text"], None)["id"]
     set_focus(world, cid)
     return {"conversation": cid, "text": routing["text"]}
-
-
-def fake_runner(answer: str, confidence: float = 0.9) -> Any:
-    """For tests: a judge that always gives one answer."""
-
-    def runner(req: TurnRequest) -> RunResult:
-        return RunResult(ok=True, reply=f'{{"answer": "{answer}", "confidence": {confidence},'
-                                        ' "why": "test"}')
-
-    return runner

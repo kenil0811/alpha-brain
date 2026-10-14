@@ -30,14 +30,6 @@ def connectors_dir() -> Path:
     return Path(__file__).resolve().parents[3] / "connectors"
 
 
-def manifest(name: str) -> dict[str, Any]:
-    path = connectors_dir() / name / "connector.yaml"
-    if not path.exists():
-        raise Problem(f"There is no connector '{name}'.")
-    data: dict[str, Any] = yaml.safe_load(path.read_text())
-    return data
-
-
 def manifests() -> list[dict[str, Any]]:
     root = connectors_dir()
     if not root.exists():

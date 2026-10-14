@@ -260,10 +260,11 @@ def test_one_name_rule_and_one_site_rule_everywhere(world: World) -> None:
 
 def test_a_proposal_is_answered_one_way(world: World) -> None:
     pid = world.journal.append("proposed", "Keep a list", data={"why": "asked"})
-    jid = world.journal.answer_proposal(pid, True, plan="p_1")
+    jid = world.journal.answer_proposal(pid, True, action="x_1")
     entry = world.journal.read(jid)
     assert entry["kind"] == "answered" and entry["text"] == "Yes" and entry["actor"] == "person"
-    assert entry["data"] == {"proposal": pid, "accept": True, "plan": "p_1"}
-    replaced = world.journal.read(world.journal.answer_proposal(
-        pid, None, actor="alpha", words="Replaced by a revised plan.", replaced=True))
-    assert replaced["data"] == {"proposal": pid, "replaced": True}
+    assert entry["data"] == {"proposal": pid, "accept": True, "action": "x_1"}
+    standing = world.journal.read(world.journal.answer_proposal(
+        pid, None, actor="person", words="Yes, and from now on without asking.", always=True))
+    assert standing["data"] == {"proposal": pid, "always": True}
+    assert standing["text"] == "Yes, and from now on without asking."

@@ -110,7 +110,7 @@ class Turns:
                 except Exception:
                     log.exception("conversation state")
             if self.after is not None:
-                # A plan approved in this turn starts building now, not at the next tick.
+                # A workflow page agreed in this turn starts building now, not at the next tick.
                 try:
                     self.after()
                 except Exception:

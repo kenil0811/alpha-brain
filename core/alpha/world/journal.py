@@ -187,6 +187,13 @@ class Journal:
             " AND deleted_at IS NULL ORDER BY at", (turn, turn, turn))
         return [entry(r) for r in rows]
 
+    def reply_of(self, turn: str) -> dict[str, Any] | None:
+        """The reply a turn ended with, if it has one."""
+        row = self.store.one(
+            "SELECT * FROM journal WHERE kind = 'replied' AND json_extract(data, '$.turn') = ?"
+            " AND deleted_at IS NULL ORDER BY at DESC LIMIT 1", (turn,))
+        return entry(row) if row else None
+
     def of_goal(self, gid: str) -> list[dict[str, Any]]:
         """What happened to one goal, oldest first: set, rewritten, done, dropped."""
         rows = self.store.all(
@@ -281,9 +288,9 @@ class Journal:
     def answer_proposal(self, proposal: str, accept: bool | None, *, words: str | None = None,
                         actor: str = "person", module: str | None = None,
                         thread: str | None = None, **about: Any) -> str:
-        """The one way a proposal is answered: Yes or No (or other words: a standing permission,
-        a revised plan replacing it), with what the answer was about (the plan, the action), so
-        Home stops showing it and Activity shows who decided."""
+        """The one way a proposal is answered: Yes or No (or other words: a standing
+        permission), with what the answer was about (the action, the fact, the workflow page),
+        so Home stops showing it and Activity shows who decided."""
         data: dict[str, Any] = {"proposal": proposal}
         if accept is not None:
             data["accept"] = accept

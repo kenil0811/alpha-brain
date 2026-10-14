@@ -159,10 +159,10 @@ def test_the_page_is_on_home_and_in_the_conversation_and_agreed_in_the_app(
     assert out["state"] == "agreed" and out["body"]["questions"][0]["answer"] == "Denver"
     assert out["body"]["suggestions"][1]["decision"] == "accept"
     assert c.get("/api/home").json()["needs_you"] == []
-    assert c.get(f"/api/workflows/{wid}").json()["versions"] == []
+    assert world.workflows.versions(wid) == []
     assert c.post(f"/api/workflows/{wid}/agree").status_code == 400  # not drafted any more
     assert c.post(f"/api/workflows/{wid}/decline").json()["state"] == "declined"
-    assert c.get("/api/workflows").json()[0]["state"] == "declined"
+    assert world.workflows.get(wid)["state"] == "declined"
 
 
 def test_a_deleted_modules_workflow_page_goes_with_it(world: World) -> None:

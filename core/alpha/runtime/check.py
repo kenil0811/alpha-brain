@@ -40,13 +40,6 @@ that Alpha neither asked nor said it assumed.
 agree is false when differences is non-empty. Empty lists when there is nothing."""
 
 
-def _reply_of(world: World, turn_id: str) -> dict[str, Any] | None:
-    row = world.store.one(
-        "SELECT id, text FROM journal WHERE kind = 'replied' AND deleted_at IS NULL"
-        " AND json_extract(data, '$.turn') = ? ORDER BY at DESC LIMIT 1", (turn_id,))
-    return {"id": row["id"], "text": row["text"]} if row else None
-
-
 def records_of(world: World, turn_id: str) -> list[dict[str, Any]]:
     """The records a turn added or changed, with their provenance."""
     rows = world.store.all(
@@ -78,7 +71,7 @@ def records_of(world: World, turn_id: str) -> list[dict[str, Any]]:
 def worth_checking(world: World, turn_id: str) -> bool:
     """A turn is checked when Alpha wrote values it worked out itself (looked up or estimated)
     rather than only what the person stated."""
-    if _reply_of(world, turn_id) is None:
+    if world.journal.reply_of(turn_id) is None:
         return False
     for rec in records_of(world, turn_id):
         prov = rec.get("_provenance") or {}
@@ -129,7 +122,7 @@ def check(world: World, turn_id: str, *, sentence: str | None = None,
     """Check one turn's reply. Returns {"checked": bool, "agree": …, "differences": …,
     "unstated": …, "independent": …, "entry": journal id, "repaired": reply or None}."""
     said = world.journal.read(turn_id)
-    reply = _reply_of(world, turn_id)
+    reply = world.journal.reply_of(turn_id)
     if reply is None:
         return {"checked": False, "why": "That turn has no reply to check."}
     asked = sentence or said["text"]

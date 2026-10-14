@@ -27,14 +27,6 @@ def routes(app: FastAPI, s: Served) -> None:
     api = s.api
     runner_fn = s.runner
 
-    @app.get("/api/actions", dependencies=[api])
-    def actions(state: str | None = None) -> list[dict[str, Any]]:
-        return [action_view(world, a) for a in world.actions.all((state,) if state else None)]
-
-    @app.get("/api/actions/{aid}", dependencies=[api])
-    def action(aid: str) -> dict[str, Any]:
-        return action_view(world, world.actions.get(aid))
-
     @app.get("/api/actions/{aid}/shots/{name}", dependencies=[api])
     def action_shot(aid: str, name: str) -> FileResponse:
         a = world.actions.get(aid)

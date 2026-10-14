@@ -41,8 +41,8 @@ def provenance_of(source: str, assumed: str | None, *, turn: str | None) -> dict
 
 
 def counts_and_ids(result: dict[str, Any]) -> dict[str, Any]:
-    """An upsert's counts for the journal, plus the ids it touched (capped) so a check or a
-    trial can find the rows a turn wrote in bulk."""
+    """An upsert's counts for the journal, plus the ids it touched (capped) so the second
+    opinion (runtime/check.py) can find the rows a turn wrote in bulk."""
     out = {k: v for k, v in result.items() if k != "ids"}
     out["records"] = list(result.get("ids") or [])[:500]
     return out
@@ -133,10 +133,6 @@ class Base:
                 " their workflow first (the interview), write it with workflow_draft, and the"
                 " build starts after their yes on the page. For a plain log with nowhere to"
                 " keep it, use table_start."}
-
-    def _module_of(self, collection: str) -> str | None:
-        module: str | None = self.world.collections.describe(collection)["module"]
-        return module
 
     def _provenance(self, source: str, assumed: str | None) -> dict[str, Any]:
         return provenance_of(source, assumed, turn=self.turn)

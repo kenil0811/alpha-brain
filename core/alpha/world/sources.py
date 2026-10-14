@@ -25,9 +25,6 @@ from alpha.world.store import Problem, Store, new_id, now
 
 STATUSES = ("working", "needs_signin", "blocked", "broken", "not_built", "unavailable",
             "skipped")
-WORDS = {"working": "working", "needs_signin": "need your sign-in", "blocked": "blocked",
-         "broken": "broken", "not_built": "not read yet", "unavailable": "nothing to read",
-         "skipped": "skipped by you"}
 
 
 def _site(url: str) -> str:
@@ -113,20 +110,6 @@ class Sources:
                 " WHERE (site = ? OR site LIKE ?) AND status NOT IN ('working', 'skipped')",
                 (status, detail, now(), now(), site, f"%.{site}"),
             ).rowcount
-
-    def coverage(self, module: str | None) -> dict[str, int]:
-        counts = dict.fromkeys(STATUSES, 0)
-        for s in self.all(module) if module else []:
-            counts[s["status"]] += 1
-        return counts
-
-    def coverage_line(self, module: str | None) -> str | None:
-        counts = self.coverage(module)
-        total = sum(counts.values())
-        if not total:
-            return None
-        parts = [f"{n} {WORDS[k]}" for k, n in counts.items() if n]
-        return f"Sources: {total} in all — " + ", ".join(parts) + "."
 
     def remove_module(self, db: sqlite3.Connection, module: str) -> int:
         return db.execute("DELETE FROM sources WHERE module = ?", (module,)).rowcount

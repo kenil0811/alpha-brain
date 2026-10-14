@@ -95,8 +95,8 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/modules", dependencies=[api])
     def create_module(body: CreateModuleBody) -> dict[str, Any]:
         """A module the person makes themselves in the window: a place to hold others (Avilo
-        above Advisory and Deal Tracker). Nothing is built; Alpha's own making stays behind a
-        plan."""
+        above Advisory and Deal Tracker). Nothing is built; what Alpha makes comes from a
+        workflow page the person said yes to (§12)."""
         made = world.modules.create(body.name, body.goal, parent=body.parent or None)
         where = f" inside {world.modules.path_words(made['parent'])}" if made["parent"] else ""
         world.journal.append("changed", f"You made the module {made['name']}{where}.",
@@ -213,11 +213,6 @@ def routes(app: FastAPI, s: Served) -> None:
             return {"changes": [], "more": False, "added": None}
         return world.collections.record_changes(name, rid, before=before, count=count)
 
-    @app.get("/api/tables/{name}/lists", dependencies=[api])
-    def lists(name: str) -> list[dict[str, Any]]:
-        world.collections.describe(name)
-        return world.views.for_table(name)
-
     @app.post("/api/tables/{name}/lists", dependencies=[api])
     def save_list(name: str, body: ListBody) -> dict[str, Any]:
         saved = world.views.save(name, body.title or "", body.config or {},
@@ -298,10 +293,6 @@ def routes(app: FastAPI, s: Served) -> None:
                              data={"collection": name, "path": str(target)},
                              module=desc["module"])
         return {"path": str(target), "name": target.name, "rows": len(rows)}
-
-    @app.get("/api/documents/{did}", dependencies=[api])
-    def document(did: str) -> dict[str, Any]:
-        return Files(world).document(did)
 
     @app.get("/api/modules/{ref}/files", dependencies=[api])
     def module_files(ref: str) -> list[dict[str, Any]]:

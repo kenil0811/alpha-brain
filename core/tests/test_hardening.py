@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from conftest import building
+from conftest import building, judge_answering
 
 from alpha.runtime import automation, claude_cli
 from alpha.runtime.claude_cli import TurnRequest
@@ -81,7 +81,7 @@ def test_the_companions_sentence_is_routed_in_the_worker_not_the_request(world: 
     b = conversations.open_conversation(world, "protein today", None)
     world.journal.append("said", "deals this week", actor="person", thread=a["id"])
     world.journal.append("said", "protein today", actor="person", thread=b["id"])
-    runner = conversations.fake_runner("something new", confidence=0.2)
+    runner = judge_answering("something new", confidence=0.2)
     began = time.monotonic()
     turns_ = Turns(world, runner, checks=False)
     started = turns_.start(AskBody(text="and the second one?"))

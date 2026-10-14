@@ -155,7 +155,7 @@ def run_part(world: World, module_id: str, part_id: str, row_id: str, *,
     payload = {"id": row_id, **{k: None for k in known}, **_plain(row),
                **_related(world, module["id"], read_table, row, part["reads"]["fields"]),
                "settings": settings_of(world, module["id"])}
-    hosts = workspace_module.hosts_for({"hosts": part["reaches"]})
+    hosts = workspace_module.hosts_for(part["reaches"])
     code, out = workspace_module.run_script(Path(ws), part["command"], timeout_s=PART_TIMEOUT_S,
                                             hosts=hosts, stdin=json.dumps(payload))
     network = out.rsplit("[network:", 1)[1].rstrip("]\n ") if "[network:" in out else ""

@@ -10,19 +10,23 @@ person), People & Companies with a cross-source timeline, Intelligence (skills, 
 connections, knowledge), Activity, the conversation, and turns.
 
 The routes live one module per area (home, tables, people, intelligence, actions, connections,
-settings, conversation); `Turns` runs turns in the background; `views` shapes what the window
-shows; `served` is what every route closes over.
+settings, conversation, activity, changes); `Turns` runs turns in the background; `views`
+shapes what the window shows; `served` is what every route closes over.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import socket
+import sys
 import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -167,12 +171,6 @@ def serve(port: int = 53900, *, background: bool = True) -> None:
     `ALPHA_CORE_READY {"port": …}`, which the app's host waits for. `background=False` keeps
     the scheduler, the second opinion and noticing off: for a core started to check something
     on a copy of a world, so nothing runs on its own there (build-plan §4.23)."""
-    import json
-    import socket
-    import sys
-
-    import uvicorn
-
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

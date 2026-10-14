@@ -3,8 +3,10 @@
 A removal deletes the thing and everything that exists because of it, but never the journal:
 the journal is the audit, and what happened has happened. Each removal is journaled with what
 went, and history about a removed thing is marked as such wherever Alpha reads it
-(`Journal.mark_removed`), so Alpha never takes it for something that still exists. Threads stay
-as a record but lose the session the model would resume, and open questions are closed.
+(`Journal.mark_removed`), so Alpha never takes it for something that still exists. A removed
+module's or connection's threads stay as a record but lose the session the model would resume;
+a conversation deleted on its own leaves the lists (its turns stay in the journal); open
+questions are closed.
 
 `remove_module` deletes a module's tables and their rows, its files (with the entity each file
 is and that entity's facts), the readers its automations use and their notes, its automations,
@@ -27,6 +29,8 @@ from typing import Any
 
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites
+from alpha.connectors.files import Files
+from alpha.world import workspaces
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
 from alpha.world.store import Problem, now
@@ -36,8 +40,6 @@ from alpha.world.world import World, alpha_home
 
 def _unlink_files(paths: list[str]) -> None:
     """Delete files Alpha kept for a module, only inside its own files folder."""
-    from alpha.world.world import alpha_home
-
     root = (alpha_home() / "files").resolve()
     for p in paths:
         path = Path(p).resolve()
@@ -190,9 +192,6 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         counts["actions"] = world.actions.remove_module(db, mid)
         docs = db.execute("SELECT id, path, entity_id FROM documents WHERE module = ?",
                           (mid,)).fetchall()
-        for d in docs:
-            db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text) SELECT"
-                       " 'delete', rowid, title, text FROM documents WHERE id = ?", (d["id"],))
         counts["files"] = db.execute("DELETE FROM documents WHERE module = ?", (mid,)).rowcount
         _forget_entities(db, [d["entity_id"] for d in docs if d["entity_id"]])
         _unlink_files([d["path"] for d in docs])
@@ -200,10 +199,8 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         Preferences.forget_module(db, mid, tables)  # its colours, its place in the sidebar
         Preferences.forget_agents(db, [a["id"] for a in autos])  # its agents' looks
         db.execute("DELETE FROM modules WHERE id = ?", (mid,))
-    # A program module's workspace goes with it (Q38); the journal keeps what it was.
-    from alpha.runtime import workspace as workspace_module
-
-    if workspace_module.remove(mid):
+    # A module's workspace (§12) goes with it; the journal keeps what it was.
+    if workspaces.remove(mid):
         counts["workspace"] = 1
     for ask in asks:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
@@ -220,8 +217,6 @@ def document_removal(world: World, did: str) -> dict[str, Any]:
     file fields hold it, which are emptied; the rows Alpha read from it stay (Kenil, 13 Oct:
     "keep the rows"; a row names its source in words, not by the file). A connected folder's
     file is the person's own and is refused here."""
-    from alpha.connectors.files import Files
-
     files = Files(world)
     doc = files.document(did)
     if doc["from_folder"]:
@@ -249,8 +244,6 @@ def remove_document(world: World, did: str) -> dict[str, Any]:
                                  rec["revision"], prov)
     row = world.store.one("SELECT path, entity_id FROM documents WHERE id = ?", (did,))
     with world.store.tx() as db:
-        db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text) SELECT"
-                   " 'delete', rowid, title, text FROM documents WHERE id = ?", (did,))
         db.execute("DELETE FROM documents WHERE id = ?", (did,))
         if row and row["entity_id"]:
             _forget_entities(db, [row["entity_id"]])
@@ -402,8 +395,6 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
 
         if documents:
             clause, args = _in("id", documents)
-            db.execute("INSERT INTO documents_fts(documents_fts, rowid, title, text)"
-                       f" SELECT 'delete', rowid, title, text FROM documents WHERE {clause}", args)
             db.execute(f"DELETE FROM documents WHERE {clause}", args)
         if events:
             clause, args = _in("id", events)

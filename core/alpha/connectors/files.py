@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any
 
 from alpha.connectors.base import Connections
-from alpha.world.store import Problem, new_id, now
-from alpha.world.world import World
+from alpha.world.store import Problem, fts_query, new_id, now
+from alpha.world.world import World, alpha_home
 
 log = logging.getLogger("alpha.files")
 
@@ -83,8 +83,6 @@ def extract(path: Path) -> str:
 def files_dir(module_name: str | None = None) -> Path:
     """Alpha's own folder for files it fetched or was given: one folder per module under the
     data directory (`files/<module>`), `files/loose` for the rest. Never the person's folders."""
-    from alpha.world.world import alpha_home
-
     slug = "_".join("".join(ch if ch.isalnum() else " " for ch in (module_name or "loose")
                            .lower()).split()) or "loose"
     return alpha_home() / "files" / slug
@@ -161,12 +159,6 @@ class Files:
         self.world.journal.append("made", f"Started reading the folder {path.name} ({path}).",
                                   data={"connection": conn["id"]}, source="connector:files")
         return conn
-
-    def unwatch(self, folder: str) -> None:
-        conn = self.connections.find("files", str(Path(folder).expanduser().resolve()))
-        if conn is None:
-            raise Problem(f"Alpha isn't reading {folder}.")
-        self.connections.remove(conn["id"])
 
     # ---- syncing ----
 
@@ -356,8 +348,6 @@ class Files:
     # ---- reading ----
 
     def search(self, text: str, limit: int = 10) -> list[dict[str, Any]]:
-        from alpha.world.store import fts_query
-
         query = fts_query(text)
         if query is None:
             return []

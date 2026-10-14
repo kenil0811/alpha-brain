@@ -45,18 +45,19 @@ import shutil
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from datetime import datetime as dt
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from alpha.runtime import acting, check, claude_cli, noticing, pipeline, route, turn, workflow_build
 from alpha.runtime import automation as automation_runtime
-from alpha.runtime import check, claude_cli, noticing, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
 from alpha.world import purge
 from alpha.world.store import Problem, now
-from alpha.world.world import World
+from alpha.world.world import World, default_world_path
 
 log = logging.getLogger(__name__)
 
@@ -199,9 +200,6 @@ class Run:
             # Something that was true before the journey began: a past exchange, a fact.
             seed = spec["seed"]
             if seed.get("kind") == "turn":
-                from datetime import datetime as dt
-                from datetime import timedelta
-
                 days = int(str(seed.get("ago", "1d")).rstrip("d"))
                 at = (dt.now(UTC) - timedelta(days=days)).replace(microsecond=0).isoformat()
                 said = self.world.journal.append("said", seed["said"], actor="person")
@@ -230,8 +228,6 @@ class Run:
             record = {"remove_module": spec["remove_module"], "ok": True, "removed": removed}
             self.mark = mark(self.world)
         elif "approve_action" in spec:
-            from alpha.runtime import acting
-
             pending = [a for a in self.world.actions.all(("proposed",))
                        if a["created_at"] >= self.mark.at]
             if not pending:
@@ -375,18 +371,6 @@ class Run:
             return False, (f"Wrote new skills: {new}. " if new else "") + \
                 (f"Rewrote: {changed}." if changed else "")
         return True, "No skill was written or rewritten."
-
-    def check_module_inside(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        """A module sits inside another (by name, case-insensitive), to any depth."""
-        wanted, parent = str(arg["module"]).lower(), str(arg["parent"]).lower()
-        found = [m for m in self.world.modules.all() if wanted in m["name"].lower()]
-        if not found:
-            return False, f"No module named like '{arg['module']}'."
-        for m in found:
-            above = [p["name"].lower() for p in self.world.modules.path(m["id"])[:-1]]
-            if any(parent in a for a in above):
-                return True, f"{m['name']} sits inside {self.world.modules.path_words(m['id'])}."
-        return False, f"{found[0]['name']} is at {self.world.modules.path_words(found[0]['id'])}."
 
     def check_no_new_modules(self, arg: dict[str, Any]) -> tuple[bool, str]:
         new = {m["id"] for m in self.world.modules.all()} - self.mark.modules
@@ -658,8 +642,6 @@ def default_world() -> Path:
     app = APP_HOME / "world.sqlite"
     if app.exists():
         return app
-    from alpha.world.world import default_world_path
-
     return default_world_path()
 
 

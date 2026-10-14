@@ -29,6 +29,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from alpha.context.prepack import entities_named
 from alpha.runtime import route, turn
 from alpha.runtime.claude_cli import TurnRequest
 from alpha.runtime.judge import DEFAULT_MODEL
@@ -75,23 +76,10 @@ def worth_noticing(world: World, turn_id: str) -> bool:
     words = " ".join(said["text"].lower().split())
     if words.strip("!. ") in SMALL or len(words.split()) < 4:
         return False
-    return _reply_of(world, turn_id) is not None
-
-
-def _reply_of(world: World, turn_id: str) -> dict[str, Any] | None:
-    row = world.store.one(
-        "SELECT * FROM journal WHERE kind = 'replied' AND json_extract(data, '$.turn') = ?"
-        " AND deleted_at IS NULL ORDER BY at DESC LIMIT 1", (turn_id,))
-    if row is None:
-        return None
-    from alpha.world.journal import entry
-
-    return entry(row)
+    return world.journal.reply_of(turn_id) is not None
 
 
 def _named(world: World, sentence: str, reply: str) -> list[dict[str, Any]]:
-    from alpha.context.prepack import entities_named
-
     seen: dict[str, dict[str, Any]] = {}
     for e in entities_named(world, sentence) + entities_named(world, reply):
         seen.setdefault(e["id"], e)
@@ -262,7 +250,7 @@ def notice(world: World, turn_id: str, *, runner: turn.Runner = route.run,
     if not worth_noticing(world, turn_id):
         return {"kept": False, "why": "nothing to notice in a turn like this"}
     said = world.journal.read(turn_id)
-    reply = _reply_of(world, turn_id)
+    reply = world.journal.reply_of(turn_id)
     assert reply is not None
     named = _named(world, said["text"], reply["text"])
     module = said.get("module")

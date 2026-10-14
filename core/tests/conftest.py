@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from alpha.mcp.tools import Tools
+from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
 
 
@@ -23,3 +25,13 @@ def world(tmp_path: Path) -> Iterator[World]:
     w = World(tmp_path / "world.sqlite")
     yield w
     w.close()
+
+
+def judge_answering(answer: str, confidence: float = 0.9) -> Any:
+    """A router's judge that always gives one answer."""
+
+    def runner(req: TurnRequest) -> RunResult:
+        return RunResult(ok=True, reply=f'{{"answer": "{answer}", "confidence": {confidence},'
+                                        ' "why": "test"}')
+
+    return runner

@@ -9,7 +9,7 @@ from conftest import building
 from alpha.connectors.base import Connections
 from alpha.connectors.files import Files
 from alpha.mcp.tools import Tools
-from alpha.world.purge import remove_connection, remove_module
+from alpha.world.purge import remove_connection, remove_document, remove_module
 from alpha.world.world import World
 
 
@@ -220,3 +220,20 @@ def test_a_deleted_row_never_breaks_the_list_of_removals(world: World) -> None:
     from alpha.context import prepack
 
     assert "Things" in prepack.build(world, "what did I remove")
+
+
+def test_a_deleted_file_leaves_search_by_itself(world: World, tmp_path: Path,
+                                                monkeypatch: pytest.MonkeyPatch) -> None:
+    """14 Oct review: the documents' index had no delete trigger; purge deleted from it by hand
+    in three places. Now the database does it, whichever way a document goes."""
+    monkeypatch.setenv("ALPHA_HOME", str(tmp_path / "home"))
+    src = tmp_path / "invoice.txt"
+    src.write_text("the quarterly invoice from Acme")
+    doc = Files(world).take(src, module=None, origin="upload")
+    assert [d["id"] for d in Files(world).search("Acme")] == [doc["id"]]
+    remove_document(world, doc["id"])
+    assert Files(world).search("Acme") == []
+    # and the index still takes new files after a delete
+    src.write_text("a second invoice from Acme")
+    again = Files(world).take(src, module=None, origin="upload", name="invoice2.txt")
+    assert [d["id"] for d in Files(world).search("Acme")] == [again["id"]]

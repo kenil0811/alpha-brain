@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.runtime import claude_account
+from alpha.runtime import workspace as workspace_module
 
 DEFAULT_MODEL = "sonnet"
 ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
@@ -222,7 +223,7 @@ class TurnRequest:
     # other run is stateless, as Q21 decided.
     resume: str | None = None
     persist: bool = False
-    # A build inside a module's workspace (Q38): the run gets file and shell tools, confined
+    # A build inside a module's workspace (§12): the run gets file and shell tools, confined
     # by Claude Code's own sandbox to this folder and these hosts (runtime/workspace.py).
     workspace: str | None = None
     hosts: list[str] = field(default_factory=list)
@@ -282,8 +283,6 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
     if allowed:
         args += ["--allowedTools", *allowed]
     if req.workspace:
-        from alpha.runtime import workspace as workspace_module
-
         settings = workspace_module.sandbox_settings(Path(req.workspace), req.hosts,
                                                      req.world_path)
         args += ["--tools", ",".join([*WORKSPACE_TOOLS, "WebSearch", "WebFetch"]),

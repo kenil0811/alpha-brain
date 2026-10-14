@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from conftest import judge_answering
 from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
@@ -84,7 +85,7 @@ def test_when_unsure_the_judge_asks_with_choices_and_the_pick_routes(world: Worl
     a = chat(world, "Deals today", "Deal Tracker", said="what came in today")
     chat(world, "Logging the shake", "Nutrition", said="log a shake")
     out = conversations.route(world, "change that to weekly",
-                              runner=conversations.fake_runner("Nutrition: Logging the shake",
+                              runner=judge_answering("Nutrition: Logging the shake",
                                                                0.3))
     assert "ask" in out and len(out["options"]) == 3 and conversations.NEW in out["options"]
     asked = world.journal.read(out["ask"])

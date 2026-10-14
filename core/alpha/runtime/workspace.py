@@ -24,8 +24,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from alpha.runtime.proxy import Proxy
 from alpha.world.store import Problem
+from alpha.world.workspaces import path_of, remove, root
 from alpha.world.world import alpha_home
+
+# where a workspace lives is the world's (world/workspaces.py); the runtime offers it as before
+__all__ = ["path_of", "remove", "root"]
 
 # What any Python build needs to reach, beyond the design's own hosts.
 BUILD_HOSTS = ["pypi.org", "files.pythonhosted.org", "extensions.duckdb.org",
@@ -33,14 +38,6 @@ BUILD_HOSTS = ["pypi.org", "files.pythonhosted.org", "extensions.duckdb.org",
 SECRET_PATHS = ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gcloud", "~/.netrc",
                 "~/Library/Keychains", "~/.claude", "~/.codex"]
 SCRIPT_TIMEOUT_S = 1800
-
-
-def root() -> Path:
-    return alpha_home() / "modules"
-
-
-def path_of(module_id: str) -> Path:
-    return root() / module_id
 
 
 def _git(workspace: Path, *args: str) -> str:
@@ -53,21 +50,10 @@ def _git(workspace: Path, *args: str) -> str:
     return out.stdout
 
 
-def remove(module_id: str) -> bool:
-    """Delete a module's workspace for good (removal, §7); the journal keeps the record."""
-    import shutil
-
-    ws = path_of(module_id)
-    if ws.is_dir() and ws.resolve().is_relative_to(root().resolve()):
-        shutil.rmtree(ws, ignore_errors=True)
-        return True
-    return False
-
-
-def hosts_for(page: dict[str, Any]) -> list[str]:
-    """The hosts a build or a part may reach: what the page names, and what a Python build
-    needs."""
-    seen = dict.fromkeys(BUILD_HOSTS + [str(h).strip().lower() for h in (page.get("hosts") or [])])
+def hosts_for(hosts: list[str]) -> list[str]:
+    """The hosts a build or a part may reach: what the page or the part names, and what a
+    Python build needs."""
+    seen = dict.fromkeys(BUILD_HOSTS + [str(h).strip().lower() for h in hosts or []])
     return [h for h in seen if h]
 
 
@@ -169,8 +155,6 @@ def run_script(workspace: Path, argv: list[str], *, timeout_s: float = SCRIPT_TI
             full_env.pop(key)
     proxy = None
     if hosts:
-        from alpha.runtime.proxy import Proxy
-
         proxy = Proxy(hosts).start()
         url = f"http://127.0.0.1:{proxy.port}"
         full_env.update({"HTTP_PROXY": url, "HTTPS_PROXY": url, "http_proxy": url,

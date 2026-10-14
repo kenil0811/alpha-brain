@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from alpha.mcp.tools.base import Base, tool
-from alpha.runtime import route
+from alpha.runtime import acting, route
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
 
@@ -67,8 +67,6 @@ class Acting(Base):
                           " might want sent (journal_note) and they can ask for it.")
         proc = self.world.procedures.get(procedure)
         module_id = self.world.modules.get(module)["id"] if module else self.module
-        from alpha.runtime import acting
-
         action = self.world.actions.propose(proc, title=title, payload=payload, undo=undo,
                                             evidence=evidence, module=module_id,
                                             thread=self.thread, turn=self.turn)
@@ -119,8 +117,6 @@ class Acting(Base):
         if current["turn"] == self.turn:
             return {"error": "An action is approved by the person's reply to it, not in the"
                     " turn that proposed it."}
-        from alpha.runtime import acting
-
         done = acting.approve(self.world, action, f"\"{quote}\"", always=always, repair=False,
                               runner=route.run)
         return {"action": action, "state": self.world.actions.get(action)["state"],
@@ -130,8 +126,6 @@ class Acting(Base):
     @tool
     def action_decline(self, action: str) -> dict[str, Any]:
         """The person said no to an action."""
-        from alpha.runtime import acting
-
         return {"action": action, "state": acting.decline(self.world, action)["state"]}
 
     @tool

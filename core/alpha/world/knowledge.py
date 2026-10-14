@@ -1,10 +1,11 @@
 """What Alpha knows beyond the records: notes it maintains, goals, and facts with time validity.
 
-Notes are Markdown the person can read, edit and delete (a profile, standing instructions, one
-page per module). Goals are durable intentions proactivity is organised around. Facts are claims
-about the person or an entity with world time (valid_from/valid_to) and system time
-(recorded_at/superseded_by): a new value of a single-valued predicate closes the old one instead
-of keeping both live, so "works at A" then "works at B" keeps history without contradiction.
+Notes are Markdown the person can read and edit (a profile, standing instructions, one page per
+module); they go with what they are about. Goals are durable intentions proactivity is
+organised around. Facts are claims about the person or an entity with world time
+(valid_from/valid_to) and system time (recorded_at/superseded_by): a new value of a
+single-valued predicate closes the old one instead of keeping both live, so "works at A" then
+"works at B" keeps history without contradiction.
 """
 
 from __future__ import annotations
@@ -14,8 +15,6 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
-NOTE_SCOPES = ("person", "module:", "topic:")
-RESERVED_NOTES = ("Profile", "Standing instructions", "Permissions")
 INSTRUCTIONS = "Standing instructions"
 # Notes that shape how Alpha behaves: changed only on the person's own words.
 GATED_NOTES = ("Standing instructions", "Permissions")
@@ -179,11 +178,6 @@ class Knowledge:
         else:
             rows = self.store.all("SELECT * FROM notes WHERE scope = ? ORDER BY title", (scope,))
         return [_note(r) for r in rows]
-
-    def delete_note(self, nid: str) -> None:
-        with self.store.tx() as db:
-            if db.execute("DELETE FROM notes WHERE id = ?", (nid,)).rowcount == 0:
-                raise Problem(f"There is no note {nid}.")
 
     # ---- goals ----
 

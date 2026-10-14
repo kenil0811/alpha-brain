@@ -78,7 +78,7 @@ def test_the_routes_keep_lists_and_the_table_carries_them(world: World) -> None:
     changed = c.patch(f"/api/lists/{made['id']}", json={"title": "Sold deals"}).json()
     assert changed["title"] == "Sold deals"
     assert c.delete(f"/api/lists/{made['id']}").json()["id"] == made["id"]
-    assert c.get("/api/tables/deals/lists").json() == []
+    assert world.views.for_table("deals") == []
     kinds = [e["text"] for e in world.journal.recent(5, kinds=["changed"])]
     assert any("saved the list" in k for k in kinds) and any("removed the list" in k for k in kinds)
     assert c.post("/api/tables/deals/lists", json={"title": "", "config": {}}).status_code == 400
