@@ -5,7 +5,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
 **As of 14 October 2026, afternoon.** The last three entries:
-- The review and clean-up after slice 2 ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)). Group 1, the real faults, and group 2, the code, are done; group 3, the docs, is this page. All 22 journeys were run.
+- The review and clean-up after slice 2 ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)). All five groups are done: the real faults, the code, the docs (this page), the memory notes, and disk. All 22 journeys were run.
 - Slice 2, the small core routes the window asked for ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md)), with step 4 (people) skipped.
 - The window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 and Q42).
 
@@ -22,7 +22,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Desktop check | `docs/checks/2026-10-14-1357.md`: 94 of 94 pages clean at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 211 total; 211 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 212 total; 212 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 17,005 Python; tests 6,424; desktop 17,563 TS/TSX |
 
 ## What is built, against the design's order of work
@@ -63,33 +63,32 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 
 ## Pending, in order
 
-1. **The clean-up, the rest** ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)): group 4, the memory notes; group 5, disk and the folders outside the repo, item by item at Kenil's call.
-2. **Modules as workflows (Q39, §12):**
+1. **Modules as workflows (Q39, §12):**
    - Kenil's acceptance: the Census key into Settings, Try again, then one change by chat that keeps his rows.
    - Then documents drafted from templates with their page, the evaluator through the pages, and the library across modules.
-3. **The conversation, the rest of Q35:**
+2. **The conversation, the rest of Q35:**
    - one automatic retry of a transient failure
    - identical replies collapsed, and a stopped build posting once
    - long replies folded
    - copy, and edit-and-resend
    - a plus for files in the composer
    - Kenil to say whether one stream should replace the conversation on each page
-4. **Design sessions with Kenil** (his 12 Oct answers to Vikas's list):
+3. **Design sessions with Kenil** (his 12 Oct answers to Vikas's list):
    - C2, decisions and checkpoints kept ("all decisions / checkpoints should be persisted")
    - C8, several persisted, dedicated agents, with Q33's leftovers (event triggers, escalation as a question, the digest, a brief per agent) and Q40's door for an agent's own automations and readers
    - C1, depth
    - T, a single unified view of Alpha
    - Deferred but wanted: A5 several workspaces, A6 pre-built projects, B3 overrides, D7 dashboard tiles, D8 notifications and builder rules, D10 formulas
-5. **People for real** (slice 2's step 4, skipped at Kenil's call): readers declare their rows as people, a pass links the existing rows, a person or company is made by hand, and "Your organisations".
-6. **Memory:** look things up when memory is thin; the person's own words first; noticing's rule for a fact about a person; the rest of the memory round (above).
-7. **Small and open:**
+4. **People for real** (slice 2's step 4, skipped at Kenil's call): readers declare their rows as people, a pass links the existing rows, a person or company is made by hand, and "Your organisations".
+5. **Memory:** look things up when memory is thin; the person's own words first; noticing's rule for a fact about a person; the rest of the memory round (above).
+6. **Small and open:**
    - B9, saving a dashboard's selection as a list
    - the removal journal line for a file isn't linked to its person
    - the window has no buttons for the companion's focus and for moving a sentence to another conversation (the routes are kept for that)
    - a schema version, and `records_fts` by triggers (from the 3 Oct review)
    - the smaller items in [`log/2026-10-02-4-9-status-at-the-end-of.md`](log/2026-10-02-4-9-status-at-the-end-of.md)
-8. **The ChatGPT route** stays off until it passes a real tool call: Codex's own pre-approval setting, or not at all.
-9. **A fresh Mac:** notarization (there is no Apple Developer account, so it's right-click › Open for now), and the friend's own first run.
+7. **The ChatGPT route** stays off until it passes a real tool call: Codex's own pre-approval setting, or not at all.
+8. **A fresh Mac:** notarization (there is no Apple Developer account, so it's right-click › Open for now), and the friend's own first run.
 
 ## How to verify any of this
 

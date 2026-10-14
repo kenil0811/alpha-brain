@@ -196,6 +196,25 @@ group 3".
 What ran: `just lint` clean (one docstring changed in code); every relative link in the edited
 docs resolves. "ok commit it, then go ahead with group 3".
 
+## Groups 4 and 5 (Kenil: "ok go ahead with group 4. for group 5, remove old worktrees, remove emoty files, remove stale entries")
+
+- **Group 4, the memory notes** (outside the repo, `~/.claude/projects/…/memory/`): the 15 notes
+  about the old platform or superseded shapes marked as history at the top and in their
+  descriptions; the stale "next" lines and rules fixed (plans and trials gone in
+  feedback-plan-first-generic and feedback-knowable-never-guessed, the docs' current shape in
+  feedback-docs-code-sync, the stash and `clear-conversation` in alpha-capability-model, the done
+  "next" in alpha-agents-design, alpha-daily-runs-sleep, the checkpoint and the wiki slice); the
+  index rewritten, current notes first, every hook matching its file; five descriptions that
+  weren't valid YAML quoted.
+- **Group 5, at Kenil's choice**: the old platform's worktrees `alpha-g1` and `alpha-m1r` removed
+  with `git worktree remove` from `alpha-platform` (both clean, their commits on its main and its
+  remote; what was left, read-only runtime profiles, removed by hand; 7.9 GB); the empty
+  `alpha/world.sqlite` (0 bytes, 12 Oct) deleted; the three stale entries in
+  `alpha/.claude/launch.json` (zazoo-web, alpha-shell, alpha-shell-sessions) removed; the folder's
+  `CLAUDE.md` updated. Kept at his choice: `desktop/.check` screenshots, the release build,
+  `Screenshots/`, the justfile's descriptions.
+
 ## Left
 
-Group 4, the memory notes; group 5, disk and outside the repo, Kenil's call per item.
+Nothing of the clean-up. Next: STATE's pending list (Kenil's acceptance of the car wash workflow,
+the rest of Q35, the design sessions, people for real).
