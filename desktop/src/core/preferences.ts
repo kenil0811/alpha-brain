@@ -65,7 +65,7 @@ export function usePreference<T>(client: Client | null, key: string, fallback: T
   const kept = values.get(key);
   const value = (kept === undefined || kept === null ? fallback : kept) as T;
   const save = async (next: T): Promise<string | null> => {
-    if (!client) return "Alpha's core isn't connected yet.";
+    if (!client) return "Alpha isn't connected yet.";
     const before = values.get(key);
     values.set(key, next);
     tell(key);

@@ -170,7 +170,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   const [files, setFiles] = useState<Record<string, FileInfo>>({});
   async function exportAs(format: "csv" | "xlsx") {
     try {
-      const out = await client.exportTable(table.name, format);
+      const out = await client.exportTable(table.name, format, { records: exported.map((r) => r.id), columns: shownColumns });
       if (host.available()) await host.revealPath(out.path);
       setStatus({ ok: true, text: `Exported ${out.rows} rows to ${out.name}${host.available() ? "" : ` (${out.path})`}.` });
     } catch (e) {
@@ -585,6 +585,10 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   }
   const openRow = (id: string) => onOpenRecord?.(table.name, id);
   const shownColumns = columns.filter((c) => byName.has(c));
+  // What Download writes (slice 2 G5): the rows shown on every page, in the order shown (groups
+  // included), and the columns shown.
+  const exported = groups ? groups.flatMap((g) => g.rows) : (rows ?? []);
+  const wholeTable = exported.length === (all?.length ?? 0) && shownColumns.length === fields.length;
   const filterCount = activeRules(rules, byName).length + (hideDone ? 1 : 0);
   const filtered = Boolean(search || filterCount);
   const count = (n: number) => n.toLocaleString();
@@ -658,7 +662,7 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
             <div>
                 {held ? null : (
                   <>
-                    <div className="menu__head">Download</div>
+                    <div className="menu__head">{wholeTable ? `Download · all ${exported.length.toLocaleString()} ${exported.length === 1 ? "row" : "rows"}` : `Download what's shown · ${exported.length.toLocaleString()} ${exported.length === 1 ? "row" : "rows"}, ${shownColumns.length} ${shownColumns.length === 1 ? "column" : "columns"}`}</div>
                     <button type="button" className="menu__item" onClick={() => void exportAs("csv")}>
                       As CSV
                     </button>

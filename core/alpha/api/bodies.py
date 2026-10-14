@@ -53,6 +53,9 @@ class RecordBody(BaseModel):
 
 class ExportBody(BaseModel):
     format: str = "csv"
+    # What the table shows (slice 2 G5): its rows in order and its columns; none = all.
+    records: list[str] | None = None
+    columns: list[str] | None = None
 
 
 class ListBody(BaseModel):

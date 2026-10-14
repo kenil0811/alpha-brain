@@ -24,8 +24,10 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from alpha.api import (
     actions,
@@ -53,6 +55,12 @@ from alpha.world.world import World
 
 log = logging.getLogger("alpha.api")
 CALENDAR_EVERY_S = 300
+# Every answer that isn't a success carries `error`, a sentence for a person (slice 2 G7): a
+# refusal's own words, or one of these; what went wrong inside goes to the log, never the window.
+NOT_THERE = "Alpha doesn't have that; it may have been removed."
+NOT_TAKEN = "Alpha couldn't take that. Try again."
+WENT_WRONG = "Something went wrong in Alpha; the details are in its log. Try again."
+FRAMEWORK_WORDS = {"Not Found", "Method Not Allowed", "Unauthorized", "Forbidden"}
 
 __all__ = ["AskBody", "READY_PREFIX", "Turns", "create_app", "serve"]
 
@@ -104,11 +112,31 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
         if host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
             raise HTTPException(403, "Alpha only answers this Mac.")
         if token and request.headers.get("authorization") != f"Bearer {token}":
-            raise HTTPException(401, "This window isn't signed in to Alpha's core.")
+            raise HTTPException(401, "This window isn't signed in to Alpha. Restart Alpha.")
 
     @app.exception_handler(Problem)
     async def problem(_: Request, exc: Problem) -> JSONResponse:
         return JSONResponse({"error": str(exc)}, status_code=400)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_problem(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        ours = isinstance(exc.detail, str) and exc.detail not in FRAMEWORK_WORDS
+        if not ours:
+            log.info("%s %s answered %s: %s", request.method, request.url.path,
+                     exc.status_code, exc.detail)
+        words = str(exc.detail) if ours else NOT_THERE if exc.status_code == 404 else NOT_TAKEN
+        return JSONResponse({"error": words}, status_code=exc.status_code,
+                            headers=getattr(exc, "headers", None))
+
+    @app.exception_handler(RequestValidationError)
+    async def malformed(request: Request, exc: RequestValidationError) -> JSONResponse:
+        log.warning("%s %s was malformed: %s", request.method, request.url.path, exc.errors())
+        return JSONResponse({"error": NOT_TAKEN}, status_code=422)
+
+    @app.exception_handler(Exception)
+    async def crashed(request: Request, exc: Exception) -> JSONResponse:
+        log.error("%s %s failed", request.method, request.url.path, exc_info=exc)
+        return JSONResponse({"error": WENT_WRONG}, status_code=500)
 
     api = Depends(guard)
 

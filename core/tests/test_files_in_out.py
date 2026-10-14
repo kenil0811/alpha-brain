@@ -255,3 +255,20 @@ def test_a_table_exports_as_csv_and_excel(world: World) -> None:
     assert wb.worksheets[0].title == "Attachments"
     assert [c.value for c in wb.worksheets[0][2]][0] == "Data, with a comma"
     assert world.journal.recent(1)[0]["text"].startswith("Exported Attachments (1 rows)")
+
+
+def test_an_export_takes_exactly_the_rows_and_columns_shown(world: World) -> None:
+    t = advisory(world, turn=said(world, "x"))
+    a = t.records_add("attachments", {"subject": "Alpha"}, source="stated")["id"]
+    b = t.records_add("attachments", {"subject": "Beta"}, source="stated")["id"]
+    t.records_add("attachments", {"subject": "Gamma"}, source="stated")
+    c = TestClient(create_app(world, live=False))
+    out = c.post("/api/tables/attachments/export",
+                 json={"format": "csv", "records": [b, a], "columns": ["subject"]}).json()
+    assert Path(out["path"]).read_text().splitlines() == ["subject", "Beta", "Alpha"]
+    assert world.journal.recent(1)[0]["text"].startswith(
+        "Exported Attachments (2 of 3 rows, 1 column) to")
+    assert "no column" in c.post("/api/tables/attachments/export",
+                                 json={"records": [a], "columns": ["nope"]}).json()["error"]
+    assert "any more" in c.post("/api/tables/attachments/export",
+                                json={"records": ["r_gone"]}).json()["error"]

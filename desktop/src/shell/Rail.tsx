@@ -165,7 +165,7 @@ export function Rail({
     setNote(null);
     const parent = zone === "inside" ? t.id : parentOf(t);
     if (parent !== parentOf(m)) {
-      if (!client) return fail(`move ${m.name}`, "Alpha's core isn't connected yet.");
+      if (!client) return fail(`move ${m.name}`, "Alpha isn't connected yet.");
       try {
         await client.moveModule(id, parent);
       } catch (e) {
@@ -180,7 +180,7 @@ export function Rail({
   }
 
   async function moveTo(m: ModuleCard, parent: string | null) {
-    if (!client) return fail(`move ${m.name}`, "Alpha's core isn't connected yet.");
+    if (!client) return fail(`move ${m.name}`, "Alpha isn't connected yet.");
     setNote(null);
     try {
       await client.moveModule(m.id, parent);
@@ -216,7 +216,7 @@ export function Rail({
     setRenamingModule(null);
     const clean = next.trim();
     if (clean === m.name) return;
-    if (!client) return fail(`rename ${m.name}`, "Alpha's core isn't connected yet.");
+    if (!client) return fail(`rename ${m.name}`, "Alpha isn't connected yet.");
     setNote(null);
     try {
       await client.renameModule(m.id, clean);

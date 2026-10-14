@@ -771,7 +771,7 @@ export class CoreError extends Error {
 }
 
 /** What the window says when the core can't be reached at all. */
-export const NOT_ANSWERING = "Alpha's core isn't answering. It restarts on its own; try again in a moment.";
+export const NOT_ANSWERING = "Alpha isn't answering. It restarts on its own; try again in a moment.";
 
 /** The core's answer to a request it refused, in words a person reads (13 Oct, Q42 section 9a):
  *  its own words when it gave some (a refusal from the world, a sign-in), else what the status
@@ -781,8 +781,8 @@ export function plainError(status: number, data: { error?: unknown; detail?: unk
   if (words) return words;
   if (data.detail !== undefined || data.error !== undefined) console.error("Alpha's core answered", status, data);
   if (status === 404) return "That isn't there any more; it may have been removed.";
-  if (status === 422 || status === 400) return "Alpha's core couldn't take that. Try again.";
-  return "Something went wrong in Alpha's core. Try again.";
+  if (status === 422 || status === 400) return "Alpha couldn't take that. Try again.";
+  return "Something went wrong in Alpha. Try again.";
 }
 
 /** Any error in words for the screen: the core's own words as they are; a fault in the window
@@ -932,7 +932,8 @@ export class Client {
     if (!response.ok) throw new CoreError(plainError(response.status, data), response.status);
     return { documents: data.documents ?? [], turn: data.turn ?? null };
   };
-  exportTable = (name: string, format: "csv" | "xlsx") => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format });
+  /** A table as CSV or Excel; with `shown`, exactly those rows in that order and those columns (slice 2 G5). */
+  exportTable = (name: string, format: "csv" | "xlsx", shown?: { records: string[]; columns: string[] }) => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format, ...shown });
   document = (id: string) => this.call<DocumentInfo>("GET", `/api/documents/${id}`);
   conversation = (module?: string | null, conversation?: string | null) => {
     const qs = new URLSearchParams();

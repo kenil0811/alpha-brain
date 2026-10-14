@@ -572,7 +572,7 @@ export function Conversation({
         const final = await client.waitTurn(turn, setPending, 8, 500);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
-        setError(`${say(e)} The turn may still have run; its answer shows here when the core is back.`);
+        setError(`${say(e)} The turn may still have run; its answer shows here when Alpha is back.`);
       }
       setPending(null);
       load();

@@ -36,6 +36,24 @@ function page(rows: RecordRow[], onOpenRecord = vi.fn()) {
 }
 
 describe("the table page", () => {
+  it("Download writes what is shown: the rows found, in order, and the columns shown (slice 2 G5)", async () => {
+    const user = userEvent.setup();
+    const client = page([row("r1", "Bakery", 300), row("r2", "Cafe", 120), row("r3", "Bike shop", 90)]);
+    await screen.findByText("Bakery");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByText("Download · all 3 rows")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.type(screen.getByLabelText("Search"), "b");
+    await waitFor(() => expect(screen.queryByText("Cafe")).toBeNull());
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByText("Download what's shown · 2 rows, 3 columns")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "As CSV" }));
+    const [, format, shown] = client.exportTable.mock.calls[0] as unknown as [string, string, { records: string[]; columns: string[] }];
+    expect(format).toBe("csv");
+    expect([...shown.records].sort()).toEqual(["r1", "r3"]);
+    expect(shown.columns).toEqual(["title", "price", "status"]);
+  });
+
   it("shows the rows and marks what Alpha estimated", async () => {
     page([row("r1", "Bakery", 300), row("r2", "Cafe", 120, { provenance: { estimated: true } })]);
     expect(await screen.findByText("Bakery")).toBeInTheDocument();

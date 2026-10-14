@@ -232,6 +232,34 @@ goal's page, Show earlier from 271 to 540 rows back to 9 Oct. Try again not clic
 the check copy it would run a real part or the model): proven by tests only. Not looked at in
 the Mac app. "ok commit it, then tell me what step 8 is".
 
+## Step 8: downloads of what's shown, errors as sentences (14 Oct)
+
+Proposed in writing with one question (the word "core"); Kenil: "yes makes sense, lets go
+ahead", so the suggestion was taken.
+
+- **G5 Download what's shown** (`POST /api/tables/{name}/export` takes `records` and
+  `columns`): CSV and Excel write the rows the table shows on every page (search, filters, Hide
+  done), in the order shown with groups, and only the columns shown, under their names. The menu
+  says what goes ("Download what's shown · 49 rows, 7 columns", or "all 1,553 rows"); the
+  journal too ("49 of 1553 rows, 7 columns"). A row since deleted or an unknown column is
+  refused in words.
+- **G7 Errors as sentences** (`api/server.py`): one handler each for the core's own and the
+  framework's HTTP answers, malformed requests (422) and crashes (500); every one answers
+  `{"error": <a sentence>}` and the internals go to the log. Refusals keep their words. The 401
+  reads "This window isn't signed in to Alpha. Restart Alpha."
+- **"core" out of what people read**: "Alpha isn't answering…" for a short drop, "The part of
+  Alpha that works in the background isn't running" when it has stopped, "Alpha isn't
+  connected yet", the map's Refresh "Read the map again".
+
+What ran: `just lint` clean; 257 core tests (2 new: an export of exactly the rows and columns
+shown, with its refusals; every kind of failure answering in a sentence, a crash's path never
+reaching the window); 192 desktop tests in 43 files (1 new: the menu's words and the rows and
+columns sent); `just check-desktop`: 79 of 79 pages clean at every size
+(`docs/checks/2026-10-14-0055.md`). In the browser pane on the check copy: LinkedIn
+Connections searched for "founder", downloaded as Excel: the workbook held exactly the 49 rows
+in the order shown under the seven column names; the journal said "49 of 1553 rows, 7
+columns". Not looked at in the Mac app. "ok commit it, then tell me what step 9 is".
+
 ## Left
 
-Step 8 (G5, G7) proposed next; then 9; step 4 people skipped for now. Nothing pushed.
+Step 9 (the host, E1–E3) proposed next; step 4 people skipped for now. Nothing pushed.

@@ -268,14 +268,14 @@ export function App({ client: injected }: { client?: Client } = {}) {
       <main className="main">
         {down ? (
           <div className="corenote" role="alert">
-            <span>Alpha's core isn't answering. The host starts it again on its own; this clears when it is back.</span>
+            <span>Alpha isn't answering. It starts again on its own; this clears when it is back.</span>
             <Button size="sm" onClick={() => void poll()}>
               Try now
             </Button>
           </div>
         ) : restarted ? (
           <div className="corenote corenote--ok" role="status">
-            Alpha's core started again. Anything that was running is open to ask again.
+            Alpha started again. Anything that was running is open to ask again.
           </div>
         ) : null}
         {!panelOpen && surface.kind !== "assistant" && runtime.kind === "connected" ? (
@@ -299,7 +299,7 @@ export function App({ client: injected }: { client?: Client } = {}) {
         ) : null}
         {runtime.kind !== "connected" ? (
           <div className="page">
-            <h1>{runtime.kind === "connecting" ? "Starting Alpha…" : "Alpha's core isn't running"}</h1>
+            <h1>{runtime.kind === "connecting" ? "Starting Alpha…" : "The part of Alpha that works in the background isn't running"}</h1>
             {runtime.kind === "connecting" ? (
               <p className="muted" style={{ marginTop: 8 }}>
                 This takes a second or two. If macOS is asking whether Alpha may access a folder, allow it and Alpha carries on.

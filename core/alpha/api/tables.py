@@ -247,11 +247,29 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/tables/{name}/export", dependencies=[api])
     def export_table(name: str, body: ExportBody) -> dict[str, Any]:
         """The table as a CSV or Excel file in Alpha's exports folder, for the person to open
-        or share; the app reveals it."""
+        or share; the app reveals it. With `records` and `columns`, exactly what the table
+        shows (slice 2 G5): those rows in that order, those columns under their names."""
 
         desc = world.collections.describe(name)
-        rows = world.collections.query(name, None, None, None)
-        cols = [f["name"] for f in desc["fields"]]
+        every = world.collections.query(name, None, None, None)
+        rows = every
+        if body.records is not None:
+            by_id = {r["id"]: r for r in every}
+            gone = [r for r in body.records if r not in by_id]
+            if gone:
+                raise Problem(f"{len(gone)} of those rows aren't in {desc['title']} any more;"
+                              " open the table again and download it.")
+            rows = [by_id[r] for r in body.records]
+        fields = desc["fields"]
+        if body.columns is not None:
+            by_name = {f["name"]: f for f in desc["fields"]}
+            unknown = [c for c in body.columns if c not in by_name]
+            if unknown:
+                raise Problem(f"{desc['title']} has no column {', '.join(unknown)}.")
+            if not body.columns:
+                raise Problem("Show at least one column to download.")
+            fields = [by_name[c] for c in body.columns]
+        cols = [f["name"] for f in fields]
         stamp = datetime.now().strftime("%Y-%m-%d %H.%M")
         folder = alpha_home() / "exports"
         if body.format == "xlsx":
@@ -259,7 +277,7 @@ def routes(app: FastAPI, s: Served) -> None:
 
             wb = Workbook()
             ws = wb.create_sheet(desc["title"][:31] or "Table", 0)
-            ws.append([f.get("label") or f["name"] for f in desc["fields"]])
+            ws.append([f.get("label") or f["name"] for f in fields])
             for r in rows:
                 ws.append([_cell(r.get(c)) for c in cols])
             target = unique_path(folder, f"{desc['title']} {stamp}.xlsx")
@@ -269,11 +287,14 @@ def routes(app: FastAPI, s: Served) -> None:
             target = unique_path(folder, f"{desc['title']} {stamp}.csv")
             with open(target, "w", newline="", encoding="utf-8") as fh:
                 w = csv.writer(fh)
-                w.writerow([f.get("label") or f["name"] for f in desc["fields"]])
+                w.writerow([f.get("label") or f["name"] for f in fields])
                 for r in rows:
                     w.writerow([_cell(r.get(c)) for c in cols])
-        world.journal.append("did", f"Exported {desc['title']} ({len(rows)} rows) to"
-                             f" {target.name}.", actor="person",
+        narrowed = len(rows) != len(every) or len(fields) != len(desc["fields"])
+        columns = f"{len(fields)} column{'s' if len(fields) != 1 else ''}"
+        what = f"{len(rows)} of {len(every)} rows, {columns}" if narrowed else f"{len(rows)} rows"
+        world.journal.append("did", f"Exported {desc['title']} ({what}) to {target.name}.",
+                             actor="person",
                              data={"collection": name, "path": str(target)},
                              module=desc["module"])
         return {"path": str(target), "name": target.name, "rows": len(rows)}

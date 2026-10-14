@@ -520,7 +520,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
         <IconButton size="sm" label="Zoom out" icon={<span aria-hidden="true">−</span>} onClick={() => zoomBy(0.77)} />
         <Button size="sm" onClick={() => fit()}>Fit</Button>
         <Button size="sm" onClick={shake} disabled={!worker.current} title="Let every pinned node go and settle again">Shake</Button>
-        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Ask the core again and have Alpha look for links" : "Ask the core again"}>Refresh</Button>
+        <Button size="sm" onClick={() => void refresh()} disabled={busy !== null} title={kind === "world" ? "Read the map again and have Alpha look for links" : "Read the map again"}>Refresh</Button>
         {asOf ? <span className="map__asof">as of {timeOf(asOf)}</span> : null}
       </div>
       {busy ? <div className="map__busy" role="status">{busy}</div> : null}

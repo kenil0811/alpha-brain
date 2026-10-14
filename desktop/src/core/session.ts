@@ -47,6 +47,6 @@ export async function resolveSession(): Promise<SessionResolution> {
   }
   return {
     kind: "unavailable",
-    reason: "Alpha's core isn't connected. Start the app (just app-dev) or run `alpha serve` and set VITE_ALPHA_CORE_URL.",
+    reason: "The part of Alpha that works in the background isn't connected. Start the app (just app-dev) or run `alpha serve` and set VITE_ALPHA_CORE_URL.",
   };
 }

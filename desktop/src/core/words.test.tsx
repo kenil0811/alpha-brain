@@ -8,10 +8,10 @@ import { CoreError, NOT_ANSWERING, plainError, say, type Client } from "./client
 describe("errors in words (section 9a)", () => {
   it("passes the core's own words through and says the rest plainly", () => {
     expect(plainError(400, { error: "That module has no table called x." })).toBe("That module has no table called x.");
-    expect(plainError(401, { detail: "This window isn't signed in to Alpha's core." })).toBe("This window isn't signed in to Alpha's core.");
+    expect(plainError(401, { error: "This window isn't signed in to Alpha. Restart Alpha." })).toBe("This window isn't signed in to Alpha. Restart Alpha.");
     expect(plainError(404, { detail: "Not Found" })).toBe("That isn't there any more; it may have been removed.");
-    expect(plainError(422, { detail: [{ loc: ["body", "value"], msg: "field required" }] })).toBe("Alpha's core couldn't take that. Try again.");
-    expect(plainError(500, {})).toBe("Something went wrong in Alpha's core. Try again.");
+    expect(plainError(422, { detail: [{ loc: ["body", "value"], msg: "field required" }] })).toBe("Alpha couldn't take that. Try again.");
+    expect(plainError(500, {})).toBe("Something went wrong in Alpha. Try again.");
   });
 
   it("never puts a fault of the window's own on the screen as code", () => {
