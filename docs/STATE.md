@@ -49,14 +49,14 @@ contributor's guide ([`CONTRIBUTING.md`](../CONTRIBUTING.md)), the hardening day
 
 | | |
 |---|---|
-| Core tests | 258, in about 37 s; ruff and mypy strict clean |
+| Core tests | 261, in about 37 s; ruff and mypy strict clean |
 | Desktop tests | 195 passed, 1 skipped, in 45 files (and 1 host test, `cargo test --lib`); typecheck clean |
 | Tools the model sees | 73 |
-| Journeys | 22 defined; all run 14 Oct: 16 of 22 passed (`docs/journeys/2026-10-14-1134.md`, 12 of 18; `2026-10-14-1209.md`, the four that act in Kenil's accounts, 4 of 4). Failed: workflow_build (a stream bug in `claude_cli.count_tools` stopped the build) and workflow_interview after it, gmail_network (the judge sees only the answer), memory_two_sources and memory_who_emailed (answered from memory, didn't look in Gmail), branded_food (fat 14 g vs 13.4 g) |
+| Journeys | 22 defined; all run 14 Oct, 19 of 22 pass: `docs/journeys/2026-10-14-1134.md` (12 of 18), `1209.md` (the four that act in Kenil's accounts, 4 of 4), then after the stream fix `1250.md` workflow_build, `1305.md` workflow_interview, `1312.md` gmail_network, each passed. Failing: memory_two_sources and memory_who_emailed (answered from memory instead of looking in Gmail), branded_food (fat 14 g vs 13.4 g) |
 | Desktop check | after the layout fixes, `docs/checks/2026-10-14-1156.md`, 94 of 94 pages clean at every size (the check visits every address since group 1); after group 1, `2026-10-14-1123.md`, 88 of 94 (two older layout faults: a table on a short window, the map's legend); after step 8, `2026-10-14-0055.md`; after step 7, `2026-10-13-2323.md`; after step 6, `2026-10-13-2141.md`; after step 5, `2026-10-13-1742.md` (the first record of every table among the pages; Notes removed from his world); after step 3, `2026-10-13-1717.md`; after step 2, `2026-10-13-1641.md`; after step 1, `2026-10-13-1621.md`, 81 of 81; after the views menu, `2026-10-13-1513.md`; after 9, `2026-10-13-1443.md`; after 8, `2026-10-13-1424.md`; after 7c and 7d, `2026-10-13-1354.md`; after 7b, `2026-10-13-1329.md`; after 7a, `2026-10-13-1309.md`; after 6, `2026-10-13-1251.md`; after 5, `2026-10-13-1239.md`; after 4d, `2026-10-13-1214.md`; after 4c, `2026-10-13-1154.md`; after section 1, `2026-10-12-2211.md`, 66 of 66 |
 | Turns | `just turns`: 1–3 Oct, a person's turn 25 s at the median, the model 23 s of it, Alpha's overhead 1.5 s; one step 4 s, four steps 14 s, twelve or more about 3 min. Since 9 Oct the first words of a reply are measured too ("first s"): 2.7 to 8.7 s on the seven real turns of the chat slice when the reply came first, 23 to 28 s when steps came first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden; was about 26 and never paused |
-| Commits | 207 total; 207 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 208 total; 208 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 17,120 Python; tests 6,307; desktop 17,572 TS/TSX |
 
 ## What is built, against the design's order of work
@@ -180,8 +180,8 @@ pending item 6, people for real, and noticing over what Alpha reads.
 12. The ChatGPT route stays off until it passes a real tool call (Codex's own pre-approval
    setting, or not at all).
 13. People for real: readers declare their rows as people; a pass links existing rows.
-15. **The review and clean-up (14 Oct)** ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)): five groups proposed in writing; (1) the real faults (removal taking everything of a module, the journal's last physical delete gone, the build-thread gap closed, undefined colours, "core" on screen, the journeys' module name, the page check on every address) — done 14 Oct; the two older layout faults it found (a table on a short window lets the page scroll; the map's toolbar and legend) — done 14 Oct; all 22 journeys run, 16 passed — the stream bug in `claude_cli.count_tools` that stopped a build, the judge that sees only the answer, and the memory gap (answering from memory instead of looking in Gmail) — next; then (2) code clean-up, (3) docs, STATE to one page again, (4) memory, (5) disk and outside the repo, each Kenil's call.
-14. Then: the memory round's leftovers (and from 3 Oct night: the person's own words first,
+15. **The review and clean-up (14 Oct)** ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)): five groups proposed in writing; (1) the real faults (removal taking everything of a module, the journal's last physical delete gone, the build-thread gap closed, undefined colours, "core" on screen, the journeys' module name, the page check on every address) — done 14 Oct; the two older layout faults it found (a table on a short window lets the page scroll; the map's toolbar and legend) — done 14 Oct; all 22 journeys run; the stream bug that stopped a build (`claude_cli`, and the same in `codex_cli`) fixed and the judge given the turn's steps — done 14 Oct, 19 of 22 pass; (2) code clean-up — next; then (3) docs, STATE to one page again, (4) memory, (5) disk and outside the repo, each Kenil's call.
+14. Then: when memory is thin, look it up (14 Oct journeys: asked about Alexander Miller and Sara Ramos, Alpha answered from what it held and said it never read their emails, instead of opening Gmail; on 3 Oct the same journeys passed when it looked); the memory round's leftovers (and from 3 Oct night: the person's own words first,
    by structure, in the day's section and in search, so "what did I say yesterday" is not
    crowded out by Alpha's own lines; noticing's rule for what a fact about a person is), the
    first-run experience on a clean Mac, the smaller

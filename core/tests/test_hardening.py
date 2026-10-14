@@ -128,3 +128,37 @@ def test_the_journal_has_its_hot_indexes(world: World) -> None:
 
 def test_a_crashed_build_waits_longer_each_time() -> None:
     assert [automation.backoff_s(n) for n in (1, 2, 3, 4, 5, 6)] == [30, 60, 120, 240, 480, 600]
+
+
+def test_a_stream_event_alpha_cannot_read_is_skipped_never_the_end_of_the_run(
+        world: World, tmp_path: Path) -> None:
+    """14 Oct 2026: an event whose `message` was text, right after a page was read, stopped a
+    workflow build on `'str' object has no attribute 'get'`. Odd shapes are skipped; the run
+    goes on and its steps and result are read."""
+    odd = [
+        {"type": "system", "subtype": "notice", "message": "Fetched the page."},
+        {"type": "assistant", "message": "a message as text"},
+        {"type": "assistant", "message": {"content": "content as text"}},
+        {"type": "assistant", "message": {"content": ["a block as text", {
+            "type": "tool_use", "name": "WebFetch", "input": "https://example.com"}]}},
+        {"type": "stream_event", "event": "an event as text"},
+        {"type": "stream_event", "event": {"type": "content_block_delta", "delta": "text"}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "is_error": True,
+                                                  "content": "it failed"}]}},
+        {"type": "assistant", "message": {"content": [{
+            "type": "tool_use", "name": "mcp__alpha__page_read",
+            "input": {"url": "https://example.com/a"}}]}},
+    ]
+    result = {"type": "result", "subtype": "success", "is_error": False, "result": "Done.",
+              "session_id": "s"}
+    lines = "\n".join(f"echo '{json.dumps(e)}'" for e in [*odd, result])
+    cli = tmp_path / "claude"
+    cli.write_text(f"#!/bin/sh\n{lines}\n")
+    cli.chmod(0o755)
+    steps: list[str] = []
+    req = TurnRequest(sentence="s", system="x", world_path=world.path, turn_id="j_odd",
+                      on_step=steps.append)
+    out = claude_cli.run(req, binary=str(cli))
+    assert out.reply == "Done."
+    assert steps[-1] == "Reading a page: https://example.com/a"
+    assert "Reading" in steps[0]  # the tool call whose input was text, in words all the same

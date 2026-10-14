@@ -176,15 +176,23 @@ def tools_verdict(result: RunResult, called: int, failed: int, first: str) -> Ru
     return result
 
 
+def _blocks(event: dict[str, Any]) -> list[dict[str, Any]]:
+    """The content blocks of a stream event's message, the ones that are objects. The CLI also
+    sends events whose `message` is text (14 Oct 2026: one after a page was read stopped a
+    build on `'str' object has no attribute 'get'`); those have no blocks."""
+    message = event.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    return [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+
+
+def _inputs(block: dict[str, Any]) -> dict[str, Any]:
+    raw = block.get("input")
+    return raw if isinstance(raw, dict) else {}
+
+
 def count_tools(event: dict[str, Any], tools: dict[str, Any]) -> None:
     """Keep count of the tool calls a stream made and the results that came back as errors."""
-    message = event.get("message") or {}
-    content = message.get("content")
-    if not isinstance(content, list):
-        return
-    for block in content:
-        if not isinstance(block, dict):
-            continue
+    for block in _blocks(event):
         if event.get("type") == "assistant" and block.get("type") == "tool_use":
             tools["called"] += 1
         elif event.get("type") == "user" and block.get("type") == "tool_result" \
@@ -372,15 +380,20 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
                     continue
                 if event.get("type") == "result" or "result" in event and "is_error" in event:
                     final = event
-                else:
+                    continue
+                try:
                     count_tools(event, tools)
                     _watch(keys, event)
-                    if req.on_step is not None:
-                        for words in _steps(event):
-                            try:
-                                req.on_step(words)
-                            except Exception:
-                                log.exception("on_step")
+                    steps = _steps(event)
+                except Exception:  # an event Alpha can't read is skipped, never the run's end
+                    log.exception("unreadable stream event: %s", line[:300])
+                    continue
+                if req.on_step is not None:
+                    for words in steps:
+                        try:
+                            req.on_step(words)
+                        except Exception:
+                            log.exception("on_step")
             proc.wait()
             first_text_at = (LIVE.progress_for(keys[0]) or {}).get("first_text_at")
         finally:
@@ -414,9 +427,8 @@ def _steps(event: dict[str, Any]) -> list[str]:
     """The tool calls in an assistant event, in plain words."""
     if event.get("type") != "assistant":
         return []
-    return [plain_tool(str(b.get("name", "")), b.get("input") or {})
-            for b in (event.get("message") or {}).get("content") or []
-            if b.get("type") == "tool_use"]
+    return [plain_tool(str(b.get("name", "")), _inputs(b))
+            for b in _blocks(event) if b.get("type") == "tool_use"]
 
 
 def _watch(keys: list[str], event: dict[str, Any]) -> None:
@@ -424,25 +436,28 @@ def _watch(keys: list[str], event: dict[str, Any]) -> None:
     it is written (`stream_event` deltas, from `--include-partial-messages`)."""
     kind = event.get("type")
     if kind == "stream_event":
-        inner = event.get("event") or {}
+        inner = event.get("event")
+        if not isinstance(inner, dict):
+            return
+        start = inner.get("content_block")
         if inner.get("type") == "content_block_start" \
-                and (inner.get("content_block") or {}).get("type") == "text":
+                and isinstance(start, dict) and start.get("type") == "text":
             LIVE.note(keys, partial="")
         elif inner.get("type") == "content_block_delta":
-            delta = inner.get("delta") or {}
-            if delta.get("type") == "text_delta" and delta.get("text"):
+            delta = inner.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta" and delta.get("text"):
                 LIVE.add_text(keys, str(delta["text"]))
         return
     if kind != "assistant":
         return
-    for block in (event.get("message") or {}).get("content") or []:
+    for block in _blocks(event):
         if block.get("type") == "text" and str(block.get("text", "")).strip():
             LIVE.note(keys, thought=str(block["text"]).strip()[:400])
         elif block.get("type") == "tool_use":
             # The text so far was a thought before a step, not the reply: it goes back to
             # the headline and the reply starts afresh after the step.
             LIVE.note(keys, partial="", doing=plain_tool(str(block.get("name", "")),
-                                                         block.get("input") or {}),
+                                                         _inputs(block)),
                       tools=(LIVE.progress_for(keys[0]) or {}).get("tools", 0) + 1)
 
 

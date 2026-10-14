@@ -182,3 +182,19 @@ def test_the_trial_itself(world: World, monkeypatch: Any) -> None:
     assert route.trial(world.path, "claude") == (False, "the model answered without calling a tool")
     monkeypatch.setattr(codex_cli, "run", lambda req: RunResult(reply="", ok=False, error="down"))
     assert route.trial(world.path, "codex") == (False, "down")
+
+
+def test_an_event_of_an_odd_shape_is_read_without_failing_the_run() -> None:
+    """14 Oct 2026 (the same fault the Claude route had): an error given as text, an item or
+    usage that isn't an object, are read as what they say, never a crash."""
+    codex_cli._watch(["j_odd"], {"type": "item.started", "item": "an item as text"})
+    failed = codex_cli.parse_events(
+        [{"type": "item.completed", "item": "text"},
+         {"type": "error", "error": "Your session expired; sign in again."}], "", "", 1, 10)
+    assert not failed.ok and failed.error == codex_cli.SIGNED_OUT
+    done = codex_cli.parse_events(
+        [{"type": "item.completed", "item": {"type": "agent_message", "text": "Hi."}},
+         {"type": "item.completed", "item": {"type": "mcp_tool_call", "status": "failed",
+                                             "error": "refused"}},
+         {"type": "turn.completed", "usage": "none"}], "", "", 0, 10)
+    assert done.reply == "Hi."

@@ -509,14 +509,23 @@ class Run:
             return False, "No turn to judge."
         said = self.world.journal.read(self.last_turn)
         system = ("You judge one answer against a rubric. Reply with JSON only:"
-                  ' {"pass": true|false, "why": "one sentence"}.')
+                  ' {"pass": true|false, "why": "one sentence"}. What Alpha did in the turn,'
+                  " from its own journal, is the evidence of what it read: an answer drawn"
+                  " from those steps is not invented.")
         earlier = ""
         if isinstance(arg, dict) and arg.get("history") and len(self.exchanges) > 1:
             shown = self.exchanges[-1 - int(arg["history"]):-1]
             earlier = "Earlier in this conversation:\n" + "\n".join(
                 f'Person: "{s}"\nAlpha: {r}' for s, r in shown) + "\n\n"
-        prompt = (f'{earlier}The person said: "{said["text"]}"\n\nThe answer:\n{self.last_reply}'
-                  f"\n\nThe rubric: {rubric}")
+        # 14 Oct 2026: gmail_network's judge saw only the answer and called four real Gmail
+        # reads invented; the turn's steps are what Alpha read and did.
+        steps = [s for s in self.world.journal.of_turn(self.last_turn)
+                 if s["kind"] in ("saw", "did", "made", "changed", "failed", "noticed")]
+        done = ("What Alpha did in this turn, from its journal:\n" + "\n".join(
+            f"- {s['kind']}: {' '.join(s['text'].split())[:240]}" for s in steps) + "\n\n"
+                if steps else "Alpha's journal records no step in this turn.\n\n")
+        prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}The answer:\n'
+                  f"{self.last_reply}\n\nThe rubric: {rubric}")
         result = self.runner(claude_cli.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,
             turn_id=self.last_turn, kind="judge"))

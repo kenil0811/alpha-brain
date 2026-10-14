@@ -1,0 +1,98 @@
+[
+ {
+  "name": "workflow_interview",
+  "title": "A module ask is interviewed, then drafted as \"Your workflow\" in the person's words",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard",
+    "ok": true,
+    "removed": {
+     "record notes": 0,
+     "lists": 0,
+     "tables": 3,
+     "rows": 37,
+     "readers": 0,
+     "automations": 0,
+     "threads": 1,
+     "notes": 1,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0,
+     "workflow pages": 1
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "I've put a question on your Home screen: what wasn't working about the Car Wash Site Scorecard tool you removed? Once I know that, I'll pick up the design properly rather than rebuilding the same thing.",
+    "steps": 8,
+    "seconds": 78.3
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles, density, drive-time population, the traffic on the road and at the main intersection, then I score fourteen things like visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've written up the workflow page — it's on your card now. It reuses the exact 14-item scorecard and the two gates from the version you built and removed, adds the density/drive-time-population and intersection-traffic pieces you just asked for, and flags the two things public data genuinely can't give you: a real drive-time-population API and intersection turning-movement counts (Austin's own counters are discontinued), so those are built as reasonable proxies, clearly labeled as estimates.\n\nTwo things are on the page for you to decide: whether intersection traffic should just be informationa",
+    "steps": 11,
+    "seconds": 175.3
+   },
+   {
+    "say": "Add a minimum lot size of 0.8 acres as one of the checks.",
+    "ok": true,
+    "reply": "This is now correct — version 3 restored the original steps, the `car_wash_site_scores` table, the \"Where to start\" and \"The 14 scored items\" settings, and the lot-size gate is added properly (the \"removed\" items this time were just my own placeholder step names from version 2, now replaced with the real ones).\n\nI've added a minimum lot size of 0.8 acres as a third gate on your Car wash site scorecard — Austin page, alongside the households (≥45,000) and traffic (≥30,000 cars/day) gates. It's sourced the same way the other two are: pulled from county parcel data by address, and flagged \"needs ",
+    "steps": 14,
+    "seconds": 196.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 3,
+     "keeps_min": 2,
+     "suggestions_min": 1
+    },
+    "ok": true,
+    "why": "'Car wash site scorecard — Austin' v1 is drafted: 5 steps: Intake a listing (alpha); Geocode and pull public data (alpha); Apply the two gates (alpha); Score the 14 items (both); Write the investor memo (alpha). Keeps car_wash_sites, car_wash_site_scores. 2 suggestions: Wire the 0.8-acre lot size into a third gate; Re-run the memo automatically when you fill in a drive-by score. Settings 5, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version_min": 2,
+     "steps_min": 3,
+     "keeps_min": 2
+    },
+    "ok": true,
+    "why": "'Car wash site scorecard — Austin' v3 is drafted: 5 steps: Intake a listing (both); Geocode and pull public data (alpha); Apply the gates (alpha); Score the 14 items (both); Write the investor memo (both). Keeps car_wash_sites, car_wash_site_scores. 2 suggestions: Wire the 0.8-acre lot size into a third gate; Re-run the memo automatically when you fill in a drive-by score. Settings 5, questions 1.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 450.5,
+  "error": null
+ }
+]

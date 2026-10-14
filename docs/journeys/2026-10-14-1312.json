@@ -1,0 +1,36 @@
+[
+ {
+  "name": "gmail_network",
+  "title": "A question across Gmail and the network is answered from both, or says plainly why not",
+  "steps": [
+   {
+    "say": "which of my linkedin connections emailed me in the last 7 days, and what did each say?",
+    "ok": true,
+    "reply": "Three of your LinkedIn connections show up in Gmail from the last 7 days:\n\n- **Sania Hussain** (saniahussain417@gmail.com) — three separate emails on 13 Oct, each just photo attachments (no text body): one with 3+ images, two more with 1–2 each.\n- **Alexander Miller** — today (14 Oct, 13:04), \"Interview for Senior/Lead Backend Engineer job at Fuse Energy\": a calendar invite for an interview Friday 23 Oct, 2:00–3:00pm, Google Meet, with you and Chris Tomy as attendees. Note: it came through an automated recruiting-system address (workablemail.com), not typed by him directly.\n- **Vikas Badami** ",
+    "steps": 11,
+    "seconds": 103.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "saw",
+     "url_contains": "mail.google.com"
+    },
+    "ok": true,
+    "why": "2 saw entries: Ran a script on Search results - kenilshah081198@gmail.com - Gmail (google.com, signed in): 5 rows..",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "The answer must either name senders who are in the person's LinkedIn connections with a line on what each wrote, or say plainly that none did, or say plainly that Gmail needs a sign-in. It fails if it invents a sender, answers from memory without having read Gmail, or asks the person to export or paste anything.",
+    "ok": true,
+    "why": "The answer names actual senders found via Gmail search with specifics of what each emailed, matching the journal's evidence of reading Gmail and cross-referencing LinkedIn connections, without inventing or deflecting.",
+    "seconds": 6.6
+   }
+  ],
+  "seconds": 109.6,
+  "error": null
+ }
+]

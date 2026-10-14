@@ -1,0 +1,89 @@
+[
+ {
+  "name": "workflow_build",
+  "title": "The page the person said yes to becomes a module whose parts fill a thing they add",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard",
+    "ok": true,
+    "removed": {
+     "record notes": 0,
+     "lists": 0,
+     "tables": 3,
+     "rows": 37,
+     "readers": 0,
+     "automations": 0,
+     "threads": 1,
+     "notes": 1,
+     "goals": 0,
+     "sources": 0,
+     "actions": 0,
+     "files": 0,
+     "workflow pages": 1
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open. It's for me, to decide which sites to pursue. Sites come from brokers by email, but for now I'll type the address. Today I check households within 3 miles (at least 45,000) and the traffic on the road (at least 30,000 cars a day), then I score the site and write a short memo. Start with Austin, Texas. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted the page — here's the gist:\n\nFor each address you give, Alpha will check it against your two gates (**≥45,000 households within 3 miles**, **≥30,000 cars/day** on the road), score it on a 14-item checklist sourced from published car-wash site-selection guides, and draft a short memo you can hand to investors. It keeps a `sites` table and a `scores` table behind it.\n\nThree things are left open on the page for you to weigh in on: what the 14 scored items actually are (I proposed a sourced default), whether to keep your earlier 0.8-acre lot-size floor as a third gate, and what scale ",
+    "steps": 9,
+    "seconds": 214.1
+   },
+   {
+    "say": "Start fresh and ignore anything built before. Keep it to what I said. Write the page now, with your picks on anything you don't know.",
+    "ok": true,
+    "reply": "I've redrafted the page, stripped down to just what you said this time — no lot size gate, no 14-item checklist carried over. It's on the card above: type an address → Alpha checks households (≥45,000/3mi) and traffic (≥30,000 cars/day) → scores it 0–100 → writes a short memo, all kept in one `car_wash_sites` table.\n\nMy one pick (since you didn't say how to score): average of how far each number clears its gate, equal weight. Say yes there, or tell me what's different.",
+    "steps": 2,
+    "seconds": 137.9
+   },
+   {
+    "agree_workflow": "Car wash site screener — Austin, TX",
+    "ok": true,
+    "state": "built",
+    "seconds": 548.2
+   },
+   {
+    "add_row": "car_wash_sites",
+    "ok": true,
+    "parts_ran": 9,
+    "seconds": 5.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "built",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": true,
+    "why": "'Car wash site screener — Austin, TX' v1 is built: 6 steps: You give an address (you); Check households within 3 miles (alpha); Check traffic on the road (alpha); Apply the two gates (alpha); Score the site (alpha); Write the memo (alpha). Keeps car_wash_sites. 3 suggestions: Add a minimum lot size gate; Add competitor density; Automate broker-email intake. Settings 4, questions 0.",
+    "seconds": 0.0
+   },
+   {
+    "check": "module",
+    "arg": {
+     "tables_min": 1,
+     "parts_min": 1
+    },
+    "ok": true,
+    "why": "Car wash site screener — Austin, TX: tables car_wash_sites, settings; parts households (arrives), traffic (after:households), gates (after:traffic), score (after:gates), memo (after:score).",
+    "seconds": 0.0
+   },
+   {
+    "check": "row_filled",
+    "arg": {
+     "min_filled": 2,
+     "no_silent_gaps": true
+    },
+    "ok": true,
+    "why": "Row r_e81147441170 of car_wash_sites: filled 2 of 8: traffic_aadt = 30403 (TxDOT statewide AADT annuals (public), 2025 count, nearest station found, on SL0343 (not matched to the address's street name), within 1 mile(s) of the geocoded address (arcgis.com)); traffic_gate = pass (traffic_aadt (30403) against the traffic_gate setting (30000)). Problems: households_3mi: the Census Data API now requires a free API key for every request; the census_api_key setting is empty. Sign up at https://api.census.gov/data/key_signup.html and add the key to Settings.; household_gate: households_3mi has not been filled in yet; score: can't score yet, missing: households_3mi; notes: can't note yet, missing: households_3mi; memo: can't write the memo yet, missing: the household gate result, the score; status: can't set status yet, missing: the household gate result, the score.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 905.5,
+  "error": null
+ }
+]

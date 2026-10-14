@@ -97,6 +97,31 @@ Proposed next, to Kenil: the stream bug fixed and both car-wash journeys run aga
 given the turn's own steps and gmail_network run again; the memory gap ("look it up when memory
 is thin") onto the pending list.
 
+## The stream bug and the judge (Kenil: "ok go ahead with 1 and 2")
+
+- **Stream events read safely** (`runtime/claude_cli.py`): `_blocks` gives a message's content
+  blocks only when the message is an object and its content a list of objects, `_inputs` a
+  tool call's input only when it is an object; `count_tools`, `_steps` and `_watch` read
+  through them, and a stream event that still can't be read is logged and skipped in the run
+  loop, never the run's end. The ChatGPT route (`runtime/codex_cli.py`, off for now) had the
+  same fault (`(x.get("error") or {}).get("message")` on an error given as text): `_obj` and
+  `_said`. The new test, run against the old code, fails with the build's own error at the
+  same line.
+- **The judge sees the turn's steps** (`journeys/suite.py`): what Alpha did in the turn, from
+  its journal (saw, did, made, changed, failed, noticed), goes into the judge's prompt as the
+  evidence of what it read; an answer drawn from those steps is not invented.
+
+What ran: `just lint` clean; 261 core tests (3 new: a run whose stream has every odd shape goes
+on and its steps and result are read; the ChatGPT route reads odd events; the judge's prompt
+carries the turn's steps). The three journeys again, each in a run of its own
+(`docs/journeys/2026-10-14-1250.md`, `1305.md`, `1312.md`): workflow_build passed (the build
+ran to its end in 9 minutes with five parts; the row filled with real values and their
+sources, e.g. TxDOT's 30,403 cars a day), workflow_interview passed (drafted, revised to v3 by
+the lot size, nothing built), gmail_network passed for the first time (the judge cites the
+Gmail reads). All journeys now: 19 of 22; left, memory_two_sources and memory_who_emailed (the
+memory gap, on the pending list) and branded_food (fat 14 g vs 13.4 g). The app restarted on the
+fixed core.
+
 ## Left
 
-Kenil's yes on those fixes; then groups 2–5.
+Group 2 (code clean-up) proposed next; then 3–5.

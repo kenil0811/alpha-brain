@@ -180,11 +180,22 @@ def _event(line: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def _obj(value: Any) -> dict[str, Any]:
+    """A part of an event that should be an object, or an empty one (an event Alpha can't read
+    is skipped, never the run's end; 14 Oct 2026, from the same fault in the Claude route)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _said(error: Any) -> str:
+    """An event's error in words: its text, or the message inside it."""
+    return error if isinstance(error, str) else str(_obj(error).get("message") or "")
+
+
 def _watch(keys: list[str], event: dict[str, Any]) -> None:
     """Turn a Codex event into what the run is doing, in plain words."""
     if event.get("type") not in ("item.started", "item.completed"):
         return
-    item = event.get("item") or {}
+    item = _obj(event.get("item"))
     kind = str(item.get("type") or item.get("item_type") or "")
     text = str(item.get("text") or "").strip()
     if kind in ("reasoning", "agent_message") and text:
@@ -193,7 +204,7 @@ def _watch(keys: list[str], event: dict[str, Any]) -> None:
         name = str(item.get("tool") or item.get("name") or "")
         if "__" not in name:
             name = f"mcp__alpha__{name}"
-        LIVE.note(keys, doing=plain_tool(name, item.get("arguments") or {}),
+        LIVE.note(keys, doing=plain_tool(name, _obj(item.get("arguments"))),
                   tools=(LIVE.progress_for(keys[0]) or {}).get("tools", 0) + 1)
     elif kind == "web_search" and event.get("type") == "item.started":
         LIVE.note(keys, doing=f"Searching the web for {str(item.get('query', ''))[:60]}".rstrip())
@@ -207,24 +218,24 @@ def parse_events(events: list[dict[str, Any]], reply_file: str, stderr: str, cod
     last agent message), the thread id, and the usage; a failed turn's words as the error."""
     thread = next((str(e["thread_id"]) for e in events if e.get("type") == "thread.started"
                    and e.get("thread_id")), None)
-    messages = [str((e.get("item") or {}).get("text") or "") for e in events
+    messages = [str(_obj(e.get("item")).get("text") or "") for e in events
                 if e.get("type") == "item.completed"
-                and (e.get("item") or {}).get("type") == "agent_message"]
+                and _obj(e.get("item")).get("type") == "agent_message"]
     calls = sum(1 for e in events if e.get("type") == "item.completed"
-                and (e.get("item") or {}).get("type") in ("mcp_tool_call", "command_execution",
-                                                          "web_search"))
-    mcp = [(e.get("item") or {}) for e in events if e.get("type") == "item.completed"
-           and (e.get("item") or {}).get("type") == "mcp_tool_call"]
+                and _obj(e.get("item")).get("type") in ("mcp_tool_call", "command_execution",
+                                                        "web_search"))
+    mcp = [_obj(e.get("item")) for e in events if e.get("type") == "item.completed"
+           and _obj(e.get("item")).get("type") == "mcp_tool_call"]
     mcp_failed = [i for i in mcp if i.get("status") == "failed" or i.get("error")]
     first_failure = ""
     if mcp_failed:
-        words = str(((mcp_failed[0].get("error") or {}).get("message")) or "")
+        words = _said(mcp_failed[0].get("error"))
         first_failure = REFUSED if "cancelled" in words.lower() else words[:160]
     completed = next((e for e in events if e.get("type") == "turn.completed"), None)
     failed = next((e for e in events if e.get("type") in ("turn.failed", "error")), None)
     reply = reply_file.strip() or (messages[-1].strip() if messages else "")
     if failed and not completed:
-        words = str((failed.get("error") or {}).get("message") or failed.get("message") or "")
+        words = _said(failed.get("error")) or str(failed.get("message") or "")
         lowered = words.lower()
         if "sign in again" in lowered or "not logged in" in lowered or "401" in lowered:
             words = SIGNED_OUT
@@ -236,7 +247,7 @@ def parse_events(events: list[dict[str, Any]], reply_file: str, stderr: str, cod
         log.warning("no reply from the codex run (exit %s): %s", code, tail)
         return RunResult(reply="", ok=False, error=NO_ANSWER, session_id=thread,
                          duration_ms=duration_ms)
-    usage = (completed or {}).get("usage") or {}
+    usage = _obj(_obj(completed).get("usage"))
     return tools_verdict(
         RunResult(reply=reply, ok=True, session_id=thread, num_turns=calls + 1,
                   duration_ms=duration_ms, cost_estimate=None, raw={"usage": usage}),

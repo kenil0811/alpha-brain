@@ -115,3 +115,39 @@ def test_a_seed_step_and_the_report_survive_an_unknown_step_kind(tmp_path: Path)
                         began=__import__("datetime").datetime.now())
     assert "**seed**" in text and "**step**" in text
     world.close()
+
+
+def test_the_judge_sees_what_alpha_read_in_the_turn(tmp_path: Path) -> None:
+    """14 Oct 2026: gmail_network's judge saw only the answer and called four real Gmail reads
+    invented. The turn's own steps, from the journal, go to the judge as the evidence."""
+    import os
+
+    live = tmp_path / "live" / "world.sqlite"
+    live.parent.mkdir()
+    World(live).close()
+    (tmp_path / "journeys").mkdir()
+    (tmp_path / "journeys" / "who.yaml").write_text(
+        'name: who\ntitle: Who emailed\nsteps:\n  - say: "who emailed me?"\n'
+        'checks:\n  - judge: "Passes if it names who emailed."\n')
+    copied = suite.copy_home(live, tmp_path / "scratch")
+    os.environ["ALPHA_HOME"] = str(tmp_path / "scratch")
+    os.environ["ALPHA_WORLD"] = str(copied)
+    asked: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        if req.kind == "judge":
+            asked.append(req.sentence)
+            return RunResult(ok=True, reply='{"pass": true, "why": "It read Gmail."}')
+        w = World(copied)
+        try:
+            Tools(w, turn=req.turn_id).journal_note("saw", "Read 3 emails in Gmail (signed in).")
+        finally:
+            w.close()
+        return RunResult(ok=True, reply="Priya and Sam emailed you.")
+
+    w = World(copied)
+    outcome = suite.run_journey(w, suite.load(folder=tmp_path / "journeys")[0], runner)
+    w.close()
+    assert outcome.passed, outcome.checks
+    assert "What Alpha did in this turn" in asked[0]
+    assert "- saw: Read 3 emails in Gmail (signed in)." in asked[0]
