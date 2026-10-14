@@ -260,6 +260,37 @@ Connections searched for "founder", downloaded as Excel: the workbook held exact
 in the order shown under the seven column names; the journal said "49 of 1553 rows, 7
 columns". Not looked at in the Mac app. "ok commit it, then tell me what step 9 is".
 
+## Step 9: the host (14 Oct)
+
+Proposed in writing; Kenil: "ok go ahead with step 9, hold the mic".
+
+- **E1 the companion opens where it was left** (`desktop/src-tauri/src/lib.rs`): on every move
+  of its window the host keeps its bottom-right corner (the corner it grows and shrinks around)
+  and the display's name in `avatar-place.json` in Alpha's data folder, beside `avatar-hidden`
+  (the Mac's, not the world's); at launch it goes there while that display is connected and
+  the corner is on it, else to the main display's bottom-right. The menu-bar icon's menu has
+  "Put the companion back in the corner". The data folder is now worked out before the
+  companion is made: it was set only on the core's launch thread, a race in which the hidden
+  marker could be missed.
+- **E2** the companion's window is titled "Alpha" (main has no assistant name to follow).
+- **E3 hold the mic** (`shell/voice.tsx`; no setting): a click listens as before; held, it
+  listens until let go, then the words fill the box and "Sending "…"" shows with Stop for two
+  seconds (`SEND_AFTER_MS`) before they go; Stop, typing or Send cancels it, the words kept. The
+  panel and the companion share one hook (`useHoldToSend`).
+
+What ran: `just lint` clean; 257 core tests; 195 desktop tests in 44 files (3 new: held sends
+after the moment, Stop keeps the words, a click never sends); `cargo test --lib`: 1 new (the
+place kept only while its display is there and the corner on it); `just check-desktop`: 79 of
+79 pages clean at every size (`docs/checks/2026-10-14-0145.md`). In the Mac app, in a separate
+run on a scratch data folder (Kenil's app and its hidden companion untouched): the window
+titled "Alpha"; a remembered place opened exactly there, again after a normal quit and reopen;
+an unplugged display fell back to the corner; the menu-bar item put it back and kept the
+corner. Not proven: the drag itself (a synthetic drag doesn't start the window's own drag, so
+the place was set directly), and one first relaunch that opened neither at the place nor the
+corner, not seen in three later ones; holding the mic in the app (it needs someone to speak):
+proven by tests only. "ok commit it".
+
 ## Left
 
-Step 9 (the host, E1–E3) proposed next; step 4 people skipped for now. Nothing pushed.
+Slice 2 is done except step 4 (people), skipped for now at Kenil's call. Open with Kenil: the
+removal journal line for a file isn't linked to the person; B9 deferred. Nothing pushed.

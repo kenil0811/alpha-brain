@@ -11,7 +11,7 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Th
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { RenameBox, useConversationActions } from "./ConversationActions";
-import { MicButton, useSpeech } from "../shell/voice";
+import { MicButton, SendingSoon, useHoldToSend, useSpeech } from "../shell/voice";
 import { Button, IconButton, Popover, Trouble, Rich } from "../ui";
 import { ChevronRight, ChevronDown, Check, PlusIcon, X } from "../ui/icons";
 
@@ -584,10 +584,13 @@ export function Conversation({
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
   });
+  // the mic held: what was said goes after a moment, unless stopped (slice 2 E3)
+  const spoken = useHoldToSend(speech, (said) => void send(said), setText);
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || !e.shiftKey)) {
       e.preventDefault();
       if (speech.listening) speech.stop();
+      spoken.stop();
       void send(text);
     }
   };
@@ -828,10 +831,11 @@ export function Conversation({
         ) : null}
       </div>
       <div className="composer">
+        {spoken.due ? <SendingSoon text={spoken.due} onStop={spoken.stop} /> : null}
         <div className="composer__box">
-          <textarea ref={input} rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
-          <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-          <Button size="sm" variant="primary" disabled={!text.trim() || Boolean(pending)} onClick={() => void send(text)}>
+          <textarea ref={input} rows={1} value={text} onChange={(e) => { spoken.stop(); setText(e.target.value); }} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
+          <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} onHoldStart={spoken.holdStart} onHoldEnd={spoken.holdEnd} small />
+          <Button size="sm" variant="primary" disabled={!text.trim() || Boolean(pending)} onClick={() => { spoken.stop(); void send(text); }}>
             Send
           </Button>
         </div>

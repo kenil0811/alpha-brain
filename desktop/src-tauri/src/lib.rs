@@ -113,6 +113,9 @@ const AVATAR_LABEL: &str = "avatar";
 const AVATAR_IDLE: (f64, f64) = (112.0, 124.0);
 const AVATAR_MARGIN: f64 = 20.0;
 const AVATAR_HIDDEN_MARKER: &str = "avatar-hidden";
+/// Where the person last put the companion: its bottom-right corner (the corner it grows and
+/// shrinks around) and the display it was on, so it opens there next time (slice 2 E1).
+const AVATAR_PLACE: &str = "avatar-place.json";
 /// Even sized to what it shows, the companion's window is a rectangle around a round character
 /// and a bubble. The page reports where it is drawn; everywhere else the window lets clicks
 /// through to what is behind it, so it never blocks the workspace or other apps.
@@ -139,9 +142,87 @@ fn place_bottom_right(window: &WebviewWindow, size: (f64, f64)) -> tauri::Result
     Ok(())
 }
 
+/// A display's work area, in physical pixels: left, top, right, bottom.
+type Area = (i32, i32, i32, i32);
+
+/// The saved corner, if the display it was on is connected (by name) and the corner is still on
+/// it; otherwise none, and the companion goes to the main display's bottom-right.
+fn saved_corner(saved: &serde_json::Value, displays: &[(Option<String>, Area)]) -> Option<(i32, i32)> {
+    let name = saved["display"].as_str();
+    let right = i32::try_from(saved["right"].as_i64()?).ok()?;
+    let bottom = i32::try_from(saved["bottom"].as_i64()?).ok()?;
+    displays.iter().find_map(|(display, (left, top, area_right, area_bottom))| {
+        let same = display.as_deref() == name;
+        let on = right > *left && right <= *area_right && bottom > *top && bottom <= *area_bottom;
+        (same && on).then_some((right, bottom))
+    })
+}
+
+fn place_file() -> Option<PathBuf> {
+    DATA_DIR.get().map(|d| d.join(AVATAR_PLACE))
+}
+
+/// Keep where the companion is now (after a drag, or as it grows around its corner).
+fn remember_place(window: &tauri::Window) {
+    let (Ok(at), Ok(size), Some(file)) = (window.outer_position(), window.outer_size(), place_file())
+    else {
+        return;
+    };
+    let display = window.current_monitor().ok().flatten().and_then(|m| m.name().cloned());
+    let saved = serde_json::json!({
+        "display": display,
+        "right": at.x + size.width as i32,
+        "bottom": at.y + size.height as i32,
+    });
+    let _ = std::fs::write(file, saved.to_string());
+}
+
+/// Put the companion where it was left, when that place is still on a display.
+fn place_where_left(window: &WebviewWindow, size: (f64, f64)) -> tauri::Result<bool> {
+    let Some(saved) = place_file()
+        .and_then(|f| std::fs::read_to_string(f).ok())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+    else {
+        return Ok(false);
+    };
+    let monitors = window.available_monitors()?;
+    let displays: Vec<(Option<String>, Area)> = monitors
+        .iter()
+        .map(|m| {
+            let a = m.work_area();
+            let (x, y) = (a.position.x, a.position.y);
+            (m.name().cloned(), (x, y, x + a.size.width as i32, y + a.size.height as i32))
+        })
+        .collect();
+    let Some((right, bottom)) = saved_corner(&saved, &displays) else {
+        return Ok(false);
+    };
+    let scale = monitors
+        .iter()
+        .find(|m| m.name().map(String::as_str) == saved["display"].as_str())
+        .map(|m| m.scale_factor())
+        .unwrap_or(1.0);
+    let (w, h) = ((size.0 * scale).round() as i32, (size.1 * scale).round() as i32);
+    window.set_position(PhysicalPosition::new(right - w, bottom - h))?;
+    Ok(true)
+}
+
+/// The tray's "Put the companion back in the corner": the bottom-right of its display, and the
+/// remembered place forgotten.
+fn avatar_to_corner(app: &AppHandle) -> Result<(), String> {
+    let window = app.get_webview_window(AVATAR_LABEL).ok_or("no companion window")?;
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    if let Some(file) = place_file() {
+        let _ = std::fs::remove_file(file);
+    }
+    place_bottom_right(&window, (size.width as f64 / scale, size.height as f64 / scale))
+        .map_err(|e| e.to_string())
+}
+
 fn build_avatar(app: &AppHandle) -> tauri::Result<()> {
     let window = WebviewWindowBuilder::new(app, AVATAR_LABEL, WebviewUrl::App("index.html".into()))
-        .title("Alpha companion")
+        .title("Alpha")
         .inner_size(AVATAR_IDLE.0, AVATAR_IDLE.1)
         .resizable(false)
         .decorations(false)
@@ -153,7 +234,9 @@ fn build_avatar(app: &AppHandle) -> tauri::Result<()> {
         .focused(false)
         .visible(false)
         .build()?;
-    place_bottom_right(&window, AVATAR_IDLE)?;
+    if !place_where_left(&window, AVATAR_IDLE)? {
+        place_bottom_right(&window, AVATAR_IDLE)?;
+    }
     let hidden = avatar_marker().map(|m| m.exists()).unwrap_or(false);
     if !hidden {
         window.show()?;
@@ -371,6 +454,29 @@ fn core_python(bundled: Option<&PathBuf>) -> PathBuf {
     }
 }
 
+/// Alpha's data folder (the app's own, or `ALPHA_HOME` in development), made if missing and
+/// kept for the rest of the run. Worked out before the companion is made, which keeps its own
+/// small files there (whether it is hidden, where it was put), and again by the core's launch.
+fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Some(dir) = DATA_DIR.get() {
+        return Ok(dir.clone());
+    }
+    let mut dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("app data dir: {e}"))?;
+    if cfg!(debug_assertions) {
+        if let Ok(home) = std::env::var("ALPHA_HOME") {
+            if !home.is_empty() {
+                dir = PathBuf::from(home);
+            }
+        }
+    }
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create data dir: {e}"))?;
+    let _ = DATA_DIR.set(dir.clone());
+    Ok(dir)
+}
+
 /// Start the core. `keep`: the port and token of the core this one replaces, so the windows'
 /// sessions stay good; none on the first start (port 0 picks a free one, the token is new).
 fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProcess, String> {
@@ -382,19 +488,7 @@ fn launch_core(app: &AppHandle, keep: Option<(u16, String)>) -> Result<CoreProce
             python.display()
         ));
     }
-    let mut data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("app data dir: {e}"))?;
-    if cfg!(debug_assertions) {
-        if let Ok(dir) = std::env::var("ALPHA_HOME") {
-            if !dir.is_empty() {
-                data_dir = PathBuf::from(dir);
-            }
-        }
-    }
-    std::fs::create_dir_all(&data_dir).map_err(|e| format!("create data dir: {e}"))?;
-    let _ = DATA_DIR.set(data_dir.clone());
+    let data_dir = data_dir(app)?;
     let log_dir = data_dir.join("logs");
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("create log dir: {e}"))?;
     let _ = HOST_LOG.set(log_dir.join("host.log"));
@@ -673,6 +767,9 @@ pub fn run() {
                 })
                 .expect("core launch thread");
 
+            if let Err(error) = data_dir(app.handle()) {
+                note(&format!("data folder not ready: {error}"));
+            }
             if let Err(error) = build_avatar(app.handle()) {
                 note(&format!("companion window not created: {error}"));
             }
@@ -681,8 +778,15 @@ pub fn run() {
             let open = MenuItem::with_id(app, "open", "Open Alpha", true, None::<&str>)?;
             let avatar_item =
                 MenuItem::with_id(app, "avatar", "Show or hide the companion", true, None::<&str>)?;
+            let corner_item = MenuItem::with_id(
+                app,
+                "corner",
+                "Put the companion back in the corner",
+                true,
+                None::<&str>,
+            )?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit Alpha", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &avatar_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&open, &avatar_item, &corner_item, &quit_item])?;
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().cloned().expect("window icon"))
                 .icon_as_template(true)
@@ -695,6 +799,11 @@ pub fn run() {
                         let shown = avatar_is_visible(app.clone()).unwrap_or(false);
                         let _ = avatar_visible(app.clone(), !shown);
                     }
+                    "corner" => {
+                        if let Err(error) = avatar_to_corner(app) {
+                            note(&format!("companion not put back: {error}"));
+                        }
+                    }
                     "quit" => {
                         stop_all(app);
                         app.exit(0);
@@ -705,6 +814,12 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Wherever the companion goes, it opens there next time (slice 2 E1).
+            if let WindowEvent::Moved(_) = event {
+                if window.label() == AVATAR_LABEL {
+                    remember_place(window);
+                }
+            }
             // Closing the workspace keeps Alpha running (the companion and the core stay).
             if let WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main" {
@@ -722,4 +837,24 @@ pub fn run() {
             RunEvent::Exit => stop_all(app),
             _ => {}
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::saved_corner;
+
+    #[test]
+    fn the_companion_opens_where_it_was_left_while_that_display_is_there() {
+        let main = (Some("Built-in".to_string()), (0, 25, 3024, 1964));
+        let side = (Some("LG".to_string()), (3024, 0, 6864, 2160));
+        let saved = serde_json::json!({"display": "LG", "right": 5000, "bottom": 1200});
+        assert_eq!(saved_corner(&saved, &[main.clone(), side.clone()]), Some((5000, 1200)));
+        // the display is gone: none, so it goes to the corner
+        assert_eq!(saved_corner(&saved, &[main.clone()]), None);
+        // the display is there but smaller now: the spot is off it
+        let smaller = (Some("LG".to_string()), (3024, 0, 4944, 1080));
+        assert_eq!(saved_corner(&saved, &[main, smaller]), None);
+        // nothing sensible saved
+        assert_eq!(saved_corner(&serde_json::json!({"right": "x"}), &[side]), None);
+    }
 }

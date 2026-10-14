@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Client, Companion, Home, JournalEntry, Turn } from "../core/client";
 import { useVisible } from "../core/changes";
-import { MicButton, useSpeech } from "../shell/voice";
+import { MicButton, SendingSoon, useHoldToSend, useSpeech } from "../shell/voice";
 import { Character, type Mood } from "./Character";
 import { moved, press, released, type Press } from "./drag";
 import { SIZE_PX, normaliseLook } from "./looks";
@@ -185,6 +185,8 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
   });
+  // the mic held: what was said goes after a moment, unless stopped (slice 2 E3)
+  const spoken = useHoldToSend(speech, (said) => void send(said), setText);
   useEffect(() => {
     setMood((m) => (speech.listening ? "listening" : m === "listening" ? "idle" : m));
   }, [speech.listening]);
@@ -347,9 +349,10 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               </p>
             ) : null}
           </div>
-          <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); void send(text); }}>
-            <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} small />
-            <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Log two eggs… what's on today…" aria-label="What should Alpha do" disabled={busy} />
+          {spoken.due ? <SendingSoon text={spoken.due} onStop={spoken.stop} /> : null}
+          <form className="avatar__ask" onSubmit={(e) => { e.preventDefault(); if (speech.listening) speech.stop(); spoken.stop(); void send(text); }}>
+            <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} onHoldStart={spoken.holdStart} onHoldEnd={spoken.holdEnd} small />
+            <input ref={inputRef} value={text} onChange={(e) => { spoken.stop(); setText(e.target.value); }} placeholder="Log two eggs… what's on today…" aria-label="What should Alpha do" disabled={busy} />
             <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
               Do it
             </Button>

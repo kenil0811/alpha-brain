@@ -1119,3 +1119,7 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* a goal on the Goals card opens its own page (slice 2 D12) */
 .goalrow__open { background: none; border: 0; padding: 0; font: inherit; font-weight: 500; color: var(--text); cursor: pointer; text-align: left; }
 .goalrow__open:hover { color: var(--primary); text-decoration: underline; }
+
+/* the moment before a sentence spoken with the mic held is sent (slice 2 E3) */
+.sendsoon { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 6px; border-radius: 10px; background: var(--surface-2); font-size: var(--text-sm); }
+.sendsoon__words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
