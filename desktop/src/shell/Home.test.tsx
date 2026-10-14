@@ -5,7 +5,7 @@ import type { Client, Home as HomeData, JournalEntry } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { Home, failedToday } from "./Home";
 
-const quiet: HomeData = { date: "2026-10-12T09:00:00+00:00", needs_you: [], ran_today: 4, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [], brief: null };
+const quiet: HomeData = { date: "2026-10-12T09:00:00+00:00", needs_you: [], ran_today: 4, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [] };
 /** A moment a few seconds ago: failures made in one test keep a fixed newest-first order. */
 const secondsAgo = (n: number) => new Date(Date.now() - n * 1000).toISOString();
 const failed = (id: string, text: string, data: Record<string, unknown>, extra: Partial<JournalEntry> = {}): JournalEntry => ({ id, at: new Date().toISOString(), kind: "failed", actor: "alpha", text, data, module: null, thread: null, entity_ids: [], source: null, ...extra });

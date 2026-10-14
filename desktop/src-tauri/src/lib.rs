@@ -639,7 +639,6 @@ fn watch_core(app: AppHandle, launch: Arc<Launch>) {
                         lived.as_secs(),
                         pause.as_secs()
                     ));
-                    let _ = app.emit("core-down", format!("the core stopped ({status})"));
                     keep = Some(same);
                 }
                 // The core is down: start it again after the pause, on the same port and token.
@@ -660,7 +659,6 @@ fn watch_core(app: AppHandle, launch: Arc<Launch>) {
                     Err(error) => {
                         note(&format!("core did not start again: {error}; next try in {}s", pause.as_secs()));
                         pause = (pause * 2).min(RESTART_PAUSE_MOST);
-                        let _ = app.emit("core-down", error);
                     }
                 }
             }

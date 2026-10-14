@@ -1,6 +1,6 @@
 /**
- * Settings: only what a person decides. How Alpha thinks (their Claude, through Claude Code on
- * this Mac), the companion and how the app looks, where their world is kept and copies of it,
+ * Settings: only what a person decides. How Alpha thinks (their Claude through Claude Code, or
+ * their ChatGPT through Codex, on this Mac), the companion and how the app looks, where their world is kept and copies of it,
  * and the defaults set elsewhere in the app. Each row says what is so and offers the one thing
  * to do about it. Since 13 Oct (Q42 section 6) each part is a card, in two stacks side by side
  * when the page is wide and one under the other when it isn't: Workspace, Thinks with, Reads

@@ -22,8 +22,6 @@ export function fieldLabel(f: Pick<FieldInfo, "name" | "label">): string {
 }
 
 export const NUMERIC_KINDS = new Set(["number"]);
-export const TEXT_KINDS = new Set(["text", "long_text", "url"]);
-export const CHOICE_KINDS = new Set(["choice", "status", "multichoice"]);
 export const DATE_KINDS = new Set(["date", "datetime"]);
 
 export function isNumeric(kind: string): boolean {

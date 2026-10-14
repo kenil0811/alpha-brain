@@ -624,6 +624,3 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
     </div>
   );
 }
-
-/** One job of a program module (Q38): its inputs as a form, Run, and what came back. The
- *  job runs in the module's workspace under the sandbox; the tables show the result. */

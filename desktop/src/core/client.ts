@@ -456,7 +456,6 @@ export interface Home {
   loose_tables: TableSummary[];
   coming_up: CalendarItem[];
   threads: Thread[];
-  brief: null | Record<string, unknown>;
 }
 
 export interface Fact {
@@ -906,7 +905,6 @@ export class Client {
   tryAgain = (id: string) => this.call<JournalEntry>("POST", `/api/activity/${encodeURIComponent(id)}/again`);
   search = (q: string) => this.call<SearchResult>("GET", `/api/search?q=${encodeURIComponent(q)}`);
 
-  /** Files the person dropped: kept for the module and read by Alpha. */
   /** Files (13 Oct, slice 2 B8, B11, G4): a module's, a person's or company's; what deleting
    *  one would do; deleting it. */
   moduleFiles = (ref: string) => this.call<FileItem[]>("GET", `/api/modules/${encodeURIComponent(ref)}/files`);
@@ -934,7 +932,6 @@ export class Client {
   };
   /** A table as CSV or Excel; with `shown`, exactly those rows in that order and those columns (slice 2 G5). */
   exportTable = (name: string, format: "csv" | "xlsx", shown?: { records: string[]; columns: string[] }) => this.call<{ path: string; name: string; rows: number }>("POST", `/api/tables/${name}/export`, { format, ...shown });
-  document = (id: string) => this.call<DocumentInfo>("GET", `/api/documents/${id}`);
   conversation = (module?: string | null, conversation?: string | null) => {
     const qs = new URLSearchParams();
     if (module) qs.set("module", module);
@@ -1009,7 +1006,6 @@ export class Client {
   approveAction = (id: string, always: boolean) => this.call<Action>("POST", `/api/actions/${id}/approve`, { always });
   declineAction = (id: string) => this.call<Action>("POST", `/api/actions/${id}/decline`);
   editAction = (id: string, payload: Record<string, string>) => this.call<Action>("PATCH", `/api/actions/${id}`, { payload });
-  actions = (state?: string) => this.call<Action[]>("GET", `/api/actions${state ? `?state=${state}` : ""}`);
   revokePermission = (id: string) => this.call<Permission>("POST", `/api/permissions/${id}/revoke`);
   /** A screenshot of an action, as an object URL the caller revokes. */
   actionShot = async (id: string, name: string): Promise<string> => {

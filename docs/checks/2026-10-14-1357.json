@@ -1,0 +1,2826 @@
+{
+ "began": "2026-10-14T12:58:01.000Z",
+ "ended": "2026-10-14T13:02:00.211Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1211,
+   "shot": "home@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 858,
+   "shot": "activity@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "people@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_aadd32d3e057",
+   "title": "Activity: the newest entry",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "activity-j_aadd32d3e057@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_3ffb53125744",
+   "title": "Activity: the newest failure",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 836,
+   "shot": "activity-j_3ffb53125744@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_bca9b4fcf4ef",
+   "title": "Conversation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 817,
+   "shot": "assistant-t_bca9b4fcf4ef@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_77f3a813ac10",
+   "title": "Person: the person",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "people-e_77f3a813ac10@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_9deb4aa98324",
+   "title": "Person: HARSH SINGH",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "people-e_9deb4aa98324@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_680469405e46",
+   "title": "Person: Giulia Moretti",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "people-e_680469405e46@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dbf6d5cec9f4",
+   "title": "Person: Sumit Chakraborty",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "people-e_dbf6d5cec9f4@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dae45513ebce",
+   "title": "Person: Mridul Malti",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "people-e_dae45513ebce@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_d391c7f03936",
+   "title": "Person: Noah Grist",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "people-e_d391c7f03936@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f2f1f7f2b5b8",
+   "title": "Person: Saubhagya Singh",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "people-e_f2f1f7f2b5b8@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_fab1445dc020",
+   "title": "Person: Suchitra Singh Bhadauriya",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "people-e_fab1445dc020@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_ad3692dfa26c",
+   "title": "Person: Ramzi Zayene",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "people-e_ad3692dfa26c@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f21216979d0c",
+   "title": "Person: Andrew Stirling-Martin",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "people-e_f21216979d0c@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_71232d88ccd6",
+   "title": "Person: Carolyn Chan",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "people-e_71232d88ccd6@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_3b98d03f80c2",
+   "title": "Person: Cevina Feng",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "people-e_3b98d03f80c2@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_6b649f91c801",
+   "title": "Person: Arun Aggarwal",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "people-e_6b649f91c801@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_8626095cd0e2",
+   "title": "Person: Florian Dupaty",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "people-e_8626095cd0e2@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 838,
+   "shot": "m-m_dec1df0d2794@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_d2d15b930720",
+   "title": "Module: Avilo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 835,
+   "shot": "m-m_d2d15b930720@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be",
+   "title": "Module: Car Wash Site Scorecard",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "m-m_12ac0a8738be@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 828,
+   "shot": "m-m_de9cef440abc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "m-m_862947c1edc7@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "m-m_023d69129b7e@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_3b1d7964b2df@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients",
+   "title": "Module: Advisory › advisory_clients",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 821,
+   "shot": "m-m_dec1df0d2794-advisory_clients@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials",
+   "title": "Module: Advisory › advisory_financials",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "m-m_dec1df0d2794-advisory_financials@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags",
+   "title": "Module: Advisory › advisory_flags",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "m-m_dec1df0d2794-advisory_flags@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_attachments",
+   "title": "Module: Advisory › vikas_badami_attachments",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_dec1df0d2794-vikas_badami_attachments@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails",
+   "title": "Module: Advisory › vikas_badami_emails",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites",
+   "title": "Module: Car Wash Site Scorecard › car_wash_sites",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "m-m_12ac0a8738be-car_wash_sites@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings",
+   "title": "Module: Car Wash Site Scorecard › settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_12ac0a8738be-settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log",
+   "title": "Module: Nutrition › food_log",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-food_log@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets",
+   "title": "Module: Nutrition › nutrition_targets",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/saved_foods",
+   "title": "Module: Nutrition › saved_foods",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "m-m_3b1d7964b2df-saved_foods@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_attachments/r_872590e8ece0",
+   "title": "Record: advisory_attachments",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 835,
+   "shot": "m-m_dec1df0d2794-advisory_attachments-r_872590e8ece0@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients/r_c2111690635f",
+   "title": "Record: advisory_clients",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_dec1df0d2794-advisory_clients-r_c2111690635f@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials/r_4d8f00feb91c",
+   "title": "Record: advisory_financials",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "m-m_dec1df0d2794-advisory_financials-r_4d8f00feb91c@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags/r_1e3a3940e174",
+   "title": "Record: advisory_flags",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "m-m_dec1df0d2794-advisory_flags-r_1e3a3940e174@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails/r_cb0493be1433",
+   "title": "Record: vikas_badami_emails",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails-r_cb0493be1433@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_site_scores/r_c8c9e83cb7f2",
+   "title": "Record: car_wash_site_scores",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "m-m_12ac0a8738be-car_wash_site_scores-r_c8c9e83cb7f2@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites/r_89aaf1c1fc69",
+   "title": "Record: car_wash_sites",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_12ac0a8738be-car_wash_sites-r_89aaf1c1fc69@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings/r_77022bf1e825",
+   "title": "Record: settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_12ac0a8738be-settings-r_77022bf1e825@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc/deal_listings/r_9d9cd3aec8da",
+   "title": "Record: deal_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_de9cef440abc-deal_listings-r_9d9cd3aec8da@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7/job_listings/r_b63a0c3ff30a",
+   "title": "Record: job_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "m-m_862947c1edc7-job_listings-r_b63a0c3ff30a@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e/linkedin_connections/r_eaed035771b3",
+   "title": "Record: linkedin_connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "m-m_023d69129b7e-linkedin_connections-r_eaed035771b3@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/body_weight/r_b4c45b6b9c81",
+   "title": "Record: body_weight",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-body_weight-r_b4c45b6b9c81@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log/r_d1d1b1f5d374",
+   "title": "Record: food_log",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "m-m_3b1d7964b2df-food_log-r_d1d1b1f5d374@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets/r_594b3052747f",
+   "title": "Record: nutrition_targets",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets-r_594b3052747f@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 839,
+   "shot": "intelligence@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "intelligence-map@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "intelligence-skills@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence-automations@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "intelligence-connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "intelligence-knowledge@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-skills-gmail_draft@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-skills-gmail_send_draft@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-linkedin_message@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 819,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-accounting_practice_exchange@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-atb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-capstone_ma@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-fusion_advantage@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 818,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 825,
+   "shot": "intelligence-skills-grand_business_brokers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-kendall_capital@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-skills-linkedin_connections@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 835,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 823,
+   "shot": "intelligence-skills-poe_advisors@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "intelligence-skills-premier_business_brokers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-quiet_light@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 816,
+   "shot": "intelligence-skills-saint_louis_group@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-skills-innovative_business_advisors@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "intelligence-skills-vr_gateway_stl@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-skills-website_closers@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 835,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-skills-yc_founding_engineer@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 827,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 822,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 824,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_linkedin_connections_network",
+   "title": "Skill: run_linkedin_connections_network",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-skills-run_linkedin_connections_network@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 831,
+   "shot": "intelligence-automations-a_03ce90642adb@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "intelligence-automations-a_616417b6a351@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_0409af98aa7d",
+   "title": "Goal: Build and maintain a calorie and nutrition tracker",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 826,
+   "shot": "intelligence-goals-g_0409af98aa7d@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1068,
+   "shot": "settings@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 915,
+   "shot": "home@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 877,
+   "shot": "activity@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "people@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_aadd32d3e057",
+   "title": "Activity: the newest entry",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "activity-j_aadd32d3e057@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_3ffb53125744",
+   "title": "Activity: the newest failure",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "activity-j_3ffb53125744@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 854,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_bca9b4fcf4ef",
+   "title": "Conversation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "assistant-t_bca9b4fcf4ef@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_77f3a813ac10",
+   "title": "Person: the person",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "people-e_77f3a813ac10@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_9deb4aa98324",
+   "title": "Person: HARSH SINGH",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 845,
+   "shot": "people-e_9deb4aa98324@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_680469405e46",
+   "title": "Person: Giulia Moretti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "people-e_680469405e46@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dbf6d5cec9f4",
+   "title": "Person: Sumit Chakraborty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "people-e_dbf6d5cec9f4@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dae45513ebce",
+   "title": "Person: Mridul Malti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_dae45513ebce@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_d391c7f03936",
+   "title": "Person: Noah Grist",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "people-e_d391c7f03936@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f2f1f7f2b5b8",
+   "title": "Person: Saubhagya Singh",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "people-e_f2f1f7f2b5b8@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_fab1445dc020",
+   "title": "Person: Suchitra Singh Bhadauriya",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "people-e_fab1445dc020@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_ad3692dfa26c",
+   "title": "Person: Ramzi Zayene",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_ad3692dfa26c@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f21216979d0c",
+   "title": "Person: Andrew Stirling-Martin",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "people-e_f21216979d0c@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_71232d88ccd6",
+   "title": "Person: Carolyn Chan",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_71232d88ccd6@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_3b98d03f80c2",
+   "title": "Person: Cevina Feng",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "people-e_3b98d03f80c2@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_6b649f91c801",
+   "title": "Person: Arun Aggarwal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "people-e_6b649f91c801@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_8626095cd0e2",
+   "title": "Person: Florian Dupaty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "people-e_8626095cd0e2@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 856,
+   "shot": "m-m_dec1df0d2794@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_d2d15b930720",
+   "title": "Module: Avilo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "m-m_d2d15b930720@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be",
+   "title": "Module: Car Wash Site Scorecard",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "m-m_12ac0a8738be@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "m-m_de9cef440abc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 855,
+   "shot": "m-m_862947c1edc7@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 854,
+   "shot": "m-m_023d69129b7e@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "m-m_3b1d7964b2df@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients",
+   "title": "Module: Advisory › advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "m-m_dec1df0d2794-advisory_clients@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials",
+   "title": "Module: Advisory › advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "m-m_dec1df0d2794-advisory_financials@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags",
+   "title": "Module: Advisory › advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "m-m_dec1df0d2794-advisory_flags@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_attachments",
+   "title": "Module: Advisory › vikas_badami_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "m-m_dec1df0d2794-vikas_badami_attachments@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails",
+   "title": "Module: Advisory › vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites",
+   "title": "Module: Car Wash Site Scorecard › car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "m-m_12ac0a8738be-car_wash_sites@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings",
+   "title": "Module: Car Wash Site Scorecard › settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_12ac0a8738be-settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log",
+   "title": "Module: Nutrition › food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "m-m_3b1d7964b2df-food_log@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets",
+   "title": "Module: Nutrition › nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/saved_foods",
+   "title": "Module: Nutrition › saved_foods",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "m-m_3b1d7964b2df-saved_foods@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_attachments/r_872590e8ece0",
+   "title": "Record: advisory_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "m-m_dec1df0d2794-advisory_attachments-r_872590e8ece0@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients/r_c2111690635f",
+   "title": "Record: advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "m-m_dec1df0d2794-advisory_clients-r_c2111690635f@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials/r_4d8f00feb91c",
+   "title": "Record: advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "m-m_dec1df0d2794-advisory_financials-r_4d8f00feb91c@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags/r_1e3a3940e174",
+   "title": "Record: advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "m-m_dec1df0d2794-advisory_flags-r_1e3a3940e174@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails/r_cb0493be1433",
+   "title": "Record: vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 843,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails-r_cb0493be1433@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_site_scores/r_c8c9e83cb7f2",
+   "title": "Record: car_wash_site_scores",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "m-m_12ac0a8738be-car_wash_site_scores-r_c8c9e83cb7f2@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites/r_89aaf1c1fc69",
+   "title": "Record: car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "m-m_12ac0a8738be-car_wash_sites-r_89aaf1c1fc69@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings/r_77022bf1e825",
+   "title": "Record: settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 838,
+   "shot": "m-m_12ac0a8738be-settings-r_77022bf1e825@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc/deal_listings/r_9d9cd3aec8da",
+   "title": "Record: deal_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "m-m_de9cef440abc-deal_listings-r_9d9cd3aec8da@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7/job_listings/r_b63a0c3ff30a",
+   "title": "Record: job_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 869,
+   "shot": "m-m_862947c1edc7-job_listings-r_b63a0c3ff30a@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e/linkedin_connections/r_eaed035771b3",
+   "title": "Record: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 845,
+   "shot": "m-m_023d69129b7e-linkedin_connections-r_eaed035771b3@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/body_weight/r_b4c45b6b9c81",
+   "title": "Record: body_weight",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "m-m_3b1d7964b2df-body_weight-r_b4c45b6b9c81@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log/r_d1d1b1f5d374",
+   "title": "Record: food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 836,
+   "shot": "m-m_3b1d7964b2df-food_log-r_d1d1b1f5d374@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets/r_594b3052747f",
+   "title": "Record: nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets-r_594b3052747f@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-map@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-skills@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 873,
+   "shot": "intelligence-automations@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 861,
+   "shot": "intelligence-knowledge@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-skills-gmail_draft@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 837,
+   "shot": "intelligence-skills-gmail_send_draft@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 842,
+   "shot": "intelligence-skills-linkedin_message@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 863,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-skills-accounting_practice_exchange@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 854,
+   "shot": "intelligence-skills-atb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 844,
+   "shot": "intelligence-skills-capstone_ma@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "intelligence-skills-fusion_advantage@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 833,
+   "shot": "intelligence-skills-grand_business_brokers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 832,
+   "shot": "intelligence-skills-kendall_capital@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 852,
+   "shot": "intelligence-skills-linkedin_connections@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 858,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 848,
+   "shot": "intelligence-skills-poe_advisors@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 839,
+   "shot": "intelligence-skills-premier_business_brokers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 845,
+   "shot": "intelligence-skills-quiet_light@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 847,
+   "shot": "intelligence-skills-saint_louis_group@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 845,
+   "shot": "intelligence-skills-innovative_business_advisors@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-skills-vr_gateway_stl@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-skills-website_closers@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 860,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 857,
+   "shot": "intelligence-skills-yc_founding_engineer@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 838,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 829,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_linkedin_connections_network",
+   "title": "Skill: run_linkedin_connections_network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-skills-run_linkedin_connections_network@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-automations-a_03ce90642adb@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 850,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 851,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 849,
+   "shot": "intelligence-automations-a_616417b6a351@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_0409af98aa7d",
+   "title": "Goal: Build and maintain a calorie and nutrition tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 830,
+   "shot": "intelligence-goals-g_0409af98aa7d@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 1088,
+   "shot": "settings@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 915,
+   "shot": "home@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity",
+   "title": "Activity",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 869,
+   "shot": "activity@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people",
+   "title": "People",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "people@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_aadd32d3e057",
+   "title": "Activity: the newest entry",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "activity-j_aadd32d3e057@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/activity/j_3ffb53125744",
+   "title": "Activity: the newest failure",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 844,
+   "shot": "activity-j_3ffb53125744@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_bca9b4fcf4ef",
+   "title": "Conversation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "assistant-t_bca9b4fcf4ef@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_77f3a813ac10",
+   "title": "Person: the person",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "people-e_77f3a813ac10@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_9deb4aa98324",
+   "title": "Person: HARSH SINGH",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "people-e_9deb4aa98324@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_680469405e46",
+   "title": "Person: Giulia Moretti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "people-e_680469405e46@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dbf6d5cec9f4",
+   "title": "Person: Sumit Chakraborty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_dbf6d5cec9f4@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_dae45513ebce",
+   "title": "Person: Mridul Malti",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "people-e_dae45513ebce@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_d391c7f03936",
+   "title": "Person: Noah Grist",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_d391c7f03936@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f2f1f7f2b5b8",
+   "title": "Person: Saubhagya Singh",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "people-e_f2f1f7f2b5b8@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_fab1445dc020",
+   "title": "Person: Suchitra Singh Bhadauriya",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_fab1445dc020@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_ad3692dfa26c",
+   "title": "Person: Ramzi Zayene",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 859,
+   "shot": "people-e_ad3692dfa26c@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_f21216979d0c",
+   "title": "Person: Andrew Stirling-Martin",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "people-e_f21216979d0c@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_71232d88ccd6",
+   "title": "Person: Carolyn Chan",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "people-e_71232d88ccd6@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_3b98d03f80c2",
+   "title": "Person: Cevina Feng",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 833,
+   "shot": "people-e_3b98d03f80c2@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_6b649f91c801",
+   "title": "Person: Arun Aggarwal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_6b649f91c801@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/people/e_8626095cd0e2",
+   "title": "Person: Florian Dupaty",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "people-e_8626095cd0e2@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794",
+   "title": "Module: Advisory",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "m-m_dec1df0d2794@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_d2d15b930720",
+   "title": "Module: Avilo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 831,
+   "shot": "m-m_d2d15b930720@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be",
+   "title": "Module: Car Wash Site Scorecard",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "m-m_12ac0a8738be@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc",
+   "title": "Module: Deal Tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "m-m_de9cef440abc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7",
+   "title": "Module: Job Search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "m-m_862947c1edc7@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e",
+   "title": "Module: Network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 854,
+   "shot": "m-m_023d69129b7e@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df",
+   "title": "Module: Nutrition",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "m-m_3b1d7964b2df@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients",
+   "title": "Module: Advisory › advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "m-m_dec1df0d2794-advisory_clients@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials",
+   "title": "Module: Advisory › advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "m-m_dec1df0d2794-advisory_financials@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags",
+   "title": "Module: Advisory › advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "m-m_dec1df0d2794-advisory_flags@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_attachments",
+   "title": "Module: Advisory › vikas_badami_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "m-m_dec1df0d2794-vikas_badami_attachments@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails",
+   "title": "Module: Advisory › vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites",
+   "title": "Module: Car Wash Site Scorecard › car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 834,
+   "shot": "m-m_12ac0a8738be-car_wash_sites@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings",
+   "title": "Module: Car Wash Site Scorecard › settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "m-m_12ac0a8738be-settings@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log",
+   "title": "Module: Nutrition › food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "m-m_3b1d7964b2df-food_log@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets",
+   "title": "Module: Nutrition › nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 833,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/saved_foods",
+   "title": "Module: Nutrition › saved_foods",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 831,
+   "shot": "m-m_3b1d7964b2df-saved_foods@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_attachments/r_872590e8ece0",
+   "title": "Record: advisory_attachments",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 845,
+   "shot": "m-m_dec1df0d2794-advisory_attachments-r_872590e8ece0@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_clients/r_c2111690635f",
+   "title": "Record: advisory_clients",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 859,
+   "shot": "m-m_dec1df0d2794-advisory_clients-r_c2111690635f@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_financials/r_4d8f00feb91c",
+   "title": "Record: advisory_financials",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "m-m_dec1df0d2794-advisory_financials-r_4d8f00feb91c@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/advisory_flags/r_1e3a3940e174",
+   "title": "Record: advisory_flags",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "m-m_dec1df0d2794-advisory_flags-r_1e3a3940e174@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_dec1df0d2794/vikas_badami_emails/r_cb0493be1433",
+   "title": "Record: vikas_badami_emails",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 852,
+   "shot": "m-m_dec1df0d2794-vikas_badami_emails-r_cb0493be1433@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_site_scores/r_c8c9e83cb7f2",
+   "title": "Record: car_wash_site_scores",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 844,
+   "shot": "m-m_12ac0a8738be-car_wash_site_scores-r_c8c9e83cb7f2@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/car_wash_sites/r_89aaf1c1fc69",
+   "title": "Record: car_wash_sites",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 840,
+   "shot": "m-m_12ac0a8738be-car_wash_sites-r_89aaf1c1fc69@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_12ac0a8738be/settings/r_77022bf1e825",
+   "title": "Record: settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 837,
+   "shot": "m-m_12ac0a8738be-settings-r_77022bf1e825@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_de9cef440abc/deal_listings/r_9d9cd3aec8da",
+   "title": "Record: deal_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 842,
+   "shot": "m-m_de9cef440abc-deal_listings-r_9d9cd3aec8da@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_862947c1edc7/job_listings/r_b63a0c3ff30a",
+   "title": "Record: job_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 844,
+   "shot": "m-m_862947c1edc7-job_listings-r_b63a0c3ff30a@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_023d69129b7e/linkedin_connections/r_eaed035771b3",
+   "title": "Record: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "m-m_023d69129b7e-linkedin_connections-r_eaed035771b3@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/body_weight/r_b4c45b6b9c81",
+   "title": "Record: body_weight",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 839,
+   "shot": "m-m_3b1d7964b2df-body_weight-r_b4c45b6b9c81@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/food_log/r_d1d1b1f5d374",
+   "title": "Record: food_log",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 835,
+   "shot": "m-m_3b1d7964b2df-food_log-r_d1d1b1f5d374@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/m/m_3b1d7964b2df/nutrition_targets/r_594b3052747f",
+   "title": "Record: nutrition_targets",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "m-m_3b1d7964b2df-nutrition_targets-r_594b3052747f@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence",
+   "title": "Intelligence",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 871,
+   "shot": "intelligence@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/map",
+   "title": "Intelligence: map",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 852,
+   "shot": "intelligence-map@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills",
+   "title": "Intelligence: skills",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 873,
+   "shot": "intelligence-skills@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations",
+   "title": "Intelligence: automations",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 863,
+   "shot": "intelligence-automations@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/connections",
+   "title": "Intelligence: connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/knowledge",
+   "title": "Intelligence: knowledge",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 866,
+   "shot": "intelligence-knowledge@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_draft",
+   "title": "Skill: gmail_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "intelligence-skills-gmail_draft@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/gmail_send_draft",
+   "title": "Skill: gmail_send_draft",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "intelligence-skills-gmail_send_draft@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_message",
+   "title": "Skill: linkedin_message",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 853,
+   "shot": "intelligence-skills-linkedin_message@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_il",
+   "title": "Skill: accounting_biz_brokers_il",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 847,
+   "shot": "intelligence-skills-accounting_biz_brokers_il@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_biz_brokers_mo",
+   "title": "Skill: accounting_biz_brokers_mo",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-skills-accounting_biz_brokers_mo@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/accounting_practice_exchange",
+   "title": "Skill: accounting_practice_exchange",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "intelligence-skills-accounting_practice_exchange@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/atb",
+   "title": "Skill: atb",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 839,
+   "shot": "intelligence-skills-atb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/capstone_ma",
+   "title": "Skill: capstone_ma",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 859,
+   "shot": "intelligence-skills-capstone_ma@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/fusion_advantage",
+   "title": "Skill: fusion_advantage",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 843,
+   "shot": "intelligence-skills-fusion_advantage@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_attachments_gmail",
+   "title": "Skill: vikas_badami_attachments_gmail",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 852,
+   "shot": "intelligence-skills-vikas_badami_attachments_gmail@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vikas_badami_gmail_search",
+   "title": "Skill: vikas_badami_gmail_search",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "intelligence-skills-vikas_badami_gmail_search@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/grand_business_brokers",
+   "title": "Skill: grand_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-skills-grand_business_brokers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/kendall_capital",
+   "title": "Skill: kendall_capital",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "intelligence-skills-kendall_capital@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_connections",
+   "title": "Skill: linkedin_connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 847,
+   "shot": "intelligence-skills-linkedin_connections@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_uk",
+   "title": "Skill: linkedin_founding_engineer_uk",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "intelligence-skills-linkedin_founding_engineer_uk@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/linkedin_founding_engineer_us",
+   "title": "Skill: linkedin_founding_engineer_us",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "intelligence-skills-linkedin_founding_engineer_us@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/poe_advisors",
+   "title": "Skill: poe_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 855,
+   "shot": "intelligence-skills-poe_advisors@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/premier_business_brokers",
+   "title": "Skill: premier_business_brokers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "intelligence-skills-premier_business_brokers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/quiet_light",
+   "title": "Skill: quiet_light",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 852,
+   "shot": "intelligence-skills-quiet_light@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/saint_louis_group",
+   "title": "Skill: saint_louis_group",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 854,
+   "shot": "intelligence-skills-saint_louis_group@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/innovative_business_advisors",
+   "title": "Skill: innovative_business_advisors",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 862,
+   "shot": "intelligence-skills-innovative_business_advisors@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/vr_gateway_stl",
+   "title": "Skill: vr_gateway_stl",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 844,
+   "shot": "intelligence-skills-vr_gateway_stl@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/website_closers",
+   "title": "Skill: website_closers",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 838,
+   "shot": "intelligence-skills-website_closers@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/wellfound_founding_engineer",
+   "title": "Skill: wellfound_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 860,
+   "shot": "intelligence-skills-wellfound_founding_engineer@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/yc_founding_engineer",
+   "title": "Skill: yc_founding_engineer",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 857,
+   "shot": "intelligence-skills-yc_founding_engineer@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_deal_tracker_broker_sources_listings",
+   "title": "Skill: run_deal_tracker_broker_sources_listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 858,
+   "shot": "intelligence-skills-run_deal_tracker_broker_sources_listings@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_founding_engineer_listings_yc",
+   "title": "Skill: run_founding_engineer_listings_yc",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 836,
+   "shot": "intelligence-skills-run_founding_engineer_listings_yc@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_gmail_emails_vikas_badami",
+   "title": "Skill: run_gmail_emails_vikas_badami",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 831,
+   "shot": "intelligence-skills-run_gmail_emails_vikas_badami@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/skills/run_linkedin_connections_network",
+   "title": "Skill: run_linkedin_connections_network",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-skills-run_linkedin_connections_network@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_03ce90642adb",
+   "title": "Automation: Every Sunday at 18:00, check the past 7 days of Food Log against current Nutrition Targets and post a summary in the journal",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 856,
+   "shot": "intelligence-automations-a_03ce90642adb@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_e9ae4942f4cf",
+   "title": "Automation: Daily at 07:00, read your LinkedIn connections and update Network › LinkedIn Connections",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 860,
+   "shot": "intelligence-automations-a_e9ae4942f4cf@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_46abf8b1fae1",
+   "title": "Automation: Daily deal tracker — read all broker sources, flag new listings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 850,
+   "shot": "intelligence-automations-a_46abf8b1fae1@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_fd0350ddcad9",
+   "title": "Automation: Every day at 07:30, read founding-engineer listings from YC, Wellfound and LinkedIn, and tell what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 851,
+   "shot": "intelligence-automations-a_fd0350ddcad9@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/automations/a_616417b6a351",
+   "title": "Automation: Every day at 08:00, check Gmail for new emails from Vikas Badami and tell you what's new",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 848,
+   "shot": "intelligence-automations-a_616417b6a351@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/intelligence/goals/g_0409af98aa7d",
+   "title": "Goal: Build and maintain a calorie and nutrition tracker",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 847,
+   "shot": "intelligence-goals-g_0409af98aa7d@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/settings",
+   "title": "Settings",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 1088,
+   "shot": "settings@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

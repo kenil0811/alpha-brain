@@ -22,22 +22,22 @@ const CONVO_STATE: Record<string, string> = { open: "live", working: "working", 
  *  selected, and a line to say it another way. What is chosen goes with the yes. */
 export function Questions({ questions, answers, onChange }: { questions: Question[]; answers: Record<string, string>; onChange: (answers: Record<string, string>) => void }) {
   return (
-    <ol className="planq">
+    <ol className="wfq">
       {questions.map((q, i) => {
         const key = String(i);
         const chosen = answers[key] ?? q.default ?? "";
         const custom = chosen && !q.options.includes(chosen) ? chosen : "";
         return (
-          <li key={key} className="planq__item">
-            <div className="planq__text">{q.text}</div>
-            <div className="planq__opts">
+          <li key={key} className="wfq__item">
+            <div className="wfq__text">{q.text}</div>
+            <div className="wfq__opts">
               {q.options.map((o) => (
                 <Button key={o} size="sm" variant={chosen === o ? "primary" : undefined} aria-pressed={chosen === o} onClick={() => onChange({ ...answers, [key]: o })}>
                   {o}
-                  {o === q.default ? <span className="planq__pick"> · Alpha's pick</span> : null}
+                  {o === q.default ? <span className="wfq__pick"> · Alpha's pick</span> : null}
                 </Button>
               ))}
-              <input className="planq__other" value={custom} placeholder={q.options.length ? "Or say it your way" : (q.default ? `Alpha's pick: ${q.default}` : "Your answer")} aria-label={`Your answer: ${q.text}`} onChange={(e) => onChange({ ...answers, [key]: e.target.value })} />
+              <input className="wfq__other" value={custom} placeholder={q.options.length ? "Or say it your way" : (q.default ? `Alpha's pick: ${q.default}` : "Your answer")} aria-label={`Your answer: ${q.text}`} onChange={(e) => onChange({ ...answers, [key]: e.target.value })} />
             </div>
           </li>
         );

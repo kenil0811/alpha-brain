@@ -122,6 +122,48 @@ Gmail reads). All journeys now: 19 of 22; left, memory_two_sources and memory_wh
 memory gap, on the pending list) and branded_food (fat 14 g vs 13.4 g). The app restarted on the
 fixed core.
 
+## Group 2: the code clean-up (Kenil: "ok go ahead with group 2, keep the focus and move routes")
+
+No behaviour changes but the model's instructions' wording. 55 files, 580 lines out, 217 in.
+
+- **Dead code, each checked unused across the core, the window, connectors, journeys and
+  scripts**: `ApprovePlanBody`; `Sources.coverage`, `coverage_line`, `WORDS`; `Files.unwatch`
+  (it would also have skipped clean removal); `Knowledge.delete_note`, `NOTE_SCOPES`,
+  `RESERVED_NOTES`; `Skills.for_sites`; `connectors/base.manifest`; `Tools._module_of`; the
+  journey check `module_inside`; six read routes the window never calls (`GET /api/workflows`,
+  `/api/workflows/{id}`, `/api/actions`, `/api/actions/{id}`, `/api/tables/{name}/lists`,
+  `/api/documents/{id}`; their tests read the world); the always-empty `brief` on Home; the
+  test judge moved from `runtime/conversations.py` to the tests; unused re-exports. Kept:
+  `entities.unmerge` (step 4), the `modules.project` column, the old-plan check in Needs you
+  (old unanswered plan proposals would show), and, at Kenil's word, the focus and move routes
+  (`POST /api/conversations/{id}/focus`, `POST /api/turns/{key}/move`) for later wiring.
+- **Comments made true** (about 20: plans, jobs, trials, the evaluator, Q38 described as live)
+  and the model's instructions: rule 6 "and never write the plan yourself" dropped; rule 8 and
+  `page_download`: files are kept "when their workflow page says to keep them".
+- **Shape**: 24 imports inside functions moved up (the optional or heavy ones and the
+  store↔skills cycle stay); `purge.py` no longer imports the runtime: a module's workspace
+  folder is `world/workspaces.py`; `Journal.reply_of` for the two copies; `local_midnight_utc()`
+  beside `now()` for the two; a `documents_ad` trigger for the three hand-written index deletes
+  (a test: search is right after a delete); `hosts_for` takes a list; test fixtures with
+  removed names (`plan=`, `plan_approve`) updated. Not merged: the five slug functions (they
+  differ in length and non-English letters, and name existing tables and folders).
+- **The window**: client methods `document` and `actions`; `TEXT_KINDS`, `CHOICE_KINDS`,
+  `ArrowUpRight`, the `Tooltip` re-export; the host's `core-down` event nothing heard; about 150
+  CSS rules of 108 unused classes (found by every string in the code, prefixes built in
+  templates counted); `tokens.css` (its one live token, `--font-mono`, moved into `app.css`);
+  the unused colour variables; six duplicated rules folded; `.planq*` renamed `.wfq*` (the
+  workflow page's questions); stale section headers. Found on the way: an explicitly chosen dark
+  theme lacked the map's dark colours (only the Mac's own dark had them); now both.
+
+What ran: `just lint` clean; 262 core tests; 195 desktop tests; the host test;
+`just check-desktop`: 94 of 94 clean (`docs/checks/2026-10-14-1357.md`); every screenshot
+compared with the run before (`2026-10-14-1156`): the 19 that differ are the time of day
+(Home's greeting), the character's blink and the map's own layout, the same as between two runs
+before the clean-up; the journeys that read the reworded instructions
+(`docs/journeys/2026-10-14-1402.md`, `1407.md`): attachment_in, vague_tracker,
+workflow_interview, 3 of 3. The app rebuilt and restarted. "ok commit it, then go ahead with
+group 3".
+
 ## Left
 
-Group 2 (code clean-up) proposed next; then 3–5.
+Group 3, the docs; then 4 and 5.

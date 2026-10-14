@@ -10,8 +10,9 @@ async function invoke<T>(command: string, args?: Record<string, unknown>): Promi
 
 export const host = {
   available: hasTauri,
-  /** Listen for a host event (`core-restarted`, `core-down`); the function given back stops listening. */
-  onEvent: async (name: "core-restarted" | "core-down", handler: (payload: unknown) => void): Promise<() => void> => {
+  /** Listen for a host event (`core-restarted`); the function given back stops listening. The
+   *  window learns the core is down from its own poll (core/changes.ts). */
+  onEvent: async (name: "core-restarted", handler: (payload: unknown) => void): Promise<() => void> => {
     if (!hasTauri()) return () => undefined;
     const { listen } = await import("@tauri-apps/api/event");
     return listen(name, (event) => handler(event.payload));
