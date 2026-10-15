@@ -1,5 +1,5 @@
 """What the window shows, shaped from the world: what needs the person, an action's card, the
-automations with their live steps, a conversation's line, the threads with their last steps, the
+agents with their live steps, a conversation's line, the threads with their last steps, the
 titles behind relation fields, a module's card, an entity's timeline."""
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.runtime import claude_cli
-from alpha.runtime.automation import Scheduler
+from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.actions import file_fields
 from alpha.world.journal import entry
 from alpha.world.store import Problem, loads
@@ -86,22 +86,29 @@ def action_view(world: World, a: dict[str, Any]) -> dict[str, Any]:
             "preview": Path(a["preview"]).name if a.get("preview") else None, "shots": shots}
 
 
+def opens_run(e: dict[str, Any]) -> bool:
+    """The line that opens a run (its prompt, or a pipeline's first line), not a step of it."""
+    data = e.get("data") or {}
+    return bool(data.get("opens") or data.get("prompt"))
+
+
 def automation_views(world: World, scheduler: Scheduler,
                      module: str | None = None) -> list[dict[str, Any]]:
-    """Automations with whether one is running now and, if so, what it has done so far."""
+    """Agents with whether one is running now and, if so, what it has done so far (the
+    entries of its thread since the open run began). `title` is the window's word for the
+    name until it reads `name` (slice A, group 2)."""
     out = []
-    for a in world.automations.all(module):
+    for a in world.agents.all(module):
         running = a["id"] in scheduler.running
         steps: list[dict[str, Any]] = []
-        if running and a["thread"]:
+        open_run = world.runs.open(a["id"]) if running else None
+        if open_run and a["thread"]:
             entries = world.journal.recent(80, thread=a["thread"])
-            starts = [i for i, e in enumerate(entries) if e["kind"] == "did"
-                      and e["text"].startswith("Run the automation")]
-            current = entries[starts[-1] + 1:] if starts else entries
-            steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in current
-                     if e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
+            steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in entries
+                     if e["at"] >= open_run["started_at"] and not opens_run(e)
+                     and e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
         last = world.runs.last(a["id"])
-        out.append({**a, "running": running, "steps": steps[-8:],
+        out.append({**a, "title": a["name"], "running": running, "steps": steps[-8:],
                     "last_verdict": last["verdict"] if last else None,
                     "last_why": last["why"] if last else None})
     return out
@@ -186,9 +193,9 @@ def troubles(world: World) -> list[dict[str, Any]]:
     failed runs reached nobody but Activity)."""
     since = (datetime.now(UTC) - timedelta(hours=TROUBLE_WINDOW_H)).isoformat()
     out = []
-    for a in world.automations.all():
+    for a in world.agents.all():
         if a.get("last_error") and (a.get("last_run_at") or "") >= since:
-            out.append({"id": a["id"], "title": a["title"], "at": a["last_run_at"],
+            out.append({"id": a["id"], "title": a["name"], "at": a["last_run_at"],
                         "words": a["last_error"], "module": a["module"]})
     return sorted(out, key=lambda t: t["at"], reverse=True)
 

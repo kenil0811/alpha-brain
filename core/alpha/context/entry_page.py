@@ -25,16 +25,16 @@ def _touched(world: World, e: dict[str, Any]) -> list[dict[str, Any]]:
     if e["module"]:
         add(lambda: {"kind": "module", "id": e["module"],
                      "name": world.modules.get(e["module"])["name"]})
-    # an automation's own thread is the automation's page, not a conversation of its own
-    owner = world.automations.of_thread(e["thread"]) if e["thread"] else None
+    # an agent's own thread is the agent's page, not a conversation of its own
+    owner = world.agents.of_thread(e["thread"]) if e["thread"] else None
     if e["thread"] and owner is None:
         add(lambda: {"kind": "conversation", "id": e["thread"],
                      "name": world.modules.thread(e["thread"])["title"],
                      "chat": world.modules.thread(e["thread"])["kind"] == "chat"})
-    auto = d.get("automation") or (owner["id"] if owner else None)
-    if auto:
-        add(lambda: {"kind": "automation", "id": auto,
-                     "name": world.automations.get(str(auto))["title"]})
+    agent = d.get("agent") or d.get("automation") or (owner["id"] if owner else None)
+    if agent:
+        add(lambda: {"kind": "automation", "id": agent,
+                     "name": world.agents.get(str(agent))["name"]})
     for key in ("reader", "procedure", "skill"):
         if isinstance(d.get(key), str):
             add(lambda key=key: {"kind": "skill", "id": d[key],

@@ -7,14 +7,14 @@ Every change Alpha makes is journaled, and records carry the journal entry that 
 Activity can show what was done, because of which turn, and undo it later.
 
 The tools are grouped by what they touch, one module each (`finding`, `tables`, `knowledge`,
-`modules`, `reading`, `automating`, `acting`, `workflows`); `Tools` is all of them on one World,
+`modules`, `reading`, `agents`, `acting`, `workflows`); `Tools` is all of them on one World,
 and `all()` lists them in name order for the MCP server. `base` holds what they share.
 """
 
 from __future__ import annotations
 
 from alpha.mcp.tools.acting import Acting
-from alpha.mcp.tools.automating import Automating
+from alpha.mcp.tools.agents import AgentTools
 from alpha.mcp.tools.base import provenance_of, provenance_words
 from alpha.mcp.tools.finding import Finding
 from alpha.mcp.tools.knowledge import Knowledge
@@ -24,9 +24,9 @@ from alpha.mcp.tools.tables import Tables
 from alpha.mcp.tools.workflows import WorkflowTools
 
 
-class Tools(Finding, Tables, Knowledge, Modules, Reading, Automating, Acting, WorkflowTools):
-    """Every tool of the world, bound to one World (and the turn, thread and module it runs
-    in)."""
+class Tools(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, WorkflowTools):
+    """Every tool of the world, bound to one World (and the turn, thread, module and actor it
+    runs for)."""
 
 
 __all__ = ["Tools", "provenance_of", "provenance_words"]

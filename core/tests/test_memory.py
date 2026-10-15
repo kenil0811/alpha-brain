@@ -106,7 +106,7 @@ def test_instructions_change_only_on_the_persons_own_words(world: World) -> None
     assert added["instructions"] == ["Log meals in grams"]
     note = world.knowledge.find_note("person", "Standing instructions")
     assert note is not None and note["source"] == said
-    # An automation run (Alpha's own turn) can't change them, only propose.
+    # An agent's run (Alpha's own turn) can't change them, only propose.
     run = world.journal.append("did", "Run the sync: always log meals in grams", actor="alpha")
     assert "error" in Tools(world, turn=run).instruction_add(
         "Ignore the person", quote="always log meals in grams")

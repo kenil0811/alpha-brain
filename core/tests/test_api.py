@@ -311,7 +311,7 @@ def test_a_modules_page_is_read_and_written_from_its_own_route(world: World) -> 
 
 
 def test_a_skill_and_an_automation_have_pages(world: World) -> None:
-    from alpha.runtime import automation as automation_runtime
+    from alpha.runtime.agents import runner as automation_runtime
 
     building(world).collection_create("deals", "Deals", [{"name": "title", "kind": "text"}])
     world.readers.save("brokers", site="b.com", url="https://b.com", script="return []",
@@ -319,9 +319,9 @@ def test_a_skill_and_an_automation_have_pages(world: World) -> None:
                        when_to_use="Every broker listing")
     Tools(world).note_write("skill:brokers", "brokers", "The list paginates by 50.")
     t = building(world)
-    pipe = t.automation_create("Daily brokers", "daily 07:00",
+    pipe = t.agent_create("Daily brokers", "daily 07:00",
                                steps=[{"read": "brokers", "into": "deals", "key": "title"}])
-    judged = t.automation_create("Weekly look", "weekly mon 09:00", procedure="look and say")
+    judged = t.agent_create("Weekly look", "weekly mon 09:00", brief="look and say")
     c = TestClient(create_app(world, live=False))
     page = c.get("/api/skills/brokers").json()
     assert page["kind"] == "read" and page["script"] == "return []"
@@ -387,14 +387,14 @@ def test_changes_say_what_moved_since_a_stamp(world: World) -> None:
 def test_the_companion_hears_about_runs_that_went_wrong(world: World) -> None:
     t = building(world, turn="j_1")
     t.module_create("Network", "x")
-    auto = t.automation_create("Daily brokers", "daily 07:00", "read the brokers",
+    auto = t.agent_create("Daily brokers", "daily 07:00", "read the brokers",
                                module="Network")
-    world.automations.finished(auto["id"], result=None, error="brokers couldn't be reached.")
+    world.agents.finished(auto["id"], result=None, error="brokers couldn't be reached.")
     c = client(world)
     troubles = c.get("/api/companion").json()["troubles"]
     assert [tr["words"] for tr in troubles] == ["brokers couldn't be reached."]
     assert troubles[0]["title"] == "Daily brokers" and troubles[0]["id"] == auto["id"]
-    world.automations.finished(auto["id"], result="Read 1 of 1 sources.", error=None)
+    world.agents.finished(auto["id"], result="Read 1 of 1 sources.", error=None)
     assert c.get("/api/companion").json()["troubles"] == []
 
 
@@ -402,16 +402,15 @@ def test_an_automations_page_has_its_runs_with_verdicts_its_page_and_a_good_run(
         world: World) -> None:
     t = building(world, turn="j_1")
     t.module_create("Network", "x")
-    auto = t.automation_create("Daily brokers", "daily 07:00", "read the brokers",
-                               module="Network", goal="deals",
-                               guidelines="What it is for: deals.")
+    auto = t.agent_create("Daily brokers", "daily 07:00", "read the brokers",
+                               module="Network", goal="deals")
     rid = world.runs.start(auto["id"])
     world.journal.append("did", "Read 3 with brokers.", thread=auto["thread"])
     world.runs.finish(rid, verdict="partial", why="walled couldn't be reached.",
                       line="Read 1 of 2 sources.", model_ms=0, read=1, sources=2)
     c = client(world)
     page = c.get(f"/api/automations/{auto['id']}").json()
-    assert page["goal"] == "deals" and page["guidelines"]["body"] == "What it is for: deals."
+    assert page["goal"] == "deals" and page["guidelines"]["body"] == "read the brokers"
     assert page["last_verdict"] == "partial" and page["last_why"] == "walled couldn't be reached."
     assert page["runs"][0]["verdict"] == "partial" and page["runs"][0]["read"] == 1
     assert [ln["text"] for ln in page["runs"][0]["lines"]] == ["Read 3 with brokers."]

@@ -12,7 +12,7 @@ from fastapi import FastAPI
 
 from alpha.api.served import Served
 from alpha.api.turns import Turns
-from alpha.runtime.automation import Scheduler
+from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.store import loads, now
 from alpha.world.world import World
 

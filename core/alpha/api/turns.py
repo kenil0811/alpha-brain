@@ -13,6 +13,7 @@ from alpha.api.bodies import AskBody
 from alpha.api.views import conversation_view
 from alpha.runtime import check, claude_cli, conversations, noticing
 from alpha.runtime import turn as turns
+from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem
 from alpha.world.world import World
 
@@ -35,7 +36,7 @@ class Turns:
 
     def start(self, body: AskBody, *, actor: str = "person",
               journal_as: str | None = None) -> dict[str, Any]:
-        # Where this turn lives. A build or automation thread stays as given; a person's turn
+        # Where this turn lives. A build or agent thread stays as given; a person's turn
         # with no conversation goes to the scope's live conversation (the panel on a page) or
         # is routed (the companion), which may come back as a question instead of a turn.
         conversation: str | None = None
@@ -89,7 +90,17 @@ class Turns:
                     self.world.modules.update_thread(conversation, state="working")
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
-                out = turns.ask(self.world, body.text, **kwargs)
+                # "@Name …" from the person: that agent answers, as itself, in this
+                # conversation (Q44; by structure, the name exactly, never a guess).
+                addressed = (self.world.agents.by_mention(body.text)
+                             if actor == "person" else None)
+                if addressed:
+                    agent, _rest = addressed
+                    out = agent_runner.mention(
+                        self.world, agent, body.text, thread=thread, module=body.module,
+                        on_said=said, **({"runner": self.runner} if self.runner else {}))
+                else:
+                    out = turns.ask(self.world, body.text, **kwargs)
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
                           "duration_ms": out.result.duration_ms}

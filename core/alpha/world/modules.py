@@ -1,6 +1,6 @@
 """Modules and threads.
 
-A module is a named bundle of tables, skills, automations and a note around a goal: the tool the
+A module is a named bundle of tables, skills, agents and a note around a goal: the tool the
 person works in. A plain one costs nothing to make; one made from a workflow page has its
 parts built in its workspace (§12). It grows as it is used. A module
 may sit inside another (Job holds Search and Resume), to any depth: one concept, a `parent`,
@@ -8,11 +8,11 @@ nothing per level (Q31). What a module owns stays its own; a parent is the place
 its children, whose page, activity and conversation reach the whole subtree.
 
 A module can be removed with its data kept (13 Oct, slice 2 A4): it and what it holds leave every
-list (the sidebar, Home, Alpha's context), its automations stop, nothing of it is changed, and it
+list (the sidebar, Home, Alpha's context), its agents stop, nothing of it is changed, and it
 can be restored or deleted for good from Settings. The modules removed together carry the id of the
 one the removal was asked of (`removed_with`), so a restore brings back exactly those.
 
-A thread is a piece of work with its own model context (a build, an automation, a long
+A thread is a piece of work with its own model context (a build, an agent's runs, a long
 job, or a topic the person opened deliberately). The person sees one stream; the to-and-fro of
 the work lives in its thread so it never crowds the stream's context.
 """

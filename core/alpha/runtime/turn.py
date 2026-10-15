@@ -25,7 +25,7 @@ from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
 RULES = """You are Alpha, the person's second brain. You keep their world (tables, a journal of \
-everything that happened, notes, goals, facts, people and companies, modules, automations) \
+everything that happened, notes, goals, facts, people and companies, modules, agents) \
 through the `alpha` tools, and you act for them. This turn comes from the companion or the \
 workspace; work and answer the way a sharp, trusted assistant who knows the subject would.
 
@@ -222,6 +222,7 @@ def ask(
     runner: Runner = route.run,
     rules: str = RULES,
     actor: str = "person",
+    agent: str | None = None,
     model: str | None = None,
     on_said: Callable[[str], None] | None = None,
     journal_as: str | None = None,
@@ -229,10 +230,11 @@ def ask(
     workspace: str | None = None,
     hosts: list[str] | None = None,
 ) -> TurnOutcome:
-    """One turn. `actor="alpha"` is a turn Alpha starts itself (an automation run): its prompt is
-    journaled as something Alpha did, not as words the person said; `journal_as` is the short
-    line journaled in place of a long prompt (the prompt itself is kept with the turn's
-    context)."""
+    """One turn. `actor` is who says the sentence: the person, Alpha (a turn it starts itself)
+    or an agent (its run), journaled as said or did. `agent` is the agent doing the turn, if
+    one: it is the actor of every step and of the reply, the tools know it and cut its hands
+    to its write list (Q50). `journal_as` is the short line journaled in place of a long prompt
+    (the prompt itself is kept with the turn's context)."""
     module_id = world.modules.get(module)["id"] if module else None
     thread_row = world.modules.thread(thread) if thread else None
     if module_id is None and thread_row and thread_row["module"]:
@@ -250,6 +252,7 @@ def ask(
     fixed = f"{rules}\n\nHOW TO USE WHAT ALPHA CAN REACH\n\n{skills_text()}"
     world.journal.keep_context(said, context, hashlib.sha256(fixed.encode()).hexdigest()[:12])
     resume = thread_row.get("session_ref") if (conversation and thread_row) else None
+    replier = agent or "alpha"
     request = TurnRequest(
         sentence=sentence,
         system=f"{fixed}\n\n{context}",
@@ -258,12 +261,13 @@ def ask(
         thread_id=thread,
         module_id=module_id,
         model=model,
+        actor=agent or "alpha",
         resume=resume,
         persist=conversation,
         workspace=workspace,
         hosts=list(hosts or []),
         on_step=(lambda words: world.journal.append(
-            "did", words, actor="alpha", module=module_id, thread=thread,
+            "did", words, actor=replier, module=module_id, thread=thread,
             data={"turn": said, "step": True})) if workspace else None,
     )
     result = runner(request)
@@ -279,7 +283,7 @@ def ask(
     }
     if result.ok:
         replied = world.journal.append(
-            "replied", result.reply, data=data, module=module_id, thread=thread
+            "replied", result.reply, actor=replier, data=data, module=module_id, thread=thread
         )
         reply = result.reply
         if actor == "person":
@@ -290,8 +294,8 @@ def ask(
         reply = (result.error or "You stopped it.") if result.stopped else (
             f"That didn't work: {result.error or 'no answer came back'}")
         replied = world.journal.append(
-            "failed", reply, data={**data, "error": result.error}, module=module_id,
-            thread=thread,
+            "failed", reply, actor=replier, data={**data, "error": result.error},
+            module=module_id, thread=thread,
         )
     return TurnOutcome(reply=reply, ok=result.ok, said=said, replied=replied, result=result,
                        opened=threads_opened_by(world, said))

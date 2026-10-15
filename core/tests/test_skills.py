@@ -59,7 +59,7 @@ def test_an_older_world_moves_its_readers_procedures_and_pipelines_into_skills(
     run = names[pipe]
     assert run["kind"] == "run" and run["health"] == "ok"
     assert run["steps"][0]["read"] == "linkedin_connections"
-    auto = world.automations.get("a_1")
+    auto = world.agents.get("a_1")
     assert auto["skill"] == run["name"] and auto["steps"] == run["steps"]
     assert world.store.one("SELECT name FROM sqlite_master WHERE name IN ('readers',"
                            " 'procedures')") is None
@@ -69,37 +69,37 @@ def test_an_older_world_moves_its_readers_procedures_and_pipelines_into_skills(
     # A run skill named by an earlier rule is renamed on open, with references following.
     with again.store.tx() as db:
         db.execute("UPDATE skills SET name = 'run_every_day_at_07_00' WHERE name = ?", (pipe,))
-        db.execute("UPDATE automations SET skill = 'run_every_day_at_07_00' WHERE id = 'a_1'")
+        db.execute("UPDATE agents SET skill = 'run_every_day_at_07_00' WHERE id = 'a_1'")
         db.execute("INSERT INTO skills (name, kind, description, steps, created_at, updated_at)"
                    " VALUES ('run_other', 'run', 'Other', ?, 'x', 'x')",
                    ('[{"run":"run_every_day_at_07_00"},{"tell":"t"}]',))  # compact, as kept
     again.close()
     third = World(path)
-    assert third.automations.get("a_1")["skill"] == pipe
+    assert third.agents.get("a_1")["skill"] == pipe
     assert third.skills.get("run_other")["steps"] == [{"run": pipe}, {"tell": "t"}]
     third.close()
 
 
-def test_a_pipeline_is_a_run_skill_named_after_its_automation(world: World) -> None:
+def test_a_pipeline_is_a_run_skill_named_after_its_agent(world: World) -> None:
     building(world).collection_create("deals", "Deals", [{"name": "title", "kind": "text"}])
     world.readers.save("brokers", site="b.com", url="https://b.com", script="return []",
                        description="Reads brokers", to_end=False, count=3)
     t = building(world)
-    one = t.automation_create("Daily deals, read the brokers", "daily 07:00",
+    one = t.agent_create("Daily deals, read the brokers", "daily 07:00",
                               steps=[{"read": "brokers", "into": "deals", "key": "title"}])
     assert one["skill"] == "run_deals_brokers"  # the words that carry meaning
     assert world.skills.get(one["skill"])["kind"] == "run"
-    two = t.automation_create("Daily deals, read the brokers", "daily 08:00",
+    two = t.agent_create("Daily deals, read the brokers", "daily 08:00",
                               steps=[{"tell": "deals"}])
     assert two["skill"] == "run_deals_brokers_2"  # a second of the same title
     # Updating the steps replaces the skill's steps, same name, version up.
-    t.automation_update(one["id"], steps=[{"read": "brokers", "into": "deals", "key": "title"},
+    t.agent_update(one["id"], steps=[{"read": "brokers", "into": "deals", "key": "title"},
                                           {"tell": "deals"}])
     skill = world.skills.get(one["skill"])
     assert skill["version"] == 2 and len(skill["steps"]) == 2
-    assert world.automations.get(one["id"])["steps"] == skill["steps"]
+    assert world.agents.get(one["id"])["steps"] == skill["steps"]
     # A run's outcome lands on the skill's health.
-    world.automations.finished(one["id"], result=None, error="b.com needs your sign-in.")
+    world.agents.finished(one["id"], result=None, error="b.com needs your sign-in.")
     assert world.skills.get(one["skill"])["health"] == "broken"
 
 
@@ -108,11 +108,11 @@ def test_a_step_may_call_another_run_skill_but_never_itself(world: World) -> Non
     world.readers.save("brokers", site="b.com", url="https://b.com", script="return []",
                        description="Reads brokers", to_end=False, count=3)
     t = building(world)
-    base = t.automation_create("Read the brokers", "daily 07:00",
+    base = t.agent_create("Read the brokers", "daily 07:00",
                                steps=[{"read": "brokers", "into": "deals", "key": "title"}])
-    composed = t.automation_create("Brokers, then tell", "daily 07:30",
+    composed = t.agent_create("Brokers, then tell", "daily 07:30",
                                    steps=[{"run": base["skill"]}, {"tell": "deals"}])
-    flat = pipeline._flatten(world, world.automations.get(composed["id"])["steps"])
+    flat = pipeline._flatten(world, world.agents.get(composed["id"])["steps"])
     assert [list(s)[0] for s in flat] == ["read", "tell"]
     with pytest.raises(Problem, match="call itself"):
         pipeline.check_steps(world, [{"run": base["skill"]}], within=base["skill"])
@@ -164,7 +164,7 @@ def test_removing_a_module_takes_its_run_skills(world: World) -> None:
     t.collection_create("deals", "Listings", [{"name": "title", "kind": "text"}], module="Deals")
     world.readers.save("deals_site", site="d.com", url="https://d.com", script="return []",
                        description="Reads deals", to_end=False, count=3)
-    auto = t.automation_create("Daily deals", "daily 07:00", module="Deals",
+    auto = t.agent_create("Daily deals", "daily 07:00", module="Deals",
                                steps=[{"read": "deals_site", "into": "deals", "key": "title"}])
     assert world.skills.get(auto["skill"])["module"] == mod["id"]
     remove_module(world, "Deals")

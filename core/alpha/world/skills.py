@@ -8,7 +8,7 @@ A skill is of one of three kinds, in one table:
 - **act**: the steps that do one task on one site in the person's session, run through an
   action the person approves (the `Procedures` adapter in `actions.py`);
 - **run**: a pipeline of steps the scheduler runs with no model (read steps, tell steps, and
-  `{"run": skill}` steps that call another run skill), owned by an automation.
+  `{"run": skill}` steps that call another run skill), owned by an agent.
 
 Every skill has a name, a site or a module, a description, when to use it, a version, a
 health and how its last run went; site notes are a page of the wiki with scope `skill:<name>`.

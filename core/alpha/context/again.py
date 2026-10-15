@@ -1,12 +1,12 @@
 """Trying again (13 Oct, slice 2 D5): what a failure carries says what can be redone, and what
 happened after the person tried says how it went. Nothing here is per kind of work: a failure
-names the automation (or happened in its thread), the part and row, the action or the turn,
+names the agent (or happened in its thread), the part and row, the action or the turn,
 and that is what is redone. A failure that names none of them (Alpha's own note) has nothing
 to redo.
 
 `again(world, e)` is what Try again would do, in words, or None; `blocked` says why it can't
 when something newer stands in its way. `outcome(world, attempt)` reads the try's result from
-the world: the automation's next run, the part's next entry for that row, the conversation's
+the world: the agent's next run, the part's next entry for that row, the conversation's
 next reply, the action's state."""
 
 from __future__ import annotations
@@ -59,12 +59,14 @@ def again(world: World, e: dict[str, Any]) -> dict[str, Any] | None:
         if d.get("part") and d.get("record") and e["module"]:
             return {"how": "part", "part": d["part"], "record": d["record"],
                     "module": e["module"], "words": "Runs it on that row again."}
-        # an automation's failure names it, or happened in its own thread (a reader it ran)
-        auto = (world.automations.get(str(d["automation"])) if d.get("automation") else
-                world.automations.of_thread(e["thread"]) if e["thread"] else None)
-        if auto:
-            return {"how": "automation", "automation": auto["id"],
-                    "words": f"Runs \"{auto['title']}\" again."}
+        # an agent's failure names it (entries before 15 Oct say "automation"), or happened
+        # in its own thread (a reader it ran)
+        named = d.get("agent") or d.get("automation")
+        agent = (world.agents.get(str(named)) if named else
+                 world.agents.of_thread(e["thread"]) if e["thread"] else None)
+        if agent:
+            return {"how": "agent", "agent": agent["id"],
+                    "words": f"Runs {agent['name']} again."}
     except Problem:
         return None  # what it names is gone
     sentence = _turn_sentence(world, e)
@@ -85,10 +87,10 @@ def outcome(world: World, attempt: dict[str, Any]) -> dict[str, Any]:
     how = d.get("how")
     state, words = "running", RUNNING
     try:
-        if how == "automation":
-            run = _after(world, "SELECT ended_at, verdict, why, line FROM runs WHERE automation = ?"
+        if how in ("agent", "automation"):
+            run = _after(world, "SELECT ended_at, verdict, why, line FROM runs WHERE agent = ?"
                          " AND started_at >= ? ORDER BY started_at DESC LIMIT 1",
-                         (d["automation"], at))
+                         (d.get("agent") or d["automation"], at))
             if run and run["ended_at"]:
                 state = "failed" if run["verdict"] == "failed" else "worked"
                 words = run["why"] or run["line"] or ""

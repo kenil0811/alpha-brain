@@ -8,7 +8,7 @@ A journey file:
       - say: "i had a 45g bar of cadbury dairy milk"      # a turn, as the person
         module: Nutrition
       - reader: {name: linkedin_connections, into: linkedin_connections, key: profile_url}
-      - automation: "Daily deal tracker"                   # run one automation now, by title
+      - agent: "Daily deal tracker"                        # run one agent now, by name
       - approve_action: latest   # (in steps_after) the person's yes to the newest action
       - seed: {kind: turn, ago: 1d, said: "…", replied: "…"}   # a past exchange
       - seed: {kind: fact, predicate: height_cm, value: "178"}      # a known fact
@@ -26,7 +26,7 @@ A journey file:
       - count: {collection: linkedin_connections, at_least_fraction_of_last_ok: 0.95,
                 reader: linkedin_connections}
       - reader_health: linkedin_connections
-      - automation: {title: "Daily deal tracker", result_matches: "Read \\d+ of \\d+",
+      - agent: {title: "Daily deal tracker", result_matches: "Read \\d+ of \\d+",
                      problem_allowed: "sign-in|automated reading"}
       - journal: {kind: saw, url_contains: mail.google.com}   # an entry since the journey began
 
@@ -53,8 +53,8 @@ from typing import Any
 import yaml
 
 from alpha.runtime import acting, check, claude_cli, noticing, pipeline, route, turn, workflow_build
-from alpha.runtime import automation as automation_runtime
 from alpha.runtime import parts as parts_module
+from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
 from alpha.world.store import Problem, now
 from alpha.world.world import World, default_world_path
@@ -160,7 +160,7 @@ class Run:
         self.last_turn: str | None = None
         self.last_reply: str = ""
         self.exchanges: list[tuple[str, str]] = []  # (said, reply) in order, this journey
-        self.last_automation: dict[str, Any] | None = None
+        self.last_agent: dict[str, Any] | None = None
         self.last_action: dict[str, Any] | None = None
         self.last_row: tuple[str, str] | None = None
         self.mark = mark(world)
@@ -189,13 +189,13 @@ class Run:
                                       keep=r.get("keep"))
             record = {"reader": r["name"], "ok": out.get("health") == "ok",
                       "health": out.get("health"), "detail": out.get("problem") or out.get("line")}
-        elif "automation" in spec:
-            auto = self._automation(spec["automation"])
-            self.last_automation = automation_runtime.run(self.world, auto["id"],
-                                                          runner=self.runner)
-            record = {"automation": auto["title"], "ok": not self.last_automation.get("last_error"),
-                      "result": self.last_automation.get("last_result"),
-                      "problem": self.last_automation.get("last_error")}
+        elif "agent" in spec:
+            agent = self._agent(spec["agent"])
+            self.last_agent = agent_runner.run(self.world, agent["id"], trigger="now",
+                                               runner=self.runner)
+            record = {"agent": agent["name"], "ok": not self.last_agent.get("last_error"),
+                      "result": self.last_agent.get("last_result"),
+                      "problem": self.last_agent.get("last_error")}
         elif "seed" in spec:
             # Something that was true before the journey began: a past exchange, a fact.
             seed = spec["seed"]
@@ -300,10 +300,11 @@ class Run:
                     return str(t["name"])
         raise Problem(f"No table of a module made in this journey has a field '{field}'.")
 
-    def _automation(self, title: str) -> dict[str, Any]:
-        hits = [a for a in self.world.automations.all() if title.lower() in a["title"].lower()]
+    def _agent(self, title: str) -> dict[str, Any]:
+        hits = [a for a in self.world.agents.all()
+                if title.lower() in a["name"].lower() or title.lower() in a["description"].lower()]
         if len(hits) != 1:
-            raise Problem(f"{len(hits)} automations match '{title}'.")
+            raise Problem(f"{len(hits)} agents match '{title}'.")
         return hits[0]
 
     # checks
@@ -543,7 +544,7 @@ class Run:
 
     def check_run_verdict(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """The last run's verdict, judged by code, is one of the allowed."""
-        auto = self.last_automation or self._automation(arg["title"])
+        auto = self.last_agent or self._agent(arg["title"])
         last = self.world.runs.last(auto["id"])
         if last is None:
             return False, "No run ended."
@@ -552,18 +553,17 @@ class Run:
             f" (model {last['model_ms'] // 1000} s, {last['repairs']} repairs)")
         return last["verdict"] in allowed, words
 
-    def check_automation_is_pipeline(self, arg: Any) -> tuple[bool, str]:
-        """The automation runs as steps now (no model), not as a procedure."""
-        auto = self.last_automation or self._automation(arg if isinstance(arg, str)
-                                                        else arg["title"])
-        auto = self.world.automations.get(auto["id"])
+    def check_agent_is_pipeline(self, arg: Any) -> tuple[bool, str]:
+        """The agent runs as steps now (no model), not by its brief."""
+        auto = self.last_agent or self._agent(arg if isinstance(arg, str) else arg["title"])
+        auto = self.world.agents.get(auto["id"])
         steps = auto.get("steps") or []
         reads = [s["read"] for s in steps if "read" in s]
         return bool(steps), (f"Steps: {', '.join(reads)} then tell." if steps
-                             else "Still a procedure the model follows.")
+                             else "Still a brief the model follows.")
 
-    def check_automation(self, arg: dict[str, Any]) -> tuple[bool, str]:
-        auto = self.last_automation or self._automation(arg["title"])
+    def check_agent(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        auto = self.last_agent or self._agent(arg["title"])
         result, problem = auto.get("last_result") or "", auto.get("last_error") or ""
         if "result_matches" in arg and not re.search(arg["result_matches"], result):
             return False, f"Result \"{result[:120]}\" doesn't match /{arg['result_matches']}/."
@@ -661,7 +661,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next((k for k in ("say", "reader", "automation", "approve_action",
+            kind = next((k for k in ("say", "reader", "agent", "approve_action",
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"

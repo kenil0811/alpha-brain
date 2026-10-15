@@ -212,14 +212,25 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_start ON events(starts_at);
 
-CREATE TABLE IF NOT EXISTS automations (
+-- Agents (Q50, 15 Oct 2026): everything that works on its own has this one shape. A built-in
+-- kind's frame is code; a custom agent's is the generic one. The brief and the notes are pages
+-- at scope agent:<id>; the person's decisions that bind it are in decisions. Automations
+-- became agents with the same ids (the migration below).
+CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    description TEXT NOT NULL,
+    goal TEXT,
     module TEXT,
     thread TEXT,
-    schedule TEXT NOT NULL,
-    procedure TEXT NOT NULL,
-    enabled INTEGER NOT NULL DEFAULT 1,
+    state TEXT NOT NULL DEFAULT 'on',
+    schedule TEXT,
+    events TEXT NOT NULL DEFAULT '[]',
+    may TEXT NOT NULL DEFAULT '[]',
+    done TEXT,
+    skill TEXT,
+    cursor INTEGER NOT NULL DEFAULT 0,
     next_run_at TEXT,
     last_run_at TEXT,
     last_result TEXT,
@@ -227,10 +238,10 @@ CREATE TABLE IF NOT EXISTS automations (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
--- one row per run of an automation, its verdict judged by code (Q33, 9 Oct 2026)
+-- one row per run of an agent, its verdict judged by code (Q33, 9 Oct 2026)
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
-    automation TEXT NOT NULL,
+    agent TEXT NOT NULL,
     started_at TEXT NOT NULL,
     ended_at TEXT,
     verdict TEXT,
@@ -239,9 +250,26 @@ CREATE TABLE IF NOT EXISTS runs (
     model_ms INTEGER NOT NULL DEFAULT 0,
     repairs INTEGER NOT NULL DEFAULT 0,
     read INTEGER,
-    sources INTEGER
+    sources INTEGER,
+    trigger TEXT,
+    called_by TEXT
 );
-CREATE INDEX IF NOT EXISTS runs_automation ON runs(automation, started_at);
+-- Decisions (Q44, Q50): who decided what, why, what else was considered, on what evidence,
+-- and what it replaces. The person's bind the agents; Alpha's and an agent's own are open.
+CREATE TABLE IF NOT EXISTS decisions (
+    id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    by TEXT NOT NULL,
+    what TEXT NOT NULL,
+    why TEXT,
+    alternatives TEXT NOT NULL DEFAULT '[]',
+    evidence TEXT NOT NULL DEFAULT '{}',
+    replaces TEXT,
+    about TEXT NOT NULL DEFAULT '{}',
+    state TEXT NOT NULL DEFAULT 'binding',
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS decisions_at ON decisions(at);
 
 
 -- a module as the person's own workflow (§12, Q39): one page in their words, structured, with
@@ -409,7 +437,6 @@ ADDED_COLUMNS = [
     # on everything removed together.
     ("modules", "removed_at", "TEXT"),
     ("modules", "removed_with", "TEXT"),
-    ("automations", "goal", "TEXT"),  # the person's words for what the agent is for (Q33)
     ("records", "entity_id", "TEXT"),
     ("notes", "source", "TEXT"),
     ("entities", "source", "TEXT"),
@@ -418,10 +445,6 @@ ADDED_COLUMNS = [
     ("records", "reader", "TEXT"),
     ("records", "seen_at", "TEXT"),
     ("records", "gone_at", "TEXT"),
-    # an automation that is a pipeline of saved steps, run with no model
-    ("automations", "steps", "TEXT"),
-    # an automation's pipeline is a skill of kind run; the old steps column moves there
-    ("automations", "skill", "TEXT"),
     # a module's workspace folder once it has one (Q38, kept by §12)
     ("modules", "workspace", "TEXT"),
     # a conversation the person named keeps their title (13 Oct, slice 2 G1)
@@ -433,7 +456,15 @@ ADDED_COLUMNS = [
     ("documents", "about", "TEXT"),
     # a page of the wiki carries a one-line summary for the always-loaded index
     ("notes", "summary", "TEXT"),
+    # what started a run, and the run that called it (Q50)
+    ("runs", "trigger", "TEXT"),
+    ("runs", "called_by", "TEXT"),
 ]
+
+
+# What a custom agent made before agents had a write list may touch (Q50): what an
+# automation's run could do; acting outward and know-how were never its (the tools' walls).
+MIGRATED_MAY = ("records", "notes", "facts", "goals", "asks", "proposals", "agents", "threads")
 
 
 class Problem(Exception):
@@ -486,6 +517,7 @@ class Store:
         with self.tx() as db:
             self._move_know_how(db)
             self._drop_superseded(db)
+            self._agents_from_automations(db)
             for table, column, decl in ADDED_COLUMNS:
                 have = {r["name"] for r in db.execute(f"PRAGMA table_info({table})")}
                 if column not in have:
@@ -529,7 +561,7 @@ class Store:
             first = db.execute("SELECT MIN(at) AS at FROM journal").fetchone()
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
                        ((first["at"] if first and first["at"] else None) or now(),))
-            self._move_pipelines(db)
+            self._name_run_skills(db)
 
     @staticmethod
     def _drop_superseded(db: sqlite3.Connection) -> None:
@@ -575,9 +607,55 @@ class Store:
             db.execute("DROP TABLE procedures")
 
     @staticmethod
-    def _move_pipelines(db: sqlite3.Connection) -> None:
-        """An automation's saved steps become a skill of kind run named after it (3 Oct); a
-        run skill named by an earlier rule is renamed to the current one when that is free."""
+    def _agents_from_automations(db: sqlite3.Connection) -> None:
+        """Automations became agents on 15 Oct 2026 (Q50): the same rows under the same ids,
+        so their pages, looks, runs and Try again carry over; an automation's procedure folds
+        into its agent's brief page above the guidelines it had; `runs.automation` becomes
+        `runs.agent`; the table goes. An older world's saved steps become its run skill first
+        (3 Oct)."""
+        tables = {r["name"] for r in db.execute("SELECT name FROM sqlite_master"
+                                                 " WHERE type = 'table'")}
+        if "automations" in tables:
+            have = {r["name"] for r in db.execute("PRAGMA table_info(automations)")}
+            for column in ("goal", "steps", "skill"):
+                if column not in have:
+                    db.execute(f"ALTER TABLE automations ADD COLUMN {column} TEXT")
+            Store._steps_to_skills(db)
+            stamp = now()
+            for row in db.execute("SELECT * FROM automations").fetchall():
+                db.execute(
+                    "INSERT OR IGNORE INTO agents (id, name, kind, description, goal, module,"
+                    " thread, state, schedule, skill, may, next_run_at, last_run_at,"
+                    " last_result, last_error, created_at, updated_at)"
+                    " VALUES (?,?,'custom',?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (row["id"], row["title"], row["title"], row["goal"], row["module"],
+                     row["thread"], "on" if row["enabled"] else "paused", row["schedule"],
+                     row["skill"], dumps(list(MIGRATED_MAY)), row["next_run_at"],
+                     row["last_run_at"], row["last_result"], row["last_error"],
+                     row["created_at"], row["updated_at"]))
+                scope = f"agent:{row['id']}"
+                page = db.execute("SELECT id, body FROM notes WHERE scope = ? AND title = ?",
+                                  (scope, row["title"])).fetchone()
+                procedure = (row["procedure"] or "").strip()
+                had = page["body"].strip() if page else ""
+                body = "\n\n".join(part for part in (procedure, had) if part)
+                if page:
+                    db.execute("UPDATE notes SET title = 'Brief', body = ?, updated_at = ?"
+                               " WHERE id = ?", (body, stamp, page["id"]))
+                elif body:
+                    db.execute("INSERT INTO notes (id, scope, title, body, updated_at)"
+                               " VALUES (?,?,'Brief',?,?)", (new_id("n"), scope, body, stamp))
+            db.execute("DROP TABLE automations")
+        have = {r["name"] for r in db.execute("PRAGMA table_info(runs)")}
+        if "automation" in have:
+            db.execute("ALTER TABLE runs RENAME COLUMN automation TO agent")
+            db.execute("DROP INDEX IF EXISTS runs_automation")
+        # The index comes after the rename, so a world made before agents can open.
+        db.execute("CREATE INDEX IF NOT EXISTS runs_agent ON runs(agent, started_at)")
+
+    @staticmethod
+    def _steps_to_skills(db: sqlite3.Connection) -> None:
+        """An automation's saved steps become a skill of kind run named after it (3 Oct)."""
         from alpha.world.skills import slug
 
         rows = db.execute("SELECT id, title, module, steps, last_run_at, last_error FROM"
@@ -599,17 +677,24 @@ class Store:
                  row["last_error"], row["last_run_at"], stamp, stamp))
             db.execute("UPDATE automations SET skill = ?, steps = NULL WHERE id = ?",
                        (name, row["id"]))
-        # Names by the current rule: a run skill is named from its automation's title.
-        for row in db.execute("SELECT id, title, skill FROM automations WHERE skill IS NOT NULL"
+
+    @staticmethod
+    def _name_run_skills(db: sqlite3.Connection) -> None:
+        """A run skill named by an earlier rule is renamed to the current one (from its
+        agent's sentence) when that name is free, with the pipelines that call it following."""
+        from alpha.world.skills import slug
+
+        taken = {r["name"] for r in db.execute("SELECT name FROM skills")}
+        for row in db.execute("SELECT id, description, skill FROM agents WHERE skill IS NOT NULL"
                               ).fetchall():
-            wanted = slug(row["title"], "run_")
+            wanted = slug(row["description"], "run_")
             current = str(row["skill"])
             if current == wanted or wanted in taken or re.fullmatch(
                     re.escape(wanted) + r"_\d+", current):
                 continue
             db.execute("UPDATE skills SET name = ? WHERE name = ? AND kind = 'run'",
                        (wanted, current))
-            db.execute("UPDATE automations SET skill = ? WHERE id = ?", (wanted, row["id"]))
+            db.execute("UPDATE agents SET skill = ? WHERE id = ?", (wanted, row["id"]))
             # The pipelines that call it by the old name follow (steps are JSON, parsed,
             # never matched as text: found 3 Oct, the text match missed the compact form).
             for other in db.execute("SELECT name, steps FROM skills WHERE kind = 'run'"

@@ -20,7 +20,7 @@ class Knowledge(Base):
         """One note in full."""
         return self.world.knowledge.read_note(id)
 
-    @tool
+    @tool(writes="notes")
     def note_write(self, scope: str, title: str, body: str,
                    summary: str | None = None) -> dict[str, Any]:
         """Create or replace a page of Alpha's wiki (Markdown). Scopes: person (title 'Profile':
@@ -41,7 +41,7 @@ class Knowledge(Base):
         self._did("changed", f"Updated the note {title} ({scope}).", {"note": note["id"]})
         return note
 
-    @tool
+    @tool(writes="instructions")
     def instruction_add(self, sentence: str, quote: str) -> dict[str, Any]:
         """Add a standing instruction (how the person always wants something done) when they
         say it: "always…", "never…", "from now on…". sentence: the instruction, short and
@@ -55,7 +55,7 @@ class Knowledge(Base):
                   {"note": note["id"], "quote": quote})
         return {"instructions": self.world.knowledge.instructions()}
 
-    @tool
+    @tool(writes="instructions")
     def instruction_remove(self, sentence: str, quote: str) -> dict[str, Any]:
         """Drop a standing instruction when the person says so. quote: their exact words."""
         problem = self._persons_words(quote)
@@ -66,7 +66,7 @@ class Knowledge(Base):
                   {"note": note["id"], "quote": quote})
         return {"instructions": self.world.knowledge.instructions()}
 
-    @tool
+    @tool(writes="proposals")
     def instruction_propose(self, sentence: str, why: str) -> dict[str, Any]:
         """Suggest a standing instruction the person didn't state (a pattern you noticed, a
         lesson from a run). It becomes one only on their yes."""
@@ -82,7 +82,7 @@ class Knowledge(Base):
         """The person's goals: active, done or dropped."""
         return self.world.knowledge.goals(state)
 
-    @tool
+    @tool(writes="goals")
     def goal_set(self, text: str, module: str | None = None) -> dict[str, Any]:
         """Record a goal the person stated ("under 2,000 kcal on weekdays", "a backend role by
         December"). Only goals they said, never ones you imagine for them."""
@@ -91,7 +91,7 @@ class Knowledge(Base):
         self._did("made", f"Noted the goal: {text}", {"goal": goal["id"]}, module_id)
         return goal
 
-    @tool
+    @tool(writes="goals")
     def goal_update(self, id: str, state: str) -> dict[str, Any]:
         """Mark a goal done or dropped (or active again)."""
         goal = self.world.knowledge.update_goal(id, state)
@@ -104,7 +104,7 @@ class Knowledge(Base):
         """Current facts about the person ('person') or an entity ('entity:<id>')."""
         return self.world.knowledge.facts(subject)
 
-    @tool
+    @tool(writes="facts")
     def fact_record(
         self,
         subject: str,
@@ -148,7 +148,7 @@ class Knowledge(Base):
             keys["url"] = url
         return self.world.entities.find(name=name, kind=kind, keys=keys or None)
 
-    @tool
+    @tool(writes="facts")
     def entity_resolve(
         self, kind: str, name: str, keys: dict[str, Any] | None = None
     ) -> dict[str, Any]:

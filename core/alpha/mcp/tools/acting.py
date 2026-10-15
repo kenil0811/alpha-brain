@@ -11,7 +11,7 @@ from alpha.world.store import Problem
 
 
 class Acting(Base):
-    @tool
+    @tool(writes="skills")
     def procedure_save(self, name: str, url: str, description: str, effect: str,
                        steps: list[dict[str, Any]], fields: list[str],
                        verify: list[dict[str, Any]] | None = None,
@@ -45,7 +45,7 @@ class Acting(Base):
                   f" {saved['version']}): {saved['description']}", {"procedure": name})
         return {k: saved[k] for k in ("name", "site", "effect", "fields", "version", "health")}
 
-    @tool
+    @tool(writes="proposals")
     def action_propose(self, procedure: str, title: str, payload: dict[str, Any], undo: str,
                        evidence: str | None = None, module: str | None = None) -> dict[str, Any]:
         """Propose one outward effect: a draft, a message, something sent or posted. The exact
@@ -58,11 +58,11 @@ class Acting(Base):
         sent email cannot be unsent"). evidence: what it rests on, in one plain sentence the
         person would say (who it goes to and why, what was read), never ids, urns or
         addresses: the card shows it."""
-        if self._in_automation():
-            # Automations read and update Alpha's tables; they never act outward, whatever a
-            # procedure or a page says, and a standing permission is the person's yes to Alpha
-            # in conversation, not to a run nobody is watching (design §4, by mechanism).
-            raise Problem("An automation never acts outward: nothing is drafted, sent, posted"
+        if self._in_run():
+            # Agents read and update Alpha's tables; they never act outward, whatever a brief
+            # or a page says, and a standing permission is the person's yes to Alpha in
+            # conversation, not to a run nobody is watching (design §4, by mechanism).
+            raise Problem("An agent never acts outward: nothing is drafted, sent, posted"
                           " or submitted from a run nobody is watching. Note what the person"
                           " might want sent (journal_note) and they can ask for it.")
         proc = self.world.procedures.get(procedure)
@@ -101,14 +101,14 @@ class Acting(Base):
                 "note": "The person sees the card with a preview and decides. Say so in one"
                         " line; nothing leaves until they approve."}
 
-    @tool
+    @tool(writes="actions")
     def action_approve(self, action: str, quote: str, always: bool = False) -> dict[str, Any]:
         """The person said yes to an action proposed earlier: quote their words from this
         message. It runs now, in their session, and this returns what happened. always: they
         said it may always be done without asking (only for a prepare-level action: a draft, an
         unsent message); a standing permission sentence is kept, which they can revoke."""
-        if self._in_automation():
-            raise Problem("An automation never acts outward; only the person approves an"
+        if self._in_run():
+            raise Problem("An agent never acts outward; only the person approves an"
                           " action, in the app or in their own words.")
         problem = self._persons_words(quote)
         if problem:
@@ -123,7 +123,7 @@ class Acting(Base):
                 "outcome": done.get("outcome"), "error": done.get("error"),
                 "verified": done.get("verified")}
 
-    @tool
+    @tool(writes="actions")
     def action_decline(self, action: str) -> dict[str, Any]:
         """The person said no to an action."""
         return {"action": action, "state": acting.decline(self.world, action)["state"]}

@@ -6,7 +6,7 @@ this Mac only. One World is shared by every request; the store serialises writes
 
 What it serves follows the workspace: Home (what needs the person, modules), a module (its
 tables, what Alpha did there, its threads), a table's records (read and edited in place by the
-person), People & Companies with a cross-source timeline, Intelligence (skills, automations,
+person), People & Companies with a cross-source timeline, Intelligence (skills, agents,
 connections, knowledge), Activity, the conversation, and turns.
 
 The routes live one module per area (home, tables, people, intelligence, actions, connections,
@@ -53,7 +53,7 @@ from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.runtime import conversations, route
 from alpha.runtime import turn as turns
-from alpha.runtime.automation import Scheduler
+from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.store import Problem
 from alpha.world.world import World
 

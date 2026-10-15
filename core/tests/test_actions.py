@@ -199,9 +199,9 @@ def test_approval_runs_it_and_a_standing_permission_skips_the_card_next_time(
         assert world.actions.get(out["action"])["state"] == "done"
         # Never from an automation's run, standing permission or not: a run nobody watches
         # cannot draft, send or approve (by mechanism, not by the run's prompt).
-        auto = world.automations.create("Daily drafts", "daily 08:00", "draft something",
-                                        thread=world.modules.open_thread("Daily drafts", "job",
-                                                                         None)["id"])
+        auto = world.agents.create("Daily drafts", schedule="daily 08:00",
+                                   thread=world.modules.open_thread("Daily drafts", "job",
+                                                                    None)["id"])
         inside = Tools(world, turn=said(world, "run"), thread=auto["thread"])
         refused = inside.action_propose("gmail_draft", "Third draft", PAYLOAD, "deletable")
         assert "never acts outward" in refused["error"]

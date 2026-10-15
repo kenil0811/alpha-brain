@@ -29,7 +29,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     t.note_write("module:Network", "Network", "Notes")
     world.readers.save("connections", site="x.com", url="https://x.com", script="return []",
                        description="d", to_end=False, count=1)
-    auto = t.automation_create("Sync", "daily 08:00", "reader_run connections", module="Network")
+    auto = t.agent_create("Sync", "daily 08:00", "reader_run connections", module="Network")
     world.journal.append("replied", "LinkedIn only renders 20", thread=auto["thread"])
     entity = world.entities.resolve("person", "Priya", {"email": "p@x.com"})["entity"]
     world.readers.save("people_feed", site="x.com", url="https://x.com/feed", script="return []",
@@ -58,7 +58,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert world.knowledge.find_note(f"agent:{auto['id']}", "Sync") is None
     assert out["automations"] == 1 and out["threads"] == 1 and out["goals"] == 1
     assert world.collections.names() == ["food_log"]
-    assert world.readers.all() == [] and world.automations.all() == []
+    assert world.readers.all() == [] and world.agents.all() == []
     assert world.modules.threads(None) == []
     # a row's note goes with its table; another module's row keeps its own
     assert [n["scope"] for n in world.knowledge.notes()] == [f"record:food_log/{eggs['id']}"]
@@ -69,7 +69,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert history[0]["removed"].startswith("Network was removed on ")
     assert world.modules.thread(auto["thread"])["session_ref"] is None
     assert world.journal.recent(1)[0]["text"] == (
-        "Removed Network: 1 table (2 rows), 2 readers and 1 automation.")
+        "Removed Network: 1 table (2 rows), 2 readers and 1 agent.")
     assert [m["name"] for m in world.modules.all()] == ["Food"]
     assert world.entities.get(entity["id"])["name"] == "Priya"  # the person's, not the module's
     assert world.collections.describe("food_log")["records"] == 1
@@ -152,7 +152,7 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     world.readers.save("linkedin_connections", site="linkedin.com",
                        url="https://www.linkedin.com/mynetwork/", script="return []",
                        description="d", to_end=True, count=1)
-    auto = t.automation_create("Daily LinkedIn sync", "daily 07:00",
+    auto = t.agent_create("Daily LinkedIn sync", "daily 07:00",
                                'reader_run(name="linkedin_connections")', module="Network")
     world.journal.append("replied", "LinkedIn caps the list", thread=auto["thread"])
     world.journal.append("saw", "Read My Network (linkedin.com, signed in).",
@@ -164,23 +164,23 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
                          data={"connection": conn["id"]}, source="connector:browser")
 
     plan = remove_connection(world, conn["id"], dry_run=True)
-    assert plan["what"] == "Alpha's sign-in, 1 reader and 1 automation"
+    assert plan["what"] == "Alpha's sign-in, 1 reader and 1 agent"
     assert plan["readers"] == ["linkedin_connections"]
     assert plan["automations"] == ["Daily LinkedIn sync"] and profile.exists()
 
     world.preferences.set("agent_looks", {auto["id"]: {"animal": "fox"}})
     remove_connection(world, conn["id"])
-    assert world.preferences.get("agent_looks") == {}  # the removed automation's look goes too
+    assert world.preferences.get("agent_looks") == {}  # the removed agent's look goes too
     assert not profile.exists()
     assert [c["target"] for c in Connections(world.store).all()] == [other["target"]]
-    assert world.readers.all() == [] and world.automations.all() == []
+    assert world.readers.all() == [] and world.agents.all() == []
     assert world.journal.open_asks() == []
     thread = world.modules.thread(auto["thread"])
     assert thread["session_ref"] is None  # its old beliefs can never be resumed
     # What happened stays in the journal: the reads, the thread's run, and the removal itself.
     assert world.journal.search("caps") and len(world.journal.recent(20, kinds=["saw"])) == 2
     assert world.journal.recent(1)[0]["text"] == (
-        "Removed linkedin.com: Alpha's sign-in, 1 reader and 1 automation.")
+        "Removed linkedin.com: Alpha's sign-in, 1 reader and 1 agent.")
     assert world.journal.mark_removed(world.journal.search("caps"))[0]["removed"].startswith(
         "linkedin.com was removed")
     assert world.collections.describe("connections")["records"] == 1  # the person's rows stay

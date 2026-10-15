@@ -70,7 +70,7 @@ class Knowledge:
         if not (scope == "person" or (kind in ("module", "topic", "entity", "skill", "agent",
                                                 "record") and ref.strip())):
             raise Problem("A page's scope is 'person', 'module:<name>', 'topic:<slug>',"
-                          " 'entity:<id>', 'skill:<name>', 'agent:<automation id>' or"
+                          " 'entity:<id>', 'skill:<name>', 'agent:<agent id>' or"
                           " 'record:<table>/<record id>'.")
         if kind == "record":
             table, _, rid = ref.partition("/")

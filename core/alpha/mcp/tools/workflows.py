@@ -9,7 +9,7 @@ from alpha.mcp.tools.base import Base, tool
 
 
 class WorkflowTools(Base):
-    @tool
+    @tool(writes="workflows")
     def workflow_draft(self, title: str, workflow: dict[str, Any], words: str) -> dict[str, Any]:
         """Write "Your workflow", the page that says what Alpha will build for the person,
         from the interview and their documents; only once the job is known (who it is for,
@@ -41,7 +41,7 @@ class WorkflowTools(Base):
         return {"workflow": made["id"], "version": made["version"], "state": made["state"],
                 "note": "The page is on its card; the person says yes there or in words."}
 
-    @tool
+    @tool(writes="workflows")
     def workflow_revise(self, workflow: str, change: str, new_workflow: dict[str, Any],
                         words: str | None = None) -> dict[str, Any]:
         """The person said what is different ("add a lot-size check", "the memo should open
@@ -60,7 +60,7 @@ class WorkflowTools(Base):
                 **({"removed": dropped, "note": "Say so to the person if that was not what"
                     " they asked; revise again to put them back."} if dropped else {})}
 
-    @tool
+    @tool(writes="workflows")
     def workflow_agree(self, workflow: str, quote: str,
                        suggestions: dict[str, str] | None = None,
                        answers: str | None = None) -> dict[str, Any]:
@@ -82,19 +82,34 @@ class WorkflowTools(Base):
             self.world.workflows.decide_suggestion(workflow, sid, decision)
         agreed = self.world.workflows.agree(
             workflow, f"\"{quote}\"" + (f"\nTheir answers: {answers}" if answers else ""))
-        self._did("did", f"You agreed your workflow: {agreed['title']}.",
-                  {"workflow": workflow})
+        said = self._did("did", f"You agreed your workflow: {agreed['title']}.",
+                         {"workflow": workflow})
+        # The person decided, at the plan: the page and each suggestion on it (Q44, Q50).
+        about = {"workflow": workflow, "module": agreed.get("module") or self.module}
+        self.world.decisions.record(
+            by="person", what=f"Build the workflow: {agreed['title']}", why=quote,
+            evidence={"workflow": workflow, "version": agreed.get("version"), "turn": said},
+            about=about)
+        for sg in (agreed.get("body") or {}).get("suggestions") or []:
+            if sg.get("decision") in ("accept", "skip"):
+                self.world.decisions.record(
+                    by="person",
+                    what=f"{'Accepted' if sg['decision'] == 'accept' else 'Skipped'}"
+                         f" the suggestion: {sg['title']}",
+                    why=sg.get("why"), evidence={"workflow": workflow,
+                                                 "suggestion": sg.get("id"), "turn": said},
+                    about={**about, "suggestion": sg.get("id")})
         return {"workflow": workflow, "state": agreed["state"],
                 "note": "The build starts in the background and reports here."}
 
-    @tool
+    @tool(writes="workflows")
     def workflow_decline(self, workflow: str) -> dict[str, Any]:
         """The person doesn't want this workflow built."""
         declined = self.world.workflows.decline(workflow)
         self._did("did", f"Set aside the workflow {declined['title']}.", {"workflow": workflow})
         return {"workflow": workflow, "state": declined["state"]}
 
-    @tool
+    @tool(writes="workflows")
     def workflow_resume(self, workflow: str, quote: str) -> dict[str, Any]:
         """The person wants a build that stopped to carry on ("continue"): quote their words
         from this message. It picks up in the background from the workspace."""

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from alpha.api.server import create_app
 from alpha.connectors.base import Connections, skills_text
 from alpha.mcp.tools import Tools
-from alpha.runtime.automation import worth_telling
+from alpha.runtime.agents.runner import worth_telling
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.runtime.turn import ask
 from alpha.world.readers import health_problem
@@ -127,7 +127,7 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
             time.sleep(0.02)
         return RunResult(reply="Synced.", ok=True)
 
-    auto = building(world).automation_create("Sync", "every 1h", "do it")
+    auto = building(world).agent_create("Sync", "every 1h", "do it")
     c = TestClient(create_app(world, live=False, runner=runner))
     assert c.post(f"/api/automations/{auto['id']}/run").json()["running"] is True
     end = time.time() + 5
@@ -144,9 +144,9 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
     assert c.get("/api/automations").json()[0]["last_result"] == "Synced."
 
 
-def test_an_automation_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:
+def test_an_agent_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:
     table(world)
-    auto = building(world).automation_create("Sync", "every 1h", "page_to_table …")
+    auto = building(world).agent_create("Sync", "every 1h", "page_to_table …")
     inside = Tools(world, thread=auto["thread"])
     out = inside.page_to_table(URL, "/in/", "connections", {"name": "text", "linkedin_url": "url"})
     assert "write a reader" in out["error"].lower() or "Write a reader" in out["error"]

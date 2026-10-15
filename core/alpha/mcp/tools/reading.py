@@ -29,7 +29,7 @@ class Reading(Base):
             for c in Connections(self.world.store).all()
         ]
 
-    @tool
+    @tool(writes="files")
     def folder_watch(self, path: str) -> dict[str, Any]:
         """Start reading a folder the person named (e.g. ~/Documents/Job search) and read what
         is in it now. Never the home folder or a whole drive."""
@@ -37,7 +37,7 @@ class Reading(Base):
         conn = files.watch(path)
         return {"connection": conn["id"], "folder": conn["target"], **files.sync(conn["target"])}
 
-    @tool
+    @tool(writes="files")
     def files_sync(self, path: str | None = None) -> dict[str, Any]:
         """Read new and changed documents in one watched folder, or all of them."""
         return Files(self.world).sync(path)
@@ -53,7 +53,7 @@ class Reading(Base):
         `more` says whether there is more after this page."""
         return Files(self.world).read(ref, start, length)
 
-    @tool
+    @tool(writes="files")
     def page_download(self, url: str, module: str | None = None, click: str | None = None,
                       click_text: str | None = None, name: str | None = None) -> dict[str, Any]:
         """Fetch a file through the person's session into Alpha's own folder for the module
@@ -108,13 +108,13 @@ class Reading(Base):
             out["result"] = result
         return out
 
-    @tool
+    @tool(writes="skills")
     def reader_save(self, name: str, url: str, script: str, description: str,
                     to_end: bool = False, whole: bool | None = None,
                     when_to_use: str | None = None) -> dict[str, Any]:
         """Keep a reader you wrote: a page_script that turns a page into rows (a list of
         objects with the same keys). It is run once now and only kept if it returns rows; then
-        automations use it with reader_run, with no model call, and you repair it when it
+        agents use it with reader_run, with no model call, and you repair it when it
         breaks. Saving under an existing name replaces it (its version goes up). name: e.g.
         site_listings. description: what it reads, in a sentence. whole: true when it
         returns the whole list (every page: to_end for lists that scroll or show more, or your
@@ -148,7 +148,7 @@ class Reading(Base):
         return {"name": name, "version": reader["version"], "rows": len(rows),
                 "sample": rows[:5]}
 
-    @tool
+    @tool(writes="records")
     def reader_run(self, name: str, collection: str, key_field: str,
                    keep_person_fields: list[str] | None = None,
                    value_map: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -162,11 +162,11 @@ class Reading(Base):
         reader_save, run once more); never rerun a broken reader unchanged. needs_signin: offer
         browser_signin. blocked: the site stops automated reading; say so plainly, never try to
         get past it."""
-        if self._in_automation():
-            # Reading is code, never a model turn a day (8 Oct): the automation converts itself.
+        if self._in_run():
+            # Reading is code, never a model turn a day (8 Oct): the agent converts itself.
             raise Problem(
-                "An automation reads through its steps, with no model. Turn this automation into"
-                " steps with automation_update(id, steps=[{\"read\": \"<reader>\", \"into\":"
+                "An agent reads through its steps, with no model. Turn this agent into"
+                " steps with agent_update(id, steps=[{\"read\": \"<reader>\", \"into\":"
                 " \"<table>\", \"key\": \"<field>\", \"keep\": [<the person's fields>]},"
                 " {\"tell\": \"<table>\"}]) and finish; the steps run as soon as you have"
                 " saved them, in this run, and on every run after without you.")
@@ -179,7 +179,7 @@ class Reading(Base):
                     kind: str | None = None) -> list[dict[str, Any]]:
         """The skills you wrote, with their health: read (a reader: a page script that
         returns rows; run it with reader_run), act (a procedure: steps that do one task on a
-        site; use it through action_propose) and run (an automation's pipeline). Search by
+        site; use it through action_propose) and run (an agent's pipeline). Search by
         words, by site (gmail.com, linkedin.com) or by kind. Use an existing skill for a site
         and task before writing another; a procedure with {fields} serves every recipient."""
         return [{k: r[k] for k in ("name", "kind", "site", "module", "url", "description",
@@ -197,7 +197,7 @@ class Reading(Base):
         skill["notes"] = page["body"] if page else None
         return skill
 
-    @tool
+    @tool(writes="connections")
     def browser_signin(self, site: str) -> dict[str, Any]:
         """Open a window on a site (e.g. example.com) so the person signs in themselves; Alpha
         never sees what they type. Only after a page read says needs_signin: reads already use
@@ -207,12 +207,12 @@ class Reading(Base):
         conn = Browser(self.world).start_signin(site)
         return {"connection": conn["id"], "site": conn["target"], "status": conn["status"]}
 
-    @tool
+    @tool(writes="connections")
     def calendar_connect(self) -> dict[str, Any]:
         """Connect the person's calendars (macOS asks them once) and read the next weeks."""
         return Calendar(self.world).connect()
 
-    @tool
+    @tool(writes="connections")
     def calendar_sync(self) -> dict[str, Any]:
         """Read calendar changes now."""
         return Calendar(self.world).sync()
@@ -223,7 +223,7 @@ class Reading(Base):
         attendees linked to person entities."""
         return Calendar(self.world).between(start, end)
 
-    @tool
+    @tool(writes="skills")
     def source_add(self, title: str, url: str, module: str | None = None,
                    reader: str | None = None, status: str = "not_built",
                    detail: str | None = None) -> dict[str, Any]:

@@ -26,7 +26,7 @@ def seed(world: World) -> dict[str, Any]:
                         module="Deal Tracker")
     t.records_add("deal_listings", {"title": "Bakery in Austin"}, source="stated")
     t.note_write("module:Deal Tracker", "Deal Tracker", "What it is for.")
-    auto = t.automation_create("Daily brokers", "daily 07:00", "reader_run brokers",
+    auto = t.agent_create("Daily brokers", "daily 07:00", "reader_run brokers",
                                module="Deal Tracker")
     return {"avilo": avilo, "deals": deals, "auto": auto}
 
@@ -51,14 +51,14 @@ def test_removed_with_data_kept_is_out_of_sight_and_comes_back(world: World) -> 
     ids = seed(world)
     c = client(world)
     c.post(f"/api/modules/{ids['avilo']['id']}/remove")
-    # it and what it holds leave every list; its automation is stopped; nothing is deleted
+    # it and what it holds leave every list; its agent is stopped; nothing is deleted
     assert [m["name"] for m in c.get("/api/modules").json()] == []
-    assert world.automations.all() == [] and world.automations.due() == []
+    assert world.agents.all() == [] and world.agents.due() == []
     assert world.collections.describe("deal_listings")["records"] == 1
     assert world.collections.search("Bakery") == []
     removed = c.get("/api/modules/removed").json()
     assert [r["name"] for r in removed] == ["Avilo"]  # Deal Tracker went with it, not listed alone
-    assert removed[0]["holds"] == "1 table (1 row) and 1 automation, with Deal Tracker inside it"
+    assert removed[0]["holds"] == "1 table (1 row) and 1 agent, with Deal Tracker inside it"
     # a module inside can't come back before the one that holds it
     assert "Restore Avilo first" in c.post(
         f"/api/modules/{ids['deals']['id']}/restore").json()["error"]
@@ -66,7 +66,7 @@ def test_removed_with_data_kept_is_out_of_sight_and_comes_back(world: World) -> 
     assert back["name"] == "Avilo"
     assert sorted(m["name"] for m in c.get("/api/modules").json()) == ["Avilo", "Deal Tracker"]
     assert world.modules.get("Deal Tracker")["parent"] == ids["avilo"]["id"]  # where it was
-    assert len(world.automations.all()) == 1 and c.get("/api/modules/removed").json() == []
+    assert len(world.agents.all()) == 1 and c.get("/api/modules/removed").json() == []
 
 
 def test_a_module_removed_on_its_own_stays_removed_when_its_parent_comes_back(world: World
@@ -83,7 +83,7 @@ def test_delete_for_good_says_first_what_goes_then_takes_it(world: World) -> Non
     ids = seed(world)
     c = client(world)
     plan = c.get(f"/api/modules/{ids['avilo']['id']}/removal").json()
-    assert plan["what"] == "1 table (1 row) and 1 automation, with Deal Tracker inside it"
+    assert plan["what"] == "1 table (1 row) and 1 agent, with Deal Tracker inside it"
     c.delete(f"/api/modules/{ids['avilo']['id']}")
     assert world.modules.all() == [] and world.collections.names() == []
     assert world.journal.recent(1)[0]["text"].startswith("Removed Avilo")  # the journal keeps it

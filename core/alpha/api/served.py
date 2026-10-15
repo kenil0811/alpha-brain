@@ -9,7 +9,7 @@ from typing import Any
 
 from alpha.api.turns import Turns
 from alpha.runtime import turn as turns
-from alpha.runtime.automation import Scheduler
+from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.world import World
 
 

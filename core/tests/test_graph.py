@@ -20,7 +20,7 @@ def test_the_map_links_what_feeds_what(world: World) -> None:
     world.readers.save("brokers", site="brokers.com", url="https://brokers.com",
                        script="return []", description="Reads brokers", to_end=False,
                        count=3, when_to_use="Every broker listing")
-    pipe = t.automation_create("Daily brokers", "daily 07:00", module=module,
+    pipe = t.agent_create("Daily brokers", "daily 07:00", module=module,
                                steps=[{"read": "brokers", "into": "deals", "key": "title"},
                                       {"tell": "deals"}])
     world.sources.add("Brokers", "https://brokers.com/listings", module=module,

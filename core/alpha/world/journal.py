@@ -241,7 +241,7 @@ class Journal:
         return {k: row[k] for k in row.keys()} if row else None
 
     def removals(self) -> dict[str, str]:
-        """Everything the person removed (modules, connections, their threads, automations and
+        """Everything the person removed (modules, connections, agents, their threads and
         readers), by id or name, with a few words saying when."""
         gone: dict[str, str] = {}
         for r in self.store.all(
@@ -255,7 +255,7 @@ class Journal:
                     or not removed.get("id") or not removed.get("name"):
                 continue
             words = f"{removed['name']} was removed on {r['at'][:10]}"
-            for key in [removed["id"], *removed.get("threads", []),
+            for key in [removed["id"], *removed.get("threads", []), *removed.get("agents", []),
                         *removed.get("automations", []), *removed.get("readers", [])]:
                 gone[key] = words
         return gone
@@ -271,7 +271,7 @@ class Journal:
             if data.get("removed"):
                 continue
             for key in (e.get("module"), e.get("thread"), data.get("connection"),
-                        data.get("automation"), data.get("reader")):
+                        data.get("agent"), data.get("automation"), data.get("reader")):
                 if key and key in gone:
                     e["removed"] = gone[key]
                     break

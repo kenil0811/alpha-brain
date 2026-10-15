@@ -133,6 +133,13 @@ def test_the_page_is_drafted_revised_with_the_version_kept_and_agreed_in_words(
     out = yes.workflow_agree(wf["id"], "Yes, build it", suggestions={
         "a_map_of_sites_and_competitors": "accept"}, answers="Austin first")
     assert out["state"] == "agreed", out
+    # The person decided, at the plan: the page and the suggestion they accepted (Q50).
+    decided = world.decisions.about("workflow", wf["id"])
+    assert [d["what"] for d in decided] == [
+        "Accepted the suggestion: A map of sites and competitors",
+        "Build the workflow: Picking car wash sites"]
+    assert all(d["by"] == "person" and d["state"] == "binding" for d in decided)
+    assert decided[1]["why"] == "Yes, build it" and decided[1]["evidence"]["version"] == 4
     wf = world.workflows.get(wf["id"])
     assert wf["agreement"].startswith('"Yes, build it"') and "Austin first" in wf["agreement"]
     assert wf["body"]["suggestions"][0]["decision"] == "accept"

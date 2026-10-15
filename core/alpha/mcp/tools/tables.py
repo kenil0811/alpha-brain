@@ -22,7 +22,7 @@ class Tables(Base):
         this before adding or querying records."""
         return self.world.collections.describe(name)
 
-    @tool
+    @tool(writes="records")
     def collection_create(
         self,
         name: str,
@@ -61,7 +61,7 @@ class Tables(Base):
         )
         return described
 
-    @tool
+    @tool(writes="records")
     def collection_identify(self, name: str, rows_are: str, identity_field: str) -> dict[str, Any]:
         """Say that each row of an existing table is a person or an organisation, identified by
         identity_field (an email address or a profile URL). Rows are linked to the people and
@@ -77,7 +77,7 @@ class Tables(Base):
         and until when. Use it for questions about how something used to be."""
         return self.world.collections.history(collection, id)
 
-    @tool
+    @tool(writes="records")
     def collection_add_fields(self, name: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
         """Add fields to an existing table (they are optional for records already saved)."""
         described = self.world.collections.add_fields(name, fields)
@@ -89,7 +89,7 @@ class Tables(Base):
         )
         return described
 
-    @tool
+    @tool(writes="records")
     def records_add(
         self, collection: str, values: dict[str, Any], source: str,
         assumed: str | None = None,
@@ -112,7 +112,7 @@ class Tables(Base):
         )
         return rec
 
-    @tool
+    @tool(writes="records")
     def records_upsert(
         self, collection: str, key_field: str, rows: list[dict[str, Any]],
         keep_person_fields: list[str] | None = None,
@@ -135,7 +135,7 @@ class Tables(Base):
         )
         return {k: v for k, v in result.items() if k != "ids"}
 
-    @tool
+    @tool(writes="records")
     def page_to_table(
         self,
         url: str,
@@ -155,12 +155,12 @@ class Tables(Base):
         a name), "near" (the whole card's text) or "near_without_text" (the card minus the link's
         words, e.g. a headline). The url-mapped field is the key. Use it for any list that
         should be kept whole and current; then refine individual rows if needed."""
-        if self._in_automation():
+        if self._in_run():
             raise Problem(
                 "page_to_table is only a first look; it isn't how a list is kept. Write a reader "
                 "for this page (page_script to look at the page and try, reader_save), use "
-                "reader_run here, and change this automation's procedure to reader_run with "
-                "automation_update so every run uses it."
+                "reader_run here, and turn this agent into steps with agent_update so every "
+                "run uses it."
             )
         sources = {"url", "text", "near", "near_without_text"}
         bad = [v for v in fields.values() if v not in sources]
@@ -199,7 +199,7 @@ class Tables(Base):
                 **{k: v for k, v in result.items() if k != "ids"},
                 "sample": rows[:3], **({"warning": warning} if warning else {})}
 
-    @tool
+    @tool(writes="records")
     def records_update(
         self, collection: str, id: str, values: dict[str, Any], revision: int,
         source: str | None = None, assumed: str | None = None,
@@ -231,7 +231,7 @@ class Tables(Base):
         )
         return rec
 
-    @tool
+    @tool(writes="records")
     def records_delete(self, collection: str, id: str, revision: int) -> dict[str, Any]:
         """Remove one record the person asked to remove."""
         before = self.world.collections.get(collection, id)
@@ -272,7 +272,7 @@ class Tables(Base):
         calories instead of adding numbers up yourself."""
         return self.world.collections.aggregate(collection, op, field, where)
 
-    @tool
+    @tool(writes="records")
     def list_save(self, table: str, title: str, filters: dict[str, str] | None = None,
                   search: str | None = None, hide_done: bool = False,
                   columns: list[str] | None = None, sort_by: str | None = None,
@@ -301,7 +301,7 @@ class Tables(Base):
                                                                "table": table})
         return saved
 
-    @tool
+    @tool(writes="records")
     def table_start(self, title: str, fields: list[dict[str, Any]], values: dict[str, Any],
                     module: str | None = None, name: str | None = None,
                     source: str = "stated", assumed: str | None = None) -> dict[str, Any]:

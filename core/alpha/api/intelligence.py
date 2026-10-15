@@ -1,4 +1,4 @@
-"""Routes for Intelligence: skills, automations, permissions, the two maps."""
+"""Routes for Intelligence: skills, agents, permissions, the two maps."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from alpha.api.bodies import (
 from alpha.api.served import Served
 from alpha.api.views import (
     automation_views,
+    opens_run,
 )
 from alpha.connectors.base import Connections, manifests
 from alpha.connectors.files import unique_path
@@ -149,11 +150,11 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/automations/{aid}", dependencies=[api])
     def automation_page(aid: str) -> dict[str, Any]:
-        """One automation for its page, with its runs: the entries of its thread, grouped by
+        """One agent for its page, with its runs: the entries of its thread, grouped by
         each run's start, newest run first."""
         auto = next((a for a in automation_views(world, scheduler) if a["id"] == aid), None)
         if auto is None:
-            raise Problem(f"There is no automation {aid}.")
+            raise Problem(f"There is no agent {aid}.")
         entries = world.journal.recent(400, thread=auto["thread"]) if auto["thread"] else []
         runs: list[dict[str, Any]] = []
         for r in world.runs.of(aid, 12):
@@ -161,8 +162,7 @@ def routes(app: FastAPI, s: Served) -> None:
             lines = [{"at": e["at"], "kind": e["kind"], "text": e["text"][:300]}
                      for e in entries if r["started_at"] <= e["at"] <= until
                      and e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed",
-                                       "asked"}
-                     and not e["text"].startswith("Run the automation")]
+                                       "asked"} and not opens_run(e)]
             runs.append({**r, "lines": lines[-40:]})
         skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
         sources = sum(1 for s in (skill["steps"] if skill else []) if "read" in s)
@@ -171,7 +171,9 @@ def routes(app: FastAPI, s: Served) -> None:
                 if skill else "it ends with its line for the log; failed when the model could"
                 " not finish or Alpha's tools didn't answer")
         return {**auto, "runs": runs, "pipeline": skill["steps"] if skill else None,
-                "guidelines": world.knowledge.find_note(f"agent:{aid}", auto["title"]),
+                "guidelines": world.knowledge.find_note(f"agent:{aid}", "Brief"),
+                "notes": world.knowledge.find_note(f"agent:{aid}", "Notes"),
+                "decisions": world.decisions.about("agent", aid),
                 "good_run": good}
 
     @app.post("/api/permissions/{pid}/revoke", dependencies=[api])
@@ -187,9 +189,10 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.patch("/api/automations/{aid}", dependencies=[api])
     def switch_automation(aid: str, body: SwitchBody) -> dict[str, Any]:
-        auto = world.automations.update(aid, enabled=body.enabled)
-        world.journal.append("changed", f"You switched {'on' if body.enabled else 'off'}:"
-                             f" {auto['title']}.", actor="person", module=auto["module"])
+        auto = world.agents.update(aid, state="on" if body.enabled else "paused")
+        world.journal.append("changed", f"You {'set going' if body.enabled else 'paused'}"
+                             f" {auto['name']}.", actor="person", module=auto["module"],
+                             data={"agent": aid})
         return auto
 
     @app.post("/api/automations/{aid}/run", dependencies=[api])

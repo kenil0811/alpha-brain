@@ -22,8 +22,8 @@ from alpha.world.store import Problem, Store, dumps, loads, now
 # everything related).
 MODULE_LISTS = ("sidebar_order", "sidebar_hidden")
 MODULE_MAPS = ("module_icons",)
-# Each agent's look (13 Oct, Q42 section 7c): `{automation id: look}`; removing an automation
-# takes its look out.
+# Each agent's look (13 Oct, Q42 section 7c): `{agent id: look}`; removing an agent takes
+# its look out.
 AGENT_LOOKS = "agent_looks"
 
 
@@ -75,9 +75,9 @@ class Preferences:
         return changed
 
     @staticmethod
-    def forget_agents(db: sqlite3.Connection, automations: list[str]) -> int:
-        """Inside a removal's transaction: take the removed automations' looks out."""
-        return Preferences._drop(db, AGENT_LOOKS, frozenset(automations)) if automations else 0
+    def forget_agents(db: sqlite3.Connection, agents: list[str]) -> int:
+        """Inside a removal's transaction: take the removed agents' looks out."""
+        return Preferences._drop(db, AGENT_LOOKS, frozenset(agents)) if agents else 0
 
     @staticmethod
     def _drop(db: sqlite3.Connection, key: str, ids: frozenset[str]) -> int:

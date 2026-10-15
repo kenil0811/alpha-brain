@@ -18,7 +18,7 @@ from test_workflows import BODY, said
 from alpha.api.server import create_app
 from alpha.runtime import parts as parts_module
 from alpha.runtime import workflow_build
-from alpha.runtime.automation import Scheduler
+from alpha.runtime.agents.scheduler import Scheduler
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import Problem
 from alpha.world.workflows import hosts_of

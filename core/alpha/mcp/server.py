@@ -1,8 +1,8 @@
 """The MCP server that hands the world to the model: `python -m alpha.mcp.server`.
 
 Started by the Claude Code CLI for each turn (stdio). The world file comes from `ALPHA_WORLD`;
-`ALPHA_TURN`, `ALPHA_THREAD` and `ALPHA_MODULE` tie what the tools record to the turn that ran
-them.
+`ALPHA_TURN`, `ALPHA_THREAD`, `ALPHA_MODULE` and `ALPHA_ACTOR` tie what the tools record to the
+turn that ran them, and to the agent running it.
 """
 
 from __future__ import annotations

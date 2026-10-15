@@ -13,7 +13,7 @@ from alpha.world.world import World
 
 def building(world: World, *, turn: str | None = None, module: str | None = None) -> Tools:
     """Tools acting inside a build that may make lasting things (modules, tables, readers,
-    automations, sources): a thread of kind build that is no workflow's walled session. No
+    agents, sources): a thread of kind build that is no workflow's walled session. No
     code opens one since 12 Oct 2026 (Q40); the tests use it to make what they test on."""
     thread = world.modules.open_thread("Test build", "build", module)
     world.modules.update_thread(thread["id"], state="done")

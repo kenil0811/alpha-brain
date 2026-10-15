@@ -5,10 +5,11 @@ one World with the gates every group of tools checks in code."""
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
 import os
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any, Protocol, cast, overload
 
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -40,6 +41,22 @@ def provenance_of(source: str, assumed: str | None, *, turn: str | None) -> dict
     return prov
 
 
+def _table_named(fn: Callable[..., Any], args: tuple[Any, ...],
+                 kwargs: dict[str, Any]) -> str | None:
+    """The table a records tool is about: its `collection` or `table` argument (`name` for the
+    collection_* tools), however it was passed."""
+    try:
+        bound = inspect.signature(fn).bind_partial(None, *args, **kwargs).arguments
+    except TypeError:
+        return None
+    for key in ("collection", "table"):
+        if isinstance(bound.get(key), str):
+            return str(bound[key])
+    if fn.__name__.startswith("collection_") and isinstance(bound.get("name"), str):
+        return str(bound["name"])
+    return None
+
+
 def counts_and_ids(result: dict[str, Any]) -> dict[str, Any]:
     """An upsert's counts for the journal, plus the ids it touched (capped) so the second
     opinion (runtime/check.py) can find the rows a turn wrote in bulk."""
@@ -62,19 +79,47 @@ def provenance_words(prov: dict[str, Any]) -> str:
     return f" ({'; '.join(parts)})" if parts else ""
 
 
-def tool[F: Callable[..., Any]](fn: F) -> F:
-    @functools.wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return fn(*args, **kwargs)
-        except Problem as e:
-            return {"error": str(e)}
-        except Exception as e:  # a bug of ours: say so plainly, keep the details in the log
-            log.exception("tool %s failed", fn.__name__)
-            return {"error": f"Alpha hit an internal problem in {fn.__name__}: {e}"}
+# What a tool may change, one word each: an agent's write list names these (Q50), and the
+# wrapper refuses a write outside the list before the tool runs. Reads carry none.
+WRITES = ("records", "notes", "facts", "goals", "asks", "proposals", "instructions", "skills",
+          "agents", "modules", "threads", "files", "workflows", "actions", "connections")
 
-    wrapper.is_tool = True  # type: ignore[attr-defined]
-    return cast(F, wrapper)
+
+class _Decorator(Protocol):
+    def __call__[F: Callable[..., Any]](self, fn: F, /) -> F: ...
+
+
+@overload
+def tool[F: Callable[..., Any]](fn: F, /) -> F: ...
+@overload
+def tool(*, writes: str) -> _Decorator: ...
+def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None) -> Any:
+    """Turn a method into a tool the model may call. `writes` names what it changes (one of
+    WRITES); an agent whose write list lacks it is refused in plain words. Problems come back
+    as plain words; a bug of ours says so and keeps the details in the log."""
+    if writes is not None and writes not in WRITES:
+        raise ValueError(f"a tool writes one of {WRITES}, not {writes!r}")
+
+    def decorate[F: Callable[..., Any]](fn: F) -> F:
+        @functools.wraps(fn)
+        def wrapper(self: Base, *args: Any, **kwargs: Any) -> Any:
+            try:
+                if writes is not None:
+                    refused = self._refused(writes, fn, args, kwargs)
+                    if refused:
+                        return refused
+                return fn(self, *args, **kwargs)
+            except Problem as e:
+                return {"error": str(e)}
+            except Exception as e:  # a bug of ours: say so plainly, keep the details in the log
+                log.exception("tool %s failed", fn.__name__)
+                return {"error": f"Alpha hit an internal problem in {fn.__name__}: {e}"}
+
+        wrapper.is_tool = True  # type: ignore[attr-defined]
+        wrapper.writes = writes  # type: ignore[attr-defined]
+        return cast(F, wrapper)
+
+    return decorate(fn) if fn is not None else decorate
 
 
 
@@ -86,11 +131,16 @@ class Base:
         turn: str | None = None,
         thread: str | None = None,
         module: str | None = None,
+        actor: str | None = None,
     ) -> None:
         self.world = world
         self.turn = turn if turn is not None else os.environ.get("ALPHA_TURN") or None
         self.thread = thread if thread is not None else os.environ.get("ALPHA_THREAD") or None
         self.module = module if module is not None else os.environ.get("ALPHA_MODULE") or None
+        # Who is using the tools: "alpha" (a turn, Alpha's own run) or an agent's id, whose
+        # steps are journaled under its name and whose hands are cut to its write list (Q50).
+        self.actor = (actor if actor is not None else os.environ.get("ALPHA_ACTOR")) or "alpha"
+        self._agent_row: dict[str, Any] | None = None
 
     def all(self) -> list[Callable[..., Any]]:
         return [
@@ -101,22 +151,60 @@ class Base:
 
     def _did(self, kind: str, text: str, data: dict[str, Any], module: str | None = None) -> str:
         return self.world.journal.append(
-            kind, text, data={**data, "turn": self.turn}, module=module or self.module,
-            thread=self.thread,
+            kind, text, actor=self.actor, data={**data, "turn": self.turn},
+            module=module or self.module, thread=self.thread,
         )
 
-    def _in_automation(self) -> bool:
+    def _agent(self) -> dict[str, Any] | None:
+        """The agent using the tools, if the actor is one (read once per server)."""
+        if self.actor in ("alpha", "person"):
+            return None
+        if self._agent_row is None:
+            self._agent_row = self.world.agents.get(self.actor)
+        return self._agent_row
+
+    def _in_run(self) -> bool:
+        """A run nobody is watching: an agent's own turn, or any turn in an agent's thread (a
+        repair runs there as Alpha). The walls that hold there: never act outward, reading is
+        the steps', no table from a first look."""
+        if self.actor not in ("alpha", "person"):
+            return True
         if not self.thread:
             return False
         return self.world.store.one(
-            "SELECT 1 FROM automations WHERE thread = ?", (self.thread,)) is not None
+            "SELECT 1 FROM agents WHERE thread = ?", (self.thread,)) is not None
+
+    def _refused(self, writes: str, fn: Callable[..., Any], args: tuple[Any, ...],
+                 kwargs: dict[str, Any]) -> dict[str, Any] | None:
+        """Why an agent may not make this write, in plain words, or None. Its write list is
+        the wall; its records writes stay inside its own module's tables."""
+        agent = self._agent()
+        if agent is None:
+            return None
+        if writes not in agent["may"]:
+            allowed = ", ".join(agent["may"]) or "nothing"
+            return {"error": f"{agent['name']} may not change {writes}; it may change"
+                    f" {allowed}. Say what the person could ask Alpha for instead."}
+        if writes == "records" and agent.get("module"):
+            table = _table_named(fn, args, kwargs)
+            if table and not self._in_scope(table, agent["module"]):
+                return {"error": f"{agent['name']} works inside its own module and may not"
+                        f" change the table {table}."}
+        return None
+
+    def _in_scope(self, table: str, module: str) -> bool:
+        try:
+            owner = self.world.collections.describe(table).get("module")
+        except Problem:
+            return True  # no such table: the tool says so itself
+        return owner is None or owner in self.world.modules.subtree(module)
 
     def _building(self) -> dict[str, Any] | None:
         """The build thread this turn runs in, if it is one that may make lasting things: a
         thread of kind build that is not a workflow's walled session (that session writes
         files; the core makes the tables from the page, §12). Since 12 Oct 2026 (Q40) no
         code opens such a thread (a plan's old ones became topics on 14 Oct): lasting things
-        come from the page, and the door for automations and readers of their own is an open
+        come from the page; the door for agents and readers of their own is the agent's page
         question."""
         if not self.thread:
             return None

@@ -527,7 +527,7 @@ class Collections:
         to_link: list[tuple[str, dict[str, Any]]] = []
         # One transaction for the whole batch, and the existing keys are read inside it: the
         # write lock is held from that read to the last write, so two runs saving the same
-        # list at once (a build and an automation) cannot both add a row for one key, and a
+        # list at once (a build and an agent) cannot both add a row for one key, and a
         # crash leaves the table as it was (found by the 3 Oct review).
         with self.store.tx() as db:
             existing: dict[str, sqlite3.Row] = {}

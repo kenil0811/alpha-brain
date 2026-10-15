@@ -2,7 +2,7 @@
 Kenil on 3 Oct 2026): what connects to what, and how Alpha knows it.
 
 Nodes are the things the Intelligence section lists: modules, tables, skills (read, act, run),
-automations, the sources a module reads from, and connections (a signed-in site, a watched
+agents, the sources a module reads from, and connections (a signed-in site, a watched
 folder, the calendar). Edges are the world's own kinds of relation, each with its source in
 the world: a run skill's steps say which reader feeds which table and in what order; a source
 names its reader; a browser sign-in names the sites it covers; a folder's documents name the
@@ -44,8 +44,8 @@ def _skill_runs(world: World) -> dict[str, dict[str, int]]:
 
 
 def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any]:
-    """The nodes and edges of the map of work. `automations` are the scheduler's views (they
-    carry which run skill each automation runs), handed in so this module needs no scheduler."""
+    """The nodes and edges of the map of work. `automations` are the agents' views (they
+    carry which run skill each agent runs), handed in so this module needs no scheduler."""
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     known: set[str] = set()
@@ -104,8 +104,8 @@ def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any
                 edge(sid, f"table:{step['tell']}", "tells", order=i)
 
     for a in automations:
-        state = "off" if not a.get("enabled") else ("problem" if a.get("last_error") else "on")
-        node(f"automation:{a['id']}", "automation", a["title"], subtitle=a.get("schedule"),
+        state = "off" if not a.get("on") else ("problem" if a.get("last_error") else "on")
+        node(f"automation:{a['id']}", "automation", a["name"], subtitle=a.get("schedule"),
              state=state, detail=a.get("last_error"), module=a.get("module"))
         if a.get("module"):
             edge(f"automation:{a['id']}", f"module:{a['module']}", "in")
@@ -225,7 +225,7 @@ def world_graph(world: World) -> dict[str, Any]:
              module=d["module"], entity=d["entity_id"])
         if d["module"]:
             edge(f"document:{d['id']}", f"module:{d['module']}", "in")
-    agent_modules = {a["id"]: a.get("module") for a in world.automations.all()}
+    agent_modules = {a["id"]: a.get("module") for a in world.agents.all()}
     for n in world.knowledge.notes():
         scope, _, name = n["scope"].partition(":")
         if scope == "skill":
@@ -241,7 +241,7 @@ def world_graph(world: World) -> dict[str, Any]:
         elif scope == "person":
             edge(f"page:{n['id']}", "you", "about")
         elif scope == "agent" and agent_modules.get(name):
-            # An agent's page sits in its automation's area (Q33).
+            # An agent's pages sit in its module's area (Q33).
             edge(f"page:{n['id']}", f"module:{agent_modules[name]}", "about")
 
     # The rows that are a person or an organisation, and the days that named them.

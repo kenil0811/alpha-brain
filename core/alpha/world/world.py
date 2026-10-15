@@ -6,8 +6,9 @@ import os
 from pathlib import Path
 
 from alpha.world.actions import Actions, Permissions, Procedures
-from alpha.world.automations import Automations
+from alpha.world.agents import Agents
 from alpha.world.collections import Collections
+from alpha.world.decisions import Decisions
 from alpha.world.entities import Entities
 from alpha.world.journal import Journal
 from alpha.world.knowledge import Knowledge
@@ -45,7 +46,8 @@ class World:
         self.collections = Collections(self.store, self.entities)
         self.knowledge = Knowledge(self.store)
         self.modules = Modules(self.store)
-        self.automations = Automations(self.store)
+        self.agents = Agents(self.store)
+        self.decisions = Decisions(self.store)
         self.runs = Runs(self.store)
         self.skills = Skills(self.store)
         self.views = Views(self.store)

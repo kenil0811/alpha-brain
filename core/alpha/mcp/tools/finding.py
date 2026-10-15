@@ -40,7 +40,7 @@ class Finding(Base):
         """One journal entry in full, by id (ids appear in search results and the pre-pack)."""
         return self.world.journal.mark_removed([self.world.journal.read(id)])[0]
 
-    @tool
+    @tool(writes="notes")
     def journal_note(self, kind: str, text: str, data: dict[str, Any] | None = None,
                      module: str | None = None) -> dict[str, Any]:
         """Record something Alpha did or noticed that no other tool records, in one plain

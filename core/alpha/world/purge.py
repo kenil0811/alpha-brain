@@ -9,16 +9,20 @@ a conversation deleted on its own leaves the lists (its turns stay in the journa
 questions are closed.
 
 `remove_module` deletes a module's tables and their rows, its files (with the entity each file
-is and that entity's facts), the readers its automations use and their notes, its automations,
-its workflow page with every version of it, its note and its goals. People, companies and
-their facts stay (they belong to the person, not to a module), and so do connections (a
-sign-in belongs to Alpha's browser).
+is and that entity's facts), the readers its agents use and their notes, its agents with their
+runs, pages and decisions, its workflow page with every version of it, its note and its goals.
+People, companies and their facts stay (they belong to the person, not to a module), and so do
+connections (a sign-in belongs to Alpha's browser).
 
 `remove_connection` disconnects Alpha from something: for a site, Alpha's sign-in (its browser
-profile on disk), the readers Alpha wrote for the sites that sign-in covers and the automations
+profile on disk), the readers Alpha wrote for the sites that sign-in covers and the agents
 that use them; for a folder, the documents read from it; for the calendar, its events. What
 Alpha wrote into the person's tables stays: those rows are the person's, and removing the
 module is how they go.
+
+`remove_agent` deletes a custom agent with everything it made: its runs, its brief and notes,
+the decisions about it, its pipeline, its look; its thread stays as a record. Alpha's own
+agents are paused, never deleted.
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites
 from alpha.connectors.files import Files
 from alpha.world import workspaces
+from alpha.world.decisions import Decisions
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
 from alpha.world.store import Problem, now
@@ -56,12 +61,12 @@ def and_join(words: list[str]) -> str:
 
 
 def _record_removal(world: World, kind: str, rid: str, name: str, what: str,
-                    *, threads: list[str], automations: list[str], readers: list[str],
+                    *, threads: list[str], agents: list[str], readers: list[str],
                     source: str | None = None) -> None:
     world.journal.append(
         "changed", f"Removed {name}: {what}.", actor="person", source=source,
         data={"removed": {"kind": kind, "id": rid, "name": name, "threads": threads,
-                          "automations": automations, "readers": readers}},
+                          "agents": agents, "readers": readers}},
     )
 
 
@@ -91,17 +96,29 @@ def _retire_threads(db: Any, threads: list[str]) -> None:
         db.execute("UPDATE threads SET state = 'done', session_ref = NULL WHERE id = ?", (tid,))
 
 
+def _brief_text(store: Any, aid: str) -> str | None:
+    row = store.one("SELECT body FROM notes WHERE scope = ? AND title = 'Brief'", (f"agent:{aid}",))
+    return str(row["body"]) if row else None
+
+
+def _agents_of(store: Any, where: str, args: tuple[Any, ...]) -> list[dict[str, Any]]:
+    """Agents with the text of their pipeline and their brief, for matching reader names."""
+    rows = store.all(f"SELECT id, name, thread, skill FROM agents WHERE {where}", args)
+    return [dict(a) | {"steps": _steps_text(store, a["skill"]),
+                       "brief": _brief_text(store, a["id"])} for a in rows]
+
+
 def _readers_of(store: Any, mid: str, tables: list[str], autos: list[dict[str, Any]]
                 ) -> list[str]:
-    """The readers that feed a module: named after its tables, used by its automations
-    (procedure or steps), recorded on its sources, or the readers its rows came from."""
+    """The readers that feed a module: named after its tables, used by its agents (brief or
+    steps), recorded on its sources, or the readers its rows came from."""
     fed = {r["reader"] for t in tables for r in store.all(
         "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
     fed |= {r["reader"] for r in store.all(
         "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
     return [r["name"] for r in store.all("SELECT name FROM skills WHERE kind = 'read'")
             if r["name"] in tables or r["name"] in fed
-            or any(r["name"] in (a["procedure"] or "") or r["name"] in (a["steps"] or "")
+            or any(r["name"] in (a["brief"] or "") or r["name"] in (a["steps"] or "")
                    for a in autos)]
 
 
@@ -112,7 +129,7 @@ def _count(store: Any, sql: str, args: tuple[Any, ...]) -> int:
 
 def removal_plan(world: World, ref: str) -> dict[str, Any]:
     """What deleting a module for good would take, before anything goes (13 Oct, slice 2 A3):
-    every table and row, file, reader and automation in it and in the modules inside it, and
+    every table and row, file, reader and agent in it and in the modules inside it, and
     those modules' names; `what` says it in words."""
     module = world.modules.get(ref)
     store = world.store
@@ -125,8 +142,7 @@ def removal_plan(world: World, ref: str) -> dict[str, Any]:
         tables += len(names)
         for t in names:
             rows += _count(store, "SELECT COUNT(*) AS n FROM records WHERE collection = ?", (t,))
-        autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
-            "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
+        autos = _agents_of(store, "module = ?", (mid,))
         automations += len(autos)
         readers |= set(_readers_of(store, mid, names, autos))
         files += _count(store, "SELECT COUNT(*) AS n FROM documents WHERE module = ?", (mid,))
@@ -134,7 +150,7 @@ def removal_plan(world: World, ref: str) -> dict[str, Any]:
     what = [plural(tables, "table") + (f" ({plural(rows, 'row')})" if rows else "")]
     what += [plural(files, "file")] if files else []
     what += [plural(len(readers), "reader")] if readers else []
-    what += [plural(automations, "automation")] if automations else []
+    what += [plural(automations, "agent")] if automations else []
     words = and_join(what) + (f", with {and_join(inside)} inside it" if inside else "")
     return {"module": module["name"], "tables": tables, "rows": rows, "files": files,
             "readers": sorted(readers), "automations": automations, "inside": inside,
@@ -148,8 +164,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
     # What it holds goes first, each with everything of its own.
     inside = [remove_module(world, child["id"]) for child in world.modules.children(mid)]
     tables = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?", (mid,))]
-    autos = [dict(a) | {"steps": _steps_text(store, a["skill"])} for a in store.all(
-        "SELECT id, thread, procedure, skill FROM automations WHERE module = ?", (mid,))]
+    autos = _agents_of(store, "module = ?", (mid,))
     readers = _readers_of(store, mid, tables, autos)
     threads = {r["id"] for r in store.all("SELECT id FROM threads WHERE module = ?", (mid,))}
     threads |= {a["thread"] for a in autos if a["thread"]}
@@ -177,12 +192,14 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             if a["skill"]:
                 db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
                 _forget_skill_note(db, a["skill"])
-        db.execute("DELETE FROM runs WHERE automation IN (SELECT id FROM automations WHERE"
-                   " module = ?)", (mid,))
+        db.execute("DELETE FROM runs WHERE agent IN (SELECT id FROM agents WHERE module = ?)",
+                   (mid,))
         for a in autos:
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
+            Decisions.remove_about(db, "agent", a["id"])
+        Decisions.remove_about(db, "module", mid)
         counts["automations"] = db.execute(
-            "DELETE FROM automations WHERE module = ?", (mid,)).rowcount
+            "DELETE FROM agents WHERE module = ?", (mid,)).rowcount
         _retire_threads(db, sorted(threads))
         counts["threads"] = len(threads)
         counts["notes"] = db.execute(
@@ -206,9 +223,9 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
     what = [plural(len(tables), "table") + (f" ({plural(records, 'row')})" if records else "")]
     what += [plural(len(readers), "reader")] if readers else []
-    what += [plural(counts["automations"], "automation")] if counts["automations"] else []
+    what += [plural(counts["automations"], "agent")] if counts["automations"] else []
     _record_removal(world, "module", mid, name, and_join(what), threads=sorted(threads),
-                    automations=[a["id"] for a in autos], readers=readers)
+                    agents=[a["id"] for a in autos], readers=readers)
     return counts
 
 
@@ -250,7 +267,7 @@ def remove_document(world: World, did: str) -> dict[str, Any]:
     if row:
         _unlink_files([row["path"]])
     _record_removal(world, "document", did, plan["title"], plan["what"], threads=[],
-                    automations=[], readers=[])
+                    agents=[], readers=[])
     return plan
 
 
@@ -288,11 +305,11 @@ def remove_conversation(world: World, cid: str) -> dict[str, Any]:
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE id = ?",
                        (now(), aid))
         db.execute("UPDATE workflows SET conversation = NULL WHERE conversation = ?", (cid,))
-        db.execute("UPDATE automations SET thread = NULL WHERE thread = ?", (cid,))
+        db.execute("UPDATE agents SET thread = NULL WHERE thread = ?", (cid,))
         db.execute("DELETE FROM threads WHERE id = ?", (cid,))
     # the companion's focus on it reads as none once the thread is gone (conversations.focus)
     _record_removal(world, "conversation", cid, f"the conversation \"{thread['title']}\"",
-                    plan["what"], threads=[cid], automations=[], readers=[])
+                    plan["what"], threads=[cid], agents=[], readers=[])
     return plan
 
 
@@ -333,11 +350,9 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         readers = [r["name"] for r in store.all(
                        "SELECT name, site, url FROM skills WHERE kind = 'read'")
                    if r["site"] in sites or _site(r["url"]) in sites]
-        autos = [a for a in (dict(a) | {"steps": _steps_text(store, a["skill"])} for a in
-                             store.all("SELECT id, title, thread, procedure, skill FROM"
-                                       " automations"))
-                 if any(n in (a["procedure"] or "") or n in (a["steps"] or "") for n in readers)
-                 or any(site in (a["procedure"] or "").lower() for site in sites)]
+        autos = [a for a in _agents_of(store, "1 = 1", ())
+                 if any(n in (a["brief"] or "") or n in (a["steps"] or "") for n in readers)
+                 or any(site in (a["brief"] or "").lower() for site in sites)]
         procedures = [p["name"] for p in store.all(
                           "SELECT name, site, url FROM skills WHERE kind = 'act'")
                       if p["site"] in sites or _site(p["url"]) in sites]
@@ -356,7 +371,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         "Alpha's sign-in" if profile is not None else "",
         plural(len(readers), "reader") if readers else "",
         plural(len(procedures), "procedure") if procedures else "",
-        plural(len(autos), "automation") if autos else "",
+        plural(len(autos), "agent") if autos else "",
         plural(len(documents), "document") if documents else "",
         plural(len(events), "event") if events else "",
     ) if w] or ["the connection"]
@@ -365,7 +380,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         "what": and_join(what),
         "readers": readers,
         "procedures": procedures,
-        "automations": [a["title"] for a in autos],
+        "automations": [a["name"] for a in autos],
     }
     if dry_run:
         return plan
@@ -388,9 +403,10 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         for a in autos:
             if a.get("skill"):
                 db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
-            db.execute("DELETE FROM runs WHERE automation = ?", (a["id"],))
+            db.execute("DELETE FROM runs WHERE agent = ?", (a["id"],))
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
-            db.execute("DELETE FROM automations WHERE id = ?", (a["id"],))
+            Decisions.remove_about(db, "agent", a["id"])
+            db.execute("DELETE FROM agents WHERE id = ?", (a["id"],))
         Preferences.forget_agents(db, [a["id"] for a in autos])  # their looks
 
         if documents:
@@ -406,6 +422,53 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         shutil.rmtree(profile, ignore_errors=True)
     world.journal.close_asks_about(cid, f"{target} was removed.", "removed")
     _record_removal(world, "connection", cid, target, plan["what"], threads=threads,
-                    automations=[a["id"] for a in autos], readers=readers,
+                    agents=[a["id"] for a in autos], readers=readers,
                     source=f"connector:{kind}")
+    return plan
+
+
+def agent_removal(world: World, aid: str) -> dict[str, Any]:
+    """What deleting a custom agent takes, before anything goes; `what` says it in words."""
+    agent = world.agents.get(aid)
+    if agent["kind"] != "custom":
+        raise Problem(f"{agent['name']} is one of Alpha's own agents: pause it, or rename it;"
+                      " it can't be deleted.")
+    store = world.store
+    runs = _count(store, "SELECT COUNT(*) AS n FROM runs WHERE agent = ?", (aid,))
+    pages = _count(store, "SELECT COUNT(*) AS n FROM notes WHERE scope = ?", (f"agent:{aid}",))
+    decisions = len(world.decisions.about("agent", aid))
+    what = [plural(runs, "run")] if runs else []
+    what += [plural(pages, "page")] if pages else []
+    what += [plural(decisions, "decision")] if decisions else []
+    what += ["its pipeline"] if agent.get("skill") else []
+    return {"agent": aid, "name": agent["name"], "runs": runs, "pages": pages,
+            "decisions": decisions, "skill": agent.get("skill"),
+            "what": and_join(what) if what else "the agent"}
+
+
+def remove_agent(world: World, aid: str) -> dict[str, Any]:
+    """Delete a custom agent and everything it made (design Q44): its runs, its brief and
+    notes, the decisions about it, its pipeline and its look. Its thread stays as a record;
+    the journal keeps every line. The questions it asked are closed."""
+    plan = agent_removal(world, aid)
+    agent = world.agents.get(aid)
+    asks = [a["id"] for a in world.journal.open_asks()
+            if a.get("thread") and a["thread"] == agent.get("thread")]
+    with world.store.tx() as db:
+        db.execute("DELETE FROM runs WHERE agent = ?", (aid,))
+        db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{aid}",))
+        Decisions.remove_about(db, "agent", aid)
+        if agent.get("skill"):
+            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (agent["skill"],))
+            _forget_skill_note(db, agent["skill"])
+        if agent.get("thread"):
+            _retire_threads(db, [agent["thread"]])
+        Preferences.forget_agents(db, [aid])
+        db.execute("DELETE FROM agents WHERE id = ?", (aid,))
+    for ask in asks:
+        world.journal.close_ask(ask, f"{agent['name']} was removed.", actor="alpha",
+                                closed="removed")
+    _record_removal(world, "agent", aid, agent["name"], plan["what"],
+                    threads=[agent["thread"]] if agent.get("thread") else [], agents=[aid],
+                    readers=[])
     return plan

@@ -2,7 +2,7 @@
 
 For each table: how many rows and how many came in this week; where rows happen on a day and
 carry amounts, today's and this week's totals (an average for scores and percentages); how rows
-split across the first status or choice field. Plus the module's goals and when its automations
+split across the first status or choice field. Plus the module's goals and when its agents
 next run. No sample rows: the table's own page shows them.
 """
 
@@ -97,7 +97,7 @@ def module_summary(world: World, module_id: str) -> dict[str, Any]:
     ids = world.modules.subtree(module_id)
     tables = [table_summary(world, t["name"]) for m in ids
               for t in world.collections.overview(m)]
-    autos = [a for m in ids for a in world.automations.all(m) if a["enabled"]]
+    autos = [a for m in ids for a in world.agents.all(m) if a["on"]]
     return {
         "tables": tables,
         "goals": [g for g in world.knowledge.goals() if g["module"] in ids],

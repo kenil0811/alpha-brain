@@ -19,7 +19,7 @@ class Modules(Base):
             for m in self.world.modules.all()
         ]
 
-    @tool
+    @tool(writes="modules")
     def module_create(self, name: str, goal: str | None = None,
                       parent: str | None = None) -> dict[str, Any]:
         """Make a module: a named place for a topic the person keeps coming back to (Food, Job
@@ -36,7 +36,7 @@ class Modules(Base):
                   module["id"])
         return module
 
-    @tool
+    @tool(writes="modules")
     def module_move(self, module: str, parent: str | None = None) -> dict[str, Any]:
         """Put a module inside another (parent: its id or name), or at the top (no parent),
         when the person asks; everything in it moves with it. Never inside itself or inside
@@ -50,10 +50,10 @@ class Modules(Base):
 
     @tool
     def threads_list(self, state: str | None = None) -> list[dict[str, Any]]:
-        """Open pieces of work (builds, automations running, topics)."""
+        """Open pieces of work (builds, agents running, topics)."""
         return self.world.modules.threads(state)
 
-    @tool
+    @tool(writes="threads")
     def thread_open(self, title: str, module: str | None = None) -> dict[str, Any]:
         """Open a thread for a topic that will take more than this turn or a long to-and-fro.
         The person sees it as a card; its conversation stays out of the main stream. (A build
@@ -63,7 +63,7 @@ class Modules(Base):
         self._did("made", f"Opened the thread {title}.", {"thread": thread["id"]}, module_id)
         return thread
 
-    @tool
+    @tool(writes="threads")
     def thread_update(self, id: str, state: str | None = None,
                       note: str | None = None) -> dict[str, Any]:
         """Move a thread to working, waiting or done, with an optional one-line note."""
@@ -73,9 +73,9 @@ class Modules(Base):
                                       module=thread["module"])
         return thread
 
-    @tool
+    @tool(writes="notes")
     def thread_brief(self, brief: str, id: str | None = None) -> dict[str, Any]:
-        """Write this thread's brief (the automation's, in a run): what the work is for, what was
+        """Write this thread's brief (the agent's, in a run): what the work is for, what was
         decided and why, what didn't work and why, what is open, what comes next. Every later
         run starts from it, so keep it short, current and true; replace it, don't append."""
         tid = id or self.thread
@@ -85,7 +85,7 @@ class Modules(Base):
         self._did("changed", f"Updated the brief of {thread['title']}.", {"thread": tid})
         return thread
 
-    @tool
+    @tool(writes="asks")
     def ask_person(self, question: str, options: list[str] | None = None) -> dict[str, Any]:
         """Record a question for the person that must be answered before something can be
         done well (it shows on Home until answered). Ask in the reply too. Only ask what you
@@ -96,7 +96,7 @@ class Modules(Base):
         )
         return {"asked": jid}
 
-    @tool
+    @tool(writes="proposals")
     def propose(self, text: str, why: str) -> dict[str, Any]:
         """Propose something the person did not ask for (a target, a new field, a follow-up),
         with the evidence in why. It waits for their yes."""

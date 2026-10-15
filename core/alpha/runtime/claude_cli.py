@@ -215,6 +215,9 @@ class TurnRequest:
     thread_id: str | None = None
     module_id: str | None = None
     model: str | None = None
+    # Who does this turn: "alpha", or an agent's id (its steps and reply are journaled under
+    # it, and the tools cut its hands to its write list, Q50).
+    actor: str = "alpha"
     # What kind of run this is: "turn" (Alpha with its world and tools), "independent" (the same
     # model with web search only and no Alpha, for a second opinion) or "judge" (no tools at
     # all: compares two answers). Fake runners in tests tell them apart by it.
@@ -254,6 +257,7 @@ def mcp_config(req: TurnRequest) -> dict[str, Any]:
         "ALPHA_TURN": req.turn_id,
         "ALPHA_THREAD": req.thread_id or "",
         "ALPHA_MODULE": req.module_id or "",
+        "ALPHA_ACTOR": req.actor or "alpha",
     }
     return {
         "mcpServers": {
@@ -475,7 +479,7 @@ TOOL_WORDS = {
     "calendar_events": "Looking at the calendar", "fact_record": "Remembering something",
     "note_write": "Writing a note", "instruction_add": "Keeping an instruction",
     "procedure_save": "Keeping the steps", "action_propose": "Preparing it for your yes",
-    "automation_create": "Setting up the automation", "ask_person": "Asking you",
+    "agent_create": "Setting up the agent", "ask_person": "Asking you",
     "entity_resolve": "Linking a person", "thread_brief": "Updating the brief",
     "source_add": "Noting a source", "goal_set": "Keeping a goal",
 }

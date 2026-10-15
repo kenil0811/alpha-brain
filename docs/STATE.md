@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 14 October 2026, afternoon.** The last three entries:
+**As of 15 October 2026, midday.** The last three entries:
+- Agents, slice A: the substrate in the core ([`log/2026-10-15-agents-slice-a.md`](log/2026-10-15-agents-slice-a.md)); group 2 (the routes and the window) in progress.
 - The review and clean-up after slice 2 ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)). All five groups are done: the real faults, the code, the docs (this page), the memory notes, and disk. All 22 journeys were run.
 - Slice 2, the small core routes the window asked for ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md)), with step 4 (people) skipped.
 - The window from pull request #5, feature by feature ([`log/2026-10-12-window-from-pr5.md`](log/2026-10-12-window-from-pr5.md), Q41 and Q42).
@@ -22,7 +23,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Desktop check | `docs/checks/2026-10-14-1357.md`: 94 of 94 pages clean at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 219 total; 219 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 220 total; 220 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 17,005 Python; tests 6,424; desktop 17,563 TS/TSX |
 
 ## What is built, against the design's order of work

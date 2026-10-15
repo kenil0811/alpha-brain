@@ -163,22 +163,22 @@ def test_a_goal_s_page_has_its_history(world: World) -> None:
 
 
 def test_an_agent_s_failed_run_runs_again_and_reports_how_it_went(world: World) -> None:
-    auto = building(world).automation_create("Sync", "every 1h", "do it")
+    auto = building(world).agent_create("Sync", "every 1h", "do it")
     results = iter([RunResult(ok=False, reply="", error="the page was down"),
                     RunResult(ok=True, reply="Nothing new.")])
     c = TestClient(create_app(world, live=False, runner=lambda req: next(results)))
     deadline = time.time() + 5
 
     def failures() -> list[dict[str, Any]]:
-        return [e for e in _failures(c) if e["data"].get("automation") == auto["id"]]
+        return [e for e in _failures(c) if e["data"].get("agent") == auto["id"]]
 
     c.post(f"/api/automations/{auto['id']}/run")
     while not failures():
         assert time.time() < deadline
         time.sleep(0.02)
     failure = failures()[0]
-    assert failure["again"] == {"how": "automation", "automation": auto["id"],
-                                "words": "Runs \"Sync\" again."}
+    assert failure["again"] == {"how": "agent", "agent": auto["id"],
+                                "words": "Runs Sync again."}
     c.post(f"/api/activity/{failure['id']}/again")
     while (tried := c.get(f"/api/activity/{failure['id']}").json()["tried"])["state"] == "running":
         assert time.time() < deadline
@@ -187,4 +187,4 @@ def test_an_agent_s_failed_run_runs_again_and_reports_how_it_went(world: World) 
     # a reader that broke inside the agent's run names only the agent's thread: still its run
     broke = world.journal.append("failed", "The reader x looks broken.", thread=auto["thread"],
                                  data={"reader": "x", "turn": None})
-    assert c.get(f"/api/activity/{broke}").json()["again"]["how"] == "automation"
+    assert c.get(f"/api/activity/{broke}").json()["again"]["how"] == "agent"

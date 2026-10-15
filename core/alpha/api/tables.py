@@ -131,7 +131,7 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.post("/api/modules/{ref}/remove", dependencies=[api])
     def remove_keep(ref: str) -> dict[str, Any]:
         """Remove a module with its data kept (A3, A4): out of sight with what it holds, its
-        automations stopped, restorable from Settings."""
+        agents stopped, restorable from Settings."""
         gone = world.modules.remove(ref)
         world.journal.append("changed", f"You removed {gone['name']}; its data is kept, and"
                              " Settings › Removed modules can bring it back.", actor="person",
