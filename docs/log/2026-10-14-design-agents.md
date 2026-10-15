@@ -52,6 +52,15 @@ Skip or "Look into it"; no time promises. Kenil: "starts by itself with skip, fa
 Recorded as Q45, with the five faces (an animal and one accessory each, in the companion's
 style).
 
+## Session 4: Watson, the noticer (15 Oct)
+
+Measured first: 36 facts kept about Kenil, 34 accepted, about a third not about him (workflow
+settings, requests). Drafted Watson around filing each note by type (a fact about the person,
+about someone, a commitment, a decision a conversation reached, or nothing but the journal),
+reading what Alpha reads about people he knows, recording conversations' decisions and
+conclusions (C2), inferences kept quietly. Kenil: "1 yes, 2 yes, 3a, 4 yes, 5 ok, 6 yes".
+Recorded as Q46.
+
 ## Left
 
-Watson next; then Columbo, Scout, Doc; then C1 and T.
+Columbo next; then Scout, Doc; then C1 and T.
