@@ -77,6 +77,17 @@ no), picks on Home daily and cards at natural breaks, tied to goals. Kenil: "1 y
 it a bit bolder to start with, so we can see how well it can do this, 4 yes, 5 ok". Recorded as
 Q48.
 
+## Session 7: Doc, the healer (15 Oct)
+
+Read first: repair lives in three places (a reader rewritten at most twice a run with no memory
+across runs, a procedure repaired and proposed again, workflow parts never repaired) and a
+repaired reader's old script is overwritten. Drafted Doc as the one fixer of Alpha's know-how,
+called by the agent whose run broke: whose fault first (passing, the person's, Alpha's
+know-how, Alpha itself), parts' code fixed in the workspace, a rerun judged by code, one repair
+of a thing at a time, no check-ups, every fix undoable. Kenil: "1. yes, 2. yes, 3. ok, 4. ok,
+5. ok, 6. yes, 7. ok". Recorded as Q49. The five built-in agents are now all designed; none is
+built.
+
 ## Left
 
-Doc next; then C1 and T.
+C1 (depth) and T (a single unified view of Alpha), each in a session of its own.

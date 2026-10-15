@@ -22,7 +22,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Desktop check | `docs/checks/2026-10-14-1357.md`: 94 of 94 pages clean at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 217 total; 217 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 218 total; 218 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 17,005 Python; tests 6,424; desktop 17,563 TS/TSX |
 
 ## What is built, against the design's order of work
@@ -73,7 +73,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
    - copy, and edit-and-resend
    - a plus for files in the composer
    - Kenil to say whether one stream should replace the conversation on each page
-3. **Design sessions with Kenil** ([`log/2026-10-14-design-agents.md`](log/2026-10-14-design-agents.md)): agents' shared shape agreed 14 Oct (Q44), Sherlock (Q45), Watson (Q46), Columbo (Q47) and Scout (Q48) 15 Oct; next, Doc. From his 12 Oct answers to Vikas's list:
+3. **Design sessions with Kenil** ([`log/2026-10-14-design-agents.md`](log/2026-10-14-design-agents.md)): agents' shared shape agreed 14 Oct (Q44), and the five built-in agents 15 Oct: Sherlock (Q45), Watson (Q46), Columbo (Q47), Scout (Q48) and Doc (Q49), none built yet; next, C1 and T. From his 12 Oct answers to Vikas's list:
    - C2, decisions and checkpoints kept ("all decisions / checkpoints should be persisted")
    - C8, several persisted, dedicated agents, with Q33's leftovers (event triggers, escalation as a question, the digest, a brief per agent) and Q40's door for an agent's own automations and readers
    - C1, depth
