@@ -1,5 +1,5 @@
 /**
- * Intelligence: everything Alpha can do (skills), its agents (automations: one per recurring process), reaches
+ * Intelligence: everything Alpha can do (skills), its agents (Q44, Q50: everything that works on its own), reaches
  * (connections) and knows (knowledge: facts, notes, goals). Each is a sentence the person can
  * read, switch or correct, never a configuration form.
  */
@@ -10,7 +10,7 @@ import { humanize, when } from "../modules/format";
 import { DataPage, type HeldRows } from "../modules/DataPage";
 import { skillsHeld, skillsTable } from "./intel/skillsTable";
 import { CONNECTION_COLOURS, connectionRow, connectionsTable, reachLines } from "./intel/connectionsTable";
-import { AGENT_COLOURS, agentsTable, alphaRow, automationRow } from "./intel/agentsTable";
+import { AGENT_COLOURS, agentRow, agentsTable, alphaRow } from "./intel/agentsTable";
 import { FACT_COLOURS, factRow, factsTable } from "./intel/factsTable";
 import { AgentFace, ALPHA_AGENT } from "./AgentFace";
 import type { Surface } from "./Rail";
@@ -19,11 +19,11 @@ import { host } from "../core/host";
 import { GoalButtons, GoalWords } from "./GoalPage";
 import { say } from "../core/client";
 
-export type IntelTab = "map" | "skills" | "automations" | "connections" | "knowledge";
+export type IntelTab = "map" | "skills" | "agents" | "connections" | "knowledge";
 const TABS: { id: IntelTab; label: string }[] = [
   { id: "map", label: "Map" },
   { id: "skills", label: "Skills" },
-  { id: "automations", label: "Agents" },
+  { id: "agents", label: "Agents" },
   { id: "connections", label: "Connections" },
   { id: "knowledge", label: "Knowledge" },
 ];
@@ -382,8 +382,8 @@ function Knowledge({ client, data, onChanged, onGo }: { client: Client; data: Da
   );
 }
 
-/** Agents (section 7c): Alpha and the automations in one table, each wearing its face; an
- *  automation's switch and Run now at its row's start (the list had the switch first). */
+/** Agents (section 7c): Alpha and the agents in one table, each wearing its face; an agent's
+ *  switch (Pause / Set going) and Run now at its row's start (the list had the switch first). */
 function Agents({ client, data, modules, onChanged, onGo }: { client: Client; data: Data; modules: Record<string, string>; onChanged: () => void; onGo?: (s: Surface) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -400,9 +400,9 @@ function Agents({ client, data, modules, onChanged, onGo }: { client: Client; da
       setBusy(null);
     }
   }
-  const table = useMemo(() => agentsTable(data.automations, modules), [data, modules]);
-  const load = useMemo(() => () => Promise.resolve([alphaRow(), ...data.automations.map((a) => automationRow(a, modules))]), [data, modules]);
-  const byId = new Map(data.automations.map((a) => [a.id, a]));
+  const table = useMemo(() => agentsTable(data.agents, modules), [data, modules]);
+  const load = useMemo(() => () => Promise.resolve([alphaRow(), ...data.agents.map((a) => agentRow(a, modules))]), [data, modules]);
+  const byId = new Map(data.agents.map((a) => [a.id, a]));
   const held: HeldRows = {
     load,
     words: "Changed by asking Alpha",
@@ -413,8 +413,8 @@ function Agents({ client, data, modules, onChanged, onGo }: { client: Client; da
       if (!a) return null;
       return (
         <>
-          <button type="button" className={`switch${a.enabled ? "" : " switch--off"}`} role="switch" aria-checked={a.enabled} aria-label={a.enabled ? `Switch off: ${a.title}` : `Switch on: ${a.title}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.switchAutomation(a.id, !a.enabled), a.enabled ? "Switched off." : "Switched on.")} />
-          <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAutomation(a.id), "Started. Its steps show on its page as it goes.")}>
+          <button type="button" className={`switch${a.on ? "" : " switch--off"}`} role="switch" aria-checked={a.on} aria-label={a.on ? `Pause: ${a.name}` : `Set going: ${a.name}`} disabled={busy === a.id} onClick={() => void act(a.id, () => client.changeAgent(a.id, { state: a.on ? "paused" : "on" }), a.on ? "Paused." : "Going.")} />
+          <Button size="sm" disabled={busy === a.id || a.running} onClick={() => void act(a.id, () => client.runAgent(a.id), "Started. Its steps show on its page as it goes.")}>
             {a.running ? "Running…" : "Run now"}
           </Button>
         </>
@@ -424,8 +424,8 @@ function Agents({ client, data, modules, onChanged, onGo }: { client: Client; da
   return (
     <div className="stack">
       <div className="intel__table">
-        <DataPage client={client} table={table} held={held} version={0} onChanged={onChanged} onOpenRecord={onGo ? (_t, id) => onGo(id === ALPHA_AGENT ? { kind: "assistant" } : { kind: "automation", id }) : undefined} />
-        {!data.automations.length ? <p className="faint intel__reach">No automations yet. Ask Alpha to keep something current ("keep my LinkedIn connections up to date") and it appears here with a switch, a verdict per run and a page you can edit.</p> : null}
+        <DataPage client={client} table={table} held={held} version={0} onChanged={onChanged} onOpenRecord={onGo ? (_t, id) => onGo(id === ALPHA_AGENT ? { kind: "assistant" } : { kind: "agent", id }) : undefined} />
+        {!data.agents.length ? <p className="faint intel__reach">No agents yet. Ask Alpha to keep something current ("keep my LinkedIn connections up to date") and it appears here with a switch, a verdict per run and a page of its own; address one by name with @ in a conversation.</p> : null}
       </div>
       {message ? (
         <p className={message.ok ? "notice notice--ok" : "notice"} role="status">
@@ -495,7 +495,7 @@ export function Intelligence({ client, tab, version, onTab, onChanged, onGo }: {
             </div>
           ))}
         </div>
-      ) : tab === "automations" ? (
+      ) : tab === "agents" ? (
         <Agents client={client} data={data} modules={modules} onChanged={onChanged} onGo={onGo} />
       ) : tab === "connections" ? (
         <Connections client={client} data={data} onChanged={onChanged} />

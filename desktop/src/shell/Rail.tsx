@@ -27,7 +27,7 @@ export type Surface =
   | { kind: "people" }
   | { kind: "entity"; id: string }
   | { kind: "skill"; name: string }
-  | { kind: "automation"; id: string }
+  | { kind: "agent"; id: string }
   /** One activity entry's own page, and one goal's (slice 2 D12). */
   | { kind: "entry"; id: string }
   | { kind: "goal"; id: string }
@@ -39,7 +39,7 @@ export type Surface =
 /** Whether rail item `b` is the current place `a`. */
 export function sameSurface(a: Surface, b: Surface): boolean {
   if (b.kind === "people" && a.kind === "entity") return true; // a person's page is inside People & Companies
-  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "automation" || a.kind === "goal")) return true; // item pages live under Intelligence
+  if (b.kind === "intelligence" && (a.kind === "skill" || a.kind === "agent" || a.kind === "goal")) return true; // item pages live under Intelligence
   if (b.kind === "activity" && a.kind === "entry") return true; // an entry's page is inside Activity
   if (b.kind === "assistant" && a.kind === "assistant") return true; // any conversation open on the page
   if (a.kind === "record" && b.kind === "module") return a.module === b.id; // a record's page is inside its module
@@ -62,7 +62,7 @@ function readFolded(): Set<string> {
 /** A remembered place that no longer exists (an older build's) becomes Home. */
 export function knownSurface(value: unknown): Surface {
   const s = value as Surface | null;
-  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "automation" || s.kind === "entry" || s.kind === "goal") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string") || (s.kind === "record" && typeof s.table === "string" && typeof s.id === "string"))) return s;
+  if (s && (s.kind === "home" || s.kind === "activity" || s.kind === "assistant" || s.kind === "intelligence" || s.kind === "settings" || s.kind === "people" || ((s.kind === "module" || s.kind === "entity" || s.kind === "agent" || s.kind === "entry" || s.kind === "goal") && typeof s.id === "string") || (s.kind === "skill" && typeof s.name === "string") || (s.kind === "record" && typeof s.table === "string" && typeof s.id === "string"))) return s;
   return { kind: "home" };
 }
 
@@ -295,7 +295,7 @@ export function Rail({
 
   const item = (target: Surface, icon: ReactNode, label: string, count?: number, depth = 0, fold?: { open: boolean; onToggle: () => void }, module?: ModuleCard) => {
     const current = sameSurface(surface, target);
-    const key = target.kind === "module" || target.kind === "entity" || target.kind === "automation" ? `${target.kind}:${target.id}` : target.kind === "skill" ? `skill:${target.name}` : target.kind;
+    const key = target.kind === "module" || target.kind === "entity" || target.kind === "agent" ? `${target.kind}:${target.id}` : target.kind === "skill" ? `skill:${target.name}` : target.kind;
     const drop = module && over?.id === module.id ? ` navrow--drop-${over.zone}` : "";
     if (module && renamingModule === module.id && !collapsed) {
       return (

@@ -10,6 +10,7 @@ function core(turns: JournalEntry[], conversations: Convo[]) {
   return {
     conversation: vi.fn().mockResolvedValue({ turns, threads: [], actions: [], asks: [], conversations, conversation: conversations[0] ?? null }),
     newConversation: vi.fn().mockResolvedValue({ id: "c_new" }),
+    agents: vi.fn().mockResolvedValue([]),
     askAndWait: vi.fn().mockResolvedValue({ id: "t_2", state: "done", reply: "Done", conversation: conversations[0] } as unknown as Turn),
   };
 }
@@ -58,5 +59,30 @@ describe("the assistant panel", () => {
     panel(client);
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     await waitFor(() => expect(client.askAndWait).toHaveBeenCalledWith("log two eggs", expect.anything(), expect.any(Function), 500));
+  });
+});
+
+describe("@ in the composer", () => {
+  it("offers the agents whose name begins with what is typed, completes the name on a tap, and sends only a complete one", async () => {
+    const client = core([], [convo("c_1", "Morning plan")]);
+    client.agents.mockResolvedValue([
+      { id: "a1", name: "Deal Scout", kind: "custom", description: "Read the brokers", module: null, thread: null, state: "on", on: true, may: [], done: null, schedule: "daily 07:00", when: "every day at 07:00", next_run_at: null, last_run_at: null, last_result: null, last_error: null },
+      { id: "a2", name: "Doc", kind: "doc", description: "Keeps things working", module: null, thread: null, state: "on", on: true, may: [], done: null, schedule: null, when: "when something breaks", next_run_at: null, last_run_at: null, last_result: null, last_error: null },
+    ]);
+    panel(client);
+    const box = (await screen.findAllByRole("textbox"))[0];
+    fireEvent.change(box, { target: { value: "@d" } });
+    const list = await screen.findByRole("listbox", { name: "Agents" });
+    expect(within(list).getAllByRole("option").map((o) => o.textContent)).toEqual(["@Deal Scout", "@Doc"]);
+    fireEvent.keyDown(box, { key: "Enter" }); // Enter completes the first name rather than sending
+    expect(client.askAndWait).not.toHaveBeenCalled();
+    expect((box as HTMLTextAreaElement).value).toBe("@Deal Scout ");
+    expect(screen.queryByRole("listbox", { name: "Agents" })).toBeNull();
+    fireEvent.change(box, { target: { value: "@Deal Scout what's new?" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await waitFor(() => expect(client.askAndWait).toHaveBeenCalledWith("@Deal Scout what's new?", expect.anything(), expect.any(Function), 500));
+    fireEvent.change(box, { target: { value: "@Do" } });
+    fireEvent.click(within(await screen.findByRole("listbox", { name: "Agents" })).getByRole("option", { name: "@Doc" }));
+    expect((box as HTMLTextAreaElement).value).toBe("@Doc ");
   });
 });

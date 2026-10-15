@@ -6,7 +6,7 @@ describe("addresses", () => {
     for (const s of [
       { kind: "home" }, { kind: "activity" }, { kind: "people" }, { kind: "entity", id: "e_1" },
       { kind: "module", id: "m_de9c" }, { kind: "module", id: "m_de9c", table: "deals" }, { kind: "intelligence" }, { kind: "intelligence", tab: "skills" }, { kind: "settings" },
-      { kind: "skill", name: "linkedin_connections" }, { kind: "automation", id: "a_1" },
+      { kind: "skill", name: "linkedin_connections" }, { kind: "agent", id: "a_1" },
       { kind: "assistant" }, { kind: "assistant", id: "t_1" },
       { kind: "record", module: "m_12ac", table: "car_wash_sites", id: "r_89aa" }, { kind: "record", table: "notes", id: "r 2" },
     ] as const) {

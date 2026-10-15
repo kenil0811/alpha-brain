@@ -63,7 +63,7 @@ export interface PageAddress {
 }
 
 /** The window's intelligence tabs (shell/Intelligence.tsx), each an address. */
-const INTEL_TABS = ["map", "skills", "automations", "connections", "knowledge"];
+const INTEL_TABS = ["map", "skills", "agents", "connections", "knowledge"];
 
 interface WorldPages {
   modules: { id: string; name?: string; tables?: { name: string }[] }[];
@@ -72,7 +72,7 @@ interface WorldPages {
   /** The first record of every table that belongs to no module (`#/records/<table>/<record>`). */
   looseRecords?: { table: string; id: string }[];
   skills: { name: string }[];
-  automations: { id: string; title?: string }[];
+  agents: { id: string; name?: string }[];
   people: { id: string; name?: string }[];
   goals?: { id: string; text?: string }[];
   /** The newest conversation (`#/assistant/<id>`). */
@@ -100,7 +100,7 @@ export function pagesFor(world: WorldPages): PageAddress[] {
     { path: "/intelligence", title: "Intelligence" },
     ...INTEL_TABS.map((t) => ({ path: `/intelligence/${t}`, title: `Intelligence: ${t}` })),
     ...world.skills.map((s) => ({ path: `/intelligence/skills/${enc(s.name)}`, title: `Skill: ${s.name}` })),
-    ...world.automations.map((a) => ({ path: `/intelligence/automations/${enc(a.id)}`, title: `Automation: ${a.title ?? a.id}` })),
+    ...world.agents.map((a) => ({ path: `/intelligence/agents/${enc(a.id)}`, title: `Agent: ${a.name ?? a.id}` })),
     ...(world.goals ?? []).map((g) => ({ path: `/intelligence/goals/${enc(g.id)}`, title: `Goal: ${g.text ?? g.id}` })),
     { path: "/settings", title: "Settings" },
   ];
@@ -139,7 +139,7 @@ async function worldPages(job: Job): Promise<WorldPages> {
   };
   const [modules, intel, people, home, conversations, newest, failed] = await Promise.all([
     get<WorldPages["modules"]>("/api/modules"),
-    get<{ skills: WorldPages["skills"]; automations: WorldPages["automations"]; knowledge: { goals: { id: string; text: string }[] } }>("/api/intelligence"),
+    get<{ skills: WorldPages["skills"]; agents: WorldPages["agents"]; knowledge: { goals: { id: string; text: string }[] } }>("/api/intelligence"),
     get<WorldPages["people"]>("/api/people"),
     get<{ loose_tables: { name: string }[] }>("/api/home"),
     get<{ id: string; title?: string }[]>("/api/conversations?done=true"),
@@ -164,7 +164,7 @@ async function worldPages(job: Job): Promise<WorldPages> {
     )
   ).flat();
   const entries = [...newest.map((e) => ({ id: e.id, label: "the newest entry" })), ...failed.filter((e) => !newest.some((n) => n.id === e.id)).map((e) => ({ id: e.id, label: "the newest failure" }))];
-  return { modules, skills: intel.skills, automations: intel.automations, people, records, looseRecords, goals: intel.knowledge.goals, conversations: conversations.slice(0, 1), entries };
+  return { modules, skills: intel.skills, agents: intel.agents, people, records, looseRecords, goals: intel.knowledge.goals, conversations: conversations.slice(0, 1), entries };
 }
 
 /**

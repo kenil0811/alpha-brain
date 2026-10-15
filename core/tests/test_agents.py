@@ -208,10 +208,10 @@ def test_the_api_lists_switches_and_runs_now(world: World) -> None:
         return RunResult(reply="Nothing new.", ok=True)
 
     c = TestClient(create_app(world, live=False, runner=runner))
-    assert c.get("/api/intelligence").json()["automations"][0]["title"] == "Sync"
-    assert c.patch(f"/api/automations/{auto['id']}", json={"enabled": False}).json()["enabled"] \
-        is False
-    c.post(f"/api/automations/{auto['id']}/run")
+    assert c.get("/api/intelligence").json()["agents"][0]["name"] == "Sync"
+    assert c.patch(f"/api/agents/{auto['id']}", json={"state": "paused"}).json()["state"] \
+        == "paused"
+    c.post(f"/api/agents/{auto['id']}/run")
     end = time.time() + 5
     while time.time() < end and world.agents.get(auto["id"])["last_result"] is None:
         time.sleep(0.05)
@@ -665,3 +665,32 @@ def test_a_custom_agent_goes_with_everything_it_made(world: World) -> None:
     own = world.agents.create("Sherlock", kind="sherlock")
     with pytest.raises(Problem, match="can't be deleted"):
         purge.agent_removal(world, own["id"])
+
+
+def test_the_api_renames_pauses_and_deletes_an_agent(world: World,
+                                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    from alpha.cli import main
+
+    connections_table(world)
+    t = building(world, turn="j_1")
+    auto = t.agent_create("Sync", "every 1h", "do it", module="Network")
+    c = TestClient(create_app(world, live=False))
+    assert c.patch(f"/api/agents/{auto['id']}", json={}).status_code == 400
+    renamed = c.patch(f"/api/agents/{auto['id']}", json={"name": "Deal Scout"}).json()
+    assert renamed["name"] == "Deal Scout" and renamed["description"] == "Sync"
+    assert world.journal.recent(1)[0]["text"] == "You renamed the agent Sync to Deal Scout."
+    paused = c.patch(f"/api/agents/{auto['id']}", json={"state": "paused"}).json()
+    assert paused["state"] == "paused" and paused["next_run_at"] is None
+    assert world.journal.recent(1)[0]["text"] == "You paused Deal Scout."
+    page = c.get(f"/api/agents/{auto['id']}").json()
+    assert page["name"] == "Deal Scout" and page["brief"]["body"] == "do it"
+    assert c.get(f"/api/agents/{auto['id']}/removal").json()["what"] == "1 page"
+    assert c.delete(f"/api/agents/{auto['id']}").json()["name"] == "Deal Scout"
+    assert c.get(f"/api/agents/{auto['id']}").status_code == 400
+    # The CLI lists and renames (the way Kenil's five get their names, 15 Oct).
+    other = t.agent_create("Daily brokers", "daily 07:00", "look", module="Network")
+    monkeypatch.setenv("ALPHA_WORLD", str(world.path))
+    assert main(["agent-rename", other["id"], "Deal", "Tracker"]) == 0
+    assert world.agents.get(other["id"])["name"] == "Deal Tracker"
+    assert world.journal.recent(1)[0]["text"] == \
+        "You renamed the agent Daily brokers to Deal Tracker."

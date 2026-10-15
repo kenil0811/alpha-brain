@@ -85,8 +85,10 @@ class SiteBody(BaseModel):
     site: str
 
 
-class SwitchBody(BaseModel):
-    enabled: bool
+class AgentBody(BaseModel):
+    """What the person changes on an agent's page: its state (on or paused) or its name."""
+    state: str | None = None
+    name: str | None = None
 
 
 class PreferenceBody(BaseModel):

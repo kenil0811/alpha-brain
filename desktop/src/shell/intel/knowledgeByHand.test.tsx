@@ -5,7 +5,7 @@ import { Intelligence } from "../Intelligence";
 
 const fact: Fact = { id: "f1", subject: "person", predicate: "city", value: "Londn", valid_from: "2026-10-02T17:13:16Z", valid_to: null, recorded_at: "2026-10-02T17:13:16Z", source: "turn:j_1", why: null, confidence: 0.95, state: "accepted" };
 const goal: Goal = { id: "g1", text: "An offer by December", state: "active", module: null, since: "2026-10-01T09:00:00Z" };
-const data = (): Data => ({ hands: [], skills: [], automations: [], readers: [], connections: [], knowledge: { facts: [fact], notes: [], goals: [goal], permissions: [] } });
+const data = (): Data => ({ hands: [], skills: [], agents: [], readers: [], connections: [], knowledge: { facts: [fact], notes: [], goals: [goal], permissions: [] } });
 
 function core() {
   return {

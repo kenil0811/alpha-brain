@@ -56,7 +56,7 @@ def test_removing_a_module_leaves_nothing_of_it_but_its_history(world: World) ->
     assert out["tables"] == 1 and out["rows"] == 2 and out["readers"] == 2
     assert world.runs.of(auto["id"]) == []
     assert world.knowledge.find_note(f"agent:{auto['id']}", "Sync") is None
-    assert out["automations"] == 1 and out["threads"] == 1 and out["goals"] == 1
+    assert out["agents"] == 1 and out["threads"] == 1 and out["goals"] == 1
     assert world.collections.names() == ["food_log"]
     assert world.readers.all() == [] and world.agents.all() == []
     assert world.modules.threads(None) == []
@@ -166,7 +166,7 @@ def test_removing_a_site_connection_keeps_the_persons_rows_and_the_audit(
     plan = remove_connection(world, conn["id"], dry_run=True)
     assert plan["what"] == "Alpha's sign-in, 1 reader and 1 agent"
     assert plan["readers"] == ["linkedin_connections"]
-    assert plan["automations"] == ["Daily LinkedIn sync"] and profile.exists()
+    assert plan["agents"] == ["Daily LinkedIn sync"] and profile.exists()
 
     world.preferences.set("agent_looks", {auto["id"]: {"animal": "fox"}})
     remove_connection(world, conn["id"])

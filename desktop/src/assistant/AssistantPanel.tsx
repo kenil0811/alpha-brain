@@ -7,7 +7,7 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords, say } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow } from "../core/client";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow, Agent } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { RenameBox, useConversationActions } from "./ConversationActions";
@@ -438,6 +438,7 @@ export function Conversation({
   const [showSteps, setShowSteps] = useState(false);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [convos, setConvos] = useState<Convo[]>([]);
@@ -466,6 +467,13 @@ export function Conversation({
   }, [client, module?.id, active]);
   useEffect(load, [load, version]);
   // A page change shows that page's live conversation, not the one from the last page.
+  useEffect(() => {
+    let live = true;
+    client.agents().then((all) => live && setAgents(all)).catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [client]);
   useEffect(() => {
     setActive(null);
     setThreadView(null);
@@ -586,9 +594,21 @@ export function Conversation({
   });
   // the mic held: what was said goes after a moment, unless stopped (slice 2 E3)
   const spoken = useHoldToSend(speech, (said) => void send(said), setText);
+  // "@" at the start names the agent that answers (Q44): the agents whose name begins with
+  // what is typed, until a name is complete; a tap or Enter completes it, never sends.
+  const typedName = text.startsWith("@") && !text.includes("\n") ? text.slice(1).toLowerCase() : null;
+  const mentionable = typedName === null ? [] : agents.filter((a) => a.name.toLowerCase().startsWith(typedName) && a.name.toLowerCase() !== typedName.trimEnd());
+  const mention = (a: Agent) => {
+    setText(`@${a.name} `);
+    input.current?.focus();
+  };
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || !e.shiftKey)) {
       e.preventDefault();
+      if (mentionable.length) {
+        mention(mentionable[0]);
+        return;
+      }
       if (speech.listening) speech.stop();
       spoken.stop();
       void send(text);
@@ -832,6 +852,15 @@ export function Conversation({
       </div>
       <div className="composer">
         {spoken.due ? <SendingSoon text={spoken.due} onStop={spoken.stop} /> : null}
+        {mentionable.length ? (
+          <div className="mention" role="listbox" aria-label="Agents">
+            {mentionable.map((a) => (
+              <button key={a.id} type="button" role="option" aria-selected={false} className="mention__pick" onClick={() => mention(a)}>
+                @{a.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="composer__box">
           <textarea ref={input} rows={1} value={text} onChange={(e) => { spoken.stop(); setText(e.target.value); }} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
           <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} onHoldStart={spoken.holdStart} onHoldEnd={spoken.holdEnd} small />

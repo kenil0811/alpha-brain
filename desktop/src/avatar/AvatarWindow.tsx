@@ -210,7 +210,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
     }
   });
   const failedRun = (comp?.troubles ?? []).find((t) => !seenTroubles.has(`${t.id}@${t.at}`)) ?? null;
-  const failedRunWords = failedRun ? `${failedRun.title.split(",")[0]}: ${failedRun.words}` : null;
+  const failedRunWords = failedRun ? `${failedRun.name.split(",")[0]}: ${failedRun.words}` : null;
   const dismissFailedRun = () => {
     if (!failedRun) return;
     setSeenTroubles((s) => {
@@ -371,7 +371,7 @@ export function AvatarWindow({ client, host }: { client: Client; host?: AvatarHo
               </div>
             ) : !bubble && failedRun ? (
               <div className="row" style={{ marginTop: 6 }}>
-                <Button size="sm" variant="primary" onClick={() => { dismissFailedRun(); handOff({ surface: { kind: "intelligence", tab: "automations" } }, host); }}>
+                <Button size="sm" variant="primary" onClick={() => { dismissFailedRun(); handOff({ surface: { kind: "intelligence", tab: "agents" } }, host); }}>
                   See it
                 </Button>
                 <Button size="sm" variant="ghost" onClick={dismissFailedRun}>

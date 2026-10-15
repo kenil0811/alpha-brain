@@ -11,6 +11,7 @@ function core(list: Convo[]) {
     conversation: vi.fn().mockResolvedValue({ turns: [], threads: [], actions: [], asks: [], conversations: list, conversation: list[0] ?? null }),
     conversations: vi.fn().mockResolvedValue(list),
     newConversation: vi.fn(),
+    agents: vi.fn().mockResolvedValue([]),
     renameConversation: vi.fn().mockResolvedValue(list[0]),
     conversationRemoval: vi.fn().mockResolvedValue({ conversation: list[0].id, title: list[0].title, what: "its 1 open question closed; what Alpha learned from it stays" }),
     deleteConversation: vi.fn().mockResolvedValue({}),

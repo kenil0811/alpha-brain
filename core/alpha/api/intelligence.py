@@ -8,13 +8,13 @@ from typing import Any
 from fastapi import FastAPI
 
 from alpha.api.bodies import (
+    AgentBody,
     CorrectFactBody,
     GoalBody,
-    SwitchBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
-    automation_views,
+    agent_views,
     opens_run,
 )
 from alpha.connectors.base import Connections, manifests
@@ -22,6 +22,7 @@ from alpha.connectors.files import unique_path
 from alpha.context.graph import work_graph, world_graph
 from alpha.context.memory_export import memory, to_markdown
 from alpha.runtime import connecting
+from alpha.world import purge
 from alpha.world.store import Problem, dumps, now
 from alpha.world.world import alpha_home
 
@@ -46,7 +47,7 @@ def routes(app: FastAPI, s: Served) -> None:
                                              "source", "updated_at")},
                         "notes": pages[sk["name"]]["body"] if sk["name"] in pages else None}
                        for sk in world.skills.all()],
-            "automations": automation_views(world, scheduler),
+            "agents": agent_views(world, scheduler),
             "readers": world.readers.all(),
             "connections": Connections(world.store).all(),
             "knowledge": {
@@ -148,11 +149,12 @@ def routes(app: FastAPI, s: Served) -> None:
         return {**skill, "notes": page, "runs": [
             {"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in runs[-20:]]}
 
-    @app.get("/api/automations/{aid}", dependencies=[api])
-    def automation_page(aid: str) -> dict[str, Any]:
-        """One agent for its page, with its runs: the entries of its thread, grouped by
-        each run's start, newest run first."""
-        auto = next((a for a in automation_views(world, scheduler) if a["id"] == aid), None)
+    @app.get("/api/agents/{aid}", dependencies=[api])
+    def agent_page(aid: str) -> dict[str, Any]:
+        """One agent for its page (Q50): its brief and notes, what it may touch, the decisions
+        about it, its pipeline, and its runs with the entries of its thread grouped by each
+        run's start, newest run first."""
+        auto = next((a for a in agent_views(world, scheduler) if a["id"] == aid), None)
         if auto is None:
             raise Problem(f"There is no agent {aid}.")
         entries = world.journal.recent(400, thread=auto["thread"]) if auto["thread"] else []
@@ -171,10 +173,20 @@ def routes(app: FastAPI, s: Served) -> None:
                 if skill else "it ends with its line for the log; failed when the model could"
                 " not finish or Alpha's tools didn't answer")
         return {**auto, "runs": runs, "pipeline": skill["steps"] if skill else None,
-                "guidelines": world.knowledge.find_note(f"agent:{aid}", "Brief"),
+                "brief": world.knowledge.find_note(f"agent:{aid}", "Brief"),
                 "notes": world.knowledge.find_note(f"agent:{aid}", "Notes"),
                 "decisions": world.decisions.about("agent", aid),
                 "good_run": good}
+
+    @app.get("/api/agents/{aid}/removal", dependencies=[api])
+    def agent_removal(aid: str) -> dict[str, Any]:
+        """What deleting a custom agent takes with it, in words, before the person confirms."""
+        return purge.agent_removal(world, aid)
+
+    @app.delete("/api/agents/{aid}", dependencies=[api])
+    def delete_agent(aid: str) -> dict[str, Any]:
+        """Delete a custom agent and everything it made; the journal keeps every line."""
+        return purge.remove_agent(world, aid)
 
     @app.post("/api/permissions/{pid}/revoke", dependencies=[api])
     def revoke_permission(pid: str) -> dict[str, Any]:
@@ -183,29 +195,39 @@ def routes(app: FastAPI, s: Served) -> None:
                              actor="person", data={"permission": pid})
         return revoked
 
-    @app.get("/api/automations", dependencies=[api])
-    def automations() -> list[dict[str, Any]]:
-        return automation_views(world, scheduler)
+    @app.get("/api/agents", dependencies=[api])
+    def agents() -> list[dict[str, Any]]:
+        return agent_views(world, scheduler)
 
-    @app.patch("/api/automations/{aid}", dependencies=[api])
-    def switch_automation(aid: str, body: SwitchBody) -> dict[str, Any]:
-        auto = world.agents.update(aid, state="on" if body.enabled else "paused")
-        world.journal.append("changed", f"You {'set going' if body.enabled else 'paused'}"
-                             f" {auto['name']}.", actor="person", module=auto["module"],
-                             data={"agent": aid})
+    @app.patch("/api/agents/{aid}", dependencies=[api])
+    def change_agent(aid: str, body: AgentBody) -> dict[str, Any]:
+        """Pause an agent or set it going, or rename it; each journaled as the person's."""
+        before = world.agents.get(aid)
+        name = (body.name or "").strip()
+        if not body.state and not name:
+            raise Problem("Say what to change: its state (on or paused) or its name.")
+        auto = world.agents.update(aid, state=body.state, name=name or None)
+        if body.state and body.state != before["state"]:
+            world.journal.append("changed", f"You {'set going' if body.state == 'on' else 'paused'}"
+                                 f" {auto['name']}.", actor="person", module=auto["module"],
+                                 data={"agent": aid})
+        if name and name != before["name"]:
+            world.journal.append("changed", f"You renamed the agent {before['name']} to"
+                                 f" {name}.", actor="person", module=auto["module"],
+                                 data={"agent": aid})
         return auto
 
-    @app.post("/api/automations/{aid}/run", dependencies=[api])
-    def run_automation(aid: str) -> dict[str, Any]:
+    @app.post("/api/agents/{aid}/run", dependencies=[api])
+    def run_agent(aid: str) -> dict[str, Any]:
         scheduler.run_now(aid)
-        return next(a for a in automation_views(world, scheduler) if a["id"] == aid)
+        return next(a for a in agent_views(world, scheduler) if a["id"] == aid)
 
     @app.get("/api/graph", dependencies=[api])
     def graph(kind: str = "work") -> dict[str, Any]:
         """Two maps computed from the world on each ask (context/graph.py): `work`, Alpha's own
         plumbing; `world`, the person's brain: what it holds, how it connects, what does not."""
         if kind == "work":
-            return work_graph(world, automation_views(world, scheduler))
+            return work_graph(world, agent_views(world, scheduler))
         if kind == "world":
             return world_graph(world)
         raise Problem("A map is of kind work or world.")

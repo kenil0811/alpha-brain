@@ -34,7 +34,7 @@ describe("Home: didn't work today", () => {
     const { client, onGo } = mount({
       home: vi.fn(async () => ({ ...quiet, failed_today: 2 })),
       activity: vi.fn(async () => [
-        failed("j1", "Run of Daily brokers failed", { automation: "a_1" }, { at: secondsAgo(1), again: { how: "automation", words: 'Runs "Daily brokers" again.' } }),
+        failed("j1", "Run of Daily brokers failed", { agent: "a_1" }, { at: secondsAgo(1), again: { how: "agent", words: "Runs Daily brokers again." } }),
         failed("j2", "That didn't work", { error: "the model timed out" }, { module: "m1", at: secondsAgo(2), again: null }),
       ]),
       tryAgain,

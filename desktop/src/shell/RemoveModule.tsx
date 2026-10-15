@@ -2,7 +2,7 @@
  * Taking a module away (13 Oct, slice 2 A3–A4), from its right-click menu in the sidebar or its
  * page's Settings: one question with three answers, each saying what it does. **Hide it from the
  * sidebar** changes nothing else. **Remove it, keep its data** takes it and what it holds out of
- * sight and stops its automations; Settings › Removed modules brings it back or deletes it. **Delete
+ * sight and stops its agents; Settings › Removed modules brings it back or deletes it. **Delete
  * it and its data** says exactly what goes (the core's own plan) and that it can't be undone;
  * Activity keeps that it was here. Settings' Removed modules card lists the removed ones with
  * Restore and Delete.

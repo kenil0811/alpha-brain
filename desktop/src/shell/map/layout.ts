@@ -1,9 +1,9 @@
 /**
  * The map's layout: a force simulation (d3-force) that clusters by home. Each module has an
  * anchor on a ring around the centre; everything that belongs with it is drawn toward that
- * anchor, so a module's tables, readers, automations and leftover sources gather as one
+ * anchor, so a module's tables, readers, agents and leftover sources gather as one
  * readable cluster; what has no module sits at the centre. Links still pull a run skill
- * between its automation and its readers, and a reader next to the table it feeds. Pure of
+ * between its agent and its readers, and a reader next to the table it feeds. Pure of
  * the window: the worker runs it off the main thread, a test or a window without workers runs
  * it here.
  */
@@ -33,7 +33,7 @@ export function radiusOf(node: ShapedNode): number {
       return 19 + Math.min(10, Math.log10(1 + (node.rows ?? 0)) * 3);
     case "skill":
       return node.role === "run" ? 21 : 15 + Math.min(8, Math.sqrt(node.runs ?? 0));
-    case "automation":
+    case "agent":
       return 20;
     case "connection":
       return 17;

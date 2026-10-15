@@ -24,7 +24,7 @@
      text and inputs · lg small headings · xl section and page-level headings · 2xl the page
      title and big numbers. */
   /* The map of work's kinds (shell/map). */
-  --k-module: var(--navy); --k-table: var(--primary); --k-read: var(--good); --k-act: var(--warn); --k-run: #8a6d3b; --k-automation: #7a5c8a; --k-source: var(--chart-3); --k-connection: #5f6b78;
+  --k-module: var(--navy); --k-table: var(--primary); --k-read: var(--good); --k-act: var(--warn); --k-run: #8a6d3b; --k-agent: #7a5c8a; --k-source: var(--chart-3); --k-connection: #5f6b78;
   --k-you: #b8485c; --k-person: #2f6b73; --k-organisation: #4e6a8a; --k-document: #8a6d3b; --k-page: #5a7a52; --k-goal: #a7542b;
   --text-xs: 11px; --text-sm: 12px; --text-md: 13px; --text-base: 14px; --text-lg: 16px; --text-xl: 20px; --text-2xl: 26px;
   --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -37,7 +37,7 @@
     --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
     --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220;
     --navy: #e6ebf0; --chart-3: #9cb39a;
-    --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
+    --k-module: #6f8fb0; --k-run: #c4a06a; --k-agent: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 }
@@ -47,7 +47,7 @@
   --border: #28323d; --line: #202932; --hover: #202a35; --primary: #7fa5c5; --primary-ink: #0f151c; --primary-soft: #1f3040;
   --good: #8fb892; --good-soft: #1e2e20; --warn: #d9b07a; --warn-soft: #3a2e1d; --bad: #e08a84; --bad-soft: #3a2220;
   --navy: #e6ebf0; --chart-3: #9cb39a;
-  --k-module: #6f8fb0; --k-run: #c4a06a; --k-automation: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
+  --k-module: #6f8fb0; --k-run: #c4a06a; --k-agent: #b89cc8; --k-connection: #8c98a6; --k-you: #e08a9a; --k-person: #7fb5bb; --k-organisation: #8fa9c6; --k-document: #c4a06a; --k-page: #9cb39a; --k-goal: #d9906a;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -970,3 +970,8 @@ h3 .linkbtn { font: inherit; color: inherit; }
 /* the moment before a sentence spoken with the mic held is sent (slice 2 E3) */
 .sendsoon { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 6px; border-radius: 10px; background: var(--surface-2); font-size: var(--text-sm); }
 .sendsoon__words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+
+/* The agents offered when a message starts with @ (Q44): a tap completes the name. */
+.mention { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.mention__pick { border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-sm); padding: 2px 10px; cursor: pointer; }
+.mention__pick:hover { background: var(--surface-2); }

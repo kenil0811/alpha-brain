@@ -5,7 +5,7 @@ import { Intelligence } from "../Intelligence";
 import { connectionRow, connectionsTable } from "./connectionsTable";
 
 const conn = (id: string, connector: string, target: string, over: Partial<Connection> = {}): Connection => ({ id, connector, target, status: "connected", config: {}, last_sync: "2026-10-13T07:00:00Z", last_error: null, ...over });
-const data = (connections: Connection[]): Data => ({ hands: [], skills: [], automations: [], readers: [], connections, knowledge: { facts: [], notes: [], goals: [], permissions: [] } });
+const data = (connections: Connection[]): Data => ({ hands: [], skills: [], agents: [], readers: [], connections, knowledge: { facts: [], notes: [], goals: [], permissions: [] } });
 
 describe("Intelligence's connections as a table", () => {
   it("says each connection in words, the problem column only when one has a problem", () => {
@@ -21,7 +21,7 @@ describe("Intelligence's connections as a table", () => {
       modules: vi.fn().mockResolvedValue([]),
       preference: vi.fn().mockRejectedValue(new Error("none")),
       syncConnection: vi.fn().mockResolvedValue({}),
-      connectionRemoval: vi.fn().mockResolvedValue({ connector: "browser", target: "linkedin.com", what: "Alpha's sign-in, 1 reader and 1 automation", readers: ["r"], automations: ["a"] }),
+      connectionRemoval: vi.fn().mockResolvedValue({ connector: "browser", target: "linkedin.com", what: "Alpha's sign-in, 1 reader and 1 agent", readers: ["r"], agents: ["a"] }),
       removeConnection: vi.fn().mockResolvedValue({}),
     };
     render(<Intelligence client={client as unknown as Client} tab="connections" version={0} onTab={vi.fn()} onChanged={vi.fn()} />);
@@ -35,7 +35,7 @@ describe("Intelligence's connections as a table", () => {
     await waitFor(() => expect(client.syncConnection).toHaveBeenCalledWith("c1"));
     fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
     const dialog = await screen.findByRole("dialog", { name: "Remove linkedin.com, signed in as you?" });
-    expect(dialog).toHaveTextContent("Removes Alpha's sign-in, 1 reader and 1 automation. Your tables keep their rows.");
+    expect(dialog).toHaveTextContent("Removes Alpha's sign-in, 1 reader and 1 agent. Your tables keep their rows.");
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(client.removeConnection).not.toHaveBeenCalled();
     fireEvent.click(within(row).getByRole("button", { name: "Remove" }));

@@ -327,13 +327,13 @@ def test_a_skill_and_an_automation_have_pages(world: World) -> None:
     assert page["kind"] == "read" and page["script"] == "return []"
     assert page["notes"]["body"] == "The list paginates by 50." and page["when_to_use"]
     assert c.get("/api/skills/nothing").status_code == 400
-    a = c.get(f"/api/automations/{pipe['id']}").json()
-    assert a["title"] == "Daily brokers" and a["pipeline"][0]["read"] == "brokers"
+    a = c.get(f"/api/agents/{pipe['id']}").json()
+    assert a["name"] == "Daily brokers" and a["pipeline"][0]["read"] == "brokers"
     assert a["runs"] == []
     # A run of the judged one, then its page shows the run with its outcome.
     automation_runtime.run(world, judged["id"],
                            runner=lambda req: RunResult(ok=True, reply="Nothing new."))
-    j = c.get(f"/api/automations/{judged['id']}").json()
+    j = c.get(f"/api/agents/{judged['id']}").json()
     assert j["pipeline"] is None and len(j["runs"]) == 1
     assert j["runs"][0]["line"] == "Nothing new." and j["runs"][0]["verdict"] == "succeeded"
 
@@ -393,7 +393,7 @@ def test_the_companion_hears_about_runs_that_went_wrong(world: World) -> None:
     c = client(world)
     troubles = c.get("/api/companion").json()["troubles"]
     assert [tr["words"] for tr in troubles] == ["brokers couldn't be reached."]
-    assert troubles[0]["title"] == "Daily brokers" and troubles[0]["id"] == auto["id"]
+    assert troubles[0]["name"] == "Daily brokers" and troubles[0]["id"] == auto["id"]
     world.agents.finished(auto["id"], result="Read 1 of 1 sources.", error=None)
     assert c.get("/api/companion").json()["troubles"] == []
 
@@ -409,13 +409,14 @@ def test_an_automations_page_has_its_runs_with_verdicts_its_page_and_a_good_run(
     world.runs.finish(rid, verdict="partial", why="walled couldn't be reached.",
                       line="Read 1 of 2 sources.", model_ms=0, read=1, sources=2)
     c = client(world)
-    page = c.get(f"/api/automations/{auto['id']}").json()
-    assert page["goal"] == "deals" and page["guidelines"]["body"] == "read the brokers"
+    page = c.get(f"/api/agents/{auto['id']}").json()
+    assert page["goal"] == "deals" and page["brief"]["body"] == "read the brokers"
+    assert page["notes"] is None and page["decisions"] == [] and page["may"]
     assert page["last_verdict"] == "partial" and page["last_why"] == "walled couldn't be reached."
     assert page["runs"][0]["verdict"] == "partial" and page["runs"][0]["read"] == 1
     assert [ln["text"] for ln in page["runs"][0]["lines"]] == ["Read 3 with brokers."]
     assert page["good_run"].startswith("it ends with its line")
-    listed = c.get("/api/intelligence").json()["automations"][0]
+    listed = c.get("/api/intelligence").json()["agents"][0]
     assert listed["last_verdict"] == "partial"
 
 

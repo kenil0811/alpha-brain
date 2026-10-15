@@ -4,7 +4,7 @@
  * in each, the people and organisations Alpha knows, and the links between them, with the
  * ones Alpha proposed drawn dashed until the person decides. What is concentrated shows as a
  * dense, big cluster; what is quiet as a small one; what nothing connects wears a dotted ring,
- * and the glance at the corner counts it. **Work** is Alpha's own plumbing: skills, automations,
+ * and the glance at the corner counts it. **Work** is Alpha's own plumbing: skills, agents,
  * sources, connections. Both are drawn the same way: a force layout in a worker, pan, zoom,
  * find, pins, focus on one area, a card for anything with its links in words and Open.
  *
@@ -29,7 +29,7 @@ const KINDS: Record<GraphKind, { kind: Kind; label: string }[]> = {
     { kind: "module", label: "Modules" },
     { kind: "table", label: "Tables" },
     { kind: "skill", label: "Skills" },
-    { kind: "automation", label: "Agents" },
+    { kind: "agent", label: "Agents" },
     { kind: "source", label: "Sources" },
     { kind: "connection", label: "Connections" },
   ],
@@ -65,8 +65,8 @@ export function addressOf(node: GraphNode): Surface | null {
       return { kind: "goal", id: node.id.slice("goal:".length) };
     case "skill":
       return { kind: "skill", name: node.name ?? node.id.slice("skill:".length) };
-    case "automation":
-      return { kind: "automation", id: node.id.slice("automation:".length) };
+    case "agent":
+      return { kind: "agent", id: node.id.slice("agent:".length) };
     case "connection":
       return { kind: "intelligence", tab: "connections" };
     case "person":
@@ -99,7 +99,7 @@ function Glyph({ node }: { node: GraphNode }) {
       return <Layers {...props} x={-12} y={-12} width={24} height={24} />;
     case "table":
       return <Table2 {...props} />;
-    case "automation":
+    case "agent":
       return <ActivityIcon {...props} />;
     case "source":
       return <Globe {...props} x={-6} y={-6} width={12} height={12} />;
@@ -124,7 +124,7 @@ function Glyph({ node }: { node: GraphNode }) {
 
 function stateOf(node: GraphNode): "bad" | "warn" | "off" | null {
   if (node.kind === "skill") return node.state === "broken" ? "bad" : node.state === "untried" ? "warn" : null;
-  if (node.kind === "automation") return node.state === "problem" ? "bad" : node.state === "off" ? "off" : null;
+  if (node.kind === "agent") return node.state === "problem" ? "bad" : node.state === "off" ? "off" : null;
   if (node.kind === "source") return node.state === "working" ? null : node.state === "blocked" || node.state === "unavailable" ? "bad" : node.state === "needs_signin" || node.state === "not_built" ? "warn" : "off";
   if (node.kind === "connection") return node.state === "connected" ? null : node.state === "off" ? "off" : "warn";
   return null;
@@ -334,7 +334,7 @@ export function WorkMap({ client, onGo, initialKind = "world" }: { client: Clien
   }, [query, shown.nodes]);
   const focus = hovered ?? selected;
   const lit = matches ?? litSet ?? (focus ? new Set([focus, ...(neighbours.get(focus) ?? [])]) : null);
-  const labelled = (n: GraphNode) => n.kind === "module" || n.kind === "you" || n.kind === "table" || n.kind === "automation" || n.kind === "connection" || n.kind === "goal" || view.k >= 1.4 || focusHome !== null || (lit?.has(n.id) ?? false);
+  const labelled = (n: GraphNode) => n.kind === "module" || n.kind === "you" || n.kind === "table" || n.kind === "agent" || n.kind === "connection" || n.kind === "goal" || view.k >= 1.4 || focusHome !== null || (lit?.has(n.id) ?? false);
   const labelScale = Math.min(1.6, Math.max(0.9, 1 / Math.sqrt(view.k)));
 
   const toGraph = useCallback((clientX: number, clientY: number) => {

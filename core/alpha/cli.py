@@ -64,6 +64,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("collection")
     p.add_argument("--limit", type=int, default=20)
     sub.add_parser("notes", help="Alpha's notes")
+    sub.add_parser("agents", help="the agents, with their state and last verdict")
+    p = sub.add_parser("agent-rename", help="rename an agent (the name an @ addresses)")
+    p.add_argument("id")
+    p.add_argument("name", nargs="+")
     p = sub.add_parser("remove-module", help="delete a module and everything that belongs to it")
     p.add_argument("module")
     p = sub.add_parser("turns", help="how long the last turns took, measured from the journal")
@@ -146,6 +150,22 @@ def main(argv: list[str] | None = None) -> int:
             if r.duration_ms is not None:
                 print(f"\n[{r.duration_ms / 1000:.1f} s · {r.num_turns} steps]", file=sys.stderr)
             return 0 if outcome.ok else 1
+        if args.command == "agents":
+            listed = []
+            for a in world.agents.all():
+                run = world.runs.last(a["id"])
+                listed.append({"id": a["id"], "name": a["name"], "state": a["state"],
+                               "when": a["when"], "last": (run["verdict"] if run else "") or ""})
+            print(_table(listed, ["id", "name", "state", "when", "last"]))
+            return 0
+        if args.command == "agent-rename":
+            before = world.agents.get(args.id)
+            name = " ".join(args.name).strip()
+            agent = world.agents.update(args.id, name=name)
+            world.journal.append("changed", f"You renamed the agent {before['name']} to {name}.",
+                                 actor="person", module=agent["module"], data={"agent": args.id})
+            print(f"{agent['id']}: {agent['name']}")
+            return 0
         if args.command == "journal":
             module = world.modules.get(args.module)["id"] if args.module else None
             for entry in world.journal.recent(args.limit, module=module):

@@ -8,7 +8,7 @@ import type { Client, FileItem, ModuleDetail, ModuleSummary, Note, Source, Modul
 import { DataPage } from "./DataPage";
 import { formatNumber, humanize, when } from "./format";
 import type { Surface } from "../shell/Rail";
-import { AutomationList } from "../shell/Automations";
+import { AgentList } from "../shell/Agents";
 import { Button, Tabs, Menu, MenuHeading, MenuItem } from "../ui";
 import { ModuleIcon } from "../ui/icons";
 import { ModuleGlyph } from "../shell/moduleIcons";
@@ -414,7 +414,7 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
               <h2>Agents</h2>
               <span className="faint">Switch any off; Alpha says so if something needs it</span>
             </div>
-            <AutomationList client={client} items={detail.automations} onChanged={onChanged} empty="No agents here yet. Ask Alpha to keep something here current and it shows up with a switch and a verdict per run." />
+            <AgentList client={client} items={detail.agents} onChanged={onChanged} empty="No agents here yet. Ask Alpha to keep something here current and it shows up with a switch and a verdict per run." />
           </div>
           <div className="section">
             <div className="section__head">
@@ -616,9 +616,9 @@ function Summary({ client, moduleId, version, onOpen }: { client: Client; module
           {t.rows === 0 ? <p className="empty">Nothing here yet.</p> : null}
         </div>
       ))}
-      {data.automations ? (
+      {data.agents ? (
         <p className="faint">
-          {data.automations === 1 ? "One thing runs" : `${data.automations} things run`} on its own here{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
+          {data.agents === 1 ? "One agent works on its own here" : `${data.agents} agents work on their own here`}{data.next_run ? `; next at ${when(data.next_run)}` : ""}. See Settings.
         </p>
       ) : null}
     </div>

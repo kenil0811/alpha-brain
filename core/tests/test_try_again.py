@@ -172,7 +172,7 @@ def test_an_agent_s_failed_run_runs_again_and_reports_how_it_went(world: World) 
     def failures() -> list[dict[str, Any]]:
         return [e for e in _failures(c) if e["data"].get("agent") == auto["id"]]
 
-    c.post(f"/api/automations/{auto['id']}/run")
+    c.post(f"/api/agents/{auto['id']}/run")
     while not failures():
         assert time.time() < deadline
         time.sleep(0.02)

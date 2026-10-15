@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client, ModuleDetail } from "../core/client";
 import { ModulePage } from "./ModulePage";
 
-const detail = { id: "m_1", name: "Advisory", goal: "help clients", tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "", activity: [], note: null, goals: [], automations: [], sources: [] } as unknown as ModuleDetail;
+const detail = { id: "m_1", name: "Advisory", goal: "help clients", tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "", activity: [], note: null, goals: [], agents: [], sources: [] } as unknown as ModuleDetail;
 
 describe("adding files to a module", () => {
   it("has a button that opens the Mac's picker and sends what was chosen the way a drop does", async () => {

@@ -33,7 +33,7 @@ def _touched(world: World, e: dict[str, Any]) -> list[dict[str, Any]]:
                      "chat": world.modules.thread(e["thread"])["kind"] == "chat"})
     agent = d.get("agent") or d.get("automation") or (owner["id"] if owner else None)
     if agent:
-        add(lambda: {"kind": "automation", "id": agent,
+        add(lambda: {"kind": "agent", "id": agent,
                      "name": world.agents.get(str(agent))["name"]})
     for key in ("reader", "procedure", "skill"):
         if isinstance(d.get(key), str):

@@ -36,12 +36,12 @@ export interface TableDesc {
 export type GraphKind = "work" | "world";
 export interface GraphNode {
   id: string;
-  kind: "module" | "table" | "skill" | "automation" | "source" | "connection" | "you" | "person" | "organisation" | "document" | "page" | "goal";
+  kind: "module" | "table" | "skill" | "agent" | "source" | "connection" | "you" | "person" | "organisation" | "document" | "page" | "goal";
   title: string;
   subtitle?: string;
   /** A skill's role: read, act or run. */
   role?: "read" | "act" | "run";
-  /** ok, broken, untried (skills); on, off, problem (automations); a source's status; a connection's. */
+  /** ok, broken, untried (skills); on, off, problem (agents); a source's status; a connection's. */
   state?: string;
   detail?: string;
   module?: string | null;
@@ -147,7 +147,7 @@ export interface JournalEntry {
 
 /** What an activity entry touched, each opening its own page (slice 2 D12). */
 export interface Touched {
-  kind: "module" | "conversation" | "automation" | "skill" | "record" | "goal";
+  kind: "module" | "conversation" | "agent" | "skill" | "record" | "goal";
   id: string;
   name: string;
   table?: string;
@@ -189,7 +189,7 @@ export interface RemovalPlan {
   rows: number;
   files: number;
   readers: string[];
-  automations: number;
+  agents: number;
   inside: string[];
   what: string;
 }
@@ -271,7 +271,7 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   activity: JournalEntry[];
   note: Note | null;
   goals: Goal[];
-  automations: Automation[];
+  agents: Agent[];
   sources: Source[];
 }
 
@@ -359,7 +359,7 @@ export interface ModuleSummary {
   tables: TableSummaryData[];
   goals: Goal[];
   next_run: string | null;
-  automations: number;
+  agents: number;
 }
 
 export interface Action {
@@ -530,10 +530,10 @@ export interface DataInfo {
 export interface ConnectionRemoval {
   connector: string;
   target: string;
-  /** What goes, in words: "Alpha's sign-in, 1 reader and 1 automation". */
+  /** What goes, in words: "Alpha's sign-in, 1 reader and 1 agent". */
   what: string;
   readers: string[];
-  automations: string[];
+  agents: string[];
 }
 
 export interface Connection {
@@ -587,35 +587,73 @@ export interface SkillDetail extends Omit<Skill, "notes"> {
   runs: { at: string; kind: string; text: string }[];
 }
 
-export interface AutomationDetail extends Automation {
-  skill?: string | null;
-  /** A pipeline's saved steps (its run skill's), or none for a procedure. */
+/** A decision (Q44, Q50): who decided what, why, on what evidence; the person's bind the agents. */
+export interface Decision {
+  id: string;
+  at: string;
+  by: string;
+  what: string;
+  why: string | null;
+  alternatives: string[];
+  evidence: Record<string, unknown>;
+  replaces: string | null;
+  about: Record<string, unknown>;
+  state: "binding" | "open" | "revised";
+}
+
+export interface AgentDetail extends Agent {
+  /** A pipeline's saved steps (its run skill's), or none when the model follows the brief. */
   pipeline?: Record<string, unknown>[] | null;
   runs: Run[];
-  /** The agent's page: what it is for, what a good run looks like, what to do; Alpha writes it, the person edits it. */
-  guidelines?: Note | null;
+  /** The agent's brief: what it is for, what to do, what to tell; the person's page, Alpha drafts it. */
+  brief?: Note | null;
+  /** What the agent learned in its runs, its own page; judgements only. */
+  notes?: Note | null;
+  decisions: Decision[];
   /** What counts as a good run, in words, judged by code. */
   good_run?: string;
+}
+
+/** What deleting a custom agent takes with it, in words. */
+export interface AgentRemoval {
+  agent: string;
+  name: string;
+  runs: number;
+  pages: number;
+  decisions: number;
+  skill: string | null;
+  what: string;
 }
 
 export interface Intelligence {
   hands: Hand[];
   skills: Skill[];
-  automations: Automation[];
+  agents: Agent[];
   readers: Reader[];
   connections: Connection[];
   knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[]; permissions?: Permission[] };
 }
 
-export interface Automation {
+/** An agent (Q44, Q50): everything that works for the person on its own, in one shape. */
+export interface Agent {
   id: string;
-  title: string;
+  /** Its name, the one an @ addresses; editable. */
+  name: string;
+  /** custom, or a built-in kind (sherlock, watson, columbo, scout, doc) as they arrive. */
+  kind: string;
+  /** The sentence the person reads: what it does. */
+  description: string;
   module: string | null;
   thread: string | null;
-  schedule: string;
+  state: "on" | "paused";
+  on: boolean;
+  schedule: string | null;
   when: string;
-  procedure: string;
-  enabled: boolean;
+  /** What it may change (records, notes, facts, goals, asks, proposals, …); never more than Alpha. */
+  may: string[];
+  /** What a good run means, in words, when its page says. */
+  done: string | null;
+  skill?: string | null;
   next_run_at: string | null;
   last_run_at: string | null;
   last_result: string | null;
@@ -741,7 +779,7 @@ export interface Changed {
 /** A run that went wrong in the last day: the companion says so (8 Oct). */
 export interface Trouble {
   id: string;
-  title: string;
+  name: string;
   at: string;
   words: string;
   module: string | null;
@@ -995,9 +1033,13 @@ export class Client {
   updateList = (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => this.call<SavedList>("PATCH", `/api/lists/${id}`, change);
   deleteList = (id: string) => this.call<SavedList>("DELETE", `/api/lists/${id}`);
   skillPage = (name: string) => this.call<SkillDetail>("GET", `/api/skills/${encodeURIComponent(name)}`);
-  automationPage = (id: string) => this.call<AutomationDetail>("GET", `/api/automations/${encodeURIComponent(id)}`);
-  switchAutomation = (id: string, enabled: boolean) => this.call<Automation>("PATCH", `/api/automations/${id}`, { enabled });
-  runAutomation = (id: string) => this.call<Automation>("POST", `/api/automations/${id}/run`);
+  agents = () => this.call<Agent[]>("GET", "/api/agents");
+  agentPage = (id: string) => this.call<AgentDetail>("GET", `/api/agents/${encodeURIComponent(id)}`);
+  /** Pause an agent or set it going, or rename it. */
+  changeAgent = (id: string, change: { state?: "on" | "paused"; name?: string }) => this.call<Agent>("PATCH", `/api/agents/${id}`, change);
+  runAgent = (id: string) => this.call<Agent>("POST", `/api/agents/${id}/run`);
+  agentRemoval = (id: string) => this.call<AgentRemoval>("GET", `/api/agents/${encodeURIComponent(id)}/removal`);
+  deleteAgent = (id: string) => this.call<AgentRemoval>("DELETE", `/api/agents/${encodeURIComponent(id)}`);
 
   answerAsk = (id: string, text: string) => this.call<{ answered: string; turn: Turn | null }>("POST", `/api/asks/${id}/answer`, { text });
   /** Questions asked together, answered together: ask id → words; one turn carries them. */

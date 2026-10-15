@@ -5,7 +5,7 @@ import { Rail } from "./Rail";
 import { RemovedModulesList, RemoveModuleDialog } from "./RemoveModule";
 
 const card = (id: string, name: string, parent: string | null = null): ModuleCard => ({ id, name, parent, path: [name], children: [], goal: null, tables: [], records: 0, last_at: null, last_text: null, threads: [], created_at: "" });
-const plan = { module: "Deals", tables: 1, rows: 12, files: 0, readers: [], automations: 1, inside: [], what: "1 table (12 rows) and 1 automation" };
+const plan = { module: "Deals", tables: 1, rows: 12, files: 0, readers: [], agents: 1, inside: [], what: "1 table (12 rows) and 1 agent" };
 
 function core() {
   const prefs: Record<string, unknown> = {};
@@ -20,7 +20,7 @@ function core() {
     removeModule: vi.fn().mockResolvedValue({ id: "m_d", name: "Deals", removed_at: "2026-10-13T14:00:00Z" }),
     deleteModule: vi.fn().mockResolvedValue({}),
     restoreModule: vi.fn().mockResolvedValue(card("m_d", "Deals")),
-    removedModules: vi.fn().mockResolvedValue([{ id: "m_d", name: "Deals", removed_at: "2026-10-13T14:00:00Z", path: ["Avilo", "Deals"], holds: "1 table (12 rows) and 1 automation", tables: 1, rows: 12, inside: [] }]),
+    removedModules: vi.fn().mockResolvedValue([{ id: "m_d", name: "Deals", removed_at: "2026-10-13T14:00:00Z", path: ["Avilo", "Deals"], holds: "1 table (12 rows) and 1 agent", tables: 1, rows: 12, inside: [] }]),
   };
 }
 
@@ -73,7 +73,7 @@ describe("taking a module away", () => {
     const c = core();
     dialog(c);
     fireEvent.click(await screen.findByRole("radio", { name: /Delete it and its data/ }));
-    expect(await screen.findByText("Deletes 1 table (12 rows) and 1 automation. This can't be undone; Activity keeps that it was here.")).toBeInTheDocument();
+    expect(await screen.findByText("Deletes 1 table (12 rows) and 1 agent. This can't be undone; Activity keeps that it was here.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Delete for good" }));
     await waitFor(() => expect(c.deleteModule).toHaveBeenCalledWith("m_d"));
   });
@@ -84,7 +84,7 @@ describe("Settings › Removed modules", () => {
     const c = core();
     render(<RemovedModulesList client={c as unknown as Client} />);
     expect(await screen.findByText("Avilo › Deals")).toBeInTheDocument();
-    expect(screen.getByText(/· 1 table \(12 rows\) and 1 automation/)).toBeInTheDocument();
+    expect(screen.getByText(/· 1 table \(12 rows\) and 1 agent/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Restore" }));
     await waitFor(() => expect(c.restoreModule).toHaveBeenCalledWith("m_d"));
     fireEvent.click(screen.getByRole("button", { name: "Delete…" }));

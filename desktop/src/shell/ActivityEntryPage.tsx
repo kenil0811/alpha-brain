@@ -13,7 +13,7 @@ import { badge } from "./Activity";
 import { triedWords } from "./Home";
 import type { Surface } from "./Rail";
 
-const TOUCHED: Record<Touched["kind"], string> = { module: "Module", conversation: "Conversation", automation: "Agent", skill: "Skill", record: "Row", goal: "Goal" };
+const TOUCHED: Record<Touched["kind"], string> = { module: "Module", conversation: "Conversation", agent: "Agent", skill: "Skill", record: "Row", goal: "Goal" };
 
 /** Where a thing the entry touched opens; a conversation that isn't a chat (an agent's own
  *  thread) has no page of its own. */
@@ -23,8 +23,8 @@ function placeOf(t: Touched): Surface | null {
       return { kind: "module", id: t.id };
     case "conversation":
       return t.chat ? { kind: "assistant", id: t.id } : null;
-    case "automation":
-      return { kind: "automation", id: t.id };
+    case "agent":
+      return { kind: "agent", id: t.id };
     case "skill":
       return { kind: "skill", name: t.id };
     case "record":

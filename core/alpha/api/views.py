@@ -92,11 +92,10 @@ def opens_run(e: dict[str, Any]) -> bool:
     return bool(data.get("opens") or data.get("prompt"))
 
 
-def automation_views(world: World, scheduler: Scheduler,
-                     module: str | None = None) -> list[dict[str, Any]]:
+def agent_views(world: World, scheduler: Scheduler,
+                module: str | None = None) -> list[dict[str, Any]]:
     """Agents with whether one is running now and, if so, what it has done so far (the
-    entries of its thread since the open run began). `title` is the window's word for the
-    name until it reads `name` (slice A, group 2)."""
+    entries of its thread since the open run began)."""
     out = []
     for a in world.agents.all(module):
         running = a["id"] in scheduler.running
@@ -108,7 +107,7 @@ def automation_views(world: World, scheduler: Scheduler,
                      if e["at"] >= open_run["started_at"] and not opens_run(e)
                      and e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
         last = world.runs.last(a["id"])
-        out.append({**a, "title": a["name"], "running": running, "steps": steps[-8:],
+        out.append({**a, "running": running, "steps": steps[-8:],
                     "last_verdict": last["verdict"] if last else None,
                     "last_why": last["why"] if last else None})
     return out
@@ -195,7 +194,7 @@ def troubles(world: World) -> list[dict[str, Any]]:
     out = []
     for a in world.agents.all():
         if a.get("last_error") and (a.get("last_run_at") or "") >= since:
-            out.append({"id": a["id"], "title": a["name"], "at": a["last_run_at"],
+            out.append({"id": a["id"], "name": a["name"], "at": a["last_run_at"],
                         "words": a["last_error"], "module": a["module"]})
     return sorted(out, key=lambda t: t["at"], reverse=True)
 

@@ -27,7 +27,7 @@ from alpha.api.bodies import (
 from alpha.api.served import Served
 from alpha.api.views import (
     _cell,
-    automation_views,
+    agent_views,
     module_card,
     relation_titles,
 )
@@ -76,7 +76,7 @@ def routes(app: FastAPI, s: Served) -> None:
         card["activity"] = list(reversed(world.journal.recent(500, modules=ids)))
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] in ids]
-        card["automations"] = [a for i in ids for a in automation_views(world, scheduler, i)]
+        card["agents"] = [a for i in ids for a in agent_views(world, scheduler, i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
         return card
 

@@ -102,5 +102,5 @@ def module_summary(world: World, module_id: str) -> dict[str, Any]:
         "tables": tables,
         "goals": [g for g in world.knowledge.goals() if g["module"] in ids],
         "next_run": min((a["next_run_at"] for a in autos if a["next_run_at"]), default=None),
-        "automations": len(autos),
+        "agents": len(autos),
     }

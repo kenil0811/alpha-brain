@@ -134,7 +134,7 @@ def removal_plan(world: World, ref: str) -> dict[str, Any]:
     module = world.modules.get(ref)
     store = world.store
     ids = world.modules.subtree(module["id"])
-    tables = rows = files = automations = 0
+    tables = rows = files = agents = 0
     readers: set[str] = set()
     for mid in ids:
         names = [r["name"] for r in store.all("SELECT name FROM collections WHERE module = ?",
@@ -143,17 +143,17 @@ def removal_plan(world: World, ref: str) -> dict[str, Any]:
         for t in names:
             rows += _count(store, "SELECT COUNT(*) AS n FROM records WHERE collection = ?", (t,))
         autos = _agents_of(store, "module = ?", (mid,))
-        automations += len(autos)
+        agents += len(autos)
         readers |= set(_readers_of(store, mid, names, autos))
         files += _count(store, "SELECT COUNT(*) AS n FROM documents WHERE module = ?", (mid,))
     inside = [world.modules.get(i)["name"] for i in ids[1:]]
     what = [plural(tables, "table") + (f" ({plural(rows, 'row')})" if rows else "")]
     what += [plural(files, "file")] if files else []
     what += [plural(len(readers), "reader")] if readers else []
-    what += [plural(automations, "agent")] if automations else []
+    what += [plural(agents, "agent")] if agents else []
     words = and_join(what) + (f", with {and_join(inside)} inside it" if inside else "")
     return {"module": module["name"], "tables": tables, "rows": rows, "files": files,
-            "readers": sorted(readers), "automations": automations, "inside": inside,
+            "readers": sorted(readers), "agents": agents, "inside": inside,
             "what": words}
 
 
@@ -198,7 +198,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
             Decisions.remove_about(db, "agent", a["id"])
         Decisions.remove_about(db, "module", mid)
-        counts["automations"] = db.execute(
+        counts["agents"] = db.execute(
             "DELETE FROM agents WHERE module = ?", (mid,)).rowcount
         _retire_threads(db, sorted(threads))
         counts["threads"] = len(threads)
@@ -223,7 +223,7 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
         world.journal.close_ask(ask, f"{name} was removed.", actor="alpha", closed="removed")
     what = [plural(len(tables), "table") + (f" ({plural(records, 'row')})" if records else "")]
     what += [plural(len(readers), "reader")] if readers else []
-    what += [plural(counts["automations"], "agent")] if counts["automations"] else []
+    what += [plural(counts["agents"], "agent")] if counts["agents"] else []
     _record_removal(world, "module", mid, name, and_join(what), threads=sorted(threads),
                     agents=[a["id"] for a in autos], readers=readers)
     return counts
@@ -380,7 +380,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         "what": and_join(what),
         "readers": readers,
         "procedures": procedures,
-        "automations": [a["name"] for a in autos],
+        "agents": [a["name"] for a in autos],
     }
     if dry_run:
         return plan

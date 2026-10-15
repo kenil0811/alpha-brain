@@ -129,19 +129,19 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
 
     auto = building(world).agent_create("Sync", "every 1h", "do it")
     c = TestClient(create_app(world, live=False, runner=runner))
-    assert c.post(f"/api/automations/{auto['id']}/run").json()["running"] is True
+    assert c.post(f"/api/agents/{auto['id']}/run").json()["running"] is True
     end = time.time() + 5
     view: dict[str, Any] = {}
     while time.time() < end:
-        view = c.get("/api/automations").json()[0]
+        view = c.get("/api/agents").json()[0]
         if view["steps"]:
             break
         time.sleep(0.05)
     assert view["running"] and view["steps"][-1]["text"] == "Read the page."
     gate["go"] = True
-    while time.time() < end and c.get("/api/automations").json()[0]["running"]:
+    while time.time() < end and c.get("/api/agents").json()[0]["running"]:
         time.sleep(0.05)
-    assert c.get("/api/automations").json()[0]["last_result"] == "Synced."
+    assert c.get("/api/agents").json()[0]["last_result"] == "Synced."
 
 
 def test_an_agent_run_cannot_keep_a_list_with_page_to_table(world: World) -> None:

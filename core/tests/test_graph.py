@@ -35,10 +35,10 @@ def test_the_map_links_what_feeds_what(world: World) -> None:
     data = c.get("/api/graph").json()
     by_id = {n["id"]: n for n in data["nodes"]}
     kinds = {k: sorted(n["id"] for n in data["nodes"] if n["kind"] == k)
-             for k in ("module", "table", "skill", "automation", "source", "connection")}
+             for k in ("module", "table", "skill", "agent", "source", "connection")}
     assert kinds["module"] == [f"module:{module}"]
     assert kinds["table"] == ["table:deals"]
-    assert kinds["automation"] == [f"automation:{pipe['id']}"]
+    assert kinds["agent"] == [f"agent:{pipe['id']}"]
     assert len(kinds["source"]) == 2 and len(kinds["connection"]) == 1
     run_skill = next(n for n in data["nodes"] if n["kind"] == "skill" and n["role"] == "run")
     reader = by_id["skill:brokers"]
@@ -49,7 +49,7 @@ def test_the_map_links_what_feeds_what(world: World) -> None:
 
     rel = {(e["from"], e["to"], e["kind"]) for e in data["edges"]}
     assert ("table:deals", f"module:{module}", "in") in rel
-    assert (f"automation:{pipe['id']}", run_skill["id"], "runs") in rel
+    assert (f"agent:{pipe['id']}", run_skill["id"], "runs") in rel
     assert (run_skill["id"], "skill:brokers", "runs") in rel
     assert ("skill:brokers", "table:deals", "reads into") in rel
     assert (run_skill["id"], "table:deals", "tells") in rel

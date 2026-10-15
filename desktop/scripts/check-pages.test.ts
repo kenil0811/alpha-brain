@@ -4,7 +4,7 @@ import { fold, keep, pagesFor, shotName } from "./check-pages";
 const world = {
   modules: [{ id: "m_1", name: "Deals", tables: [{ name: "deals" }, { name: "brokers" }] }],
   skills: [{ name: "linkedin_connections" }],
-  automations: [{ id: "a_1", title: "Daily deals" }],
+  agents: [{ id: "a_1", name: "Daily deals" }],
   people: [{ id: "e_1", name: "Ada" }],
   records: [{ module: "m_1", table: "deals", id: "r_1" }],
   looseRecords: [{ table: "notes", id: "r_9" }],
@@ -23,7 +23,7 @@ describe("the pages of a world", () => {
     expect(paths).toContain("/m/m_1/deals/r_1");
     expect(paths).toContain("/intelligence/knowledge");
     expect(paths).toContain("/intelligence/skills/linkedin_connections");
-    expect(paths).toContain("/intelligence/automations/a_1");
+    expect(paths).toContain("/intelligence/agents/a_1");
     expect(paths).toContain("/settings");
     // the pages added on 14 Oct: an entry, a goal, a conversation, a loose table's record, the map
     expect(paths).toContain("/activity/j_1");
@@ -38,7 +38,7 @@ describe("the pages of a world", () => {
   });
 
   it("escapes an id with a slash in it so the address stays one page", () => {
-    const [page] = pagesFor({ ...world, modules: [{ id: "a/b" }], people: [], skills: [], automations: [] }).filter((p) => p.path.startsWith("/m/"));
+    const [page] = pagesFor({ ...world, modules: [{ id: "a/b" }], people: [], skills: [], agents: [] }).filter((p) => p.path.startsWith("/m/"));
     expect(page.path).toBe("/m/a%2Fb");
   });
 
@@ -48,11 +48,11 @@ describe("the pages of a world", () => {
       "/intelligence",
       "/intelligence/map",
       "/intelligence/skills",
-      "/intelligence/automations",
+      "/intelligence/agents",
       "/intelligence/connections",
       "/intelligence/knowledge",
       "/intelligence/skills/linkedin_connections",
-      "/intelligence/automations/a_1",
+      "/intelligence/agents/a_1",
       "/intelligence/goals/g_1",
     ]);
     expect(keep(pages, ["/home", "settings"]).map((p) => p.path)).toEqual(["/home", "/settings"]);

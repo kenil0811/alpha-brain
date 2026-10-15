@@ -43,9 +43,9 @@ def _skill_runs(world: World) -> dict[str, dict[str, int]]:
     return counts
 
 
-def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any]:
-    """The nodes and edges of the map of work. `automations` are the agents' views (they
-    carry which run skill each agent runs), handed in so this module needs no scheduler."""
+def work_graph(world: World, agents: list[dict[str, Any]]) -> dict[str, Any]:
+    """The nodes and edges of the map of work. `agents` are the agents' views (they carry
+    which run skill each agent runs), handed in so this module needs no scheduler."""
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     known: set[str] = set()
@@ -103,14 +103,14 @@ def work_graph(world: World, automations: list[dict[str, Any]]) -> dict[str, Any
             if step.get("tell"):
                 edge(sid, f"table:{step['tell']}", "tells", order=i)
 
-    for a in automations:
+    for a in agents:
         state = "off" if not a.get("on") else ("problem" if a.get("last_error") else "on")
-        node(f"automation:{a['id']}", "automation", a["name"], subtitle=a.get("schedule"),
+        node(f"agent:{a['id']}", "agent", a["name"], subtitle=a.get("schedule"),
              state=state, detail=a.get("last_error"), module=a.get("module"))
         if a.get("module"):
-            edge(f"automation:{a['id']}", f"module:{a['module']}", "in")
+            edge(f"agent:{a['id']}", f"module:{a['module']}", "in")
         if a.get("skill"):
-            edge(f"automation:{a['id']}", f"skill:{a['skill']}", "runs")
+            edge(f"agent:{a['id']}", f"skill:{a['skill']}", "runs")
 
     for s in world.sources.all():
         node(f"source:{s['id']}", "source", s["title"], subtitle=s["url"], state=s["status"],

@@ -28,8 +28,8 @@ export function pathFor(surface: Surface): string {
       return surface.tab ? `/intelligence/${encodeURIComponent(surface.tab)}` : "/intelligence";
     case "skill":
       return `/intelligence/skills/${encodeURIComponent(surface.name)}`;
-    case "automation":
-      return `/intelligence/automations/${encodeURIComponent(surface.id)}`;
+    case "agent":
+      return `/intelligence/agents/${encodeURIComponent(surface.id)}`;
     case "goal":
       return `/intelligence/goals/${encodeURIComponent(surface.id)}`;
     case "entry":
@@ -58,7 +58,8 @@ export function surfaceFromPath(path: string): Surface | null {
   if (head === "assistant") return rest ? { kind: "assistant", id: rest } : { kind: "assistant" };
   if (head === "intelligence") {
     if (rest === "skills" && third) return { kind: "skill", name: third };
-    if (rest === "automations" && third) return { kind: "automation", id: third };
+    // agents, and the address they had before 15 Oct 2026 (automations), so an old link still opens
+    if ((rest === "agents" || rest === "automations") && third) return { kind: "agent", id: third };
     if (rest === "goals" && third) return { kind: "goal", id: third };
     return rest ? { kind: "intelligence", tab: rest } : { kind: "intelligence" };
   }

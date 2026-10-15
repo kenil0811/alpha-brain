@@ -18,6 +18,7 @@ describe("the reply as it is written", () => {
     const client = {
       conversation: vi.fn().mockResolvedValue(empty),
       newConversation: vi.fn().mockResolvedValue({ id: "c_1" }),
+      agents: vi.fn().mockResolvedValue([]),
       askAndWait: vi.fn((_text: string, _opts: unknown, onTick?: (t: Turn) => void) => {
         onTick?.(running);
         return new Promise<Turn>(() => undefined);

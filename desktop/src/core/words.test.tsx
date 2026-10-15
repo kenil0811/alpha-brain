@@ -52,7 +52,7 @@ describe("every delete confirms (section 9c)", () => {
   it("asks before revoking a standing permission, saying what changes", async () => {
     const permission = { id: "p1", procedure: "gmail_draft", sentence: "Draft emails in Gmail", granted_at: "2026-10-02T17:00:00Z" };
     const client = {
-      intelligence: vi.fn().mockResolvedValue({ hands: [], skills: [], automations: [], readers: [], connections: [], knowledge: { facts: [], notes: [], goals: [], permissions: [permission] } }),
+      intelligence: vi.fn().mockResolvedValue({ hands: [], skills: [], agents: [], readers: [], connections: [], knowledge: { facts: [], notes: [], goals: [], permissions: [permission] } }),
       modules: vi.fn().mockResolvedValue([]),
       revokePermission: vi.fn().mockResolvedValue({}),
     };

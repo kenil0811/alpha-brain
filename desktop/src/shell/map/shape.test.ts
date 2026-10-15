@@ -9,7 +9,7 @@ const graph: WorkGraph = {
     { id: "table:deals", kind: "table", title: "Deal listings", module: "m1", rows: 10 },
     { id: "skill:brokers", kind: "skill", role: "read", title: "brokers", name: "brokers", state: "ok" },
     { id: "skill:run_deals", kind: "skill", role: "run", title: "run deals", name: "run_deals", module: "m1" },
-    { id: "automation:a1", kind: "automation", title: "Daily deals", module: "m1", state: "on" },
+    { id: "agent:a1", kind: "agent", title: "Daily deals", module: "m1", state: "on" },
     { id: "source:s1", kind: "source", title: "Brokers site", subtitle: "https://brokers.com/list", state: "working", module: "m1" },
     { id: "source:s2", kind: "source", title: "Walled site", subtitle: "https://walled.com", state: "needs_signin", module: "m1" },
     { id: "skill:gmail_draft", kind: "skill", role: "act", title: "gmail draft", name: "gmail_draft" },
@@ -17,7 +17,7 @@ const graph: WorkGraph = {
   ],
   edges: [
     { from: "table:deals", to: "module:m1", kind: "in" },
-    { from: "automation:a1", to: "skill:run_deals", kind: "runs" },
+    { from: "agent:a1", to: "skill:run_deals", kind: "runs" },
     { from: "skill:run_deals", to: "skill:brokers", kind: "runs", order: 1 },
     { from: "skill:brokers", to: "table:deals", kind: "reads into" },
     { from: "source:s1", to: "skill:brokers", kind: "read by" },
@@ -41,7 +41,7 @@ describe("the map's shape", () => {
     const home = Object.fromEntries(shape(graph).nodes.map((n) => [n.id, n.home]));
     expect(home["skill:brokers"]).toBe("m1");
     expect(home["skill:run_deals"]).toBe("m1");
-    expect(home["automation:a1"]).toBe("m1");
+    expect(home["agent:a1"]).toBe("m1");
     expect(home["source:s2"]).toBe("m1");
     expect(home["skill:gmail_draft"]).toBe("");
     expect(home["connection:c1"]).toBe("");

@@ -16,13 +16,13 @@ const graph: WorkGraph = {
     { id: "table:food", kind: "table", title: "Food log", subtitle: "5 rows", module: "m2", rows: 5 },
     { id: "skill:brokers", kind: "skill", role: "read", title: "brokers", subtitle: "brokers.com", state: "broken", detail: "the list moved", name: "brokers", runs: 4, failed: 1 },
     { id: "skill:run_deals", kind: "skill", role: "run", title: "run deals", subtitle: "2 steps", state: "ok", name: "run_deals", module: "m1" },
-    { id: "automation:a1", kind: "automation", title: "Daily deals", subtitle: "daily 07:00", state: "on", module: "m1" },
+    { id: "agent:a1", kind: "agent", title: "Daily deals", subtitle: "daily 07:00", state: "on", module: "m1" },
     { id: "connection:c1", kind: "connection", title: "brokers.com", subtitle: "browser", state: "connected" },
   ],
   edges: [
     { from: "table:deals", to: "module:m1", kind: "in" },
     { from: "table:food", to: "module:m2", kind: "in" },
-    { from: "automation:a1", to: "skill:run_deals", kind: "runs" },
+    { from: "agent:a1", to: "skill:run_deals", kind: "runs" },
     { from: "skill:run_deals", to: "skill:brokers", kind: "runs", order: 1 },
     { from: "skill:brokers", to: "table:deals", kind: "reads into", source: "step 1 of run_deals" },
     { from: "connection:c1", to: "skill:brokers", kind: "signed in at", source: "brokers.com" },
@@ -115,7 +115,7 @@ describe("the map", () => {
     expect(addressOf(graph.nodes[0])).toEqual({ kind: "module", id: "m1" });
     expect(addressOf(graph.nodes[2])).toEqual({ kind: "module", id: "m1" });
     expect(addressOf(graph.nodes[4])).toEqual({ kind: "skill", name: "brokers" });
-    expect(addressOf(graph.nodes[6])).toEqual({ kind: "automation", id: "a1" });
+    expect(addressOf(graph.nodes[6])).toEqual({ kind: "agent", id: "a1" });
     expect(addressOf(graph.nodes[7])).toEqual({ kind: "intelligence", tab: "connections" });
     expect(edgeWords(graph.edges[3], "brokers")).toBe("runs brokers (step 1)");
     expect(edgeWords({ from: "a", to: "b", kind: "feeds", count: 7 }, "Advisory")).toBe("feeds Advisory (7)");

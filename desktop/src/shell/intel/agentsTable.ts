@@ -1,31 +1,32 @@
 /**
  * Intelligence › Agents as a table (13 Oct, Q42 section 7c; the feature from pull request #5, the
  * view main's own): Alpha first ("Alpha — your assistant", whose row opens the Assistant), then
- * every automation (Q33: an agent's process, with a goal and a verdict per run judged by code),
- * each a row of the one data view wearing its agent's face. The switch and Run now sit at the
- * start of an automation's row; its › opens its page, where its look is picked.
+ * every agent (Q44, Q50: one shape for everything that works on its own, with a goal and a
+ * verdict per run judged by code), each a row of the one data view wearing its agent's face.
+ * The switch and Run now sit at the start of an agent's row; its › opens its page, where its
+ * look is picked and its name changed.
  */
-import type { Automation, RecordRow, TableDesc } from "../../core/client";
+import type { Agent, RecordRow, TableDesc } from "../../core/client";
 import type { Colours } from "../../modules/views/engine";
 import { ALPHA_AGENT } from "../AgentFace";
-import { VERDICT } from "../Automations";
+import { VERDICT } from "../Agents";
 
-export const AGENT_STATE = { running: "Running now", on: "On", off: "Off" } as const;
+export const AGENT_STATE = { running: "Running now", on: "On", paused: "Paused" } as const;
 export const NOT_JUDGED = "Not judged yet";
 
-export function agentsTable(automations: Automation[], modules: Record<string, string>): TableDesc {
-  const moduleNames = [...new Set(automations.map((a) => (a.module ? modules[a.module] : undefined)).filter((m): m is string => Boolean(m)))].sort();
+export function agentsTable(agents: Agent[], modules: Record<string, string>): TableDesc {
+  const moduleNames = [...new Set(agents.map((a) => (a.module ? modules[a.module] : undefined)).filter((m): m is string => Boolean(m)))].sort();
   return {
     name: "intel_agents",
     title: "Agents",
     module: null,
     title_field: "agent",
-    records: automations.length + 1,
+    records: agents.length + 1,
     readonly: true,
     fields: [
       { name: "agent", kind: "text", label: "Agent" },
       { name: "goal", kind: "text", label: "What it is for" },
-      { name: "when", kind: "text", label: "When it runs" },
+      { name: "when", kind: "text", label: "When it works" },
       { name: "state", kind: "status", label: "State", choices: Object.values(AGENT_STATE), done_choices: [AGENT_STATE.on] },
       { name: "next_run", kind: "datetime", label: "Next run" },
       { name: "last_run", kind: "datetime", label: "Last run" },
@@ -42,15 +43,15 @@ const row = (id: string, values: Record<string, unknown>, at = ""): RecordRow =>
 /** Alpha's own row: the assistant, which answers whenever the person asks. */
 export const alphaRow = (): RecordRow => row(ALPHA_AGENT, { agent: "Alpha — your assistant", goal: "Answers you, keeps your modules and asks before acting", when: "When you ask", state: null, next_run: null, last_run: null, verdict: null, why: null, module: null });
 
-export function automationRow(a: Automation, modules: Record<string, string>): RecordRow {
+export function agentRow(a: Agent, modules: Record<string, string>): RecordRow {
   return row(
     a.id,
     {
-      agent: a.title,
-      goal: a.goal ?? null,
+      agent: a.name,
+      goal: a.goal ?? (a.description !== a.name ? a.description : null),
       when: a.when,
-      state: a.running ? AGENT_STATE.running : a.enabled ? AGENT_STATE.on : AGENT_STATE.off,
-      next_run: a.enabled ? a.next_run_at : null,
+      state: a.running ? AGENT_STATE.running : a.on ? AGENT_STATE.on : AGENT_STATE.paused,
+      next_run: a.on ? a.next_run_at : null,
       last_run: a.last_run_at,
       verdict: a.last_verdict ? VERDICT[a.last_verdict].words : a.last_run_at ? NOT_JUDGED : null,
       why: a.last_why ?? (a.last_error ? `Didn't work: ${a.last_error}` : null),
@@ -63,7 +64,7 @@ export function automationRow(a: Automation, modules: Record<string, string>): R
 export const AGENT_COLOURS: Colours = {
   tint: null,
   values: {
-    state: { [AGENT_STATE.running]: "info", [AGENT_STATE.on]: "good", [AGENT_STATE.off]: "gray" },
+    state: { [AGENT_STATE.running]: "info", [AGENT_STATE.on]: "good", [AGENT_STATE.paused]: "gray" },
     verdict: { [VERDICT.succeeded.words]: "good", [VERDICT.partial.words]: "warn", [VERDICT.failed.words]: "bad", [NOT_JUDGED]: "gray" },
   },
   rules: {},
