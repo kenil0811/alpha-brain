@@ -61,6 +61,14 @@ reading what Alpha reads about people he knows, recording conversations' decisio
 conclusions (C2), inferences kept quietly. Kenil: "1 yes, 2 yes, 3a, 4 yes, 5 ok, 6 yes".
 Recorded as Q46.
 
+## Session 5: Columbo, the checker (15 Oct)
+
+Measured first: 18 checks since 2 Oct (13 agreed, 2 differed), only after turns that wrote
+worked-out values. Drafted Columbo to check five things (values written, answers relied on,
+parts' values, Sherlock's sources, numbers going out) two ways (outside, the person's world),
+never fixing (the owner corrects; the person settles disagreeing sources), with a mark on what
+was checked. Kenil: "1 yes, 2 yes, 3 yes, 4 yes, 5 ok". Recorded as Q47.
+
 ## Left
 
-Columbo next; then Scout, Doc; then C1 and T.
+Scout next; then Doc; then C1 and T.
