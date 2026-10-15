@@ -88,6 +88,23 @@ of a thing at a time, no check-ups, every fix undoable. Kenil: "1. yes, 2. yes, 
 5. ok, 6. yes, 7. ok". Recorded as Q49. The five built-in agents are now all designed; none is
 built.
 
+## Session 8: the substrate and the anatomy (15 Oct)
+
+Kenil paused the depth session: "should we look into how we implement the whole agents and
+agent flow?" Read what Q33 built (automations, runs, `agent:<id>` pages, the scheduler's claim,
+inline repair; no events, no @, no decisions, nothing of agents in the model's context) and drafted
+the substrate: an `agents` table with today's five migrated under the same ids, the journal as the
+event stream with a cursor per agent, the actor as the agent, a `decisions` table, permissions per
+kind enforced in the tools, the order (substrate, then Watson, Doc, Columbo, Sherlock, Scout).
+"yes to all", with: "we dont have to be bound by the current implementation and choices. agent
+setup and working is really really important for alpha, so i want to get it right … how exactly
+the agents work, do they have code, skills, guidelines, etc." Then the anatomy: frame and rules
+in code, the brief (the person's), notes (the agent's own), hands cut to a list, shared know-how,
+memory through the world only, the run loop every kind follows, three runs walked through (Doc,
+Watson, a custom agent), "automation" folded into agents, the agent page as Q40's door. "ok to
+all". Recorded as Q50. Nothing built.
+
 ## Left
 
-C1 (depth) and T (a single unified view of Alpha), each in a session of its own.
+Slice A (the substrate) proposed in writing before anything is built; C1 (depth) and T (a single
+unified view of Alpha) still to design.

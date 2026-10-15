@@ -21,7 +21,7 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
   and found; the 3 Oct checkpoint); `docs/log/README.md` lists them.
 - `docs/design/alpha-second-brain-design.md` — the agreed design, intent only: principles, the
   world model, capabilities, the agent loop, standing things, trust, workspace, model route,
-  decisions (Q1–Q43); a status box (built / differs / not built) under each section.
+  decisions (Q1–Q50); a status box (built / differs / not built) under each section.
 - `docs/design/build-plan.md` — what does not change by the day: verified toolchain facts, the
   first slice's shape, what to port, open engineering questions; a map from the old §4.N
   section numbers to the log files.

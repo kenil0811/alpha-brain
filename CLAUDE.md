@@ -72,7 +72,7 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
   platform; Alpha's know-how (skills: readers, procedures, pipelines) is never patched by hand —
   ask Kenil.
 - Plan first by mechanism: lasting things are made only on the person's yes on the workflow
-  page (§12); how an agent gets an automation or a reader of its own is open (Q40).
+  page (§12) or, once built, on an agent's page (Q50; Q40's door).
 - No limits, quotas or technical knobs; the person stops what isn't going anywhere.
 - Known, assumed or asked: every value has a source, or is estimated and says so, or is asked.
 - Removal deletes everything related; the journal is never deleted.

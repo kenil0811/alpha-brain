@@ -371,5 +371,5 @@ tools that ran). Open now:
 - The journaling proxy for a workflow build's session needs the Claude Code CLI at 2.1.285 or
   later (pinned 2.1.278); `srt` shipped with the app; DuckDB's extensions in `just ship`.
 - Notarization, which needs an Apple Developer account (right-click › Open until then).
-- How an agent gets an automation or a reader of its own now that plans are gone (Q40): with
-  Kenil, in the design session on dedicated agents (C8).
+- How an agent gets an automation or a reader of its own now that plans are gone (Q40):
+  decided 15 Oct (Q50), the agent's page agreed with a yes is a build; not built yet.
