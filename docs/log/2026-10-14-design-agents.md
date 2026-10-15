@@ -36,6 +36,22 @@ process agents become custom agents of their modules; the roster Sherlock (resea
 (noticer), Columbo (checker), Scout (recommender), Doc (healer), each designed before it is
 built; decisions at the plan and choice level.
 
+## Session 3: Sherlock, the researcher (15 Oct)
+
+Drafted on the shared shape, building on what the interview already does (a few look-ups for
+sources and suggestions on the page) and on the research pass's two failures (a menu "not useful
+/ intuitive", fourteen minutes said as "a few"). Kenil: "1. i want you to tell me what would be
+best, also should this be fixed, or should we let the agent/ai decide no how to best do
+research, 2. we need to think about this as well, because in some cases, a research may not be
+warranted/asked for … 3. how long can be very subjective/dependent, we should probably just say
+more thinking/deeper research means more time 4. yes 5. it can use (for read) when needed
+6. maybe have custom nice faces for these 7. yeah looks ok for now". Answered: a fixed frame
+(what it brings back checked by code, five lenses, its walls, its memory first) with a free
+method; when research is warranted decided per ask by rule and a small judgement, visible with
+Skip or "Look into it"; no time promises. Kenil: "starts by itself with skip, faces sound good".
+Recorded as Q45, with the five faces (an animal and one accessory each, in the companion's
+style).
+
 ## Left
 
-Each default agent's own session, Sherlock first; then C1 and T.
+Watson next; then Columbo, Scout, Doc; then C1 and T.
