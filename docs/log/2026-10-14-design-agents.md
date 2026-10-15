@@ -69,6 +69,14 @@ parts' values, Sherlock's sources, numbers going out) two ways (outside, the per
 never fixing (the owner corrects; the person settles disagreeing sources), with a mark on what
 was checked. Kenil: "1 yes, 2 yes, 3 yes, 4 yes, 5 ok". Recorded as Q47.
 
+## Session 6: Scout, the recommender (15 Oct)
+
+Grounded in §5's unbuilt entries 3 and 4, the speaking-up ladder and its evidence. Drafted Scout:
+five kinds of suggestion, the ladder with code's checks (evidence, one action, no repeats of a
+no), picks on Home daily and cards at natural breaks, tied to goals. Kenil: "1 yes, 2 yes, 3 make
+it a bit bolder to start with, so we can see how well it can do this, 4 yes, 5 ok". Recorded as
+Q48.
+
 ## Left
 
-Scout next; then Doc; then C1 and T.
+Doc next; then C1 and T.
