@@ -30,8 +30,8 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
   UI rulebook (guidance) and his list of what the window needed from the core (slice 2's source).
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
   records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines),
-  automations), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
-  `claude -p` runs, the turn, the workflow build and its parts, pipelines, the scheduler, the second opinion), `journeys/`
+  agents, decisions), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
+  `claude -p` runs, the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, and the scheduler), the second opinion), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
@@ -62,6 +62,9 @@ just check-desktop  # every page of the window at its sizes, on a copy of the wo
 just stats          # the measured numbers STATE.md quotes
 just turns          # how long the last turns took: wall, the model's time, steps (from the journal)
 ```
+
+The CLI also lists the agents (`uv run alpha agents`) and renames one (`uv run alpha agent-rename
+<id> <name>`), journaled as the person's change.
 
 The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in

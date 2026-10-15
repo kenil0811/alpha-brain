@@ -45,8 +45,41 @@ LinkedIn agent as a pipeline) passed with the real model
 (`docs/checks/2026-10-15-1217.md`). Seen in the copy: none of the five agents has a page or a
 look of its own.
 
+## Group 2: the routes and the window (commit "Agents, slice A: the routes and the window (Q50)")
+
+- **Routes.** `/api/agents` (list), `/api/agents/{id}` (the page: brief, notes, decisions, what it
+  may touch, pipeline, runs grouped by each run's start), PATCH (pause, set going, rename; each
+  journaled as the person's), POST `run`, GET `removal` (the words before a delete) and DELETE
+  (a custom agent; a built-in kind refuses). `/api/intelligence` and a module's card say
+  `agents`; the map's nodes are `agent:<id>`; removal plans count agents. The CLI gained
+  `alpha agents` and `alpha agent-rename <id> <name>`.
+- **Window.** `Agent` and `AgentDetail` in `client.ts`; the Agents tab (On / Paused / Running
+  now; the switch reads Pause / Set going); `AgentPage.tsx` with Rename inline, Pause / Set
+  going, Run now, Ask Alpha to change this, Delete for a custom one with the removal words
+  confirmed, its look, its brief (editable; "Ask Alpha to write it" or "Write it yourself"),
+  its notes when it has any, "When it works, and what it may touch" in words, what it does, its
+  runs, the decisions about it; the address `#/intelligence/agents/<id>` (an old `automations`
+  link still opens). `@` in the composer offers the agents whose name begins with what is
+  typed; a tap or Enter completes the name, never sends. Every "automation" the person reads is
+  "agent" (Remove module, connections, the map, the module page).
+
+**Proven:** 269 core tests (the rename, pause, delete routes and the CLI), 198 desktop tests
+(the page's rename, pause, delete; the @ picker), ruff, mypy and typecheck clean;
+`just check-desktop` 94 of 94 clean on the renamed window (`docs/checks/2026-10-15-1237.md`);
+the browser pane on a copy of Kenil's world: the Agents tab with faces and names, Deal
+Tracker's page, "@j" → "@Job Boards" completing on Enter, no console errors.
+
+## The acceptance so far (15 Oct, evening)
+
+The app was rebuilt and restarted on the new core; Kenil's real world migrated on open (the
+`agents` and `decisions` tables, `automations` gone, the five agents under their ids, four on
+and Gmail paused). The five were named with the CLI, journaled as his change ("you name them
+something for now"): Nutrition Check-in, LinkedIn Connections, Deal Tracker, Job Boards, Gmail
+from Vikas. **The real acceptance is the 07:00 runs of 16 Oct**: three agents due, each a row
+with a verdict, on the substrate.
+
 ## Left
 
-Group 2: the routes and the window (names, Rename, Pause, the Brief editor, Notes, "What it may
-touch", decisions, Delete for a custom agent, @ in the composer, every "automation" the person
-reads); the names for Kenil's five agents. Group 3: the docs.
+Watson (noticing as an agent: the first kind that works from the journal cursor), then Doc,
+Columbo, Sherlock, Scout, each proposed in writing and proven by a journey; the agent page as the
+door for a custom agent (Q50); notes written by an agent; C1 and T still to design.

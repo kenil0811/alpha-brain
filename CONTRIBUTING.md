@@ -19,12 +19,12 @@ Alpha is an agent that keeps a person's world and acts for them. The design's te
    something you have never heard of?
 2. **Mechanisms, not prompts.** A rule that matters is enforced in code where the effect
    happens: the build gate refuses to make a table outside a build; `action_propose`
-   refuses inside an automation; an action's state moves with a conditional write. A sentence
+   refuses inside an agent's run; an action's state moves with a conditional write. A sentence
    in a prompt is guidance for the model, never the wall. When a review finds a wall that is
    only a prompt, it is a defect (the 3 Oct checkpoint found one).
 3. **No knobs, no limits.** No setting the person meets, no quota, no step cap, no time limit
    on work. What bounds cost and risk is behaviour (a run that has gone silent is ended; a
-   crashed build waits before it restarts; an automation runs at most every 30 minutes). Before
+   crashed build waits before it restarts; an agent runs at most every 30 minutes). Before
    adding any threshold, ask whether it is a judgement of a failure (fine) or a cap on work
    (not fine), and name it in the docstring as the former.
 4. **Known, assumed or asked.** Every value Alpha writes carries where it came from
@@ -50,12 +50,12 @@ Alpha is an agent that keeps a person's world and acts for them. The design's te
 ```
 core/alpha/
   world/        the store and the tables, one module per kind of thing (journal, collections,
-                entities, knowledge (facts, pages, goals), skills, automations, workflows, actions,
+                entities, knowledge (facts, pages, goals), skills, agents, decisions, workflows, actions,
                 sources, modules, purge). No model, no HTTP, no browser here.
   context/      what the model is given: the pre-pack (prepack.py) and module summaries.
   runtime/      how a run happens: claude_cli (the model boundary), turn, workflow_build and
                 parts (the build from the page and what runs on rows), workspace and proxy (the
-                walls), pipeline, acting, automation (the scheduler), conversations, judge (the
+                walls), pipeline, acting, agents (the runner and the scheduler), conversations, judge (the
                 System One seam), noticing, check (the second opinion).
   mcp/          the world as tools for the model: tools/ (one module per thing they touch, on
                 a shared base), server.py (the MCP server that registers them).
@@ -108,7 +108,7 @@ packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a na
   why, not what the code visibly does. A comment that restates the next line is deleted.
 - Dates and times are UTC ISO-8601 strings with seconds, everywhere in the store; local time
   appears only where the person reads it (`when()` helpers). Ids are `<prefix>_<12 hex>`
-  (`j_` journal, `r_` record, `e_` entity, `a_` automation, `t_` thread…).
+  (`j_` journal, `r_` record, `e_` entity, `a_` agent, `t_` thread…).
 - JSON columns hold compact JSON from `store.dumps` (no spaces); never match JSON as text;
   load it, change it, dump it.
 
@@ -152,14 +152,16 @@ packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a na
 - A tool raises `Problem` for "cannot do that": the decorator turns it into `{"error": …}`
   for the model. It never returns a bare traceback. It journals what it did.
 - A tool that makes a lasting thing checks the build gate (`self._gate`); a tool that acts
-  outward checks `self._in_automation()`. Walls live in the tool, not in the rules prompt.
+  outward checks `self._in_run()`. What a tool changes is declared on it (`@tool(writes="records")`)
+  and an agent's write list is checked once, in the wrapper (Q50). Walls live in the tool, not in
+  the rules prompt.
 - Before adding a tool, ask whether an existing one with one more argument does it; the model
   reads every tool's schema on every turn, and the count is 73 (`just stats`).
 
 ### 3.5 Prompts
 
 The rules the model follows live as prose constants beside the code that runs them
-(`turn.RULES`, `automation.AUTOMATION_RULES`, `judge.SYSTEM`, `noticing.RULES`). They are
+(`turn.RULES`, `agents.runner.RULES`, `judge.SYSTEM`, `noticing.RULES`). They are
 guidance, numbered, in the second person, and they repeat the wall the code enforces so the
 model does not try it. A rule that changes behaviour is a design decision: it goes in the log
 and, when it is a principle, in the design's §11 with a Qn number. Never put a person's data or
@@ -167,7 +169,7 @@ a site's name in a rule.
 
 ### 3.6 Concurrency
 
-Turns, builds, automations, checks and noticing run as threads in the core; each model run is
+Turns, builds, agents' runs, checks and noticing run as threads in the core; each model run is
 a child process with its own tool server opening the same store. Therefore: a thread never
 holds the store lock across a model run or a browser job; a long operation (a backup, a
 purge) is the exception and says so; the hands take turns on a sign-in profile through the
