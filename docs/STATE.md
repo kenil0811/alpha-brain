@@ -103,7 +103,8 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
    - a schema version, and `records_fts` by triggers (from the 3 Oct review)
    - the smaller items in [`log/2026-10-02-4-9-status-at-the-end-of.md`](log/2026-10-02-4-9-status-at-the-end-of.md)
 7. **The ChatGPT route** stays off until it passes a real tool call: Codex's own pre-approval setting, or not at all.
-8. **A fresh Mac:** notarization (there is no Apple Developer account, so it's right-click › Open for now), and the friend's own first run.
+8. **A fresh Mac:** notarization (there is no Apple Developer account; the README says right-click › Open, which macOS 15 no longer honours: the person uses System Settings › Privacy & Security › Open Anyway), and the friend's own first run.
+9. **Shipping Alpha to clients (Q53, 16 Oct; [`design/shipping-and-kits-proposal.md`](design/shipping-and-kits-proposal.md), research in [`design/research/shipping-and-updates.md`](design/research/shipping-and-updates.md)):** the infrastructure only, each slice proposed in writing first: (1) kits, a module's definition exported with no data, installed empty, updated in place under the ownership rule (what we installed and nobody changed is replaced; what a person changed is theirs and kept; nothing is deleted by an update); (2) the channel, one signed index per install checked at launch, a fix applied with a line and a change asked, a report with versions and health and never rows; (3) connector slots, the directory shape and the install of a shared connector as owned skills, no connector built yet. No hosted connector service.
 
 ## How to verify any of this
 
