@@ -159,6 +159,12 @@ class Sherlock:
 
 
 @dataclass(frozen=True)
+class Scout:
+    picks_a_day: int
+    sinks_after: int
+
+
+@dataclass(frozen=True)
 class Checks:
     core_start_s: int
     window_port: int
@@ -182,6 +188,7 @@ class Settings:
     doc: Doc
     columbo: Columbo
     sherlock: Sherlock
+    scout: Scout
     checks: Checks
 
 

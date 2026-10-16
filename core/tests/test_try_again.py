@@ -126,7 +126,8 @@ def test_a_day_of_activity_and_the_page_before(world: World) -> None:
     assert [e["text"] for e in page] == ["Failure 2", "Failure 1"]
     earlier = c.get(f"/api/activity?before={page[-1]['id']}").json()
     # Alpha's own agents said hello first (newest first), then the oldest failure
-    assert [e["text"][:6] for e in earlier] == ["Sherlo", "Columb", "Doc is", "Watson", "Failur"]
+    assert [e["text"][:6] for e in earlier] == ["Scout ", "Sherlo", "Columb", "Doc is", "Watson",
+                                                 "Failur"]
     # many entries in one second: the page before is exact
     same = [world.journal.append("did", f"Step {i}") for i in range(4)]
     with world.store.tx() as db:

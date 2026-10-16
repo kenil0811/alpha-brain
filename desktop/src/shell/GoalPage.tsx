@@ -132,6 +132,15 @@ export function GoalPage({ client, id, version, onGo, onChanged }: { client: Cli
       <div className="section">
         <div className="section__head">
           <h2>What happened to it</h2>
+          {goal.picks?.length ? (
+            <ul className="wf__list" aria-label="Scout's picks for this goal">
+              {goal.picks.map((p) => (
+                <li key={p.id}>
+                  <b>{p.title}</b> — {p.what} <span className="faint">(Scout's pick; take it on Home)</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
         <div className="card list">
           {!goal.history.length ? <p className="empty setcard__empty">Nothing recorded yet.</p> : null}

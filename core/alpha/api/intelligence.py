@@ -100,7 +100,11 @@ def routes(app: FastAPI, s: Served) -> None:
             module = world.modules.get(goal["module"])["name"] if goal["module"] else None
         except Problem:
             module = None
-        return {**goal, "module_name": module, "history": world.journal.of_goal(gid)}
+        from alpha.runtime.agents import scout
+
+        return {**goal, "module_name": module, "history": world.journal.of_goal(gid),
+                "picks": [p for p in scout.picks_of_day(world)
+                          if p.get("goal") == gid and not p["decided"]]}
 
     @app.patch("/api/goals/{gid}", dependencies=[api])
     def change_goal(gid: str, body: GoalBody) -> dict[str, Any]:

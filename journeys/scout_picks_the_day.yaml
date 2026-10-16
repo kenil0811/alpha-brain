@@ -1,0 +1,13 @@
+name: scout_picks_the_day
+title: Scout looks across the world and picks what deserves attention today
+why: "Q48 (16 Oct 2026): once a day Scout gathers what is coming up, the tables this week
+  against last, what was left open and what the person asks by hand, judges it once, and puts a
+  few picks on Home, each with evidence that resolves and one action; nothing happens without a
+  Take. Run on a copy of Kenil's world, his own commitments, tables and calendar are the
+  material."
+steps:
+  - agent: Scout
+checks:
+  - picks: {min: 1}
+  - no_new_tables: {}
+  - no_new_modules: {}

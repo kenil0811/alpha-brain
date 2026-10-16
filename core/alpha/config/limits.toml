@@ -101,6 +101,10 @@ gather_minutes = 60                # answers and parts wait this long and are ch
 [sherlock]
 most_suggestions = 5               # suggestions a look brings onto the page, at most: the research's three to five differentiators, each a real choice; the rest stays on the findings page
 
+[scout]
+picks_a_day = 5                    # the day's picks on Home, at most: bolder to start (Kenil, 15 Oct) than the quiet default of two or three
+sinks_after = 3                    # a kind declined this many times running sinks to its surest picks; a take resets it
+
 [checks]
 core_start_s = 90                  # the desktop check waits this long for its core to come up
 window_port = 1430                 # the origin the core allows for a window served outside the app (Vite)

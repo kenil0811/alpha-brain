@@ -22,7 +22,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations
-from alpha.runtime.agents import columbo
+from alpha.runtime.agents import columbo, scout
 from alpha.world.store import Problem, local_midnight_utc
 
 
@@ -35,6 +35,9 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/home", dependencies=[api])
     def home() -> dict[str, Any]:
+        # the first poll of a local day is the day's opening: Scout picks for the day (Q48)
+        if live:
+            scout.note_opened(world)
         since = local_midnight_utc()
         ran = world.store.one(
             "SELECT COUNT(*) AS n FROM journal WHERE at >= ? AND actor = 'alpha'"
@@ -54,6 +57,7 @@ def routes(app: FastAPI, s: Served) -> None:
             "loose_tables": [t for t in world.collections.overview() if t["module"] is None],
             "coming_up": events[:6],
             "threads": thread_views(world),
+            "picks": [p for p in scout.picks_of_day(world) if not p["decided"]],
         }
 
     @app.post("/api/asks/{ask_id}/answer", dependencies=[api])
@@ -106,6 +110,16 @@ def routes(app: FastAPI, s: Served) -> None:
     def decide_proposal(pid: str, body: DecideBody) -> dict[str, Any]:
         proposal = world.journal.read(pid)
         answered = world.journal.answer_proposal(pid, body.accept, module=proposal["module"])
+        if proposal["data"].get("scout"):
+            # Scout's pick (Q48): the decision is the person's, by the pick's key; a Take is
+            # done by Alpha as a turn in the pick's words (the map's links open the map)
+            scout.decide_pick(world, proposal, body.accept)
+            pick = proposal["data"]["scout"]
+            if not body.accept or pick.get("open"):
+                return {"decided": pid, "turn": None, "open": pick.get("open")}
+            taken = running.start(AskBody(text=f"Yes, go ahead: {pick['action']}",
+                                          module=proposal["module"]))
+            return {"decided": pid, "turn": taken}
         instruction = proposal["data"].get("instruction")
         if instruction:
             # The person's yes is what makes it an instruction; nothing else needs to run.

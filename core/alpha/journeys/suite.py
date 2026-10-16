@@ -484,6 +484,17 @@ class Run:
                     f" {'; '.join(_titled(sg) for sg in b['suggestions']) or 'none'}."
                     f" Settings {len(b['settings'])}, questions {len(b['questions'])}.")
 
+    def check_picks(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Scout's picks for the day (Q48): at least `min` of them on Home, each with evidence
+        that resolves and one action."""
+        from alpha.runtime.agents import scout
+
+        picks = [p for p in scout.picks_of_day(self.world) if p["at"] >= self.mark.at]
+        ok = len(picks) >= int(arg.get("min") or 1)
+        words = "; ".join(f"{p['title']} [{p['kind']}{', less sure' if p.get('less_sure') else ''}"
+                          f"{', card' if p.get('card') else ''}] → {p['action']}" for p in picks)
+        return ok, f"{len(picks)} pick(s): {words or 'none'}."
+
     def check_ask(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A question for the person, as a card, from the last turn (Q35): `derived` whether
         the core made it from the reply, `options_min` how many choices at least."""

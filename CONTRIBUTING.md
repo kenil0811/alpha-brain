@@ -59,7 +59,7 @@ core/alpha/
                 walls), pipeline, acting, agents (the runner and the scheduler), conversations, judge (the
                 System One seam), agents/watson (noticing), agents/doc (repairs), agents/columbo
                 (the checks of what Alpha works out, two ways), agents/sherlock (the look
-                into how others do a task before a build).
+                into how others do a task before a build), agents/scout (the day's picks).
   mcp/          the world as tools for the model: tools/ (one module per thing they touch, on
                 a shared base), server.py (the MCP server that registers them).
   api/          the loopback HTTP API the app uses: server.py (create_app, serve), one module

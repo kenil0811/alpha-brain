@@ -54,6 +54,9 @@ def needs_you(world: World) -> list[dict[str, Any]]:
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):
         # a plan's proposal (before 12 Oct 2026, Q40) can't be answered any more: never shown
+        scout_pick = p["data"].get("scout")
+        if scout_pick and not scout_pick.get("card"):
+            continue  # Scout's picks live on Home; only a sure, costly one is a card (Q48)
         if p["id"] not in answered and not p["data"].get("plan"):
             items.append({"kind": "proposal", "id": p["id"], "text": p["text"],
                           "why": p["data"].get("why"), "at": p["at"], "module": p["module"]})

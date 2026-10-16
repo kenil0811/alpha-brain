@@ -5,7 +5,7 @@ import type { Client, Home as HomeData, JournalEntry } from "../core/client";
 import { TooltipProvider } from "../ui";
 import { Home, failedToday } from "./Home";
 
-const quiet: HomeData = { date: "2026-10-12T09:00:00+00:00", needs_you: [], ran_today: 4, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [] };
+const quiet: HomeData = { date: "2026-10-12T09:00:00+00:00", needs_you: [], picks: [], ran_today: 4, failed_today: 0, modules: [], loose_tables: [], coming_up: [], threads: [] };
 /** A moment a few seconds ago: failures made in one test keep a fixed newest-first order. */
 const secondsAgo = (n: number) => new Date(Date.now() - n * 1000).toISOString();
 const failed = (id: string, text: string, data: Record<string, unknown>, extra: Partial<JournalEntry> = {}): JournalEntry => ({ id, at: new Date().toISOString(), kind: "failed", actor: "alpha", text, data, module: null, thread: null, entity_ids: [], source: null, ...extra });
@@ -100,5 +100,25 @@ describe("Home: didn't work today", () => {
     });
     expect(await screen.findByText("1 didn't work; see Activity")).toBeInTheDocument();
     expect(screen.queryByText("Cleared earlier")).toBeNull();
+  });
+});
+
+describe("Home: Scout's picks (Q48)", () => {
+  it("shows the day's picks with Take and Not now; a Take starts Alpha on it, a link pick opens the map", async () => {
+    const pick = { id: "j_p1", at: "2026-10-16T09:00:00Z", day: "2026-10-16", kind: "coming_up" as const, title: "Sania's deck is due today", what: "You said you'd send it.", why: "it is due today", evidence: ["c_1"], action: "draft the email to Sania", sure: 0.9, helpful: 0.8, costly: true, expires: null, goal: null, key: "coming_up:sania", less_sure: false, card: true, decided: false };
+    const links = { ...pick, id: "j_p2", kind: "link" as const, title: "3 links worth confirming", action: "confirm them on the map", open: "/intelligence/map", less_sure: true, card: false };
+    const decideProposal = vi.fn(async (id: string) => (id === "j_p2" ? { decided: id, turn: null, open: "/intelligence/map" } : { decided: id, turn: { id: "t1", state: "running", text: "Yes, go ahead: draft the email to Sania" } }));
+    const { onGo } = mount({ home: vi.fn(async () => ({ ...quiet, picks: [pick, links] })), decideProposal });
+    const section = await screen.findByRole("region", { name: "Scout's picks" });
+    expect(within(section).getByText("Sania's deck is due today")).toBeInTheDocument();
+    expect(within(section).getByText("Coming up")).toBeInTheDocument();
+    expect(within(section).getByText("Less sure")).toBeInTheDocument();
+    expect(within(section).getByText(/On a Take: draft the email to Sania/)).toBeInTheDocument();
+    await userEvent.click(within(section).getAllByRole("button", { name: "Take" })[0]);
+    await waitFor(() => expect(decideProposal).toHaveBeenCalledWith("j_p1", true));
+    await userEvent.click(within(section).getAllByRole("button", { name: "Take" })[1]);
+    await waitFor(() => expect(onGo).toHaveBeenCalledWith({ kind: "intelligence", tab: "map" }));
+    await userEvent.click(within(section).getAllByRole("button", { name: "Not now" })[0]);
+    await waitFor(() => expect(decideProposal).toHaveBeenCalledWith("j_p1", false));
   });
 });

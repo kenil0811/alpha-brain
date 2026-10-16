@@ -176,6 +176,9 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   );
 }
 
+/** The kinds of Scout's picks, in words (Q48). */
+const PICK_WORDS: Record<string, string> = { coming_up: "Coming up", pattern: "A pattern", link: "Links", follow_up: "Follow-up", by_hand: "By hand" };
+
 export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThread }: { client: Client; version: number; onGo: (s: Surface) => void; onChanged: () => void; onAsk: (text: string) => void; onNew: () => void; onOpenThread: (id: string) => void }) {
   const [home, setHome] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -280,6 +283,35 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
             )}
           </div>
         </div>
+      ) : null}
+
+      {home.picks.length ? (
+        <section className="section" aria-label="Scout's picks">
+          <div className="section__head">
+            <h2>Scout's picks</h2>
+            <span className="faint">Worth your attention today; take or leave each</span>
+          </div>
+          <div className="card list">
+            {home.picks.map((p) => (
+              <div key={p.id} className="item">
+                <span className={`badge ${p.less_sure ? "" : "badge--running"}`}>{p.less_sure ? "Less sure" : PICK_WORDS[p.kind] ?? p.kind}</span>
+                <div className="item__body">
+                  <b>{p.title}</b>
+                  <div className="item__sub">
+                    {p.what} {p.why ? <span className="faint">· {p.why}</span> : null}
+                  </div>
+                  <div className="item__sub faint">On a Take: {p.action}</div>
+                </div>
+                <Button size="sm" variant="primary" onClick={() => void client.decideProposal(p.id, true).then((r) => { if (r.open) onGo({ kind: "intelligence", tab: "map" }); setToast(r.turn ? "On it. Alpha is doing that now." : "Opened."); onChanged(); })}>
+                  Take
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void client.decideProposal(p.id, false).then(() => { setToast("Left it."); onChanged(); })}>
+                  Not now
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {shownFailures.length ? (

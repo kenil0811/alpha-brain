@@ -1,0 +1,42 @@
+[
+ {
+  "name": "scout_picks_the_day",
+  "title": "Scout looks across the world and picks what deserves attention today",
+  "steps": [
+   {
+    "agent": "Scout",
+    "ok": true,
+    "result": "3 picks for today (a follow-up, a pattern in your data, something to stop doing by hand); 1 link on the map to confirm.",
+    "problem": null,
+    "seconds": 163.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "picks",
+    "arg": {
+     "min": 1
+    },
+    "ok": true,
+    "why": "4 pick(s): Nutrition logging has gone quiet [pattern] → Remind me to log my weight and meals regularly so the nutrition tracker stays current; Wellfound jobs blocked by bot check [by_hand, card] → Check Wellfound by hand for new founding engineer listings since Oct 9 while the reader stays blocked; Car wash scorecard built, then removed same day [follow_up] → Tell me whether you want the car wash site scorecard rebuilt or left dropped for now; Links worth confirming [link, less sure] → confirm them on the map.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 163.0,
+  "error": null
+ }
+]

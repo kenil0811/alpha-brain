@@ -179,6 +179,8 @@ export interface EntryPage extends JournalEntry {
 export interface GoalPage extends Goal {
   module_name: string | null;
   history: JournalEntry[];
+  /** Scout's undecided picks that serve this goal (Q48). */
+  picks?: ScoutPick[];
 }
 
 export interface Thread {
@@ -471,9 +473,35 @@ export interface CalendarItem {
   attendees: { name: string | null; email: string; entity_id: string }[];
 }
 
+/** One of Scout's picks for the day (Q48): a short suggestion with its evidence and one action. */
+export interface ScoutPick {
+  id: string;
+  at: string;
+  day: string | null;
+  kind: "coming_up" | "pattern" | "link" | "follow_up" | "by_hand";
+  title: string;
+  what: string;
+  why: string;
+  evidence: string[];
+  action: string;
+  sure: number;
+  helpful: number;
+  costly: boolean;
+  expires: string | null;
+  goal: string | null;
+  key: string;
+  less_sure: boolean;
+  card: boolean;
+  /** A pick that opens a page instead of starting a turn (the map's links). */
+  open?: string | null;
+  decided: boolean;
+}
+
 export interface Home {
   date: string;
   needs_you: NeedItem[];
+  /** Scout's picks for the day, undecided (Q48). */
+  picks: ScoutPick[];
   ran_today: number;
   failed_today: number;
   modules: ModuleCard[];
@@ -1200,7 +1228,7 @@ export class Client {
   declineWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/decline`);
   resumeWorkflow = (id: string) => this.call<Workflow>("POST", `/api/workflows/${id}/resume`);
   stopTurn = (key: string) => this.call<Turn>("POST", `/api/turns/${key}/stop`);
-  decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null }>("POST", `/api/proposals/${id}/decide`, { accept });
+  decideProposal = (id: string, accept: boolean) => this.call<{ decided: string; turn: Turn | null; open?: string | null }>("POST", `/api/proposals/${id}/decide`, { accept });
   /** What Alpha knows, changed by the person (13 Oct, slice 2 D1, D11, D1b). */
   correctFact = (id: string, value: string) => this.call<Fact>("POST", `/api/facts/${encodeURIComponent(id)}/correct`, { value });
   forgetFact = (id: string) => this.call<Fact>("DELETE", `/api/facts/${encodeURIComponent(id)}`);
