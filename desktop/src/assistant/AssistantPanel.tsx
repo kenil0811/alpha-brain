@@ -4,6 +4,9 @@
  * view. The companion is the same stream. Since 13 Oct (Q42 section 8, features from pull request
  * #5): a conversation picker always under the panel's header, a line under each of Alpha's replies
  * saying how long it took and how many steps it ran, and Retry on a turn that didn't finish.
+ * Since 16 Oct (slice 1 of `docs/design/conversation-proposal.md`): a reply is one element
+ * (`Reply`) from the first words to the journal, the person's sentence is `Said`, and the
+ * Markdown is rendered for real.
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords, say } from "../core/client";
@@ -12,8 +15,11 @@ import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { RenameBox, useConversationActions } from "./ConversationActions";
 import { MicButton, SendingSoon, useHoldToSend, useSpeech } from "../shell/voice";
-import { Button, IconButton, Popover, Trouble, Rich } from "../ui";
-import { ChevronRight, ChevronDown, Check, PlusIcon, X } from "../ui/icons";
+import { Button, IconButton, Popover, Trouble } from "../ui";
+import { ChevronRight, ChevronDown, PlusIcon } from "../ui/icons";
+import { Reply, Said, replyKey, turnKey } from "./Reply";
+import { retryOf } from "./turnWords";
+export { provenance, retryOf, withoutCarded } from "./turnWords";
 
 const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
@@ -141,13 +147,22 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
           ) : null}
         </section>
       ) : null}
+      {workflow.research ? (
+        <p className="faint wf__research" role="status">
+          {workflow.research.name} is looking into how others do this; a deeper look takes longer.{" "}
+          <button type="button" className="linklike" aria-label={`Skip ${workflow.research.name}'s look`} onClick={() => void client.stopAgent(workflow.research!.agent).then(() => onDecided())}>
+            Skip
+          </button>
+        </p>
+      ) : null}
       {b.suggestions.length ? (
         <section className="wf__section" aria-label="Alpha suggests">
-          <h4 className="wf__head">Alpha suggests</h4>
+          <h4 className="wf__head">{b.suggestions.some((sg) => sg.by_name) ? "Suggestions" : "Alpha suggests"}</h4>
           <ul className="wf__list">
             {b.suggestions.map((sg) => (
               <li key={sg.id} className="wf__suggest">
                 <div>
+                  {sg.by_name ? <span className="badge badge--running" style={{ marginRight: 6 }}>{sg.by_name}</span> : null}
                   <b>{sg.title}</b> — {sg.what}
                   {sg.why ? <span className="faint"> {sg.why}</span> : null}
                   {sg.sources.length ? (
@@ -329,73 +344,6 @@ export function groupAsks(asks: Ask[]): Ask[][] {
   return groups;
 }
 
-/** A reply whose trailing question became a card (Q35) shows without that question: the card
- *  carries it, so the person reads it once. A reply that was only the question shows nothing. */
-export function withoutCarded(text: string, asks: Ask[], turn: unknown): string | null {
-  const carded = asks.find((a) => a.derived && a.turn === turn);
-  if (!carded) return text;
-  const question = carded.text.trim();
-  const plain = text.trim();
-  const at = plain.lastIndexOf(question.replace(/\?$/, ""));
-  if (at < 0) return text;
-  const rest = plain.slice(0, at).replace(/[*_\s]+$/, "").trim();
-  return rest.length ? rest : null;
-}
-
-/** What a turn already says about itself (13 Oct, Q42 section 8b; the journal's own fields,
- *  nothing guessed): how long it took and how many steps it ran. Who answered and which records
- *  it used aren't recorded per turn, so they aren't shown. */
-export function provenance(e: JournalEntry): string {
-  const parts: string[] = [];
-  if (typeof e.data.duration_ms === "number") parts.push(`${Math.max(1, Math.round(e.data.duration_ms / 1000))} s`);
-  if (typeof e.data.num_turns === "number" && e.data.num_turns > 0) parts.push(e.data.num_turns === 1 ? "1 step" : `${e.data.num_turns} steps`);
-  return parts.join(" · ");
-}
-
-/** The sentence a failed turn answered, when the turn ended without a reply (section 8c): Retry
- *  sends it again. Never offered on a reply that worked: sending "log two eggs" again would log
- *  four. */
-export function retryOf(e: JournalEntry, turns: JournalEntry[]): string | null {
-  if (e.kind !== "failed") return null;
-  const turn = e.data.turn;
-  if (turn !== undefined && turns.some((x) => x.kind === "replied" && x.data.turn === turn)) return null;
-  const at = turns.indexOf(e);
-  for (let i = at - 1; i >= 0; i--) {
-    if (turns[i].kind === "said") return turns[i].text;
-    if (turns[i].kind === "replied") return null; // the failure belongs to no sentence of the person's
-  }
-  return null;
-}
-
-/** One message: the person's on the right; Alpha's on the left with a faint line under it saying
- *  how long it took and how many steps it ran, and Retry when the turn didn't finish. */
-function Message({ e, asks, onRetry }: { e: JournalEntry; asks?: Ask[]; onRetry?: () => void }) {
-  if (e.kind === "said") return <div className="msg msg--user">{e.text}</div>;
-  const fromThread = typeof e.data.from_thread === "string" ? e.data.from_thread : null;
-  let text: string | null = e.text;
-  if (e.kind === "replied" && asks) text = withoutCarded(e.text, asks, e.data.turn);
-  if (text === null) return null;
-  const prov = provenance(e);
-  return (
-    <div className="turn">
-      <div className={`msg msg--ai${e.kind === "failed" ? " msg--failed" : ""}`}>
-        {fromThread ? <div className="msg__label">From the thread · {fromThread}</div> : null}
-        <Rich text={text} />
-      </div>
-      {prov || onRetry ? (
-        <div className="turn__meta">
-          {prov ? <span>{prov}</span> : null}
-          {onRetry ? (
-            <Button size="sm" variant="ghost" onClick={onRetry}>
-              Retry
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export interface ConversationProps {
   client: Client;
   scopeName: string;
@@ -435,7 +383,6 @@ export function Conversation({
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
-  const [showSteps, setShowSteps] = useState(false);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -499,9 +446,21 @@ export function Conversation({
   // window's one poll sees a change (core/changes.ts); the panel keeps no clock of its own.
   // The view follows the newest words unless the person scrolled up to read something.
   const stick = useRef(true);
+  const content = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (stick.current) body.current?.scrollTo?.({ top: body.current.scrollHeight });
   }, [turns, pending, threadView]);
+  // The words grow inside the reply element now, not through this state: the view follows
+  // the content's height instead, so the newest words stay in view unless the person scrolled up.
+  useEffect(() => {
+    const el = content.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const watcher = new ResizeObserver(() => {
+      if (stick.current) body.current?.scrollTo?.({ top: body.current.scrollHeight });
+    });
+    watcher.observe(el);
+    return () => watcher.disconnect();
+  }, []);
   const onScroll = () => {
     const el = body.current;
     if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -616,54 +575,18 @@ export function Conversation({
   };
 
   const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : active ? a.thread === active : a.thread === null));
-  const steps = pending?.steps ?? [];
-  const live = pending?.live ?? null;
-  const latest = steps.length ? steps[steps.length - 1].text : null;
-  const doing = live?.doing ?? null;
-  const thought = live?.thought ?? null;
-  const partial = live?.partial?.trim() ? live.partial : null;
-  const headline = partial ? "Writing" : (doing ?? (elapsed < 2 ? "Thinking" : latest ? "Working" : "Thinking"));
-  const shown = showSteps ? steps : steps.slice(-3);
-  const workingNote = pending ? (
-    <div className="msg msg--ai msg--working" role="status" aria-live="polite">
-      <div className="working__head">
-        <span className="working__pulse" aria-hidden="true" />
-        <span className="shimmer">{headline}</span>
-        <span className="working__dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-        <span className="faint working__time">{elapsed} s</span>
-        <Button size="sm" variant="ghost" onClick={() => { if (pending.id) void client.stopTurn(pending.id).catch(() => undefined); }}>
-          Stop
-        </Button>
-      </div>
-      {steps.length ? (
-        <ul className="stepline" aria-label="Steps so far">
-          {shown.map((s, i) => (
-            <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "stepline__failed" : "stepline__done"}>
-              {s.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {s.text}
-            </li>
-          ))}
-          {steps.length > 3 ? (
-            <li>
-              <button type="button" className="working__steps" aria-expanded={showSteps} onClick={() => setShowSteps((v) => !v)}>
-                {showSteps ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />} {showSteps ? "fewer" : `all ${steps.length} steps`}
-              </button>
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
-      {partial ? (
-        <div className="working__partial">
-          <Rich text={partial} />
-        </div>
-      ) : thought ? (
-        <p className="working__thought">{thought}</p>
-      ) : null}
-    </div>
+  // One element per turn, from the first words to the journal (slice 1 of the conversation
+  // proposal, 16 Oct): the running turn is the last item of the same list as the turns, keyed
+  // by the sentence it answers, so when the reply lands the element stays and only its words
+  // change. The thinking line and the steps live inside it.
+  const pendingItem = pending ? (
+    <Reply key={turnKey(pending)} turn={pending} elapsed={elapsed} onStop={() => { if (pending.id) void client.stopTurn(pending.id).catch(() => undefined); }} />
   ) : null;
+  // Edit: the person's words back in the composer; sending them is a new turn.
+  const edit = (words: string) => {
+    setText(words);
+    setTimeout(() => input.current?.focus(), 0);
+  };
   const chats = convos.filter((c) => c.kind === "chat");
   const activeConvo = chats.find((c) => c.id === active) ?? null;
   const convoActions = useConversationActions(client, (what) => {
@@ -759,17 +682,23 @@ export function Conversation({
         </div>
       ) : null}
       <div className="assist__body" ref={body} onScroll={onScroll}>
+        <div className="assist__content" ref={content}>
         {threadView ? (
           <>
-            {threadView.journal.map((e) =>
-              e.kind === "said" || e.kind === "replied" || e.kind === "failed" ? (
-                <Message key={e.id} e={e} />
-              ) : (
-                <div key={e.id} className="faint thread__step">
-                  {when(e.at)} · {e.text}
-                </div>
+            {[
+              ...threadView.journal.map((e) =>
+                e.kind === "said" ? (
+                  <Said key={e.id} entry={e} />
+                ) : e.kind === "replied" || e.kind === "failed" ? (
+                  <Reply key={replyKey(e)} entry={e} />
+                ) : (
+                  <div key={e.id} className="faint thread__step">
+                    {when(e.at)} · {e.text}
+                  </div>
+                ),
               ),
-            )}
+              pendingItem,
+            ]}
             {!threadView.journal.length ? <p className="muted">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
             {!pending
               ? groupAsks(openAsks).map((group) =>
@@ -806,15 +735,19 @@ export function Conversation({
               );
             })}
             {module ? (
-              <div className="msg msg--ai">
+              <div className="intro">
                 I'm looking at <b>{moduleWords(module)}</b>{module.children?.length ? " and what it holds" : ""}. Ask about it, tell me to add or change something, or log to it.
               </div>
             ) : null}
-            {!turns.length && !module ? <div className="msg msg--ai">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
-            {turns.map((e) => {
-              const again = !pending ? retryOf(e, turns) : null;
-              return <Message key={e.id} e={e} asks={openAsks} onRetry={again ? () => void send(again) : undefined} />;
-            })}
+            {!turns.length && !module ? <div className="intro">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
+            {[
+              ...turns.map((e) => {
+                if (e.kind === "said") return <Said key={e.id} entry={e} onEdit={!pending ? () => edit(e.text) : undefined} />;
+                const again = !pending ? retryOf(e, turns) : null;
+                return <Reply key={replyKey(e)} entry={e} asks={openAsks} onRetry={again ? () => void send(again) : undefined} />;
+              }),
+              pendingItem,
+            ]}
             {workflows.map((w) => (
               <WorkflowCard key={w.id} workflow={w} client={client} onDecided={() => { load(); onChanged(); }} />
             ))}
@@ -836,7 +769,6 @@ export function Conversation({
               : null}
           </>
         )}
-        {workingNote}
         {loadError ? <Trouble onRetry={load}>Couldn't load the conversation: {loadError}</Trouble> : null}
         {convoActions.problem ? (
           <p className="notice" role="alert">
@@ -849,6 +781,7 @@ export function Conversation({
             {error}
           </p>
         ) : null}
+        </div>
       </div>
       <div className="composer">
         {spoken.due ? <SendingSoon text={spoken.due} onStop={spoken.stop} /> : null}

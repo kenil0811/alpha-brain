@@ -96,6 +96,11 @@ def load(names: list[str] | None = None, folder: Path | None = None) -> list[dic
 # ---- the copy ----
 
 
+def _titled(sg: dict[str, Any]) -> str:
+    """A suggestion's title, with who brought it when an agent did."""
+    return str(sg["title"]) + (f" [{sg.get('by_name')}]" if sg.get("by") else "")
+
+
 def copy_home(source_world: Path, into: Path) -> Path:
     """A scratch ALPHA_HOME holding a consistent copy of the world and the browser profiles.
     Returns the copied world's path."""
@@ -454,7 +459,8 @@ class Run:
 
     def check_workflow(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """A workflow page drafted in this journey (§12), in the state asked, with at least
-        `steps_min` steps, `keeps_min` things kept, `suggestions_min` suggestions, and, when
+        `steps_min` steps, `keeps_min` things kept, `suggestions_min` suggestions (`sherlock_min`
+        of them an agent's, Q45), and, when
         given, `version` (exactly) or `version_min` (a change landed, however many revisions
         the model took to get it right)."""
         new = [w for w in self.world.workflows.all() if w["created_at"] >= self.mark.at]
@@ -462,18 +468,20 @@ class Run:
             return False, "No workflow page was drafted."
         wf = new[-1]
         b = wf["body"]
+        by_agents = [sg for sg in b["suggestions"] if sg.get("by")]
         ok = (wf["state"] == arg.get("state", "drafted")
               and len(b["steps"]) >= int(arg.get("steps_min") or 0)
               and len(b["keeps"]) >= int(arg.get("keeps_min") or 0)
               and len(b["suggestions"]) >= int(arg.get("suggestions_min") or 0)
+              and len(by_agents) >= int(arg.get("sherlock_min") or 0)
               and (not arg.get("version") or wf["version"] == int(arg["version"]))
               and wf["version"] >= int(arg.get("version_min") or 0))
         steps = "; ".join(f"{s['title']} ({s['who']}{', asks' if s['outward'] else ''})"
                           for s in b["steps"])
         return ok, (f"'{wf['title']}' v{wf['version']} is {wf['state']}: {len(b['steps'])} steps:"
                     f" {steps}. Keeps {', '.join(k['thing'] for k in b['keeps']) or 'nothing'}."
-                    f" {len(b['suggestions'])} suggestions:"
-                    f" {'; '.join(sg['title'] for sg in b['suggestions']) or 'none'}."
+                    f" {len(b['suggestions'])} suggestions ({len(by_agents)} Sherlock's):"
+                    f" {'; '.join(_titled(sg) for sg in b['suggestions']) or 'none'}."
                     f" Settings {len(b['settings'])}, questions {len(b['questions'])}.")
 
     def check_ask(self, arg: dict[str, Any]) -> tuple[bool, str]:

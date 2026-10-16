@@ -25,6 +25,8 @@ export {
   EllipsisVertical as ColumnMenuIcon,
   Check,
   X,
+  Copy,
+  Loader2 as Spinner,
   Eye,
   Mic,
   Circle,

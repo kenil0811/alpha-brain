@@ -1,0 +1,66 @@
+{
+ "began": "2026-10-16T15:53:44.164Z",
+ "ended": "2026-10-16T15:53:50.528Z",
+ "pages": [
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1256,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_e56ea584e9c4",
+   "title": "Conversation: Watson",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "assistant-t_e56ea584e9c4@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 928,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_e56ea584e9c4",
+   "title": "Conversation: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 840,
+   "shot": "assistant-t_e56ea584e9c4@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 935,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_e56ea584e9c4",
+   "title": "Conversation: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 849,
+   "shot": "assistant-t_e56ea584e9c4@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

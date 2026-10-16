@@ -297,11 +297,8 @@ a { color: var(--primary); }
 .assist__head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .assist__mark { width: 30px; height: 30px; border-radius: 9px; background: var(--navy); color: var(--bg); display: grid; place-items: center; font-family: var(--font-ed); flex: none; }
 .assist__ctx { font-size: var(--text-sm); color: var(--text-3); }
-.assist__body { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.msg { max-width: 94%; padding: 10px 12px; border-radius: 12px; font-size: var(--text-md); line-height: 1.5; }
-.msg--user { align-self: flex-end; background: var(--primary-soft); border-bottom-right-radius: 4px; white-space: pre-wrap; }
-.msg--ai { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; }
-.msg__label { font-size: var(--text-xs); color: var(--text-3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.assist__body { flex: 1; overflow: auto; padding: 16px; }
+.assist__content { display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
 .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); text-align: left; }
 .chip:hover { background: var(--primary-soft); border-color: var(--primary); }
 .composer { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -493,15 +490,13 @@ ul.check { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 .check .m { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: 700; flex: none; }
 .m--y { background: var(--good-soft); color: var(--good); }
 .badge--waiting { color: var(--warn); background: var(--warn-soft); }
-.msg p, .avatar__reply p { margin: 0 0 6px; }
-.msg p:last-child, .avatar__reply p:last-child { margin-bottom: 0; }
+.avatar__reply p { margin: 0 0 6px; }
+.avatar__reply p:last-child { margin-bottom: 0; }
 .rich__list { margin: 0 0 6px; padding-left: 18px; }
 .rich__list:last-child { margin-bottom: 0; }
 .rich__list li { margin: 2px 0; }
-.msg code, .avatar__reply code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.avatar__reply code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .avatar__reply { line-height: 1.45; }
-.msg--failed { background: var(--bad-soft); }
-.msg--working { color: var(--text-2); }
 .thread__step { padding: 0 4px; }
 .note__edit { width: 100%; font: inherit; font-size: var(--text-md); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--surface); color: var(--text); }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: var(--bg); padding: 9px 14px; border-radius: 9px; font-size: var(--text-md); box-shadow: var(--shadow); z-index: 40; }
@@ -517,7 +512,6 @@ button.creation:hover { background: var(--hover); }
 .creation__title { display: flex; align-items: center; gap: 8px; }
 .creation__title .badge { margin-left: auto; flex: none; }
 ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
-.msg--working .stages li { font-size: var(--text-sm); color: var(--text-2); }
 .main { position: relative; }
 .assist__reopen { position: fixed; top: 50%; right: 0; z-index: 6; transform: translateY(-50%); writing-mode: vertical-rl; padding: 14px 7px; border-radius: 10px 0 0 10px; box-shadow: var(--shadow); letter-spacing: 0.02em; }
 .activity__text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7.5em; overflow: hidden; }
@@ -589,22 +583,11 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .linkbtn.faint:hover { color: var(--text); }
 .linkbtn:hover { text-decoration: underline; }  /* the faint ones too */
 
-/* working: a Claude-like state line with motion */
-.working__head { display: flex; align-items: center; gap: 8px; }
-.working__time { margin-left: auto; }
+/* working: the pulse and the shimmer (Home's thread card, the reply's thinking line) */
 .working__pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: pulse 1.4s ease-in-out infinite; flex: none; }
 @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
 .shimmer { background: linear-gradient(90deg, var(--text-2) 0%, var(--text) 45%, var(--text-2) 90%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 2.2s linear infinite; font-weight: 500; }
 @keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
-.working__dots { display: inline-flex; gap: 3px; }
-.working__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); animation: dots 1.2s infinite; }
-.working__dots i:nth-child(2) { animation-delay: 0.2s; }
-.working__dots i:nth-child(3) { animation-delay: 0.4s; }
-@keyframes dots { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
-.working__thought { margin: 6px 0 0; color: var(--text-2); font-style: italic; animation: fadein 0.35s ease-out; }
-.working__steps { background: none; border: 0; padding: 6px 0 0; color: var(--text-3); font: inherit; font-size: var(--text-sm); cursor: pointer; text-align: left; }
-.working__steps:hover { color: var(--text); }
-.msg--working .stages li { animation: fadein 0.3s ease-out; }
 @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .thread__now { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--text-sm); }
 
@@ -764,15 +747,9 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .convrow__body b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .convrow__last { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .assist--page { border-left: 0; position: static; height: 100%; min-height: 100vh; }
-.assist--page .assist__body { padding: 24px max(24px, calc((100% - 860px) / 2)); gap: 14px; }
+.assist--page .assist__body { padding: 24px max(24px, calc((100% - 860px) / 2)); }
+.assist--page .assist__content { gap: 14px; }
 .assist--page .composer { padding: 12px max(24px, calc((100% - 860px) / 2)) 16px; }
-.assist--page .msg { max-width: 100%; }
-.assist--page .msg--user { max-width: 80%; }
-.stepline { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--text-2); }
-.stepline li { display: flex; align-items: center; gap: 6px; }
-.stepline__done svg { color: var(--good); flex: none; }
-.stepline__failed { color: var(--bad); }
-.working__partial { margin-top: 10px; color: var(--text); }
 
 /* ---------- the workflow page's questions on its card ---------- */
 /* Where a value came from, beside it on a thing's page (§12). */
@@ -981,3 +958,52 @@ h3 .linkbtn { font: inherit; color: inherit; }
 
 /* A plain list of lines (commitments on a page): no bullets, a little air between. */
 .list--plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+/* The conversation's fixed visuals (slice 1 of docs/design/conversation-proposal.md, 16 Oct):
+   the person's sentence, Alpha's reply as one element (the thinking line, the step rows, the
+   text, the meta line) and the Markdown inside it. Motion is a state change only: the shimmer
+   while thinking, the spinner on the current step, a short fade on a row that appears. */
+.said { align-self: flex-end; position: relative; max-width: 92%; padding: 9px 12px; border-radius: 12px; background: var(--primary-soft); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-base); line-height: 1.5; }
+.said__edit { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 8px; width: max-content; white-space: nowrap; background: none; border: 0; padding: 2px 4px; font: inherit; font-size: var(--text-sm); color: var(--text-3); cursor: pointer; opacity: 0; transition: opacity 0.15s ease-out; }
+.said:hover .said__edit, .said__edit:focus-visible { opacity: 1; }
+.said__edit:hover { color: var(--text); }
+.intro { color: var(--text-2); font-size: var(--text-md); line-height: 1.5; }
+.reply { align-self: stretch; min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--text-base); line-height: 1.55; }
+.reply__label { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.reply__head { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: var(--text-md); color: var(--text-2); }
+.reply__thinking { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.reply__thinking .reply__spin { color: var(--primary); flex: none; }
+.reply__time { margin-left: auto; font-variant-numeric: tabular-nums; }
+.reply__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--text-2); }
+.reply__step { display: flex; align-items: center; gap: 7px; min-height: 20px; animation: fadein 0.15s ease-out; }
+.reply__step svg { flex: none; color: var(--good); }
+.reply__step--failed, .reply__step--failed svg { color: var(--bad); }
+.reply__spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.reply__fold { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: var(--text-sm); color: var(--text-3); cursor: pointer; }
+.reply__fold:hover { color: var(--text); }
+.reply__text { min-width: 0; overflow-wrap: anywhere; }
+.reply__text p { margin: 0 0 8px; }
+.reply__text p:last-child, .reply__text > :last-child { margin-bottom: 0; }
+.reply__text code, .rich__tail code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.reply--failed .reply__text { display: flex; align-items: flex-start; gap: 8px; color: var(--text-2); }
+.reply--failed .reply__text svg { flex: none; margin-top: 3px; color: var(--bad); }
+.reply__meta { display: flex; align-items: center; gap: 12px; min-height: 18px; font-size: var(--text-xs); color: var(--text-3); opacity: 0; transition: opacity 0.15s ease-out; }
+.reply:hover .reply__meta, .reply__meta:focus-within { opacity: 1; }
+.reply__act { background: none; border: 0; padding: 0; font: inherit; font-size: var(--text-xs); color: var(--text-3); cursor: pointer; }
+.reply__act:hover { color: var(--text); text-decoration: underline; }
+/* Markdown inside a reply */
+.rich__h { margin: 10px 0 4px; font-family: var(--font-ui); font-size: var(--text-base); font-weight: 600; color: var(--text); }
+.rich__h:first-child { margin-top: 0; }
+.rich__quote { margin: 6px 0 8px; padding: 2px 12px; border-left: 2px solid var(--border); color: var(--text-2); }
+.rich__tablewrap { overflow-x: auto; margin: 6px 0 8px; border: 1px solid var(--border); border-radius: 8px; }
+.rich__table { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
+.rich__table th { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+.rich__table td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rich__table tr:last-child td { border-bottom: 0; }
+.rich__code { position: relative; margin: 6px 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.rich__code pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.5; }
+.rich__code code, .reply__text .rich__code code { background: none; border: 0; padding: 0; font-size: inherit; }
+.rich__code .iconbtn { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity 0.15s ease-out; background: var(--surface); }
+.rich__code:hover .iconbtn, .rich__code .iconbtn:focus-visible { opacity: 1; }
+.rich__tail { margin: 0; white-space: pre-wrap; }

@@ -44,7 +44,8 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     for wf in world.workflows.all(("drafted",)):
         items.append({"kind": "workflow", "id": wf["id"], "text": f"Your workflow: {wf['title']}",
                       "why": wf["body"].get("purpose"), "at": wf["created_at"],
-                      "module": wf.get("module"), "workflow": wf})
+                      "module": wf.get("module"),
+                      "workflow": {**wf, "research": research_of(world, wf)}})
     for f in world.knowledge.facts("person", states=("suggested",)):
         items.append({"kind": "fact", "id": f["id"], "text": f"{f['predicate']}: {f['value']}",
                       "why": f["why"], "at": f["recorded_at"]})
@@ -54,6 +55,25 @@ def needs_you(world: World) -> list[dict[str, Any]]:
                       "action": action_view(world, a)})
     return [i for i in items if i["kind"] != "proposal"
             or not (_is_action_proposal(world, i) or _is_workflow_proposal(world, i))]
+
+
+def research_of(world: World, wf: dict[str, Any]) -> dict[str, Any] | None:
+    """Whether Sherlock is looking into this workflow right now (its open run's latest step
+    names the page or its conversation), so the card can say so and offer Skip (Q45)."""
+    sherlock = next((a for a in world.agents.all() if a["kind"] == "sherlock"), None)
+    if sherlock is None:
+        return None
+    run = world.runs.open(sherlock["id"])
+    if run is None or not sherlock.get("thread"):
+        return None
+    for e in reversed(world.journal.recent(20, thread=sherlock["thread"], kinds=["did"])):
+        if e["at"] < run["started_at"]:
+            break
+        d = e["data"]
+        if d.get("workflow") == wf["id"] or (wf.get("conversation")
+                                             and d.get("conversation") == wf["conversation"]):
+            return {"agent": sherlock["id"], "name": sherlock["name"], "state": "running"}
+    return None
 
 
 def _is_workflow_proposal(world: World, item: dict[str, Any]) -> bool:

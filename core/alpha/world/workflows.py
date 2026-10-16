@@ -173,7 +173,10 @@ def clean_body(body: Any, previous: dict[str, Any] | None = None) -> dict[str, A
                             "why": _words(sg.get("why"), 300) or None,
                             "sources": [_words(u, 300) for u in (sg.get("sources") or [])
                                         if _words(u, 300)],
-                            "decision": decision})
+                            "decision": decision,
+                            # an agent's own (Sherlock's), shown as such; Alpha's when empty
+                            "by": _words(sg.get("by"), 40) or None,
+                            "by_name": _words(sg.get("by_name"), 40) or None})
     questions = clean_questions(body.get("questions"))
     before = {q["text"]: q for q in (previous or {}).get("questions") or []}
     for q in questions:
@@ -264,6 +267,25 @@ class Workflows:
         out = self.get(wid)
         out["dropped"] = dropped
         return out
+
+    def add_suggestions(self, wid: str, suggestions: list[dict[str, Any]], *, by: str,
+                        by_name: str | None = None, turn: str | None = None) -> dict[str, Any]:
+        """Suggestions an agent brings onto a drafted page (Sherlock's, Q45): a new version
+        with everything else kept, each marked with who brought it; one with a title already
+        on the page is left as it is."""
+        current = self.get(wid)
+        if current["state"] != "drafted":
+            raise Problem(f"The workflow '{current['title']}' is {current['state']}; suggestions"
+                          " go on a drafted page.")
+        body = dict(current["body"])
+        have = {s["title"].lower() for s in body.get("suggestions") or []}
+        new = [{**sg, "by": by, "by_name": by_name} for sg in suggestions
+               if _words(sg.get("title"), 120).lower() not in have]
+        if not new:
+            return current
+        body["suggestions"] = list(body.get("suggestions") or []) + new
+        return self.revise(wid, body, turn=turn, why=f"{by_name or by} brought"
+                                                     f" {len(new)} suggestion(s)")
 
     def decide_suggestion(self, wid: str, sid: str, decision: str) -> dict[str, Any]:
         wf = self.get(wid)

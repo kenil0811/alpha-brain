@@ -154,6 +154,11 @@ class Columbo:
 
 
 @dataclass(frozen=True)
+class Sherlock:
+    most_suggestions: int
+
+
+@dataclass(frozen=True)
 class Checks:
     core_start_s: int
     window_port: int
@@ -176,6 +181,7 @@ class Settings:
     accounts: Accounts
     doc: Doc
     columbo: Columbo
+    sherlock: Sherlock
     checks: Checks
 
 

@@ -1,0 +1,20 @@
+name: sherlock_looks_into_it
+title: Sherlock looks into how others do a new kind of work and its suggestions land on the page
+why: "Q45 (16 Oct 2026): before Alpha builds a workflow in a kind of work it has not seen for
+  this person, Sherlock judges whether a look is warranted, looks (its own world first, tools,
+  open source, practice, public data), and brings back a few suggestions with a live source and
+  a reason naming the page, onto the workflow page as a new version marked its own; the person
+  sees them beside Alpha's and decides on the page."
+steps:
+  - remove_module: "Car Wash Site Scorecard"   # the live module; the ask is afresh
+  - say: "I want help picking car wash sites to open"
+  - say: "It's for me, to decide which sites to pursue and brief my investors. Sites come from
+      brokers by email. Today I check households within 3 miles and the traffic on the road,
+      then score visibility and access from 1 to 10 with a note each, and write a memo to
+      investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead
+      and write it up."
+  - agent: Sherlock
+checks:
+  - workflow: {state: drafted, version_min: 2, sherlock_min: 1}
+  - no_new_tables: {}
+  - no_new_modules: {}

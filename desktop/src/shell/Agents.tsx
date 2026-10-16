@@ -9,10 +9,11 @@ import { Button } from "../ui";
 import { Check, X } from "../ui/icons";
 import { say } from "../core/client";
 
-export const VERDICT: Record<"succeeded" | "partial" | "failed", { cls: string; words: string }> = {
+export const VERDICT: Record<"succeeded" | "partial" | "failed" | "stopped", { cls: string; words: string }> = {
   succeeded: { cls: "badge--succeeded", words: "Succeeded" },
   partial: { cls: "badge--waiting", words: "Partial" },
   failed: { cls: "badge--failed", words: "Failed" },
+  stopped: { cls: "", words: "Stopped" },
 };
 
 /** The words for an agent's write list ("What it may touch"), one per kind of thing. */

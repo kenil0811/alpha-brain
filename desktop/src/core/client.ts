@@ -344,13 +344,16 @@ export interface WorkflowBody {
   documents: { name: string; from: string; for: string | null; what: string | null }[];
   settings: { key: string; label: string; value: unknown; unit: string | null; origin: string; why: string | null }[];
   assumptions: string[];
-  suggestions: { id: string; title: string; what: string; why: string | null; sources: string[]; decision: "accept" | "skip" | null }[];
+  /** `by`/`by_name`: an agent that brought the suggestion (Sherlock's, Q45); Alpha's when empty. */
+  suggestions: { id: string; title: string; what: string; why: string | null; sources: string[]; decision: "accept" | "skip" | null; by?: string | null; by_name?: string | null }[];
   questions: Question[];
 }
 export interface Workflow {
   id: string;
   title: string;
   body: WorkflowBody;
+  /** Sherlock is looking into it right now (Q45): the card says so and offers Skip. */
+  research?: { agent: string; name: string; state: "running" } | null;
   words: string | null;
   state: "drafted" | "agreed" | "building" | "built" | "stopped" | "declined" | "removed";
   version: number;
@@ -1081,6 +1084,8 @@ export class Client {
   /** Pause an agent or set it going, or rename it. */
   changeAgent = (id: string, change: { state?: "on" | "paused"; name?: string }) => this.call<Agent>("PATCH", `/api/agents/${id}`, change);
   runAgent = (id: string) => this.call<Agent>("POST", `/api/agents/${id}/run`);
+  /** Stop an agent's run now (Stop on its page, Skip on a workflow card): its model run ends with "You stopped it.". */
+  stopAgent = (id: string) => this.call<Agent & { stopped: boolean }>("POST", `/api/agents/${id}/stop`);
   agentRemoval = (id: string) => this.call<AgentRemoval>("GET", `/api/agents/${encodeURIComponent(id)}/removal`);
   deleteAgent = (id: string) => this.call<AgentRemoval>("DELETE", `/api/agents/${encodeURIComponent(id)}`);
 

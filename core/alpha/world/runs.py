@@ -13,7 +13,8 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
-VERDICTS = ("succeeded", "partial", "failed")
+# stopped: the person stopped the run (Skip on Sherlock's look, Stop on an agent's page)
+VERDICTS = ("succeeded", "partial", "failed", "stopped")
 TRIGGERS = ("schedule", "event", "mention", "now", "again", "called")
 
 

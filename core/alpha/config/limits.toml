@@ -98,6 +98,9 @@ sibling_rows = 5                   # other rows the same part filled, shown to t
 rows_shown = 12                    # the rows a turn wrote, shown whole to the world's judge (a cut mid-row read as "not loaded", 16 Oct); the rest are counted
 gather_minutes = 60                # answers and parts wait this long and are checked in one run (a check is for the record, not the moment; one run of many is cheaper than one per turn, 16 Oct); an outward card is checked at once, before the yes
 
+[sherlock]
+most_suggestions = 5               # suggestions a look brings onto the page, at most: the research's three to five differentiators, each a real choice; the rest stays on the findings page
+
 [checks]
 core_start_s = 90                  # the desktop check waits this long for its core to come up
 window_port = 1430                 # the origin the core allows for a window served outside the app (Vite)

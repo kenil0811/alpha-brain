@@ -164,6 +164,11 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
           <Button size="sm" disabled={Boolean(agent.running)} onClick={() => void act(() => client.runAgent(agent.id), "Running now.")}>
             Run now
           </Button>
+          {agent.running ? (
+            <Button size="sm" variant="ghost" onClick={() => void act(() => client.stopAgent(agent.id), "Stopping it.")}>
+              Stop
+            </Button>
+          ) : null}
           <Button size="sm" variant="primary" onClick={() => onAsk(`Change the agent ${agent.name}: `)}>
             Ask Alpha to change this
           </Button>

@@ -22,6 +22,23 @@ const workflow: Workflow = {
 };
 
 describe("Your workflow", () => {
+  it("says when Sherlock is looking into it, with Skip, and marks its suggestions (Q45)", async () => {
+    const client = { stopAgent: vi.fn().mockResolvedValue({ stopped: true }) } as unknown as Client;
+    const looked: Workflow = {
+      ...workflow,
+      research: { agent: "a_s", name: "Sherlock", state: "running" },
+      body: { ...workflow.body, suggestions: [...workflow.body.suggestions, { id: "gates", title: "Gates before the score", what: "A site that fails a gate is never scored.", why: "your checks keep a score for sites below the floor", sources: ["https://x.example/g"], decision: null, by: "a_s", by_name: "Sherlock" }] },
+    };
+    const onDecided = vi.fn();
+    render(<WorkflowCard workflow={looked} client={client} onDecided={onDecided} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Sherlock is looking into how others do this; a deeper look takes longer.");
+    expect(screen.getByText("Suggestions")).toBeInTheDocument();
+    expect(screen.getByText("Sherlock", { selector: ".badge" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Skip Sherlock's look" }));
+    expect(client.stopAgent).toHaveBeenCalledWith("a_s");
+    await vi.waitFor(() => expect(onDecided).toHaveBeenCalled());
+  });
+
   it("shows the steps with who does each, the suggestions to add or skip, and sends the yes", async () => {
     const client = { agreeWorkflow: vi.fn().mockResolvedValue({ ...workflow, state: "agreed" }), declineWorkflow: vi.fn() } as unknown as Client;
     render(<WorkflowCard workflow={workflow} client={client} onDecided={vi.fn()} />);

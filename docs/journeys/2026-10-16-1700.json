@@ -1,0 +1,66 @@
+[
+ {
+  "name": "sherlock_looks_into_it",
+  "title": "Sherlock looks into how others do a new kind of work and its suggestions land on the page",
+  "steps": [
+   {
+    "remove_module": "Car Wash Site Scorecard",
+    "ok": true,
+    "removed": {
+     "already absent": true
+    },
+    "seconds": 0.0
+   },
+   {
+    "say": "I want help picking car wash sites to open",
+    "ok": true,
+    "reply": "I've got two prior car‑wash efforts in your world — an open **Austin gates‑first screener** (zoning/traffic/competitor gates, already built and passing) and a **Scorecard with an investor memo** that you removed this morning. I've put three quick questions on a card (market, who the output is for, and whether to resume or restart) so I build the right thing instead of guessing or redoing work you already tossed.",
+    "steps": 7,
+    "seconds": 79.7
+   },
+   {
+    "say": "It's for me, to decide which sites to pursue and brief my investors. Sites come from brokers by email. Today I check households within 3 miles and the traffic on the road, then score visibility and access from 1 to 10 with a note each, and write a memo to investors. Thresholds: 45,000 households, 30,000 cars a day. Start with Austin. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted the page. Here's the gist:\n\n- **Intake**: Alpha watches Gmail for broker emails with a site and adds it as a candidate — I didn't find any car-wash broker emails there yet, so I flagged that as an assumption to check.\n- **Gates**: Alpha looks up households within 3 miles (Census) and traffic on the road (TxDOT/Travis County GIS), marking Pass/Fail against your 45,000 / 30,000 thresholds.\n- **Scoring**: visibility and access stay yours, 1–10 with a note each, same as today — Alpha just keeps it on the record.\n- **Memo**: Alpha drafts it once a site clears both gates and has your sc",
+    "steps": 10,
+    "seconds": 204.2
+   },
+   {
+    "agent": "Sherlock",
+    "ok": true,
+    "result": "Brought back 4 suggestions.",
+    "problem": null,
+    "seconds": 179.6
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "version_min": 2,
+     "sherlock_min": 1
+    },
+    "ok": true,
+    "why": "'Car wash site scorecard — Austin' v2 is drafted: 5 steps: Catch new listings (alpha); Check households within 3 miles (alpha); Check traffic on the road (alpha); Score visibility and access (you); Write the investor memo (both, asks). Keeps car_wash_sites, car_wash_site_evaluations. 6 suggestions (4 Sherlock's): Add a zoning check and competitor density; Pipeline view by status; Area-weighted block-group intersection [Sherlock]; Add TxDOT's statewide AADT layer as a fallback [Sherlock]; Reuse the removed Scorecard's 14-item memo rubric [Sherlock]; Anchor the 1-10 visibility/access scores to industry bands [Sherlock]. Settings 3, questions 1.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 463.5,
+  "error": null
+ }
+]
