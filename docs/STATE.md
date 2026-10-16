@@ -5,7 +5,7 @@ first; the numbers come from `just stats`; the history is [`log/`](log/README.md
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
 **As of 15 October 2026, night.** The last three entries:
-- Watson, the first built-in agent ([`log/2026-10-15-watson.md`](log/2026-10-15-watson.md)): noticing as an agent on Q50's substrate, facts filed by type, commitments, decisions, the refiling of the facts that were not about Kenil. Built and proven on a copy; his own world is the acceptance (the app restarted, his next turn).
+- Watson, the first built-in agent ([`log/2026-10-15-watson.md`](log/2026-10-15-watson.md)): noticing as an agent on Q50's substrate, facts filed by type, commitments, decisions, the refiling of the facts that were not about Kenil. Ran on his own world on 16 Oct: the refiling moved the 11 facts that were not about him, the 13 that are stay; his next turns are its first real passes.
 - Agents, slice A ([`log/2026-10-15-agents-slice-a.md`](log/2026-10-15-agents-slice-a.md)): the substrate in the core and the window (Q50); automations are custom agents under their ids; Kenil's five named. The 07:00 runs of 16 Oct are the acceptance.
 - The review and clean-up after slice 2 ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)). All five groups are done: the real faults, the code, the docs (this page), the memory notes, and disk. All 22 journeys were run.
 - Slice 2, the small core routes the window asked for ([`log/2026-10-13-slice2-core-routes.md`](log/2026-10-13-slice2-core-routes.md)), with step 4 (people) skipped.
@@ -24,7 +24,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Desktop check | `docs/checks/2026-10-15-1649.md`: 95 of 95 pages clean at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 223 total; 223 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 224 total; 224 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 18,265 Python; tests 6,864; desktop 17,925 TS/TSX |
 
 ## What is built, against the design's order of work
@@ -52,7 +52,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 - **The rest:** questions over the tables, drafts and sends with previews (an email sent for real by the gmail_send journey on 14 Oct), files in and out, the car wash workflow built from its page with its parts filling rows (11 Oct, and again in the workflow_build journey on 14 Oct).
 - **Proven by tests only:** the calendar connect, and Claude Code's Install and Sign in on a fresh Mac.
 - **Proven in a clean room** (9 Oct): the shipped app. The friend's own first run is the acceptance.
-- **Not yet tried by Kenil in the app:** Watson (its first run on his world refiles the 11 facts; his page's Commitments; a module's Decisions), @Name in a conversation, dragging the companion and reopening, holding the mic, Try again on a real failure, and ⌘V paste.
+- **Not yet tried by Kenil in the app:** Watson's page and its passes on his turns (his page's Commitments, a module's Decisions), @Name in a conversation, dragging the companion and reopening, holding the mic, Try again on a real failure, and ⌘V paste.
 
 ## What is wrong, measured
 
