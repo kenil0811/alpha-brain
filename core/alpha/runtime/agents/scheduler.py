@@ -246,11 +246,12 @@ class Scheduler:
             self._run(agent["id"])
         self.looks()
 
-    def run_now(self, aid: str) -> None:
+    def run_now(self, aid: str, trigger: str = "now") -> None:
+        """Run one agent at once in the background: Run now, or Try again (`again`)."""
         self.world.agents.get(aid)  # a Problem if it doesn't exist
         if not self._claim(aid):
             raise Problem("It's already running.")
-        threading.Thread(target=self._work, args=(aid, "now", None), daemon=True,
+        threading.Thread(target=self._work, args=(aid, trigger, None), daemon=True,
                          name=f"agent-{aid}").start()
 
     def start(self) -> None:

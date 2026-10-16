@@ -11,7 +11,7 @@ A pipeline is a list of steps the scheduler runs with no model:
     {"tell": table, "where": {...}}
     {"run": skill}   (another run skill's steps, in place: composition, design §3.7 point 7)
 
-The model is called only when a read step breaks: one repair turn in the agent's thread
+The model is called only when a read step breaks: Doc repairs it (runtime/agents/doc.py)
 (fix the reader), then the step runs once more. A sign-in wall asks the person once; a bot check
 marks the source blocked. Nothing fails silently: every source's status says what happened.
 """
@@ -24,10 +24,10 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from alpha import config
 from alpha.config import settings
 from alpha.connectors.browser import BOT_CHECK, SIGN_IN, Browser
 from alpha.runtime import route, turn
+from alpha.runtime.agents import doc
 from alpha.world.readers import health_problem
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
@@ -247,7 +247,8 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
                  runner: turn.Runner = route.run,
                  browser: Browser | None = None,
                  repair: Callable[..., Any] | None = None,
-                 pause: Callable[[float], None] = time.sleep) -> PipelineResult:
+                 pause: Callable[[float], None] = time.sleep,
+                 run_id: str | None = None) -> PipelineResult:
     """Run an agent's steps. Returns what it did, with its line and its problem."""
     # What changed is measured from the last run. A first run sets the baseline: rows made
     # while the module was built are not "new" to the person who watched it built.
@@ -289,12 +290,23 @@ def run_pipeline(world: World, auto: dict[str, Any], *,
             tries = 0
             while out["health"] == "broken" and tries < REPAIRS_PER_RUN:
                 tries += 1
-                fixed = (repair or _repair)(world, auto, name, out["problem"], runner)
+                # Doc repairs the reader (Q49) and the run waits; the rerun says how it went.
+                if repair is not None:
+                    repair(world, auto, name, out["problem"], runner)
+                    fix = None
+                else:
+                    fix = doc.repair_reader(world, auto, name, out["problem"], runner,
+                                            run_id=run_id, attempt=tries)
+                    model_ms += fix.model_ms
                 repairs += 1
-                model_ms += int(getattr(getattr(fixed, "result", None), "duration_ms", 0) or 0)
                 out = run_reader(world, name, step["into"], step["key"], **args)
+                if fix is not None:
+                    doc.settle(world, fix, ok=out["health"] == "ok", why=out.get("problem"),
+                               caller=auto)
             if out["health"] == "ok":
                 read += 1
+                if tries == 0:
+                    doc.mark_held(world, name)  # a repair from an earlier run proved itself
             elif out["health"] == "needs_signin":
                 needs.append(out["site"])
                 _ask_once(world, f"Sign in to {out['site']} again so {auto['name']} can"
@@ -347,14 +359,4 @@ def _flatten(world: World, steps: list[dict[str, Any]], depth: int = 0) -> list[
             out.append(step)
     return out
 
-
-def _repair(world: World, auto: dict[str, Any], reader: str, problem: str,
-            runner: turn.Runner) -> turn.TurnOutcome:
-    page = world.knowledge.find_note(f"agent:{auto['id']}", "Brief")
-    guidance = (f"\n\nThe agent's brief (what it is for, what to do when a source changes):\n"
-                f"{page['body'][:2000]}") if page and page["body"].strip() else ""
-    return turn.ask(world, f"The reader {reader} of the agent {auto['name']} is broken:"
-                    f" {problem}. Repair it and save it under the same name ({reader}).{guidance}",
-                    thread=auto["thread"], runner=runner, rules=config.prompt("repair_reader"),
-                    actor="alpha")
 

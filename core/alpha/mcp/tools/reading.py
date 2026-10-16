@@ -138,7 +138,8 @@ class Reading(Base):
                     f" {len(rows)} rows. If it reads every page (to_end, or your script fetching"
                     " the next pages), save with whole=true; if reading only the newest page is"
                     " what you want, save with whole=false. Say which in the description too."}
-        reader = self.world.readers.save(name, site=site_of(url), url=url, script=script,
+        reader = self.world.readers.save(name, by=self.actor, site=site_of(url), url=url,
+                                         script=script,
                                          description=description, to_end=to_end,
                                          count=len(rows), whole=whole is not False,
                                          when_to_use=when_to_use,

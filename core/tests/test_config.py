@@ -53,7 +53,9 @@ def test_every_prompt_file_is_used_and_every_prompt_used_exists() -> None:
     files = set(config.prompt_names())
     assert used <= files, f"no file for {sorted(used - files)}"
     assert files <= used, f"nothing reads {sorted(files - used)}"
-    assert config.brief_names() == ["watson"] and "## What Watson files" in config.brief("watson")
+    assert config.brief_names() == ["doc", "watson"]
+    assert "## What Watson files" in config.brief("watson")
+    assert "## What Doc does" in config.brief("doc")
 
 
 def test_placeholders_are_filled_and_an_unfilled_one_is_a_mistake() -> None:

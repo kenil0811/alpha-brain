@@ -142,6 +142,11 @@ class Accounts:
 
 
 @dataclass(frozen=True)
+class Doc:
+    wait_s: int
+
+
+@dataclass(frozen=True)
 class Checks:
     core_start_s: int
     window_port: int
@@ -162,6 +167,7 @@ class Settings:
     views: Views
     proxy: Proxy
     accounts: Accounts
+    doc: Doc
     checks: Checks
 
 

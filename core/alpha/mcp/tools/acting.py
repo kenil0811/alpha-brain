@@ -37,7 +37,8 @@ class Acting(Base):
         CAN DO (or skills_find by site): an existing procedure for the site and task is used,
         and generalised with fields when it was too narrow, rather than a second one written."""
         site = site_of(url)
-        saved = self.world.procedures.save(name, site=site, url=url, description=description,
+        saved = self.world.procedures.save(name, by=self.actor, site=site, url=url,
+                                           description=description,
                                            effect=effect, steps=steps, fields=fields,
                                            verify=verify, when_to_use=when_to_use,
                                            source=f"turn:{self.turn}" if self.turn else None)

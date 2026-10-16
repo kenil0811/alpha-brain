@@ -33,8 +33,9 @@ Alpha is an agent that keeps a person's world and acts for them. The design's te
 5. **Verbatim first.** The journal is the record and is never deleted (removal tombstones it).
    Every change to the world is journaled with its actor and its turn. Derived things (pages,
    facts, summaries) sit beside the verbatim, never instead of it.
-6. **The person stops things; Alpha repairs its own know-how.** Skills (readers, procedures,
-   pipelines) are Alpha's: tried on a real run, kept with health, repaired by Alpha when a
+6. **The person stops things; Doc repairs Alpha's own know-how.** Skills (readers, procedures,
+   pipelines) are Alpha's: tried on a real run, kept with health, repaired by Doc (the agent,
+   Q49; every save keeps the version before, so a repair can be undone) when a
    site changes. A developer never patches a reader's script by hand in a person's world. If
    Alpha's know-how is wrong, fix the mechanism that let it be wrong, or ask the owner.
 7. **Plain words everywhere a person or the model reads.** Error messages, journal lines,

@@ -138,6 +138,7 @@ class Procedures:
         self.skills = Skills(store)
 
     def save(self, name: str, *, site: str, url: str, description: str, effect: str,
+             by: str | None = None,
              steps: list[dict[str, Any]], fields: list[str],
              verify: list[dict[str, Any]] | None = None, when_to_use: str | None = None,
              source: str | None = None) -> dict[str, Any]:
@@ -149,6 +150,7 @@ class Procedures:
             if ref not in fields:
                 raise Problem(f"The address uses {{{ref}}}, which is not in fields.")
         return self.skills.save(name, "act", description=description, site=site, url=url,
+                                by=by,
                                 when_to_use=when_to_use, source=source, health="untried",
                                 effect=effect, steps=clean, verify=checks, fields=list(fields),
                                 last_problem=None)

@@ -126,6 +126,48 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
         </div>
       </div>
 
+      {skill.versions?.length ? (
+
+        <div className="section">
+
+          <div className="section__head">
+
+            <h2>Versions</h2>
+
+            <span className="faint">what it was before each change; Restore brings one back as a new version</span>
+
+          </div>
+
+          <div className="card list">
+
+            {skill.versions.map((v) => (
+
+              <div key={v.version} className="item">
+
+                <div className="item__body">
+
+                  Version {v.version}
+
+                  <div className="item__sub">replaced {when(v.saved_at)} by {v.replaced_by === "person" ? "you" : v.replaced_by === "alpha" || !v.replaced_by ? "Alpha" : "Doc"}{v.description ? ` · ${v.description}` : ""}</div>
+
+                </div>
+
+                <Button size="sm" onClick={() => void client.restoreSkill(skill.name, v.version).then(() => onChanged()).catch((e: unknown) => setError(say(e)))}>
+
+                  Restore
+
+                </Button>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
+
+      ) : null}
+
       <div className="section">
         <div className="section__head">
           <h2>Runs</h2>

@@ -600,7 +600,17 @@ export interface SkillDetail extends Omit<Skill, "notes"> {
   to_end?: boolean;
   whole?: boolean;
   notes: Note | null;
+  /** The versions it had before the current one, newest first: when each was replaced and by whom (Q49: a repair can be undone). */
+  versions?: SkillVersion[];
   runs: { at: string; kind: string; text: string }[];
+}
+
+export interface SkillVersion {
+  version: number;
+  saved_at: string;
+  /** Who saved the version that replaced this one: alpha, person, or an agent's id (Doc). */
+  replaced_by: string | null;
+  description: string;
 }
 
 /** A decision (Q44, Q50): who decided what, why, on what evidence; the person's bind the agents. */
@@ -697,7 +707,8 @@ export interface Run {
   repairs: number;
   read: number | null;
   sources: number | null;
-  lines: { at: string; kind: string; text: string }[];
+  /** The run's steps; a line Doc wrote carries what it changed (`skill` or `part`, `from`, `to`) so it can be undone. */
+  lines: { at: string; kind: string; text: string; data?: { skill?: string; part?: string; from?: number; to?: number; repair?: string; held?: string } }[];
 }
 
 export interface Reader {
@@ -1049,6 +1060,8 @@ export class Client {
   updateList = (id: string, change: { title?: string; config?: SavedList["config"]; default?: boolean }) => this.call<SavedList>("PATCH", `/api/lists/${id}`, change);
   deleteList = (id: string) => this.call<SavedList>("DELETE", `/api/lists/${id}`);
   skillPage = (name: string) => this.call<SkillDetail>("GET", `/api/skills/${encodeURIComponent(name)}`);
+  /** Bring back an earlier version of a skill ("Undo this repair"). */
+  restoreSkill = (name: string, version: number) => this.call<SkillDetail>("POST", `/api/skills/${encodeURIComponent(name)}/restore/${version}`);
   agents = () => this.call<Agent[]>("GET", "/api/agents");
   agentPage = (id: string) => this.call<AgentDetail>("GET", `/api/agents/${encodeURIComponent(id)}`);
   /** Pause an agent or set it going, or rename it. */

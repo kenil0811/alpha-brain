@@ -338,7 +338,7 @@ def checkpoint(world: World, cid: str, *, runner: turn.Runner = route.run,
     """A conversation ended: what it decided (decisions of the person's) and what is open
     (one line on the module's page, or the person's)."""
     thread = world.modules.thread(cid)
-    turns = list(reversed(world.journal.recent(60, thread=cid, kinds=["said", "replied"])))
+    turns = world.journal.recent(60, thread=cid, kinds=["said", "replied"])  # oldest first
     exchanges = [t for t in turns if t["actor"] == "person" or t["kind"] == "replied"]
     if len([t for t in exchanges if t["kind"] == "said"]) < 1:
         return {"kept": False, "why": "nothing was said"}

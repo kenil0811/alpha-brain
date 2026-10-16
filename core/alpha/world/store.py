@@ -283,6 +283,27 @@ CREATE TABLE IF NOT EXISTS commitments (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS commitments_who ON commitments(who, state);
+-- Every version of a skill before it was replaced (Q49, 16 Oct 2026): what a repair changed,
+-- and what "Undo this repair" restores. `by` is who saved the version that replaced it.
+CREATE TABLE IF NOT EXISTS skill_versions (
+    name TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    site TEXT,
+    url TEXT,
+    description TEXT NOT NULL,
+    when_to_use TEXT,
+    script TEXT,
+    to_end INTEGER NOT NULL DEFAULT 0,
+    whole INTEGER NOT NULL DEFAULT 1,
+    effect TEXT,
+    steps TEXT,
+    verify TEXT,
+    fields TEXT,
+    saved_at TEXT NOT NULL,
+    replaced_by TEXT,
+    PRIMARY KEY (name, version)
+);
 
 
 -- a module as the person's own workflow (§12, Q39): one page in their words, structured, with

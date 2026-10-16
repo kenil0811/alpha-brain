@@ -14,10 +14,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from alpha import config
 from alpha.connectors.browser import Browser
 from alpha.connectors.files import Files
 from alpha.runtime import route, turn
+from alpha.runtime.agents import doc
 from alpha.world.actions import file_fields
 from alpha.world.store import Problem
 from alpha.world.world import World, alpha_home
@@ -141,6 +141,7 @@ def perform(world: World, action_id: str, *, browser: Browser | None = None,
                     runner)
         return {"ok": False, "why": why, "page": page_seen(result), **result}
     world.procedures.ran(procedure["name"], problem=None)
+    doc.mark_held(world, procedure["name"])  # a repair from before proved itself
     verb = "Sent" if action["effect"] == "send" else "Made"
     text = (f"{verb}: {action['title']} ({action['site']})."
             + (" Checked afterwards." if result.get("verified") else ""))
@@ -171,22 +172,10 @@ def _failed(result: dict[str, Any]) -> bool:
 
 def _repair(world: World, action: dict[str, Any], why: str, runner: turn.Runner,
             *, redo: bool = True) -> None:
-    if redo:
-        prompt = (f"The action \"{action['title']}\" (procedure {action['procedure']}, payload"
-                  f" {action['payload']}) failed: {why}. Repair the procedure and propose the"
-                  " action again.")
-    else:
-        prompt = (f"The action \"{action['title']}\" (procedure {action['procedure']}) ran to"
-                  f" its end, so it happened, but {why}. Repair only the procedure's verify"
-                  " steps (look at the page as it is after the commit) and save it with"
-                  " procedure_save. Do NOT propose the action again: it has been done once and"
-                  " must not be repeated. Tell the person in one line that it went out and that"
-                  " the check is fixed for next time.")
+    """Doc repairs the procedure (Q49): the steps and the action proposed again, or only the
+    check when the action went through."""
     try:
-        turn.ask(world, prompt, module=action["module"], thread=action["thread"],
-                 runner=runner, rules=config.prompt("repair_procedure"), actor="alpha",
-                 journal_as=f"Looked again at how to do \"{action['title']}\" on"
-                            f" {action['site']}.")
+        doc.repair_procedure(world, action, why, runner, redo=redo)
     except Exception:
         log.exception("repair of %s failed", action["id"])
 

@@ -90,6 +90,9 @@ idle_s = 120                       # and one idle for two minutes is closed
 [accounts]
 status_timeout_s = 20              # asking Claude Code or Codex who is signed in: 20 s before it's "not answering"
 
+[doc]
+wait_s = 900                       # a second run that meets a thing Doc is already repairing waits this long for the fix (a repair turn's own silence limit is 600 s)
+
 [checks]
 core_start_s = 90                  # the desktop check waits this long for its core to come up
 window_port = 1430                 # the origin the core allows for a window served outside the app (Vite)

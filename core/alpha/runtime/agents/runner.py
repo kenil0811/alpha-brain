@@ -141,7 +141,7 @@ def _steps(world: World, agent: dict[str, Any], run_id: str, runner: turn.Runner
            model_ms: int = 0) -> dict[str, Any]:
     """The steps, with no model unless one breaks; the verdict from what was read."""
     try:
-        result = pipeline.run_pipeline(world, agent, runner=runner)
+        result = pipeline.run_pipeline(world, agent, runner=runner, run_id=run_id)
     except Exception as e:
         log.exception("pipeline %s failed", agent["id"])
         return _ended(world, agent, run_id, "failed", str(e), None, model_ms)

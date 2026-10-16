@@ -34,7 +34,7 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
   records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines),
   agents, decisions, commitments), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
-  `claude -p` runs, the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, the scheduler, and the built-in kinds: Watson), the second opinion), `journeys/`
+  `claude -p` runs, the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, the scheduler, and the built-in kinds: Watson the noticer, Doc the healer), the second opinion), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.

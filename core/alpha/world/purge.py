@@ -90,8 +90,10 @@ def _forget_entities(db: Any, ids: list[str]) -> None:
 
 
 def _forget_skill_note(db: Any, name: str) -> None:
-    """A removed skill's page of notes (what Alpha learned about its site)."""
+    """A removed skill's page of notes (what Alpha learned about its site) and the versions it
+    had (Q49)."""
     db.execute("DELETE FROM notes WHERE scope = ?", (f"skill:{name}",))
+    db.execute("DELETE FROM skill_versions WHERE name = ?", (name,))
 
 
 def _retire_threads(db: Any, threads: list[str]) -> None:
@@ -406,6 +408,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
         for a in autos:
             if a.get("skill"):
                 db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
+                _forget_skill_note(db, a["skill"])
             db.execute("DELETE FROM runs WHERE agent = ?", (a["id"],))
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
             Decisions.remove_about(db, "agent", a["id"])

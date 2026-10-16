@@ -1,0 +1,13 @@
+name: doc_repairs_a_reader
+title: Doc repairs a reader that broke, and the run goes on
+why: "Q49: Doc is the one fixer of Alpha's know-how. A reader of the deal tracker is broken on
+  purpose on the copy (it returns nothing); the run meets it broken, calls Doc, Doc rewrites it
+  from the page as it is now, the run reruns the step and succeeds; the repair is one line in
+  the run and can be undone."
+steps:
+  - break_reader: kendall_capital
+  - agent: "Daily deal tracker — read all broker sources, flag new listings"
+checks:
+  - run_verdict: {one_of: [succeeded, partial]}
+  - journal: {kind: changed, contains: "Doc fixed the reader kendall_capital"}
+  - agent: {result_matches: "Read 1[0-5] of 15 sources", problem_allowed: "couldn't be (reached|repaired)|sign-in|stops automated"}

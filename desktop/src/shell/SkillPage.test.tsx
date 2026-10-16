@@ -28,3 +28,25 @@ describe("a skill's page", () => {
     expect(onAsk).toHaveBeenCalledWith("Change the skill linkedin_connections (Reads the connections list): ");
   });
 });
+
+describe("a skill's versions", () => {
+  it("lists what it was before each change, says who replaced it, and Restore brings one back", async () => {
+    const user = userEvent.setup();
+    const client = {
+      skillPage: vi.fn(async () => ({ name: "brokers", kind: "read", site: "brokers.com", module: null, url: "https://brokers.com", description: "Reads the brokers", when_to_use: null, effect: null, fields: [], version: 2, health: "ok", last_problem: null, last_run_at: null, last_count: 12, last_ok_count: 12, source: null, updated_at: "2026-10-16T10:00:00Z", script: "return rows", notes: null, runs: [], versions: [{ version: 1, saved_at: "2026-10-16T09:00:00Z", replaced_by: "a_doc1", description: "Reads the brokers" }] })),
+      restoreSkill: vi.fn(async () => ({})),
+      writeNote: vi.fn(async () => ({})),
+    } as unknown as Client;
+    const onChanged = vi.fn();
+    render(
+      <TooltipProvider>
+        <SkillPage client={client} name="brokers" version={0} onGo={vi.fn()} onAsk={vi.fn()} onChanged={onChanged} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByText("Version 1")).toBeInTheDocument();
+    expect(screen.getByText(/replaced .* by Doc/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(client.restoreSkill).toHaveBeenCalledWith("brokers", 1);
+    expect(onChanged).toHaveBeenCalled();
+  });
+});

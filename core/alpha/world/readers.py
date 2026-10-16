@@ -55,11 +55,13 @@ class Readers:
         self.skills = Skills(store)
 
     def save(self, name: str, *, site: str, url: str, script: str, description: str,
+             by: str | None = None,
              to_end: bool, count: int, whole: bool = True, when_to_use: str | None = None,
              source: str | None = None) -> dict[str, Any]:
         check_name(name, "reader", "linkedin_connections")
         stamp = now()
         return self.skills.save(name, "read", description=description, site=site, url=url,
+                                by=by,
                                 when_to_use=when_to_use, source=source, health="ok",
                                 script=script, to_end=to_end, whole=whole, last_run_at=stamp,
                                 last_count=count, last_ok_count=count, last_problem=None)

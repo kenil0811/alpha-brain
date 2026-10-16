@@ -99,8 +99,10 @@ class Journal:
         kinds: list[str] | None = None,
         since: str | None = None,
         before: str | None = None,
+        actor: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Newest last. `stream=True` keeps only turns outside any thread; `modules` is a set
+        """Newest last. `stream=True` keeps only turns outside any thread; `actor` keeps one
+        actor's entries (an agent's, wherever they landed); `modules` is a set
         of modules (a module and what it holds); `since` bounds the time (a whole day's
         failures) and `before`, an entry's id, gives the page of history before it (exactly,
         though many entries share a second)."""
@@ -126,6 +128,9 @@ class Journal:
             args.append(thread)
         if stream:
             where.append("thread IS NULL")
+        if actor is not None:
+            where.append("actor = ?")
+            args.append(actor)
         if kinds:
             where.append(f"kind IN ({','.join('?' * len(kinds))})")
             args.extend(kinds)

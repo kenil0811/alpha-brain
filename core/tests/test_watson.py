@@ -268,14 +268,15 @@ def test_watson_is_made_once_and_works_from_the_journal_cursor(world: World) -> 
     journal's end, the look over what came after, the run under its name, the verdict."""
     world.journal.append("said", "something said before Watson existed, four words",
                          actor="person")
-    [made] = builtin.ensure(world)
+    made = next(a for a in builtin.ensure(world) if a["kind"] == "watson")
     assert made["kind"] == "watson" and made["name"] == "Watson" and made["on"]
     assert made["may"] == ["facts", "notes", "commitments", "decisions"]
     brief = world.knowledge.find_note(f"agent:{made['id']}", "Brief")
     assert brief and brief["body"].startswith("## What Watson files")
     assert builtin.ensure(world) == []  # once
     agent = world.agents.get(made["id"])
-    assert agent["cursor"] >= world.journal.rowid(world.journal.recent(1)[0]["id"])
+    hello = [e for e in world.journal.recent(5, kinds=["made"]) if e["actor"] == made["id"]][-1]
+    assert agent["cursor"] >= world.journal.rowid(hello["id"])  # its own hello is behind it
     # nothing new: no run, the cursor moves (the refiling of nothing is still a run? no: it
     # is recorded as done the first time there is work)
     sid = exchange(world, "I moved to Lisbon last month, loving it", "Welcome to Lisbon.")
@@ -313,7 +314,7 @@ def test_the_refiling_moves_what_is_not_about_the_person_once(world: World) -> N
                              ("wants_workout_logging", "True"), ("using_module", "Advisory")):
         world.knowledge.record_fact("person", predicate, value, source="turn:old",
                                     state="accepted")
-    [agent] = builtin.ensure(world)
+    agent = next(a for a in builtin.ensure(world) if a["kind"] == "watson")
     ids = {f["predicate"]: f["id"] for f in world.knowledge.facts("person")}
 
     def runner(req: TurnRequest) -> RunResult:

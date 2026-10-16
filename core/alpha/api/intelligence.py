@@ -147,8 +147,21 @@ def routes(app: FastAPI, s: Served) -> None:
         runs = [e for e in world.journal.recent(300)
                 if name in {e["data"].get("reader"), e["data"].get("procedure"),
                             e["data"].get("skill")}]
-        return {**skill, "notes": page, "runs": [
+        return {**skill, "notes": page, "versions": world.skills.versions(name), "runs": [
             {"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in runs[-20:]]}
+
+    @app.post("/api/skills/{name}/restore/{version}", dependencies=[api])
+    def restore_skill(name: str, version: int) -> dict[str, Any]:
+        """Bring back an earlier version of a skill ("Undo this repair", Q49), as a new
+        version, journaled as the person's."""
+        before = world.skills.get(name)
+        restored = world.skills.restore(name, version, by="person")
+        world.journal.append("changed", f"You took {name} back to version {version} (it was"
+                             f" {before['version']}; now {restored['version']}).",
+                             actor="person", data={"skill": name, "from": before["version"],
+                                                   "to": restored["version"],
+                                                   "restored": version})
+        return restored
 
     @app.get("/api/agents/{aid}", dependencies=[api])
     def agent_page(aid: str) -> dict[str, Any]:
@@ -159,10 +172,17 @@ def routes(app: FastAPI, s: Served) -> None:
         if auto is None:
             raise Problem(f"There is no agent {aid}.")
         entries = world.journal.recent(400, thread=auto["thread"]) if auto["thread"] else []
+        own = world.journal.recent(400, actor=aid)
+        seen_ids = {e["id"] for e in entries}
+        entries = sorted(entries + [e for e in own if e["id"] not in seen_ids],
+                         key=lambda e: (e["at"], e["id"]))
         runs: list[dict[str, Any]] = []
         for r in world.runs.of(aid, 12):
             until = r["ended_at"] or "9999"
-            lines = [{"at": e["at"], "kind": e["kind"], "text": e["text"][:300]}
+            lines = [{"at": e["at"], "kind": e["kind"], "text": e["text"][:300],
+                      "data": {k: e["data"].get(k) for k in ("skill", "part", "from", "to",
+                                                             "repair", "held")
+                               if e["data"].get(k) is not None}}
                      for e in entries if r["started_at"] <= e["at"] <= until
                      and e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed",
                                        "asked"} and not opens_run(e)]

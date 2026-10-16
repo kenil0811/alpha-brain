@@ -69,7 +69,7 @@ def routes(app: FastAPI, s: Served) -> None:
             thread=e["thread"], data={"again_of": jid, **{k: v for k, v in plan.items()
                                                           if k not in ("words", "asks")}})
         if how in ("agent", "automation"):
-            s.scheduler.run_now(plan.get("agent") or plan["automation"])
+            s.scheduler.run_now(plan.get("agent") or plan["automation"], trigger="again")
         elif how == "part":
             def part_failed(why: str) -> None:
                 world.journal.append("failed", f"It couldn't run again: {why}", module=e["module"],

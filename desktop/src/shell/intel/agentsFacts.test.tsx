@@ -162,3 +162,29 @@ describe("a built-in agent's face", () => {
     expect(screen.getByRole("button", { name: "Koala" })).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+describe("Doc's repairs on its page", () => {
+  it("offers Undo on a run line that changed a skill, and nothing on the others", async () => {
+    const { AgentPage } = await import("../AgentPage");
+    const client = {
+      agentPage: vi.fn().mockResolvedValue({ ...auto("d1", { kind: "doc", name: "Doc" }), brief: null, notes: null, decisions: [], pipeline: null, good_run: null, runs: [
+        { id: "run_1", started_at: "2026-10-16T10:54:04Z", ended_at: "2026-10-16T10:54:19Z", verdict: "succeeded", why: null, line: "Doc fixed the reader brokers: the layout changed", model_ms: 2500, repairs: 1, read: null, sources: null, lines: [
+          { at: "2026-10-16T10:54:05Z", kind: "did", text: "Doc looks at the reader brokers: no rows" },
+          { at: "2026-10-16T10:54:18Z", kind: "changed", text: "Doc fixed the reader brokers: the layout changed", data: { skill: "brokers", from: 1, to: 2 } },
+        ] },
+      ] }),
+      restoreSkill: vi.fn().mockResolvedValue({}),
+      preference: vi.fn().mockRejectedValue(new Error("none")),
+      setPreference: vi.fn().mockResolvedValue({}),
+    };
+    const onChanged = vi.fn();
+    render(<AgentPage client={client as unknown as Client} id="d1" version={0} onGo={vi.fn()} onAsk={vi.fn()} onChanged={onChanged} />);
+    expect(await screen.findByText("Doc looks at the reader brokers: no rows")).toBeInTheDocument();
+    const undo = screen.getAllByRole("button", { name: "Undo this repair" });
+    expect(undo).toHaveLength(1);
+    fireEvent.click(undo[0]);
+    await waitFor(() => expect(client.restoreSkill).toHaveBeenCalledWith("brokers", 1));
+    expect(onChanged).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Bear" })).toHaveAttribute("aria-pressed", "true"); // Doc's own face
+  });
+});

@@ -199,6 +199,16 @@ class Run:
             record = {"agent": agent["name"], "ok": not self.last_agent.get("last_error"),
                       "result": self.last_agent.get("last_result"),
                       "problem": self.last_agent.get("last_error")}
+        elif "break_reader" in spec:
+            # A reader broken on purpose on the copy (its script returns nothing), so the
+            # journey can watch Doc repair it with the real model (Q49, 16 Oct).
+            name = str(spec["break_reader"])
+            reader = self.world.readers.get(name)
+            self.world.readers.save(name, site=reader["site"], url=reader["url"],
+                                    script="return []", description=reader["description"],
+                                    to_end=bool(reader.get("to_end")), count=0,
+                                    whole=bool(reader.get("whole", True)), by="journey")
+            record = {"break_reader": name, "ok": True}
         elif "seed" in spec:
             # Something that was true before the journey began: a past exchange, a fact.
             seed = spec["seed"]
@@ -678,7 +688,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next((k for k in ("say", "reader", "agent", "approve_action",
+            kind = next((k for k in ("say", "reader", "agent", "break_reader", "approve_action",
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"

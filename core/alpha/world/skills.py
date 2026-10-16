@@ -122,9 +122,11 @@ class Skills:
 
     def save(self, name: str, kind: str, *, description: str, site: str | None = None,
              url: str | None = None, module: str | None = None, when_to_use: str | None = None,
-             source: str | None = None, health: str | None = None,
+             source: str | None = None, health: str | None = None, by: str | None = None,
              **fields: Any) -> dict[str, Any]:
-        """Create or replace a skill (its version goes up when it exists)."""
+        """Create or replace a skill (its version goes up when it exists; the version it
+        replaces is kept in `skill_versions`, with `by`: who saved the new one, so a repair
+        can be undone)."""
         if kind not in KINDS:
             raise Problem(f"A skill's kind is one of {KINDS}.")
         check_name(name, "skill", "linkedin_connections")
@@ -153,6 +155,12 @@ class Skills:
             values["health"] = health
         with self.store.tx() as db:
             if prior:
+                db.execute(
+                    "INSERT OR REPLACE INTO skill_versions (name, version, kind, site, url,"
+                    " description, when_to_use, script, to_end, whole, effect, steps, verify,"
+                    " fields, saved_at, replaced_by) SELECT name, version, kind, site, url,"
+                    " description, when_to_use, script, to_end, whole, effect, steps, verify,"
+                    " fields, ?, ? FROM skills WHERE name = ?", (stamp, by or "alpha", name))
                 sets = ", ".join(f"{k} = ?" for k in values)
                 db.execute(f"UPDATE skills SET {sets}, version = version + 1, updated_at = ?"
                            " WHERE name = ?", (*values.values(), stamp, name))
@@ -177,5 +185,31 @@ class Skills:
                            (stamp, count, count, stamp, name))
         return self.get(name)
 
+    def versions(self, name: str) -> list[dict[str, Any]]:
+        """The versions a skill had before its current one, newest first: when each was
+        replaced and by whom (alpha, the person, or an agent such as Doc)."""
+        rows = self.store.all("SELECT version, saved_at, replaced_by, description FROM"
+                              " skill_versions WHERE name = ? ORDER BY version DESC", (name,))
+        return [{k: r[k] for k in r.keys()} for r in rows]
+
+    def restore(self, name: str, version: int, *, by: str = "person") -> dict[str, Any]:
+        """Bring back an earlier version of a skill as a new version (Q49: "Undo this
+        repair"); the one it replaces is kept too, so an undo can itself be undone."""
+        row = self.store.one("SELECT * FROM skill_versions WHERE name = ? AND version = ?",
+                             (name, int(version)))
+        if row is None:
+            raise Problem(f"{name} has no version {version} to go back to.")
+        current = self.get(name)
+        fields: dict[str, Any] = {"script": row["script"], "to_end": bool(row["to_end"]),
+                                  "whole": bool(row["whole"]), "effect": row["effect"],
+                                  "steps": loads(row["steps"], []) if row["steps"] else None,
+                                  "verify": loads(row["verify"], []) if row["verify"] else None,
+                                  "fields": loads(row["fields"], []) if row["fields"] else None,
+                                  "health": "untried", "last_problem": None}
+        return self.save(name, row["kind"], description=row["description"], site=row["site"],
+                         url=row["url"], module=current.get("module"),
+                         when_to_use=row["when_to_use"], by=by, **fields)
+
     def delete(self, db: sqlite3.Connection, name: str) -> int:
+        db.execute("DELETE FROM skill_versions WHERE name = ?", (name,))
         return db.execute("DELETE FROM skills WHERE name = ?", (name,)).rowcount

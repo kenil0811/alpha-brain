@@ -254,6 +254,11 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
                   {r.lines.map((l, i) => (
                     <li key={`${l.at}-${i}`} className={l.kind === "failed" ? "notice" : "stages__done"}>
                       {l.kind === "failed" ? <X size={12} aria-label="failed" /> : <Check size={12} aria-label="done" />} {l.text}
+                      {l.data?.skill && typeof l.data.from === "number" ? (
+                        <Button size="sm" variant="ghost" onClick={() => void act(() => client.restoreSkill(String(l.data?.skill), Number(l.data?.from)), `Took ${l.data?.skill} back to version ${l.data?.from}.`)}>
+                          Undo this repair
+                        </Button>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

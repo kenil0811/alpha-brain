@@ -125,7 +125,8 @@ def test_a_day_of_activity_and_the_page_before(world: World) -> None:
     page = c.get("/api/activity?limit=2").json()
     assert [e["text"] for e in page] == ["Failure 2", "Failure 1"]
     earlier = c.get(f"/api/activity?before={page[-1]['id']}").json()
-    assert [e["text"][:9] for e in earlier] == ["Watson is", "Failure 0"]  # Watson's hello, then
+    # Alpha's own agents said hello first (newest first), then the oldest failure
+    assert [e["text"][:6] for e in earlier] == ["Doc is", "Watson", "Failur"]
     # many entries in one second: the page before is exact
     same = [world.journal.append("did", f"Step {i}") for i in range(4)]
     with world.store.tx() as db:
@@ -183,6 +184,8 @@ def test_an_agent_s_failed_run_runs_again_and_reports_how_it_went(world: World) 
         assert time.time() < deadline
         time.sleep(0.02)
     assert tried["state"] == "worked", tried
+    last = world.runs.last(auto["id"])
+    assert last and last["trigger"] == "again"  # a try is its own kind of start (16 Oct)
     # a reader that broke inside the agent's run names only the agent's thread: still its run
     broke = world.journal.append("failed", "The reader x looks broken.", thread=auto["thread"],
                                  data={"reader": "x", "turn": None})

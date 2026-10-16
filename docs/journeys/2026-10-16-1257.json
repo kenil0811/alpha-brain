@@ -1,0 +1,95 @@
+[
+ {
+  "name": "agent_verdict",
+  "title": "A run of an agent ends with a verdict judged by code, and the run is kept",
+  "steps": [
+   {
+    "agent": "Deal Tracker",
+    "ok": true,
+    "result": "Read 15 of 15 sources. Deal Listings: 3 new, 1 changed, 5 gone. New: PICTURE FRAMING SHOP, Replacement Wear Parts for Commercial, Construction & Ag Equipment | DTC eCommerce | 486% YOY Growth | 20% Net Margin | $1,300+ AOV, Biomedical Technology Business | Longevity & Preventive Health | Zero Customer Acquisition Cost | $45,000/Client Annual Fee; Changed: BOUTIQUE FITNESS STUDIO; Gone: PICTURE FRAMING SHOP, BOUTIQUE FITNESS STUDIO, Doctor Approved Supplements Company | 50% Seller Financing | 60% Repeat Order Rate | 15-Year Business | 2 Brands | Sales via Healthcare Professionals (B2B) & DTC, Artificial Intelligence (AI) Digital Assistant | On Demand AI Agent | Low Churn | Cross-Channel Memory Integration | Subscription-Based | Natural Phone Conversations, eCommerce Brand | Proprietary Underwater Breathing Devices | 40% Increase in YOY Profit | High Customer Retention Rate.",
+    "problem": null,
+    "seconds": 97.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "run_verdict",
+    "arg": {
+     "one_of": [
+      "succeeded",
+      "partial"
+     ]
+    },
+    "ok": true,
+    "why": "succeeded: Read 15 of 15 sources. Deal Listings: 3 new, 1 changed, 5 gone. New: PICTURE FRAMING SHOP, Replacement Wear Parts for Commercial, Construction & Ag Equipment | DTC eCommerce | 486% YOY Growth | 20% Net Margin | $1,300+ AOV, Biomedical Technology Business | Longevity & Preventive Health | Zero Customer Acquisition Cost | $45,000/Client Annual Fee; Changed: BOUTIQUE FITNESS STUDIO; Gone: PICTURE FRAMING SHOP, BOUTIQUE FITNESS STUDIO, Doctor Approved Supplements Company | 50% Seller Financing | 60% Repeat Order Rate | 15-Year Business | 2 Brands | Sales via Healthcare Professionals (B2B) & DTC, Artificial Intelligence (AI) Digital Assistant | On Demand AI Agent | Low Churn | Cross-Channel Memory Integration | Subscription-Based | Natural Phone Conversations, eCommerce Brand | Proprietary Underwater Breathing Devices | 40% Increase in YOY Profit | High Customer Retention Rate. (model 0 s, 0 repairs)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent",
+    "arg": {
+     "result_matches": "Read 1[0-5] of 15 sources",
+     "problem_allowed": "couldn't be (reached|repaired)|sign-in"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources. Deal Listings: 3 new, 1 changed, 5 gone. New: PICTURE FRAMING SHOP, Replacement Wear Parts for Commercial, Construction & Ag Equipment | ",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 97.7,
+  "error": null
+ },
+ {
+  "name": "doc_repairs_a_reader",
+  "title": "Doc repairs a reader that broke, and the run goes on",
+  "steps": [
+   {
+    "break_reader": "kendall_capital",
+    "ok": true,
+    "seconds": 0.0
+   },
+   {
+    "agent": "Deal Tracker",
+    "ok": true,
+    "result": "Read 15 of 15 sources.",
+    "problem": null,
+    "seconds": 142.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "run_verdict",
+    "arg": {
+     "one_of": [
+      "succeeded",
+      "partial"
+     ]
+    },
+    "ok": true,
+    "why": "succeeded: Read 15 of 15 sources. (model 49 s, 1 repairs)",
+    "seconds": 0.0
+   },
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "changed",
+     "contains": "Doc fixed the reader kendall_capital"
+    },
+    "ok": true,
+    "why": "1 changed entry: Doc fixed the reader kendall_capital: Repaired kendall_capital: the table markup on the Our Listings page hadn't changed, but the saved script was a no-op (`ret.",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent",
+    "arg": {
+     "result_matches": "Read 1[0-5] of 15 sources",
+     "problem_allowed": "couldn't be (reached|repaired)|sign-in|stops automated"
+    },
+    "ok": true,
+    "why": "Read 15 of 15 sources.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 142.0,
+  "error": null
+ }
+]
