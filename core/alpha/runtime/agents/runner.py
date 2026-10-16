@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import Any, cast
 
 from alpha import config
 from alpha.runtime import pipeline, route, turn
-from alpha.runtime.agents import RUNS, Work
+from alpha.runtime.agents import MENTIONS, RUNS, Work
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents")
@@ -120,7 +120,14 @@ def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str |
             on_said: Any = None) -> turn.TurnOutcome:
     """The person addressed the agent by name in a conversation: it answers there, as itself,
     with its brief in front of it and its hands cut to its write list. A run row is kept
-    (trigger `mention`) and judged: succeeded when it answered, failed when it could not."""
+    (trigger `mention`) and judged: succeeded when it answered, failed when it could not. A
+    kind with a mention of its own in code (Columbo's "check that") answers that way first."""
+    hook = MENTIONS.get(agent["kind"])
+    if hook is not None:
+        out = hook(world, agent, sentence, thread=thread, module=module, runner=runner,
+                   on_said=on_said)
+        if out is not None:
+            return cast(turn.TurnOutcome, out)
     run_id = world.runs.start(agent["id"], trigger="mention")
     prompt = sentence
     extra = front(world, agent)

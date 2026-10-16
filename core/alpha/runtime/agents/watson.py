@@ -545,4 +545,8 @@ def _count(counts: dict[str, int], out: dict[str, Any]) -> None:
     counts["to_confirm"] += sum(1 for f in out.get("facts") or [] if f["state"] == "suggested")
 
 
-register(KIND, look, run)
+register(KIND, look, run, words={
+    "works": "after each turn of yours that has a reply, when a conversation closes or goes"
+             " quiet, and when Alpha reads a document or you add one",
+    "good_run": "every pass it made got an answer from the model, whatever it kept; partial"
+                " when some did not; failed when none did"})

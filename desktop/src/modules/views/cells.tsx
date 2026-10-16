@@ -3,7 +3,7 @@
  * ? on an assumption), or being edited in place. A file cell opens or reveals the document.
  */
 import { type KeyboardEvent, useState } from "react";
-import type { FileInfo, RecordRow, Relations } from "../../core/client";
+import type { Checked, FileInfo, RecordRow, Relations } from "../../core/client";
 import { host } from "../../core/host";
 import { editText, fieldLabel, inputType, isNumeric, showValue, type FieldInfo } from "../fields";
 import { dayText, humanize } from "../format";
@@ -41,9 +41,21 @@ export function RelationCell({ row, field, relations, onOpenRelated }: { row: Re
   );
 }
 
+/** Columbo's mark (Q47): ✓ when what Alpha worked out agreed with an independent answer and the
+ *  person's world, ≠ when it differed; what it was checked against, and when, on hover. */
+export function CheckMark({ checked }: { checked: Checked }) {
+  const when = dayText(new Date(checked.at));
+  const words = `Checked by Columbo against ${checked.source}, ${when}${checked.agree ? "." : ": it differs."}`;
+  return (
+    <span className={checked.agree ? "chk" : "chk chk--differs"} title={words} aria-label={checked.agree ? "checked" : "checked: it differs"}>
+      {checked.agree ? "✓" : "≠"}
+    </span>
+  );
+}
+
 /** Without `onCommit` the cell is read-only: no editor opens (a table the window is handed, or a
  *  program module's own). */
-export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, tone }: { row: RecordRow; field: FieldInfo; onCommit?: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; tone?: "good" | "warn" | "bad" | "info" | "gray" | null; onOpenRelated?: (collection: string, id: string) => void }) {
+export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRelated, tone, marks = true }: { row: RecordRow; field: FieldInfo; onCommit?: (text: string) => void; files?: Record<string, FileInfo>; onFile?: (file: File) => void; relations?: Relations; tone?: "good" | "warn" | "bad" | "info" | "gray" | null; onOpenRelated?: (collection: string, id: string) => void; /** Columbo's mark beside the value (a record page shows it beside the source instead). */ marks?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   if (field.kind === "relation") return <RelationCell row={row} field={field} relations={relations} onOpenRelated={onOpenRelated} />;
@@ -55,6 +67,8 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
   const source = row.provenance?.source;
   const lookedUp = numeric && Boolean(source) && source !== "stated" && source !== "estimated";
   const rests = [estimate ? "Estimated by Alpha." : lookedUp ? `From ${source}.` : "", assumed ? `Alpha assumed ${assumed}.` : ""].filter(Boolean).join(" ");
+  // Columbo's check: of the value a part filled here, or of the row's worked-out numbers
+  const checked = row.provenance?.fields?.[field.name]?.checked ?? (numeric && row.provenance?.by === "alpha" ? row.provenance?.checked : undefined);
   function begin(e?: { stopPropagation: () => void }) {
     if (!onCommit) return;
     e?.stopPropagation();
@@ -122,6 +136,7 @@ export function Cell({ row, field, onCommit, files, onFile, relations, onOpenRel
           ?
         </span>
       ) : null}
+      {marks && checked && words !== "" ? <CheckMark checked={checked} /> : null}
     </td>
   );
 }

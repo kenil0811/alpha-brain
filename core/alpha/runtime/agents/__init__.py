@@ -45,17 +45,29 @@ class Outcome:
 
 Look = Callable[[World, dict[str, Any]], Work | None]
 Run = Callable[..., Outcome]
+Mention = Callable[..., Any]
 
 # kind → how it looks for work on a tick (None: only its schedule, an @ or Run now wake it)
 LOOKS: dict[str, Look | None] = {"custom": None}
 # kind → its own run (a frame in code); a kind without one runs the custom frame
 RUNS: dict[str, Run] = {}
+# kind → what "@Name …" does in code, if the kind has such a thing ("@Columbo check that");
+# it returns None when the sentence is not that, and the model answers as the agent instead
+MENTIONS: dict[str, Mention] = {}
+# kind → its words for the person's page: `works` (when it looks for work, in place of a
+# schedule's words) and `good_run` (what its verdict means); the frame knows, not the window
+WORDS: dict[str, dict[str, str]] = {}
 
 
-def register(kind: str, look: Look | None, run: Run | None = None) -> None:
+def register(kind: str, look: Look | None, run: Run | None = None,
+             mention: Mention | None = None, *, words: dict[str, str] | None = None) -> None:
     LOOKS[kind] = look
     if run is not None:
         RUNS[kind] = run
+    if mention is not None:
+        MENTIONS[kind] = mention
+    if words:
+        WORDS[kind] = dict(words)
 
 
 def known(kind: str) -> bool:

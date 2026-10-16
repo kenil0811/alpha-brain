@@ -121,6 +121,11 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         ) : null}
       </div>
       {!shot && open && action.preview_note ? <p className="faint">{action.preview_note}</p> : null}
+      {action.checked ? (
+        <p className="faint action__checked" title="Columbo checked the numbers in it; nothing waits on this">
+          Columbo: {action.checked[0].toLowerCase()}{action.checked.slice(1)}
+        </p>
+      ) : null}
       {shot ? (
         <Dialog open={full} onOpenChange={setFull} title="Screenshot, full size" bare>
           <img src={shot} alt="Screenshot, full size" onClick={() => setFull(false)} />

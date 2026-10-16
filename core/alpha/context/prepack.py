@@ -130,6 +130,16 @@ def _clip(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
+def section_of(context: str, title: str) -> str:
+    """One section of a kept pre-pack (`turn_contexts`), by the start of its title (a title
+    may carry a suffix: "THIS CONVERSATION (Deals) (oldest first)"): its lines, without the
+    title, or "" when the pack has no such section. The journey suite's judge and Columbo
+    read what the model was given this way."""
+    m = re.search(rf"(?m)^{re.escape(title)}[^\n]*\n(.*?)(?=\n\n[A-Z][A-Z' ()]+\n|\Z)", context,
+                  re.S)
+    return m.group(1).strip() if m else ""
+
+
 def when(iso: str) -> str:
     """A journal time as the person would say it, in local time: "Thu 1 Oct 20:21"."""
     local = datetime.fromisoformat(iso).astimezone()

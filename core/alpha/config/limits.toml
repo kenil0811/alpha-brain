@@ -93,6 +93,10 @@ status_timeout_s = 20              # asking Claude Code or Codex who is signed i
 [doc]
 wait_s = 900                       # a second run that meets a thing Doc is already repairing waits this long for the fix (a repair turn's own silence limit is 600 s)
 
+[columbo]
+sibling_rows = 5                   # other rows the same part filled, shown to the world's judge: enough to see a part giving every row the same number
+rows_shown = 12                    # the rows a turn wrote, shown whole to the world's judge (a cut mid-row read as "not loaded", 16 Oct); the rest are counted
+
 [checks]
 core_start_s = 90                  # the desktop check waits this long for its core to come up
 window_port = 1430                 # the origin the core allows for a window served outside the app (Vite)

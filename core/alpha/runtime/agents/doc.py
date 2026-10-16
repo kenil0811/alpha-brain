@@ -514,4 +514,10 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     return Outcome("succeeded", None, line, model_ms)
 
 
-register(KIND, look, run)
+register(KIND, look, run, words={
+    "works": "when a run of another agent meets a broken reader or procedure (it is called"
+             " and the run waits), and after a workflow part crashes on a row or a run fails"
+             " the way the Mac fails",
+    "good_run": "what it repaired worked on the rerun, or what it could not touch was"
+                " reported; partial when a fix did not take beside one that did; failed when"
+                " no fix took"})

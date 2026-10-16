@@ -84,7 +84,7 @@ def test_the_companions_sentence_is_routed_in_the_worker_not_the_request(world: 
     world.journal.append("said", "protein today", actor="person", thread=b["id"])
     runner = judge_answering("something new", confidence=0.2)
     began = time.monotonic()
-    turns_ = Turns(world, runner, checks=False)
+    turns_ = Turns(world, runner)
     started = turns_.start(AskBody(text="and the second one?"))
     assert started["state"] == "routing" and time.monotonic() - began < 0.5
     for _ in range(100):

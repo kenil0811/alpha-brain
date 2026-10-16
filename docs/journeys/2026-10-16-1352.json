@@ -1,0 +1,50 @@
+[
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [
+   {
+    "say": "i had a 45g bar of cadbury dairy milk",
+    "ok": true,
+    "reply": "Logged: 45g Cadbury Dairy Milk — **240 kcal**, 3.3g protein, 25.7g carbs (25.2g sugar), 13.5g fat, scaled from the standard per-100g label (fatsecret.co.uk).\n\nSources:\n- [Calories in Cadbury Dairy Milk and Nutrition Facts](https://www.fatsecret.co.uk/calories-nutrition/cadbury/dairy-milk/100g)",
+    "steps": 3,
+    "seconds": 36.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "food_log",
+     "source_not": [
+      "estimated"
+     ]
+    },
+    "ok": true,
+    "why": "1 row(s) added; source: fatsecret.co.uk label (per 100g: 534 kcal, 7.3g protein, 57g carbs, 30g fat, 2.1g fiber, 56g sugar, 0.24g salt), scaled to 45g.",
+    "seconds": 0.0
+   },
+   {
+    "check": "near",
+    "arg": {
+     "collection": "food_log",
+     "field": "calories",
+     "value": 240,
+     "within": 0.1
+    },
+    "ok": true,
+    "why": "calories = 240.0 (wanted 240.0 ±10%)",
+    "seconds": 0.0
+   },
+   {
+    "check": "independent",
+    "arg": {},
+    "ok": true,
+    "why": "Checked against an independent answer and your world: both agree.",
+    "seconds": 56.5
+   }
+  ],
+  "seconds": 92.9,
+  "error": null
+ }
+]

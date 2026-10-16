@@ -78,7 +78,7 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     scheduler = Scheduler(world, runner)
     runner_fn = runner or route.run
-    running = Turns(world, runner, after=scheduler.kick if live else None, checks=live)
+    running = Turns(world, runner, after=scheduler.kick if live else None)
     stops: list[Callable[[], None]] = []
 
     @asynccontextmanager

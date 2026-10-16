@@ -11,7 +11,7 @@ from typing import Any
 
 from alpha.api.bodies import AskBody
 from alpha.api.views import conversation_view
-from alpha.runtime import check, claude_cli, conversations
+from alpha.runtime import claude_cli, conversations
 from alpha.runtime import turn as turns
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem
@@ -24,13 +24,13 @@ class Turns:
     """Turns run in the background; the window polls for the answer."""
 
     def __init__(self, world: World, runner: turns.Runner | None = None,
-                 after: Callable[[], None] | None = None, checks: bool = True) -> None:
+                 after: Callable[[], None] | None = None) -> None:
         self.world = world
         self.runner = runner
+        # What a turn starts at once (the scheduler's kick): a workflow agreed in it, a row
+        # that arrived, and the agents whose kinds look at what it left in the journal (Watson
+        # notices, Columbo checks the reply's numbers; Q50, Q46, Q47).
         self.after = after
-        # After a turn in which Alpha wrote values it worked out itself, an independent answer
-        # checks them in the background and Alpha corrects itself in the conversation.
-        self.checks = checks
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
 
@@ -126,9 +126,6 @@ class Turns:
                     self.after()
                 except Exception:
                     log.exception("after the turn")
-            said_id = result.get("said")
-            if self.checks and result["state"] == "done" and said_id:
-                self.check(str(said_id))
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
@@ -141,21 +138,6 @@ class Turns:
                     if v["state"] in ("done", "failed", "asked") and v["started_at"] < cutoff]
             for k in gone:
                 del self.state[k]
-
-    def check(self, said: str) -> None:
-        if not check.worth_checking(self.world, said):
-            return
-
-        def work() -> None:
-            try:
-                kwargs: dict[str, Any] = {}
-                if self.runner is not None:
-                    kwargs["runner"] = self.runner
-                check.check(self.world, said, **kwargs)
-            except Exception:
-                log.exception("check failed")
-
-        threading.Thread(target=work, daemon=True, name=f"check-{said}").start()
 
     def get(self, key: str) -> dict[str, Any]:
         with self.lock:

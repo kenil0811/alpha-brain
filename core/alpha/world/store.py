@@ -493,6 +493,8 @@ ADDED_COLUMNS = [
     # what started a run, and the run that called it (Q50)
     ("runs", "trigger", "TEXT"),
     ("runs", "called_by", "TEXT"),
+    # Columbo's line on an outward card: its numbers checked before the yes (Q47)
+    ("actions", "checked", "TEXT"),
 ]
 
 

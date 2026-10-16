@@ -87,6 +87,15 @@ export interface TableSummary {
 
 /** What a row's values rest on: "stated" by the person, "estimated" by Alpha, or where Alpha
  * looked them up (a URL or a few words naming the page); `assumed` is what Alpha had to assume. */
+/** Columbo's mark (Q47): what a value was checked against, when, and whether it agreed. */
+export interface Checked {
+  at: string;
+  by: string;
+  agree: boolean;
+  source: string;
+  entry?: string | null;
+}
+
 export interface Provenance {
   by?: string;
   turn?: string | null;
@@ -95,8 +104,11 @@ export interface Provenance {
   assumed?: string;
   /** The reader that wrote these values, when one did. */
   reader?: string;
-  /** Per value, what a part wrote (§12): where it came from and when, or why it could not. */
-  fields?: Record<string, { source?: string; fetched_at?: string; problem?: string; part?: string; attempts?: number }>;
+  /** Columbo checked the values Alpha worked out for this row. */
+  checked?: Checked;
+  /** Per value, what a part wrote (§12): where it came from and when, or why it could not;
+   *  and Columbo's check of it. */
+  fields?: Record<string, { source?: string; fetched_at?: string; problem?: string; part?: string; attempts?: number; checked?: Checked }>;
 }
 
 /** A saved list: a named way of looking at a table, kept in the world (the person's or Alpha's). */
@@ -377,6 +389,8 @@ export interface Action {
   module: string | null;
   preview: string | null;
   preview_note: string | null;
+  /** Columbo's line: its numbers checked before the yes (Q47); never holds the card up. */
+  checked?: string | null;
   shots: Record<string, string>;
   files?: Record<string, { id: string; name: string; size: number }>;
   result: string | null;

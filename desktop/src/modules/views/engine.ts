@@ -286,14 +286,17 @@ export function groupBy(rows: RecordRow[], field: FieldInfo): { key: string; row
 }
 
 /** How many of the rows rest on an estimate or an assumption: the trust line under a table. */
-export function provenanceCounts(rows: RecordRow[]): { estimated: number; assumed: number } {
+export function provenanceCounts(rows: RecordRow[]): { estimated: number; assumed: number; checked: number } {
   let estimated = 0;
   let assumed = 0;
+  let checked = 0;
   for (const r of rows) {
     if (r.provenance?.estimated) estimated += 1;
     else if (r.provenance?.assumed) assumed += 1;
+    // Columbo's mark (Q47): the row's worked-out values, or a value a part filled
+    if (r.provenance?.checked || Object.values(r.provenance?.fields ?? {}).some((f) => f.checked)) checked += 1;
   }
-  return { estimated, assumed };
+  return { estimated, assumed, checked };
 }
 
 /** Rows by the day of a date field (ISO date prefix), for calendars and charts. */

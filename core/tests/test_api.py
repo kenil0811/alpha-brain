@@ -266,10 +266,12 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     assert "latest" not in table
 
 
-def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World) -> None:
+def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(world: World) -> None:
     from alpha.api.server import AskBody, Turns
     from alpha.mcp.tools import Tools
+    from alpha.runtime.agents import builtin, look_and_run
 
+    builtin.ensure(world)
     building(world).collection_create("food_log", "Food log",
                                       [{"name": "item", "kind": "text"},
                                        {"name": "kcal", "kind": "number"}])
@@ -285,17 +287,23 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
                                                    source="label on ocado.com")
         return RunResult(reply="Logged: 215 kcal from the label.", ok=True)
 
-    turns_ = Turns(world, runner, checks=True)
+    turns_ = Turns(world, runner)
     started = turns_.start(AskBody(text="i had a shake"))
-    # The turn, then in the background: the check (independent, judge). Watson works from the
-    # scheduler's kick, not from here (15 Oct).
     for _ in range(100):
-        if len(kinds) == 3 and world.journal.recent(1, kinds=["checked"]):
+        if turns_.get(started["id"])["state"] == "done":
             break
         time.sleep(0.05)
-    assert kinds[0] == "turn" and sorted(kinds[1:]) == ["independent", "judge"]
-    assert turns_.get(started["id"])["state"] == "done"
-    assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")
+    assert kinds == ["turn"]  # nothing runs behind the turn itself any more
+    # What the app's kick does after the turn (Q50): the agents whose kinds look at what it
+    # left in the journal. Columbo checks the worked-out value both ways (16 Oct, Q47).
+    out = look_and_run(world, "columbo", runner=runner)
+    assert out and out["last_result"] == "Checked 1 answer: it agrees."
+    assert sorted(kinds[1:]) == ["independent", "judge", "judge"]
+    checked = world.journal.recent(1, kinds=["checked"])[0]
+    assert checked["text"] == "Checked against an independent answer and your world: both agree."
+    row = world.collections.query("food_log")[0]
+    assert row["_provenance"]["checked"]["agree"] and row["_provenance"]["source"] == \
+        "label on ocado.com"
 
 
 def test_a_modules_page_is_read_and_written_from_its_own_route(world: World) -> None:

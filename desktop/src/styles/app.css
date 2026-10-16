@@ -210,6 +210,9 @@ a { color: var(--primary); }
 .table tfoot td { background: var(--surface-2); font-weight: 500; border-bottom: 0; }
 /* An estimated value carries a small mark, not a badge: the number stays the thing you read */
 .est { font-size: var(--text-xs); color: var(--warn); margin-left: 3px; cursor: help; vertical-align: super; line-height: 1; }
+/* Columbo's mark (Q47): ✓ checked and it agreed, ≠ it differs; the source on hover. */
+.chk { font-size: var(--text-xs); color: var(--good); margin-left: 3px; cursor: help; vertical-align: super; line-height: 1; }
+.chk--differs { color: var(--warn); }
 .pager { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: var(--text-sm); color: var(--text-3); }
 .pager .spacer { flex: 1; }
 .pager__size { display: inline-flex; align-items: center; gap: 6px; }

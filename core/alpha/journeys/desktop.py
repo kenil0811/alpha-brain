@@ -2,8 +2,8 @@
 a person uses it, against a core on a copy of the world.
 
 What runs, in order: the world is copied with SQLite's backup (`copy_home`, never `cp`); a core
-starts on the copy as `alpha serve --no-background` (no scheduler, second opinion or noticing,
-so nothing runs on its own there); the window is built with `vite build` into the copy's folder,
+starts on the copy as `alpha serve --no-background` (no scheduler, so no agent looks or runs:
+nothing runs on its own there); the window is built with `vite build` into the copy's folder,
 pointed at that core, and served on port 1430 (the one loopback origin the core's CORS allows
 besides the app's own); then `desktop/scripts/check-pages.ts` opens every page in headless
 Chromium at each size and says what a person would call broken (a failed request, an error, a

@@ -147,6 +147,12 @@ class Doc:
 
 
 @dataclass(frozen=True)
+class Columbo:
+    sibling_rows: int
+    rows_shown: int
+
+
+@dataclass(frozen=True)
 class Checks:
     core_start_s: int
     window_port: int
@@ -168,6 +174,7 @@ class Settings:
     proxy: Proxy
     accounts: Accounts
     doc: Doc
+    columbo: Columbo
     checks: Checks
 
 

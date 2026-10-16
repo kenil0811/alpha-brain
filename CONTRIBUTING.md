@@ -57,7 +57,8 @@ core/alpha/
   runtime/      how a run happens: claude_cli (the model boundary), turn, workflow_build and
                 parts (the build from the page and what runs on rows), workspace and proxy (the
                 walls), pipeline, acting, agents (the runner and the scheduler), conversations, judge (the
-                System One seam), agents/watson (noticing as an agent), check (the second opinion).
+                System One seam), agents/watson (noticing), agents/doc (repairs), agents/columbo
+                (the checks of what Alpha works out, two ways).
   mcp/          the world as tools for the model: tools/ (one module per thing they touch, on
                 a shared base), server.py (the MCP server that registers them).
   api/          the loopback HTTP API the app uses: server.py (create_app, serve), one module

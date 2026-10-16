@@ -216,6 +216,11 @@ class Actions:
             " LIMIT ?", (*args, limit))
         return [_action(r) for r in rows]
 
+    def set_checked(self, aid: str, words: str) -> dict[str, Any]:
+        """Columbo's line on the card (Q47): what its numbers were checked against and
+        whether they agreed. The card shows it; nothing waits on it."""
+        return self._set(aid, checked=words)
+
     def _set(self, aid: str, **values: Any) -> dict[str, Any]:
         values["updated_at"] = now()
         cols = ", ".join(f"{k} = ?" for k in values)

@@ -612,8 +612,8 @@ export function DataPage({ client, table, held, version, onChanged, onSay, onOpe
   const filtered = Boolean(search || filterCount);
   const count = (n: number) => n.toLocaleString();
   const rowsWord = (n: number) => (n === 1 ? "row" : "rows");
-  const { estimated: guesses, assumed } = rows ? provenanceCounts(rows) : { estimated: 0, assumed: 0 };
-  const resting = !rows || (!guesses && !assumed) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : ""].filter(Boolean).join(", ")}`;
+  const { estimated: guesses, assumed, checked } = rows ? provenanceCounts(rows) : { estimated: 0, assumed: 0, checked: 0 };
+  const resting = !rows || (!guesses && !assumed && !checked) ? "" : ` · ${[guesses ? `${count(guesses)} estimated` : "", assumed ? `${count(assumed)} on an assumption` : "", checked ? `${count(checked)} checked` : ""].filter(Boolean).join(", ")}`;
   const counted = !rows
     ? "Loading…"
     : groups

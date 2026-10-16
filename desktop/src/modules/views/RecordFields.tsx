@@ -8,7 +8,7 @@ import { fieldLabel, type FieldInfo } from "../fields";
 import { dayText, when as whenText } from "../format";
 import { useState } from "react";
 import { Button } from "../../ui";
-import { Cell, LongText } from "./cells";
+import { Cell, CheckMark, LongText } from "./cells";
 import { say } from "../../core/client";
 
 /** `page`: on the record's own page the title is a field like the rest (it is edited there) and
@@ -26,7 +26,7 @@ export function RecordFields({ row, fields, titleField, relations, onCommit, onO
             return (
               <tr key={f.name}>
                 <th scope="row">{fieldLabel(f)}</th>
-                <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} />
+                <Cell row={row} field={f} onCommit={(text) => onCommit(f, text)} relations={relations} onOpenRelated={onOpenRelated} marks={!origin} />
                 {origin ? <FieldOrigin origin={origin} /> : <td />}
               </tr>
             );
@@ -75,6 +75,7 @@ function FieldOrigin({ origin }: { origin: NonNullable<Provenance["fields"]>[str
     <td className="origin" title={`${origin.source ?? ""}${when ? ` · ${when}` : ""}`}>
       {origin.source ? `from ${origin.source}` : ""}
       {when ? ` · ${when}` : ""}
+      {origin.checked ? <CheckMark checked={origin.checked} /> : null}
     </td>
   );
 }

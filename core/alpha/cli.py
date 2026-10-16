@@ -9,7 +9,8 @@
     alpha prepack "how much protein today" [--module Food]
     alpha context j_turn            (what the model saw for that turn)
     alpha turns [--limit 40]        (how long the last turns took: wall, model, steps)
-    alpha check [j_turn] [--no-repair]   (a reply against an independent answer)
+    alpha check [j_turn] [--no-repair]   (Columbo: a reply against an independent answer
+                                          and the person's world)
     alpha remove-module Food        (the module and everything made for it; history stays)
     alpha connect folder|site|calendar [target]
     alpha serve [--port N] [--no-background]   (the HTTP API the app uses; the scheduler runs here)
@@ -74,7 +75,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, default=40)
     p = sub.add_parser("context", help="print what the model was given for a turn")
     p.add_argument("turn", help="the turn's journal id (its 'said' entry)")
-    p = sub.add_parser("check", help="check a turn's reply against an independent answer")
+    p = sub.add_parser("check", help="Columbo checks a turn's reply: against an independent"
+                            " answer and against the person's world")
     p.add_argument("turn", nargs="?", help="the turn's journal id; default: the last one")
     p.add_argument("--no-repair", action="store_true", help="only judge; don't let Alpha fix")
     p = sub.add_parser("prepack", help="print what the model would see first")
@@ -84,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("serve", help="run the core's HTTP API for the app")
     p.add_argument("--port", type=int, default=int(os.environ.get("ALPHA_PORT", "53900")))
     p.add_argument("--no-background", action="store_true",
-                   help="no scheduler, second opinion or noticing: a core for checks only")
+                   help="no scheduler and no agent looks or runs: a core for checks only")
     p = sub.add_parser("journeys", help="run the journey suite on a copy of the world")
     p.add_argument("names", nargs="*", help="journeys to run (default: all)")
     p.add_argument("--world", help="the world file to copy (default: the app's)")
@@ -256,8 +258,9 @@ def main(argv: list[str] | None = None) -> int:
             print(prepack.build(world, " ".join(args.text), module=args.module))
             return 0
         if args.command == "check":
-            from alpha.runtime import check
+            from alpha.runtime.agents import builtin, columbo
 
+            builtin.ensure(world)
             turn_id = args.turn
             if not turn_id:
                 last = world.journal.recent(1, stream=True, kinds=["said"])
@@ -265,14 +268,16 @@ def main(argv: list[str] | None = None) -> int:
                     print("Nothing has been said yet.", file=sys.stderr)
                     return 1
                 turn_id = last[0]["id"]
-            result = check.check(world, turn_id, repair=not args.no_repair)
+            result = columbo.check_turn(world, turn_id, repair=not args.no_repair)
             if not result["checked"]:
                 print(result["why"], file=sys.stderr)
                 return 1
-            print(check.words(result))
+            print(columbo.words(result))
             print(f"\nIndependent answer:\n{result['independent']}")
             if result.get("repaired"):
                 print(f"\nAlpha: {result['repaired']}")
+            if result.get("asked"):
+                print(f"\nAsked you: {len(result['asked'])} question(s) in the app.")
             return 0 if result["agree"] else 1
     except Problem as e:
         print(str(e), file=sys.stderr)

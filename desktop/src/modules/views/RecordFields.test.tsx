@@ -29,4 +29,15 @@ describe("a thing's page shows where each value came from", () => {
     expect(screen.getByText(/not filled: Census API key required/)).toBeInTheDocument();
     expect(screen.getByText(/Not filled: waits on the score/)).toBeInTheDocument();
   });
+  it("carries Columbo's mark beside a value it checked, with the source on hover (Q47)", () => {
+    const checked = { at: "2026-10-16T10:00:00Z", by: "a_c", agree: true, source: "census.gov" };
+    const differs = { ...checked, agree: false, source: "txdot.gov" };
+    const marked: RecordRow = { ...row, values: { ...row.values, households_3mi: 52000 }, provenance: { by: "alpha", fields: {
+      traffic_aadt: { ...row.provenance.fields!.traffic_aadt, checked: differs },
+      households_3mi: { source: "Census ACS", part: "households", checked },
+    } } };
+    render(<RecordFields row={marked} fields={fields} titleField="address" onCommit={vi.fn()} />);
+    expect(screen.getByLabelText("checked")).toHaveAttribute("title", "Checked by Columbo against census.gov, 16 Oct.");
+    expect(screen.getByLabelText("checked: it differs")).toHaveAttribute("title", "Checked by Columbo against txdot.gov, 16 Oct: it differs.");
+  });
 });

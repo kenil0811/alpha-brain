@@ -22,6 +22,7 @@ from alpha.api.views import (
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations
+from alpha.runtime.agents import columbo
 from alpha.world.store import Problem, local_midnight_utc
 
 
@@ -60,6 +61,10 @@ def routes(app: FastAPI, s: Served) -> None:
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
+        decided = columbo.decide(world, asked, body.text)
+        if decided:
+            # Columbo's question (two values, two sources): the pick binds, by code; no turn.
+            return {"answered": jid, "turn": None, "decision": decided["decision"]["id"]}
         routed = conversations.routed_answer(world, asked, body.text)
         if routed:
             # "Which is this about?": the pick sends the original sentence there.

@@ -22,6 +22,7 @@ from alpha.connectors.files import unique_path
 from alpha.context.graph import work_graph, world_graph
 from alpha.context.memory_export import memory, to_markdown
 from alpha.runtime import connecting
+from alpha.runtime.agents import WORDS
 from alpha.world import purge
 from alpha.world.store import Problem, dumps, now
 from alpha.world.world import alpha_home
@@ -189,10 +190,11 @@ def routes(app: FastAPI, s: Served) -> None:
             runs.append({**r, "lines": lines[-40:]})
         skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
         sources = sum(1 for s in (skill["steps"] if skill else []) if "read" in s)
-        good = ((f"every one of its {sources} source{'s' if sources != 1 else ''} read and"
-                 " every reader healthy; partial when some were; failed when none were")
-                if skill else "it ends with its line for the log; failed when the model could"
-                " not finish or Alpha's tools didn't answer")
+        good = WORDS.get(auto["kind"], {}).get("good_run") or (
+            (f"every one of its {sources} source{'s' if sources != 1 else ''} read and"
+             " every reader healthy; partial when some were; failed when none were")
+            if skill else "it ends with its line for the log; failed when the model could"
+            " not finish or Alpha's tools didn't answer")
         return {**auto, "runs": runs, "pipeline": skill["steps"] if skill else None,
                 "brief": world.knowledge.find_note(f"agent:{aid}", "Brief"),
                 "notes": world.knowledge.find_note(f"agent:{aid}", "Notes"),

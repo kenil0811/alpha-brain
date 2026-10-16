@@ -1,0 +1,99 @@
+[
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [
+   {
+    "say": "i had a 45g bar of cadbury dairy milk",
+    "ok": true,
+    "reply": "Logged: 45g Cadbury Dairy Milk as a snack — 240 kcal, 3.3g protein, 25.7g carbs, 13.5g fat, 25.2g sugar (scaled from the UK label's per-100g values: 534 kcal, 30g fat, 57g carbs, 7.3g protein).",
+    "steps": 3,
+    "seconds": 32.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "row",
+    "arg": {
+     "collection": "food_log",
+     "source_not": [
+      "estimated"
+     ]
+    },
+    "ok": true,
+    "why": "1 row(s) added; source: Cadbury Dairy Milk UK nutrition label (per 100g, scaled to 45g).",
+    "seconds": 0.0
+   },
+   {
+    "check": "near",
+    "arg": {
+     "collection": "food_log",
+     "field": "calories",
+     "value": 240,
+     "within": 0.1
+    },
+    "ok": true,
+    "why": "calories = 240.0 (wanted 240.0 ±10%)",
+    "seconds": 0.0
+   },
+   {
+    "check": "independent",
+    "arg": {},
+    "ok": false,
+    "why": "Checked against an independent answer: it differs on sugar: Alpha 25.2g, independent 25.5g (FatSecret UK); protein: Alpha 3.3g, independent 3.4g (FatSecret UK). it would have asked or said: saturated fat: 8.3g (not provided by Alpha); fiber: 0.3g (not provided by Alpha); salt: 0.1g (not provided by Alpha); price/cost (£0.84–£1 per bar in UK multipacks; $1.80–$2.75 internationally); against your world: it agrees.",
+    "seconds": 50.6
+   }
+  ],
+  "seconds": 82.6,
+  "error": null
+ },
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask is asked about, then drafted as a workflow page, and nothing is built",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I've sent three quick questions to help scope this (what it's for, which time range, and how to find the listings) — answer them whenever you get a chance and I'll draft the tracker workflow for you to approve.",
+    "steps": 6,
+    "seconds": 63.2
+   },
+   {
+    "say": "It's for me; I want to decide which ones to go to; today I search by hand now and then; nothing exists yet. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've written up the plan — have a look at the card. In short: Alpha reads dev.events' London AI conference list weekly, keeps it in one table (name, dates, venue, link, focus, your decision, notes), and tells you what's new; you mark each one Going/Interested/Skip. Say go ahead whenever you're ready and I'll build it.",
+    "steps": 5,
+    "seconds": 126.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": true,
+    "why": "'Track AI conferences happening in London' v1 is drafted: 3 steps: Find London AI conferences (alpha); Tell you what's new (alpha); Decide which to go to (you). Keeps ai_conferences_london. 2 suggestions: Add a second source; Track price. Settings 4, questions 0.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 189.6,
+  "error": null
+ }
+]

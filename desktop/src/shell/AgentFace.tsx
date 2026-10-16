@@ -13,7 +13,7 @@ export const ALPHA_AGENT = "alpha";
 const NO_LOOKS: Record<string, unknown> = {};
 /** The face a built-in kind wears until the person picks one (Q45: drawn new later; from the
  *  kit for now). Watson: the koala, until the owl with a notebook is drawn. */
-export const KIND_LOOKS: Record<string, Partial<Look>> = { watson: { animal: "koala" }, doc: { animal: "bear" } };
+export const KIND_LOOKS: Record<string, Partial<Look>> = { watson: { animal: "koala" }, doc: { animal: "bear" }, columbo: { animal: "cat" } };
 
 /** The look agent `id` wears, and a setter that keeps a new one for it (none for Alpha, whose
  *  look is the companion's, set in Settings). */

@@ -10,6 +10,7 @@ from typing import Any
 
 from alpha.config import settings
 from alpha.runtime import claude_cli
+from alpha.runtime.agents import WORDS
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.actions import file_fields
 from alpha.world.journal import entry
@@ -84,6 +85,7 @@ def action_view(world: World, a: dict[str, Any]) -> dict[str, Any]:
             **{k: a[k] for k in ("id", "procedure", "title", "payload", "evidence", "undo",
                                  "effect", "site", "state", "module", "preview_note", "result",
                                  "error", "created_at", "updated_at")},
+            "checked": a.get("checked"),
             "preview": Path(a["preview"]).name if a.get("preview") else None, "shots": shots}
 
 
@@ -108,7 +110,9 @@ def agent_views(world: World, scheduler: Scheduler,
                      if e["at"] >= open_run["started_at"] and not opens_run(e)
                      and e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
         last = world.runs.last(a["id"])
-        out.append({**a, "running": running, "steps": steps[-8:],
+        # a built-in kind says itself when it works (its frame looks at the journal, Q50)
+        when = WORDS.get(a["kind"], {}).get("works") or a["when"]
+        out.append({**a, "when": when, "running": running, "steps": steps[-8:],
                     "last_verdict": last["verdict"] if last else None,
                     "last_why": last["why"] if last else None})
     return out

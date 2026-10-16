@@ -703,6 +703,30 @@ class Collections:
         self._link(name, rid, merged)
         return self.get(name, rid)
 
+    def mark_checked(self, name: str, rid: str, checked: dict[str, Any], *,
+                     field: str | None = None) -> dict[str, Any]:
+        """Columbo's mark (Q47): what was checked, against what, whether it agreed; on the
+        record, or on one field a part filled. A mark is not a change of the record: its
+        values, revision and history stay as they are; only the provenance carries it."""
+        row = self.store.one(
+            "SELECT provenance FROM records WHERE collection = ? AND id = ?"
+            " AND deleted_at IS NULL", (name, rid))
+        if row is None:
+            raise Problem(f"There is no record {rid} in '{name}'.")
+        prov: dict[str, Any] = loads(row["provenance"], {})
+        if field:
+            fields = dict(prov.get("fields") or {})
+            entry = dict(fields.get(field) or {})
+            entry["checked"] = checked
+            fields[field] = entry
+            prov["fields"] = fields
+        else:
+            prov["checked"] = checked
+        with self.store.tx() as db:
+            db.execute("UPDATE records SET provenance = ? WHERE collection = ? AND id = ?"
+                       " AND deleted_at IS NULL", (dumps(prov), name, rid))
+        return self.get(name, rid)
+
     def delete(self, name: str, rid: str, revision: int) -> None:
         with self.store.tx() as db:
             self._keep(db, name, rid)

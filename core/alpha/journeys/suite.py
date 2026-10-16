@@ -53,9 +53,10 @@ from typing import Any
 import yaml
 
 from alpha import config
-from alpha.runtime import acting, check, claude_cli, pipeline, route, turn, workflow_build
+from alpha.context import prepack
+from alpha.runtime import acting, claude_cli, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
-from alpha.runtime.agents import builtin, look_and_run
+from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
 from alpha.world.store import Problem, now
@@ -342,10 +343,10 @@ class Run:
     def check_independent(self, arg: dict[str, Any]) -> tuple[bool, str]:
         if not self.last_turn:
             return False, "No turn to check."
-        result = check.check(self.world, self.last_turn, runner=self.runner, repair=False)
+        result = columbo.check_turn(self.world, self.last_turn, runner=self.runner, repair=False)
         if not result["checked"]:
             return False, result["why"]
-        return bool(result["agree"]) and not result["unstated"], check.words(result)
+        return bool(result["agree"]), columbo.words(result)
 
     def check_row(self, arg: dict[str, Any]) -> tuple[bool, str]:
         rows = self._new_rows(arg["collection"])
@@ -504,9 +505,7 @@ class Run:
     def _given(self, turn_id: str, title: str, cap: int = 1_500) -> str:
         """One section of what the model was given for a turn (the pre-pack kept with it)."""
         kept = self.world.journal.context(turn_id)
-        text = str(kept["context"]) if kept else ""
-        m = re.search(rf"(?m)^{re.escape(title)}\n(.*?)(?=\n\n[A-Z][A-Z' ()]+\n|\Z)", text, re.S)
-        return m.group(1).strip()[:cap] if m else ""
+        return prepack.section_of(str(kept["context"]) if kept else "", title)[:cap]
 
     def check_judge(self, arg: Any) -> tuple[bool, str]:
         rubric = arg if isinstance(arg, str) else arg["rubric"]

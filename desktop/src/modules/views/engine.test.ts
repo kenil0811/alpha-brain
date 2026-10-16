@@ -45,7 +45,9 @@ describe("a view's query", () => {
     const byName = new Map([["price", { name: "price", kind: "number" }], ["title", { name: "title", kind: "text" }]]);
     expect(footersOf(["title", "price"], byName, {})).toEqual({ title: "none", price: "sum" });
     expect(footerValue(rows, { name: "price", kind: "number" }, "sum")).toBe("470");
-    expect(provenanceCounts(rows)).toEqual({ estimated: 1, assumed: 1 });
+    expect(provenanceCounts(rows)).toEqual({ estimated: 1, assumed: 1, checked: 0 });
+    const mark = { at: "2026-10-16T10:00:00Z", by: "a_1", agree: true, source: "ocado.com" };
+    expect(provenanceCounts([...rows, row("e", { title: "Shake" }, { provenance: { checked: mark } }), row("f", { title: "Site" }, { provenance: { fields: { households: { part: "checks", checked: mark } } } })]).checked).toBe(2);
   });
   it("groups by a field in the field's own order and buckets days", () => {
     expect(groupBy(rows, status).map((g) => [g.key, g.rows.length])).toEqual([["Active", 2], ["Pending", 1], ["Sold", 1]]);

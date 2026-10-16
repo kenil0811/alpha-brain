@@ -24,7 +24,8 @@ KINDS = {
     "made",
     "changed",
     "failed",
-    # Alpha's answer compared with an independent one (web search, no Alpha tools)
+    # Columbo's verdict on what Alpha worked out: against an independent answer (web search,
+    # nothing of Alpha's) and against the person's world (Q47)
     "checked",
 }
 
