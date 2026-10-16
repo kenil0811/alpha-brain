@@ -16,13 +16,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from alpha.config import settings
 from alpha.world.names import check_name
 from alpha.world.skills import Skills
 from alpha.world.store import Store, now
 
-DROP = 0.5
-HELD = 0.75
-MISSING = 0.2
+DROP = settings.readers.drop
+HELD = settings.readers.held
+MISSING = settings.readers.missing
 
 
 def health_problem(rows: Any, *, last_ok: int | None,

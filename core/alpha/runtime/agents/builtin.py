@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from alpha import config
 from alpha.runtime.agents import journal_rowid, watson
 from alpha.world.world import World
 
-# kind → name, description, write list, the default brief
+# kind → name, description, write list (the default brief is config/briefs/<kind>.md)
 BUILTIN: list[dict[str, Any]] = [
     {"kind": watson.KIND, "name": watson.NAME, "description": watson.DESCRIPTION,
-     "may": watson.MAY, "brief": watson.BRIEF},
+     "may": watson.MAY},
 ]
 
 
@@ -28,7 +29,7 @@ def ensure(world: World) -> list[dict[str, Any]]:
             continue
         agent = world.agents.create(spec["description"], name=spec["name"], kind=spec["kind"],
                                     may=list(spec["may"]))
-        world.knowledge.write_note(f"agent:{agent['id']}", "Brief", spec["brief"])
+        world.knowledge.write_note(f"agent:{agent['id']}", "Brief", config.brief(spec["kind"]))
         world.journal.append("made", f"{spec['name']} is here: {spec['description']}",
                              actor=agent["id"], data={"agent": agent["id"]})
         # its cursor starts after its own birth line: nothing before it is its business

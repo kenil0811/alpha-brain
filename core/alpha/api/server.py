@@ -48,6 +48,7 @@ from alpha.api import (
 from alpha.api.bodies import AskBody
 from alpha.api.served import Served
 from alpha.api.turns import Turns
+from alpha.config import settings as limits
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
@@ -59,7 +60,7 @@ from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.api")
-CALENDAR_EVERY_S = 300
+CALENDAR_EVERY_S = limits.calendar.sync_every_s
 # Every answer that isn't a success carries `error`, a sentence for a person (slice 2 G7): a
 # refusal's own words, or one of these; what went wrong inside goes to the log, never the window.
 NOT_THERE = "Alpha doesn't have that; it may have been removed."
@@ -108,7 +109,8 @@ def create_app(world: World | None = None, *, runner: turns.Runner | None = None
     app = FastAPI(title="Alpha", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:1430", "http://127.0.0.1:1430", "tauri://localhost",
+        allow_origins=[f"http://localhost:{limits.checks.window_port}",
+                       f"http://127.0.0.1:{limits.checks.window_port}", "tauri://localhost",
                        "http://tauri.localhost"],
         allow_methods=["*"], allow_headers=["*"],
     )

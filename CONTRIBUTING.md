@@ -161,7 +161,7 @@ packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a na
 ### 3.5 Prompts
 
 The rules the model follows live as prose constants beside the code that runs them
-(`turn.RULES`, `agents.runner.RULES`, `judge.SYSTEM`, `agents.watson.RULES`). They are
+(`alpha/config/prompts/*.md`: `turn.md`, `agent_run.md`, `judge.md`, `watson_exchange.md`…). They are
 guidance, numbered, in the second person, and they repeat the wall the code enforces so the
 model does not try it. A rule that changes behaviour is a design decision: it goes in the log
 and, when it is a principle, in the design's §11 with a Qn number. Never put a person's data or
@@ -250,6 +250,26 @@ and starts it again on the same port if it dies, owns the companion window (wher
 its click-through) and the tray, and exposes a few commands (reveal and open a file in Alpha's
 own folder). A command that takes a path resolves it before checking it is inside the data
 folder. The CSP allows only the loopback core; the fonts ship with the app.
+
+### Config: every static thing, out of the code
+
+`alpha/config/` holds the model's instructions (`prompts/<name>.md`, read on every use and
+cached by the file's time, so an edit reaches the next turn without a restart), the default
+brief of each built-in agent (`briefs/<kind>.md`), which model does which kind of work
+(`models.toml`: turn, judge, independent, refile, trial, per route) and the named judgements
+and timings the code decides with (`limits.toml`, each with its why). `alpha/config.py` reads
+them: the limits once at start into typed, frozen settings that fail the start with a plain
+message when a key is wrong or missing; `config.prompt("name", **placeholders)`,
+`config.brief(kind)`, `config.model_for(role)`. A module binds its names from the settings
+(`SILENCE_S = settings.runs.silence_s`), so tests still patch them.
+
+What stays in the code: the walls and checks (the gates, the write list, the parsers that read
+a model's answer), the schema, the words the person reads, the enumerations the code switches
+on. A prompt and its parser change together, in one commit, and the journeys judge the change.
+Nothing in `config/` is a setting the person meets, and nothing is read from the person's data
+directory: an install cannot drift from its code. The environment overrides two classes of
+model for checks: `ALPHA_MODEL` (the turn's) and `ALPHA_SYSTEM_ONE_MODEL` (the small
+judgements). `config/README.md` lists every file and who reads it.
 
 ## 4. Testing
 

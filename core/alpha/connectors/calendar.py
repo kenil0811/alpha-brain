@@ -18,12 +18,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
+from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.world.store import Problem, dumps, loads, new_id, now
 from alpha.world.world import World
 
-BACK_DAYS = 30
-AHEAD_DAYS = 60
+BACK_DAYS = settings.calendar.back_days
+AHEAD_DAYS = settings.calendar.ahead_days
 ACCESS = {0: "not_asked", 1: "restricted", 2: "denied", 3: "granted", 4: "write_only"}
 
 

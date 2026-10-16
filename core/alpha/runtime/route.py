@@ -9,6 +9,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from alpha import config
 from alpha.runtime import claude_account, claude_cli, codex_account, codex_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import loads
@@ -16,8 +17,6 @@ from alpha.world.store import loads
 ROUTES = ("claude", "codex")
 PREFERENCE = "thinks_with"
 WORDS = {"claude": "Claude", "codex": "ChatGPT"}
-TRIAL_SYSTEM = """You are Alpha, checking that your tools answer. Call the tool collections_list \
-once, then reply with the single word ok. Nothing else."""
 TRIAL_SENTENCE = "Call collections_list once and reply ok."
 
 
@@ -50,8 +49,9 @@ def trial(world_path: Path | str, which: str) -> tuple[bool, str]:
     to it (8 Oct: a route that could not reach the tools was in use for five days). True with a
     line saying so, or False with the reason."""
     runner = codex_cli.run if which == "codex" else claude_cli.run
-    result = runner(TurnRequest(sentence=TRIAL_SENTENCE, system=TRIAL_SYSTEM,
-                                world_path=Path(world_path), turn_id="trial", model="haiku"))
+    result = runner(TurnRequest(sentence=TRIAL_SENTENCE, system=config.prompt("route_trial"),
+                                world_path=Path(world_path), turn_id="trial",
+                                model=config.model_for("trial")))
     if not result.ok:
         return False, result.error or "no answer came back"
     if result.tools_called == 0:

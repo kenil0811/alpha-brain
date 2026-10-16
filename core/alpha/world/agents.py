@@ -24,6 +24,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from alpha.config import settings
 from alpha.world.skills import Skills, slug
 from alpha.world.store import MIGRATED_MAY, Problem, Store, dumps, loads, new_id, now
 
@@ -42,8 +43,9 @@ def check_schedule(schedule: str) -> str:
     if m:
         amount, unit = int(m.group(1)), m.group(2)[0]
         minutes = amount * {"m": 1, "h": 60, "d": 1440}[unit]
-        if minutes < 30:
-            raise Problem("An agent runs at most every 30 minutes.")
+        if minutes < settings.scheduler.least_minutes_between_runs:
+            raise Problem(f"An agent runs at most every"
+                          f" {settings.scheduler.least_minutes_between_runs} minutes.")
         return f"every {amount}{unit}"
     m = DAILY.match(text)
     if m and int(m.group(1)) < 24 and int(m.group(2)) < 60:

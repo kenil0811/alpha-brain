@@ -16,12 +16,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.connectors.browser import signin_sites
 from alpha.world.store import loads, now
 from alpha.world.world import World
 
-RUNS_WINDOW_DAYS = 30
+RUNS_WINDOW_DAYS = settings.views.runs_window_days
 
 
 def _skill_runs(world: World) -> dict[str, dict[str, int]]:
@@ -144,7 +145,7 @@ def work_graph(world: World, agents: list[dict[str, Any]]) -> dict[str, Any]:
 
 # ---- the map of the brain: what the person's world holds, how it connects, what does not ----
 
-ACTIVITY_WINDOW_DAYS = 30
+ACTIVITY_WINDOW_DAYS = settings.views.activity_window_days
 
 
 def _activity(world: World) -> dict[str, int]:

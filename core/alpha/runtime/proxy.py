@@ -20,9 +20,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlsplit
 
+from alpha.config import settings
+
 log = logging.getLogger("alpha.proxy")
-CONNECT_TIMEOUT_S = 20
-IDLE_S = 120
+CONNECT_TIMEOUT_S = settings.proxy.connect_timeout_s
+IDLE_S = settings.proxy.idle_s
 
 
 def allowed(host: str, hosts: list[str]) -> bool:

@@ -28,6 +28,9 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
 - `docs/design/research/` — the research behind the design (memory, connectors, proactivity,
   workspace UI, a competitor, and the superseded research pass and modules-as-programs), Vikas's
   UI rulebook (guidance) and his list of what the window needed from the core (slice 2's source).
+- `core/alpha/config/` — every static thing, out of the code: the model's instructions (`prompts/*.md`, read
+  on use), the built-in agents' default briefs, `models.toml` (which model does which work) and
+  `limits.toml` (the named judgements and timings, each with its why); `config.py` reads them.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
   records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines),
   agents, decisions, commitments), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the

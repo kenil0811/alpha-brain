@@ -29,6 +29,7 @@ import threading
 import time
 from typing import Any
 
+from alpha.config import settings
 from alpha.runtime import acting, conversations, workflow_build
 from alpha.runtime import parts as parts_module
 from alpha.runtime.agents import LOOKS, Work
@@ -39,9 +40,9 @@ from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents")
-CHECK_EVERY_S = 30
-SLEPT_GAP_S = 3 * CHECK_EVERY_S  # a tick this late after the last means the Mac was asleep
-SETTLED_S = 60  # awake this long without a break before a run starts
+CHECK_EVERY_S = settings.scheduler.check_every_s
+SLEPT_GAP_S = settings.scheduler.slept_gap_s
+SETTLED_S = settings.scheduler.settled_s
 
 
 def backoff_s(crashes: int) -> float:

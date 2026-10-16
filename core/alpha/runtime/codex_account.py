@@ -17,10 +17,11 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from alpha.config import settings
 from alpha.world.store import Problem
 from alpha.world.world import alpha_home
 
-STATUS_TIMEOUT_S = 20
+STATUS_TIMEOUT_S = settings.accounts.status_timeout_s
 APP_BINARY = Path("/Applications/Codex.app/Contents/Resources/codex")
 INSTALL_PAGE = "https://chatgpt.com/codex"
 CONFIG = Path.home() / ".codex" / "config.toml"

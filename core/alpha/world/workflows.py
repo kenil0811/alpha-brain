@@ -19,16 +19,17 @@ import re
 import sqlite3
 from typing import Any
 
+from alpha.config import settings
 from alpha.world.store import Problem, Store, new_id, now
 
 STATES = ("drafted", "agreed", "building", "built", "stopped", "declined")
 WHO = ("alpha", "you", "both")
 ORIGINS = ("you", "your document", "the trade", "Alpha's default")
 DECISIONS = ("accept", "skip")
-MOST_CHARS = 600
-MOST_QUESTIONS = 6
-MOST_OPTIONS = 4
-MOST_OPTION_CHARS = 90
+MOST_CHARS = settings.workflows.most_chars
+MOST_QUESTIONS = settings.workflows.most_questions
+MOST_OPTIONS = settings.workflows.most_options
+MOST_OPTION_CHARS = settings.workflows.most_option_chars
 
 
 def _words(v: Any, most: int = MOST_CHARS) -> str:

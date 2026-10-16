@@ -1,0 +1,28 @@
+# Which model does which kind of work (design §8, Q32; config.py). Aliases are Claude Code's
+# ("haiku", "sonnet", "opus", or a full model name). The environment overrides two classes for
+# checks and journeys: ALPHA_MODEL the turn's class (turn, independent, refile),
+# ALPHA_SYSTEM_ONE_MODEL the small judgements (judge, trial). Nothing here is a setting the
+# person meets; the depth they choose per message is a later decision (C1).
+
+[claude]
+# the person's turns, an agent's runs, builds, repairs: the work with the world as tools
+turn = "sonnet"
+# the System One seam: routing, Watson's passes, asking's parser, connecting; small, no tools
+judge = "haiku"
+# the second opinion's independent answer: the same model as the turn, web search only
+independent = "sonnet"
+# Watson's one-off refiling of the facts kept before it: a wrong move loses a fact, so the
+# turn's model, not the small one (16 Oct: Haiku called the person's weight "passing state")
+refile = "sonnet"
+# the route's trial that one real tool call comes back: the smallest model that can call a tool
+trial = "haiku"
+
+[chatgpt]
+# the Claude alias the ChatGPT route starts from when nothing says; it becomes an effort below
+default = "sonnet"
+
+[chatgpt.effort]
+# a Claude alias as a reasoning effort on the person's own Codex model
+haiku = "low"
+sonnet = "medium"
+opus = "high"

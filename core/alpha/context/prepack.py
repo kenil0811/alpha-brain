@@ -20,6 +20,7 @@ import re
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
+from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
@@ -28,17 +29,13 @@ from alpha.world.world import World
 
 # Raised from 12,000 on 3 Oct when every table's fields joined the pack: about 500 more tokens a
 # turn, measured on Kenil's world (13 tables), against one model step saved per data question.
-MAX_CHARS = 14_000
-RECENT_TURNS = 12
-THREAD_HISTORY = 15
-MATCHES = 5
+MAX_CHARS = settings.prepack.max_chars
+RECENT_TURNS = settings.prepack.recent_turns
+THREAD_HISTORY = settings.prepack.thread_history
+MATCHES = settings.prepack.matches
 # Characters a section may take before it says what it left out; matched by the title's start.
-BUDGET = {"WHAT ALPHA HOLDS": 3_600, "WHAT ALPHA CAN DO": 2_000, "WHAT ALPHA KNOWS": 1_600,
-          "THIS MODULE'S PAGE": 1_700, "THIS CONVERSATION": 2_400, "SINCE YOUR LAST TURN": 800,
-          "WHAT WAS SAID": 1_600, "MATCHES FOR THIS SENTENCE": 2_200, "THIS THREAD": 2_400,
-          "OPEN": 900, "WHO THE SENTENCE NAMES": 1_200, "TODAY'S CALENDAR": 700,
-          "COMMITMENTS DUE": 600}
-DEFAULT_BUDGET = 900
+BUDGET = settings.prepack.budget
+DEFAULT_BUDGET = settings.prepack.default_budget
 # Sections where the newest lines matter most: they are cut from the front.
 KEEP_NEWEST = ("THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "SINCE YOUR LAST TURN")
 # When the whole still runs over, sections give up room in this order: the index and the skills
@@ -46,7 +43,7 @@ KEEP_NEWEST = ("THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "SINCE YOUR 
 SHRINK_ORDER = ("WHAT ALPHA KNOWS", "WHAT ALPHA CAN DO", "THIS MODULE'S PAGE",
                 "THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "WHAT ALPHA HOLDS", "OPEN",
                 "WHO THE SENTENCE NAMES", "MATCHES FOR THIS SENTENCE")
-FIELDS_LINE = 320
+FIELDS_LINE = settings.prepack.fields_line
 
 
 def _budget(title: str) -> int:

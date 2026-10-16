@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from alpha.config import settings
 from alpha.connectors.base import Connections
 from alpha.world.store import Problem, fts_query, new_id, now
 from alpha.world.world import World, alpha_home
@@ -28,8 +29,8 @@ TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".csv", ".tsv", ".json", ".yaml", "
                  ".htm", ".rtf", ".log"}
 OFFICE_SUFFIXES = {".pdf", ".docx", ".xlsx", ".pptx"}
 SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".Trash", "Library", ".cache"}
-MAX_FILE_BYTES = 50 * 1024 * 1024
-MAX_TEXT_CHARS = 400_000
+MAX_FILE_BYTES = settings.files.max_file_bytes
+MAX_TEXT_CHARS = settings.files.max_text_chars
 
 
 def extract(path: Path) -> str:

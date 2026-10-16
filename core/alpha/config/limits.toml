@@ -1,0 +1,95 @@
+# The named judgements and timings the core decides with (config.py reads this once at start
+# into typed settings). Each is a judgement of a failure or of what is worth doing, named and
+# explained; none is a cap on work (Q18: the person stops what isn't going anywhere) and none
+# is a setting the person meets. Change a number here, not in the code; say why.
+
+[scheduler]
+check_every_s = 30                 # the scheduler's tick while the core runs
+slept_gap_s = 90                   # a tick this late after the last means the Mac was asleep (3 ticks)
+settled_s = 60                     # awake this long without a break before a run starts (the maintenance wakes last seconds)
+least_minutes_between_runs = 30    # the one floor on an agent's schedule (Q22): a page read more often is a load, not a watch
+
+[runs]
+repairs_per_run = 2                # a broken reader is repaired at most twice in a run; then the run says it couldn't be (not a cap: the next run tries afresh)
+retry_after_s = 60                 # a page that doesn't answer in the moment the Mac wakes is tried once more after a minute (7 Oct)
+part_timeout_s = 600               # a workflow part that hasn't answered in ten minutes has hung
+part_attempts = 2                  # a part that failed on a row twice leaves the problem on the row until something changes
+silence_s = 600                    # a model run with no output at all for ten minutes hung (a run that keeps working is never cut)
+partial_chars = 20000              # the most of a reply kept while it is written (the whole lands in the journal after)
+script_timeout_s = 1800            # a build's own script run, in its walled workspace, has half an hour before it hung
+
+[readers]
+drop = 0.5                         # a reader returning fewer than half the rows of its last good run is broken
+held = 0.75                        # fewer than three quarters of the rows it found before and that are still listed: it reads part of the list
+missing = 0.2                      # more than a fifth of the rows without a required field: broken
+
+[prepack]
+max_chars = 14000                  # the pre-pack's whole (a blind tail cut; measured 3 Oct on 13 tables against one saved model step)
+recent_turns = 12                  # the conversation's recent turns shown
+thread_history = 15                # a thread's own history shown
+matches = 5                        # matches for the sentence shown per kind
+default_budget = 900               # a section's characters before it says what it left out, unless named below
+fields_line = 320                  # a table's fields in one line, at most
+
+[prepack.budget]                   # per section, matched by the title's start
+"WHAT ALPHA HOLDS" = 3600
+"WHAT ALPHA CAN DO" = 2000
+"WHAT ALPHA KNOWS" = 1600
+"THIS MODULE'S PAGE" = 1700
+"THIS CONVERSATION" = 2400
+"SINCE YOUR LAST TURN" = 800
+"WHAT WAS SAID" = 1600
+"MATCHES FOR THIS SENTENCE" = 2200
+"THIS THREAD" = 2400
+"OPEN" = 900
+"WHO THE SENTENCE NAMES" = 1200
+"TODAY'S CALENDAR" = 700
+"COMMITMENTS DUE" = 600
+
+[conversations]
+idle_close_s = 1800                # a conversation nobody has spoken in for half an hour is over
+confident = 0.6                    # the judge routes a sentence under this confidence by asking, never by guessing
+
+[asking]
+most_option_chars = 90             # a choice longer than this is not an option but a sentence
+most_question_chars = 400          # a question longer than this is not a question card
+most_tail_chars = 140              # a short statement may follow a question; longer is a paragraph
+
+[workflows]
+most_chars = 600                   # a workflow page field's words, at most
+most_questions = 6                 # the interview asks at most this many questions on one page
+most_options = 4                   # choices per question
+most_option_chars = 90
+most_suggestions = 12              # links a connecting pass may suggest at once
+
+[browser]
+read_timeout_s = 180               # a page read that hasn't answered in three minutes
+act_timeout_s = 300                # an action's steps in the person's session, five minutes
+signin_timeout_s = 1800            # the person signing in by hand, half an hour
+
+[files]
+max_file_bytes = 52428800          # a file over 50 MB is kept as a file, not read (50 * 1024 * 1024)
+max_text_chars = 400000            # the text read from one file, at most
+
+[calendar]
+back_days = 30                     # the calendar is read this far back
+ahead_days = 60                    # and this far ahead
+sync_every_s = 300                 # the calendar is read again every five minutes while the core runs
+
+[views]
+runs_window_days = 30              # the map of work counts a skill's runs over this window
+activity_window_days = 30          # and a module's activity
+trouble_window_h = 24              # the companion speaks of runs that went wrong in the last day
+changes_most = 500                 # the window's one poll carries at most this many changes
+most_rows = 5000                   # a workflow table's rows shown in a module's view, at most
+
+[proxy]
+connect_timeout_s = 20             # the build's one road out: a connection that hasn't opened in 20 s
+idle_s = 120                       # and one idle for two minutes is closed
+
+[accounts]
+status_timeout_s = 20              # asking Claude Code or Codex who is signed in: 20 s before it's "not answering"
+
+[checks]
+core_start_s = 90                  # the desktop check waits this long for its core to come up
+window_port = 1430                 # the origin the core allows for a window served outside the app (Vite)

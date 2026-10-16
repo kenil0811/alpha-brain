@@ -1,0 +1,35 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha asks in prose becomes a card the person answers in place",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "What did you have for lunch?",
+    "steps": 1,
+    "seconds": 5.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {},
+    "ok": true,
+    "why": "\"What did you have for lunch?\" with no options (made by the core)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\?"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 5.0,
+  "error": null
+ }
+]

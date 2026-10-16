@@ -52,6 +52,7 @@ from typing import Any
 
 import yaml
 
+from alpha import config
 from alpha.runtime import acting, check, claude_cli, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
 from alpha.runtime.agents import builtin, look_and_run
@@ -666,7 +667,7 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
     lines = [f"# Journeys, {began.strftime('%-d %b %Y %H:%M')}", "",
              f"{passed} of {len(outcomes)} passed. World: a copy of `{source}` in `{home}`."
              f" Thinks with: {route.WORDS[route.chosen(home / 'world.sqlite')]}, model"
-             f" {os.environ.get('ALPHA_MODEL', claude_cli.DEFAULT_MODEL)}.", ""]
+             f" {config.model_for('turn')}.", ""]
     lines.append("| Journey | Verdict | Time |")
     lines.append("|---|---|---|")
     for o in outcomes:

@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.api.server import READY_PREFIX
+from alpha.config import settings
 from alpha.connectors.browser import node_binary
 from alpha.journeys.suite import copy_home, default_world
 from alpha.world.store import Problem
@@ -43,8 +44,8 @@ log = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parents[3]
 DESKTOP = REPO / "desktop"
-APP_PORT = 1430  # the origin the core allows for a window served outside the app
-CORE_START_S = 90
+APP_PORT = settings.checks.window_port
+CORE_START_S = settings.checks.core_start_s
 
 
 def sizes(conf: Path | None = None) -> list[dict[str, Any]]:

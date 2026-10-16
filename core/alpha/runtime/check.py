@@ -16,28 +16,10 @@ import json
 import re
 from typing import Any
 
+from alpha import config
 from alpha.runtime import route, turn
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.world import World
-
-INDEPENDENT_RULES = """You are a careful assistant with web search, answering on your own. A \
-person said the sentence below to their assistant. Give the answer that assistant should have \
-given: look up everything that can be looked up (a product's label, a listing, a price, a date, \
-a fact) and give exact values with the page you took them from; estimate only what cannot be \
-looked up and say so; say plainly what you would have to assume or ask (a size, a quantity, \
-which of several things they meant). You have no access to the person's own records, so say \
-nothing about those. Under 150 words, plain text."""
-
-JUDGE_RULES = """You compare two answers to the same sentence: Alpha's (an assistant with the \
-person's records and web access) and an independent one (web search only). Reply with JSON only:
-{"agree": true|false, "differences": ["…"], "unstated": ["…"]}
-differences: values or facts in Alpha's answer that the independent answer contradicts with a \
-source it names, each as "<what>: Alpha <value>, independent <value> (<source>)". Facts only \
-Alpha's records could know (totals of the person's own entries, what they logged) are never \
-differences, nor is wording or rounding of the same value.
-unstated: things the independent answer would ask or assume (a size, which item was meant) \
-that Alpha neither asked nor said it assumed.
-agree is false when differences is non-empty. Empty lists when there is nothing."""
 
 
 def records_of(world: World, turn_id: str) -> list[dict[str, Any]]:
@@ -126,13 +108,14 @@ def check(world: World, turn_id: str, *, sentence: str | None = None,
     if reply is None:
         return {"checked": False, "why": "That turn has no reply to check."}
     asked = sentence or said["text"]
-    independent = _run(runner, world, kind="independent", system=INDEPENDENT_RULES,
+    independent = _run(runner, world, kind="independent", system=config.prompt("check_independent"),
                        sentence=f'The person said: "{asked}"', turn_id=turn_id, model=model)
     if not independent.ok:
         return {"checked": False,
                 "why": f"No independent answer came back: {independent.error or 'no reply'}"}
     judged = _run(
-        runner, world, kind="judge", system=JUDGE_RULES, turn_id=turn_id, model=model,
+        runner, world, kind="judge", system=config.prompt("check_judge"), turn_id=turn_id,
+        model=model,
         sentence=(f'The sentence: "{asked}"\n\nAlpha\'s answer:\n{reply["text"]}\n\n'
                   f"The independent answer:\n{independent.reply}"),
     )

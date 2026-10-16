@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
 
-**As of 15 October 2026, night.** The last three entries:
+**As of 16 October 2026, midday.** The last three entries:
+- Config out of the code ([`log/2026-10-16-config.md`](log/2026-10-16-config.md)): prompts, the built-in agents' briefs, `models.toml` and `limits.toml` in `core/alpha/config/`, read by `config.py`; prompts reload on edit.
 - Watson, the first built-in agent ([`log/2026-10-15-watson.md`](log/2026-10-15-watson.md)): noticing as an agent on Q50's substrate, facts filed by type, commitments, decisions, the refiling of the facts that were not about Kenil. Ran on his own world on 16 Oct: the refiling moved the 11 facts that were not about him, the 13 that are stay; his next turns are its first real passes.
 - Agents, slice A ([`log/2026-10-15-agents-slice-a.md`](log/2026-10-15-agents-slice-a.md)): the substrate in the core and the window (Q50); automations are custom agents under their ids; Kenil's five named. The 07:00 runs of 16 Oct are the acceptance.
 - The review and clean-up after slice 2 ([`log/2026-10-14-review-and-cleanup.md`](log/2026-10-14-review-and-cleanup.md)). All five groups are done: the real faults, the code, the docs (this page), the memory notes, and disk. All 22 journeys were run.
@@ -17,14 +18,14 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 
 | | |
 |---|---|
-| Core tests | 275, in about 38 s; ruff and mypy strict clean |
+| Core tests | 281, in about 38 s; ruff and mypy strict clean |
 | Desktop tests | 199 passed, 1 skipped, in 45 files; typecheck clean; 1 host test (`cargo test --lib`) |
 | Tools the model sees | 73 |
 | Journeys | 22 defined. All were run on 14 Oct and 19 of 22 pass (the reports in `docs/journeys/2026-10-14-*`). The three that fail: memory_two_sources and memory_who_emailed (Alpha answered from memory instead of looking in Gmail), and branded_food (fat 14 g against 13.4 g). On 15 Oct agent_verdict and automation_self_converts passed again on the agents substrate (`docs/journeys/2026-10-15-1216.md`); with Watson, memory_follow_up, memory_two_sources (failing since 14 Oct) and memory_noticing pass (`2026-10-15-1649.md`, `-1701.md`), memory_who_emailed still fails |
 | Desktop check | `docs/checks/2026-10-15-1649.md`: 95 of 95 pages clean at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 224 total; 224 since 1 Oct 2026 (this count includes the commit that records it) |
+| Commits | 225 total; 225 since 1 Oct 2026 (this count includes the commit that records it) |
 | Lines | core 18,265 Python; tests 6,864; desktop 17,925 TS/TSX |
 
 ## What is built, against the design's order of work

@@ -12,11 +12,12 @@ from fastapi import FastAPI
 
 from alpha.api.served import Served
 from alpha.api.turns import Turns
+from alpha.config import settings
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.store import loads, now
 from alpha.world.world import World
 
-MOST = 500
+MOST = settings.views.changes_most
 
 
 def changes_since(world: World, scheduler: Scheduler, running: Turns,

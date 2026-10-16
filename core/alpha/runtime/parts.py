@@ -44,13 +44,14 @@ from typing import Any
 
 import yaml
 
+from alpha.config import settings
 from alpha.runtime import workspace as workspace_module
 from alpha.world.store import Problem, now
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.parts")
-PART_TIMEOUT_S = 600
-ATTEMPTS = 2
+PART_TIMEOUT_S = settings.runs.part_timeout_s
+ATTEMPTS = settings.runs.part_attempts
 WHEN = re.compile(r"^(arrives|asked|after:[a-z0-9_]+)$")
 
 

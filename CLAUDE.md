@@ -60,6 +60,9 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
   read it depends on; a state change is a conditional write; no transaction inside another;
   migrations idempotent; hot queries indexed and proven with the query plan; every new table
   in `purge.py`.
+- Static things live in `core/alpha/config/`, not in code: prompts (`prompts/*.md`, read on
+  use), the built-in agents' briefs, `models.toml`, `limits.toml` (every judgement with its
+  why). The walls, the parsers and the words the person reads stay in code.
 - Tools: a `@tool` method whose docstring is the model's whole instruction, named
   `<thing>_<verb>`, raising `Problem`, journaling what it did, checking the gates in code.
 - Tests: mechanisms by unit tests with fake runners (never the network, a browser or the real

@@ -7,10 +7,10 @@ from pathlib import Path
 
 from conftest import building
 
+from alpha import config
 from alpha.mcp.tools import Tools, provenance_of, provenance_words
 from alpha.runtime import check, claude_cli
 from alpha.runtime.claude_cli import RunResult, TurnRequest
-from alpha.runtime.turn import RULES
 from alpha.world.world import World
 
 FIELDS = [{"name": "item", "kind": "text"}, {"name": "kcal", "kind": "number", "unit": "kcal"},
@@ -31,8 +31,9 @@ def said(world: World, text: str) -> str:
 
 
 def test_the_rules_say_known_assumed_or_asked() -> None:
-    assert "never guessed" in RULES and "Never pick silently" in RULES
-    assert "what you assumed" in RULES and "source=" in RULES
+    rules = config.prompt("turn")
+    assert "never guessed" in rules and "Never pick silently" in rules
+    assert "what you assumed" in rules and "source=" in rules
 
 
 def test_values_carry_where_they_came_from() -> None:

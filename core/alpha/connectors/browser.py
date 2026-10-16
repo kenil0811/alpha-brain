@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from alpha.config import settings
 from alpha.connectors.base import Connections, connectors_dir
 from alpha.world.sites import site_of
 from alpha.world.store import Problem
@@ -37,9 +38,9 @@ CHROME_APPS = ["/Applications/Google Chrome.app", "~/Applications/Google Chrome.
 INSTALL_LOG = "browser-install.log"
 PROGRESS = re.compile(r"(\d{1,3})% of ([\d.]+ \w+)")
 DOWNLOADING = re.compile(r"Downloading (\S+ [\d.]+)")
-READ_TIMEOUT_S = 180
-ACT_TIMEOUT_S = 300
-SIGNIN_TIMEOUT_S = 1800
+READ_TIMEOUT_S = settings.browser.read_timeout_s
+ACT_TIMEOUT_S = settings.browser.act_timeout_s
+SIGNIN_TIMEOUT_S = settings.browser.signin_timeout_s
 PRIVATE = re.compile(r"^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)")
 
 

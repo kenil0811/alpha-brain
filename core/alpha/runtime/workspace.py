@@ -24,6 +24,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from alpha.config import settings
 from alpha.runtime.proxy import Proxy
 from alpha.world.store import Problem
 from alpha.world.workspaces import path_of, remove, root
@@ -37,7 +38,7 @@ BUILD_HOSTS = ["pypi.org", "files.pythonhosted.org", "extensions.duckdb.org",
                "community-extensions.duckdb.org"]
 SECRET_PATHS = ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gcloud", "~/.netrc",
                 "~/Library/Keychains", "~/.claude", "~/.codex"]
-SCRIPT_TIMEOUT_S = 1800
+SCRIPT_TIMEOUT_S = settings.runs.script_timeout_s
 
 
 def _git(workspace: Path, *args: str) -> str:

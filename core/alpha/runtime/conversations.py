@@ -23,14 +23,15 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from alpha.config import settings
 from alpha.runtime import judge
 from alpha.world.store import Problem
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
 
-IDLE_CLOSE_S = 30 * 60  # a conversation nobody has spoken in for half an hour is over
-CONFIDENT = 0.6
+IDLE_CLOSE_S = settings.conversations.idle_close_s
+CONFIDENT = settings.conversations.confident
 NEW = "something new"
 FOCUS_KEY = "companion_focus"
 

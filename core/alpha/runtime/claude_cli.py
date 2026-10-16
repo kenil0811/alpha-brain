@@ -27,10 +27,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from alpha import config
+from alpha.config import settings
 from alpha.runtime import claude_account
 from alpha.runtime import workspace as workspace_module
 
-DEFAULT_MODEL = "sonnet"
 ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
 DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
 
@@ -44,7 +45,7 @@ STOPPED = "You stopped it."
 # a tool call, a result) in ten minutes means the CLI or the model hung, and a hung run can hold
 # a thread, a browser profile or the scheduler for ever. This is a judgement of silence, not a
 # limit on how long work may take (Q18): a run that keeps working is never cut.
-SILENCE_S = 600
+SILENCE_S = settings.runs.silence_s
 STALLED = "No answer came back: the model's run went silent and was ended."
 NO_ANSWER = "No answer came back from the model."
 # Found 8 Oct: a route that refused every tool call still produced text, and the text claimed a
@@ -140,7 +141,7 @@ class Live:
 
 LIVE = Live()
 # The most of a reply kept while it is written (the whole reply lands in the journal after).
-PARTIAL_CHARS = 20_000
+PARTIAL_CHARS = settings.runs.partial_chars
 
 
 @dataclass
@@ -302,7 +303,7 @@ def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[st
         "--setting-sources",
         "",
         "--model",
-        req.model or os.environ.get("ALPHA_MODEL") or DEFAULT_MODEL,
+        req.model or config.model_for("turn"),
     ]
     if req.resume:
         args += ["--resume", req.resume]

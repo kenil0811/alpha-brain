@@ -1,0 +1,36 @@
+[
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "1. **High Growth Indoor & Outdoor Furniture Brand** (Website Closers) — $90,000,000 asking, cash flow $14.4M, status Pending\n2. **CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers) — $29,000,000 asking, cash flow $6.0M, status Active\n3. **Mission-Critical SaaS for Financial Trading Firms** (Website Closers) — $28,500,000 asking, cash flow $3.35M, status Active (note: this one is marked gone as of 10/10 — no longer live on the source site)",
+    "steps": 2,
+    "seconds": 18.5
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**CPG eCommerce Brand | Niche Furniture Fix-It Products** — Website Closers\n\n- **Asking price:** $29,000,000\n- **Cash flow:** $6,048,663\n- **Category:** General Business\n- **Status:** Active\n- **Highlights (from listing title):** internally-designed products, full remote team, strong top & bottom line YoY growth, 20X ROAS\n- **Listing:** [websiteclosers.com/businesses/...](https://www.websiteclosers.com/businesses/cpg-ecommerce-brand-niche-furniture-fix-it-products-internally-designed-products-full-remote-team-strong-top-bottom-line-yoy-growth-20x-roas/119224/)\n\nRevenue isn't shown on this list",
+    "steps": 2,
+    "seconds": 35.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer describes 'CPG eCommerce Brand | Niche Furniture Fix-It Products', the exact deal listed second in the prior turn, with additional detail on it, not a different deal.",
+    "seconds": 5.3
+   }
+  ],
+  "seconds": 59.5,
+  "error": null
+ }
+]

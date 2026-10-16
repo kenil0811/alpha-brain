@@ -15,10 +15,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from alpha.config import settings
 from alpha.world.store import Problem
 
 log = logging.getLogger("alpha.modtables")
-MOST_ROWS = 5000
+MOST_ROWS = settings.views.most_rows
 KINDS = {"VARCHAR": "text", "BOOLEAN": "bool", "DATE": "date", "TIMESTAMP": "date",
          "TIMESTAMP WITH TIME ZONE": "date", "JSON": "text"}
 

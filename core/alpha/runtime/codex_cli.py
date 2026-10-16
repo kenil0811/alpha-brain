@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from alpha import config
 from alpha.runtime import codex_account
 from alpha.runtime.claude_cli import (
     LIVE,
@@ -44,21 +45,13 @@ log = logging.getLogger(__name__)
 SIGNED_OUT = "ChatGPT isn't signed in on this Mac (or its sign-in lapsed): sign in from Settings."
 # Found 8 Oct: Codex's own approval gate refuses Alpha's tools before the server starts.
 REFUSED = "Codex refused the call under its own approval gate (\"user cancelled MCP tool call\")"
-# The Claude aliases the rest of Alpha speaks in, as Codex's reasoning effort.
-EFFORT = {"haiku": "low", "sonnet": "medium", "opus": "high"}
-CLAUDE_ALIASES = set(EFFORT)
-GUARD = """You are Alpha. Work only through the `alpha` tools: never run shell commands, never \
-read or write files on this Mac, never use anything but Alpha's tools, web search and web fetch. \
-Everything below is Alpha's standing instruction and the person's world as it stands."""
-INDEPENDENT_GUARD = """Answer from the web and your own knowledge only: never run commands, never \
-read files on this Mac."""
 
 
 def instructions(req: TurnRequest) -> str:
     """What goes into AGENTS.md: the guard for the kind of run, then the request's system."""
     if req.kind == "judge":
         return req.system
-    guard = INDEPENDENT_GUARD if req.kind == "independent" else GUARD
+    guard = config.prompt("codex_independent_guard" if req.kind == "independent" else "codex_guard")
     return f"{guard}\n\n{req.system}"
 
 
@@ -68,14 +61,14 @@ def _toml_string(value: str) -> str:
 
 def model_for(req: TurnRequest) -> tuple[str | None, str]:
     """The Codex model and reasoning effort for a request: a Claude alias becomes an effort
-    (haiku low, sonnet medium) on the person's own Codex model; anything else is passed on."""
-    alias = req.model or os.environ.get("ALPHA_MODEL") or "sonnet"
-    if alias in CLAUDE_ALIASES:
-        effort = EFFORT[alias]
+    (models.toml) on the person's own Codex model, and a small judgement or an independent
+    answer runs at low effort; anything else is passed on as a model name."""
+    model, effort = config.chatgpt_effort(req.model)
+    if model is None:
         if req.kind in ("judge", "independent"):
             effort = "low"
         return codex_account.default_model(), effort
-    return alias, "medium"
+    return model, effort
 
 
 def argv(req: TurnRequest, cwd: Path, last: Path, binary: str = "codex") -> list[str]:

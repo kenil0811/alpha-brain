@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from alpha.config import settings
 from alpha.runtime import claude_cli
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.actions import file_fields
@@ -184,7 +185,7 @@ def module_card(world: World, m: dict[str, Any]) -> dict[str, Any]:
             "children": [c["id"] for c in world.modules.children(m["id"])]}
 
 
-TROUBLE_WINDOW_H = 24
+TROUBLE_WINDOW_H = settings.views.trouble_window_h
 
 
 def troubles(world: World) -> list[dict[str, Any]]:
