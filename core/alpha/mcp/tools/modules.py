@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from alpha.mcp.tools.base import Base, tool
+from alpha.world.store import Problem
 
 
 class Modules(Base):
@@ -86,12 +87,18 @@ class Modules(Base):
         return thread
 
     @tool(writes="asks")
-    def ask_person(self, question: str, options: list[str] | None = None) -> dict[str, Any]:
+    def ask_person(self, question: str, options: list[str] | None = None,
+                   kind: str = "one", hint: str | None = None) -> dict[str, Any]:
         """Record a question for the person that must be answered before something can be
         done well (it shows on Home until answered). Ask in the reply too. Only ask what you
-        cannot find out and what changes the result."""
+        cannot find out and what changes the result. `kind` is "one" (they pick one option) or
+        "several" (they may tick more than one); `hint` says what a free answer should be when
+        there are no options ("a number of days", "a date", "the person's name")."""
+        if kind not in ("one", "several"):
+            raise Problem('kind is "one" or "several".')
         jid = self.world.journal.append(
-            "asked", question, data={"options": options or [], "turn": self.turn},
+            "asked", question, data={"options": options or [], "turn": self.turn, "kind": kind,
+                                     "hint": hint or None},
             module=self.module, thread=self.thread,
         )
         return {"asked": jid}

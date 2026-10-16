@@ -257,7 +257,7 @@ function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnsw
         </div>
       ) : null}
       <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.options.length ? "Or say it your way" : "Your answer"} aria-label="Your answer" disabled={busy} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.hint ?? (ask.options.length ? "Or say it your way" : "Your answer")} aria-label="Your answer" disabled={busy} />
         <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
           Answer
         </Button>
@@ -309,7 +309,7 @@ export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Cl
               ))}
             </div>
           ) : null}
-          <input className="askcard__input" value={typed[a.id] ?? ""} onChange={(e) => { setTyped({ ...typed, [a.id]: e.target.value }); if (e.target.value.trim()) setPicked({ ...picked, [a.id]: "" }); }} placeholder={a.options.length ? "Or say it your way" : "Your answer"} aria-label={`Your answer: ${a.text}`} disabled={busy} />
+          <input className="askcard__input" value={typed[a.id] ?? ""} onChange={(e) => { setTyped({ ...typed, [a.id]: e.target.value }); if (e.target.value.trim()) setPicked({ ...picked, [a.id]: "" }); }} placeholder={a.hint ?? (a.options.length ? "Or say it your way" : "Your answer")} aria-label={`Your answer: ${a.text}`} disabled={busy} />
         </fieldset>
       ))}
       <div className="askcard__other">
@@ -536,7 +536,7 @@ export function Conversation({
       setPending(turn);
       setElapsed(0);
       try {
-        const final = await client.waitTurn(turn, setPending, 8, 500);
+        const final = await client.followOrWait(turn, setPending, 500);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         setError(`${say(e)} The turn may still have run; its answer shows here when Alpha is back.`);

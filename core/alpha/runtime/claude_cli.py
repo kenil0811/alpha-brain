@@ -70,12 +70,17 @@ class Live:
             for key in keys:
                 current = self.progress.setdefault(key, self._fresh())
                 current.update({k: v for k, v in what.items() if v is not None})
+                if what.get("partial") == "":
+                    current["written"] = 0
                 current["at"] = time.time()
 
     @staticmethod
     def _fresh() -> dict[str, Any]:
         return {"thought": None, "doing": None, "tools": 0, "at": None, "partial": None,
-                "first_text_at": None}
+                "first_text_at": None,
+                # Every character written so far, so the events stream sends exact deltas even
+                # past the `partial_chars` the core keeps (the conversation, slice 1).
+                "written": 0}
 
     def add_text(self, keys: list[str], text: str) -> None:
         """A piece of the reply as the model writes it: the window shows it growing."""
@@ -83,6 +88,7 @@ class Live:
             for key in keys:
                 current = self.progress.setdefault(key, self._fresh())
                 current["partial"] = ((current.get("partial") or "") + text)[-PARTIAL_CHARS:]
+                current["written"] = int(current.get("written") or 0) + len(text)
                 if current.get("first_text_at") is None:
                     current["first_text_at"] = time.time()
                 current["at"] = time.time()

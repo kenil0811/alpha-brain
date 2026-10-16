@@ -26,6 +26,21 @@ def _cell(value: Any) -> Any:
     return value
 
 
+def fold_failures(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Consecutive identical failures (a loop that posted the same line again and again, as on
+    2 Oct) shown once, the latest, with how many there were (`repeats`); the journal keeps every
+    one (the conversation, slice 1)."""
+    out: list[dict[str, Any]] = []
+    for e in entries:
+        last = out[-1] if out else None
+        if (last is not None and e["kind"] == "failed" and last["kind"] == "failed"
+                and last["text"] == e["text"]):
+            out[-1] = {**e, "repeats": int(last.get("repeats", 1)) + 1}
+        else:
+            out.append(e)
+    return out
+
+
 def needs_you(world: World) -> list[dict[str, Any]]:
     """Everything waiting on the person: questions, proposals, suggested facts, same-name
     people to confirm."""
@@ -33,7 +48,8 @@ def needs_you(world: World) -> list[dict[str, Any]]:
     for a in world.journal.open_asks():
         items.append({"kind": "ask", "id": a["id"], "text": a["text"], "at": a["at"],
                       "options": a["data"].get("options", []), "module": a["module"],
-                      "turn": a["data"].get("turn"), "derived": bool(a["data"].get("derived"))})
+                      "turn": a["data"].get("turn"), "derived": bool(a["data"].get("derived")),
+                      "choose": a["data"].get("kind") or "one", "hint": a["data"].get("hint")})
     answered = {loads(r["data"], {}).get("proposal")
                 for r in world.store.all("SELECT data FROM journal WHERE kind = 'answered'")}
     for p in world.journal.recent(50, kinds=["proposed"]):

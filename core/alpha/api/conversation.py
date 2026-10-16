@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import time
+from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
 
 from alpha.api.bodies import (
     AskBody,
@@ -16,12 +21,13 @@ from alpha.api.served import Served
 from alpha.api.views import (
     action_view,
     conversation_view,
+    fold_failures,
     needs_you,
     thread_views,
     troubles,
 )
 from alpha.connectors.files import Files
-from alpha.runtime import conversations
+from alpha.runtime import claude_cli, conversations
 from alpha.world.purge import conversation_removal, remove_conversation
 from alpha.world.store import Problem
 
@@ -96,7 +102,8 @@ def routes(app: FastAPI, s: Served) -> None:
         else:
             turns_ = world.journal.recent(limit, stream=True,
                                           kinds=["said", "replied", "failed"], module=module_id)
-        return {"turns": turns_, "conversation": conversation_view(world, chat["id"], chat)
+        return {"turns": fold_failures(turns_),
+                "conversation": conversation_view(world, chat["id"], chat)
                 if chat else None,
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
@@ -106,7 +113,9 @@ def routes(app: FastAPI, s: Served) -> None:
                 "asks": [{"id": a["id"], "text": a["text"], "at": a["at"],
                           "options": a["data"].get("options", []), "thread": a["thread"],
                           "module": a["module"], "turn": a["data"].get("turn"),
-                          "derived": bool(a["data"].get("derived"))}
+                          "derived": bool(a["data"].get("derived")),
+                          "choose": a["data"].get("kind") or "one",
+                          "hint": a["data"].get("hint")}
                          for a in world.journal.open_asks()]}
 
     @app.post("/api/ask", dependencies=[api])
@@ -135,6 +144,68 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/turns/{key}", dependencies=[api])
     def turn_state(key: str) -> dict[str, Any]:
         return running.get(key)
+
+    @app.get("/api/turns/{key}/events", dependencies=[api])
+    async def turn_events(key: str, request: Request) -> StreamingResponse:
+        """A running turn pushed as it happens (16 Oct, the conversation's slice 1, the core's
+        part): the words as they are written, the thought, the current step in words, each
+        journal step, the state, and the end; one `text/event-stream` per turn, read from the
+        live state every tenth of a second and the journal every half second, in process. The
+        window falls back to the poll when the stream drops."""
+        running.get(key)  # a turn the core doesn't know answers here, before the stream opens
+
+        async def events() -> AsyncIterator[str]:
+            def line(event: dict[str, Any]) -> str:
+                return f"data: {json.dumps(event)}\n\n"
+
+            seen: dict[str, Any] = {"state": None, "written": 0, "partial": "", "thought": None,
+                                    "doing": None, "steps": 0}
+            state: dict[str, Any] = {}
+            looked = 0.0
+            yield ": open\n\n"
+            while True:
+                if await request.is_disconnected():
+                    return
+                now = time.monotonic()
+                if seen["state"] is None or now - looked >= 0.5:
+                    try:
+                        state = running.get(key)
+                    except Problem:
+                        yield line({"type": "lost"})
+                        return
+                    looked = now
+                    if state["state"] != seen["state"]:
+                        seen["state"] = state["state"]
+                        yield line({"type": "state", "state": state["state"],
+                                    "conversation": state.get("conversation"),
+                                    "ask": state.get("ask"), "options": state.get("options")})
+                    steps = state.get("steps") or []
+                    for step in steps[seen["steps"]:]:
+                        yield line({"type": "step", **step})
+                    seen["steps"] = len(steps)
+                    live = state.get("live")
+                else:
+                    live = claude_cli.LIVE.progress_for(state.get("said"))
+                if live:
+                    written = int(live.get("written") or 0)
+                    partial = str(live.get("partial") or "")
+                    if written < seen["written"] or (written == 0 and seen["partial"]):
+                        yield line({"type": "text", "reset": True, "text": partial})
+                    elif written > seen["written"]:
+                        fresh = written - seen["written"]
+                        yield line({"type": "text", "delta": partial[-fresh:]})
+                    seen["written"], seen["partial"] = written, partial
+                    for kind in ("thought", "doing"):
+                        if live.get(kind) and live.get(kind) != seen[kind]:
+                            seen[kind] = live[kind]
+                            yield line({"type": kind, "text": live[kind]})
+                if state["state"] not in ("running", "routing"):
+                    yield line({"type": "done", "turn": state})
+                    return
+                await asyncio.sleep(0.1)
+
+        return StreamingResponse(events(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/threads/{tid}", dependencies=[api])
     def thread(tid: str) -> dict[str, Any]:

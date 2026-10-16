@@ -1007,3 +1007,4 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .rich__code .iconbtn { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity 0.15s ease-out; background: var(--surface); }
 .rich__code:hover .iconbtn, .rich__code .iconbtn:focus-visible { opacity: 1; }
 .rich__tail { margin: 0; white-space: pre-wrap; }
+.reply__repeats { flex: none; margin-top: 2px; }

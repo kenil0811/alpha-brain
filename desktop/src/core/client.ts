@@ -148,6 +148,8 @@ export interface JournalEntry {
   entity_ids: string[];
   source: string | null;
   snippet?: string;
+  /** A failure that the conversation shows once for several identical ones in a row: how many. */
+  repeats?: number;
   /** A failure: what Try again would redo, in words (`asks`: say yes first, it acts on a site),
    *  or why it can't (`blocked`); null when there is nothing to redo (slice 2 D5). */
   again?: { how: string | null; words?: string; asks?: boolean; blocked?: string } | null;
@@ -775,6 +777,54 @@ export interface Ask {
    * the model left in prose (Q35). */
   turn?: string | null;
   derived?: boolean;
+  /** "one": the person picks one option; "several": they may tick more than one. */
+  choose?: "one" | "several";
+  /** What a free answer should be, when there are no options ("a number of days"). */
+  hint?: string | null;
+}
+
+/** One event of a turn pushed by the core as it happens (`/api/turns/{id}/events`). */
+export type TurnEvent =
+  | { type: "text"; delta?: string; reset?: boolean; text?: string }
+  | { type: "thought" | "doing"; text: string }
+  | { type: "step"; at: string; kind: string; text: string }
+  | { type: "state"; state: Turn["state"]; conversation?: Convo | null; ask?: string; options?: string[] }
+  | { type: "done"; turn: Turn }
+  | { type: "lost" };
+
+/** The turn as the window holds it, after one event: words appended (or started afresh when
+ *  the core cleared them), the thought and the current step, the steps appended, the state. */
+export function applyTurnEvent(turn: Turn, event: TurnEvent): Turn {
+  const live: Live = { thought: null, doing: null, tools: 0, at: null, partial: "", ...(turn.live ?? {}) };
+  switch (event.type) {
+    case "text":
+      return { ...turn, live: { ...live, partial: event.reset ? (event.text ?? "") : `${live.partial ?? ""}${event.delta ?? ""}` } };
+    case "thought":
+      return { ...turn, live: { ...live, thought: event.text } };
+    case "doing":
+      return { ...turn, live: { ...live, doing: event.text, tools: live.tools + 1 } };
+    case "step":
+      return { ...turn, steps: [...(turn.steps ?? []), { at: event.at, kind: event.kind, text: event.text }] };
+    case "state":
+      return { ...turn, state: event.state, conversation: event.conversation ?? turn.conversation, ask: event.ask, options: event.options };
+    default:
+      return turn;
+  }
+}
+
+/** One server-sent event's JSON, from its block of lines; null for a comment or noise. */
+export function parseTurnEvent(block: string): TurnEvent | null {
+  const data = block
+    .split("\n")
+    .filter((l) => l.startsWith("data:"))
+    .map((l) => l.slice(5).trim())
+    .join("\n");
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as TurnEvent;
+  } catch {
+    return null;
+  }
 }
 
 export interface Turn {
@@ -1049,7 +1099,46 @@ export class Client {
    * twice a second so the reply's text shows as it is written). */
   async askAndWait(text: string, opts: { module?: string | null; thread?: string | null; conversation?: string | null } = {}, onTick?: (t: Turn) => void, every = 1000): Promise<Turn> {
     const turn = await this.ask(text, opts);
+    return this.followOrWait(turn, onTick, every);
+  }
+  /** A running turn pushed by the core as it happens (the conversation's slice 1, 16 Oct);
+   * the poll takes over when the stream can't be opened or drops before the end. */
+  async followOrWait(turn: Turn, onTick?: (t: Turn) => void, every = 1000): Promise<Turn> {
+    if (turn.id && (turn.state === "running" || turn.state === "routing")) {
+      try {
+        const final = await this.followTurn(turn, onTick);
+        if (final) return final;
+      } catch {
+        // the stream is a better way to the same answer, never the only one
+      }
+    }
     return this.waitTurn(turn, onTick, 8, every);
+  }
+  /** Read `/api/turns/{id}/events` to its end: each event lands in `onTick` as the turn so far;
+   * the final turn comes back, or null when the stream ended without one. */
+  async followTurn(turn: Turn, onTick?: (t: Turn) => void, signal?: AbortSignal): Promise<Turn | null> {
+    if (!turn.id) return turn;
+    const response = await fetch(`${this.session.baseUrl}/api/turns/${turn.id}/events`, { headers: { Authorization: `Bearer ${this.session.token}` }, signal });
+    if (!response.ok || !response.body) throw new CoreError(`The core didn't open the stream (${response.status}).`, response.status);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let current: Turn = { ...turn, live: { thought: null, doing: null, tools: 0, at: null, partial: "" }, steps: [] };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return null;
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() ?? "";
+      for (const block of blocks) {
+        const event = parseTurnEvent(block);
+        if (!event) continue;
+        if (event.type === "done") return event.turn;
+        if (event.type === "lost") return null;
+        current = applyTurnEvent(current, event);
+        onTick?.(current);
+      }
+    }
   }
   /** Follow a started turn to its end (a routing question comes back as is). A poll the core
    * does not answer is tried again for a while before the turn counts as lost: one missed poll

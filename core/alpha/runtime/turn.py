@@ -20,8 +20,8 @@ from typing import Any
 from alpha import config
 from alpha.connectors.base import skills_text
 from alpha.context import prepack
-from alpha.runtime import asking, route
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime import asking, claude_cli, route
+from alpha.runtime.claude_cli import NO_ANSWER, STALLED, RunResult, TurnRequest
 from alpha.world.store import Problem, loads
 from alpha.world.world import World
 
@@ -94,6 +94,12 @@ def close_answered_asks(world: World, sentence: str, thread: str | None) -> None
                              thread=thread, module=a["module"])
 
 
+def wrote_anything(world: World, turn_id: str) -> bool:
+    """Whether a turn left anything in the journal beyond the sentence that started it."""
+    return any(e["data"].get("turn") == turn_id and e["id"] != turn_id
+               for e in world.journal.recent(200))
+
+
 def threads_opened_by(world: World, turn_id: str) -> list[str]:
     """The threads a turn opened (its tools journal each one with the turn's id)."""
     rows = world.store.all(
@@ -163,6 +169,13 @@ def ask(
             data={"turn": said, "step": True})) if workspace else None,
     )
     result = runner(request)
+    if (not result.ok and not result.stopped and result.error in (NO_ANSWER, STALLED)
+            and not wrote_anything(world, said)):
+        # The route failed (the CLI gave no answer, or its run went silent) before the turn
+        # wrote anything: tried once more, the window saying so; never a turn that wrote
+        # something, which would do it twice (the conversation, slice 1; Q35's leftover).
+        claude_cli.LIVE.note([said], doing="Trying again")
+        result = runner(request)
     if conversation and thread and result.ok and result.session_id:
         world.modules.set_session(thread, result.session_id)
     data = {

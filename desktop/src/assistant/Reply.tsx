@@ -174,6 +174,7 @@ export function Reply({
             <>
               <X size={14} aria-hidden="true" />
               <span>{words}</span>
+              {entry && typeof entry.repeats === "number" && entry.repeats > 1 ? <span className="faint reply__repeats">×{entry.repeats}</span> : null}
             </>
           ) : (
             <Rich text={words} streaming={running} />

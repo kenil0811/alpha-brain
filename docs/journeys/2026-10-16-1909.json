@@ -1,0 +1,35 @@
+[
+ {
+  "name": "question_card",
+  "title": "A question Alpha asks in prose becomes a card the person answers in place",
+  "steps": [
+   {
+    "say": "Log my lunch",
+    "ok": true,
+    "reply": "You already have lunch logged today — cauliflower pizza with cheese, onion and paneer (698 kcal) at 15:34. Did you want to add something else to lunch, or log a different item?",
+    "steps": 2,
+    "seconds": 23.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "ask",
+    "arg": {},
+    "ok": true,
+    "why": "\"Did you want to add something else to lunch, or log a different item?\" with ['Add something else to lunch', 'Log a different item'] options (made by the core)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "\\?"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 23.8,
+  "error": null
+ }
+]
