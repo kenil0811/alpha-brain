@@ -315,6 +315,12 @@ def test_columbo_looks_at_replies_that_carry_numbers_and_runs_as_an_agent(world:
     assert kinds == ["independent", "judge"]
     run = world.runs.last(me["id"])
     assert run and run["trigger"] == "event" and run["verdict"] == "succeeded"
+    # while the model answers, the card watching the run has a step of Columbo's own to show
+    thread = world.agents.get(me["id"])["thread"]
+    step = world.journal.recent(5, thread=thread, kinds=["did"])[-1]
+    assert step["actor"] == me["id"] and step["data"]["turn"] == eggs
+    assert step["text"] == ('Checking the reply to "how many calories in two boiled eggs" against'
+                            " an independent answer and your world.")
     checked = [e for e in world.journal.recent(10, kinds=["checked"])]
     assert [e["data"]["turn"] for e in checked] == [eggs]
     assert checked[0]["text"] == "Checked against an independent answer and your world: both agree."
@@ -325,6 +331,7 @@ def test_columbo_looks_at_replies_that_carry_numbers_and_runs_as_an_agent(world:
     assert page["when"].startswith("after a turn of yours in which Alpha worked a number out")
     assert page["good_run"].startswith("both ways answered for everything it checked")
     assert page["runs"][0]["verdict"] == "succeeded"
+    assert page["runs"][0]["lines"][0]["text"].startswith("Checking the reply to")
 
 
 def test_the_persons_earlier_sentences_go_with_a_sentence_answered_alone(world: World) -> None:

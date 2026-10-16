@@ -36,7 +36,7 @@ from alpha import config
 from alpha.config import settings
 from alpha.context.prepack import section_of
 from alpha.runtime import route, turn
-from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor
+from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import Problem, now
 from alpha.world.world import World
@@ -949,13 +949,23 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
             said = world.journal.read(tid)
         except Problem:
             continue
+        starting(world, agent, f'Checking the reply to "{said["text"][:60]}" against an'
+                               f" independent answer and your world.", turn=tid)
         count("answers", f'the reply to "{said["text"][:50]}"',
               check_turn(world, tid, runner=runner, agent=agent))
     for item in about.get("parts") or []:
+        starting(world, agent, f"Checking the part {_part_title(world, item)} on its first"
+                               " filled row against an independent answer and the rows before"
+                               " it.", part=item["part"], module=item["module"])
         count("parts", f"the part {item['part']}",
               check_part(world, agent, item["module"], item["part"], item["record"],
                          item["collection"], runner=runner))
     for aid in about.get("actions") or []:
+        try:
+            title = world.actions.get(aid)["title"]
+        except Problem:
+            continue
+        starting(world, agent, f'Checking the numbers in "{title}" before your yes.', action=aid)
         count("cards", "an outward card", check_action(world, agent, aid, runner=runner))
     total = sum(checked.values())
     if not total:
@@ -979,6 +989,17 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     if nothing:
         return Outcome("partial", "; ".join(nothing)[:300], line)
     return Outcome("succeeded", None, line)
+
+
+def _part_title(world: World, item: dict[str, Any]) -> str:
+    from alpha.runtime import parts as parts_module
+
+    try:
+        ws = world.modules.get(item["module"]).get("workspace")
+        part = next((p for p in parts_module.parts_of(ws) if p["id"] == item["part"]), None)
+    except Problem:
+        part = None
+    return str((part or {}).get("title") or item["part"])
 
 
 def _last_answer(world: World, thread: str | None) -> str | None:

@@ -30,7 +30,7 @@ from alpha import config
 from alpha.connectors.files import Files
 from alpha.context.prepack import entities_named
 from alpha.runtime import route, turn
-from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor
+from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
 from alpha.runtime.claude_cli import TurnRequest
 from alpha.world.world import World
 
@@ -500,6 +500,14 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     counts = {"facts": 0, "pages": 0, "commitments": 0, "decisions": 0, "to_confirm": 0}
     failed: list[str] = []
     moved = 0
+    reading = [f"{len(about[key])} {name}{'s' if len(about[key]) != 1 else ''}"
+               for key, name in (("exchanges", "exchange"), ("closed", "conversation that closed"),
+                                 ("documents", "document")) if about.get(key)]
+    if reading or about.get("refile"):
+        words = ("Reading " + ", ".join(reading) if reading else "") + (
+            ("; r" if reading else "R") + "efiling the facts kept before Watson"
+            if about.get("refile") else "") + "."
+        starting(world, agent, words)
     if about.get("refile"):
         out = refile(world, agent, runner=runner)
         moved = len(out.get("moved") or [])

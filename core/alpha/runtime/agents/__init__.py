@@ -74,6 +74,17 @@ def known(kind: str) -> bool:
     return kind in LOOKS
 
 
+def starting(world: World, agent: dict[str, Any], words: str, **data: Any) -> str | None:
+    """One step line in the agent's own thread when a piece of its work begins, so the card
+    watching the run and the run on its page show what it is doing while the model answers
+    (16 Oct: Columbo's first run, a minute with no line of its own, read as stuck). None
+    outside a run (no thread yet)."""
+    if not agent.get("thread"):
+        return None
+    return world.journal.append("did", words, actor=agent["id"], thread=agent["thread"],
+                                module=agent.get("module"), data={"agent": agent["id"], **data})
+
+
 def journal_rowid(world: World) -> int:
     """Where the journal ends now: what a look covers, and where the next one starts."""
     row = world.store.one("SELECT MAX(rowid) AS n FROM journal", ())

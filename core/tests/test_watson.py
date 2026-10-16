@@ -294,6 +294,10 @@ def test_watson_is_made_once_and_works_from_the_journal_cursor(world: World) -> 
     assert out and out["last_result"] == "Kept 1 facts."
     run = world.runs.last(agent["id"])
     assert run and run["verdict"] == "succeeded" and run["trigger"] == "event"
+    # the run's first line, in Watson's own thread, says what it is reading (the card shows it)
+    thread = world.agents.get(agent["id"])["thread"]
+    assert world.journal.recent(10, thread=thread, kinds=["did"])[0]["text"] == \
+        "Reading 1 exchange; refiling the facts kept before Watson."
     assert world.knowledge.facts("person")[0]["predicate"] == "lives_in"
     noticed = world.journal.recent(1, kinds=["noticed"])[0]
     assert noticed["actor"] == agent["id"] and noticed["data"]["turn"] == sid
