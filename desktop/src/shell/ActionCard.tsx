@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import type { Action, Client } from "../core/client";
 import { when } from "../modules/format";
-import { Button, Dialog } from "../ui";
+import { Button, Card, Dialog } from "../ui";
 import { say } from "../core/client";
 
 const isShort = (v: string) => v.length <= 90 && !v.includes("\n");
@@ -69,13 +69,7 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
   const badge = open ? (action.effect === "send" ? "Send?" : "Make?") : action.state === "done" ? (action.effect === "send" ? "Sent" : "Made") : action.state === "running" ? "Doing it" : action.state === "failed" ? "Didn't happen" : action.state === "declined" ? "Not now" : "Approved";
 
   return (
-    <article className={`card need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`}>
-      <h3>
-        {action.title}
-        <span className={`badge ${action.state === "failed" ? "badge--failed" : action.state === "done" ? "badge--good" : "badge--waiting"}`} style={{ marginLeft: 8 }}>
-          {badge}
-        </span>
-      </h3>
+    <Card className={`need action ${open ? "" : "action--settled"}`} aria-label={`Action: ${action.title}`} eyebrow={action.effect === "send" ? "Alpha would send" : "Alpha would prepare"} title={action.title} badge={<span className={`badge ${action.state === "failed" ? "badge--failed" : action.state === "done" ? "badge--good" : "badge--waiting"}`}>{badge}</span>}>
       <p className="because">
         <b>{action.effect === "send" ? "Sends" : "Prepares"}</b> on {action.site} · {EFFECT[action.effect]} · {when(action.created_at)}
       </p>
@@ -168,6 +162,6 @@ export function ActionCard({ action, client, onDecided, compact }: { action: Act
         </div>
       ) : null}
       {error ? <p className="notice">{error}</p> : null}
-    </article>
+    </Card>
   );
 }

@@ -32,7 +32,7 @@ export function groupNeeds(items: NeedItem[]): NeedItem[][] {
 }
 
 function askOf(item: NeedItem): Ask {
-  return { id: item.id, text: item.text, at: item.at, options: item.options ?? [], thread: null, module: item.module ?? null, turn: item.turn ?? null };
+  return { id: item.id, text: item.text, at: item.at, options: item.options ?? [], thread: null, module: item.module ?? null, turn: item.turn ?? null, choose: item.choose, hint: item.hint };
 }
 
 function greeting(): string {

@@ -448,6 +448,9 @@ export interface NeedItem {
   id: string;
   text: string;
   why?: string | null;
+  /** A question: whether one option or several may be chosen, and the hint for a free answer. */
+  choose?: "one" | "several";
+  hint?: string | null;
   at: string;
   options?: string[];
   /** The turn that asked it: questions asked together are answered together. */

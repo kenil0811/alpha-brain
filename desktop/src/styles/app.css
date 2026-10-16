@@ -308,8 +308,6 @@ a { color: var(--primary); }
 .question { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: var(--text-md); }
 .question legend { font-weight: 500; padding: 0 4px; }
 .brief { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: var(--text-md); }
-.creation { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: var(--text-md); }
-.creation__title { margin: 0; font-size: var(--text-lg); }
 .stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-md); }
 .stages__done { color: var(--good); }
 .preview { margin: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -507,10 +505,6 @@ ul.check { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 .presence--working { background: var(--primary); }
 .presence--needs { background: var(--warn); }
 .avatar__bubble p { margin: 0; }
-button.creation { text-align: left; background: var(--surface); width: 100%; color: var(--text); font: inherit; cursor: pointer; }
-button.creation:hover { background: var(--hover); }
-.creation__title { display: flex; align-items: center; gap: 8px; }
-.creation__title .badge { margin-left: auto; flex: none; }
 ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .main { position: relative; }
 .assist__reopen { position: fixed; top: 50%; right: 0; z-index: 6; transform: translateY(-50%); writing-mode: vertical-rl; padding: 14px 7px; border-radius: 10px 0 0 10px; box-shadow: var(--shadow); letter-spacing: 0.02em; }
@@ -524,8 +518,6 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 .firstrun__card { border-color: var(--warn); }
 .firstrun__head { display: flex; flex-direction: column; gap: 4px; padding: 16px 16px 4px; }
 .firstrun__head h2 { margin: 0; font-size: var(--text-xl); }
-.creation-wrap { position: relative; }
-.creation-wrap > .creation { width: 100%; }
 
 /* an outward action's card: the text as it will be typed, the dry-run screenshot, the decision */
 .action__payload { display: flex; flex-direction: column; gap: 8px; font-size: var(--text-md); }
@@ -591,18 +583,7 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .thread__now { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--text-sm); }
 
-/* a question as choices */
-.askcard { align-self: flex-start; max-width: 94%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-size: var(--text-md); animation: fadein 0.3s ease-out; }
-.askcard__q { margin: 0 0 8px; font-weight: 500; }
-.askcard__options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.askcard__opt { border-radius: 999px; }
-.askcard__opt--on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
-.askcard--group { display: flex; flex-direction: column; gap: 10px; }
-.askcard__one { border: 0; margin: 0; padding: 0; min-width: 0; }
 .askcard__n { color: var(--text-3); margin-right: 2px; }
-.askcard__input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
-.askcard__other { display: flex; gap: 6px; align-items: center; }
-.askcard__other input { flex: 1; min-width: 120px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--text); }
 
 /* live conversations: a strip to switch between them */
 .convchip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
@@ -1008,3 +989,38 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .rich__code:hover .iconbtn, .rich__code .iconbtn:focus-visible { opacity: 1; }
 .rich__tail { margin: 0; white-space: pre-wrap; }
 .reply__repeats { flex: none; margin-top: 2px; }
+/* The card frame and the rows of the conversation's slice 2: the question card, a thread's row,
+   an answered question's line. The same frame on Home. */
+.frame { align-self: stretch; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: var(--text-md); }
+.frame__eyebrow { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.frame__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.frame__title { flex: 1; min-width: 0; margin: 0; font-size: var(--text-lg); }
+.frame__badge { flex: none; }
+.frame__foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.frame__eyebrow + .frame__head { margin-top: -4px; }
+.action > .frame__head, .action > .frame__eyebrow, .action > .frame__foot { grid-column: 1 / -1; }
+.askcard__q { margin: 0; font-weight: 500; }
+.askcard__rows { display: flex; flex-direction: column; gap: 4px; }
+.askrow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-md); text-align: left; cursor: pointer; transition: background 0.12s ease-out, border-color 0.12s ease-out; }
+.askrow:hover { background: var(--hover); }
+.askrow--on { border-color: var(--primary); background: var(--primary-soft); }
+.askrow:disabled { cursor: default; opacity: 0.6; }
+.askrow__mark { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 1.5px solid var(--text-3); display: grid; place-items: center; color: var(--primary-ink); }
+.askrow--on .askrow__mark { border-color: var(--primary); background: var(--primary); box-shadow: inset 0 0 0 2.5px var(--surface); }
+.askrow--tick .askrow__mark { border-radius: 4px; }
+.askrow--tick.askrow--on .askrow__mark { box-shadow: none; }
+.askrow__words { flex: 1; min-width: 0; }
+.askrow__key { flex: none; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-3); }
+.askcard__one { border: 0; margin: 0 0 12px; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.askcard__n { color: var(--text-3); margin-right: 2px; }
+.askcard__input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; background: var(--surface); font: inherit; font-size: var(--text-md); color: var(--text); }
+.askcard__other { display: flex; }
+.asked { display: flex; gap: 8px; align-items: baseline; color: var(--text-3); font-size: var(--text-sm); }
+.asked__who { flex: none; }
+.asked__q { min-width: 0; overflow-wrap: anywhere; }
+.threadrow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-md); text-align: left; cursor: pointer; }
+.threadrow:hover { background: var(--hover); }
+.threadrow__title { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.threadrow__live { color: var(--text-2); font-size: var(--text-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.threadrow__open { margin-left: auto; flex: none; color: var(--text-3); font-size: var(--text-sm); }
+.askcard__opt { border-radius: 999px; }  /* the companion bubble's choice pills */

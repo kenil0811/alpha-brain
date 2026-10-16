@@ -8,20 +8,22 @@
  * (`Reply`) from the first words to the journal, the person's sentence is `Said`, and the
  * Markdown is rendered for real.
  */
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords, say } from "../core/client";
 import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow, Agent } from "../core/client";
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { RenameBox, useConversationActions } from "./ConversationActions";
 import { MicButton, SendingSoon, useHoldToSend, useSpeech } from "../shell/voice";
-import { Button, IconButton, Popover, Trouble } from "../ui";
+import { Button, Card, IconButton, Popover, Trouble } from "../ui";
 import { ChevronRight, ChevronDown, PlusIcon } from "../ui/icons";
+import { AskCard, AskGroup, AskedRow, groupAsks } from "./AskCard";
 import { Reply, Said, replyKey, turnKey } from "./Reply";
+import { ThreadRow } from "./ThreadRow";
+export { AskCard, AskGroup, groupAsks } from "./AskCard";
 import { retryOf } from "./turnWords";
 export { provenance, retryOf, withoutCarded } from "./turnWords";
 
-const THREAD_STATE: Record<string, string> = { open: "Open", working: "Working", waiting: "Needs you", done: "Done" };
 const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
 
 /** The questions the workflow page asks before its build: each with its choices, Alpha's pick
@@ -83,11 +85,7 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
     });
   };
   return (
-    <div className="creation wfcard" aria-label={`Your workflow: ${workflow.title}`}>
-      <h3 className="creation__title">
-        {workflow.title}
-        <span className="badge badge--waiting">{drafted ? `Your workflow · v${workflow.version}` : workflow.state}</span>
-      </h3>
+    <Card className="wfcard" aria-label={`Your workflow: ${workflow.title}`} eyebrow="Your workflow" title={workflow.title} badge={<span className="badge badge--waiting">{drafted ? `v${workflow.version}` : workflow.state}</span>}>
       <p className="wf__purpose">{b.purpose}</p>
       <section className="wf__section" aria-label="How it goes">
         <h4 className="wf__head">How it goes</h4>
@@ -223,125 +221,8 @@ export function WorkflowCard({ workflow, client, onDecided }: { workflow: Workfl
       ) : (
         <span className="faint">{workflow.state === "agreed" ? "Agreed. The build starts in the background and reports here." : workflow.state === "building" ? "Being built now." : workflow.state === "built" ? "Built. Open the module to use it." : `This workflow is ${workflow.state}.`}</span>
       )}
-    </div>
+    </Card>
   );
-}
-
-/** A question Alpha asked, as choices to tap (or words to type); the answer starts the next
- *  turn, so the person never has to repeat the question. */
-function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnswered: (turn: Turn | null) => void }) {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const answer = async (words: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const out = await client.answerAsk(ask.id, words);
-      onAnswered(out.turn);
-    } catch (e) {
-      setError(say(e));
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="askcard" role="group" aria-label="Alpha asks">
-      <p className="askcard__q">{ask.text}</p>
-      {ask.options.length ? (
-        <div className="askcard__options">
-          {ask.options.map((o) => (
-            <Button className="askcard__opt" key={o} disabled={busy} onClick={() => void answer(o)}>
-              {o}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-      <form className="askcard__other" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void answer(text.trim()); }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={ask.hint ?? (ask.options.length ? "Or say it your way" : "Your answer")} aria-label="Your answer" disabled={busy} />
-        <Button size="sm" variant="primary" type="submit" disabled={busy || !text.trim()}>
-          Answer
-        </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void client.dismissAsk(ask.id).then(() => onAnswered(null)).catch(() => undefined)}>
-          Skip
-        </Button>
-      </form>
-      {error ? <p className="notice">{error}</p> : null}
-    </div>
-  );
-}
-
-/** Questions Alpha asked together (one turn, several `ask_person` calls) are one form: each
- *  with its choices to tap or words to type, one Answer for all of them, so the person is
- *  never sent on after the first tap (11 Oct: "after i selected one, it submitted"). What is
- *  left blank stays open as its own card. */
-export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Client; onAnswered: (turn: Turn | null) => void }) {
-  const [picked, setPicked] = useState<Record<string, string>>({});
-  const [typed, setTyped] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const answerOf = (a: Ask) => (typed[a.id] ?? "").trim() || picked[a.id] || "";
-  const answered = asks.filter((a) => answerOf(a));
-  const send = async () => {
-    if (!answered.length) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const out = await client.answerAsks(Object.fromEntries(answered.map((a) => [a.id, answerOf(a)])));
-      onAnswered(out.turn);
-    } catch (e) {
-      setError(say(e));
-      setBusy(false);
-    }
-  };
-  return (
-    <form className="askcard askcard--group" role="group" aria-label="Alpha asks" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-      {asks.map((a, i) => (
-        <fieldset className="askcard__one" key={a.id} aria-label={a.text}>
-          <p className="askcard__q">
-            <span className="askcard__n">{i + 1}.</span> {a.text}
-          </p>
-          {a.options.length ? (
-            <div className="askcard__options">
-              {a.options.map((o) => (
-                <Button className={`askcard__opt${picked[a.id] === o ? " askcard__opt--on" : ""}`} key={o} disabled={busy} aria-pressed={picked[a.id] === o} onClick={() => { setPicked({ ...picked, [a.id]: picked[a.id] === o ? "" : o }); setTyped({ ...typed, [a.id]: "" }); }}>
-                  {o}
-                </Button>
-              ))}
-            </div>
-          ) : null}
-          <input className="askcard__input" value={typed[a.id] ?? ""} onChange={(e) => { setTyped({ ...typed, [a.id]: e.target.value }); if (e.target.value.trim()) setPicked({ ...picked, [a.id]: "" }); }} placeholder={a.hint ?? (a.options.length ? "Or say it your way" : "Your answer")} aria-label={`Your answer: ${a.text}`} disabled={busy} />
-        </fieldset>
-      ))}
-      <div className="askcard__other">
-        <Button size="sm" variant="primary" type="submit" disabled={busy || !answered.length}>
-          {answered.length && answered.length < asks.length ? `Answer ${answered.length} of ${asks.length}` : "Answer"}
-        </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void Promise.all(asks.map((a) => client.dismissAsk(a.id))).then(() => onAnswered(null)).catch(() => undefined)}>
-          Skip all
-        </Button>
-        {answered.length && answered.length < asks.length ? <span className="faint">The rest stay open.</span> : null}
-      </div>
-      {error ? <p className="notice">{error}</p> : null}
-    </form>
-  );
-}
-
-/** Open questions grouped by the turn that asked them: one form per turn with several, a
- *  card for a question on its own. */
-export function groupAsks(asks: Ask[]): Ask[][] {
-  const groups: Ask[][] = [];
-  const byTurn = new Map<string, Ask[]>();
-  asks.forEach((a) => {
-    const key = a.turn && !a.derived ? a.turn : `one:${a.id}`;
-    const found = byTurn.get(key);
-    if (found) found.push(a);
-    else {
-      const group = [a];
-      byTurn.set(key, group);
-      groups.push(group);
-    }
-  });
-  return groups;
 }
 
 export interface ConversationProps {
@@ -587,6 +468,53 @@ export function Conversation({
     setText(words);
     setTimeout(() => input.current?.focus(), 0);
   };
+  // One timeline, in the order things happened (slice 2): the sentences and replies, the
+  // questions where Alpha asked them (an open one as its card, several from one turn as one
+  // form, an answered one as a dim line), the workflow pages and the actions where they were
+  // proposed, the threads where they began; the running turn last. Nothing is pinned on top
+  // and nothing is pushed to the bottom.
+  const stamp = (iso: string) => Date.parse(iso) || 0;
+  const openById = new Map(openAsks.map((a) => [a.id, a]));
+  // A question is journaled while the reply is still being written: it belongs after the
+  // reply of its turn, as the person reads it.
+  const repliedAt = new Map(turns.filter((e) => e.kind === "replied" && typeof e.data.turn === "string").map((e) => [e.data.turn as string, stamp(e.at)]));
+  const askedAt = (e: JournalEntry) => Math.max(stamp(e.at), (typeof e.data.turn === "string" ? repliedAt.get(e.data.turn) ?? 0 : 0) + 1);
+  const onAnswered = (turn: Turn | null) => { load(); void follow(turn); };
+  const decided = () => { load(); onChanged(); };
+  const items: { at: number; node: ReactNode }[] = [];
+  for (let i = 0; i < turns.length; i++) {
+    const e = turns[i];
+    if (e.kind === "asked") {
+      if (!openById.has(e.id)) {
+        items.push({ at: askedAt(e), node: <AskedRow key={e.id} entry={e} /> });
+        continue;
+      }
+      if (pending) continue; // answered when the turn ends, as before
+      const open: Ask[] = [];
+      let j = i;
+      while (j < turns.length && turns[j].kind === "asked" && openById.has(turns[j].id)) open.push(openById.get(turns[j++].id) as Ask);
+      groupAsks(open).forEach((group) =>
+        items.push({ at: askedAt(e), node: group.length > 1 ? <AskGroup key={group[0].id} asks={group} client={client} onAnswered={onAnswered} /> : <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={onAnswered} /> }),
+      );
+      i = j - 1;
+      continue;
+    }
+    if (e.kind === "said") {
+      items.push({ at: stamp(e.at), node: <Said key={e.id} entry={e} onEdit={!pending ? () => edit(e.text) : undefined} /> });
+      continue;
+    }
+    const again = !pending ? retryOf(e, turns) : null;
+    items.push({ at: stamp(e.at), node: <Reply key={replyKey(e)} entry={e} asks={openAsks} onRetry={again ? () => void send(again) : undefined} /> });
+  }
+  workflows.forEach((w) => items.push({ at: stamp(w.created_at), node: <WorkflowCard key={`wf-${w.id}`} workflow={w} client={client} onDecided={decided} /> }));
+  actions
+    .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
+    // A failed attempt is history once Alpha proposed the same thing again.
+    .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
+    .forEach((a) => items.push({ at: stamp(a.created_at), node: <ActionCard key={`act-${a.id}`} action={a} client={client} compact onDecided={decided} /> }));
+  threads.filter((t) => t.kind !== "chat").forEach((t) => items.push({ at: stamp(t.created_at), node: <ThreadRow key={`th-${t.id}`} thread={t} onOpen={() => void client.thread(t.id).then(setThreadView)} /> }));
+  items.sort((a, b) => a.at - b.at);
+  const timeline = [...items.map((it) => it.node), pendingItem];
   const chats = convos.filter((c) => c.kind === "chat");
   const activeConvo = chats.find((c) => c.id === active) ?? null;
   const convoActions = useConversationActions(client, (what) => {
@@ -712,61 +640,13 @@ export function Conversation({
           </>
         ) : (
           <>
-            {threads.filter((t) => t.kind !== "chat").map((t) => {
-              return (
-                <div key={t.id} className="creation-wrap">
-                  <button type="button" className="creation" onClick={() => void client.thread(t.id).then(setThreadView)}>
-                    <h3 className="creation__title">
-                      {t.title}
-                      <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{THREAD_STATE[t.state] ?? t.state}</span>
-                    </h3>
-                    <span className="faint">
-                      {t.kind === "build" && t.state === "working"
-                        ? `Building in the background · ${t.step_count ?? 0} steps · open it to watch`
-                        : t.state === "working"
-                            ? "Alpha is working on this now"
-                            : t.state === "waiting"
-                              ? "Waiting for your answer · open it to reply here"
-                              : "Its own thread · open it to talk about this work"}
-                    </span>
-                    {t.state === "working" && t.live?.doing ? <span className="faint thread__last">… {t.live.doing}</span> : t.state === "working" && t.steps?.length ? <span className="faint thread__last">{t.steps[t.steps.length - 1].kind === "failed" ? "✗" : "✓"} {t.steps[t.steps.length - 1].text}</span> : null}
-                  </button>
-                </div>
-              );
-            })}
             {module ? (
               <div className="intro">
                 I'm looking at <b>{moduleWords(module)}</b>{module.children?.length ? " and what it holds" : ""}. Ask about it, tell me to add or change something, or log to it.
               </div>
             ) : null}
             {!turns.length && !module ? <div className="intro">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
-            {[
-              ...turns.map((e) => {
-                if (e.kind === "said") return <Said key={e.id} entry={e} onEdit={!pending ? () => edit(e.text) : undefined} />;
-                const again = !pending ? retryOf(e, turns) : null;
-                return <Reply key={replyKey(e)} entry={e} asks={openAsks} onRetry={again ? () => void send(again) : undefined} />;
-              }),
-              pendingItem,
-            ]}
-            {workflows.map((w) => (
-              <WorkflowCard key={w.id} workflow={w} client={client} onDecided={() => { load(); onChanged(); }} />
-            ))}
-            {actions
-              .filter((a) => a.state === "proposed" || a.state === "running" || a.state === "approved" || a.state === "failed")
-              // A failed attempt is history once Alpha proposed the same thing again.
-              .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
-              .map((a) => (
-                <ActionCard key={a.id} action={a} client={client} compact onDecided={() => { load(); onChanged(); }} />
-              ))}
-            {!pending
-              ? groupAsks(openAsks).map((group) =>
-                  group.length > 1 ? (
-                    <AskGroup key={group[0].id} asks={group} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                  ) : (
-                    <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                  ),
-                )
-              : null}
+            {timeline}
           </>
         )}
         {loadError ? <Trouble onRetry={load}>Couldn't load the conversation: {loadError}</Trouble> : null}

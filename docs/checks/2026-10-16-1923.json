@@ -1,0 +1,96 @@
+{
+ "began": "2026-10-16T18:23:51.845Z",
+ "ended": "2026-10-16T18:24:00.588Z",
+ "pages": [
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 1233,
+   "shot": "home@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 846,
+   "shot": "assistant@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_e56ea584e9c4",
+   "title": "Conversation: Watson",
+   "width": 1100,
+   "height": 560,
+   "scheme": "light",
+   "ms": 834,
+   "shot": "assistant-t_e56ea584e9c4@1100x560-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 926,
+   "shot": "home@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 854,
+   "shot": "assistant@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_e56ea584e9c4",
+   "title": "Conversation: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "light",
+   "ms": 841,
+   "shot": "assistant-t_e56ea584e9c4@1240x820-light.png",
+   "problems": []
+  },
+  {
+   "path": "/home",
+   "title": "Home",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 931,
+   "shot": "home@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant",
+   "title": "Assistant",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 846,
+   "shot": "assistant@1240x820-dark.png",
+   "problems": []
+  },
+  {
+   "path": "/assistant/t_e56ea584e9c4",
+   "title": "Conversation: Watson",
+   "width": 1240,
+   "height": 820,
+   "scheme": "dark",
+   "ms": 841,
+   "shot": "assistant-t_e56ea584e9c4@1240x820-dark.png",
+   "problems": []
+  }
+ ]
+}

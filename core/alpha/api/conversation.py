@@ -98,10 +98,11 @@ def routes(app: FastAPI, s: Served) -> None:
                 else world.modules.live_chat(module_id))
         if chat:
             turns_ = world.journal.recent(limit, thread=chat["id"],
-                                          kinds=["said", "replied", "failed"])
+                                          kinds=["said", "replied", "failed", "asked"])
         else:
             turns_ = world.journal.recent(limit, stream=True,
-                                          kinds=["said", "replied", "failed"], module=module_id)
+                                          kinds=["said", "replied", "failed", "asked"],
+                                          module=module_id)
         return {"turns": fold_failures(turns_),
                 "conversation": conversation_view(world, chat["id"], chat)
                 if chat else None,
