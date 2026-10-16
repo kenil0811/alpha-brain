@@ -1175,7 +1175,7 @@ def _last_answer(world: World, thread: str | None) -> str | None:
 
 def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str | None,
             module: str | None = None, runner: turn.Runner = route.run,
-            on_said: Any = None) -> turn.TurnOutcome | None:
+            on_said: Any = None, rest: str | None = None) -> turn.TurnOutcome | None:
     """"@Columbo check that": the conversation's last answer checked again, now, and the
     verdict said there in Columbo's name. None when there is nothing to check (then the
     generic mention answers)."""

@@ -265,7 +265,7 @@ def check_findings(data: Any, subject: dict[str, Any], *,
 
 def look_into(world: World, agent: dict[str, Any], subject: dict[str, Any], *,
               depth: str, open_parts: list[str], runner: turn.Runner = route.run,
-              alive: Any = None) -> dict[str, Any]:
+              alive: Any = None, thread: str | None = None) -> dict[str, Any]:
     """The look itself: one turn under Sherlock's name in its own thread, with web search,
     Alpha's read tools and pages through existing connections; the method is the model's,
     what comes back is checked by code. {"ok", "stopped", "findings", "words", "model_ms"}."""
@@ -282,7 +282,7 @@ def look_into(world: World, agent: dict[str, Any], subject: dict[str, Any], *,
               + (f"Suggestions the person skipped before (never again): "
                  f"{', '.join(subject['skipped'])}\n\n" if subject.get("skipped") else "")
               + _knows(world, agent))
-    outcome = turn.ask(world, prompt, thread=agent["thread"], runner=runner,
+    outcome = turn.ask(world, prompt, thread=thread or agent["thread"], runner=runner,
                        rules=config.prompt("sherlock_research", name=agent["name"]),
                        actor=agent["id"], agent=agent["id"],
                        journal_as=f"Sherlock looks into how others do {subject['title']}.")
@@ -548,15 +548,16 @@ def _note(world: World, agent: dict[str, Any], heading: str, line: str) -> None:
 
 def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str | None,
             module: str | None = None, runner: turn.Runner = route.run,
-            on_said: Any = None) -> turn.TurnOutcome | None:
-    """"@Sherlock <question>": a full look into the question, its findings on a page the
-    person keeps, the gist said in the conversation."""
+            on_said: Any = None, rest: str | None = None) -> turn.TurnOutcome | None:
+    """"@Sherlock <question>": a full look into the question, in the conversation it was
+    asked in (one card, with the live steps; its own thread only when asked from the stream,
+    and closed after), its findings on a page the person keeps, the gist said there."""
     agent_row = world.agents.get(agent["id"])
     if not agent_row.get("thread"):
         t = world.modules.open_thread(agent["name"], "job", agent.get("module"))["id"]
         world.agents.set_thread(agent["id"], t)
         agent_row = world.agents.get(agent["id"])
-    question = " ".join(sentence.split()[1:]).strip(" ,:") or sentence
+    question = (rest or "").strip(" ,:") or sentence
     said = world.journal.append("said", sentence, actor="person", module=module, thread=thread)
     if on_said is not None:
         on_said(said)
@@ -564,7 +565,10 @@ def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str |
     subject: dict[str, Any] = {"title": question[:120], "workflow": None, "conversation": thread,
                "words": question, "steps": [], "keeps": [], "settings": [], "reaches": [],
                "purpose": question, "skipped": []}
-    out = look_into(world, agent_row, subject, depth="full", open_parts=[], runner=runner)
+    out = look_into(world, agent_row, subject, depth="full", open_parts=[], runner=runner,
+                    thread=thread)
+    if not thread:
+        world.modules.update_thread(str(agent_row["thread"]), state="done")
     if not out["ok"]:
         reply = ("You stopped it." if out.get("stopped")
                  else f"I couldn't look into it: {out.get('why')}")

@@ -120,15 +120,16 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
 
 def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str | None,
             module: str | None = None, runner: turn.Runner = route.run,
-            on_said: Any = None) -> turn.TurnOutcome:
+            on_said: Any = None, rest: str | None = None) -> turn.TurnOutcome:
     """The person addressed the agent by name in a conversation: it answers there, as itself,
     with its brief in front of it and its hands cut to its write list. A run row is kept
     (trigger `mention`) and judged: succeeded when it answered, failed when it could not. A
     kind with a mention of its own in code (Columbo's "check that") answers that way first."""
     hook = MENTIONS.get(agent["kind"])
     if hook is not None:
+        # the sentence without the @Name token is what the kind's own code works on
         out = hook(world, agent, sentence, thread=thread, module=module, runner=runner,
-                   on_said=on_said)
+                   on_said=on_said, rest=rest)
         if out is not None:
             return cast(turn.TurnOutcome, out)
     run_id = world.runs.start(agent["id"], trigger="mention")

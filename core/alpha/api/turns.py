@@ -95,10 +95,11 @@ class Turns:
                 addressed = (self.world.agents.by_mention(body.text)
                              if actor == "person" else None)
                 if addressed:
-                    agent, _rest = addressed
+                    agent, rest = addressed
                     out = agent_runner.mention(
-                        self.world, agent, body.text, thread=thread, module=body.module,
-                        on_said=said, **({"runner": self.runner} if self.runner else {}))
+                        self.world, agent, body.text, rest=rest, thread=thread,
+                        module=body.module, on_said=said,
+                        **({"runner": self.runner} if self.runner else {}))
                 else:
                     out = turns.ask(self.world, body.text, **kwargs)
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,

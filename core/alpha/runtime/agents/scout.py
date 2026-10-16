@@ -452,7 +452,7 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
 
 def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str | None,
             module: str | None = None, runner: turn.Runner = route.run,
-            on_said: Any = None) -> turn.TurnOutcome | None:
+            on_said: Any = None, rest: str | None = None) -> turn.TurnOutcome | None:
     """"@Scout …": today's picks made now and said in the conversation."""
     agent_row = world.agents.get(agent["id"])
     if not agent_row.get("thread"):
@@ -463,7 +463,9 @@ def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str |
     if on_said is not None:
         on_said(said)
     run_id = world.runs.start(agent["id"], trigger="mention")
+    world.modules.update_thread(str(agent_row["thread"]), state="working")
     out = pick_the_day(world, agent_row, runner=runner)
+    world.modules.update_thread(str(agent_row["thread"]), state="done")
     if out["ok"]:
         reply = ("Today's picks: " + "; ".join(p["title"] for p in out["picks"])
                  + ". They're on Home with Take and Not now." if out["picks"]

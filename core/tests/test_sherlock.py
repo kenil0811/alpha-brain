@@ -273,13 +273,25 @@ def test_at_sherlock_answers_a_question_onto_a_page(world: World,
                                          "sources": ["https://example.com/gates"]}],
             "questions": []}), ok=True)
 
-    out = agent_runner.mention(world, me, "@Sherlock what do site scoring tools do first?",
-                               thread=None, runner=runner)
+    from alpha.runtime import conversations
+
+    cid = conversations.open_conversation(world, "site scoring", None)["id"]
+    out = agent_runner.mention(world, me, "hi @Sherlock, what do site scoring tools do first?",
+                               rest="hi what do site scoring tools do first?", thread=cid,
+                               runner=runner)
     assert out.ok and out.reply.startswith("Two tools stand out.")
     assert "1 things worth having" in out.reply
-    assert "what do site scoring tools do first?" in subject_seen[0]
-    page = world.knowledge.find_note("topic:what_do_site_scoring_tools_do_first",
-                                     "Research: what do site scoring tools do first?")
+    assert "hi what do site scoring tools do first?" in subject_seen[0]
+    assert "@Sherlock" not in subject_seen[0]
+    # the look ran in the conversation it was asked in: one card, no second thread open
+    steps = world.journal.recent(5, thread=cid, kinds=["did"])
+    assert any(e["text"].startswith("Sherlock looks into how others do hi what do site")
+               for e in steps)
+    assert world.modules.thread(cid)["state"] != "done"
+    mine = world.agents.get(me["id"])["thread"]
+    assert mine is None or world.modules.thread(mine)["state"] in ("done", "open")
+    page = world.knowledge.find_note("topic:hi_what_do_site_scoring_tools_do_first",
+                                     "Research: hi what do site scoring tools do first?")
     assert page and "Gates before the score" in page["body"]
     run = world.runs.last(me["id"])
     assert run and run["trigger"] == "mention" and run["verdict"] == "succeeded"
