@@ -57,12 +57,13 @@ describe("the reply as it is written", () => {
           setTimeout(() => {
             over = true;
             resolve({ ...running, state: "done", reply: "Logged **two eggs**, 140 kcal.", replied: "r_1" });
-          }, 20),
+          }, 300),
         );
       }),
     } as unknown as Client;
     page(client);
     await send("log two eggs");
+    // the running element, read before the final words can land (the mock waits 300 ms)
     const element = (await screen.findByText("two eggs")).closest(".reply");
     expect(element?.getAttribute("data-turn")).toBe("turn-s_1");
     await waitFor(() => expect(screen.getByText("3 s · 1 step")).toBeInTheDocument());

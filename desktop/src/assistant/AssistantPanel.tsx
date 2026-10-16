@@ -14,10 +14,11 @@ import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Th
 import { when } from "../modules/format";
 import { ActionCard } from "../shell/ActionCard";
 import { RenameBox, useConversationActions } from "./ConversationActions";
-import { MicButton, SendingSoon, useHoldToSend, useSpeech } from "../shell/voice";
+import { useHoldToSend, useSpeech } from "../shell/voice";
 import { Button, Card, IconButton, Popover, Trouble } from "../ui";
 import { ChevronRight, ChevronDown, PlusIcon } from "../ui/icons";
 import { AskCard, AskGroup, AskedRow, groupAsks } from "./AskCard";
+import { Composer } from "./Composer";
 import { Reply, Said, replyKey, turnKey } from "./Reply";
 import { ThreadRow } from "./ThreadRow";
 export { AskCard, AskGroup, groupAsks } from "./AskCard";
@@ -429,6 +430,22 @@ export function Conversation({
     [client, load, onChanged],
   );
 
+  // Files from the composer's plus take the route a drop takes (`/api/files`), in the page's
+  // module; the turn that reads them is followed here like any other.
+  const addFiles = async (files: File[]) => {
+    if (!files.length) return;
+    setError(null);
+    try {
+      const out = await client.addFiles(files, { module: module?.id ?? null });
+      if (out.turn) await follow(out.turn);
+      else {
+        load();
+        onChanged();
+      }
+    } catch (e) {
+      setError(`Couldn't add ${files.map((f) => f.name).join(", ")}: ${say(e)}`);
+    }
+  };
   const speech = useSpeech((final, interim) => {
     setText(final || interim);
   });
@@ -663,29 +680,20 @@ export function Conversation({
         ) : null}
         </div>
       </div>
-      <div className="composer">
-        {spoken.due ? <SendingSoon text={spoken.due} onStop={spoken.stop} /> : null}
-        {mentionable.length ? (
-          <div className="mention" role="listbox" aria-label="Agents">
-            {mentionable.map((a) => (
-              <button key={a.id} type="button" role="option" aria-selected={false} className="mention__pick" onClick={() => mention(a)}>
-                @{a.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="composer__box">
-          <textarea ref={input} rows={1} value={text} onChange={(e) => { spoken.stop(); setText(e.target.value); }} onKeyDown={key} placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"} aria-label="Message Alpha" />
-          <MicButton listening={speech.listening} supported={speech.supported} onToggle={speech.toggle} onHoldStart={spoken.holdStart} onHoldEnd={spoken.holdEnd} small />
-          <Button size="sm" variant="primary" disabled={!text.trim() || Boolean(pending)} onClick={() => { spoken.stop(); void send(text); }}>
-            Send
-          </Button>
-        </div>
-        <div className="composer__row">
-          <span>Uses your Claude subscription</span>
-          <span style={{ marginLeft: "auto" }}>⏎ to send</span>
-        </div>
-      </div>
+      <Composer
+        text={text}
+        onChange={(words) => { spoken.stop(); setText(words); }}
+        onSend={() => { spoken.stop(); void send(text); }}
+        onKeyDown={key}
+        onFiles={(files) => void addFiles(files)}
+        canSend={Boolean(text.trim()) && !pending}
+        placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"}
+        inputRef={input}
+        mentionable={mentionable}
+        onMention={mention}
+        mic={{ listening: speech.listening, supported: speech.supported, onToggle: speech.toggle, onHoldStart: spoken.holdStart, onHoldEnd: spoken.holdEnd }}
+        due={spoken.due ? { text: spoken.due, onStop: spoken.stop } : null}
+      />
     </aside>
   );
 }
