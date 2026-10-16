@@ -1030,3 +1030,4 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .threadrow__live { color: var(--text-2); font-size: var(--text-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .threadrow__open { margin-left: auto; flex: none; color: var(--text-3); font-size: var(--text-sm); }
 .askcard__opt { border-radius: 999px; }  /* the companion bubble's choice pills */
+.askcard:focus { outline: none; box-shadow: 0 0 0 2px var(--primary-soft); }

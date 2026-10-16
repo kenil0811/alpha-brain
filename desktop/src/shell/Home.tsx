@@ -4,7 +4,7 @@
  * to answer or open.
  */
 import { useEffect, useState } from "react";
-import { AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
+import { AskCard, AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
 import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
@@ -110,7 +110,6 @@ function Failure({ e, client, onGo, onDismiss, onDone }: { e: JournalEntry; clie
 }
 
 function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone: (words: string) => void }) {
-  const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function act(work: () => Promise<unknown>, words: string) {
@@ -132,34 +131,8 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
     return <WorkflowCard workflow={item.workflow} client={client} onDecided={() => onDone("Noted.")} />;
   }
   if (item.kind === "ask") {
-    return (
-      <article className="card need">
-        <h3>{item.text}</h3>
-        <p className="because">
-          <b>Alpha asked</b> {when(item.at)}, because the answer changes what it builds.
-        </p>
-        <form className="row" onSubmit={(e) => { e.preventDefault(); if (answer.trim()) void act(() => client.answerAsk(item.id, answer.trim()), "Answered."); }}>
-          {item.options?.length ? (
-            item.options.map((o) => (
-              <Button key={o} disabled={busy} onClick={() => void act(() => client.answerAsk(item.id, o), "Answered.")}>
-                {o}
-              </Button>
-            ))
-          ) : (
-            <>
-              <input className="need__input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" aria-label="Your answer" />
-              <Button variant="primary" type="submit" disabled={busy || !answer.trim()}>
-                Answer
-              </Button>
-            </>
-          )}
-          <Button variant="ghost" disabled={busy} onClick={() => void act(() => client.dismissAsk(item.id), "Dismissed.")}>
-            Dismiss
-          </Button>
-        </form>
-        {error ? <p className="notice">{error}</p> : null}
-      </article>
-    );
+    // The one question card (the conversation's slice 2), here as on the Assistant page.
+    return <AskCard ask={askOf(item)} client={client} onAnswered={() => onDone("Answered.")} />;
   }
   if (item.kind === "proposal") {
     return (

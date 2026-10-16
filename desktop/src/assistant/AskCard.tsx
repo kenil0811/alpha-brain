@@ -7,7 +7,7 @@
  * together (11 Oct: "after i selected one, it submitted"). A question that was answered folds
  * to one dim line where it was asked.
  */
-import { type KeyboardEvent, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { Ask, Client, JournalEntry, Turn } from "../core/client";
 import { say } from "../core/client";
 import { Button, Card } from "../ui";
@@ -56,8 +56,18 @@ function keys(e: KeyboardEvent<HTMLElement>, options: string[], onPick: (words: 
 
 /** A question on its own: a tap on a row answers it (one step, as before); a typed answer or
  *  several ticks go with Answer. */
+/** The card takes the keyboard when it appears: the question is the next thing to do. */
+function useKeysOnArrival() {
+  const card = useRef<HTMLElement>(null);
+  useEffect(() => {
+    card.current?.focus({ preventScroll: true });
+  }, []);
+  return card;
+}
+
 export function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client; onAnswered: (turn: Turn | null) => void }) {
   const several = ask.choose === "several";
+  const card = useKeysOnArrival();
   const [picked, setPicked] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,6 +95,8 @@ export function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client;
   const chosen = text.trim() || pickWords(picked, several);
   return (
     <Card
+      ref={card}
+      tabIndex={0}
       className="askcard"
       eyebrow="Alpha asks"
       aria-label="Alpha asks"
@@ -126,6 +138,7 @@ export function AskCard({ ask, client, onAnswered }: { ask: Ask; client: Client;
  *  with its rows or words, one Answer for all of them, so the person is never sent on after the
  *  first tap. What is left blank stays open as its own card. */
 export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Client; onAnswered: (turn: Turn | null) => void }) {
+  const card = useKeysOnArrival();
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -149,7 +162,7 @@ export function AskGroup({ asks, client, onAnswered }: { asks: Ask[]; client: Cl
     setTyped((t) => ({ ...t, [a.id]: "" }));
   };
   return (
-    <Card className="askcard askcard--group" eyebrow={`Alpha asks ${asks.length} things`} aria-label="Alpha asks">
+    <Card ref={card} tabIndex={0} className="askcard askcard--group" eyebrow={`Alpha asks ${asks.length} things`} aria-label="Alpha asks">
       <form
         onSubmit={(e) => {
           e.preventDefault();
