@@ -54,6 +54,7 @@ def routes(app: FastAPI, s: Served) -> None:
                 "facts": world.knowledge.facts("person"),
                 "notes": world.knowledge.notes(),
                 "goals": world.knowledge.goals(None),
+                "commitments": world.commitments.of("person", ("open", "done")),
                 "permissions": world.permissions.live(),
             },
             "procedures": world.procedures.all(),

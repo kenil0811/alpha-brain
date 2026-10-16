@@ -124,7 +124,7 @@ class Scheduler:
     def _work(self, aid: str, trigger: str, work: Work | None) -> None:
         self._hold()
         try:
-            agent_runner.run(self.world, aid, trigger=trigger, runner=self.runner)
+            agent_runner.run(self.world, aid, trigger=trigger, runner=self.runner, work=work)
             if work is not None:
                 self.world.agents.advance_cursor(aid, work.upto)
         except Exception:

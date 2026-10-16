@@ -221,6 +221,13 @@ class Journal:
             if cur.rowcount == 0:
                 raise Problem(f"There is no journal entry {jid} to forget.")
 
+    def rowid(self, jid: str) -> int:
+        """Where an entry sits in the journal (an agent's cursor is a rowid, Q50)."""
+        row = self.store.one("SELECT rowid AS n FROM journal WHERE id = ?", (jid,))
+        if row is None:
+            raise Problem(f"There is no journal entry {jid}.")
+        return int(row["n"])
+
     def open_asks(self) -> list[dict[str, Any]]:
         """Questions Alpha asked the person that have no answer yet."""
         rows = self.store.all(

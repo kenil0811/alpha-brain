@@ -82,7 +82,8 @@ def provenance_words(prov: dict[str, Any]) -> str:
 # What a tool may change, one word each: an agent's write list names these (Q50), and the
 # wrapper refuses a write outside the list before the tool runs. Reads carry none.
 WRITES = ("records", "notes", "facts", "goals", "asks", "proposals", "instructions", "skills",
-          "agents", "modules", "threads", "files", "workflows", "actions", "connections")
+          "agents", "modules", "threads", "files", "workflows", "actions", "connections",
+          "decisions", "commitments")
 
 
 class _Decorator(Protocol):

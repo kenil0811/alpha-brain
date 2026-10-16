@@ -53,7 +53,8 @@ def test_removed_with_data_kept_is_out_of_sight_and_comes_back(world: World) -> 
     c.post(f"/api/modules/{ids['avilo']['id']}/remove")
     # it and what it holds leave every list; its agent is stopped; nothing is deleted
     assert [m["name"] for m in c.get("/api/modules").json()] == []
-    assert world.agents.all() == [] and world.agents.due() == []
+    # only Alpha's own agents (Watson, no module) are left in sight
+    assert [a for a in world.agents.all() if a["module"]] == [] and world.agents.due() == []
     assert world.collections.describe("deal_listings")["records"] == 1
     assert world.collections.search("Bakery") == []
     removed = c.get("/api/modules/removed").json()
@@ -66,7 +67,8 @@ def test_removed_with_data_kept_is_out_of_sight_and_comes_back(world: World) -> 
     assert back["name"] == "Avilo"
     assert sorted(m["name"] for m in c.get("/api/modules").json()) == ["Avilo", "Deal Tracker"]
     assert world.modules.get("Deal Tracker")["parent"] == ids["avilo"]["id"]  # where it was
-    assert len(world.agents.all()) == 1 and c.get("/api/modules/removed").json() == []
+    assert len([a for a in world.agents.all() if a["module"]]) == 1
+    assert c.get("/api/modules/removed").json() == []
 
 
 def test_a_module_removed_on_its_own_stays_removed_when_its_parent_comes_back(world: World

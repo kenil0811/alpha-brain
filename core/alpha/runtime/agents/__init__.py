@@ -34,14 +34,28 @@ class Work:
     about: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class Outcome:
+    """What a kind's run came to, judged by code: the verdict, why, and the line for the log."""
+    verdict: str
+    why: str | None = None
+    line: str | None = None
+    model_ms: int = 0
+
+
 Look = Callable[[World, dict[str, Any]], Work | None]
+Run = Callable[..., Outcome]
 
 # kind → how it looks for work on a tick (None: only its schedule, an @ or Run now wake it)
 LOOKS: dict[str, Look | None] = {"custom": None}
+# kind → its own run (a frame in code); a kind without one runs the custom frame
+RUNS: dict[str, Run] = {}
 
 
-def register(kind: str, look: Look | None) -> None:
+def register(kind: str, look: Look | None, run: Run | None = None) -> None:
     LOOKS[kind] = look
+    if run is not None:
+        RUNS[kind] = run
 
 
 def known(kind: str) -> bool:
@@ -68,3 +82,27 @@ def since_cursor(world: World, agent: dict[str, Any], kinds: list[str] | None = 
     rows = world.store.all(f"SELECT * FROM journal WHERE {where} ORDER BY rowid LIMIT ?",
                            (*args, limit))
     return [entry(r) for r in rows]
+
+
+def look_and_run(world: World, kind: str, *, runner: Any = None) -> dict[str, Any] | None:
+    """What a tick does for one built-in kind, in line: its look since its cursor, a run when
+    there is work, the cursor moved. None when the kind has no agent in this world or nothing
+    to do. The journey suite and the tests use it where the app's scheduler would."""
+    from alpha.runtime.agents import runner as agent_runner
+
+    agent = next((a for a in world.agents.all() if a["kind"] == kind and a["on"]), None)
+    look = LOOKS.get(kind)
+    if agent is None or look is None:
+        return None
+    work = look(world, agent)
+    if work is None:
+        return None
+    if not work.about:
+        world.agents.advance_cursor(agent["id"], work.upto)
+        return None
+    kwargs: dict[str, Any] = {"trigger": "event", "work": work}
+    if runner is not None:
+        kwargs["runner"] = runner
+    out = agent_runner.run(world, agent["id"], **kwargs)
+    world.agents.advance_cursor(agent["id"], work.upto)
+    return out

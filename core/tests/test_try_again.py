@@ -110,23 +110,22 @@ def test_alpha_s_own_note_has_nothing_to_redo(world: World) -> None:
 
 
 def test_a_day_of_activity_and_the_page_before(world: World) -> None:
+    c = TestClient(create_app(world, live=False))  # first: Alpha's own agents say hello here
     for i in range(3):
         world.journal.append("failed", f"Failure {i}")
     for r in world.store.all("SELECT id FROM journal WHERE text != 'Failure 0'"):
         with world.store.tx() as db:
             db.execute("UPDATE journal SET at = ? WHERE id = ?",
                        ("2026-10-13T10:00:00+00:00", r["id"]))
-    rows = world.store.all("SELECT id, at FROM journal ORDER BY rowid")
     with world.store.tx() as db:
-        db.execute("UPDATE journal SET at = ? WHERE id = ?",
-                   ("2026-10-12T10:00:00+00:00", rows[0]["id"]))
-    c = TestClient(create_app(world, live=False))
+        db.execute("UPDATE journal SET at = ? WHERE text = 'Failure 0'",
+                   ("2026-10-12T10:00:00+00:00",))
     today = c.get("/api/activity?kind=failed&since=2026-10-13T00:00:00%2B00:00").json()
     assert [e["text"] for e in today] == ["Failure 2", "Failure 1"]
     page = c.get("/api/activity?limit=2").json()
     assert [e["text"] for e in page] == ["Failure 2", "Failure 1"]
     earlier = c.get(f"/api/activity?before={page[-1]['id']}").json()
-    assert [e["text"] for e in earlier] == ["Failure 0"]
+    assert [e["text"][:9] for e in earlier] == ["Watson is", "Failure 0"]  # Watson's hello, then
     # many entries in one second: the page before is exact
     same = [world.journal.append("did", f"Step {i}") for i in range(4)]
     with world.store.tx() as db:

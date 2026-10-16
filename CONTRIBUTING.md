@@ -56,7 +56,7 @@ core/alpha/
   runtime/      how a run happens: claude_cli (the model boundary), turn, workflow_build and
                 parts (the build from the page and what runs on rows), workspace and proxy (the
                 walls), pipeline, acting, agents (the runner and the scheduler), conversations, judge (the
-                System One seam), noticing, check (the second opinion).
+                System One seam), agents/watson (noticing as an agent), check (the second opinion).
   mcp/          the world as tools for the model: tools/ (one module per thing they touch, on
                 a shared base), server.py (the MCP server that registers them).
   api/          the loopback HTTP API the app uses: server.py (create_app, serve), one module
@@ -161,7 +161,7 @@ packages and "same site" became one rule, `world/sites.py`, on 3 Oct night; a na
 ### 3.5 Prompts
 
 The rules the model follows live as prose constants beside the code that runs them
-(`turn.RULES`, `agents.runner.RULES`, `judge.SYSTEM`, `noticing.RULES`). They are
+(`turn.RULES`, `agents.runner.RULES`, `judge.SYSTEM`, `agents.watson.RULES`). They are
 guidance, numbered, in the second person, and they repeat the wall the code enforces so the
 model does not try it. A rule that changes behaviour is a design decision: it goes in the log
 and, when it is a principle, in the design's §11 with a Qn number. Never put a person's data or
@@ -169,7 +169,7 @@ a site's name in a rule.
 
 ### 3.6 Concurrency
 
-Turns, builds, agents' runs, checks and noticing run as threads in the core; each model run is
+Turns, builds, agents' runs and checks run as threads in the core; each model run is
 a child process with its own tool server opening the same store. Therefore: a thread never
 holds the store lock across a model run or a browser job; a long operation (a backup, a
 purge) is the exception and says so; the hands take turns on a sign-in profile through the
@@ -182,7 +182,7 @@ threads (a state move, an upsert) is written as in §3.2.
 - `Problem(message)` for anything the caller asked for that cannot be done, in words the
   person could read. It carries no internal detail.
 - A broad `except Exception` is allowed only around background work that must carry on (a
-  scheduler tick, a noticing pass) and must `log.exception`. It is never used where a person
+  scheduler tick, Watson's pass) and must `log.exception`. It is never used where a person
   is waiting for the result: there, the failure is returned as a plain sentence and the
   detail goes to the log (`claude_cli.parse_result` is the pattern).
 - Nothing fails silently. A failed read becomes a source status; a failed run becomes a

@@ -22,8 +22,8 @@ import { say } from "../core/client";
 
 /** The face this agent wears in Agents (section 7c): its own look, or Alpha's until one is
  *  picked; the companion's pickers from Settings. */
-function AgentLookSection({ client, id }: { client: Client; id: string }) {
-  const [look, setLook, own] = useAgentLook(client, id);
+function AgentLookSection({ client, id, kind }: { client: Client; id: string; kind: string }) {
+  const [look, setLook, own] = useAgentLook(client, id, kind);
   const [problem, setProblem] = useState<string | null>(null);
   const [looks, setLooks] = usePreference<Record<string, unknown>>(client, "agent_looks", {});
   const keep = (next: Look) => {
@@ -34,7 +34,7 @@ function AgentLookSection({ client, id }: { client: Client; id: string }) {
     <div className="section">
       <div className="section__head">
         <h2>Its look</h2>
-        <span className="faint">{own ? "The face it wears in Agents" : "It wears Alpha's look until you pick one"}</span>
+        <span className="faint">{own ? "The face it wears in Agents" : kind !== "custom" ? "Its own face until you pick another" : "It wears Alpha's look until you pick one"}</span>
         {own ? (
           <span className="section__right">
             <Button size="sm" variant="ghost" onClick={() => { const rest = { ...(looks ?? {}) }; delete rest[id]; void setLooks(rest).then((err) => err && setProblem(err)); }}>
@@ -188,7 +188,7 @@ export function AgentPage({ client, id, version, onGo, onAsk, onChanged }: { cli
         <p className="notice">Last run didn't work: {agent.last_error}</p>
       ) : null}
 
-      <AgentLookSection client={client} id={agent.id} />
+      <AgentLookSection client={client} id={agent.id} kind={agent.kind} />
 
       <AgentNote
         title="Its brief"

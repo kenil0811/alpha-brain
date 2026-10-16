@@ -181,6 +181,22 @@ export function EntityPage({ client, id, version, onBack, onOpen, onChanged }: {
         </div>
       </div>
 
+      {entity.commitments?.length ? (
+        <div className="section">
+          <div className="section__head">
+            <h2>Commitments</h2>
+            <span className="faint">promised or owed; Watson keeps them</span>
+          </div>
+          <ul className="list list--plain">
+            {entity.commitments.map((c) => (
+              <li key={c.id}>
+                {c.what}
+                <span className="faint">{c.who === "person" ? " · you promised" : ` · ${entity.name.split(" ")[0]} promised`}{c.due ? ` · by ${c.due}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="section">
         <div className="section__head">
           <h2>Facts</h2>

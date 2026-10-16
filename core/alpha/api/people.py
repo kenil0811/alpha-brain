@@ -42,6 +42,7 @@ def routes(app: FastAPI, s: Served) -> None:
         same_name = [x for x in world.entities.find(name=e["name"], kind=e["kind"])
                      if x["id"] != e["id"] and x["name"].lower() == e["name"].lower()]
         return {**e, "facts": world.knowledge.facts(f"entity:{e['id']}"),
+                "commitments": world.commitments.of(f"entity:{e['id']}"),
                 "timeline": timeline(world, e["id"]), "maybe_same": same_name,
                 "page": world.knowledge.find_note(f"entity:{e['id']}", e["name"])}
 

@@ -270,6 +270,19 @@ CREATE TABLE IF NOT EXISTS decisions (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS decisions_at ON decisions(at);
+-- Commitments (Q46): what the person promised and is owed, with its date; Watson files them.
+CREATE TABLE IF NOT EXISTS commitments (
+    id TEXT PRIMARY KEY,
+    who TEXT NOT NULL,
+    what TEXT NOT NULL,
+    to_whom TEXT,
+    due TEXT,
+    state TEXT NOT NULL DEFAULT 'open',
+    source TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS commitments_who ON commitments(who, state);
 
 
 -- a module as the person's own workflow (§12, Q39): one page in their words, structured, with

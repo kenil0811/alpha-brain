@@ -35,6 +35,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.browser import profile_of, signin_sites
 from alpha.connectors.files import Files
 from alpha.world import workspaces
+from alpha.world.commitments import Commitments
 from alpha.world.decisions import Decisions
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
@@ -80,6 +81,8 @@ def _forget_entities(db: Any, ids: list[str]) -> None:
     db.execute(f"DELETE FROM entity_keys WHERE {clause}", args)
     clause, args = _in("subject", [f"entity:{i}" for i in ids])
     db.execute(f"DELETE FROM facts WHERE {clause}", args)
+    for i in ids:
+        Commitments.remove_who(db, f"entity:{i}")  # what they promised and were owed (Q46)
     clause, args = _in("scope", [f"entity:{i}" for i in ids])
     db.execute(f"DELETE FROM notes WHERE {clause}", args)
     clause, args = _in("id", ids)

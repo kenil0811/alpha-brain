@@ -38,7 +38,7 @@ def test_the_map_links_what_feeds_what(world: World) -> None:
              for k in ("module", "table", "skill", "agent", "source", "connection")}
     assert kinds["module"] == [f"module:{module}"]
     assert kinds["table"] == ["table:deals"]
-    assert kinds["agent"] == [f"agent:{pipe['id']}"]
+    assert f"agent:{pipe['id']}" in kinds["agent"]  # beside Alpha's own agents (Watson)
     assert len(kinds["source"]) == 2 and len(kinds["connection"]) == 1
     run_skill = next(n for n in data["nodes"] if n["kind"] == "skill" and n["role"] == "run")
     reader = by_id["skill:brokers"]

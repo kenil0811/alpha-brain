@@ -36,7 +36,8 @@ MATCHES = 5
 BUDGET = {"WHAT ALPHA HOLDS": 3_600, "WHAT ALPHA CAN DO": 2_000, "WHAT ALPHA KNOWS": 1_600,
           "THIS MODULE'S PAGE": 1_700, "THIS CONVERSATION": 2_400, "SINCE YOUR LAST TURN": 800,
           "WHAT WAS SAID": 1_600, "MATCHES FOR THIS SENTENCE": 2_200, "THIS THREAD": 2_400,
-          "OPEN": 900, "WHO THE SENTENCE NAMES": 1_200, "TODAY'S CALENDAR": 700}
+          "OPEN": 900, "WHO THE SENTENCE NAMES": 1_200, "TODAY'S CALENDAR": 700,
+          "COMMITMENTS DUE": 600}
 DEFAULT_BUDGET = 900
 # Sections where the newest lines matter most: they are cut from the front.
 KEEP_NEWEST = ("THIS CONVERSATION", "THIS THREAD", "WHAT WAS SAID", "SINCE YOUR LAST TURN")
@@ -231,6 +232,13 @@ def build(world: World, sentence: str, *, module: str | None = None,
     goals = [f"- {g['text']} (goal {g['id']}{', module ' + g['module'] if g['module'] else ''})"
              for g in k.goals("active")]
     sections.append(("ACTIVE GOALS", goals or ["- None yet."]))
+
+    due = world.commitments.due_within(7)
+    if due:
+        sections.append(("COMMITMENTS DUE (within a week; Watson keeps them)", [
+            f"- {c['what']} (by {c['due']}; {'yours' if c['who'] == 'person' else c['who']}"
+            + (f", to {c['to_whom']}" if c["to_whom"] else "") + f"; commitment {c['id']})"
+            for c in due[:10]]))
 
     tables = world.collections.overview()
     modules = world.modules.all()

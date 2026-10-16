@@ -416,6 +416,27 @@ export function ModulePage({ client, moduleId, table: wantedTable, version, onCh
             </div>
             <AgentList client={client} items={detail.agents} onChanged={onChanged} empty="No agents here yet. Ask Alpha to keep something here current and it shows up with a switch and a verdict per run." />
           </div>
+          {detail.decisions?.length ? (
+            <div className="section">
+              <div className="section__head">
+                <h2>Decisions</h2>
+                <span className="faint">reached in its conversations and on its page; yours bind</span>
+              </div>
+              <div className="card list">
+                {detail.decisions.map((d) => (
+                  <div key={d.id} className="item">
+                    <div className="item__body">
+                      {d.what}
+                      <div className="item__sub">
+                        {d.by === "person" ? "You" : d.by === "alpha" ? "Alpha" : d.by} · {when(d.at)}
+                        {d.why ? ` · ${d.why}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="section">
             <div className="section__head">
               <h2>Take it away</h2>

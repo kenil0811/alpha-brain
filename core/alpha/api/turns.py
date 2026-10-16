@@ -11,7 +11,7 @@ from typing import Any
 
 from alpha.api.bodies import AskBody
 from alpha.api.views import conversation_view
-from alpha.runtime import check, claude_cli, conversations, noticing
+from alpha.runtime import check, claude_cli, conversations
 from alpha.runtime import turn as turns
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem
@@ -129,8 +129,6 @@ class Turns:
             said_id = result.get("said")
             if self.checks and result["state"] == "done" and said_id:
                 self.check(str(said_id))
-                if actor == "person":
-                    self.notice(str(said_id))
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
@@ -143,22 +141,6 @@ class Turns:
                     if v["state"] in ("done", "failed", "asked") and v["started_at"] < cutoff]
             for k in gone:
                 del self.state[k]
-
-    def notice(self, said: str) -> None:
-        """After a person's turn: what was said worth keeping, beside the verbatim (§3.7)."""
-        if not noticing.worth_noticing(self.world, said):
-            return
-
-        def work() -> None:
-            try:
-                kwargs: dict[str, Any] = {}
-                if self.runner is not None:
-                    kwargs["runner"] = self.runner
-                noticing.notice(self.world, said, **kwargs)
-            except Exception:
-                log.exception("noticing failed")
-
-        threading.Thread(target=work, daemon=True, name=f"notice-{said}").start()
 
     def check(self, said: str) -> None:
         if not check.worth_checking(self.world, said):

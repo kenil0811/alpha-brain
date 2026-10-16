@@ -1,0 +1,115 @@
+[
+ {
+  "name": "memory_follow_up",
+  "title": "Memory · a follow-up that points at the previous answer works",
+  "steps": [
+   {
+    "say": "list the three deals with the highest asking price in the deal tracker, numbered",
+    "ok": true,
+    "reply": "1. **High Growth Indoor & Outdoor Furniture Brand** (Website Closers) — $90,000,000 asking, Pending\n2. **CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers) — $29,000,000 asking, Active\n3. **Mission-Critical SaaS for Financial Trading Firms** (Website Closers) — $28,500,000 asking, Active *(note: this one is marked gone — delisted as of 2026-10-10)*",
+    "steps": 2,
+    "seconds": 42.2
+   },
+   {
+    "say": "tell me more about the second one",
+    "ok": true,
+    "reply": "**CPG eCommerce Brand | Niche Furniture Fix-It Products** (Website Closers), listed as Active, General Business category.\n\n- Asking price: $29,000,000\n- Cash flow: $6,048,663\n- Listing: [websiteclosers.com](https://www.websiteclosers.com/businesses/cpg-ecommerce-brand-niche-furniture-fix-it-products-internally-designed-products-full-remote-team-strong-top-bottom-line-yoy-growth-20x-roas/119224/)\n\nFull title mentions internally designed products, a fully remote team, strong top & bottom line YoY growth, and 20X ROAS. No revenue figure is on file for this one.",
+    "steps": 2,
+    "seconds": 43.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": {
+     "rubric": "Passes if the second answer is about the deal that was listed second in the previous answer (same name or clearly the same listing) and gives more detail on it. Fails if it talks about a different deal, lists again, or asks which one.",
+     "history": 1
+    },
+    "ok": true,
+    "why": "The answer correctly provides more detail on the second-listed deal (CPG eCommerce Brand | Niche Furniture Fix-It Products), matching name and listing, without re-listing or asking for clarification.",
+    "seconds": 5.5
+   }
+  ],
+  "seconds": 91.1,
+  "error": null
+ },
+ {
+  "name": "memory_noticing",
+  "title": "Memory · what is said in passing about a person is kept on their page, and comes back",
+  "steps": [
+   {
+    "say": "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech",
+    "ok": true,
+    "reply": "Logged. I noted on Vikas Badami's profile that he's relocating to Bangalore next month and wants to co-found a fintech startup, plus a journal entry of the coffee meeting.\n\nWorth flagging: you mentioned earlier wanting to build something like growthfactor.ai — if Vikas's fintech idea could overlap, let me know and I can dig into what he's thinking or pull up what Alpha already knows about him (LinkedIn, prior emails).",
+    "steps": 7,
+    "seconds": 50.8
+   },
+   {
+    "say": "what's going on with vikas these days?",
+    "ok": true,
+    "reply": "Here's what Alpha has on Vikas:\n\n**From today's coffee:**\n- Moving to Bangalore next month (~Nov 2026)\n- Wants to co-found a fintech startup\n\n**From Gmail (Oct 2 and earlier):**\n- He shared an \"avilo-dashboard-v9.zip\" and invited you to a GitHub repo called `badami-vikas/relationship-os` (Sep 10) — suggests he's already been building something, possibly related to your Avilo work or a relationship/CRM-type tool\n- An email titled \"Data\" asking to \"book time to meet\" (Sep 12)\n- An older item from 2021 (a shared video) — not relevant\n\nNothing newer than Oct 2 in Gmail, so the fintech idea and Ban",
+    "steps": 3,
+    "seconds": 39.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details.",
+    "ok": false,
+    "why": "The journal shows only GitHub repo invite and project notes were read, with no mention of Bangalore move or fintech startup, so the answer invents details not supported by the evidence.",
+    "seconds": 6.7
+   }
+  ],
+  "seconds": 97.2,
+  "error": null
+ },
+ {
+  "name": "memory_two_sources",
+  "title": "Memory · one person known from two sources is one person",
+  "steps": [
+   {
+    "say": "what do i know about alexander miller, and what did he last write to me?",
+    "ok": true,
+    "reply": "This is his most recent, actual message: a LinkedIn InMail sent **Wed 14 Oct, 13:32** — *\"Send you an invite for Friday 23rd. Hope it works. Please confirm!\"* — sent right after the calendar invite for the interview went out at 13:04 the same day.\n\n**What Alpha knows about Alexander Miller:**\n- LinkedIn connection since 5 Aug 2025 — headline \"Building Teams That Impact The World,\" based in London, recruiting for Fuse Energy.\n- He's been running a recruiting thread with you since July (\"Fuse Energy | World-Class Team | Real-World Impact at Scale\") over several LinkedIn InMails spanning Jul–Oct.",
+    "steps": 11,
+    "seconds": 152.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer draws on both the LinkedIn connection (his headline or company, e.g. Fuse Energy) and his email (what he last wrote, e.g. asking whether next week or the following works). Fails if it uses only one source, invents, or says it doesn't know him.",
+    "ok": true,
+    "why": "The answer combines LinkedIn connection info (Fuse Energy, London, connected since Aug 2025) with the actual last email/InMail content (14 Oct message confirming the Friday 23rd invite), satisfying the dual-source requirement without inventing beyond what Alpha's journal supports.",
+    "seconds": 5.6
+   }
+  ],
+  "seconds": 157.6,
+  "error": null
+ },
+ {
+  "name": "memory_who_emailed",
+  "title": "Memory · a person is recognised across email and calendar",
+  "steps": [
+   {
+    "say": "who is sara ramos and when did i last deal with her?",
+    "ok": true,
+    "reply": "Sara Ramos Téllez is a tech recruiter at P&D Talent (sara@pndtalent.com, +34 614 452 229), recruiting for a \"Penelope Health - Founding Engineer\" role.\n\nYou last dealt with her **11 Oct** — she emailed with two attachments: your resume (KENIL_RESUME.pdf) and the Penelope Health Founding Engineer job spec PDF. Before that, you'd had a 20-minute intro call booked with her on **2 Oct** (9:20–9:40am GMT+1, via Google Meet).",
+    "steps": 8,
+    "seconds": 59.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer identifies Sara Ramos through what Alpha holds (her email about Penelope Health / a founding engineer role, and the intro meeting on 2 October) with a date for the latest contact. Fails if it says it doesn't know her, asks who she is, or invents.",
+    "ok": false,
+    "why": "{\"pass\": false, \"why\": \"The journal only shows unconfirmed entity facts (name, employer, job title, email, phone) with no evidence of reading specific emails or a calendar invite, so the answer's detailed claims about the resume/job-spec attachments, the Penelope Health Founding Engineer role, the 2",
+    "seconds": 6.9
+   }
+  ],
+  "seconds": 66.1,
+  "error": null
+ }
+]

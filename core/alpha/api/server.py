@@ -53,6 +53,7 @@ from alpha.connectors.calendar import Calendar
 from alpha.connectors.files import Files
 from alpha.runtime import conversations, route
 from alpha.runtime import turn as turns
+from alpha.runtime.agents import builtin
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.store import Problem
 from alpha.world.world import World
@@ -72,6 +73,7 @@ __all__ = ["AskBody", "READY_PREFIX", "Turns", "create_app", "serve"]
 def create_app(world: World | None = None, *, runner: turns.Runner | None = None,
                token: str | None = None, live: bool = True) -> FastAPI:
     world = world or World()
+    builtin.ensure(world)  # Alpha's own agents, made once per world (Q50)
     token = token if token is not None else os.environ.get("ALPHA_TOKEN")
     scheduler = Scheduler(world, runner)
     runner_fn = runner or route.run

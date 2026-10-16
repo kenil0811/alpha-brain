@@ -52,8 +52,9 @@ from typing import Any
 
 import yaml
 
-from alpha.runtime import acting, check, claude_cli, noticing, pipeline, route, turn, workflow_build
+from alpha.runtime import acting, check, claude_cli, pipeline, route, turn, workflow_build
 from alpha.runtime import parts as parts_module
+from alpha.runtime.agents import builtin, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
 from alpha.world.store import Problem, now
@@ -163,6 +164,7 @@ class Run:
         self.last_agent: dict[str, Any] | None = None
         self.last_action: dict[str, Any] | None = None
         self.last_row: tuple[str, str] | None = None
+        builtin.ensure(world)
         self.mark = mark(world)
 
     # steps
@@ -176,11 +178,11 @@ class Run:
             self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
                 self._settle_workflows()
-                # What the app does after a person's turn: the noticing pass, here in line.
+                # What the app's kick does after a person's turn: Watson looks and runs, in line.
                 try:
-                    noticing.notice(self.world, outcome.said, runner=self.runner)
-                except Exception as e:  # a journey is not failed by its noticing pass
-                    log.warning("noticing in journey: %s", e)
+                    look_and_run(self.world, "watson", runner=self.runner)
+                except Exception as e:  # a journey is not failed by Watson's pass
+                    log.warning("watson in journey: %s", e)
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
                       "steps": outcome.result.num_turns}
         elif "reader" in spec:
@@ -488,6 +490,13 @@ class Run:
             return False, f"The reply doesn't match /{arg['matches']}/."
         return True, "The reply reads as expected."
 
+    def _given(self, turn_id: str, title: str, cap: int = 1_500) -> str:
+        """One section of what the model was given for a turn (the pre-pack kept with it)."""
+        kept = self.world.journal.context(turn_id)
+        text = str(kept["context"]) if kept else ""
+        m = re.search(rf"(?m)^{re.escape(title)}\n(.*?)(?=\n\n[A-Z][A-Z' ()]+\n|\Z)", text, re.S)
+        return m.group(1).strip()[:cap] if m else ""
+
     def check_judge(self, arg: Any) -> tuple[bool, str]:
         rubric = arg if isinstance(arg, str) else arg["rubric"]
         if not self.last_turn:
@@ -509,7 +518,14 @@ class Run:
         done = ("What Alpha did in this turn, from its journal:\n" + "\n".join(
             f"- {s['kind']}: {' '.join(s['text'].split())[:240]}" for s in steps) + "\n\n"
                 if steps else "Alpha's journal records no step in this turn.\n\n")
-        prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}The answer:\n'
+        # 15 Oct 2026: memory_noticing's judge called a remembered fact (Vikas moving to
+        # Bangalore, kept by Watson the turn before) invented, because memory leaves no step
+        # in the turn that uses it. What the model was given about whoever the sentence names
+        # is the evidence of what it remembered.
+        known = self._given(self.last_turn, "WHO THE SENTENCE NAMES")
+        remembered = (f"What Alpha already knew when it answered (its memory, given to it with"
+                      f" the sentence):\n{known}\n\n" if known else "")
+        prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}{remembered}The answer:\n'
                   f"{self.last_reply}\n\nThe rubric: {rubric}")
         result = self.runner(claude_cli.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,

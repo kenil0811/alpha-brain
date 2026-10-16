@@ -77,6 +77,7 @@ def routes(app: FastAPI, s: Served) -> None:
         card["note"] = world.knowledge.find_note(f"module:{m['name']}", m["name"])
         card["goals"] = [g for g in world.knowledge.goals() if g["module"] in ids]
         card["agents"] = [a for i in ids for a in agent_views(world, scheduler, i)]
+        card["decisions"] = [d for i in ids for d in world.decisions.about("module", i)]
         card["sources"] = [s for i in ids for s in world.sources.all(i)]
         return card
 

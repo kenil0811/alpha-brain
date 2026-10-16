@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 from alpha.runtime import pipeline, route, turn
+from alpha.runtime.agents import RUNS, Work
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents")
@@ -98,10 +99,12 @@ def front(world: World, agent: dict[str, Any]) -> str:
 
 
 def run(world: World, agent_id: str, *, trigger: str = "schedule",
-        called_by: str | None = None, runner: turn.Runner = route.run) -> dict[str, Any]:
-    """One run of an agent: a row in `runs` from start to its verdict, judged by code. Steps
-    run with no model; a brief is a model turn with the agent's pages in front of it; a brief
-    that converts itself to steps runs them at once."""
+        called_by: str | None = None, runner: turn.Runner = route.run,
+        work: Work | None = None) -> dict[str, Any]:
+    """One run of an agent: a row in `runs` from start to its verdict, judged by code. A kind
+    with a frame of its own runs that (over `work`, what its look found). The custom frame:
+    steps run with no model; a brief is a model turn with the agent's pages in front of it; a
+    brief that converts itself to steps runs them at once."""
     agent = world.agents.get(agent_id)
     thread = agent["thread"]
     if not thread:
@@ -110,6 +113,14 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
         agent = world.agents.get(agent_id)
     world.modules.update_thread(thread, state="working")
     run_id = world.runs.start(agent_id, trigger=trigger, called_by=called_by)
+    frame = RUNS.get(agent["kind"])
+    if frame is not None:
+        try:
+            out = frame(world, agent, work, runner=runner)
+        except Exception as e:
+            log.exception("%s failed", agent["name"])
+            return _ended(world, agent, run_id, "failed", str(e), None, 0)
+        return _ended(world, agent, run_id, out.verdict, out.why, out.line, out.model_ms)
     if agent["steps"]:
         return _steps(world, agent, run_id, runner)
     brief = brief_of(world, agent)

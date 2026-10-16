@@ -272,6 +272,8 @@ export interface ModuleDetail extends Omit<ModuleCard, "tables"> {
   note: Note | null;
   goals: Goal[];
   agents: Agent[];
+  /** The decisions reached in this module's conversations (Watson, Q46) and on its workflow page. */
+  decisions?: Decision[];
   sources: Source[];
 }
 
@@ -484,8 +486,22 @@ export interface Entity {
   summary?: string | null;
 }
 
+/** What the person promised or is owed (Q46; Watson files them), with its date. */
+export interface Commitment {
+  id: string;
+  /** "person" or "entity:<id>": who promised. */
+  who: string;
+  what: string;
+  to_whom: string | null;
+  due: string | null;
+  state: "open" | "done" | "lapsed";
+  source: string | null;
+  created_at: string;
+}
+
 export interface EntityDetail extends Entity {
   facts: Fact[];
+  commitments?: Commitment[];
   timeline: JournalEntry[];
   maybe_same: Entity[];
   /** The entity's page of Alpha's wiki: who they are to the person, what is going on. */
@@ -631,7 +647,7 @@ export interface Intelligence {
   agents: Agent[];
   readers: Reader[];
   connections: Connection[];
-  knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[]; permissions?: Permission[] };
+  knowledge: { facts: Fact[]; notes: Note[]; goals: Goal[]; commitments?: Commitment[]; permissions?: Permission[] };
 }
 
 /** An agent (Q44, Q50): everything that works for the person on its own, in one shape. */

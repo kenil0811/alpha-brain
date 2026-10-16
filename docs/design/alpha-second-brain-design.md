@@ -103,7 +103,7 @@ Two mechanisms, in this order:
 
 | Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | At write: hard-key facts supersede, rows link to entities by key, no model call. Per turn: stated facts kept, inferred ones suggested; noticing after every turn (§3.7). |
+| Built | At write: hard-key facts supersede, rows link to entities by key, no model call. Per turn: stated facts kept, inferred ones suggested; Watson after every turn, filing by type (§3.7, Q46). |
 | Differs | A live conversation's model session is resumed, with a world delta so current facts outrank what it remembers (§3.7). |
 | Not built | The sleep-time pass, consolidation, the digest. |
 
@@ -220,9 +220,9 @@ Claude Code's session files live under the home folder, outside Alpha's data dir
 
 | Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | Points 2, 3, 5, 6, 7 and 8 (the wiki with its index; noticing; conversations first-class and parallel with resumed sessions; the companion's focus with rule-then-judge routing; skills as one table with composition; the System One seam), and the retrieval half of 4 (entity cards, the module's page, day-scoped matches). Memory journeys 6 of 7 after, 5 of 6 before (`../log/2026-10-03-4-23-*`). |
-| Differs | Routing never matches names: structure where certain, the judge otherwise. Noticing runs per turn, not at a conversation's close. Run skills are named from an automation's title. |
-| Not built | Fewer, composable tools; the Agent Skills folder export; promotion from repetition; noticing over what Alpha reads; a routing journey; "move to…" in the panel. |
+| Built | Points 2, 3, 5, 6, 7 and 8 (the wiki with its index; Watson, the noticer, as an agent (Q46, 15 Oct: facts by type, commitments, decisions, a conversation's checkpoint, documents, the refiling); conversations first-class and parallel with resumed sessions; the companion's focus with rule-then-judge routing; skills as one table with composition; the System One seam), and the retrieval half of 4 (entity cards, the module's page, day-scoped matches). Memory journeys 6 of 7 after, 5 of 6 before (`../log/2026-10-03-4-23-*`). |
+| Differs | Routing never matches names: structure where certain, the judge otherwise. Run skills are named from an agent's sentence. |
+| Not built | Fewer, composable tools; the Agent Skills folder export; promotion from repetition; Watson over emails (they arrive as readers' rows; documents it reads); a routing journey; "move to…" in the panel. |
 
 ## 4. Capabilities — the code Alpha owns
 
@@ -383,7 +383,7 @@ Evidence: 97.8% of people accepted imperfect help done while they were away vers
 |---|---|
 | Built | The yes on the workflow page starts the build (§12; plans, their trial and their questions were removed 12 Oct, Q40); the gate (`Tools._gate`) refuses making modules, tables, readers and automations outside a build; sources with statuses; pipelines. Agents, schedule first (Q33, 9 Oct): every automation is an agent's process with a goal, a page Alpha writes and the person edits (`agent:<id>`, read by the model when it steps into a run or a repair), a row per run in `runs` with a verdict judged by code (succeeded, partial, failed, and why), the model's time and the repairs counted, a broken reader repaired at most twice in a run, a failed run in the journal and the companion, the window's Agents tab and page. **Agents, slice A (Q50, 15 Oct):** the `agents` and `decisions` tables, automations folded into custom agents under their ids, runs with their trigger, the journal as the event stream with a cursor per agent, the actor on every step and reply, the write list enforced in the tool wrapper, @Name in the conversation, a page per agent (brief, notes, what it may touch, decisions; rename, pause, delete). |
 | Differs | `table_start` (Level 0) and edits to existing things are not gated. A build has no cap. Since 11 Oct (§12) step 1 is the interview and the workflow page, not a plan in one turn. Since 12 Oct (Q40) no path opens a build in which the model makes lasting things by tools: the page's build makes the tables by code and the walled session writes files; how a new automation or reader of its own gets made is open (automations are made by the person's words only through that door). |
-| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, the junk rules; of agents: the five built-in kinds (Watson, Doc, Columbo, Sherlock, Scout, Q45–Q49; the first event trigger in use comes with Watson), escalation to the person as a question, the digest, notes an agent writes itself, the agent page as the door for a custom agent's own readers and pipelines (Q50; Q40), a custom agent from a form. (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
+| Not built | The three origins, the signals, Levels 1 and 2, promotion from repetition, the junk rules; of agents: Doc, Columbo, Sherlock and Scout (Q45, Q47–Q49; Watson is built, Q46, the first kind working from the journal cursor), escalation to the person as a question, the digest, notes an agent writes itself, the agent page as the door for a custom agent's own readers and pipelines (Q50; Q40), a custom agent from a form. (Since 9 Oct: reading in a run is refused and an automation converts itself to steps; a transient failure is retried after a minute; the schedule's words say "or when your Mac next wakes".) |
 
 ### 6.3 The research pass before a build (decided 9 October 2026; Q37; superseded by §12, removed 12 October, Q40)
 

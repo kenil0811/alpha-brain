@@ -143,3 +143,22 @@ describe("an agent's page", () => {
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
   });
 });
+
+describe("a built-in agent's face", () => {
+  it("wears its kind's own animal until the person picks one (Watson: the koala)", async () => {
+    const { AgentPage } = await import("../AgentPage");
+    const prefs: Record<string, unknown> = { companion_look: { animal: "panda" } };
+    const client = {
+      agentPage: vi.fn().mockResolvedValue({ ...auto("w1", { kind: "watson", name: "Watson" }), runs: [], brief: null, notes: null, decisions: [], pipeline: null, good_run: null }),
+      preference: vi.fn(async (key: string) => ({ key, value: prefs[key] ?? null })),
+      setPreference: vi.fn(async (key: string, value: unknown) => {
+        prefs[key] = value;
+        return { key, value };
+      }),
+    };
+    render(<AgentPage client={client as unknown as Client} id="w1" version={0} onGo={vi.fn()} onAsk={vi.fn()} onChanged={vi.fn()} />);
+    expect(await screen.findByText("Its own face until you pick another")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Koala" })).toHaveAttribute("aria-pressed", "true");
+  });
+});

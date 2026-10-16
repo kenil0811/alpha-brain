@@ -5,7 +5,7 @@
  */
 import { WorkMap } from "./map/WorkMap";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { Client, ConnectionRemoval, Fact, Goal, Intelligence as Data, Note, Permission } from "../core/client";
+import type { Client, Commitment, ConnectionRemoval, Fact, Goal, Intelligence as Data, Note, Permission } from "../core/client";
 import { humanize, when } from "../modules/format";
 import { DataPage, type HeldRows } from "../modules/DataPage";
 import { skillsHeld, skillsTable } from "./intel/skillsTable";
@@ -182,6 +182,31 @@ function NoteCard({ note, client, onChanged }: { note: Note; client: Client; onC
   );
 }
 
+/** Commitments (Q46): what the person promised and is owed, as Watson filed them, with the date. */
+export function CommitmentsCard({ commitments }: { commitments: Commitment[] }) {
+  if (!commitments.length) return null;
+  return (
+    <div className="card card--pad intel__card">
+      <div className="intel__head">
+        <h3>Commitments</h3>
+        <span className="faint">what you promised and are owed; Watson keeps them</span>
+      </div>
+      <ul className="list list--plain">
+        {commitments.map((c) => (
+          <li key={c.id} className={c.state === "open" ? "" : "faint"}>
+            {c.what}
+            <span className="faint">
+              {c.who === "person" ? " · yours" : " · theirs"}
+              {c.due ? ` · by ${c.due}` : ""}
+              {c.state !== "open" ? ` · ${c.state}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** Goals (slice 2 D1, D11): typed straight in, their words rewritten in place, marked done or
  *  dropped (kept with their date), or picked up again. */
 function GoalsCard({ client, goals, onChanged, onGo }: { client: Client; goals: Goal[]; onChanged: () => void; onGo?: (s: Surface) => void }) {
@@ -320,6 +345,7 @@ function Knowledge({ client, data, onChanged, onGo }: { client: Client; data: Da
       )}
       {problem ? <p className="notice intel__table" role="alert">{problem}</p> : null}
       <GoalsCard client={client} goals={goals} onChanged={onChanged} onGo={onGo} />
+      <CommitmentsCard commitments={data.knowledge.commitments ?? []} />
       <Dialog open={correcting !== null} onOpenChange={(o) => !o && setCorrecting(null)} title={correcting ? `Correct ${humanize(correcting.predicate).toLowerCase()}` : ""}>
         {correcting ? (
           <form
@@ -407,7 +433,7 @@ function Agents({ client, data, modules, onChanged, onGo }: { client: Client; da
     load,
     words: "Changed by asking Alpha",
     colours: AGENT_COLOURS,
-    icon: (row) => <AgentFace client={client} id={row.id} label={`${String(row.values.agent)}'s face`} />,
+    icon: (row) => <AgentFace client={client} id={row.id} kind={byId.get(row.id)?.kind} label={`${String(row.values.agent)}'s face`} />,
     actions: (row) => {
       const a = byId.get(row.id);
       if (!a) return null;

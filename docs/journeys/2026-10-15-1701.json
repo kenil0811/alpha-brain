@@ -1,0 +1,33 @@
+[
+ {
+  "name": "memory_noticing",
+  "title": "Memory · what is said in passing about a person is kept on their page, and comes back",
+  "steps": [
+   {
+    "say": "had coffee with Vikas Badami this morning, he's moving to Bangalore next month and wants to co-found something in fintech",
+    "ok": true,
+    "reply": "Noted. I've logged that Vikas Badami is relocating to Bangalore next month and wants to co-found a fintech startup, on his contact record, plus a journal entry for the coffee meeting.\n\nSince this sounds like it could affect the Avilo/Advisory work he's involved in (he's been emailing financial data for the avilo-advisory app), let me know if you want me to flag anything there or if this is just for the record.",
+    "steps": 8,
+    "seconds": 56.8
+   },
+   {
+    "say": "what's going on with vikas these days?",
+    "ok": true,
+    "reply": "Here's what's on record for Vikas:\n\n- **This morning (15 Oct):** you had coffee with him — he's relocating to Bangalore around November 2026, and wants to co-found something in fintech.\n- **Avilo work:** he's been the source for the client financials you're tracking in Advisory — last email activity was 2 Oct (shared `avilo-dashboard-v9.zip`, a GitHub invite to `badami-vikas/relationship-os`, and an \"avilo\" email with an attachment). Nothing since.\n\nThat's everything Alpha has — no other updates since the coffee chat. Given he's now talking fintech cofounder plans and moving, want me to flag t",
+    "steps": 3,
+    "seconds": 53.4
+   }
+  ],
+  "checks": [
+   {
+    "check": "judge",
+    "arg": "Passes if the answer says Vikas is moving to Bangalore next month and wants to co-found something in fintech (or words to that effect). Fails if it says nothing is known, asks who Vikas is, or invents other details.",
+    "ok": true,
+    "why": "The answer states Vikas is relocating to Bangalore next month and wants to co-found a fintech venture, matching the rubric's pass condition.",
+    "seconds": 6.1
+   }
+  ],
+  "seconds": 116.3,
+  "error": null
+ }
+]

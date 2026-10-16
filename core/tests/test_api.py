@@ -287,13 +287,13 @@ def test_a_turn_that_worked_values_out_is_checked_in_the_background(world: World
 
     turns_ = Turns(world, runner, checks=True)
     started = turns_.start(AskBody(text="i had a shake"))
-    # The turn, then in the background: the check (independent, judge) and the noticing pass
-    # (one judge run) side by side.
+    # The turn, then in the background: the check (independent, judge). Watson works from the
+    # scheduler's kick, not from here (15 Oct).
     for _ in range(100):
-        if len(kinds) == 4 and world.journal.recent(1, kinds=["checked"]):
+        if len(kinds) == 3 and world.journal.recent(1, kinds=["checked"]):
             break
         time.sleep(0.05)
-    assert kinds[0] == "turn" and sorted(kinds[1:]) == ["independent", "judge", "judge"]
+    assert kinds[0] == "turn" and sorted(kinds[1:]) == ["independent", "judge"]
     assert turns_.get(started["id"])["state"] == "done"
     assert world.journal.recent(1, kinds=["checked"])[0]["text"].endswith("it agrees.")
 
