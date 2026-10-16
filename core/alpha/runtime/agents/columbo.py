@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
 
@@ -53,6 +53,8 @@ DESCRIPTION = ("Columbo double-checks what Alpha works out: numbers it looked up
 MAY = ["notes"]
 OUTSIDE = "an independent answer"
 WORLD = "your world"
+WAYS = ("outside", "world")
+WAY_WORDS = {"outside": OUTSIDE, "world": WORLD}
 # the independent answer's own words when the sentence holds nothing it can look up
 NOTHING = "NOTHING TO LOOK UP"
 # A number the person will rely on, by shape: a measurement with its unit, money, a percentage.
@@ -66,6 +68,10 @@ NUMBER_SHAPES = re.compile(
 NUMBER = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 # a value that is a number and nothing else, with at most a unit or a currency around it
 BARE_NUMBER = re.compile(r"[£$€₹]?\s*-?\d[\d,]*(?:\.\d+)?\s*[a-z%/]*", re.I)
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 def columbo_agent(world: World) -> dict[str, Any] | None:
@@ -218,14 +224,14 @@ def _way_words(verdict: dict[str, Any] | None, against: str) -> str:
 
 
 def words(result: dict[str, Any]) -> str:
-    """The verdict in a line: both ways, or the one that answered."""
+    """The verdict in a line: the ways that were asked, each with what it found."""
+    ways = [w for w in WAYS if w in set(result.get("ways") or WAYS)]
     outside, world = result.get("outside"), result.get("world")
-    if outside is not None and world is not None and outside["agree"] and world["agree"] \
-            and not outside["unstated"] \
+    if ways == list(WAYS) and outside is not None and world is not None and outside["agree"] \
+            and world["agree"] and not outside["unstated"] \
             and not str(outside.get("note") or "").startswith("nothing to look up"):
         return f"Checked against {OUTSIDE} and {WORLD}: both agree."
-    return ("Checked " + _way_words(outside, OUTSIDE) + "; " + _way_words(world, WORLD)
-            + ".")
+    return "Checked " + "; ".join(_way_words(result.get(w), WAY_WORDS[w]) for w in ways) + "."
 
 
 def _differences(result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -322,6 +328,41 @@ def _world(world: World, asked: str, answer: str, turn_id: str, held: list[str],
     verdict = parse_verdict(judged.reply)
     verdict["unstated"] = []  # the world has nothing to ask; that is the outside way's
     return verdict, None
+
+
+def triage(world: World, asked: str, answer: str, *, did: list[str],
+           records: list[dict[str, Any]], runner: turn.Runner = route.run,
+           model: str | None = None, turn_id: str = "triage") -> dict[str, Any]:
+    """System One's judgement of whether a thing deserves a second look, and which way
+    (`columbo_triage.md`): none, outside, world or both, from the sentence, the answer, what the
+    turn did and the rows it wrote. {"ways": set, "why": words, "answered": bool}; a judgement
+    that came back unreadable means both ways (never an unchecked thing by a parsing slip)."""
+    rows = "\n".join(_record_words(r)[:300] for r in records[:settings.columbo.rows_shown]) \
+        or "- none"
+    steps = "\n".join(f"- {d}" for d in did[:20]) or "- nothing recorded"
+    result = _run(runner, world, kind="judge", system=config.prompt("columbo_triage"),
+                  turn_id=turn_id, model=model,
+                  sentence=(f'The sentence: "{asked}"\n\nAlpha\'s answer:\n{answer}\n\n'
+                            f"What Alpha did in the turn:\n{steps}\n\n"
+                            f"Rows the turn wrote:\n{rows}"))
+    if not result.ok:
+        return {"ways": set(), "why": f"no judgement came back: {result.error or 'nothing'}",
+                "answered": False}
+    data = _json(result.reply)
+    check = str(data.get("check") or "").strip().lower() if isinstance(data, dict) else ""
+    why = " ".join(str(data.get("why") or "").split())[:200] if isinstance(data, dict) else ""
+    ways = {"none": set(), "outside": {"outside"}, "world": {"world"},
+            "both": set(WAYS)}.get(check)
+    if ways is None:
+        ways, why = set(WAYS), why or "the judgement wasn't readable, so both ways"
+    return {"ways": ways, "why": why, "answered": True}
+
+
+def _steps_of(world: World, turn_id: str) -> list[str]:
+    """What Alpha did in a turn, for the triage: read a page, wrote rows, ran a script."""
+    return [f"{e['kind']}: {' '.join(e['text'].split())[:160]}"
+            for e in world.journal.of_turn(turn_id)
+            if e["kind"] in ("saw", "did", "made", "changed", "failed")]
 
 
 def _held_for_turn(world: World, turn_id: str, records: list[dict[str, Any]]) -> list[str]:
@@ -575,28 +616,35 @@ def repair_prompt(sentence: str, reply: str, result: dict[str, Any],
 def check_turn(world: World, turn_id: str, *, sentence: str | None = None,
                runner: turn.Runner = route.run, repair: bool = True,
                model: str | None = None, agent: dict[str, Any] | None = None,
-               ) -> dict[str, Any]:
-    """Check one turn's reply both ways. Returns {"checked": bool, "agree": both agree,
-    "outside": verdict or None, "world": verdict or None, "differences": [...], "unstated":
-    [...], "independent": the answer, "entry": journal id, "repaired": Alpha's correction or
-    None, "asked": the questions put to the person, "failed": the ways that gave no answer}."""
+               ways: Any = WAYS) -> dict[str, Any]:
+    """Check one turn's reply, the `ways` asked for (both unless the triage said one). Returns
+    {"checked": bool, "agree": every way asked agrees, "outside": verdict or None, "world":
+    verdict or None, "differences": [...], "unstated": [...], "independent": the answer,
+    "entry": journal id, "repaired": Alpha's correction or None, "asked": the questions put to
+    the person, "failed": the ways that gave no answer, "ways": the ways asked}."""
     agent = agent if agent is not None else columbo_agent(world)
     said = world.journal.read(turn_id)
     reply = world.journal.reply_of(turn_id)
     if reply is None:
         return {"checked": False, "why": "That turn has no reply to check."}
+    ways = set(ways)
     asked = sentence or said["text"]
     records = worked_out(world, turn_id)
-    outside, independent, why_outside = _outside(world, asked, reply["text"], turn_id, runner,
-                                                 model, earlier=_earlier(world, said))
-    world_verdict, why_world = _world(world, asked, reply["text"], turn_id,
-                                      _held_for_turn(world, turn_id, records), runner, model)
+    outside = world_verdict = None
+    independent, why_outside, why_world = "", None, None
+    if "outside" in ways:
+        outside, independent, why_outside = _outside(world, asked, reply["text"], turn_id,
+                                                     runner, model, earlier=_earlier(world, said))
+    if "world" in ways:
+        world_verdict, why_world = _world(world, asked, reply["text"], turn_id,
+                                          _held_for_turn(world, turn_id, records), runner, model)
     failed = [w for w, why in (("outside", why_outside), ("world", why_world)) if why]
     if outside is None and world_verdict is None:
-        return {"checked": False, "why": f"{why_outside}; {why_world}", "failed": failed}
+        return {"checked": False, "failed": failed,
+                "why": "; ".join(w for w in (why_outside, why_world) if w) or "no way was asked"}
     result: dict[str, Any] = {"checked": True, "outside": outside, "world": world_verdict,
                               "independent": independent, "repaired": None, "asked": [],
-                              "failed": failed, "records": len(records)}
+                              "failed": failed, "records": len(records), "ways": sorted(ways)}
     result["differences"] = _differences(result)
     result["unstated"] = list((outside or {}).get("unstated") or [])
     result["agree"] = not result["differences"] and not result["unstated"] and not failed
@@ -686,8 +734,10 @@ def part_checked(world: World, module_id: str, part_id: str) -> bool:
     """Whether this part's values were checked since it was last repaired (one check per
     part on its first filled row; again after Doc's fix)."""
     row = world.store.one(
-        "SELECT MAX(at) AS at FROM journal WHERE kind = 'checked' AND deleted_at IS NULL"
-        " AND json_extract(data, '$.part') = ? AND module = ?", (part_id, module_id))
+        "SELECT MAX(at) AS at FROM journal WHERE deleted_at IS NULL AND module = ? AND"
+        " ((kind = 'checked' AND json_extract(data, '$.part') = ?)"
+        "  OR (kind = 'did' AND json_extract(data, '$.no_check') = ?))",
+        (module_id, part_id, part_id))
     checked_at = str(row["at"]) if row and row["at"] else None
     if checked_at is None:
         return False
@@ -720,11 +770,14 @@ def _siblings(world: World, collection: str, rid: str, part_id: str,
 
 def check_part(world: World, agent: dict[str, Any] | None, module_id: str, part_id: str,
                record: str, collection: str, *, runner: turn.Runner = route.run,
-               model: str | None = None) -> dict[str, Any]:
-    """Check the values a part filled on one row, both ways: looked up again outside, and
-    against the row's own other values and the rows the part filled before. No agent owns a
-    part's values, so a difference asks the person; each checked field carries the mark."""
+               model: str | None = None, ways: Any = WAYS) -> dict[str, Any]:
+    """Check the values a part filled on one row, the `ways` asked for: looked up again
+    outside, and against the row's own other values and the rows the part filled before. No
+    agent owns a part's values, so a difference asks the person; each checked field carries
+    the mark."""
     from alpha.runtime import parts as parts_module
+
+    ways = set(ways)
 
     module = world.modules.get(module_id)
     part = next((p for p in parts_module.parts_of(module.get("workspace")) if p["id"] == part_id),
@@ -754,18 +807,25 @@ def check_part(world: World, agent: dict[str, Any] | None, module_id: str, part_
     values = "\n".join(lines)
     sentence = (f"The thing: {title}" + (f" ({others})" if others else "") + "\n\nThe values"
                 f" filled by the part \"{part['title']}\":\n{values}")
-    outside, independent, why_outside = _outside(world, sentence, values, f"part:{part_id}",
-                                                 runner, model, values=True)
-    held = _siblings(world, collection, record, part_id, filled)
-    if held:
-        held = [f"Other rows the part \"{part['title']}\" filled before:"] + held
-    world_verdict, why_world = _world(world, sentence, values, f"part:{part_id}", held, runner,
-                                      model)
+    outside = world_verdict = None
+    independent, why_outside, why_world = "", None, None
+    if "outside" in ways:
+        outside, independent, why_outside = _outside(world, sentence, values,
+                                                     f"part:{part_id}", runner, model,
+                                                     values=True)
+    if "world" in ways:
+        held = _siblings(world, collection, record, part_id, filled)
+        if held:
+            held = [f"Other rows the part \"{part['title']}\" filled before:"] + held
+        world_verdict, why_world = _world(world, sentence, values, f"part:{part_id}", held,
+                                          runner, model)
     failed = [w for w, why in (("outside", why_outside), ("world", why_world)) if why]
     if outside is None and world_verdict is None:
-        return {"checked": False, "why": f"{why_outside}; {why_world}", "failed": failed}
+        return {"checked": False, "failed": failed,
+                "why": "; ".join(w for w in (why_outside, why_world) if w) or "no way was asked"}
     result: dict[str, Any] = {"checked": True, "outside": outside, "world": world_verdict,
-                              "independent": independent, "asked": [], "failed": failed}
+                              "independent": independent, "asked": [], "failed": failed,
+                              "ways": sorted(ways)}
     result["differences"] = _differences(result)
     result["unstated"] = list((outside or {}).get("unstated") or [])
     result["agree"] = not result["differences"] and not failed
@@ -811,7 +871,8 @@ def check_part(world: World, agent: dict[str, Any] | None, module_id: str, part_
 
 
 def check_action(world: World, agent: dict[str, Any] | None, action_id: str, *,
-                 runner: turn.Runner = route.run, model: str | None = None) -> dict[str, Any]:
+                 runner: turn.Runner = route.run, model: str | None = None,
+                 ways: Any = WAYS) -> dict[str, Any]:
     """The numbers in an outward card, checked before the yes: against the person's world
     (what the proposing turn held and wrote, the matches for the words) and outside for facts.
     The card shows Columbo's line; nothing is held up."""
@@ -821,6 +882,7 @@ def check_action(world: World, agent: dict[str, Any] | None, action_id: str, *,
         return {"checked": False, "why": str(e)}
     if action["state"] != "proposed":
         return {"checked": False, "why": "it was decided before Columbo looked"}
+    ways = set(ways)
     text = "\n".join(f"{k}: {v}" for k, v in action["payload"].items())
     asked = f"{action['title']}" + (f" ({action['evidence']})" if action.get("evidence") else "")
     turn_id = action.get("turn")
@@ -830,15 +892,21 @@ def check_action(world: World, agent: dict[str, Any] | None, action_id: str, *,
             for h in world.collections.search(text, 5)]
     if hits:
         held.append("Rows that match the words:\n" + "\n".join(hits))
-    world_verdict, why_world = _world(world, asked, text, f"action:{action_id}", held, runner,
-                                      model)
-    outside, independent, why_outside = _outside(world, asked, text, f"action:{action_id}",
-                                                 runner, model)
+    outside = world_verdict = None
+    independent, why_outside, why_world = "", None, None
+    if "world" in ways:
+        world_verdict, why_world = _world(world, asked, text, f"action:{action_id}", held,
+                                          runner, model)
+    if "outside" in ways:
+        outside, independent, why_outside = _outside(world, asked, text, f"action:{action_id}",
+                                                     runner, model)
     failed = [w for w, why in (("outside", why_outside), ("world", why_world)) if why]
     if outside is None and world_verdict is None:
-        return {"checked": False, "why": f"{why_outside}; {why_world}", "failed": failed}
+        return {"checked": False, "failed": failed,
+                "why": "; ".join(w for w in (why_outside, why_world) if w) or "no way was asked"}
     result: dict[str, Any] = {"checked": True, "outside": outside, "world": world_verdict,
-                              "independent": independent, "failed": failed}
+                              "independent": independent, "failed": failed,
+                              "ways": sorted(ways)}
     result["differences"] = _differences(result)
     result["unstated"] = list((outside or {}).get("unstated") or [])
     result["agree"] = not result["differences"] and not failed
@@ -864,16 +932,29 @@ def check_action(world: World, agent: dict[str, Any] | None, action_id: str, *,
 # ---- the frame: look, run, mention ----
 
 
-def look(world: World, agent: dict[str, Any]) -> Work | None:
-    """What came since Columbo last looked: Alpha's replies to the person that carry numbers
-    or wrote worked-out values, a part's first filled row (or its first since a repair), and
-    an outward card whose payload carries numbers."""
+def gather(world: World, agent: dict[str, Any], *, everything: bool) -> Work:
+    """What came since Columbo last looked, by shape (code only, no model): Alpha's replies to
+    the person that wrote worked-out values or carry a number, a part's first filled row with
+    a number (or its first since a repair), an outward card whose payload carries numbers and
+    has no line yet. Answers and parts gather for about an hour (`[columbo] gather_minutes`)
+    and go in one run, whose judge says which deserve a second look; a card goes at once,
+    before the yes. While gathering, the cursor stops short of the first thing waiting, so
+    nothing is lost; `everything` (Run now, an @) takes what is waiting now."""
     entries = since_cursor(world, agent, kinds=["replied", "did", "proposed"])
-    upto = journal_rowid(world)
+    end = journal_rowid(world)
     turns: list[str] = []
     parts: list[dict[str, Any]] = []
     actions: list[str] = []
     seen_parts: set[tuple[str, str]] = set()
+    first_waiting: int | None = None  # the rowid of the oldest reply or part waiting
+    oldest_at: str | None = None
+
+    def waiting(e: dict[str, Any]) -> None:
+        nonlocal first_waiting, oldest_at
+        rowid = world.journal.rowid(e["id"])
+        first_waiting = rowid if first_waiting is None else min(first_waiting, rowid)
+        oldest_at = e["at"] if oldest_at is None or e["at"] < oldest_at else oldest_at
+
     for e in entries:
         d = e["data"]
         if e["kind"] == "replied" and e["actor"] == "alpha" and d.get("turn"):
@@ -888,6 +969,7 @@ def look(world: World, agent: dict[str, Any]) -> Work | None:
                 continue
             if worth_checking(world, tid) or carries_numbers(e["text"]):
                 turns.append(tid)
+                waiting(e)
         elif e["kind"] == "did" and d.get("part") and d.get("record") and e["module"] \
                 and any(is_number(v) for v in (d.get("values") or {}).values()):
             key = (str(e["module"]), str(d["part"]))
@@ -895,38 +977,62 @@ def look(world: World, agent: dict[str, Any]) -> Work | None:
                 continue
             seen_parts.add(key)
             parts.append({"module": key[0], "part": key[1], "record": str(d["record"]),
-                          "collection": str(d.get("collection") or "")})
+                          "collection": str(d.get("collection") or ""), "text": e["text"]})
+            waiting(e)
         elif e["kind"] == "proposed" and d.get("action"):
             try:
                 action = world.actions.get(str(d["action"]))
             except Problem:
                 continue
-            if action["state"] == "proposed" and carries_numbers(
+            if action["state"] == "proposed" and not action.get("checked") and carries_numbers(
                     " ".join(str(v) for v in action["payload"].values())):
                 actions.append(action["id"])
     about: dict[str, Any] = {}
-    if turns:
-        about["turns"] = turns
-    if parts:
-        about["parts"] = parts
     if actions:
         about["actions"] = actions
-    return Work(upto, about)
+    due = everything or (oldest_at is not None and datetime.fromisoformat(oldest_at)
+                         <= _now() - timedelta(minutes=settings.columbo.gather_minutes))
+    if due:
+        if turns:
+            about["turns"] = turns
+        if parts:
+            about["parts"] = parts
+        return Work(end, about)
+    return Work(end if first_waiting is None else first_waiting - 1, about)
+
+
+def look(world: World, agent: dict[str, Any]) -> Work | None:
+    return gather(world, agent, everything=False)
 
 
 def run(world: World, agent: dict[str, Any], work: Work | None, *,
         runner: turn.Runner = route.run) -> Outcome:
-    """Columbo's run over what `look` found: each thing checked both ways; the line counts
-    what agreed, what differed and what was put to the person; the verdict by whether the
-    ways answered (succeeded when both did for everything, partial when one did not, failed
-    when nothing was checked)."""
+    """Columbo's run over what gathered: each thing judged first for whether it deserves a
+    second look and which (System One, one small run), then checked the ways named; the
+    line counts what was looked at, what was checked and what agreed; the verdict by whether
+    the judgements and the ways answered (succeeded when all did, partial when some did not,
+    failed when nothing could be judged or checked)."""
     if work is None:
-        work = look(world, agent) or Work(journal_rowid(world))
+        work = gather(world, agent, everything=True)
     about = work.about
+    looked = {"answers": 0, "parts": 0, "cards": 0}
     checked = {"answers": 0, "parts": 0, "cards": 0}
-    agreed = differed = asked = corrected = 0
-    partial: list[str] = []  # one of the two ways gave no answer
+    agreed = differed = asked = corrected = unneeded = 0
+    partial: list[str] = []  # one of the ways gave no answer
+    unjudged: list[str] = []  # the judgement did not come back
     nothing: list[str] = []  # nothing could be checked
+
+    def judged(kind: str, name: str, verdict: dict[str, Any]) -> set[str] | None:
+        nonlocal unneeded
+        looked[kind] += 1
+        if not verdict["answered"]:
+            unjudged.append(name)
+            return None
+        if not verdict["ways"]:
+            unneeded += 1
+            return None
+        ways: set[str] = verdict["ways"]
+        return ways
 
     def count(kind: str, name: str, out: dict[str, Any]) -> None:
         nonlocal agreed, differed, asked, corrected
@@ -944,51 +1050,106 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
         if out.get("repaired") and out.get("differences") and not out.get("asked"):
             corrected += 1
 
+    def against(ways: set[str]) -> str:
+        return " and ".join(WAY_WORDS[w] for w in WAYS if w in ways)
+
     for tid in about.get("turns") or []:
         try:
             said = world.journal.read(tid)
         except Problem:
             continue
-        starting(world, agent, f'Checking the reply to "{said["text"][:60]}" against an'
-                               f" independent answer and your world.", turn=tid)
-        count("answers", f'the reply to "{said["text"][:50]}"',
-              check_turn(world, tid, runner=runner, agent=agent))
+        reply = world.journal.reply_of(tid)
+        if reply is None:
+            continue
+        name = f'the reply to "{said["text"][:50]}"'
+        ways = judged("answers", name, triage(
+            world, said["text"], reply["text"], did=_steps_of(world, tid),
+            records=worked_out(world, tid), runner=runner, turn_id=tid))
+        if not ways:
+            continue
+        starting(world, agent, f'Checking the reply to "{said["text"][:60]}" against'
+                               f" {against(ways)}.", turn=tid)
+        count("answers", name, check_turn(world, tid, runner=runner, agent=agent, ways=ways))
     for item in about.get("parts") or []:
-        starting(world, agent, f"Checking the part {_part_title(world, item)} on its first"
-                               " filled row against an independent answer and the rows before"
-                               " it.", part=item["part"], module=item["module"])
-        count("parts", f"the part {item['part']}",
-              check_part(world, agent, item["module"], item["part"], item["record"],
-                         item["collection"], runner=runner))
+        title = _part_title(world, item)
+        name = f"the part {title}"
+        rows: list[dict[str, Any]] = []
+        try:
+            rows = [{"collection": item["collection"],
+                     **world.collections.get(item["collection"], item["record"])}]
+        except Problem:
+            pass
+        ways = judged("parts", name, triage(
+            world, f"A workflow part filled a row: {item.get('text') or title}",
+            str(item.get("text") or title), did=[], records=rows, runner=runner,
+            turn_id=f"part:{item['part']}"))
+        if ways is None and not unjudged:
+            # judged as needing no check: said once, so the part is not judged every hour
+            world.journal.append("did", f"The part {title} needs no check on its first row.",
+                                 actor=agent["id"], module=item["module"],
+                                 thread=agent.get("thread"),
+                                 data={"agent": agent["id"], "no_check": item["part"]})
+        if not ways:
+            continue
+        starting(world, agent, f"Checking the part {title} on its first filled row against"
+                               f" {against(ways)}.", part=item["part"], module=item["module"])
+        count("parts", name, check_part(world, agent, item["module"], item["part"],
+                                        item["record"], item["collection"], runner=runner,
+                                        ways=ways))
     for aid in about.get("actions") or []:
         try:
-            title = world.actions.get(aid)["title"]
+            action = world.actions.get(aid)
         except Problem:
             continue
-        starting(world, agent, f'Checking the numbers in "{title}" before your yes.', action=aid)
-        count("cards", "an outward card", check_action(world, agent, aid, runner=runner))
+        name = f'the card "{action["title"][:50]}"'
+        payload = "\n".join(f"{k}: {v}" for k, v in action["payload"].items())
+        ways = judged("cards", name, triage(
+            world, action["title"] + (f" ({action['evidence']})" if action.get("evidence")
+                                      else ""),
+            payload, did=_steps_of(world, action["turn"]) if action.get("turn") else [],
+            records=records_of(world, action["turn"]) if action.get("turn") else [],
+            runner=runner, turn_id=f"action:{aid}"))
+        if ways is None and not unjudged:
+            world.actions.set_checked(aid, "Nothing in it needs a check.")
+        if not ways:
+            continue
+        starting(world, agent, f'Checking the numbers in "{action["title"]}" before your yes.',
+                 action=aid)
+        count("cards", name, check_action(world, agent, aid, runner=runner, ways=ways))
+    seen = sum(looked.values())
+    if not seen:
+        return Outcome("succeeded", None, "Nothing to check.", upto=work.upto)
     total = sum(checked.values())
-    if not total:
-        if nothing:
-            return Outcome("failed", "; ".join(nothing)[:300], "Nothing could be checked.")
-        return Outcome("succeeded", None, "Nothing to check.")
-    things = [f"{n} {name if n != 1 else name[:-1]}" for name, n in checked.items() if n]
+    things = [f"{n} {name if n != 1 else name[:-1]}" for name, n in looked.items() if n]
+    tail = []
+    if total:
+        tail.append(f"{total} checked")
+    if unneeded:
+        tail.append(f"{unneeded} needed no check")
+    if unjudged:
+        tail.append(f"{len(unjudged)} not judged")
     found = []
-    if differed == 0:
-        found.append("all agree" if total > 1 else "it agrees")
-    else:
-        found.append(f"{agreed} agree{'s' if agreed == 1 else ''}, {differed} differ"
-                     f"{'s' if differed == 1 else ''}")
-    if corrected:
-        found.append(f"Alpha corrected {corrected}")
-    if asked:
-        found.append(f"asked you about {asked}")
-    line = f"Checked {' and '.join(things)}: {'; '.join(found)}."
+    if total:
+        if differed == 0:
+            found.append("all agree" if total > 1 else "it agrees")
+        else:
+            found.append(f"{agreed} agree{'s' if agreed == 1 else ''}, {differed} differ"
+                         f"{'s' if differed == 1 else ''}")
+        if corrected:
+            found.append(f"Alpha corrected {corrected}")
+        if asked:
+            found.append(f"asked you about {asked}")
+    line = (f"Looked at {' and '.join(things)}" + (": " + ", ".join(tail) if tail else "")
+            + ("; " + "; ".join(found) if found else "") + ".")
+    if not total and not unneeded:
+        return Outcome("failed", "; ".join(unjudged + nothing)[:300], line, upto=work.upto)
     if partial:
-        return Outcome("partial", f"one way gave no answer for {', '.join(partial)}", line)
-    if nothing:
-        return Outcome("partial", "; ".join(nothing)[:300], line)
-    return Outcome("succeeded", None, line)
+        return Outcome("partial", f"one way gave no answer for {', '.join(partial)}", line,
+                       upto=work.upto)
+    if unjudged or nothing:
+        return Outcome("partial", "; ".join([f"no judgement for {n}" for n in unjudged]
+                                            + nothing)[:300], line, upto=work.upto)
+    return Outcome("succeeded", None, line, upto=work.upto)
 
 
 def _part_title(world: World, item: dict[str, Any]) -> str:
@@ -1050,9 +1211,10 @@ def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str |
 
 
 register(KIND, look, run, mention, words={
-    "works": "after a turn of yours in which Alpha worked a number out or wrote one it looked"
-             " up or estimated, on a workflow part's first filled row (and again after Doc"
-             " repairs it), and before an outward card that carries numbers",
+    "works": "about once an hour over what Alpha answered since (a reply in which it worked a"
+             " number out or wrote one it looked up or estimated, a workflow part's first"
+             " filled row), each judged first for whether it deserves a second look and which;"
+             " at once for an outward card that carries numbers, before your yes",
     "good_run": "both ways answered for everything it checked (an independent answer and your"
                 " world), whatever they found; partial when one way gave no answer; failed"
                 " when nothing could be checked"})

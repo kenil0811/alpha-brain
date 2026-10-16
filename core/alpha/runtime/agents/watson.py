@@ -539,10 +539,12 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     line += "."
     looked = sum(len(about.get(k) or []) for k in ("exchanges", "closed", "documents"))
     if failed and len(failed) >= max(1, looked):
-        return Outcome("failed", f"no answer came back for {', '.join(failed)}", line)
+        return Outcome("failed", f"no answer came back for {', '.join(failed)}", line,
+                       upto=work.upto)
     if failed:
-        return Outcome("partial", f"no answer came back for {', '.join(failed)}", line)
-    return Outcome("succeeded", None, line)
+        return Outcome("partial", f"no answer came back for {', '.join(failed)}", line,
+                       upto=work.upto)
+    return Outcome("succeeded", None, line, upto=work.upto)
 
 
 def _count(counts: dict[str, int], out: dict[str, Any]) -> None:

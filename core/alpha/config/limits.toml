@@ -96,6 +96,7 @@ wait_s = 900                       # a second run that meets a thing Doc is alre
 [columbo]
 sibling_rows = 5                   # other rows the same part filled, shown to the world's judge: enough to see a part giving every row the same number
 rows_shown = 12                    # the rows a turn wrote, shown whole to the world's judge (a cut mid-row read as "not loaded", 16 Oct); the rest are counted
+gather_minutes = 60                # answers and parts wait this long and are checked in one run (a check is for the record, not the moment; one run of many is cheaper than one per turn, 16 Oct); an outward card is checked at once, before the yes
 
 [checks]
 core_start_s = 90                  # the desktop check waits this long for its core to come up

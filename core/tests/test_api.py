@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import pytest
 from conftest import building
 from fastapi.testclient import TestClient
 
@@ -266,10 +267,13 @@ def test_a_module_summary_is_worked_out_from_its_tables(world: World) -> None:
     assert "latest" not in table
 
 
-def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(world: World) -> None:
+def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(
+        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import UTC, datetime, timedelta
+
     from alpha.api.server import AskBody, Turns
     from alpha.mcp.tools import Tools
-    from alpha.runtime.agents import builtin, look_and_run
+    from alpha.runtime.agents import builtin, columbo, look_and_run
 
     builtin.ensure(world)
     building(world).collection_create("food_log", "Food log",
@@ -295,10 +299,12 @@ def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(world: Wor
         time.sleep(0.05)
     assert kinds == ["turn"]  # nothing runs behind the turn itself any more
     # What the app's kick does after the turn (Q50): the agents whose kinds look at what it
-    # left in the journal. Columbo checks the worked-out value both ways (16 Oct, Q47).
+    # left in the journal. Columbo gathers for about an hour, then judges and checks (Q47, Q51).
+    assert look_and_run(world, "columbo", runner=runner) is None
+    monkeypatch.setattr(columbo, "_now", lambda: datetime.now(UTC) + timedelta(minutes=61))
     out = look_and_run(world, "columbo", runner=runner)
-    assert out and out["last_result"] == "Checked 1 answer: it agrees."
-    assert sorted(kinds[1:]) == ["independent", "judge", "judge"]
+    assert out and out["last_result"] == "Looked at 1 answer: 1 checked; it agrees."
+    assert sorted(kinds[1:]) == ["independent", "judge", "judge", "judge"]
     checked = world.journal.recent(1, kinds=["checked"])[0]
     assert checked["text"] == "Checked against an independent answer and your world: both agree."
     row = world.collections.query("food_log")[0]

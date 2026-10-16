@@ -3,8 +3,11 @@
   an answer you'll rely on (a measurement, a price, a percentage), the values a workflow's parts
   fill (on a part's first row, and again after Doc repairs it), and the numbers in anything that
   goes out in your name, before your yes.
-- Two ways: against an independent answer (the same model with web search and nothing of yours)
-  and against what your world already held when Alpha answered.
+- About once an hour it takes what came since, and judges each thing first: does it deserve a
+  second look, and which — against an independent answer (the same model with web search and
+  nothing of yours), against what your world already held, both, or neither (a plan, a count of
+  your own rows, a value you stated). Only the ways named run. An outward card is looked at at
+  once.
 
 ## What it never does
 - It never changes a value: Alpha corrects its own from the source and says so in a line; a

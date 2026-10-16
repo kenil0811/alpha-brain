@@ -150,6 +150,7 @@ class Doc:
 class Columbo:
     sibling_rows: int
     rows_shown: int
+    gather_minutes: int
 
 
 @dataclass(frozen=True)

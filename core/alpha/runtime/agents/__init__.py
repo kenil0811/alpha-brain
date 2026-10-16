@@ -36,11 +36,14 @@ class Work:
 
 @dataclass
 class Outcome:
-    """What a kind's run came to, judged by code: the verdict, why, and the line for the log."""
+    """What a kind's run came to, judged by code: the verdict, why, the line for the log, and
+    where its own look ended (`upto`: the runner moves the cursor there, so a run the person
+    started or a schedule started covers the same ground once)."""
     verdict: str
     why: str | None = None
     line: str | None = None
     model_ms: int = 0
+    upto: int | None = None
 
 
 Look = Callable[[World, dict[str, Any]], Work | None]

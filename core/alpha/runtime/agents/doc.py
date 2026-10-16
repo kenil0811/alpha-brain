@@ -508,10 +508,12 @@ def run(world: World, agent: dict[str, Any], work: Work | None, *,
     line = "; ".join(parts_words) or "nothing to fix"
     line = line[0].upper() + line[1:] + "."
     if failed and not fixed:
-        return Outcome("failed", f"the fix did not take for {', '.join(failed)}", line, model_ms)
+        return Outcome("failed", f"the fix did not take for {', '.join(failed)}", line, model_ms,
+                       upto=work.upto)
     if failed:
-        return Outcome("partial", f"the fix did not take for {', '.join(failed)}", line, model_ms)
-    return Outcome("succeeded", None, line, model_ms)
+        return Outcome("partial", f"the fix did not take for {', '.join(failed)}", line,
+                       model_ms, upto=work.upto)
+    return Outcome("succeeded", None, line, model_ms, upto=work.upto)
 
 
 register(KIND, look, run, words={

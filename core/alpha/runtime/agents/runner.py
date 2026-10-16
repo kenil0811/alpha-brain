@@ -81,6 +81,9 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
         except Exception as e:
             log.exception("%s failed", agent["name"])
             return _ended(world, agent, run_id, "failed", str(e), None, 0)
+        if out.upto is not None:
+            # the frame looked for itself (Run now, a schedule, an @): what it covered is covered
+            world.agents.advance_cursor(agent_id, out.upto)
         return _ended(world, agent, run_id, out.verdict, out.why, out.line, out.model_ms)
     if agent["steps"]:
         return _steps(world, agent, run_id, runner)

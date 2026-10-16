@@ -5,9 +5,11 @@ the person decides what is still in doubt; a part's first row and an outward car
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
 from conftest import building
 from fastapi.testclient import TestClient
 from test_actions import PAYLOAD, Driver, gmail_connected, keep_procedure, restore, with_fake
@@ -48,6 +50,16 @@ def with_columbo(world: World) -> dict[str, Any]:
 def world_way(req: TurnRequest) -> bool:
     """The judge of the world way (the outside way's judge compares two answers)."""
     return "person's world already held" in req.system
+
+
+def triage_call(req: TurnRequest) -> bool:
+    """System One's judgement of whether a thing deserves a second look."""
+    return req.kind == "judge" and "deserves a second look" in req.system
+
+
+def an_hour_later(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Columbo gathers for about an hour: the tests move its clock past it."""
+    monkeypatch.setattr(columbo, "_now", lambda: datetime.now(UTC) + timedelta(minutes=61))
 
 
 def shake(world: World, kcal: int = 160) -> tuple[str, dict[str, Any]]:
@@ -297,7 +309,8 @@ def test_when_alpha_stands_by_its_own_the_person_is_asked_once_and_the_answer_bi
     assert columbo.decide(world, ask, "neither, it was the 500 ml one") is None
 
 
-def test_columbo_looks_at_replies_that_carry_numbers_and_runs_as_an_agent(world: World) -> None:
+def test_columbo_gathers_for_an_hour_then_judges_what_deserves_a_second_look(
+        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
     me = with_columbo(world)
     eggs = said(world, "how many calories in two boiled eggs")
     world.journal.append("replied", "About 155 kcal for two large eggs.", data={"turn": eggs})
@@ -307,12 +320,24 @@ def test_columbo_looks_at_replies_that_carry_numbers_and_runs_as_an_agent(world:
 
     def runner(req: TurnRequest) -> RunResult:
         kinds.append(req.kind)
+        if triage_call(req):
+            assert "how many calories" in req.sentence and "Alpha's answer" in req.sentence
+            return RunResult(reply='{"check": "outside", "why": "a figure a label gives"}',
+                             ok=True)
         return RunResult(reply=AGREE if req.kind == "judge" else "155 kcal (usda.gov).", ok=True)
 
+    # nothing is checked the moment it is said: Columbo gathers, holding its cursor short of
+    # the first reply waiting (no model call, no run)
+    assert look_and_run(world, "columbo", runner=runner) is None
+    assert kinds == []
+    reply = world.journal.reply_of(eggs)
+    assert reply and world.agents.get(me["id"])["cursor"] < world.journal.rowid(reply["id"])
+    # about an hour on: one run over what gathered; the shape kept the bare count out, and
+    # System One judged the calories worth the outside way alone
+    an_hour_later(monkeypatch)
     out = look_and_run(world, "columbo", runner=runner)
-    assert out and out["last_result"] == "Checked 1 answer: it agrees."
-    # no rows and no kept context: the world has nothing to say, and is not asked
-    assert kinds == ["independent", "judge"]
+    assert out and out["last_result"] == "Looked at 1 answer: 1 checked; it agrees."
+    assert kinds == ["judge", "independent", "judge"]  # the triage, then the outside way
     run = world.runs.last(me["id"])
     assert run and run["trigger"] == "event" and run["verdict"] == "succeeded"
     # while the model answers, the card watching the run has a step of Columbo's own to show
@@ -320,18 +345,63 @@ def test_columbo_looks_at_replies_that_carry_numbers_and_runs_as_an_agent(world:
     step = world.journal.recent(5, thread=thread, kinds=["did"])[-1]
     assert step["actor"] == me["id"] and step["data"]["turn"] == eggs
     assert step["text"] == ('Checking the reply to "how many calories in two boiled eggs" against'
-                            " an independent answer and your world.")
+                            " an independent answer.")
     checked = [e for e in world.journal.recent(10, kinds=["checked"])]
     assert [e["data"]["turn"] for e in checked] == [eggs]
-    assert checked[0]["text"] == "Checked against an independent answer and your world: both agree."
+    assert checked[0]["text"] == "Checked against an independent answer: it agrees."
+    assert checked[0]["data"]["world"] is None
     # nothing new: no run; an answer checked once is not checked again
     assert look_and_run(world, "columbo", runner=runner) is None
     # its page says in its own words when it works and what a good run is (the frame's, Q50)
     page = TestClient(create_app(world, live=False)).get(f"/api/agents/{me['id']}").json()
-    assert page["when"].startswith("after a turn of yours in which Alpha worked a number out")
+    assert page["when"].startswith("about once an hour over what Alpha answered since")
     assert page["good_run"].startswith("both ways answered for everything it checked")
     assert page["runs"][0]["verdict"] == "succeeded"
-    assert page["runs"][0]["lines"][0]["text"].startswith("Checking the reply to")
+    assert any(ln["text"].startswith("Checking the reply to") for ln in page["runs"][0]["lines"])
+
+
+def test_system_one_says_when_no_second_look_is_needed(
+        world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    me = with_columbo(world)
+    week = said(world, "how much did i eat this week")
+    world.journal.append("replied", "You logged 8,400 kcal this week, 1,200 kcal a day.",
+                         data={"turn": week})
+    kinds: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        kinds.append(req.kind)
+        assert triage_call(req)
+        return RunResult(reply='{"check": "none", "why": "a total of their own rows"}', ok=True)
+
+    an_hour_later(monkeypatch)
+    out = look_and_run(world, "columbo", runner=runner)
+    assert out and out["last_result"] == "Looked at 1 answer: 1 needed no check."
+    assert kinds == ["judge"]  # one small run, nothing else
+    assert world.journal.recent(5, kinds=["checked"]) == []
+    assert world.runs.last(me["id"])["verdict"] == "succeeded"  # type: ignore[index]
+    # judged once: the cursor moved past it
+    assert look_and_run(world, "columbo", runner=runner) is None
+
+
+def test_run_now_takes_what_is_waiting_at_once_and_moves_the_cursor(world: World) -> None:
+    me = with_columbo(world)
+    eggs = said(world, "how many calories in two boiled eggs")
+    world.journal.append("replied", "About 155 kcal for two large eggs.", data={"turn": eggs})
+    kinds: list[str] = []
+
+    def runner(req: TurnRequest) -> RunResult:
+        kinds.append(req.kind)
+        return RunResult(reply=AGREE if req.kind == "judge" else "155 kcal (usda.gov).", ok=True)
+
+    assert look_and_run(world, "columbo", runner=runner) is None  # gathering
+    out = agent_runner.run(world, me["id"], trigger="now", runner=runner)
+    assert out["last_result"] == "Looked at 1 answer: 1 checked; it agrees."
+    # a judgement that came back unreadable (AGREE has no "check") means both ways
+    assert kinds == ["judge", "independent", "judge"]
+    # the cursor covers what was waiting (the run's own lines come after it and are no work)
+    reply = world.journal.reply_of(eggs)
+    assert reply and world.agents.get(me["id"])["cursor"] >= world.journal.rowid(reply["id"])
+    assert look_and_run(world, "columbo", runner=runner) is None
 
 
 def test_the_persons_earlier_sentences_go_with_a_sentence_answered_alone(world: World) -> None:
@@ -377,18 +447,22 @@ def test_a_sentence_with_nothing_to_look_up_has_no_outside_opinion(world: World)
     assert result["outside"]["note"].startswith("nothing to look up: the figures are in the")
 
 
-def test_one_way_failing_makes_the_run_partial(world: World) -> None:
+def test_one_way_failing_makes_the_run_partial(world: World,
+                                                 monkeypatch: pytest.MonkeyPatch) -> None:
     food_log(world)
     with_columbo(world)
     turn_id, rec = shake(world)
 
     def runner(req: TurnRequest) -> RunResult:
+        if triage_call(req):
+            return RunResult(reply='{"check": "both", "why": "an estimated label value"}', ok=True)
         if req.kind == "independent":
             return RunResult(reply="", ok=False, error="no network")
         return RunResult(reply=AGREE, ok=True)
 
+    an_hour_later(monkeypatch)
     out = look_and_run(world, "columbo", runner=runner)
-    assert out and out["last_result"] == "Checked 1 answer: it agrees."
+    assert out and out["last_result"] == "Looked at 1 answer: 1 checked; it agrees."
     assert out["last_error"].startswith("one way gave no answer for the reply to")
     checked = world.journal.recent(1, kinds=["checked"])[0]
     assert checked["text"] == ("Checked against an independent answer: no answer came back;"
@@ -402,7 +476,8 @@ def test_one_way_failing_makes_the_run_partial(world: World) -> None:
 
 
 def test_a_parts_first_filled_row_is_checked_once_and_again_after_a_repair(
-        world: World, home: Path) -> None:  # noqa: F811
+        world: World, home: Path, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+    an_hour_later(monkeypatch)
     wf = agreed_page(world)
     built = workflow_build.run(world, wf["id"], runner=builder())
     module = world.modules.get(built["module"])
@@ -413,6 +488,9 @@ def test_a_parts_first_filled_row_is_checked_once_and_again_after_a_repair(
 
     def runner(req: TurnRequest) -> RunResult:
         seen.append(req)
+        if triage_call(req):
+            assert "A workflow part filled a row" in req.sentence
+            return RunResult(reply='{"check": "both", "why": "public figures"}', ok=True)
         if req.kind == "independent":
             assert "checking values on your own" in req.system
             assert "households = 52000" in req.sentence and "Census ACS" in req.sentence
@@ -424,8 +502,9 @@ def test_a_parts_first_filled_row_is_checked_once_and_again_after_a_repair(
     parts_module.run_due(world, module_id=module["id"])
     out = look_and_run(world, "columbo", runner=runner)
     # the checks part filled two numbers (checked); the memo part filled words (not a number)
-    assert out and out["last_result"] == "Checked 1 part: it agrees."
-    assert [r.kind for r in seen] == ["independent", "judge"]  # no rows before it: no world judge
+    assert out and out["last_result"] == "Looked at 1 part: 1 checked; it agrees."
+    # the triage, the outside way; no rows before it, so no world judge
+    assert [r.kind for r in seen] == ["judge", "independent", "judge"]
     row = world.collections.get("site", rec["id"])
     marks = row["_provenance"]["fields"]
     assert marks["households"]["checked"]["agree"] and marks["traffic"]["checked"]["agree"]
@@ -449,9 +528,10 @@ def test_a_parts_first_filled_row_is_checked_once_and_again_after_a_repair(
     third = c.post("/api/tables/site/records", json={"values": {"address": "3 Main St"}}).json()
     parts_module.run_due(world, module_id=module["id"])
     out = look_and_run(world, "columbo", runner=runner)
-    assert out and out["last_result"] == "Checked 1 part: 0 agree, 1 differs; asked you about 1."
-    assert [r.kind for r in seen] == ["independent", "judge", "judge"]
-    assert "Other rows the part" in seen[2].sentence and "1 Main St" in seen[2].sentence
+    assert out and out["last_result"] == ("Looked at 1 part: 1 checked; 0 agree, 1 differs;"
+                                          " asked you about 1.")
+    assert [r.kind for r in seen] == ["judge", "independent", "judge", "judge"]
+    assert "Other rows the part" in seen[3].sentence and "1 Main St" in seen[3].sentence
     row3 = world.collections.get("site", third["id"])
     assert row3["households"] == 52000  # Columbo never changes a value
     assert row3["_provenance"]["fields"]["households"]["checked"]["agree"] is False
@@ -494,6 +574,9 @@ def test_an_outward_cards_numbers_are_checked_before_the_yes_and_never_block(
 
         def runner(req: TurnRequest) -> RunResult:
             kinds.append(req.kind)
+            if triage_call(req):
+                assert "£300,000" in req.sentence
+                return RunResult(reply='{"check": "both", "why": "a price"}', ok=True)
             if req.kind == "judge" and world_way(req):
                 assert "£300,000" in req.sentence
                 return RunResult(reply=json.dumps({"agree": False, "differences": [
@@ -501,10 +584,10 @@ def test_an_outward_cards_numbers_are_checked_before_the_yes_and_never_block(
                      "where": "record r_x in listings"}]}), ok=True)
             return RunResult(reply=AGREE if req.kind == "judge" else "No public price.", ok=True)
 
-        out = look_and_run(world, "columbo", runner=runner)
+        out = look_and_run(world, "columbo", runner=runner)  # at once: a card waits for no hour
         # the card with words only is left alone; the one with a price is checked both ways
-        assert out and out["last_result"] == "Checked 1 card: 0 agree, 1 differs."
-        assert sorted(kinds) == ["independent", "judge", "judge"]
+        assert out and out["last_result"] == "Looked at 1 card: 1 checked; 0 agree, 1 differs."
+        assert sorted(kinds) == ["independent", "judge", "judge", "judge"]
         assert world.actions.get(plain)["checked"] is None
         card = world.actions.get(priced)
         assert card["state"] == "proposed"  # never held up
