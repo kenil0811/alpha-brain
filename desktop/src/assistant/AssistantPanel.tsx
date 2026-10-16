@@ -451,12 +451,14 @@ export function Conversation({
   });
   // the mic held: what was said goes after a moment, unless stopped (slice 2 E3)
   const spoken = useHoldToSend(speech, (said) => void send(said), setText);
-  // "@" at the start names the agent that answers (Q44): the agents whose name begins with
-  // what is typed, until a name is complete; a tap or Enter completes it, never sends.
-  const typedName = text.startsWith("@") && !text.includes("\n") ? text.slice(1).toLowerCase() : null;
-  const mentionable = typedName === null ? [] : agents.filter((a) => a.name.toLowerCase().startsWith(typedName) && a.name.toLowerCase() !== typedName.trimEnd());
+  // An "@" word names the agent that answers (Q44), anywhere in the sentence (16 Oct; before,
+  // only at the start): the agents whose name begins with what is typed after the last "@",
+  // until a name is complete; a tap or Enter completes it, never sends.
+  const atWord = /(^|\s)@([^@\n]*)$/.exec(text);
+  const typedName = atWord ? atWord[2].toLowerCase() : null;
+  const mentionable = typedName === null ? [] : agents.filter((a) => a.name.toLowerCase().startsWith(typedName.trimStart()) && a.name.toLowerCase() !== typedName.trimEnd());
   const mention = (a: Agent) => {
-    setText(`@${a.name} `);
+    setText(`${atWord ? text.slice(0, atWord.index + atWord[1].length) : ""}@${a.name} `);
     input.current?.focus();
   };
   const key = (e: KeyboardEvent<HTMLTextAreaElement>) => {

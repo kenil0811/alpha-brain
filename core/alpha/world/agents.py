@@ -262,17 +262,20 @@ class Agents:
         return self.get(aid)
 
     def by_mention(self, text: str) -> tuple[dict[str, Any], str] | None:
-        """The agent a sentence addresses with `@Name` at its start, and the rest of the
-        sentence. By structure only: the name exactly as the agent has it (case aside), the
-        longest first, never a guess at meaning."""
-        words = text.strip()
-        if not words.startswith("@"):
+        """The agent a sentence addresses with `@Name` anywhere in it ("hi @Scout, anything
+        new?"; a space after the @ is allowed), and the rest of the sentence without the
+        token. By structure only: the name exactly as the agent has it (case aside), the
+        longest first, never a guess at meaning. Before 16 Oct only at the start."""
+        if "@" not in text:
             return None
-        rest = words[1:]
         for agent in sorted(self.all(), key=lambda a: -len(a["name"])):
             name = agent["name"]
-            if rest[:len(name)].casefold() == name.casefold() and (
-                    len(rest) == len(name) or not rest[len(name)].isalnum()):
-                return agent, rest[len(name):].strip(" ,:")
+            pattern = (r"(?<![\w@])@ ?" + r"[ ]*".join(re.escape(part) for part in name.split())
+                       + r"(?![\w])")
+            m = re.search(pattern, text, re.I)
+            if m:
+                after = re.sub(r"^\s*[,:]\s*", "", text[m.end():])  # "@Scout, …" → "…"
+                rest = re.sub(r"\s+", " ", text[:m.start()] + " " + after)
+                return agent, rest.strip(" ,:")
         return None
 

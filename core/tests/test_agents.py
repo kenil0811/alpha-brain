@@ -569,6 +569,12 @@ def test_an_at_mention_makes_the_agent_answer_in_the_conversation(world: World) 
     # No agent of that name: an ordinary turn, Alpha's own.
     assert world.agents.by_mention("@nobody hello") is None
     assert world.agents.by_mention("deal scout") is None
+    # anywhere in the sentence, a space after the @ allowed (16 Oct, Kenil: "hi @ scout")
+    hit = world.agents.by_mention("hi @ deal scout, anything new?")
+    assert hit and hit[0]["id"] == auto["id"] and hit[1] == "hi anything new?"
+    hit = world.agents.by_mention("what's new @Deal Scout")
+    assert hit and hit[1] == "what's new"
+    assert world.agents.by_mention("mail me@deal scout") is None  # an address is not an @
 
 
 def test_an_agent_may_change_only_what_its_write_list_says(world: World) -> None:
