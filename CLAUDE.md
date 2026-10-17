@@ -16,11 +16,13 @@ Kenil on 3 October 2026, after the checkpoint found the old shape true but unusa
    what a session built, what ran for real and what it found (commits, journeys, measurements,
    failures). Say "proven by tests only" when nothing ran for real; "it ran" is not "it works".
    `docs/log/README.md` lists the entries.
-3. **`docs/design/alpha-second-brain-design.md`** — the intent, with a status box (built /
-   differs / not built) under each section. Change the box when a change alters a section's
+3. **`docs/design/alpha-harness-design.md`** — the intent since 17 October 2026 (Alpha as a
+   Claude-Code-class harness; `alpha-second-brain-design.md` is the history before it, with the
+   status boxes that still describe what is built), with a status box (built / differs / not
+   built) under each section. Change the box when a change alters a section's
    state; never add prose about what was built there (that is the log). A decision taken with
-   Kenil goes into §11 as a new Qn row, numbered in order, with the date and the failure or
-   reason behind it. `build-plan.md` holds what does not change by the day (toolchain facts,
+   Kenil goes into the design's decisions table as a new Qn row (Q74 onwards), numbered in
+   order, with the date and the failure or reason behind it. `build-plan.md` holds what does not change by the day (toolchain facts,
    the first slice's shape, what to port, open engineering questions).
 
 Concretely, a session that changes code is not finished until, in the same commit or the one
@@ -42,7 +44,8 @@ section changed is changed too.
 
 ## Starting a session
 
-Read in this order: `docs/STATE.md` → the design's status boxes for the sections you will touch
+Read in this order: `docs/STATE.md` → the harness design (§0, §2, §18 at least) and the old
+design's status boxes for the sections you will touch
 → the newest two or three entries in `docs/log/` → `git log --since=<the date in STATE.md>`.
 If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 
@@ -74,8 +77,11 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 - Nothing per use case; the platform knows no domain. Never site- or app-specific logic in the
   platform; Alpha's know-how (skills: readers, procedures, pipelines) is never patched by hand —
   ask Kenil.
-- Plan first by mechanism: lasting things are made only on the person's yes on the workflow
-  page (§12) or, once built, on an agent's page (Q50; Q40's door).
+- The model's power is not curtailed by scope gates (Q54, 17 Oct): the only gate is a permission
+  question on actions that matter (outward, deleting the person's own entries, money, sign-ins;
+  harness design §8). Alpha says in a line what standing thing it is about to make and makes it.
+  Until the harness slices land, the old gate (`Tools._gate`) still exists in the code; do not
+  extend it or the interview → page → walled-build path.
 - No limits, quotas or technical knobs; the person stops what isn't going anywhere.
 - Known, assumed or asked: every value has a source, or is estimated and says so, or is asked.
 - Removal deletes everything related; the journal is never deleted.

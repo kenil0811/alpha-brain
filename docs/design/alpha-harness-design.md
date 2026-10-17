@@ -1,0 +1,573 @@
+# Alpha as a harness
+
+*Proposed and agreed with Kenil on 17 October 2026 ("ok makes sense to me"). It supersedes
+`alpha-second-brain-design.md` (30 September, 53 decisions), which stays as history; the decisions
+there that still bind are listed in §16. The research behind this is in `research/harness-*.md`.
+Nothing here is built yet; each slice of §18 is proposed in writing first. As the slices land,
+every section gets a status box (built / differs / not built), as the old design had.*
+
+## 0. Why, in one page
+
+On the evening of 16 October, on a fresh world, Kenil typed one sentence: "help my sync all my
+linkedin connection in here". It took 44 minutes, seven model sessions, 15.6 minutes of model
+time and about $2.18, opened four threads, wrote 101 journal lines, and put no connections in the
+table. The model had a working reader of his real connections page two minutes into the build.
+The rest of the time went on finding out that the structure around it would not let it keep the
+reader or schedule the sync: the gate that decides which tools are open in which kind of thread
+had, since 12 October, no kind of thread in which they are open.
+
+That gate was one of a dozen structures placed between the model and the work since 2 October:
+the interview, the workflow page, the research agent's look, the walled build with its parts
+contract and proxy, five agents each with a cursor on the journal, one fresh model session per
+turn with a pre-pack of the world. Each was a reasonable answer to a failure of the day. Together
+they encode a guess about how work should go, and the guess is wrong often enough that a small
+request becomes a long one.
+
+Claude Code can do almost anything because it has almost none of that. A model; a handful of
+generic tools (a shell, files, the web, a browser, subagents); a directory it owns; memory as
+plain files it reads and writes; skills as markdown it writes itself; scheduled runs; and one
+gate, a permission prompt on the actions that matter. Nothing in it knows what the person is
+trying to do. The model works that out every time, and it is good at it.
+
+Kenil, 17 October: "if we look at claude code / codex / other harnesses, they're able to pretty
+much do anything on their own. That's what I want via alpha as well, just that it's wrapped in a
+simple interface, with standardized UI, and auto creation of agents / skills / schedules /
+proactiveness. But the underlying power of AI should not be curtailed."
+
+So: **Alpha is a Claude-Code-class harness, wrapped in a simple standard window, with a world the
+model keeps for the person, that makes its own standing things and runs on its own triggers.**
+This document says what that is, what it throws away, what stays, and in what order it is built.
+
+## 1. Principles, revised
+
+The 30 September principles, with the ones the harness changes marked.
+
+1. **Generic.** Nothing in the platform knows what a calorie or a connection is. The model's
+   skills are per use case; the platform never is. *(Unchanged, and now the only place the
+   "nothing per use case" rule applies: the model is free.)*
+2. **One world per person.** One store, cross-linked, rendered by one window. *(Unchanged.)*
+3. **One way in.** The person says what they want; the model works out what it is. *(Unchanged.)*
+4. **Do it.** The model does the work in the conversation, now, the way Claude Code does. Before
+   it makes something that will stand (a table, a reader, a schedule, an agent) it says so in one
+   line and carries on; it asks only when the answer changes what gets made and cannot be
+   defaulted safely. *(Replaces "understand, propose, build after the yes" of 2 October. The
+   blind ETA build that led to that rule made nine tables nobody asked for; the fault was scope,
+   and the fix for scope is the line that says what is about to be made, not a gate.)*
+5. **Walls, not scope gates.** The only gates are permission questions on actions that matter
+   (§8). No tool is closed because of which kind of thread the turn runs in. *(New.)*
+6. **Standing things are the model's to make.** Skills, agents, schedules and triggers are files
+   and rows the model writes for itself when it judges it will do the thing again; the window
+   shows them and the person can edit or undo them. *(Replaces the ladder of levels and promotion
+   from verified runs, which was never built.)*
+7. **Quiet by default; agents work behind Alpha.** Nothing an agent does appears in the person's
+   conversation unless it needs their yes. *(Sharpened.)*
+8. **No knobs, no caps.** The person stops what is not going anywhere. *(Unchanged, Q18.)*
+9. **Local-first.** *(Unchanged.)*
+10. **Known, assumed or asked; evidence over cleverness; the journal verbatim and never deleted;
+    everything undoable.** *(Unchanged, §7 of the old design.)*
+
+## 2. The shape
+
+Five parts. The first is new, the second mostly exists, the third is new, the fourth is
+rebuilt on what exists, the fifth is the window we have, simplified.
+
+```
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │  the window      one conversation box · work items · modules · people  │
+ │                  skills and agents as text · Activity · Needs you      │
+ ├────────────────────────────────────────────────────────────────────────┤
+ │  the engine      the Claude Agent SDK: a session per conversation,     │
+ │                  subagents, hooks, the permission callback, skills     │
+ ├──────────────────────────┬─────────────────────────────────────────────┤
+ │  the world               │  standing things, made by the model         │
+ │  SQLite: journal, tables │  modules as directories; skills as          │
+ │  people, facts, files    │  SKILL.md + scripts; agents as briefs;      │
+ │  rendered by the window  │  schedules and triggers as rows             │
+ ├──────────────────────────┴─────────────────────────────────────────────┤
+ │  the triggers    time · a mention · the app opened · the world changed │
+ │                  a file changed · mail arrived · the Mac woke          │
+ └────────────────────────────────────────────────────────────────────────┘
+```
+
+- **The engine** runs the model with generic tools and no scope gate. One long-lived session per
+  conversation, resumed turn after turn, so the model keeps its own working memory; a session per
+  agent run; subagents for parallel work inside a task. (§3, §4)
+- **The world** is what the harness does not have: the person's data in standard shapes the
+  window can render and every session can query. (§5)
+- **Standing things** are what the model makes for itself: a module is a project directory the
+  model owns; a skill is a directory of markdown and scripts; an agent is a brief with a trigger
+  and what it may touch; a schedule is a row. (§6)
+- **The triggers** start a run of the same engine with a brief: a time, a mention, the app
+  opening, a change in the world or a folder, mail arriving, the Mac waking. (§9)
+- **The window** renders the world and the standing things, shows one work item per request,
+  asks the permission questions, and offers Undo on everything. (§10)
+
+## 3. The engine
+
+The Claude Agent SDK (Python, `claude-agent-sdk` 0.2.168 on 17 Oct; it bundles its own Claude
+Code binary) replaces `claude_cli.py`. What it gives, verified against its pages on 17 October
+(`research/harness-agent-sdk.md`):
+
+- **A session per conversation, resumed.** `ClaudeSDKClient` keeps one session across turns;
+  `resume=<id>` brings it back after a restart; `fork_session` branches one. The transcript is
+  local JSONL under a `CLAUDE_CONFIG_DIR` of Alpha's own, apart from the person's `~/.claude`.
+  Compaction is automatic near the limit, with a `PreCompact` hook and guidance Alpha can give
+  in its own notes. The pre-pack shrinks to what the world adds at the start of a session and
+  what changed since the last turn.
+- **Subagents**, defined in code or as `agents/*.md` files: a brief, tools allowed, a model,
+  background by default, up to 20 at once. The five built-ins and any agent the model writes
+  are these.
+- **Hooks** on every tool call: `PreToolUse` can deny, ask, defer (the turn ends and resumes
+  later from the persisted session: the approval that outlives a restart) or rewrite the input;
+  `PostToolUse` can rewrite the output. The journal line for every call, the walls of §11 and
+  the permission rules of §8 live here, in code.
+- **The permission callback** (`can_use_tool`) for the questions of §8, answered in the window;
+  tools that always ask are kept out of `allowed_tools` so the callback is reached.
+- **Skills** read from the filesystem (`.claude/skills` of the cwd and of every `add_dirs`
+  directory): a module's skills load when the session's cwd is the module's directory. The CLI
+  watches skill directories and picks up a new one within the session; the SDK pages do not
+  restate it, so slice 1 includes the spike.
+- **`cwd` and `add_dirs`**: the module's directory and the folders the person granted (§8).
+- **The sandbox** (`sandbox-runtime`, Seatbelt on macOS) for the shell: a filesystem allowlist
+  and a network allowlist that starts empty; `failIfUnavailable=True` because the Python SDK
+  otherwise falls back to running unsandboxed. The other tools (files, web, MCP) run under the
+  permission rules, not the sandbox, as in Claude Code itself.
+- **In-process MCP** for the world's tools (§4), so there is no second process.
+
+What it does not give, so Alpha keeps its own: **the scheduler** (the SDK's cron is session-
+scoped and interactive; routines are a cloud feature of a claude.ai account), the **approval
+queue** across restarts (built on `defer`), the **event stream** (the journal with a cursor per
+agent, as today), and the window's view of a session (the SDK streams messages; the window
+renders them).
+
+**The subscription, plainly** (both research files read Anthropic's pages on 17 Oct). What
+Alpha does today is the sanctioned shape: the person signs into the unmodified `claude` binary
+through Anthropic's own flow on their own Mac, and Alpha never touches the token. The support
+page says "Claude Agent SDK, claude -p, and third-party app usage still draw from your
+subscription limits", and the legal page says nothing "prevent[s] an end user from signing in
+to the unmodified Claude Code binary with their own Claude subscription". The SDK runs that same
+binary, so Kenil's own Alpha keeps using his subscription. What Anthropic forbids: a product that
+offers "Log in with Claude" or routes requests through Pro or Max credentials "on behalf of
+their users", storing or proxying tokens, one subscription for several people. Which side of
+that line a copy shipped to a first user falls on (they sign into the bundled, unmodified binary
+themselves, through Anthropic's flow) is not something to guess: it needs Anthropic's written
+answer before the app goes to anyone but Kenil, and the documented path for a product is each
+user's own Console API key (§15). "Claude Code" may not be in the product's name; "Powered by
+Claude" is allowed.
+
+## 4. The tools
+
+Claude Code's power is that its tools are few and generic. Alpha's 73 tools each open one narrow
+door, and every door is a place the model can be refused. The new set is about fifteen, and none
+is closed by the kind of thread the turn runs in.
+
+| Tool | What it is | Asks? |
+|---|---|---|
+| Shell, read, write, edit, glob, grep | The SDK's own, in the module's directory and the folders the person granted (§8) | No |
+| Web search, web fetch | The SDK's own | No |
+| `browser_open`, `browser_read`, `browser_script`, `browser_act` | The person's signed-in profiles, one per site, through our own driver; read like a person; `act` is any click or typing that changes something on the site | `act` asks when outward (§8); sign-in asks |
+| `world_query` | Read SQL over the world (tables, people, facts, the journal, documents); the model writes the query | No |
+| `world_write` | Rows in and out of a table with provenance on every value, upsert by key, seen/gone bookkeeping | No; deleting the person's own entries asks |
+| `world_shape` | Make or change a table, a field, a link between tables, who the rows are (people, companies) | No, said in a line |
+| `world_file` | Keep a file or a document, read one | No |
+| `ask_person` | A question with choices, as a card | — |
+| `tell_person` | A line on Home or Activity, or a Needs-you card; a Mac notification later | — |
+| `skill_keep` | Write or change a skill directory (§6) | No, said in a line |
+| `agent_keep` | Write or change an agent's brief, its trigger, what it may touch (§6) | No, said in a line |
+| `schedule_keep` | A time or an event that starts an agent (§9) | No, said in a line |
+| Subagents | The SDK's own `Agent` tool | No |
+| `act_outward` | Anything that leaves the person's world: a message, a post, a form, money | Always, as a card with the preview, unless a standing permission covers it |
+
+Everything the old tools did that mattered survives inside these: provenance (every `world_write`
+value carries stated / looked up / estimated / assumed), seen/gone bookkeeping for lists, hard
+keys for people and companies, the journal line for every call, the walls of §11. What goes: the
+gate, `workflow_*`, `plan_*`, `reader_*` and `procedure_*` as separate kinds (a reader is a skill
+with a script; a procedure is a skill whose steps act), `parts` and the proxy, `agent_create`'s
+form, `table_start` (a table is a table).
+
+**Readers, procedures and pipelines become skills.** Today a reader is a row in `skills` holding
+a page script, run by `reader_run`; a procedure is a row holding steps the browser replays. In
+the new shape both are skill directories with a `SKILL.md` and a script, written by the model,
+run by the model (or by the scheduler without a model when the skill says it needs none). Doc's
+repair is editing the file. Versions are git in the directory.
+
+## 5. The world
+
+The world store is the part of Alpha that is right and stays: one SQLite file per person; the
+journal verbatim with full-text search; tables with provenance on every value and a version per
+change; people and companies with hard keys; bi-temporal facts; documents and files; goals. The
+window renders all of it already.
+
+What changes:
+
+- **A module is a directory the model owns**, `~/Library/Application Support/com.alpha.brain/
+  modules/<id>/`, with its notes (`NOTES.md`, what this module is for, what was decided), its
+  skills (`skills/<name>/SKILL.md` and scripts), its agents (`agents/<name>.md`), its scripts and
+  documents, and a `module.yaml` naming its tables. Its tables live in the world. The model
+  works in that directory the way Claude Code works in a project. The window's module page shows
+  the tables, the notes, the skills and agents as text, the files, and the module's Activity.
+- **Memory is files plus the world.** The world holds facts, people, the journal. The model's own
+  working notes (`NOTES.md` per module, `ALPHA.md` at the root for standing instructions and
+  preferences in the person's words) are files it reads at the start of a session, like
+  `CLAUDE.md`. Standing instructions move from a table to that file, which the window shows and
+  the person can edit as text.
+- **The world as SQL.** `world_query` lets the model write its own reads. The store's own
+  schema is the contract; the `records` table's JSON values are exposed through a view per table
+  so a query reads like a query over the person's table.
+- **Nothing per use case** still binds the store: no site, no domain in its schema.
+
+## 6. Standing things, made by the model
+
+The ladder of levels, promotion from verified runs, the plan, the workflow page and the agent's
+form all go. One rule replaces them: **the model makes a standing thing when it judges it will do
+the thing again, says so in one line, and the window shows it.**
+
+- **A skill** is a directory, `skills/<name>/`, with a `SKILL.md` (frontmatter: name, what it
+  does, which site or source, whether it needs the model to run or runs by itself; the body is
+  the instruction) and any scripts. The Agent Skills shape, so skills made elsewhere install
+  unchanged and Alpha's can leave. The model writes one after it did something it will do again:
+  read a list, draft a message on a site, a transform. Doc repairs one by editing it; every
+  change is a commit in the module's git, shown as Versions with Undo.
+- **An agent** is a brief, `agents/<name>.md`: frontmatter (trigger: a schedule or an event or a
+  mention; may touch: which tables and sites; model), body in plain words (what it is for, what
+  to do, what to report). A run is a session of the engine with that brief and the world. The
+  five built-ins (§13) are briefs that ship with the app. The model writes a new one when the
+  person asks for something that should happen on its own, or when a run of its own finds a
+  reason (Kenil, 17 Oct: an unattended run may make new standing things; a line in Activity and
+  on the agent's page; undoable).
+- **A schedule or trigger** is a row: which agent, when or on what (§9).
+- **A standing permission** is a sentence in `ALPHA.md` ("you can always draft replies to
+  Vikas"), kept when the person says so, honoured by the permission callback (§8), revoked by
+  deleting the line.
+- **A module** is made by the model without asking when a request needs a home; said in a line.
+
+What the window shows for each: the text itself, editable; its runs; its versions; Undo.
+
+## 7. Conversations and parallel work
+
+Kenil, 17 Oct: "the user may be working on multiple conversations / topics / projects in
+parallel, so how do we handle that via a single conversation? This is a very tricky problem."
+The research (`research/harness-parallel-work.md`) found that the products that solved it in
+2026 converged on one shape, and Anthropic's own Claude Code Projects states it plainly: "one
+ongoing conversation where Claude coordinates a stream of related work … It starts a thread for
+each task … It sees what threads report back, not every step they take." The coordinator is a
+cheap session; the threads are full ones. Dispatch, Codex's app and Devin are variations.
+Alpha adopts it, with the routing rule made exact so that most of it is structure and only one
+small judgement is the model's.
+
+**The objects.**
+- **Home**: the one conversation box, the companion's voice too. Its session is the coordinator:
+  it answers what can be answered now, opens work items, and routes. It never does long work
+  itself, so it is never blocked. It reads the last few Home turns, a roster of the open work
+  items (title, state, last line, what each touches; never their transcripts) and the world.
+- **A work item**: a thread with its own engine session (§3), a title, a state, a last line,
+  what it touches, and its own message box. A build, a watch with its runs, a draft, a long
+  answer. It is what Home's "Alpha is working on" shows, one per request.
+- **A card**: the only way a work item appears in Home: under the person's sentence when the
+  item opens, updated in place as it goes (one plain line), with its result in two lines when
+  done and the next-step buttons (Open, Try again, Change, the yes it waits for).
+- **The overview**: Home's lanes, by state: Needs you · Working · Done today · Resolved. A dot
+  when anything needs the person. This is Home as built, with the states made exact.
+
+**Routing, by structure first.** No model is asked for these:
+1. Typed in a work item's own box → that item.
+2. A reply to a card, or its button → the item that owns the card. An approval is given only at
+   its card or in its item; "go ahead" in Home does not reach it (the audit rule; whether Home
+   may accept it when exactly one approval is pending is open, §19).
+3. `@item` or `@agent` in Home → that item or agent (asked which on a clash).
+4. A scheduled or triggered run → a run under its agent's item, never a Home message; its card
+   changes only when the run has something to say ("last checked Mon 09:07, nothing new"
+   otherwise).
+5. Typed while the person is looking at a running item → that item, read at its next tool
+   boundary (a running tool is never cut; Stop is a button).
+
+**Then one judgement**, only for a sentence typed in Home that none of the above anchors. The
+coordinator answers one of five: **answer here** (reads only, this turn); **continue item X**
+(the sentence is about X's subject, people or things; X's card is re-surfaced under the
+sentence, marked "sent to X"); **new item** (new work, or anything with a side effect or more
+than one turn; a card appears); **split** (several unrelated things → several items); **ask**
+(not sure between the three: a two-button card, "Continue LinkedIn sync / New item"; nothing
+runs until chosen). The person's corrections ("answer that here", "put that in the LinkedIn
+thread", "only tell me when something finishes or is blocked") are obeyed and kept as
+preferences in `ALPHA.md`. The judgement is the System One seam we have (`judge.py`), with the
+roster as its state; the research is plain that its accuracy is model-dependent, so misroutes
+are counted in the journal and a labelled set of Kenil's real Home sentences is the test.
+
+**Reporting back.** An item reports outcomes, not steps: its card's one line while working, two
+lines when done, the transcript inside the item. Several items finishing within a short window
+make one Home line, not several. A Mac notification (later) only when the person is not looking
+and only for needs-you, failed, finished.
+
+**Memory.** Each item has its own session, compacting on its own. Shared across items: the
+world, `ALPHA.md` and the module's `NOTES.md` read at the item's start, standing instructions.
+An item writes back only its outcome line and explicit "remember" entries, when it goes idle,
+one writer at a time (Watson is that writer).
+
+**Interruptions.** A Home sentence about something else while an item is being discussed hands
+the discussion into its item and Home answers the new sentence. Mid-task revision is still weak
+for models (InterruptBench), so a message to a busy item is an addition; a change of course is
+Stop and a new sentence.
+
+**What this replaces:** `conversations.py`'s conversations-as-topics with a judge over them, the
+build thread as a separate kind, and the agent threads: every one of them is a work item.
+
+## 8. When Alpha asks
+
+Claude Code's gate is a permission prompt. Alpha's is the same, answered in the window or in
+words, and it is the only gate.
+
+**Always asks** (Kenil, 17 Oct): anything that leaves the person's world (a message, a post, a
+form submitted, a purchase, anything with money); deleting the person's own entries; signing in
+somewhere. The card shows the preview, what it rests on, and what cannot be undone. A standing
+permission in the person's own words covers a kind of action from then on.
+
+**Never asks, always says:** making a module, a table, a skill, an agent, a schedule; reading any
+site the person is signed into; running code in its own directory; spending model time.
+
+**Asks a question** only when the answer changes what gets made and cannot be defaulted safely:
+which of two people, which account, daily or weekly when it matters. Alpha's picks are defaults
+on the card with "change it", not questions. The interview survives only as something Alpha
+chooses for a big, multi-step job (several documents, judgement steps, a procedure the person
+already runs by hand) or the person asks for ("plan it first"). Then the plan is a page, the yes
+is on it, and the build follows; the page is Alpha's notes for the module, not a separate thing.
+
+**The person's Mac** (Kenil, 17 Oct): Alpha's own home, its module directories and its browser
+profiles, plus folders the person grants from Settings, like Claude Code's working directory and
+added directories. The whole Mac is a toggle the person sets, off by default.
+
+**Implementation:** the SDK's permission callback decides every tool call by these rules, in code;
+the prompt repeats them. A hook journals every call. There is no other gate.
+
+## 9. Proactiveness
+
+A trigger starts a run of the engine with an agent's brief. All of these on day one (Kenil, 17
+Oct): **time** (the scheduler we have); **a mention** (`@Name` in the conversation asks Alpha to
+use that agent; Alpha still replies); **the app opened** (Scout's daily look); **a change in the
+world** (a row, a table, a file: the journal is the event stream, with a cursor per agent, as
+today); **a folder changed** (the watcher we have); **mail arrived** (polling the signed-in Gmail
+through the browser, as reading does today; push later); **the Mac woke** (the sleep rule of
+3 October). A run may read, compute, write the world, make standing things; it may not act
+outward without a yes. Its output goes to Home and Activity, and to the person's conversation
+only as a Needs-you card. Mac notifications later.
+
+## 10. The window
+
+Less, not more. The rail and the look stay as they are (Kenil, 1 Oct). What changes:
+
+- **One work item per request** on Home, with one plain progress line and the result in two
+  lines; the steps behind a fold. Never two items for one sentence.
+- **Outcomes, not machinery.** No tool names, file names, "parts", "STUCK", JSON or source paths
+  reach the person. The engine's step lines are rewritten by code into plain words or hidden.
+- **A module page** = its tables (as now), its notes, skills and agents as editable text, its
+  files, its Activity. Counts are of the person's rows, never of settings.
+- **Skills and agents as text**, like `CLAUDE.md`: the window shows the file, the person edits it,
+  Versions and Undo beside it. The forms go.
+- **Needs you** holds only permission cards and questions. Agents' findings, Watson's notes,
+  Sherlock's suggestions live on their pages and on the module's notes, never in the timeline.
+- **Settings** gains the folders Alpha may reach and the whole-Mac toggle; nothing else technical.
+- The conversation stays as built on 16 October; §7 says what threads become.
+
+## 11. Walls kept in code
+
+Unchanged from the old design and binding whatever the model does: the journal verbatim and never
+deleted; every value with provenance; Undo on everything the model makes; removal deletes
+everything related and journals itself; nothing per use case in the platform; a copy of a world
+by SQLite's backup; acceptance by a real run; no knobs, no caps. Source content is data, never
+instruction: a page or an email cannot tell Alpha what to do (the permission callback and the
+hooks do not read it).
+
+## 12. Other providers
+
+Kenil asked whether other providers' models could be used. The honest answer has two halves.
+
+**Supported: Claude only.** The SDK runs Claude through Anthropic's API, Bedrock, Google Cloud's
+Agent Platform or Microsoft Foundry. Anthropic "doesn't support routing Claude Code to
+non-Claude models through any gateway", and its protocol page lists what breaks when one tries.
+
+**Technically possible, unsupported, at our own risk.** The SDK runs the Claude Code binary, so
+`ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` point it at any endpoint that speaks the
+Anthropic Messages format: Ollama (local), DeepSeek, Z.ai's GLM, Moonshot's Kimi, MiniMax,
+llama.cpp. No proxy, nothing shipped: a provider is a record (base URL, credential, a model per
+slot, flags) set into the session's environment. What the 2026 reports say holds up through the
+full tool set: Kimi K2.6/K2.7-code and DeepSeek V4 Pro; GLM mixed; small local models "basic
+chat and file edits". GPT and Gemini need a translating gateway (LiteLLM, Claude Code Router)
+and no 2026 source shows them reliable through the full tool set; LiteLLM had malicious PyPI
+releases in March 2026. The hosted web tools, the auto-mode classifier and fast mode are
+Claude-only whatever the endpoint. So: a Settings card for a provider record, each provider
+smoke-tested on a few tool-calling tasks before it is offered, and no gateway inside the app.
+The ChatGPT route of Q32 (Codex) stays what it is: off.
+
+The trade: the SDK gives sessions, subagents, hooks, permissions, skills and the sandbox for
+free, and binds Alpha to Claude-shaped endpoints. The design keeps the engine behind one
+interface (`runtime/engine.py`: start a session, send a turn, stream messages, answer a
+permission), with the Agent Client Protocol (§14) as the documented escape hatch to another
+engine, so the choice can be revisited without touching the world or the window.
+
+## 13. The five built-in agents, quieter
+
+Watson (memory), Doc (repair), Columbo (check), Sherlock (research) and Scout (the day's picks)
+stay, as briefs that ship with the app, each a session of the same engine with its brief, run
+on its triggers or called by Alpha as a subagent. What changes: none of them writes in the
+person's conversation. Watson's noticing shows as a foldable meta line under Alpha's reply
+("kept 1 decision") and on its page. Sherlock's look happens when Alpha judges it worth it, inside
+the work, its suggestions landing in the module's notes; nothing lands after a yes. Columbo's
+marks on values stay. Scout and Sherlock stay quiet on an empty world, and an agent's own page is
+never a fact-carrying node (the "2 links worth confirming" of 16 October were Scout linking
+Watson's page to the person's). Doc edits skill files and commits.
+
+## 14. What we leverage
+
+Kenil, 17 Oct: "if we can leverage other open source solutions, let's do that." The research
+(`research/harness-open-source.md`, with licences, versions and what could not be verified)
+looked at the harnesses, the gateways, browser automation, memory layers, scheduling, sandboxing,
+connectors and UI renderers as of 17 October. What we take:
+
+1. **The Claude Agent SDK** as the engine (§3). Patterns copied from the other harnesses whatever
+   the engine: OpenCode's per-tool allow/ask/deny with a hard-deny layer no mode overrides;
+   Codex's sandbox boundary kept separate from the approval policy; agent files that inherit
+   but cannot widen their parent's permissions; Hermes' agent-written skills behind a write
+   approval and its rule that a scheduled run cannot edit the schedule; Goose's desktop as a
+   client of a local server.
+2. **`sandbox-runtime`** (Anthropic, Apache-2.0; Seatbelt on macOS; what the SDK's own Bash
+   sandbox is built on) for model-written code and for the MCP servers Alpha runs, in strict
+   mode: writes to the workspace and Alpha's home only, reads denied outside them, credentials
+   denied, a domain allowlist. The trade-offs stated (a shared kernel; hostname allowlists leak;
+   Apple's unannounced Seatbelt deprecation).
+3. **Agent Skills** (`SKILL.md`, the spec at agentskills.io, ~45 adopters) as the one format
+   for the model's skills and for connectors' know-how (§6).
+4. **Anthropic's `browser_toolset_20260801`** as the browser tool contract (the names and
+   `[ref_N]` semantics Claude is trained on: `read_page`, `find`, `get_page_text`, `form_input`,
+   click by ref, screenshot), implemented over Playwright persistent contexts on the bundled
+   Chromium with one profile per site, which is what Alpha does today and the only path still
+   supported (Chrome 136+ blocks automating the default profile). Playwright MCP's ref-snapshot
+   code is the reference; Chrome 144's consent-gated auto-connect is the escape hatch for a site
+   that refuses an automation profile. Never stealth (browser-use, Stagehand skipped).
+5. **Our own triggers table and minute tick** (§9), with Claude Code Desktop's scheduling
+   semantics copied verbatim (skipped-asleep journaled, one catch-up on wake, keep-awake);
+   `cronsim` for parsing; `watchfiles` for folders; Gmail by `history.list` polling and Calendar
+   by `syncToken`; Slack by Socket Mode. No Temporal, no APScheduler, no queue.
+6. **The memory-tool posture over the world**: Anthropic's `memory_20250818` verbs (`view`,
+   `create`, `str_replace`, `insert`, `delete`, `rename`) over a virtual `/memories` tree backed
+   by the world's pages, with a small typed index; Graphiti's two-axis time on facts (already
+   ours); Letta's pinned always-in-context blocks (who the person is, current work, standing
+   preferences); sleep-time consolidation and a lint pass (contradictions, orphans, stale) as
+   scheduled agents. No second store (mem0, cognee, Graphiti-as-code skipped).
+7. **The connector slot** (Q53, slice 3) as an Agent Skills directory plus a `connector.json`
+   that is a subset of Claude Code's plugin manifest and the MCPB manifest (hosted-server and
+   OAuth fields, `sensitive` config in the Keychain). First slots: Google Workspace through
+   `taylorwilsdon/google_workspace_mcp` (MIT, our own GCP client), Slack's and Notion's hosted
+   MCP servers. LinkedIn stays "Alpha browses as the person".
+8. **`json-render`** (Vercel, Apache-2.0) with a small Alpha-owned catalogue (Table, Stat,
+   Chart, Card, Form, Timeline, Page) for model-made pages and dashboards, through a
+   `render_page` tool, validated before render and stored as data; a sandboxed iframe as the
+   escape hatch for free-form pages, which also hosts MCP Apps; OpenUI Lang stays the bounded
+   trial of 16 October, against the same catalogue.
+
+Skipped on purpose: any translation proxy inside the app; automating the person's own Chrome;
+a second memory store; servers for scheduling; hosted OAuth aggregators; chat frameworks.
+
+## 15. Shipping to the first users
+
+Kenil, 17 Oct: the first users share requirements; he builds their modules himself in his own
+Alpha and ships the app with the modules inside. The harness makes that literal: a module is a
+directory with no data in it (notes, skills, agents, scripts, `module.yaml` naming its tables),
+so a kit (Q53, slice 1) is that directory copied into another person's Alpha, its tables made
+empty from `module.yaml` on first open. The ownership rule of Q53 holds: what we installed and
+nobody changed is replaced on update; what the person changed is theirs. This is the acceptance
+of the design: a module made in Kenil's world runs in theirs.
+
+**How the first users' Alpha thinks** is the open question §3 raises. Today the app assumes the
+Mac is signed into Claude Code with a subscription. For a user we ship to, Anthropic's documented
+path is their own Console API key, entered once in Settings (the engine takes `ANTHROPIC_API_KEY`
+in its environment; nothing else changes); whether they may instead sign in with their own
+subscription to the bundled binary is the question to put to Anthropic in writing. The design
+assumes the key path for shipped copies and the subscription for Kenil's, with the engine
+indifferent to which.
+
+## 16. What goes, what stays
+
+| Area | Goes | Stays |
+|---|---|---|
+| Runtime | `claude_cli.py`'s hand-rolled route, the pre-pack as the only memory, `turn.py`'s one session per turn, `workflow_build.py`, `parts.py`, `proxy.py`, `workspace.py`'s Seatbelt profile, `pipeline.py` as a separate runner, `asking.py`'s question parsing | `judge.py` (the small-model seam, for routing and triage), the scheduler, `acting.py`'s dry-run and approval, `conversations.py`'s routing (reworked per §7), `claude_account.py` |
+| Tools | 58 of the 73: `workflow_*`, `reader_*`, `procedure_*`, `plan_*`, `agent_create`'s form, `table_start`, `collection_*` as separate verbs, `_gate` | The world's reads and writes behind `world_*`, `ask_person`, `tell_person`, `action_propose/approve` behind `act_outward`, `browser_*` |
+| World | `workflows` and `workflow_versions`, `skills` as JSON rows (→ directories; a migration writes them out), `permissions` as rows (→ `ALPHA.md`) | Everything else: journal, records, collections, entities, facts, documents, files, goals, agents, runs, decisions, actions, modules |
+| Prompts | `workflow_build.md`, `sherlock_look.md`'s landing after the yes, the interview rules in `turn.md` (rules 6 and 7), `repair_part.md` | `turn.md`'s rules 1–5, 8–10 reworked for the new tools; the briefs |
+| Window | The workflow card and page, the agent form, the parts buttons, "Say continue", two work items per request | Everything else |
+| Journeys | `workflow_interview`, `workflow_build` | The rest, reworked to the new tools; plus the first-day set (§17) |
+
+Old decisions that still bind: Q2 (core as child of the app), Q3 (LinkedIn read at human pace),
+Q5 (silent low-stakes facts), Q17/Q23 (no site vocabulary in the platform), Q18 (no limits),
+Q22 (30 minutes between an agent's runs), Q24 (acting outward as a card), Q25 (files), Q26 (the
+memory round), Q31 (modules nest), Q43 (removal), Q44–Q49 (the agents' shape and the five),
+Q53 (kits, the ownership rule). Superseded: Q8 (make-and-show: now everything standing is
+made-and-said), Q33, Q37–Q40, Q50–Q51 in their mechanism (the agents stay; their substrate
+becomes the engine's sessions), Q39/§12 (the workflow page as the only door).
+
+## 17. Acceptance: the first-day sentences
+
+Five sentences on an empty world, run for real in the app, before anything else ships (Kenil,
+17 Oct). They are also journeys with the real model on a fresh world, the regression gate; the
+real run in the app is the acceptance.
+
+1. "keep my LinkedIn connections in sync" → the table fills in one work item; next check named.
+2. "track what I eat", then "log two eggs" → a table, a row with its source; nothing asked.
+3. "watch We Work Remotely for back-end roles" → a reader and a schedule; the first rows.
+4. "what did Vikas email me about last week" → read from the signed-in Gmail, answered with the
+   emails named; a sign-in card first if needed.
+5. "remind me to call Sara on Friday" → a reminder that fires.
+
+Each passes only when the person sees the outcome in the app, in one thread, with no internal
+word, and Activity shows what was made.
+
+## 18. Order of work
+
+Each slice proposed in writing first, built in main's design, looked at in the app, committed
+after Kenil's review.
+
+1. **The engine in place of the route**: the SDK, one session per conversation, the permission
+   callback, the hooks that journal; the old tools still served through the SDK's MCP server;
+   sentence 2 passes. Nothing else changes.
+2. **The fifteen tools and the end of the gate**: `world_*`, `browser_*`, `skill_keep`,
+   `agent_keep`, `schedule_keep`; skills as directories with a migration from the rows; the
+   workflow machinery removed; sentences 1 and 3 pass.
+3. **Conversations and work items** (§7): routing, one item per request, outcomes not machinery.
+4. **Triggers and the quieter agents** (§9, §13): all triggers; the five briefs reworked;
+   sentences 4 and 5 pass.
+5. **Modules as directories and kits** (§5, §15): `module.yaml`, the window's module page, export
+   and install.
+6. **The window's simplification** (§10): the forms go, text pages for skills and agents.
+
+Then the pending list of `STATE.md` resumes (people for real, memory, the channel).
+
+## 19. Decisions
+
+Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
+
+| | Decision |
+|---|---|
+| Q54 | Alpha is a Claude-Code-class harness wrapped in a standard window; the model's power is not curtailed by scope gates. |
+| Q55 | The engine is the Claude Agent SDK on his subscription (§3). Found the same day: his own use is the sanctioned shape; a copy shipped to a first user takes their own API key until Anthropic answers in writing whether their subscription may be used (§3, §15); other providers' models only through endpoints that speak Anthropic's format, unsupported, smoke-tested first, no gateway in the app (§12). |
+| Q56 | One long-lived session per conversation, resumed turn after turn; the world is memory across conversations. |
+| Q57 | The model reaches Alpha's home, its module directories, its browser profiles, and folders the person grants; the whole Mac is a toggle, off by default. |
+| Q58 | Plan-first by gate goes. Alpha does the work, says in a line what it is about to make, asks only when the answer changes what gets made and cannot be defaulted. The page survives as a plan mode Alpha chooses or the person asks for. |
+| Q59 | Always asks: outward actions, deleting the person's own entries, money, sign-ins. Never asks for standing things, reads, its own code. |
+| Q60 | An unattended run may make new standing things, with a line in Activity and Undo. |
+| Q61 | Standing permissions as the person's sentences, kept and honoured. |
+| Q62 | The model may make arbitrary files; standard shapes rendered richly, other files shown plainly; custom views a later trial. |
+| Q63 | A module is a project directory the model owns; it may make one without asking. |
+| Q64 | Skills are made by the model whenever it judges it will do the thing again; shown and editable as text. |
+| Q65 | The five built-ins stay, quieter: never in the person's conversation. |
+| Q66 | Ad hoc subagents without asking, shown as steps under the one work item. |
+| Q67 | Research is the model's judgement, not a step; suggestions follow the thin thing. |
+| Q68 | All triggers on day one: time, mention, app opened, world change, folder change, mail arrived, Mac woke. |
+| Q69 | Proactive output on Home and Activity; a card only for a yes; notifications later. |
+| Q70 | The walls of §11 stay. |
+| Q71 | A freeze on new features until the five first-day sentences pass in the app; rechecked later. |
+| Q72 | A new design document (this one); the old kept as history. |
+| Q73 | First users: requirements shared, modules built by Kenil, shipped inside the app (§15). |
+
+Open (to decide with Kenil as the slices are proposed): §7's "go ahead" in Home when exactly one
+approval is pending; the density of cards in Home (all items, or only what needs him); where
+Watson's meta line sits; the first folders granted by default; whether the companion's voice turn
+is a session of its own or Home's; which first user gets the first shipped copy, and on which
+model route.

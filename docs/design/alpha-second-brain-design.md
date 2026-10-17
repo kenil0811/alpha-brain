@@ -6,6 +6,11 @@
 
 ---
 
+> **Superseded as a proposal on 17 October 2026** by [`alpha-harness-design.md`](alpha-harness-design.md)
+> (Alpha as a Claude-Code-class harness; agreed with Kenil the same day). This document stays as the history of the
+> 30 September design and its 53 decisions; the ones that still bind are listed in the new document's §16.
+> Its status boxes describe what is built today and remain true until the harness slices land.
+
 ## 1. What we are building
 
 Alpha is an agent that lives on a person's Mac, learns their world from what they say and what it can reach, holds that world in a structure it owns, acts for them through connectors, and becomes more useful the longer it runs — without the person ever designing anything. The companion is the product; the workspace is the window onto what Alpha holds and does.

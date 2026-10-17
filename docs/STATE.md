@@ -2,9 +2,12 @@
 
 Rewritten, not appended, at the end of every session. This page is what a new session reads
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
-[`design/alpha-second-brain-design.md`](design/alpha-second-brain-design.md).
+[`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
-**As of 16 October 2026, night.** The last entries:
+**As of 17 October 2026.** The direction changed on 17 Oct and nothing is built on it yet:
+- **The rethink** ([`log/2026-10-17-rethink-harness.md`](log/2026-10-17-rethink-harness.md)): on the fresh world, "keep my LinkedIn connections in sync" took 44 minutes, seven model sessions and four threads and put no rows in the table, because the gate (`Tools._gate`) has opened in no kind of thread since Q40 (12 Oct): saving a reader or a schedule is refused everywhere. Kenil: Alpha should be a Claude-Code-class harness, the model's power not curtailed, wrapped in a simple standard window, making its own skills, agents and schedules. His answers to seventeen questions are Q54–Q73. The proposal is [`design/alpha-harness-design.md`](design/alpha-harness-design.md), **agreed by him the same day**, with three research reports in `design/research/harness-*.md`. The old design is marked superseded as a proposal and kept as history; its status boxes still describe what is built. **A freeze on new features (Q71) until five first-day sentences pass in the app** (the design's §17). The stopped LinkedIn build and its empty module are still in his world.
+
+The last entries before the rethink:
 - Scout, the recommender ([`log/2026-10-16-scout.md`](log/2026-10-16-scout.md)): once a day, when Alpha is first opened, one packet gathered by code (what is coming up, each table this week against last, what was left open, what is asked by hand, the goals) and one judgement; the picks that pass the checks (evidence that resolves, one action, nothing declined before) on Home with Take and Not now; only a sure, costly one as a Needs-you card; the map's Refresh is its links pass. Proven by a journey with the real model on a copy of Kenil's world: four picks from his own world, each with evidence that resolved (`docs/journeys/2026-10-16-2006.md`).
 - Sherlock, the researcher ([`log/2026-10-16-sherlock.md`](log/2026-10-16-sherlock.md)): before Alpha builds a workflow, one small judgement says whether a look into how others do it is warranted and how deep (the person's words win, Skip binds); a look over five lenses, reads only; what comes back checked by code (a live source, a reason naming the page) and landed on the page marked Sherlock's, as cards, or on a findings page; `@Sherlock`. Proven by a journey with the real model on a copy of Kenil's world: four suggestions of its own, each with a live source, on the car wash page's second version (`docs/journeys/2026-10-16-1700.md`).
 - The conversation's leftovers ([`log/2026-10-16-conversation-leftovers.md`](log/2026-10-16-conversation-leftovers.md)): Home's single question on the card; the model asked with several answers at once for real, the card takes the keyboard when it appears, keys ticked two days and Enter answered. The app not yet rebuilt with it.
@@ -76,6 +79,10 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 - The earlier near miss on a label (fat 14 g against 13.4 g) was a rounding apart, which the judge's rules now say is not a difference.
 
 ## Pending, in order
+
+0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route; (2) the fifteen tools and the end of the gate; (3) conversations and work items; (4) triggers and the quieter agents; (5) modules as directories and kits; (6) the window's simplification. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
+
+Everything below is frozen until then (Q71) and resumes in this order afterwards, reworked to the harness where it touches the runtime:
 
 1. **Modules as workflows (Q39, §12):**
    - Kenil's acceptance: the Census key into Settings, Try again, then one change by chat that keeps his rows.
