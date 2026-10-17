@@ -190,6 +190,8 @@ export interface Thread {
   state: string;
   module: string | null;
   session_ref: string | null;
+  /** The item's one plain line: what its card shows (harness §7). */
+  last_line?: string | null;
   created_at: string;
   updated_at: string;
   steps?: { at: string; kind: string; text: string }[];
@@ -768,6 +770,8 @@ export interface Reader {
   last_count: number | null;
 }
 
+/** Home (kind "home", the one conversation) or a work item (kind "work"): its state (open,
+ *  working, needs_you, done, stopped), its one plain line (the card), its last turn. */
 export interface Convo {
   id: string;
   title: string;
@@ -777,6 +781,7 @@ export interface Convo {
   scope: string;
   question: string | null;
   last: string | null;
+  last_line?: string | null;
   last_at: string;
   updated_at: string;
   live?: Live | null;

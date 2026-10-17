@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client, Convo, JournalEntry, Turn } from "../core/client";
 import { Conversation } from "./AssistantPanel";
 
-const convo: Convo = { id: "c_1", title: "Food", kind: "chat", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-16T09:00:00Z", updated_at: "2026-10-16T09:00:00Z" };
+const convo: Convo = { id: "c_1", title: "Food", kind: "work", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-16T09:00:00Z", updated_at: "2026-10-16T09:00:00Z" };
 const turns: JournalEntry[] = [];
 
 function core() {

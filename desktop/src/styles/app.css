@@ -594,7 +594,9 @@ ul.stages { list-style: none; margin: 6px 0 0; padding: 0; }
 /* live conversations: a strip to switch between them */
 .convchip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
 .convchip__dot--working { background: var(--primary); animation: pulse 1.4s ease-in-out infinite; }
-.convchip__dot--waiting { background: var(--warn); }
+.convchip__dot--needs_you { background: var(--warn); }
+.convchip__dot--done { background: var(--good, var(--primary)); }
+.convchip__dot--stopped { background: var(--bad, var(--text-3)); }
 
 /* the companion's choices: a question's options, a decision */
 .avatar__pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
@@ -1024,10 +1026,14 @@ h3 .linkbtn { font: inherit; color: inherit; }
 .asked { display: flex; gap: 8px; align-items: baseline; color: var(--text-3); font-size: var(--text-sm); }
 .asked__who { flex: none; }
 .asked__q { min-width: 0; overflow-wrap: anywhere; }
-.threadrow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-md); text-align: left; cursor: pointer; }
-.threadrow:hover { background: var(--hover); }
-.threadrow__title { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.threadrow__live { color: var(--text-2); font-size: var(--text-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.threadrow__open { margin-left: auto; flex: none; color: var(--text-3); font-size: var(--text-sm); }
+/* a work item's card in Home (harness §7): the item's title, its one line, its state, open */
+.itemcard { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; margin: 2px 0 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card, transparent); text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.itemcard:hover { background: var(--hover); }
+.itemcard__body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.itemcard__title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemcard__line { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemcard__open { flex: none; color: var(--text-3); font-size: var(--text-sm); }
+.lanes { display: grid; gap: 12px; }
+.lane__head { font-size: var(--text-sm); color: var(--text-2); font-weight: 500; margin: 0 0 4px; }
 .askcard__opt { border-radius: 999px; }  /* the companion bubble's choice pills */
 .askcard:focus { outline: none; box-shadow: 0 0 0 2px var(--primary-soft); }

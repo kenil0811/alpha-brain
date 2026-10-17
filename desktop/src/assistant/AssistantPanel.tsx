@@ -1,7 +1,8 @@
 /**
- * The conversation beside the workspace: one stream, scoped by the page (a message sent from a
- * module's page is about that module), with Alpha's threads as cards that open into their own
- * view. The companion is the same stream. Since 13 Oct (Q42 section 8, features from pull request
+ * The conversation beside the workspace. Since 18 Oct (harness §7, slice 3): the person speaks
+ * in Home, the one conversation; a sentence that is work opens a work item (a card under the
+ * sentence, with the item's one line and Open) or continues one; each item has its own box.
+ * A message sent from a module's page is routed with that module as its scope. Since 13 Oct (Q42 section 8, features from pull request
  * #5): a conversation picker always under the panel's header, a line under each of Alpha's replies
  * saying how long it took and how many steps it ran, and Retry on a turn that didn't finish.
  * Since 16 Oct (slice 1 of `docs/design/conversation-proposal.md`): a reply is one element
@@ -10,8 +11,7 @@
  */
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { moduleWords, say } from "../core/client";
-import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Thread, Turn, Workflow, Agent } from "../core/client";
-import { when } from "../modules/format";
+import type { Action, Ask, Client, Convo, JournalEntry, ModuleCard, Question, Turn, Workflow, Agent } from "../core/client";
 import { ActionCard } from "../shell/ActionCard";
 import { RenameBox, useConversationActions } from "./ConversationActions";
 import { useHoldToSend, useSpeech } from "../shell/voice";
@@ -20,12 +20,34 @@ import { ChevronRight, ChevronDown, PlusIcon } from "../ui/icons";
 import { AskCard, AskGroup, AskedRow, groupAsks } from "./AskCard";
 import { Composer } from "./Composer";
 import { Reply, Said, replyKey, turnKey } from "./Reply";
-import { ThreadRow } from "./ThreadRow";
 export { AskCard, AskGroup, groupAsks } from "./AskCard";
 import { retryOf } from "./turnWords";
 export { provenance, retryOf, withoutCarded } from "./turnWords";
 
-const CONVO_STATE: Record<string, string> = { open: "live", working: "working", waiting: "needs you", done: "closed" };
+export const CONVO_STATE: Record<string, string> = { open: "open", working: "working", needs_you: "needs you", done: "done", stopped: "stopped" };
+
+/** A work item's card where its sentence was said in Home (harness §7): the sentence, then
+ *  the item's title, state and one line, and Open into the item's own conversation. */
+export function ItemCard({ entry, item, onOpen }: { entry: JournalEntry; item: Convo | null; onOpen: () => void }) {
+  const sentence = typeof entry.data.sentence === "string" ? entry.data.sentence : "";
+  const state = item?.state ?? "open";
+  const title = item?.title ?? entry.text.replace(/^Started a work item for ".*?": /, "").replace(/^Sent ".*?" to /, "").replace(/\.$/, "");
+  const line = item?.last_line ?? (state === "working" ? "Working…" : "");
+  return (
+    <>
+      {sentence ? <Said entry={{ ...entry, kind: "said", actor: "person", text: sentence }} /> : null}
+      <button type="button" className="itemcard" onClick={onOpen} aria-label={`${title}: open the work item`}>
+        <span className={`convchip__dot convchip__dot--${state}`} aria-hidden="true" />
+        <span className="itemcard__body">
+          <span className="itemcard__title">{title}</span>
+          <span className="faint itemcard__line">{line || (entry.data.opened ? "Started" : "Continued here")}</span>
+        </span>
+        <span className={`badge badge--${state === "needs_you" ? "waiting" : state === "working" ? "running" : "good"}`}>{CONVO_STATE[state] ?? state}</span>
+        <span className="itemcard__open">open</span>
+      </button>
+    </>
+  );
+}
 
 /** The questions the workflow page asks before its build: each with its choices, Alpha's pick
  *  selected, and a line to say it another way. What is chosen goes with the yes. */
@@ -261,16 +283,15 @@ export function Conversation({
   focusConversation,
 }: ConversationProps & { layout: "panel" | "page"; onClose?: () => void }) {
   const [turns, setTurns] = useState<JournalEntry[]>([]);
-  const [threads, setThreads] = useState<Thread[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [asks, setAsks] = useState<Ask[]>([]);
   const [pending, setPending] = useState<Turn | null>(null);
   const [text, setText] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [threadView, setThreadView] = useState<(Thread & { journal: JournalEntry[] }) | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [convos, setConvos] = useState<Convo[]>([]);
+  const activeConvo = convos.find((c) => c.id === active) ?? null;
   const [picking, setPicking] = useState(false);
   const [renamingConvo, setRenamingConvo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -284,7 +305,6 @@ export function Conversation({
       .conversation(module?.id ?? null, active)
       .then((c) => {
         setTurns(c.turns);
-        setThreads(c.threads);
         setWorkflows(c.workflows ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
@@ -305,25 +325,17 @@ export function Conversation({
   }, [client]);
   useEffect(() => {
     setActive(null);
-    setThreadView(null);
   }, [module?.id]);
-  // A conversation opened from elsewhere (the companion's Open).
+  // A conversation or a work item opened from elsewhere (the companion's Open, Home's Open on
+  // an item's card): its own conversation, with its own box.
   useEffect(() => {
     if (!focusConversation) return;
-    setThreadView(null);
     setActive(focusConversation.id);
   }, [focusConversation]);
-  // A thread opened from elsewhere (Home's Open on a build) shows here with each step.
   useEffect(() => {
     if (!focusThread) return;
-    void client.thread(focusThread.id).then(setThreadView).catch(() => undefined);
-  }, [client, focusThread]);
-  // While a thread view is open and Alpha works in it, its steps keep arriving.
-  useEffect(() => {
-    if (!threadView || threadView.state !== "working") return;
-    const id = window.setInterval(() => void client.thread(threadView.id).then(setThreadView).catch(() => undefined), 4000);
-    return () => window.clearInterval(id);
-  }, [client, threadView?.id, threadView?.state]);
+    setActive(focusThread.id);
+  }, [focusThread]);
   // Alpha works on its own too (a build, a folder that changed): `version` moves when the
   // window's one poll sees a change (core/changes.ts); the panel keeps no clock of its own.
   // The view follows the newest words unless the person scrolled up to read something.
@@ -331,7 +343,7 @@ export function Conversation({
   const content = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (stick.current) body.current?.scrollTo?.({ top: body.current.scrollHeight });
-  }, [turns, pending, threadView]);
+  }, [turns, pending]);
   // The words grow inside the reply element now, not through this state: the view follows
   // the content's height instead, so the newest words stay in view unless the person scrolled up.
   useEffect(() => {
@@ -367,17 +379,12 @@ export function Conversation({
       setText("");
       setError(null);
       setElapsed(0);
-      const threadId = threadView?.id ?? null;
-      setTurns((all) => (threadId ? all : [...all, { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text: clean, data: {}, module: null, thread: null, entity_ids: [], source: null }]));
+      setTurns((all) => [...all, { id: `local-${Date.now()}`, at: new Date().toISOString(), kind: "said", actor: "person", text: clean, data: {}, module: null, thread: null, entity_ids: [], source: null }]);
       try {
-        // The panel always speaks in a conversation of its own: the page's live one, or a new one.
-        let conversation = threadId ? null : active;
-        if (!threadId && !conversation) {
-          conversation = (await client.newConversation(module?.id ?? null, clean.slice(0, 60))).id;
-          setActive(conversation);
-        }
-        const final = await client.askAndWait(clean, { module: threadId ? null : (module?.id ?? null), thread: threadId, conversation }, setPending, 500);
-        if (final.conversation && !threadId) setActive(final.conversation.id);
+        // In Home the core routes the sentence (an answer here, a work item opened or
+        // continued; the card appears under the sentence); in an item, the item's own turn.
+        const inHome = !activeConvo || activeConvo.kind === "home";
+        const final = await client.askAndWait(clean, { module: module?.id ?? null, conversation: inHome ? null : active }, setPending, 500);
         if (final.state === "failed") setError(final.reply ?? "That didn't work.");
       } catch (e) {
         // The core stopped answering (or lost the turn): the words come back to the box.
@@ -387,11 +394,10 @@ export function Conversation({
         sending.current = false;
         setPending(null);
         load();
-        if (threadId) void client.thread(threadId).then(setThreadView).catch(() => undefined);
         onChanged();
       }
     },
-    [client, module, pending, threadView, active, load, onChanged],
+    [client, module, pending, active, activeConvo, load, onChanged],
   );
 
   // A sentence from the window: sent at once (quick entry), unless a turn is already running,
@@ -474,7 +480,7 @@ export function Conversation({
     }
   };
 
-  const openAsks = asks.filter((a) => (threadView ? a.thread === threadView.id : active ? a.thread === active : a.thread === null));
+  const openAsks = asks.filter((a) => (active ? a.thread === active : a.thread === null));
   // One element per turn, from the first words to the journal (slice 1 of the conversation
   // proposal, 16 Oct): the running turn is the last item of the same list as the turns, keyed
   // by the sentence it answers, so when the reply lands the element stays and only its words
@@ -522,6 +528,13 @@ export function Conversation({
       items.push({ at: stamp(e.at), node: <Said key={e.id} entry={e} onEdit={!pending ? () => edit(e.text) : undefined} /> });
       continue;
     }
+    if (e.kind === "did") {
+      // a sentence that went to a work item: the card (harness §7)
+      const routed = typeof e.data.routed === "string" ? e.data.routed : null;
+      if (!routed) continue;
+      items.push({ at: stamp(e.at), node: <ItemCard key={e.id} entry={e} item={convos.find((c) => c.id === routed) ?? null} onOpen={() => setActive(routed)} /> });
+      continue;
+    }
     const again = !pending ? retryOf(e, turns) : null;
     items.push({ at: stamp(e.at), node: <Reply key={replyKey(e)} entry={e} asks={openAsks} onRetry={again ? () => void send(again) : undefined} /> });
   }
@@ -531,51 +544,41 @@ export function Conversation({
     // A failed attempt is history once Alpha proposed the same thing again.
     .filter((a) => a.state !== "failed" || !actions.some((b) => b.id !== a.id && b.title === a.title && b.created_at > a.created_at))
     .forEach((a) => items.push({ at: stamp(a.created_at), node: <ActionCard key={`act-${a.id}`} action={a} client={client} compact onDecided={decided} /> }));
-  threads.filter((t) => t.kind !== "chat").forEach((t) => items.push({ at: stamp(t.created_at), node: <ThreadRow key={`th-${t.id}`} thread={t} onOpen={() => void client.thread(t.id).then(setThreadView)} /> }));
   items.sort((a, b) => a.at - b.at);
   const timeline = [...items.map((it) => it.node), pendingItem];
-  const chats = convos.filter((c) => c.kind === "chat");
-  const activeConvo = chats.find((c) => c.id === active) ?? null;
+  const home = convos.find((c) => c.kind === "home") ?? null;
+  const workItems = convos.filter((c) => c.kind === "work");
   const convoActions = useConversationActions(client, (what) => {
-    if (what === "deleted") {
-      setActive(null);
-      setThreadView(null);
-    }
+    if (what === "deleted") setActive(null);
     load();
     onChanged();
   });
 
   return (
     <aside className={layout === "page" ? "assist assist--page" : "assist"} aria-label="Assistant">
-      {threadView ? (
-        <div className="assist__head">
-          <button type="button" className="assist__back" onClick={() => setThreadView(null)}>
-            ‹ Back
+      <div className="assist__head">
+        {activeConvo && activeConvo.kind === "work" && home ? (
+          <button type="button" className="assist__back" onClick={() => setActive(home.id)}>
+            ‹ Home
           </button>
-          <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>{threadView.title}</b>
-            <div className="assist__ctx">Thread · {threadView.state === "open" ? "open" : threadView.state}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="assist__head">
+        ) : (
           <div className="assist__mark" aria-hidden="true">
             A
           </div>
-          <div style={{ minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>{activeConvo ? activeConvo.title : "Assistant"}</b>
-            <div className="assist__ctx">{activeConvo ? `${activeConvo.scope} · ${CONVO_STATE[activeConvo.state] ?? activeConvo.state}` : scopeName}</div>
-          </div>
-          <span style={{ marginLeft: "auto" }} />
-          {activeConvo && activeConvo.state !== "working" ? (
-            <Button size="sm" variant="ghost" title="Close this conversation; what it learned stays" onClick={() => void client.closeConversation(activeConvo.id).then(() => { setActive(null); load(); onChanged(); })}>
-              Done
-            </Button>
-          ) : null}
-          {layout === "panel" ? <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onClose?.()} /> : null}
+        )}
+        <div style={{ minWidth: 0 }}>
+          <b style={{ fontWeight: 500 }}>{activeConvo ? activeConvo.title : "Assistant"}</b>
+          <div className="assist__ctx">{activeConvo?.kind === "home" ? `The one conversation · ${scopeName}` : activeConvo ? `Work item · ${activeConvo.scope} · ${CONVO_STATE[activeConvo.state] ?? activeConvo.state}` : scopeName}</div>
         </div>
-      )}
-      {layout === "panel" && !threadView ? (
+        <span style={{ marginLeft: "auto" }} />
+        {activeConvo && activeConvo.kind === "work" && activeConvo.state !== "working" && activeConvo.state !== "done" && activeConvo.state !== "stopped" ? (
+          <Button size="sm" variant="ghost" title="This item is done; what it learned stays" onClick={() => void client.closeConversation(activeConvo.id).then(() => { load(); onChanged(); })}>
+            Done
+          </Button>
+        ) : null}
+        {layout === "panel" ? <IconButton label="Close the assistant" icon={<ChevronRight />} onClick={() => onClose?.()} /> : null}
+      </div>
+      {layout === "panel" ? (
         // the conversation picker (section 8a): always here, so nothing moves when a second one starts
         <div className="convpick">
           {renamingConvo && activeConvo ? (
@@ -587,29 +590,37 @@ export function Conversation({
             label="Conversations"
             align="start"
             trigger={
-              <button type="button" className="convpick__btn" aria-label={`Conversation: ${activeConvo ? activeConvo.title : "new"}. Pick another`}>
-                {activeConvo ? <span className={`convchip__dot convchip__dot--${activeConvo.state}`} aria-hidden="true" /> : null}
-                <span className="convpick__title">{activeConvo ? activeConvo.title : "New conversation"}</span>
+              <button type="button" className="convpick__btn" aria-label={`Conversation: ${activeConvo ? activeConvo.title : "Home"}. Pick another`}>
+                {activeConvo && activeConvo.kind === "work" ? <span className={`convchip__dot convchip__dot--${activeConvo.state}`} aria-hidden="true" /> : null}
+                <span className="convpick__title">{activeConvo ? activeConvo.title : "Home"}</span>
                 <ChevronDown size={13} aria-hidden="true" />
               </button>
             }
           >
             <div className="colmenu convpick__list">
-              <div className="menu__head">Live conversations</div>
-              {chats.map((c) => (
-                <button key={c.id} type="button" className={`menu__item convpick__item${c.id === active ? " convpick__item--on" : ""}`} aria-current={c.id === active ? "true" : undefined} onClick={() => { setPicking(false); setThreadView(null); setActive(c.id); }}>
+              {home ? (
+                <button type="button" className={`menu__item convpick__item${home.id === active ? " convpick__item--on" : ""}`} aria-current={home.id === active ? "true" : undefined} onClick={() => { setPicking(false); setActive(home.id); }}>
+                  <span className="convpick__words">
+                    <span className="convpick__title">Home</span>
+                    <span className="faint">The one conversation</span>
+                  </span>
+                </button>
+              ) : null}
+              <div className="menu__head">Work items</div>
+              {workItems.map((c) => (
+                <button key={c.id} type="button" className={`menu__item convpick__item${c.id === active ? " convpick__item--on" : ""}`} aria-current={c.id === active ? "true" : undefined} onClick={() => { setPicking(false); setActive(c.id); }}>
                   <span className={`convchip__dot convchip__dot--${c.state}`} aria-hidden="true" />
                   <span className="convpick__words">
                     <span className="convpick__title">{c.title}</span>
                     <span className="faint">
-                      {c.scope}
-                      {c.state === "waiting" ? " · needs you" : ""}
+                      {CONVO_STATE[c.state] ?? c.state}
+                      {c.last_line ? ` · ${c.last_line}` : ""}
                     </span>
                   </span>
                 </button>
               ))}
-              {!chats.length ? <p className="faint convpick__none">None yet: what you say starts one.</p> : null}
-              {activeConvo ? (
+              {!workItems.length ? <p className="faint convpick__none">None yet: work you ask for opens one.</p> : null}
+              {activeConvo && activeConvo.kind === "work" ? (
                 <>
                   <div className="menu__head">This conversation</div>
                   <button type="button" className="menu__item" onClick={() => { setPicking(false); setRenamingConvo(true); }}>
@@ -623,51 +634,21 @@ export function Conversation({
             </div>
           </Popover>
           )}
-          <Button size="sm" variant="ghost" onClick={() => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setThreadView(null); setActive(c.id); load(); })}>
+          <Button size="sm" variant="ghost" title="A new work item; its first sentence names it" onClick={() => void client.newConversation(module?.id ?? null, "New conversation").then((c) => { setActive(c.id); load(); })}>
             <PlusIcon size={14} aria-hidden="true" /> New
           </Button>
         </div>
       ) : null}
       <div className="assist__body" ref={body} onScroll={onScroll}>
         <div className="assist__content" ref={content}>
-        {threadView ? (
-          <>
-            {[
-              ...threadView.journal.map((e) =>
-                e.kind === "said" ? (
-                  <Said key={e.id} entry={e} />
-                ) : e.kind === "replied" || e.kind === "failed" ? (
-                  <Reply key={replyKey(e)} entry={e} />
-                ) : (
-                  <div key={e.id} className="faint thread__step">
-                    {when(e.at)} · {e.text}
-                  </div>
-                ),
-              ),
-              pendingItem,
-            ]}
-            {!threadView.journal.length ? <p className="muted">Nothing in this thread yet. What you say here stays here, out of the main conversation.</p> : null}
-            {!pending
-              ? groupAsks(openAsks).map((group) =>
-                  group.length > 1 ? (
-                    <AskGroup key={group[0].id} asks={group} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                  ) : (
-                    <AskCard key={group[0].id} ask={group[0]} client={client} onAnswered={(turn) => { load(); void follow(turn); }} />
-                  ),
-                )
-              : null}
-          </>
-        ) : (
-          <>
-            {module ? (
-              <div className="intro">
-                I'm looking at <b>{moduleWords(module)}</b>{module.children?.length ? " and what it holds" : ""}. Ask about it, tell me to add or change something, or log to it.
-              </div>
-            ) : null}
-            {!turns.length && !module ? <div className="intro">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder".</div> : null}
-            {timeline}
-          </>
-        )}
+        {module && activeConvo?.kind !== "work" ? (
+          <div className="intro">
+            I'm looking at <b>{moduleWords(module)}</b>{module.children?.length ? " and what it holds" : ""}. Ask about it, tell me to add or change something, or log to it.
+          </div>
+        ) : null}
+        {!turns.length && !module && activeConvo?.kind !== "work" ? <div className="intro">Tell me what to keep track of, ask about anything I hold, or say what to look up. "Log two eggs", "find back-end roles on We Work Remotely", "read my job search folder". Work that stands gets a card here and a conversation of its own.</div> : null}
+        {!turns.length && activeConvo?.kind === "work" ? <p className="muted">Nothing in this item yet. What you say here stays here, out of Home.</p> : null}
+        {timeline}
         {loadError ? <Trouble onRetry={load}>Couldn't load the conversation: {loadError}</Trouble> : null}
         {convoActions.problem ? (
           <p className="notice" role="alert">
@@ -689,7 +670,7 @@ export function Conversation({
         onKeyDown={key}
         onFiles={(files) => void addFiles(files)}
         canSend={Boolean(text.trim()) && !pending}
-        placeholder={threadView ? "Reply in this thread" : "Say what to do, ask, or log something…"}
+        placeholder={activeConvo?.kind === "work" ? `Say more about ${activeConvo.title}` : "Say what to do, ask, or log something…"}
         inputRef={input}
         mentionable={mentionable}
         onMention={mention}

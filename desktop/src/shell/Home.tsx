@@ -5,12 +5,12 @@
  */
 import { useEffect, useState } from "react";
 import { AskCard, AskGroup, WorkflowCard } from "../assistant/AssistantPanel";
-import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem } from "../core/client";
+import type { Ask, Client, Home as HomeData, JournalEntry, NeedItem, Thread } from "../core/client";
 import { dayLabel, when } from "../modules/format";
 import { ActionCard } from "./ActionCard";
 import type { Surface } from "./Rail";
 import { Badge, Button, Confirm, IconButton } from "../ui";
-import { ArrowRight, Check, X, Eye } from "../ui/icons";
+import { ArrowRight, X } from "../ui/icons";
 import { ModuleGlyph } from "./moduleIcons";
 import { say } from "../core/client";
 
@@ -176,6 +176,23 @@ function Need({ item, client, onDone }: { item: NeedItem; client: Client; onDone
   );
 }
 
+/** A work item's state in words (harness §7). */
+const ITEM_STATE: Record<string, string> = { open: "Open", working: "Working", needs_you: "Needs you", done: "Done", stopped: "Stopped" };
+
+/** Home's lanes (harness §7): Needs you · Working · Done today, newest first in each; the
+ *  core sends the items not over and the ones done or stopped today. */
+export function laneThreads(items: Thread[], now = new Date()): [string, Thread[]][] {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const lanes: Record<string, Thread[]> = { "Needs you": [], Working: [], "Done today": [] };
+  items.forEach((t) => {
+    const over = t.state === "done" || t.state === "stopped";
+    if (t.state === "needs_you") lanes["Needs you"].push(t);
+    else if (!over) lanes.Working.push(t);
+    else if (new Date(t.updated_at).getTime() >= midnight) lanes["Done today"].push(t);
+  });
+  return Object.entries(lanes).filter(([, rows]) => rows.length);
+}
+
 /** The kinds of Scout's picks, in words (Q48). */
 const PICK_WORDS: Record<string, string> = { coming_up: "Coming up", pattern: "A pattern", link: "Links", follow_up: "Follow-up", by_hand: "By hand" };
 
@@ -337,40 +354,35 @@ export function Home({ client, version, onGo, onChanged, onAsk, onNew, onOpenThr
         <div className="section">
           <div className="section__head">
             <h2>Alpha is working on</h2>
+            <span className="faint">One card per piece of work; the steps are behind Open</span>
           </div>
-          <div className="card list">
-            {home.threads.map((t) => (
-              <div key={t.id} className="item item--thread">
-                <span className={`badge badge--${t.state === "waiting" ? "waiting" : "running"}`}>{t.state === "working" ? "Working" : t.state === "waiting" ? "Needs you" : "Open"}</span>
-                <div className="item__body">
-                  <b>{t.title}</b>
-                  <div className="item__sub">
-                    {t.state === "working" ? `${t.step_count ?? 0} steps so far` : t.state === "waiting" ? "Waiting for your answer above" : "Started"} · started {when(t.created_at)}
-                    {t.last_at && t.state === "working" ? ` · last ${when(t.last_at)}` : ""}
-                  </div>
-                  {t.state === "working" && (t.live?.doing || t.live?.thought) ? (
-                    <div className="thread__now">
-                      <span className="working__pulse" aria-hidden="true" />
-                      <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
-                      {t.live?.thought ? <span className="faint"> · {t.live.thought.slice(0, 140)}</span> : null}
+          <div className="lanes">
+            {laneThreads(home.threads).map(([lane, rows]) => (
+              <section key={lane} aria-label={lane}>
+                <div className="lane__head">{lane}</div>
+                <div className="card list">
+                  {rows.map((t) => (
+                    <div key={t.id} className="item item--thread">
+                      <span className={`badge badge--${t.state === "needs_you" ? "waiting" : t.state === "working" ? "running" : "good"}`}>{ITEM_STATE[t.state] ?? t.state}</span>
+                      <div className="item__body">
+                        <b>{t.title}</b>
+                        {t.state === "working" && (t.live?.doing || t.live?.thought) ? (
+                          <div className="thread__now">
+                            <span className="working__pulse" aria-hidden="true" />
+                            <span className="shimmer">{t.live?.doing ?? "Thinking"}</span>
+                          </div>
+                        ) : (
+                          <div className="item__sub">{t.last_line ?? (t.state === "working" ? "Starting…" : t.state === "needs_you" ? "Waiting for your answer above" : "Started")}</div>
+                        )}
+                        <div className="item__sub faint">started {when(t.created_at)}{t.last_at && t.last_at !== t.created_at ? ` · last ${when(t.last_at)}` : ""}</div>
+                      </div>
+                      <Button size="sm" onClick={() => onOpenThread(t.id)}>
+                        Open
+                      </Button>
                     </div>
-                  ) : null}
-                  {t.steps?.length ? (
-                    <ul className="stages thread__live" aria-label="What Alpha did lately">
-                      {t.steps.map((s, i) => (
-                        <li key={`${s.at}-${i}`} className={s.kind === "failed" ? "notice" : ""}>
-                          {s.kind === "failed" ? <X size={12} aria-label="failed" /> : s.kind === "saw" ? <Eye size={12} aria-label="read" /> : <Check size={12} aria-label="done" />} {s.text}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : t.state === "working" ? (
-                    <div className="item__sub">Starting…</div>
-                  ) : null}
+                  ))}
                 </div>
-                <Button size="sm" onClick={() => onOpenThread(t.id)}>
-                  Open
-                </Button>
-              </div>
+              </section>
             ))}
           </div>
         </div>

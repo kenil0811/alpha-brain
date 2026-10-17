@@ -384,6 +384,12 @@ Stop and a new sentence.
 **What this replaces:** `conversations.py`'s conversations-as-topics with a judge over them, the
 build thread as a separate kind, and the agent threads: every one of them is a work item.
 
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice3.md`) | |
+|---|---|
+| Built | Slice 3: Home is one thread (`kind home`), every other thread a work item (`kind work`) with its own session, a state (open, working, needs_you, done, stopped), one plain line (`last_line`, its card) and its own box. Routing in `runtime/conversations.py`: structure first (an item's own box, a card's reply, `@item`, `@agent` → the agent's own item, a short answer when one item asked), then one judgement over the roster (title, state, line, what it touches, the person's recent corrections) answering answer here / continue X / new item, a card when unsure; every decision a `did` line in Home with `routed`; a moved turn is a counted correction. The pre-pack carries WORK ITEMS to Home's turns. An agent made in an item makes that item its own (a watch and its runs are one item); a scheduled run is under it; built-in agents' items stay on their pages. One turn at a time per thread (a sentence into a busy item waits for the boundary). Cards in Home, lanes by state (Needs you · Working · Done today · Earlier) on Home and the Assistant page; each item opens into its own conversation. |
+| Differs | "Split" is not an answer: several things in one sentence are one new item, whose own session does them (§10's "never two items for one sentence"). Corrections typed in words are kept as standing instructions through `world_remember` (the turn's rule 11), not in an `ALPHA.md`. A sentence into a busy item waits for the running turn rather than being read at its next tool boundary. The Mac notification and several items folding into one Home line are not built. |
+| Not built | Agents' runs as resumed sessions (a run starts from its brief and journal, Q21); the labelled set of Kenil's real Home sentences as the judgement's test (the journal's `misroute` count is the measure until then). |
+
 ## 8. When Alpha asks
 
 Claude Code's gate is a permission prompt. Alpha's is the same, answered in the window or in
@@ -445,6 +451,12 @@ Less, not more. The rail and the look stay as they are (Kenil, 1 Oct). What chan
   Sherlock's suggestions live on their pages and on the module's notes, never in the timeline.
 - **Settings** gains the folders Alpha may reach and the whole-Mac toggle; nothing else technical.
 - The conversation stays as built on 16 October; §7 says what threads become.
+
+| Status (18 Oct 2026; detail in `../log/2026-10-18-harness-slice3.md`) | |
+|---|---|
+| Built | One work item per request as a card in Home (the sentence, the item's title, state and one line, Open); "Alpha is working on" is lanes by state with the steps behind Open; the Assistant page lists Home and the items by lane; the panel speaks in Home and in an item's own box. |
+| Differs | The module page, the text pages for skills and agents (slice 2b did skills), Needs you narrowed to cards and questions, Settings' folders: slice 6. |
+| Not built | The engine's step lines rewritten by code into plain words everywhere (the step words exist for the hands; the fold is the item). |
 
 ## 11. Walls kept in code
 
@@ -645,6 +657,8 @@ Kenil's answers of 17 October 2026, each a decision (numbered on from Q53):
 | Q72 | A new design document (this one); the old kept as history. |
 | Q73 | First users: requirements shared, modules built by Kenil, shipped inside the app (§15). |
 | Q74 | The form of a skill (§6.1): by reading, by script, or a pipeline; mechanical steps are scripts from the first run, judgement stays with the model or at a marked point inside a script; promotion from reading to script is automatic after a shadow run, with Undo and a line; demotion when a script cannot be repaired; the person's sentence "do this exactly the same every time" binds; the form shown in the window; packages installed in the module's environment without asking, in the sandbox, journaled. |
+| Q75 | 18 Oct 2026, slice 3 agreed as written ("Yes to slice 3 as written: keep approvals at their card, every item as a card, and the session fingerprint fix"): an approval is given only at its card or in its item, never by "go ahead" in Home; every work item is a card in Home (Done today folds them); a conversation's session is resumed only when it was made with the same tools (the fingerprint kept with it), after the 17 Oct failure of a session resumed across the change of the hands. |
+| Q76 | 18 Oct 2026, found building slice 3: an agent made inside a work item makes that item its own (a watch and its runs are one item, never two: the journey's first run opened two); the built-in agents' own items live on their pages, never on Home or the roster (§10); "split" is not one of the coordinator's answers (one sentence, one item). |
 
 Open (to decide with Kenil as the slices are proposed): §7's "go ahead" in Home when exactly one
 approval is pending; the density of cards in Home (all items, or only what needs him); where

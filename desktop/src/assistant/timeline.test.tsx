@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Ask, Client, Convo, JournalEntry, Thread } from "../core/client";
+import type { Ask, Client, Convo, JournalEntry } from "../core/client";
 import { AskCard, pickWords } from "./AskCard";
 import { Conversation } from "./AssistantPanel";
 
 const entry = (id: string, kind: string, text: string, at: string, data: Record<string, unknown> = {}): JournalEntry => ({ id, at, kind, actor: kind === "said" ? "person" : "alpha", text, data, module: null, thread: "c_1", entity_ids: [], source: null });
-const convo: Convo = { id: "c_1", title: "Food", kind: "chat", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-16T09:00:00Z", updated_at: "2026-10-16T09:00:00Z" };
+const convo: Convo = { id: "c_1", title: "Food", kind: "work", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-16T09:00:00Z", updated_at: "2026-10-16T09:00:00Z" };
 const ask = (id: string, text: string, options: string[], over: Partial<Ask> = {}): Ask => ({ id, text, at: "2026-10-16T09:00:02Z", options, thread: "c_1", module: null, turn: "s_1", ...over });
 
 describe("the question card", () => {
@@ -37,27 +37,31 @@ describe("the question card", () => {
 });
 
 describe("one timeline", () => {
-  it("puts the question where it was asked, folds an answered one, and places a thread's row at its time", async () => {
+  it("puts the question where it was asked, folds an answered one, and places a work item's card at its time", async () => {
     const turns = [
       entry("s_1", "said", "log my lunch", "2026-10-16T09:00:00Z"),
       entry("r_1", "replied", "What did you have?", "2026-10-16T09:00:01Z", { turn: "s_1", duration_ms: 2000, num_turns: 1 }),
       entry("q_1", "asked", "What did you have for lunch?", "2026-10-16T09:00:02Z", { turn: "s_1", options: [], derived: true }),
+      // a sentence that opened a work item: Home keeps the routing line, shown as the card
+      entry("d_1", "did", 'Started a work item for "watch We Work Remotely": Watch We Work Remotely.', "2026-10-16T09:02:00Z", { routed: "t_1", sentence: "watch We Work Remotely", opened: true }),
       entry("s_2", "said", "a salad", "2026-10-16T09:05:00Z"),
       entry("r_2", "replied", "Logged a salad.", "2026-10-16T09:05:03Z", { turn: "s_2", duration_ms: 3000, num_turns: 2 }),
       // asked while the reply was still being written: it still shows after the reply
       entry("q_2", "asked", "Dressing?", "2026-10-16T09:05:01Z", { turn: "s_2", options: ["Olive oil", "None"] }),
     ];
-    const thread: Thread = { id: "t_1", title: "Build: Lunch tracker", kind: "build", state: "working", module: null, created_at: "2026-10-16T09:02:00Z", updated_at: "2026-10-16T09:02:00Z", step_count: 3 } as Thread;
+    const item: Convo = { id: "t_1", title: "Watch We Work Remotely", kind: "work", state: "working", module: null, scope: "General", question: null, last: null, last_line: "Reading the board…", last_at: "2026-10-16T09:02:00Z", updated_at: "2026-10-16T09:02:00Z" };
+    const home: Convo = { ...convo, kind: "home", title: "Home" };
     const client = {
-      conversation: vi.fn().mockResolvedValue({ turns, threads: [thread], actions: [], workflows: [], asks: [ask("q_2", "Dressing?", ["Olive oil", "None"], { turn: "s_2", at: "2026-10-16T09:05:04Z" })], conversations: [convo], conversation: convo }),
-      newConversation: vi.fn(), agents: vi.fn().mockResolvedValue([]), thread: vi.fn().mockResolvedValue({ ...thread, journal: [] }),
+      conversation: vi.fn().mockResolvedValue({ turns, threads: [], actions: [], workflows: [], asks: [ask("q_2", "Dressing?", ["Olive oil", "None"], { turn: "s_2", at: "2026-10-16T09:05:04Z" })], conversations: [home, item], conversation: home }),
+      newConversation: vi.fn(), agents: vi.fn().mockResolvedValue([]),
     } as unknown as Client;
     const { container } = render(<Conversation layout="page" client={client} scopeName="Assistant" module={null} version={0} onChanged={vi.fn()} draft={null} onDraftTaken={vi.fn()} />);
     await screen.findByText("Dressing?");
-    const kinds = [...container.querySelectorAll(".assist__content > *")].map((el) => (el.classList.contains("said") ? "said" : el.classList.contains("reply") ? "reply" : el.classList.contains("asked") ? "asked" : el.classList.contains("threadrow") ? "thread" : el.classList.contains("askcard") ? "ask" : el.classList.contains("intro") ? "intro" : el.className));
-    expect(kinds).toEqual(["said", "reply", "asked", "thread", "said", "reply", "ask"]);
+    const kinds = [...container.querySelectorAll(".assist__content > *")].map((el) => (el.classList.contains("said") ? "said" : el.classList.contains("reply") ? "reply" : el.classList.contains("asked") ? "asked" : el.classList.contains("itemcard") ? "item" : el.classList.contains("askcard") ? "ask" : el.classList.contains("intro") ? "intro" : el.className));
+    expect(kinds).toEqual(["said", "reply", "asked", "said", "item", "said", "reply", "ask"]);
     expect(within(container.querySelector(".asked") as HTMLElement).getByText("What did you have for lunch?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Build: Lunch tracker: open the thread" })).toBeInTheDocument();
-    expect(container.querySelector(".threadrow .badge")?.textContent).toBe("Working");
+    const card = screen.getByRole("button", { name: "Watch We Work Remotely: open the work item" });
+    expect(card.querySelector(".badge")?.textContent).toBe("working");
+    expect(card.textContent).toContain("Reading the board…");
   });
 });

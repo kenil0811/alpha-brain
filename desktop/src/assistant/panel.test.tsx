@@ -4,7 +4,7 @@ import type { Client, Convo, JournalEntry, Turn } from "../core/client";
 import { Conversation, provenance, retryOf } from "./AssistantPanel";
 
 const entry = (id: string, kind: string, text: string, data: Record<string, unknown> = {}): JournalEntry => ({ id, at: "2026-10-13T09:00:00Z", kind, actor: kind === "said" ? "person" : "alpha", text, data, module: null, thread: "c_1", entity_ids: [], source: null });
-const convo = (id: string, title: string, over: Partial<Convo> = {}): Convo => ({ id, title, kind: "chat", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-13T09:00:00Z", updated_at: "2026-10-13T09:00:00Z", ...over });
+const convo = (id: string, title: string, over: Partial<Convo> = {}): Convo => ({ id, title, kind: "work", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-13T09:00:00Z", updated_at: "2026-10-13T09:00:00Z", ...over });
 
 function core(turns: JournalEntry[], conversations: Convo[]) {
   return {
@@ -35,13 +35,13 @@ describe("each of Alpha's turns says what it was", () => {
 
 describe("the assistant panel", () => {
   it("keeps the picker in its place with one conversation, and switches from it", async () => {
-    const client = core([entry("s", "said", "hi"), entry("r", "replied", "Hello.", { duration_ms: 3000, num_turns: 2 })], [convo("c_1", "Morning plan"), convo("c_2", "Deals", { state: "waiting", scope: "Deal Tracker" })]);
+    const client = core([entry("s", "said", "hi"), entry("r", "replied", "Hello.", { duration_ms: 3000, num_turns: 2 })], [convo("c_1", "Morning plan"), convo("c_2", "Deals", { state: "needs_you", scope: "Deal Tracker", last_line: "Which broker?" })]);
     panel(client);
     const pick = await screen.findByRole("button", { name: "Conversation: Morning plan. Pick another" });
     expect(screen.getByText("3 s · 2 steps")).toBeInTheDocument();
     fireEvent.click(pick);
     const list = await screen.findByRole("dialog", { name: "Conversations" });
-    expect(within(list).getByText("Deal Tracker · needs you")).toBeInTheDocument();
+    expect(within(list).getByText("needs you · Which broker?")).toBeInTheDocument();
     fireEvent.click(within(list).getByText("Deals"));
     await waitFor(() => expect(client.conversation).toHaveBeenLastCalledWith(null, "c_2"));
   });

@@ -1,17 +1,31 @@
 /**
- * The Assistant page: the conversation at full width, with every conversation Alpha has had
- * (across modules) down the left, so the person is not confined to the side panel (Kenil,
- * 9 Oct 2026). The same Conversation as the panel; a conversation opened here is in the
- * address (#/assistant/<id>). A right-click on one renames or deletes it (13 Oct, slice 2 G1, C9).
+ * The Assistant page: Home, the one conversation, at full width, with the work items down the
+ * left by state (Needs you · Working · Done today · Earlier; harness §7, 18 Oct 2026), so the
+ * person is not confined to the side panel (Kenil, 9 Oct 2026). The same Conversation as the
+ * panel; an item opened here is in the address (#/assistant/<id>) and has its own box. A
+ * right-click on an item renames or deletes it (13 Oct, slice 2 G1, C9).
  */
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useEffect, useMemo, useState } from "react";
 import type { Client, Convo } from "../core/client";
 import { when } from "../modules/format";
 import { Button } from "../ui";
-import { Conversation } from "./AssistantPanel";
+import { CONVO_STATE, Conversation } from "./AssistantPanel";
 import { RenameBox, useConversationActions } from "./ConversationActions";
 import { say } from "../core/client";
+
+/** The lanes of Home (harness §7): Needs you · Working · Done today · Earlier (done or stopped
+ *  before today), each newest first; an open item (between turns) sits with the working ones. */
+export function laneItems(items: Convo[], now = new Date()): [string, Convo[]][] {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const lanes: Record<string, Convo[]> = { "Needs you": [], Working: [], "Done today": [], Earlier: [] };
+  items.forEach((c) => {
+    const over = c.state === "done" || c.state === "stopped";
+    const lane = c.state === "needs_you" ? "Needs you" : !over ? "Working" : new Date(c.updated_at).getTime() >= midnight ? "Done today" : "Earlier";
+    lanes[lane].push(c);
+  });
+  return Object.entries(lanes).filter(([, rows]) => rows.length);
+}
 
 export function AssistantPage({
   client,
@@ -40,7 +54,8 @@ export function AssistantPage({
     setTick((t) => t + 1);
     onChanged();
     if (what === "deleted" && id === conversationId) {
-      const next = convos.find((c) => c.kind === "chat" && c.id !== id);
+      // the open item went: Home, or the next item when Home is not in the list
+      const next = convos.find((c) => c.kind === "home") ?? convos.find((c) => c.kind === "work" && c.id !== id);
       if (next) onOpen(next.id);
     }
   });
@@ -51,33 +66,48 @@ export function AssistantPage({
       .catch((e: unknown) => setError(say(e)));
   }, [client, version, tick]);
   const focus = useMemo(() => (conversationId ? { id: conversationId, at: Date.now() } : null), [conversationId]);
-  const chats = convos.filter((c) => c.kind === "chat");
+  const home = convos.find((c) => c.kind === "home") ?? null;
+  const lanes = laneItems(convos.filter((c) => c.kind === "work"));
+  const current = conversationId ?? home?.id ?? null;
   return (
     <div className="assistpage">
       <aside className="assistpage__list" aria-label="Conversations">
         <div className="assistpage__head">
-          <h2>Conversations</h2>
-          <Button size="sm" onClick={() => void client.newConversation(null, "New conversation").then((c) => { onOpen(c.id); onChanged(); }).catch(() => undefined)}>
+          <h2>Work</h2>
+          <Button size="sm" title="A new work item; its first sentence names it" onClick={() => void client.newConversation(null, "New conversation").then((c) => { onOpen(c.id); onChanged(); }).catch(() => undefined)}>
             New
           </Button>
         </div>
-        {chats.map((c) => renaming === c.id ? (
-          <div key={c.id} className="convrow convrow--renaming">
-            <RenameBox convo={c} onSave={(t) => { setRenaming(null); void actions.rename(c, t); }} onCancel={() => setRenaming(null)} />
-          </div>
-        ) : (
-          <button key={c.id} type="button" className={`convrow${c.id === conversationId ? " convrow--active" : ""}`} onClick={() => onOpen(c.id)} onContextMenu={(e) => { e.preventDefault(); setMenuAt({ convo: c, x: e.clientX, y: e.clientY }); }} aria-current={c.id === conversationId ? "true" : undefined}>
-            <span className={`convchip__dot convchip__dot--${c.state}`} aria-hidden="true" />
+        {home ? (
+          <button type="button" className={`convrow${home.id === current ? " convrow--active" : ""}`} onClick={() => onOpen(home.id)} aria-current={home.id === current ? "true" : undefined}>
             <span className="convrow__body">
-              <b>{c.title}</b>
-              <span className="faint">
-                {c.scope} · {when(c.last_at)}
-              </span>
-              {c.last ? <span className="faint convrow__last">{c.last}</span> : null}
+              <b>Home</b>
+              <span className="faint">The one conversation · {home.last_at ? when(home.last_at) : "nothing said yet"}</span>
             </span>
           </button>
+        ) : null}
+        {lanes.map(([lane, rows]) => (
+          <section key={lane} aria-label={lane}>
+            <div className="lane__head" style={{ padding: "10px 10px 2px" }}>{lane}</div>
+            {rows.map((c) => renaming === c.id ? (
+              <div key={c.id} className="convrow convrow--renaming">
+                <RenameBox convo={c} onSave={(t) => { setRenaming(null); void actions.rename(c, t); }} onCancel={() => setRenaming(null)} />
+              </div>
+            ) : (
+              <button key={c.id} type="button" className={`convrow${c.id === current ? " convrow--active" : ""}`} onClick={() => onOpen(c.id)} onContextMenu={(e) => { e.preventDefault(); setMenuAt({ convo: c, x: e.clientX, y: e.clientY }); }} aria-current={c.id === current ? "true" : undefined}>
+                <span className={`convchip__dot convchip__dot--${c.state}`} aria-hidden="true" />
+                <span className="convrow__body">
+                  <b>{c.title}</b>
+                  <span className="faint">
+                    {CONVO_STATE[c.state] ?? c.state} · {when(c.last_at)}
+                  </span>
+                  {c.last_line ? <span className="faint convrow__last">{c.last_line}</span> : null}
+                </span>
+              </button>
+            ))}
+          </section>
         ))}
-        {!chats.length && !error ? <p className="faint" style={{ padding: "4px 10px" }}>No conversations yet. Say something on the right.</p> : null}
+        {!lanes.length && !error ? <p className="faint" style={{ padding: "4px 10px" }}>No work yet. Say what to do on the right; work that stands gets an item here.</p> : null}
         {error ? <p className="notice">{error}</p> : null}
         {actions.problem ? <p className="notice" role="alert">{actions.problem}</p> : null}
         <DropdownMenu.Root open={menuAt !== null} onOpenChange={(o) => !o && setMenuAt(null)} modal={false}>

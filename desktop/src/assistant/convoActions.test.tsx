@@ -4,7 +4,7 @@ import type { Client, Convo } from "../core/client";
 import { AssistantPage } from "./AssistantPage";
 import { Conversation } from "./AssistantPanel";
 
-const convo = (id: string, title: string): Convo => ({ id, title, kind: "chat", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-13T09:00:00Z", updated_at: "2026-10-13T09:00:00Z" });
+const convo = (id: string, title: string): Convo => ({ id, title, kind: "work", state: "open", module: null, scope: "Home", question: null, last: null, last_at: "2026-10-13T09:00:00Z", updated_at: "2026-10-13T09:00:00Z" });
 
 function core(list: Convo[]) {
   return {
