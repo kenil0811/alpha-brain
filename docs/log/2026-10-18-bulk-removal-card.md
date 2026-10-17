@@ -40,3 +40,23 @@ and a question that introduces a list still a question. 318 core tests; ruff and
 (`../journeys/2026-10-18-0027.md`). The app restarted on it. Kenil's open card from the night (the third of the fifty) was
 ended by the restart; the 47 rows it never reached are still in his Job listings, for one
 sentence and one card now.
+
+## Seen in the app an hour later, and fixed in the same night
+
+Kenil dismissed the dead card, asked the item "whats happening", took the retry it offered,
+and got the one card: "Remove 50 rows from Job listings? "Platform Engineer", … and 47 more";
+his yes removed the fifty in one go, 45 rows left, the reply four seconds later. The window
+showed him none of it: the card sat last, dim, with no reply under it. The core had the reply
+(`/api/conversation` returned it); the window had lost it to a race: the load started by the
+card's answer resolved after the load started by the turn's end, and overwrote it with the
+turns of two seconds earlier. Fixed in `AssistantPanel`: only the newest load lands. Two more
+from the same look: a permission card now keeps its own place in the timeline (a derived
+question is placed after its reply, which read as "still pending" for a yes already given);
+and `#/assistant/<item>` opened on Home's turns, because the first load (for Home) landed
+after the address had set the item (the same guard). The core's `/api/conversation` now lists
+Home and the day's items, done ones too, so a card in Home shows a done item's state and line
+(it read "Started"). 318 core tests, 218 desktop; the app rebuilt and restarted.
+
+A note for the design: a fresh session after a tools change (the fingerprint) loses the
+working lists the model held; it re-read the table and chose the fifty by the filter's rule,
+and said so; the pre-pack carries the words of a conversation, not its intermediate data.

@@ -300,17 +300,28 @@ export function Conversation({
   const input = useRef<HTMLTextAreaElement>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
+  // the conversation shown now, for a load that resolves after it changed (18 Oct: a load for
+  // Home, started before an item was opened by its address, landed on the item's view)
+  const shown = useRef<string | null>(null);
+  shown.current = active;
+  // Loads overlap (a card answered, then the turn ending two seconds later): only the newest
+  // one may land, else an older answer without the reply overwrites the newer (18 Oct: the
+  // reply after a yes never showed until the next change).
+  const loads = useRef(0);
   const load = useCallback(() => {
+    const asked = active;
+    const seq = ++loads.current;
     client
-      .conversation(module?.id ?? null, active)
+      .conversation(module?.id ?? null, asked)
       .then((c) => {
+        if (shown.current !== asked || seq !== loads.current) return; // superseded meanwhile
         setTurns(c.turns);
         setWorkflows(c.workflows ?? []);
         setActions(c.actions ?? []);
         setAsks(c.asks ?? []);
         setConvos(c.conversations ?? []);
         setLoadError(null);
-        if (!active && c.conversation) setActive(c.conversation.id);
+        if (!asked && c.conversation) setActive(c.conversation.id);
       })
       .catch((e: unknown) => setLoadError(say(e)));
   }, [client, module?.id, active]);
@@ -503,7 +514,9 @@ export function Conversation({
   // A question is journaled while the reply is still being written: it belongs after the
   // reply of its turn, as the person reads it.
   const repliedAt = new Map(turns.filter((e) => e.kind === "replied" && typeof e.data.turn === "string").map((e) => [e.data.turn as string, stamp(e.at)]));
-  const askedAt = (e: JournalEntry) => Math.max(stamp(e.at), (typeof e.data.turn === "string" ? repliedAt.get(e.data.turn) ?? 0 : 0) + 1);
+  // A permission card (a yes asked mid-turn) keeps its own time: the reply after it speaks of
+  // it, so it reads as answered, not as still pending below the reply (18 Oct).
+  const askedAt = (e: JournalEntry) => (e.data.permission ? stamp(e.at) : Math.max(stamp(e.at), (typeof e.data.turn === "string" ? repliedAt.get(e.data.turn) ?? 0 : 0) + 1));
   const onAnswered = (turn: Turn | null) => { load(); void follow(turn); };
   const decided = () => { load(); onChanged(); };
   const items: { at: number; node: ReactNode }[] = [];

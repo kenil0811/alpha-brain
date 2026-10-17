@@ -105,8 +105,10 @@ def routes(app: FastAPI, s: Served) -> None:
                   or (e["data"].get("routed") and e["data"]["routed"] != chat["id"])]
         return {"turns": fold_failures(turns_),
                 "conversation": conversation_view(world, chat["id"], chat),
-                "conversations": [conversation_view(world, t["id"], t)
-                                  for t in thread_views(world)],
+                # Home and the items of the day, done ones too: a card in Home shows its
+                # item's state and line (18 Oct: a done item's card read "Started")
+                "conversations": [conversation_view(world, home_id)]
+                + [conversation_view(world, t["id"], t) for t in items_today(world)],
                 "threads": thread_views(world), "running": running.running(),
                 # the pages and actions of this thread only: an item's card is its own, and
                 # Home shows none of another item's (seen 18 Oct: a stopped page of a 16 Oct
