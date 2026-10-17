@@ -331,7 +331,10 @@ def route(world: World, sentence: str, *, module: str | None = None, runner: Any
         new = open_item(world, sentence, module)
         return _settled(world, sentence, new["id"], "judge", home_row, verdict=verdict,
                         opened=True)
-    if verdict.confidence >= CONFIDENT and verdict.answer in labels:
+    if verdict.answer in labels and (verdict.confidence >= CONFIDENT
+                                     or labels[verdict.answer] == current):
+        # the item in focus is a structural prior (the person was just there): the judge's
+        # pick of it stands whatever its confidence (18 Oct: a card over an obvious follow-up)
         return _settled(world, sentence, labels[verdict.answer], "judge", home_row,
                         verdict=verdict)
     if not verdict.answer or not ask_when_unsure:
@@ -341,13 +344,18 @@ def route(world: World, sentence: str, *, module: str | None = None, runner: Any
         stay = not ask_when_unsure and current in {i["id"] for i in items}
         tid = str(current) if stay else str(home_row["id"])
         return _settled(world, sentence, tid, "unsure; stayed", home_row, verdict=verdict)
-    # Unsure: ask, with the candidates as choices; the answer routes the sentence.
-    options = [*labels, NEW, HERE]
+    # Unsure: ask, with the judge's own pick (when it made one), a new item and here as the
+    # choices, never the whole roster (18 Oct: a card of ten rows); the answer routes the
+    # sentence, and the card keeps the judge's verdict for the record.
+    picked = {verdict.answer: labels[verdict.answer]} if verdict.answer in labels else {}
+    choices = {**picked, NEW: "", HERE: home_row["id"]}
+    options = list(choices)
     jid = world.journal.append(
         "asked", f"Which is this about? \"{sentence[:120]}\"", thread=home_row["id"],
         data={"options": options, "turn": None,
-              "routing": {"text": sentence, "module": module,
-                          "choices": {**labels, NEW: "", HERE: home_row["id"]}}})
+              "verdict": {"answer": verdict.answer, "confidence": verdict.confidence,
+                          "why": verdict.why},
+              "routing": {"text": sentence, "module": module, "choices": choices}})
     return {"ask": jid, "options": options, "confidence": verdict.confidence}
 
 

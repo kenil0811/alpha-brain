@@ -113,15 +113,22 @@ def test_structure_routes_without_the_judge(world: World) -> None:
 def test_when_unsure_the_judge_asks_with_choices_and_the_pick_routes(world: World) -> None:
     a = item(world, "Deals today", said="what came in today")
     item(world, "Logging the shake", said="log a shake")
+    conversations.set_focus(world, a)
     out = conversations.route(world, "change that to weekly",
                               runner=judge_answering("continue: Logging the shake", 0.3))
-    assert "ask" in out and out["options"] == ["continue: Deals today",
-                                                "continue: Logging the shake",
+    # the judge's pick, a new item and here: never the whole roster
+    assert "ask" in out and out["options"] == ["continue: Logging the shake",
                                                 conversations.NEW, conversations.HERE]
     asked = world.journal.read(out["ask"])
     assert asked["thread"] == conversations.home(world)["id"]
-    picked = conversations.routed_answer(world, asked, "continue: Deals today")
-    assert picked == {"thread": a, "text": "change that to weekly"}
+    assert asked["data"]["verdict"]["confidence"] == 0.3
+    picked = conversations.routed_answer(world, asked, "continue: Logging the shake")
+    assert picked and picked["thread"] != a and picked["text"] == "change that to weekly"
+    # the item in focus is a structural prior: the judge's pick of it stands at any confidence
+    conversations.set_focus(world, a)
+    sure = conversations.route(world, "and the other one?",
+                               runner=judge_answering("continue: Deals today", 0.3))
+    assert sure["thread"] == a and "ask" not in sure
     fresh = conversations.routed_answer(world, asked, conversations.NEW)
     assert fresh and fresh["thread"] != a and fresh["text"] == "change that to weekly"
     assert world.modules.thread(fresh["thread"])["title"] == "Change that to weekly"

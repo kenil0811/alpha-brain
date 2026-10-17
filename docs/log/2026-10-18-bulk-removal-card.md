@@ -60,3 +60,13 @@ Home and the day's items, done ones too, so a card in Home shows a done item's s
 A note for the design: a fresh session after a tools change (the fingerprint) loses the
 working lists the model held; it re-read the table and chose the fifty by the filter's rule,
 and said so; the pre-pack carries the words of a conversation, not its intermediate data.
+
+## The ten-row card (00:44)
+
+"check source name for hackernews to be "Hacker News"" in Home drew a "Which is this about?"
+card listing every item on the roster, ten rows. The judge had picked the Hacker News item but
+under the confidence (on a copy, the same sentence came back at 0.7 and 0.8: the small model
+sits around the line). Two changes: the unsure card offers the judge's own pick, a new item
+and here, never the roster; and the item in focus is a structural prior, so the judge's pick
+of it stands at any confidence (the person was just there). The card keeps the verdict in its
+data. 318 core tests; the app restarted.
