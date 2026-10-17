@@ -110,7 +110,10 @@ Code binary) replaces `claude_cli.py`. What it gives, verified against its pages
 
 - **A session per conversation, resumed.** `ClaudeSDKClient` keeps one session across turns;
   `resume=<id>` brings it back after a restart; `fork_session` branches one. The transcript is
-  local JSONL under a `CLAUDE_CONFIG_DIR` of Alpha's own, apart from the person's `~/.claude`.
+  local JSONL under the default config home (`~/.claude/projects/<cwd>/`), keyed by the
+  session's working directory: the subscription sign-in lives there and a private
+  `CLAUDE_CONFIG_DIR` is not signed in (found on 2 Oct, `claude_cli.py`), so Alpha's sessions
+  are kept apart from the person's own by their `cwd` (Alpha's home), not by a config home.
   Compaction is automatic near the limit, with a `PreCompact` hook and guidance Alpha can give
   in its own notes. The pre-pack shrinks to what the world adds at the start of a session and
   what changed since the last turn.
