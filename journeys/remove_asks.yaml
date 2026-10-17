@@ -1,0 +1,13 @@
+name: remove_asks
+title: "Removing a row the person entered asks on a card, and goes only on the yes"
+why: "The harness design's §8 (17 Oct 2026): the only gates are permission questions on the
+  actions that matter; deleting the person's own entries is one. The callback asks on a card
+  in the conversation and the turn waits; here the suite answers yes."
+fresh: true
+steps:
+  - say: "track what I eat"
+  - say: "log two eggs"
+  - say: "remove the eggs from the log"
+checks:
+  - journal: {kind: asked, contains: "Remove "}
+  - reply: {matches: "removed|gone|deleted|taken"}

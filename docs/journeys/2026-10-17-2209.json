@@ -1,0 +1,52 @@
+[
+ {
+  "name": "remove_asks",
+  "title": "Removing a row the person entered asks on a card, and goes only on the yes",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a food log in a new Food module. Each entry holds the food, when you ate it, the meal, the quantity, calories, protein, carbs, fat and notes. It's empty for now.\n\nTell me what you eat in plain words, for example \"two boiled eggs and toast for breakfast\". I'll log each item. I'll look up the calories and macros from a source I can name where I can. If I have to estimate (a home-cooked portion, say), I'll mark the entry as estimated. If I assume a portion size, I'll tell you.\n\nWhat have you eaten today?",
+    "steps": 2,
+    "seconds": 8.9
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs: about 144 kcal, 12.5 g protein, 0.9 g carbs and 9.6 g fat.\n\nThe per-egg figures come from [nutritionvalue.org](https://www.nutritionvalue.org/Egg,_fresh,_raw,_whole_nutritional_value.html), which draws on USDA data. They put a 50 g raw egg at about 72 kcal, 6.2 g protein, 0.5 g carbs and 5 g fat, and I doubled that.\n\nYou didn't give a meal, a time or a size, so I assumed these:\n- **Size:** large eggs, 50 g each.\n- **Meal and time:** a snack, logged at 22:09 tonight.\n- **Cooking:** no added oil or butter. If you fried them, the calories are higher.\n\nTell me if any of that is ",
+    "steps": 3,
+    "seconds": 15.7
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "I couldn't remove the eggs. The tool that deletes a row was blocked because it needs your approval, and this session has no way to ask for it. The two-egg entry (r_65cec148b29c) is still in your food log.\n\nYou can delete it from the Food module's page. If you run this in a session that can approve the change, I'll remove it then.",
+    "steps": 3,
+    "seconds": 10.5
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": false,
+    "why": "0 asked entries.",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken"
+    },
+    "ok": false,
+    "why": "The reply doesn't match /removed|gone|deleted|taken/.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 35.2,
+  "error": null
+ }
+]

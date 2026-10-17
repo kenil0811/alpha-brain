@@ -99,7 +99,9 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
     denied = list(DENIED)
     if not allowed:
         denied += ["WebSearch", "WebFetch"]
-    extra: dict[str, str | None] = {"permission-prompts": "none"}
+    # With no callback nothing may prompt; with one, the prompts are the callback's (the flag
+    # would block a gated call instead: found 17 Oct, "this session has no way to ask").
+    extra: dict[str, str | None] = {} if can_use is not None else {"permission-prompts": "none"}
     if not req.persist:
         # Stateless unless a live conversation (Q21): a remembered session would bring back
         # whatever the model once believed.

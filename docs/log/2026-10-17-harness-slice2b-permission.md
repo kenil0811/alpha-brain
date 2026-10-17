@@ -39,4 +39,12 @@ judge in `dontAsk`. 326 core tests, lint and types clean.
 
 ## Ran for real
 
-LIVE_PENDING
+A new journey, `remove_asks` (fresh world: "track what I eat", "log two eggs", "remove the
+eggs from the log"; the suite answers a permission card with a yes). Its first run found the
+one thing the tests could not: the CLI route's `--permission-prompts none` was still passed in
+every mode, so in the default mode the gated call was blocked instead of routed to the callback
+(the model said "this session has no way to ask for it"). With the flag dropped when a callback
+is set, the journey passed (`../journeys/2026-10-17-2210.md`, 26 s): the card "Remove "Eggs"
+from Food log? It leaves the table; Activity keeps that it was here.", the yes, the row gone,
+the reply saying so. The app restarted on it; a removal of Kenil's own in the window, answered
+on its card, is the acceptance still open.

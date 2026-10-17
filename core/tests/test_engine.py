@@ -336,6 +336,7 @@ def test_a_turns_options_gate_the_two_hands(tmp_path: Path) -> None:
                               hands=["world_query", "world_change", "act_outward", "ask_person"],
                               can_use=allow)
     assert opts.permission_mode == "default" and opts.can_use_tool is allow
+    assert "permission-prompts" not in opts.extra_args  # the prompts are the callback's
     assert opts.allowed_tools == ["mcp__alpha__world_query", "mcp__alpha__ask_person",
                                   "WebSearch", "WebFetch"]
     judge = engine.options_for(request(tmp_path, kind="judge"))
