@@ -1,0 +1,59 @@
+[
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: There is no module 'Nutrition'."
+ },
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask is asked about, then drafted as a workflow page, and nothing is built",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I've put three questions on your Home screen: what counts as an AI conference, what you want to use the list for, and whether Alpha should keep it updated. Once you've answered, I'll write up how I'd build the tracker for you to approve.\n\nNothing is built yet. Note that today is 17 October, so \"this year\" means the rest of 2026 plus the events that have already happened. I'll ask whether you want the past ones included.",
+    "steps": 4,
+    "seconds": 9.9
+   },
+   {
+    "say": "It's for me; I want to decide which ones to go to; today I search by hand now and then; nothing exists yet. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've written up the plan for the London AI conference tracker. It's on its card for you to approve, and nothing is built yet.\n\n- **Finding conferences:** Alpha searches the web and event listings, then reads each organiser's page for date, venue, price and link. If sources disagree on a date, it uses the organiser's page and marks the row unconfirmed if that doesn't settle it. For example, AI World Congress shows June 23–24 on some pages and Nov 25–26 on another.\n- **What it keeps:** one table of conferences with your own Interested, Going or Skip decision and a notes column. A refresh never o",
+    "steps": 4,
+    "seconds": 39.7
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": true,
+    "why": "'Track AI conferences in London this year' v1 is drafted: 4 steps: Find conferences (alpha); Check dates and prices (alpha); Decide which to go to (you); Refresh (alpha). Keeps conference. 3 suggestions (0 Sherlock's): Include early 2027 London events; Early-bird deadline alerts; Calendar clash check. Settings 4, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 49.6,
+  "error": null
+ }
+]

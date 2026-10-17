@@ -1,0 +1,59 @@
+[
+ {
+  "name": "branded_food",
+  "title": "A branded food is logged from its label, not guessed",
+  "steps": [],
+  "checks": [],
+  "seconds": 0.0,
+  "error": "Problem: There is no module 'Nutrition'."
+ },
+ {
+  "name": "vague_tracker",
+  "title": "A vague tracker ask is asked about, then drafted as a workflow page, and nothing is built",
+  "steps": [
+   {
+    "say": "i want to keep track of all the ai conferences happening in london this year",
+    "ok": true,
+    "reply": "I've already found the main London AI conferences for 2026 (MLcon, The AI Summit London, AI World Congress, RE·WORK events, Big Data & AI World, and more) — I just need your answers to those three quick questions to set the list up right, then I'll draft the page for you to approve.",
+    "steps": 13,
+    "seconds": 141.1
+   },
+   {
+    "say": "It's for me; I want to decide which ones to go to; today I search by hand now and then; nothing exists yet. Go ahead and write it up.",
+    "ok": true,
+    "reply": "I've drafted the page — it's on the card now. In short: a table of London AI conferences (dates, venue, website, topic, price, and your own going/maybe/skip decision), refreshed monthly from listing sites like 10times and Conference Index, with a short update on what's new or changed each time. Two things left for you to confirm on the page: whether to include past conferences too, and whether monthly auto-refresh is right or a one-time list is enough. Say yes (there or in words) and I'll build it.",
+    "steps": 6,
+    "seconds": 104.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "workflow",
+    "arg": {
+     "state": "drafted",
+     "steps_min": 2,
+     "keeps_min": 1
+    },
+    "ok": true,
+    "why": "'Track AI conferences in London' v1 is drafted: 4 steps: Find London AI conferences (alpha); Keep the list (alpha); Tell you what changed (alpha); Decide which to go to (you). Keeps london_ai_conference. 3 suggestions (0 Sherlock's): Track early-bird pricing deadlines; Tag each conference by topic; Capture price as it's published. Settings 2, questions 2.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_tables",
+    "arg": {},
+    "ok": true,
+    "why": "No table was made.",
+    "seconds": 0.0
+   },
+   {
+    "check": "no_new_modules",
+    "arg": {},
+    "ok": true,
+    "why": "No module was made.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 246.0,
+  "error": null
+ }
+]

@@ -4,8 +4,9 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
-**As of 17 October 2026.** The direction changed on 17 Oct and nothing is built on it yet:
-- **The rethink** ([`log/2026-10-17-rethink-harness.md`](log/2026-10-17-rethink-harness.md)): on the fresh world, "keep my LinkedIn connections in sync" took 44 minutes, seven model sessions and four threads and put no rows in the table, because the gate (`Tools._gate`) has opened in no kind of thread since Q40 (12 Oct): saving a reader or a schedule is refused everywhere. Kenil: Alpha should be a Claude-Code-class harness, the model's power not curtailed, wrapped in a simple standard window, making its own skills, agents and schedules. His answers to seventeen questions are Q54–Q73, and the form of a skill (markdown, code, the move between them) is Q74 (§6.1). The proposal is [`design/alpha-harness-design.md`](design/alpha-harness-design.md), **agreed by him the same day**, with three research reports in `design/research/harness-*.md`. The old design is marked superseded as a proposal and kept as history; its status boxes still describe what is built. **A freeze on new features (Q71) until five first-day sentences pass in the app** (the design's §17). The stopped LinkedIn build and its empty module are still in his world.
+**As of 17 October 2026, night.** The direction changed on 17 Oct and its first slice is built:
+- **Harness slice 1, the engine** ([`log/2026-10-17-harness-slice1-engine.md`](log/2026-10-17-harness-slice1-engine.md)): every Claude turn runs through the Claude Agent SDK (`runtime/engine.py`, pinned 0.2.168 bundling Claude Code 2.1.301) instead of a `claude -p` subprocess; the world's tools are served in the core's own process under the same names (`mcp/inprocess.py`); a live conversation resumes its session; Stop interrupts; a silent run is ended as before; `models.toml` `[engine] route` (and `ALPHA_ENGINE`) pick sdk or cli for the transition. Proven by 11 tests and, for real on a copy of the world, by `question_card` (5.2 s) and `vague_tracker` (50 s, web search, cards, the page drafted); `branded_food` needs the old world's Nutrition module and breaks on both engines. **Not yet done in the app:** Kenil's "log two eggs" and one question after `just app-restart`. The five spikes before it: [`log/2026-10-17-harness-slice1-spikes.md`](log/2026-10-17-harness-slice1-spikes.md).
+- **The rethink** ([`log/2026-10-17-rethink-harness.md`](log/2026-10-17-rethink-harness.md)): on the fresh world, "keep my LinkedIn connections in sync" took 44 minutes, seven model sessions and four threads and put no rows in the table, because the gate (`Tools._gate`) has opened in no kind of thread since Q40 (12 Oct). Kenil: Alpha should be a Claude-Code-class harness, the model's power not curtailed, wrapped in a simple standard window, making its own skills, agents and schedules. The design is [`design/alpha-harness-design.md`](design/alpha-harness-design.md), **agreed by him on 17 Oct** (Q54–Q74; §6.1 the form of a skill), with three research reports in `design/research/harness-*.md`. The old design is history; its status boxes still describe what is built. **A freeze on new features (Q71) until five first-day sentences pass in the app** (the design's §17). The stopped LinkedIn build and its empty module are still in his world.
 
 The last entries before the rethink:
 - Scout, the recommender ([`log/2026-10-16-scout.md`](log/2026-10-16-scout.md)): once a day, when Alpha is first opened, one packet gathered by code (what is coming up, each table this week against last, what was left open, what is asked by hand, the goals) and one judgement; the picks that pass the checks (evidence that resolves, one action, nothing declined before) on Home with Take and Not now; only a sure, costly one as a Needs-you card; the map's Refresh is its links pass. Proven by a journey with the real model on a copy of Kenil's world: four picks from his own world, each with evidence that resolved (`docs/journeys/2026-10-16-2006.md`).
@@ -26,19 +27,19 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 16 Oct)
+## Numbers (`just stats`, 17 Oct)
 
 | | |
 |---|---|
-| Core tests | 317, in about 57 s; ruff and mypy strict clean |
+| Core tests | 328, in about 56 s; ruff and mypy strict clean |
 | Desktop tests | 219 passed, 1 skipped, in 50 files; typecheck clean; 1 host test (`cargo test --lib`) |
 | Tools the model sees | 73 |
-| Journeys | 25 defined (`sherlock_looks_into_it` and `scout_picks_the_day` added 16 Oct). All were run on 14 Oct and 19 of 22 passed (`docs/journeys/2026-10-14-*`); since then: agent_verdict and automation_self_converts on the agents substrate (15 Oct), the memory journeys with Watson (memory_who_emailed still fails), doc_repairs_a_reader with the real model (16 Oct, `2026-10-16-1257.md`), and with Columbo: vague_tracker passed and branded_food passed once the judge's rules said a rounding apart is not a difference (16 Oct, `2026-10-16-1347.md`, `2026-10-16-1352.md`); sherlock_looks_into_it (16 Oct, `2026-10-16-1700.md`) and scout_picks_the_day (`2026-10-16-2006.md`) passed with the real model; memory_who_emailed still fails |
+| Journeys | 25 defined. On the SDK engine (17 Oct): question_card and vague_tracker passed, branded_food broke on its precondition (`docs/journeys/2026-10-17-1956.md`, `-1957.md`). Before: All were run on 14 Oct and 19 of 22 passed (`docs/journeys/2026-10-14-*`); since then: agent_verdict and automation_self_converts on the agents substrate (15 Oct), the memory journeys with Watson (memory_who_emailed still fails), doc_repairs_a_reader with the real model (16 Oct, `2026-10-16-1257.md`), and with Columbo: vague_tracker passed and branded_food passed once the judge's rules said a rounding apart is not a difference (16 Oct, `2026-10-16-1347.md`, `2026-10-16-1352.md`); sherlock_looks_into_it (16 Oct, `2026-10-16-1700.md`) and scout_picks_the_day (`2026-10-16-2006.md`) passed with the real model; memory_who_emailed still fails |
 | Desktop check | `docs/checks/2026-10-16-2006.md`: 91 of 91 pages clean (the five agents' pages among them) at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 238 total; 238 since 1 Oct 2026 (this count includes the commit that records it) |
-| Lines | core 21,377 Python; tests 8,335; desktop 18,989 TS/TSX |
+| Commits | 245 total; 245 since 1 Oct 2026 (before the slice 1 commit) |
+| Lines | core 21,850 Python; tests 8,646; desktop 18,991 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -56,7 +57,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an agent's runs (Q22). |
 
-**Two ways to think (Q32):** Claude through Claude Code runs everything. ChatGPT through the
+**Two ways to think (Q32):** Claude runs everything, through the Agent SDK since 17 Oct (`claude -p` the transition's fallback). ChatGPT through the
 Codex CLI can be chosen in Settings, but from 3 to 8 Oct Codex's own approval gate refused every
 call to Alpha's tools, so it stays off until it passes a real tool call (pending).
 
@@ -80,7 +81,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 
 ## Pending, in order
 
-0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route ([`design/harness-slice-1-proposal.md`](design/harness-slice-1-proposal.md), agreed 17 Oct evening; its five spikes all answered, [`log/2026-10-17-harness-slice1-spikes.md`](log/2026-10-17-harness-slice1-spikes.md): `engine.py` is next); (2) the fifteen tools and the end of the gate; (3) conversations and work items; (4) triggers and the quieter agents; (5) modules as directories and kits; (6) the window's simplification. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
+0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route: **built 17 Oct** ([`design/harness-slice-1-proposal.md`](design/harness-slice-1-proposal.md)); left: Kenil's "log two eggs" in the app, and the whole journey suite on both engines when the fresh-world set exists; (2) the fifteen tools and the end of the gate; (3) conversations and work items; (4) triggers and the quieter agents; (5) modules as directories and kits; (6) the window's simplification. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
 
 Everything below is frozen until then (Q71) and resumes in this order afterwards, reworked to the harness where it touches the runtime:
 

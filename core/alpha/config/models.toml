@@ -26,3 +26,10 @@ default = "sonnet"
 haiku = "low"
 sonnet = "medium"
 opus = "high"
+
+[engine]
+# How a turn is run (harness design §3; slice 1, 17 Oct 2026): "sdk" is the Claude Agent SDK
+# in the core's own process, "cli" is `claude -p`, the route until then. For the transition
+# only: ALPHA_ENGINE overrides it for a check or a journey against the other, and "cli" goes
+# in slice 2 once the five first-day sentences pass.
+route = "sdk"

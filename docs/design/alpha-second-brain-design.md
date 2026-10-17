@@ -572,8 +572,8 @@ The workspace is where the person *works* — their tables, their flows, their c
 
 | Status (14 Oct 2026; detail in `../log/`) | |
 |---|---|
-| Built | `claude -p` with the rules and the pre-pack appended, the world as a strict MCP server, Alpha's tools plus web search and fetch, the file and shell tools denied; Sonnet by default; independent and judge runs on the same route, Haiku for the System One seam; a live conversation's session resumed, nothing else. |
-| Differs | Claude in Chrome and Anthropic's connectors are not used, so nothing of theirs breaks on a switch; the CLI, not the SDK (its flag support unverified). |
+| Built | Since 17 Oct 2026 (the harness, slice 1): the Claude Agent SDK in the core's own process (`runtime/engine.py`), with the rules and the pre-pack appended to Claude Code's prompt, the world's tools served in-process under the same names, web search and fetch, the file and shell tools denied outside a build; Sonnet by default; independent and judge runs on the same engine, Haiku for the System One seam; a live conversation's session resumed, nothing else. `claude -p` (`claude_cli.py`) stays as the transition's fallback (`models.toml` [engine]). |
+| Differs | Claude in Chrome and Anthropic's connectors are not used, so nothing of theirs breaks on a switch. |
 | Not built | The API route; Jev or Laya at the seam; a third-party login for other people (needs Anthropic's approval); a timeout on a run (a run that goes silent is ended instead). The ChatGPT route exists (Q32) but is off until Codex lets Alpha's tool calls through. |
 
 ---

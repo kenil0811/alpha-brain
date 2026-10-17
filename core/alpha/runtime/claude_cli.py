@@ -62,8 +62,27 @@ class Live:
         self.lock = threading.Lock()
         self.procs: dict[str, subprocess.Popen[str]] = {}
         self.stopped: set[int] = set()
+        # Runs that are not a process of ours to kill but a session to interrupt (the SDK
+        # engine, `runtime/engine.py`): a handle that stops it, and the keys the person stopped.
+        self.handles: dict[str, Callable[[], None]] = {}
+        self.stopped_keys: set[str] = set()
         # What each run is doing right now, in plain words, for the window.
         self.progress: dict[str, dict[str, Any]] = {}
+
+    def add_handle(self, keys: list[str], stop: Callable[[], None]) -> None:
+        with self.lock:
+            for key in keys:
+                self.handles[key] = stop
+
+    def remove_handle(self, keys: list[str]) -> bool:
+        """Forget a finished session run; True when the person stopped it."""
+        with self.lock:
+            was = any(key in self.stopped_keys for key in keys)
+            for key in keys:
+                self.handles.pop(key, None)
+                self.progress.pop(key, None)
+                self.stopped_keys.discard(key)
+            return was
 
     def note(self, keys: list[str], **what: Any) -> None:
         with self.lock:
@@ -118,15 +137,28 @@ class Live:
 
     def running(self, key: str) -> bool:
         with self.lock:
-            return key in self.procs
+            return key in self.procs or key in self.handles
 
     def stop(self, key: str) -> bool:
         """Stop the run known by `key` (and everything it started); False when none is running."""
         with self.lock:
+            handle = self.handles.get(key)
+            if handle is not None:
+                for k, h in self.handles.items():
+                    if h is handle:
+                        self.stopped_keys.add(k)
             proc = self.procs.get(key)
-            if proc is None:
+            if handle is None and proc is None:
                 return False
-            self.stopped.add(proc.pid)
+            if proc is not None:
+                self.stopped.add(proc.pid)
+        if handle is not None:
+            try:
+                handle()
+            except Exception:
+                log.exception("stopping a session run")
+            return True
+        assert proc is not None
         try:
             os.killpg(proc.pid, signal.SIGTERM)
         except (ProcessLookupError, PermissionError):

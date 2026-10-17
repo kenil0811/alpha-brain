@@ -95,6 +95,7 @@ If the log is newer than `STATE.md`, rewrite `STATE.md` first.
 pnpm 10, Tauri 2.11.6. `just test`, `just lint`, `just test-desktop`, `just journeys`,
 `just check-desktop`, `just app`, `just stats`; `just ship` builds Alpha for another Mac with its
 runtime inside. Four journeys act in Kenil's real accounts (gmail_send, gmail_draft, skill_reuse,
-linkedin_message): run them only on his say. The model route is the Claude Code CLI on Kenil's
-subscription; `claude` must be signed in from the default config home and `USER` must be set.
+linkedin_message): run them only on his say. The model runs through the Claude Agent SDK on Kenil's
+subscription (`runtime/engine.py`; `claude -p` is the transition's fallback, `ALPHA_ENGINE=cli`);
+`claude` must be signed in from the default config home and `USER` must be set.
 Keep `desktop/src-tauri/Cargo.lock`.

@@ -25,6 +25,10 @@ def test_the_route_follows_the_persons_choice_and_falls_back_to_claude(world: Wo
     calls: list[str] = []
     from alpha.runtime import claude_cli
 
+    # The CLI as Claude's runner for this test: it patches `claude_cli.run`, and since the
+    # harness's slice 1 the SDK engine is the default (`models.toml` [engine]).
+    monkeypatch.setenv("ALPHA_ENGINE", "cli")
+
     def fake(which: str, reply: str) -> Any:
         def runner(req: TurnRequest) -> RunResult:
             calls.append(which)
@@ -176,6 +180,7 @@ def test_switching_the_way_of_thinking_runs_a_tool_call_first(world: World,
 def test_the_trial_itself(world: World, monkeypatch: Any) -> None:
     from alpha.runtime import claude_cli as cc
 
+    monkeypatch.setenv("ALPHA_ENGINE", "cli")
     monkeypatch.setattr(cc, "run", lambda req: RunResult(reply="ok", ok=True, tools_called=1))
     assert route.trial(world.path, "claude") == (True, "1 tool call answered")
     monkeypatch.setattr(cc, "run", lambda req: RunResult(reply="ok", ok=True))

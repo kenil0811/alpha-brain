@@ -34,7 +34,7 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
   records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines),
   agents, decisions, commitments), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
-  `claude -p` runs, the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, the scheduler, and the built-in kinds: Watson the noticer, Doc the healer, Columbo the checker, Sherlock the researcher, Scout the recommender)), `journeys/`
+  the engine (the Claude Agent SDK, `engine.py`; `claude -p` as the transition's fallback), the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, the scheduler, and the built-in kinds: Watson the noticer, Doc the healer, Columbo the checker, Sherlock the researcher, Scout the recommender)), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
   world as tools for the model), `api/` (the loopback HTTP API the app uses), `connectors/`
   (the Python side of the hands), `cli.py`.
@@ -69,7 +69,7 @@ just turns          # how long the last turns took: wall, the model's time, step
 The CLI also lists the agents (`uv run alpha agents`) and renames one (`uv run alpha agent-rename
 <id> <name>`), journaled as the person's change.
 
-The model route is the Claude Code CLI on the owner's subscription; `claude` must be logged in
+The model runs through the Claude Agent SDK (its bundled Claude Code) on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in
 `~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles,
 `modules/<id>/` for each module's workspace under git (§12: `WORKFLOW.md`, `workflow.json`,

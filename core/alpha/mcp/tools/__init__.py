@@ -13,6 +13,7 @@ and `all()` lists them in name order for the MCP server. `base` holds what they 
 
 from __future__ import annotations
 
+from alpha.mcp import inprocess
 from alpha.mcp.tools.acting import Acting
 from alpha.mcp.tools.agents import AgentTools
 from alpha.mcp.tools.base import provenance_of, provenance_words
@@ -27,6 +28,10 @@ from alpha.mcp.tools.workflows import WorkflowTools
 class Tools(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, WorkflowTools):
     """Every tool of the world, bound to one World (and the turn, thread, module and actor it
     runs for)."""
+
+
+# The SDK engine serves these tools in-process to every turn it runs (harness slice 1).
+inprocess.install(Tools)
 
 
 __all__ = ["Tools", "provenance_of", "provenance_words"]

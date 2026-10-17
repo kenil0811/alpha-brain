@@ -30,6 +30,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import alpha.mcp.tools  # noqa: F401  (wires the world's tools into the SDK engine, every command)
 from alpha.context import prepack
 from alpha.runtime import turn
 from alpha.world.store import Problem

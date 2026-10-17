@@ -6,11 +6,12 @@ runner, Claude when unset. The request is the same either way."""
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from alpha import config
-from alpha.runtime import claude_account, claude_cli, codex_account, codex_cli
+from alpha.runtime import claude_account, claude_cli, codex_account, codex_cli, engine
 from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.world.store import loads
 
@@ -38,17 +39,23 @@ def chosen(world_path: Path | str | None) -> str:
     return str(value) if value in ROUTES else "claude"
 
 
+def claude_runner() -> Callable[[TurnRequest], RunResult]:
+    """Claude's runner: the SDK engine, or the CLI while the transition lasts (`models.toml`
+    [engine], `ALPHA_ENGINE`)."""
+    return engine.run if config.engine_route() == "sdk" else claude_cli.run
+
+
 def run(req: TurnRequest) -> RunResult:
     if chosen(req.world_path) == "codex":
         return codex_cli.run(req)
-    return claude_cli.run(req)
+    return claude_runner()(req)
 
 
 def trial(world_path: Path | str, which: str) -> tuple[bool, str]:
     """One real tool call through a way of thinking, before the person is allowed to switch
     to it (8 Oct: a route that could not reach the tools was in use for five days). True with a
     line saying so, or False with the reason."""
-    runner = codex_cli.run if which == "codex" else claude_cli.run
+    runner = codex_cli.run if which == "codex" else claude_runner()
     result = runner(TurnRequest(sentence=TRIAL_SENTENCE, system=config.prompt("route_trial"),
                                 world_path=Path(world_path), turn_id="trial",
                                 model=config.model_for("trial")))
