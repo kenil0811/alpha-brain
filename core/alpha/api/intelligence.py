@@ -11,6 +11,7 @@ from alpha.api.bodies import (
     AgentBody,
     CorrectFactBody,
     GoalBody,
+    SkillTextBody,
 )
 from alpha.api.served import Served
 from alpha.api.views import (
@@ -152,8 +153,22 @@ def routes(app: FastAPI, s: Served) -> None:
         runs = [e for e in world.journal.recent(300)
                 if name in {e["data"].get("reader"), e["data"].get("procedure"),
                             e["data"].get("skill")}]
-        return {**skill, "notes": page, "versions": world.skills.versions(name), "runs": [
+        return {**skill, "notes": page, "versions": world.skills.versions(name),
+                "text": world.skills.text(name), "runs": [
             {"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in runs[-20:]]}
+
+    @app.put("/api/skills/{name}/text", dependencies=[api])
+    def edit_skill_text(name: str, body: SkillTextBody) -> dict[str, Any]:
+        """The person's edit of a skill's SKILL.md (the harness, slice 2b): a new version in
+        its history, journaled as theirs; the frontmatter must keep the name and kind."""
+        before = world.skills.get(name)
+        saved = world.skills.write_text(name, body.text, by="person")
+        world.journal.append("changed", f"You edited the skill {name} (version"
+                             f" {saved['version']}).", actor="person",
+                             data={"skill": name, "from": before["version"],
+                                   "to": saved["version"]})
+        return {**saved, "text": world.skills.text(name),
+                "versions": world.skills.versions(name)}
 
     @app.post("/api/skills/{name}/restore/{version}", dependencies=[api])
     def restore_skill(name: str, version: int) -> dict[str, Any]:

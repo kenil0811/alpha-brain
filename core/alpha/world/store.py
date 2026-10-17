@@ -437,6 +437,19 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
 
+-- What happened to a skill (17 Oct 2026, harness 2b): its health and its last run. The skill
+-- itself is a directory of files beside the world (world/skills.py); the `skills` and
+-- `skill_versions` tables above are what it was before and are read once, to write the files.
+CREATE TABLE IF NOT EXISTS skill_state (
+    name TEXT PRIMARY KEY,
+    health TEXT NOT NULL DEFAULT 'untried',
+    last_problem TEXT,
+    last_run_at TEXT,
+    last_count INTEGER,
+    last_ok_count INTEGER,
+    updated_at TEXT NOT NULL
+);
+
 -- Saved lists (3 Oct 2026): a named way of looking at a table (the search, the filters, the
 -- columns, the sort, the view) that follows the person and that Alpha can make when asked.
 -- One per table may be the default it opens on.

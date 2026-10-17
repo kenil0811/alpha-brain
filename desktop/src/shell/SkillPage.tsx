@@ -19,6 +19,8 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState("");
+  const [editingFile, setEditingFile] = useState(false);
+  const [fileText, setFileText] = useState("");
   useEffect(() => {
     let live = true;
     client
@@ -28,15 +30,24 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
         setSkill(s);
         setError(null);
         if (!editing) setBody(s.notes?.body ?? "");
+        if (!editingFile) setFileText(s.text ?? "");
       })
       .catch((e: unknown) => live && setError(say(e)));
     return () => {
       live = false;
     };
-  }, [client, name, version, editing]);
+  }, [client, name, version, editing, editingFile]);
   if (error) return <div className="page"><p className="notice" role="alert">{error}</p></div>;
   if (!skill) return <div className="page"><p className="empty">Loading…</p></div>;
   const health = skill.health === "ok" ? "Working" : skill.health === "broken" ? "Being repaired" : "Not tried yet";
+  const saveFile = () =>
+    void client
+      .editSkillText(name, fileText)
+      .then(() => {
+        setEditingFile(false);
+        onChanged();
+      })
+      .catch((e: unknown) => setError(say(e)));
   const saveNotes = () =>
     void client.writeNote(`skill:${name}`, name, body, skill.notes?.summary ?? undefined).then(() => {
       setEditing(false);
@@ -71,7 +82,7 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
       <div className="section">
         <div className="section__head">
           <h2>How it works</h2>
-          <span className="faint">Alpha wrote this and repairs it; it is not edited by hand.</span>
+          <span className="faint">Alpha wrote this and repairs it; the file below is yours to read and edit.</span>
         </div>
         <div className="card card--pad">
           {skill.url ? (
@@ -93,6 +104,28 @@ export function SkillPage({ client, name, version, onGo, onAsk, onChanged }: { c
           ) : null}
         </div>
       </div>
+
+      {skill.text ? (
+        <div className="section">
+          <div className="section__head">
+            <h2>The skill as a file</h2>
+            <span className="faint">{skill.form ? `${skill.form} · ` : ""}SKILL.md, one version per change</span>
+            {editingFile ? (
+              <span className="row">
+                <Button size="sm" variant="primary" onClick={saveFile}>Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => { setEditingFile(false); setFileText(skill.text ?? ""); }}>Cancel</Button>
+              </span>
+            ) : (
+              <Button size="sm" onClick={() => setEditingFile(true)}>Edit</Button>
+            )}
+          </div>
+          {editingFile ? (
+            <textarea className="note__edit" rows={16} value={fileText} onChange={(e) => setFileText(e.target.value)} aria-label="Edit the skill's file" spellCheck={false} />
+          ) : (
+            <pre className="code" aria-label="The skill's file">{skill.text}</pre>
+          )}
+        </div>
+      ) : null}
 
       <div className="section">
         <div className="section__head">

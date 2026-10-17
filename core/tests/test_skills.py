@@ -66,18 +66,16 @@ def test_an_older_world_moves_its_readers_procedures_and_pipelines_into_skills(
     world.close()
     again = World(path)  # opening again moves nothing twice
     assert len(again.skills.all()) == 3
-    # A run skill named by an earlier rule is renamed on open, with references following.
-    with again.store.tx() as db:
-        db.execute("UPDATE skills SET name = 'run_every_day_at_07_00' WHERE name = ?", (pipe,))
-        db.execute("UPDATE agents SET skill = 'run_every_day_at_07_00' WHERE id = 'a_1'")
-        db.execute("INSERT INTO skills (name, kind, description, steps, created_at, updated_at)"
-                   " VALUES ('run_other', 'run', 'Other', ?, 'x', 'x')",
-                   ('[{"run":"run_every_day_at_07_00"},{"tell":"t"}]',))  # compact, as kept
+    # Since 17 Oct 2026 (harness 2b) the skills are files beside the world, each save a commit:
+    # the reader's three versions became three commits, and the tables are read no more.
+    home = path.parent
+    reader_dir = home / "skills" / "linkedin_connections"
+    assert (reader_dir / "SKILL.md").is_file() and (reader_dir / "scripts" / "read.js").is_file()
+    assert (reader_dir / "scripts" / "read.js").read_text() == "return []"
+    assert (home / "skills" / "gmail_draft" / "steps.yaml").is_file()
+    assert (home / "skills" / ".git").is_dir()
+    assert again.skills.versions("linkedin_connections") == []  # one row, one commit: no before
     again.close()
-    third = World(path)
-    assert third.agents.get("a_1")["skill"] == pipe
-    assert third.skills.get("run_other")["steps"] == [{"run": pipe}, {"tell": "t"}]
-    third.close()
 
 
 def test_a_pipeline_is_a_run_skill_named_after_its_agent(world: World) -> None:

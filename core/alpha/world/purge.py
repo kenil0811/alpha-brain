@@ -39,7 +39,8 @@ from alpha.world.commitments import Commitments
 from alpha.world.decisions import Decisions
 from alpha.world.preferences import Preferences
 from alpha.world.sites import site_of
-from alpha.world.store import Problem, now
+from alpha.world.skills import Skills
+from alpha.world.store import Problem, dumps, now
 from alpha.world.views import Views
 from alpha.world.world import World, alpha_home
 
@@ -89,11 +90,11 @@ def _forget_entities(db: Any, ids: list[str]) -> None:
     db.execute(f"DELETE FROM entities WHERE {clause}", args)
 
 
-def _forget_skill_note(db: Any, name: str) -> None:
-    """A removed skill's page of notes (what Alpha learned about its site) and the versions it
-    had (Q49)."""
+def _forget_skill(db: Any, store: Any, name: str) -> None:
+    """A removed skill: its files and history, its state, its page of notes (what Alpha learned
+    about its site)."""
     db.execute("DELETE FROM notes WHERE scope = ?", (f"skill:{name}",))
-    db.execute("DELETE FROM skill_versions WHERE name = ?", (name,))
+    Skills(store).delete(db, name)
 
 
 def _retire_threads(db: Any, threads: list[str]) -> None:
@@ -121,7 +122,7 @@ def _readers_of(store: Any, mid: str, tables: list[str], autos: list[dict[str, A
         "SELECT DISTINCT reader FROM records WHERE collection = ? AND reader IS NOT NULL", (t,))}
     fed |= {r["reader"] for r in store.all(
         "SELECT reader FROM sources WHERE module = ? AND reader IS NOT NULL", (mid,))}
-    return [r["name"] for r in store.all("SELECT name FROM skills WHERE kind = 'read'")
+    return [r["name"] for r in Skills(store).all("read")
             if r["name"] in tables or r["name"] in fed
             or any(r["name"] in (a["brief"] or "") or r["name"] in (a["steps"] or "")
                    for a in autos)]
@@ -190,13 +191,11 @@ def remove_module(world: World, ref: str) -> dict[str, Any]:
             counts["lists"] = counts.get("lists", 0) + Views.remove_table(db, table)
         counts["tables"], counts["rows"] = len(tables), records
         for reader in readers:
-            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (reader,))
-            _forget_skill_note(db, reader)
+            _forget_skill(db, store, reader)
         counts["readers"] = len(readers)
         for a in autos:
             if a["skill"]:
-                db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
-                _forget_skill_note(db, a["skill"])
+                _forget_skill(db, store, a["skill"])
         db.execute("DELETE FROM runs WHERE agent IN (SELECT id FROM agents WHERE module = ?)",
                    (mid,))
         for a in autos:
@@ -322,8 +321,11 @@ def _steps_text(store: Any, skill: str | None) -> str | None:
     """A pipeline's steps as text, for matching reader names (they live in its run skill)."""
     if not skill:
         return None
-    row = store.one("SELECT steps FROM skills WHERE name = ?", (skill,))
-    return str(row["steps"]) if row and row["steps"] else None
+    try:
+        steps = Skills(store).get(skill)["steps"]
+    except Problem:
+        return None
+    return dumps(steps) if steps else None
 
 
 def _site(url: str) -> str | None:
@@ -352,15 +354,13 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     entity_ids: list[str] = []
     if kind == "browser":
         sites = set(signin_sites(conn))
-        readers = [r["name"] for r in store.all(
-                       "SELECT name, site, url FROM skills WHERE kind = 'read'")
-                   if r["site"] in sites or _site(r["url"]) in sites]
+        readers = [r["name"] for r in Skills(store).all("read")
+                   if r["site"] in sites or _site(r["url"] or "") in sites]
         autos = [a for a in _agents_of(store, "1 = 1", ())
                  if any(n in (a["brief"] or "") or n in (a["steps"] or "") for n in readers)
                  or any(site in (a["brief"] or "").lower() for site in sites)]
-        procedures = [p["name"] for p in store.all(
-                          "SELECT name, site, url FROM skills WHERE kind = 'act'")
-                      if p["site"] in sites or _site(p["url"]) in sites]
+        procedures = [p["name"] for p in Skills(store).all("act")
+                      if p["site"] in sites or _site(p["url"] or "") in sites]
         candidate = profile_of(conn).resolve()
         if candidate.is_relative_to((alpha_home() / "browser").resolve()) and candidate.exists():
             profile = candidate
@@ -392,11 +392,9 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
     threads = [a["thread"] for a in autos if a["thread"]]
     with store.tx() as db:
         for name in readers:
-            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'read'", (name,))
-            _forget_skill_note(db, name)
+            _forget_skill(db, store, name)
         for name in procedures:
-            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'act'", (name,))
-            _forget_skill_note(db, name)
+            _forget_skill(db, store, name)
             db.execute("UPDATE permissions SET revoked_at = ? WHERE procedure = ?"
                        " AND revoked_at IS NULL", (now(), name))
             db.execute("UPDATE actions SET state = 'declined', updated_at = ? WHERE procedure = ?"
@@ -407,8 +405,7 @@ def remove_connection(world: World, cid: str, *, dry_run: bool = False) -> dict[
                        (f"Its reader went with the {target} connection.", now(), name))
         for a in autos:
             if a.get("skill"):
-                db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (a["skill"],))
-                _forget_skill_note(db, a["skill"])
+                _forget_skill(db, store, a["skill"])
             db.execute("DELETE FROM runs WHERE agent = ?", (a["id"],))
             db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{a['id']}",))
             Decisions.remove_about(db, "agent", a["id"])
@@ -465,8 +462,7 @@ def remove_agent(world: World, aid: str) -> dict[str, Any]:
         db.execute("DELETE FROM notes WHERE scope = ?", (f"agent:{aid}",))
         Decisions.remove_about(db, "agent", aid)
         if agent.get("skill"):
-            db.execute("DELETE FROM skills WHERE name = ? AND kind = 'run'", (agent["skill"],))
-            _forget_skill_note(db, agent["skill"])
+            _forget_skill(db, world.store, agent["skill"])
         if agent.get("thread"):
             _retire_threads(db, [agent["thread"]])
         Preferences.forget_agents(db, [aid])

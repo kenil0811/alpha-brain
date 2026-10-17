@@ -61,6 +61,8 @@ class World:
         self.procedures = Procedures(self.store)
         self.actions = Actions(self.store)
         self.permissions = Permissions(self.store)
+        # A world that kept its skills as rows writes them out as files, once (17 Oct 2026).
+        self.skills.migrate_from_tables()
 
     def close(self) -> None:
         self.store.close()

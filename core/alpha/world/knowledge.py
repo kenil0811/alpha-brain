@@ -13,6 +13,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from alpha.world.skills import Skills
 from alpha.world.store import Problem, Store, new_id, now
 
 INSTRUCTIONS = "Standing instructions"
@@ -80,8 +81,7 @@ class Knowledge:
         if kind == "entity" and self.store.one(
                 "SELECT 1 AS x FROM entities WHERE id = ? AND merged_into IS NULL", (ref,)) is None:
             raise Problem(f"There is no person or company {ref} to write a page about.")
-        if kind == "skill" and self.store.one("SELECT 1 AS x FROM skills WHERE name = ?",
-                                              (ref,)) is None:
+        if kind == "skill" and Skills(self.store).path_of(ref) is None:
             raise Problem(f"There is no skill {ref} to write notes about.")
         if not title.strip():
             raise Problem("A page needs a title.")

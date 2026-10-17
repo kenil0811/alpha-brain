@@ -143,3 +143,7 @@ class GoalBody(BaseModel):
     text: str | None = None
     state: str | None = None
     module: str | None = None
+
+
+class SkillTextBody(BaseModel):
+    text: str

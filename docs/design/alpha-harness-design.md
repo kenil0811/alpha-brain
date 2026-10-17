@@ -312,9 +312,9 @@ model and Doc knows what repaired means: today's `reader_health`, generalised.
 
 | Status (17 Oct 2026; detail in `../log/2026-10-17-harness-slice2a.md`) | |
 |---|---|
-| Built | Slice 2a: a standing thing (a table, a reader, an agent with its schedule, a module) is made in the turn, said in a line, run once and reported (`turn.md` rule 6); the workflow page stays as plan mode for a big job or "plan it first" (rule 7), and after the yes Alpha does the work in the same conversation; the build machinery (the walled session, parts, the proxy, "Say continue") is gone. |
-| Differs | Skills are still rows in the `skills` table (readers, procedures, pipelines), not directories; the form of a skill (§6.1) is not marked yet; Doc still edits rows. Slice 2b. |
-| Not built | Skills as Agent Skills directories with the migration, `agent_keep` and `schedule_keep` as files and rows the model writes, standing permissions in `ALPHA.md`, promotion and demotion between the forms (§6.1). |
+| Built | Slice 2a: a standing thing (a table, a reader, an agent with its schedule, a module) is made in the turn, said in a line, run once and reported (`turn.md` rule 6); the workflow page stays as plan mode for a big job or "plan it first" (rule 7), and after the yes Alpha does the work in the same conversation; the build machinery (the walled session, parts, the proxy, "Say continue") is gone. **Slice 2b, step 1 (17 Oct, late):** a skill is a directory, `skills/<name>/SKILL.md` with `scripts/read.js` or `steps.yaml`, under its module's directory (the module's git repository) or `skills/` beside the world; every save a commit, versions and Undo from the history; its state (health, last run) in the world's `skill_state`; the old rows written out once on open; the skill's page shows the file and takes the person's edit as a new version. |
+| Differs | The form of a skill is named in the frontmatter (`by script` for a reader or a procedure, `pipeline` for a run skill) but no skill is "by reading" yet, and promotion and demotion between the forms (§6.1) are not built; Doc edits the files through the same `save`. `agent_keep` and `schedule_keep` as files and rows the model writes wait for step 2 (the fifteen tools). |
+| Not built | `agent_keep` and `schedule_keep` as files the model writes, standing permissions in `ALPHA.md`, a by-reading skill, promotion and demotion between the forms (§6.1). |
 
 ## 7. Conversations and parallel work
 

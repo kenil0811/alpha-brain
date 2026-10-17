@@ -32,7 +32,7 @@ a short list of pieces was ported deliberately (see `docs/design/build-plan.md`)
   on use), the built-in agents' default briefs, `models.toml` (which model does which work) and
   `limits.toml` (the named judgements and timings, each with its why); `config.py` reads them.
 - `core/alpha/` — the Python core: `world/` (one SQLite file per person: journal, collections,
-  records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines),
+  records, entities, facts, notes, goals, modules, threads, workflows, sources, skills (readers, procedures, pipelines; files beside the world since 17 Oct, their state in the world),
   agents, decisions, commitments), `context/` (the deterministic pre-pack and module summaries), `runtime/` (the
   the engine (the Claude Agent SDK, `engine.py`; `claude -p` as the transition's fallback), the turn, the workflow build and its parts, pipelines, `agents/` (the runner, one loop for every kind, the scheduler, and the built-in kinds: Watson the noticer, Doc the healer, Columbo the checker, Sherlock the researcher, Scout the recommender)), `journeys/`
   (the suite that runs `../journeys/*.yaml` on a copy of the world), `mcp/` (the
@@ -72,8 +72,10 @@ The CLI also lists the agents (`uv run alpha agents`) and renames one (`uv run a
 The model runs through the Claude Agent SDK (its bundled Claude Code) on the owner's subscription; `claude` must be logged in
 from the default config home and `USER` must be in the environment. The app keeps its world in
 `~/Library/Application Support/com.alpha.brain` (the world file, the browser profiles,
-`modules/<id>/` for each module's workspace under git (§12: `WORKFLOW.md`, `workflow.json`,
-`PROGRESS.md`, `inputs/`, `parts/`, `documents/`), Alpha's own `files/<module>` for what it
+`modules/<id>/` for each module's directory under git (the harness, 17 Oct 2026: its
+`skills/<name>/` as `SKILL.md` plus `scripts/` or `steps.yaml`; older ones still hold the build's
+`WORKFLOW.md`, `workflow.json`, `PROGRESS.md`), `skills/` beside the world for skills with no
+module (a git repository of its own), Alpha's own `files/<module>` for what it
 fetched or was given, `exports/`, `backups/` (copies of the world), `actions/` screenshots, `logs/`, and the companion's
 `avatar-hidden` and `avatar-place.json`); the CLI on its own defaults to
 `~/Library/Application Support/Alpha Brain` unless `ALPHA_HOME` names a directory (tests and

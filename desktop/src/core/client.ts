@@ -643,6 +643,10 @@ export interface SkillDetail extends Omit<Skill, "notes"> {
   notes: Note | null;
   /** The versions it had before the current one, newest first: when each was replaced and by whom (Q49: a repair can be undone). */
   versions?: SkillVersion[];
+  /** The skill as a file (`SKILL.md`, the harness 2b): what the model wrote, readable and editable. */
+  text?: string;
+  /** by reading, by script, or pipeline (design §6.1). */
+  form?: string;
   runs: { at: string; kind: string; text: string }[];
 }
 
@@ -1186,6 +1190,8 @@ export class Client {
   skillPage = (name: string) => this.call<SkillDetail>("GET", `/api/skills/${encodeURIComponent(name)}`);
   /** Bring back an earlier version of a skill ("Undo this repair"). */
   restoreSkill = (name: string, version: number) => this.call<SkillDetail>("POST", `/api/skills/${encodeURIComponent(name)}/restore/${version}`);
+  /** The person's edit of a skill's file, kept as a new version. */
+  editSkillText = (name: string, text: string) => this.call<SkillDetail>("PUT", `/api/skills/${encodeURIComponent(name)}/text`, { text });
   agents = () => this.call<Agent[]>("GET", "/api/agents");
   agentPage = (id: string) => this.call<AgentDetail>("GET", `/api/agents/${encodeURIComponent(id)}`);
   /** Pause an agent or set it going, or rename it. */
