@@ -18,6 +18,10 @@ def test_the_trailing_question_and_the_options_the_reply_listed() -> None:
         "Quick check — do you mean a mayo-based chicken salad, or a salad bowl with grilled"
         " chicken?")
     assert asking.trailing_question("Is it done? " + "Here is a long remark. " * 12) is None
+    # a list with a quoted question mark in one item is a list, not a question (18 Oct)
+    assert asking.trailing_question('Done.\n\n- Source label: rows carry "Who is hiring?"\n'
+                                    "- Region: remote only") is None
+    assert asking.trailing_question("Which one?\n- Daily\n- Weekly") == "Which one?"
     assert asking.trailing_question("Logged two eggs (140 kcal).") is None
     assert asking.trailing_question("**Plan**\n\n1. Which folder?\n2. Daily or weekly?") is None
     reply = ("Got it.\n\n- Email attachments (Gmail)\n- Shared cloud folder\n- Something else\n\n"

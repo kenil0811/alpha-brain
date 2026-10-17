@@ -245,35 +245,60 @@ def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[An
         name = tool_name.removeprefix("mcp__alpha__")
         if name == "world_change" and input_data.get("remove"):
             table = str(input_data.get("table") or "the table")
-            rid = str(input_data.get("id") or "")
-            title = rid
+            ids = [str(i) for i in (input_data.get("ids") or [])] or (
+                [str(input_data["id"])] if input_data.get("id") else [])
+            titles = list(ids)
             try:
-                row = world.collections.get(table, rid)
                 desc = world.collections.describe(table)
-                title = str(row.get(desc.get("title_field") or "") or rid)
+                field = desc.get("title_field") or ""
+                titles = [str(world.collections.get(table, rid).get(field) or rid) for rid in ids]
                 table = str(desc.get("title") or table)
-            except Exception:  # the operation itself says what is wrong with the row
+            except Exception:  # the operation itself says what is wrong with the rows
                 pass
+            if len(ids) > 1:
+                # several rows the person asked to remove: one card for all of them
+                shown = ", ".join(f"\"{t}\"" for t in titles[:3]) + (
+                    f" and {len(ids) - 3} more" if len(ids) > 3 else "")
+                text = (f"Remove {len(ids)} rows from {table}? {shown}. They leave the table;"
+                        " Activity keeps that they were here.")
+            else:
+                text = (f"Remove \"{titles[0] if titles else ''}\" from {table}? It leaves the"
+                        " table; Activity keeps that it was here.")
             ask = world.journal.append(
-                "asked", f"Remove \"{title}\" from {table}? It leaves the table; Activity keeps"
-                         " that it was here.",
+                "asked", text,
                 data={"options": ["Yes, remove it", "No, keep it"], "kind": "one",
-                      "turn": req.turn_id, "permission": name, "table": table, "record": rid},
+                      "turn": req.turn_id, "permission": name, "table": table,
+                      "record": ids[0] if ids else "", "records": ids},
                 module=req.module_id, thread=req.thread_id)
             loop = asyncio.get_running_loop()
             fut: asyncio.Future[str] = loop.create_future()
             PENDING.add(ask, loop, fut)
             LIVE.note(_keys(req), doing=WAITING)
+            # the item's card says what it waits for (18 Oct: "Working" read as stuck)
+            _line(world, req.thread_id, "needs_you", f"Waiting for your yes: {text[:150]}")
             try:
                 answer = await fut
             except asyncio.CancelledError:
+                _line(world, req.thread_id, "working", "The wait for your yes was stopped.")
                 return PermissionResultDeny(message="The wait for your yes was stopped.")
+            _line(world, req.thread_id, "working",
+                  "Carrying on after your yes." if yes(answer) else "Carrying on after your no.")
             if yes(answer):
                 return PermissionResultAllow()
             return PermissionResultDeny(message=NO)
         return PermissionResultAllow()
 
     return can_use
+
+
+def _line(world: World, thread: str | None, state: str, line: str) -> None:
+    """The thread's state and line while a turn in it waits on a card, and after."""
+    if not thread:
+        return
+    try:
+        world.modules.update_thread(thread, state=state, last_line=line)
+    except Exception:  # a thread the tests never made; the card itself is the record
+        pass
 
 
 # ---- the run ----

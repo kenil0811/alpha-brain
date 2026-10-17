@@ -1,0 +1,52 @@
+[
+ {
+  "name": "remove_asks",
+  "title": "Removing a row the person entered asks on a card, and goes only on the yes",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've set up a food log in a new Nutrition module. It's empty so far. Each entry holds:\n\n- the food, when you ate it and which meal\n- the portion\n- calories, protein, carbs and fat\n- whether the numbers are stated, looked up or estimated, and where they came from\n\nTell me what you ate, like \"two eggs and toast for breakfast\". I'll add it to the log and look up the nutrition for packaged or branded foods. For home-cooked portions I'll estimate and mark the row as an estimate. If you don't say when, I'll assume you ate it just now.\n\nDo you want a daily calorie or protein target? If you give me on",
+    "steps": 2,
+    "seconds": 11.2
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs as a snack at 00:27: about 143 kcal, 12.6 g protein, 0.8 g carbs and 9.5 g fat.\n\n- **Source:** the numbers are the standard values for a large egg (about 50 g). I recalled them from memory and didn't look them up, so they're marked as estimated.\n- **Assumptions:** I assumed large eggs, no oil or butter added, and that you ate them just now.\n\nIf they were a different size, cooked in fat, or part of a different meal, tell me and I'll fix the entry.",
+    "steps": 3,
+    "seconds": 9.1
+   },
+   {
+    "say": "remove the eggs from the log",
+    "ok": true,
+    "reply": "I removed the eggs from your food log, so it's empty again.",
+    "steps": 3,
+    "seconds": 7.3
+   }
+  ],
+  "checks": [
+   {
+    "check": "journal",
+    "arg": {
+     "kind": "asked",
+     "contains": "Remove "
+    },
+    "ok": true,
+    "why": "1 asked entry: Remove \"Eggs\" from Food log? It leaves the table; Activity keeps that it was here..",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "removed|gone|deleted|taken"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 27.6,
+  "error": null
+ }
+]

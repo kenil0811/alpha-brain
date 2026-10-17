@@ -341,3 +341,52 @@ def test_a_turns_options_gate_the_two_hands(tmp_path: Path) -> None:
                                   "WebSearch", "WebFetch"]
     judge = engine.options_for(request(tmp_path, kind="judge"))
     assert judge.permission_mode == "dontAsk" and judge.can_use_tool is None
+
+
+def test_removing_several_rows_is_one_card_and_the_item_says_it_waits(tmp_path: Path) -> None:
+    """18 Oct: fifty rows to remove were fifty cards, and the item read "Working" while it
+    waited. One call with ids is one card naming the count and a few titles; the item's line
+    says what it waits for, and carries on after the answer."""
+    import threading
+    import time
+
+    from claude_agent_sdk import PermissionResultAllow
+
+    world = World(tmp_path / "w.sqlite")
+    world.collections.create("jobs", "Job listings", [{"name": "title", "kind": "text"}])
+    rows = [world.collections.add("jobs", {"title": f"Role {i}"}, {"by": "alpha"})
+            for i in range(5)]
+    item = world.modules.open_thread("Watch HN", "work")["id"]
+    req = request(tmp_path, kind="turn", turn_id="j_9", thread_id=item)
+    can_use = engine.permission_for(req, world)
+    seen: dict[str, Any] = {}
+
+    def answer_when_asked() -> None:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            asks = [a for a in world.journal.recent(5, kinds=["asked"])
+                    if a["data"].get("permission")]
+            if asks:
+                seen["thread"] = world.modules.thread(item)
+                assert engine.answer_permission(asks[-1]["id"], "Yes, remove it")
+                return
+            time.sleep(0.02)
+        raise AssertionError("no permission card appeared")
+
+    async def ask_to_remove() -> Any:
+        return await can_use("mcp__alpha__world_change",
+                             {"table": "jobs", "ids": [r["id"] for r in rows], "remove": True},
+                             None)
+
+    threading.Thread(target=answer_when_asked, daemon=True).start()
+    out = asyncio.run(ask_to_remove())
+    assert isinstance(out, PermissionResultAllow)
+    card = world.journal.recent(3, kinds=["asked"])[-1]
+    assert card["text"] == ('Remove 5 rows from Job listings? "Role 0", "Role 1", "Role 2" and 2'
+                            " more. They leave the table; Activity keeps that they were here.")
+    assert card["data"]["records"] == [r["id"] for r in rows]
+    assert seen["thread"]["state"] == "needs_you"
+    assert seen["thread"]["last_line"].startswith("Waiting for your yes: Remove 5 rows")
+    after = world.modules.thread(item)
+    assert after["state"] == "working" and after["last_line"] == "Carrying on after your yes."
+    world.close()

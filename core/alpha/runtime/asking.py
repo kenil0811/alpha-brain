@@ -80,6 +80,11 @@ def trailing_question(reply: str) -> str | None:
     asked = [ln for ln in lines if LIST_ITEM.match(ln) and ln.endswith("?")]
     if len(asked) >= 2:
         return None
+    # A list that no question introduces is a list, whatever one of its items ends with
+    # (18 Oct: a bullet quoting a thread called "Who is hiring?" became a card).
+    if sum(1 for ln in lines if LIST_ITEM.match(ln)) >= 2 and not lines[0].endswith("?"):
+        offered = offered_choice(reply)
+        return offered[0] if offered else None
     text = " ".join(lines)
     sentences = re.split(r"(?<=[.!?])\s+", text)
     if not text.endswith("?"):

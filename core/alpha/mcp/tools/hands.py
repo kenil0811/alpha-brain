@@ -78,13 +78,25 @@ class Hands(Finding, Tables, Knowledge, Modules, Reading, AgentTools, Acting, Wo
         return {"added": added, "count": len(added)}
 
     @hand(writes="records")
-    def world_change(self, table: str, id: str, revision: int,
+    def world_change(self, table: str, id: str | None = None, revision: int | None = None,
                      values: dict[str, Any] | None = None, remove: bool = False,
-                     source: str | None = None, assumed: str | None = None) -> dict[str, Any]:
+                     source: str | None = None, assumed: str | None = None,
+                     ids: list[str] | None = None) -> dict[str, Any]:
         """Change one row's fields (values: {field: value}), or remove it (remove: true) when
         the person asked for that. revision: the row's current revision from world_query, so a
         change never lands on a row that moved. source and assumed as for world_write. A row
-        the person entered themselves is theirs: change it only on their word."""
+        the person entered themselves is theirs: change it only on their word. To remove
+        several rows the person asked to remove, give their ids in `ids` with remove: true, in
+        one call: one question to them covers all of them (a call per row is a card per row);
+        no revision then, each goes at its current one."""
+        if ids:
+            if not remove:
+                return {"error": "ids is for removing several rows at once; change rows one at"
+                                 " a time, with id and revision."}
+            return self.records_delete_many(table, ids)
+        if not id or revision is None:
+            return {"error": "Give the row's id and its current revision (from world_query), or"
+                             " ids with remove: true for several."}
         if remove:
             return self.records_delete(table, id, revision)
         if not values:

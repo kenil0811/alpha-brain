@@ -242,6 +242,35 @@ class Tables(Base):
         )
         return {"removed": id}
 
+    @tool(writes="records")
+    def records_delete_many(self, collection: str, ids: list[str]) -> dict[str, Any]:
+        """Remove several records the person asked to remove, each at its current revision;
+        one line in the journal for all of them."""
+        desc = self.world.collections.describe(collection)
+        removed: list[str] = []
+        titles: list[str] = []
+        missing: list[str] = []
+        for rid in dict.fromkeys(str(i) for i in ids):
+            try:
+                before = self.world.collections.get(collection, rid)
+                self.world.collections.delete(collection, rid, int(before["revision"]))
+            except Problem:
+                missing.append(rid)
+                continue
+            removed.append(rid)
+            titles.append(str(before.get(desc["title_field"]) or rid))
+        if removed:
+            shown = ", ".join(titles[:3]) + (f" and {len(titles) - 3} more" if len(titles) > 3
+                                             else "")
+            self._did("changed", f"Removed {len(removed)} rows from {desc['title']}: {shown}.",
+                      {"collection": collection, "records": removed, "titles": titles[:20]},
+                      desc["module"])
+        out: dict[str, Any] = {"removed": removed}
+        if missing:
+            out["missing"] = missing
+            out["note"] = f"{len(missing)} of them changed or were gone already; read them again."
+        return out
+
     @tool
     def records_query(
         self,

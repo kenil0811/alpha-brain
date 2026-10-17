@@ -167,3 +167,18 @@ def test_a_problem_in_an_operation_comes_back_in_words(world: World) -> None:
     except Problem:  # the hands never raise: the model reads the words
         raise AssertionError("a hand raised instead of answering in words") from None
     assert "error" in out
+
+
+def test_several_rows_are_removed_in_one_call_with_one_journal_line(world: World) -> None:
+    t = hands(world)
+    t.world_shape(table="jobs", title="Job listings", fields=[{"name": "title", "kind": "text"}])
+    t.world_write("jobs", [{"title": f"Role {i}"} for i in range(4)], source="test")
+    ids = [r["id"] for r in world.collections.query("jobs")]
+    out = t.world_change("jobs", ids=ids[:3] + ["r_gone"], remove=True)
+    assert out["removed"] == ids[:3] and out["missing"] == ["r_gone"]
+    assert len(world.collections.query("jobs")) == 1
+    line = world.journal.recent(1, kinds=["changed"])[-1]
+    assert line["text"].startswith("Removed 3 rows from Job listings: Role")
+    assert line["data"]["records"] == ids[:3]
+    assert "error" in t.world_change("jobs", ids=ids[3:], remove=False)
+    assert "error" in t.world_change("jobs")
