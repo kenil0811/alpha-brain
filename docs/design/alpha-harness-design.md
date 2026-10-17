@@ -413,9 +413,9 @@ the prompt repeats them. A hook journals every call. There is no other gate.
 
 | Status (17 Oct 2026; detail in `../log/2026-10-17-harness-slice2a.md`) | |
 |---|---|
-| Built | Slice 2a: the scope gate is gone; the only gates are the actions that ask (acting outward through its card, Q24; deleting the person's own entries; sign-ins). The prompt's rule: say in a line what is about to be made, make it, ask only when the answer changes what gets made and cannot be defaulted. |
-| Differs | The questions still go through `ask_person` cards and the permission for outward actions through `action_propose`'s card, not yet the SDK's permission callback. The person's folders and the whole-Mac toggle are not in Settings yet. |
-| Not built | The permission callback path (`default` mode, the sensitive tools out of `allowed_tools`, `defer` across restarts), the granted folders, the whole-Mac toggle (slices 2b, 6). |
+| Built | Slice 2a: the scope gate is gone; the only gates are the actions that ask (acting outward through its card, Q24; deleting the person's own entries; sign-ins). The prompt's rule: say in a line what is about to be made, make it, ask only when the answer changes what gets made and cannot be defaulted. **Slice 2b, step 3 (17 Oct, late):** a turn runs in the SDK's default mode with the permission callback; every hand but `world_change` and `act_outward` is allowed outright; a row's removal asks on a card in the conversation and the turn waits for the window's answer (the silence watch knows; Stop ends the wait); `act_outward` passes through the callback with its own card as the gate. |
+| Differs | The deferred yes across a restart (`defer`) is not built: a card unanswered when the app quits ends with the run. The journal line for every call stays the operations' own, not a hook. The person's folders and the whole-Mac toggle are not in Settings yet. |
+| Not built | `defer` across restarts; the granted folders and the whole-Mac toggle (slice 6); the SDK's own tools in a turn (step 4). |
 
 ## 9. Proactiveness
 

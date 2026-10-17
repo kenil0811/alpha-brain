@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import getpass
 import logging
+import threading
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -32,6 +33,8 @@ from claude_agent_sdk import (
     ClaudeSDKClient,
     HookContext,
     HookMatcher,
+    PermissionResultAllow,
+    PermissionResultDeny,
     ResultMessage,
     StreamEvent,
     TextBlock,
@@ -83,10 +86,16 @@ def sessions_dir(world_path: Path) -> Path:
 
 
 def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
-                hooks: dict[str, list[HookMatcher]] | None = None) -> ClaudeAgentOptions:
+                hooks: dict[str, list[HookMatcher]] | None = None,
+                hands: list[str] | None = None,
+                can_use: Callable[..., Awaitable[Any]] | None = None) -> ClaudeAgentOptions:
     """The SDK's options for a request: the same tools, walls and session rules the CLI route
-    passed as flags."""
+    passed as flags. With `hands` (the served tools' names) and `can_use`, a turn runs in the
+    default mode: every hand but the gated ones is allowed outright, the gated ones reach the
+    callback (harness design §8)."""
     allowed = tools_allowed(req)
+    if hands is not None and req.kind == "turn":
+        allowed = [f"mcp__alpha__{h}" for h in hands if h not in GATED] + ["WebSearch", "WebFetch"]
     denied = list(DENIED)
     if not allowed:
         denied += ["WebSearch", "WebFetch"]
@@ -102,8 +111,9 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
         "system_prompt": {"type": "preset", "preset": "claude_code", "append": req.system},
         "allowed_tools": allowed,
         "disallowed_tools": denied,
-        # dontAsk: anything not allowed is refused rather than prompted for.
-        "permission_mode": "dontAsk",
+        # dontAsk: anything not allowed is refused rather than prompted for; with the callback,
+        # the default mode, so a gated hand asks (the person's card) instead.
+        "permission_mode": "default" if can_use is not None else "dontAsk",
         "setting_sources": [],
         "strict_mcp_config": True,
         "include_partial_messages": True,
@@ -115,6 +125,8 @@ def options_for(req: TurnRequest, server: McpSdkServerConfig | None = None,
     }
     if hooks:
         kw["hooks"] = hooks
+    if can_use is not None:
+        kw["can_use_tool"] = can_use
     return ClaudeAgentOptions(**kw)
 
 
@@ -136,6 +148,113 @@ class Served:
 ServerBuilder = Callable[[TurnRequest, ThreadPoolExecutor], Awaitable[Served]]
 server_builder: ServerBuilder | None = None
 NO_TOOLS = "Alpha's tools are not wired into this process, so the turn did not run."
+
+
+# ---- the person's yes (harness design §8; slice 2b, step 3) ----
+
+# The hands that reach the permission callback instead of running at once: everything else is
+# allowed outright. `world_change` asks when it removes a row; `act_outward` passes through
+# (its card is the gate today) and is the hook for the deferred yes later.
+GATED = ("world_change", "act_outward")
+WAITING = "Waiting for your yes"
+NO = "You said no: nothing changed."
+
+
+class Pending:
+    """Permissions waiting on the person: a card asked in the journal, a future the answer
+    route resolves from any thread. A pending one counts as the run being alive, not silent."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.futures: dict[str, tuple[asyncio.AbstractEventLoop, asyncio.Future[str]]] = {}
+
+    def add(self, ask_id: str, loop: asyncio.AbstractEventLoop, fut: asyncio.Future[str]) -> None:
+        with self.lock:
+            self.futures[ask_id] = (loop, fut)
+
+    def answer(self, ask_id: str, text: str) -> bool:
+        """The person's answer to a permission card; True when one was waiting for it."""
+        with self.lock:
+            found = self.futures.pop(ask_id, None)
+        if found is None:
+            return False
+        loop, fut = found
+
+        def settle() -> None:
+            if not fut.done():
+                fut.set_result(text)
+
+        loop.call_soon_threadsafe(settle)
+        return True
+
+    def waiting(self, loop: asyncio.AbstractEventLoop) -> bool:
+        with self.lock:
+            return any(lp is loop for lp, _ in self.futures.values())
+
+    def drop(self, loop: asyncio.AbstractEventLoop) -> None:
+        with self.lock:
+            mine = [k for k, (lp, _) in self.futures.items() if lp is loop]
+            for ask_id in mine:
+                _, fut = self.futures.pop(ask_id)
+
+                def cancel(f: asyncio.Future[str] = fut) -> None:
+                    if not f.done():
+                        f.cancel()
+
+                loop.call_soon_threadsafe(cancel)
+
+
+PENDING = Pending()
+
+
+def answer_permission(ask_id: str, text: str) -> bool:
+    return PENDING.answer(ask_id, text)
+
+
+def yes(text: str) -> bool:
+    words = text.strip().lower()
+    return words.startswith(("yes", "y ", "ok", "sure", "go ahead", "remove", "do it")) or \
+        words in ("y", "yep", "yeah")
+
+
+def permission_for(req: TurnRequest, world: World) -> Callable[..., Awaitable[Any]]:
+    """The callback the SDK asks before a gated hand runs. A row removed from the person's
+    tables is asked for on a card (the window answers it, or the person's Stop ends the wait);
+    everything else is allowed."""
+
+    async def can_use(tool_name: str, input_data: dict[str, Any], context: Any) -> Any:
+        name = tool_name.removeprefix("mcp__alpha__")
+        if name == "world_change" and input_data.get("remove"):
+            table = str(input_data.get("table") or "the table")
+            rid = str(input_data.get("id") or "")
+            title = rid
+            try:
+                row = world.collections.get(table, rid)
+                desc = world.collections.describe(table)
+                title = str(row.get(desc.get("title_field") or "") or rid)
+                table = str(desc.get("title") or table)
+            except Exception:  # the operation itself says what is wrong with the row
+                pass
+            ask = world.journal.append(
+                "asked", f"Remove \"{title}\" from {table}? It leaves the table; Activity keeps"
+                         " that it was here.",
+                data={"options": ["Yes, remove it", "No, keep it"], "kind": "one",
+                      "turn": req.turn_id, "permission": name, "table": table, "record": rid},
+                module=req.module_id, thread=req.thread_id)
+            loop = asyncio.get_running_loop()
+            fut: asyncio.Future[str] = loop.create_future()
+            PENDING.add(ask, loop, fut)
+            LIVE.note(_keys(req), doing=WAITING)
+            try:
+                answer = await fut
+            except asyncio.CancelledError:
+                return PermissionResultDeny(message="The wait for your yes was stopped.")
+            if yes(answer):
+                return PermissionResultAllow()
+            return PermissionResultDeny(message=NO)
+        return PermissionResultAllow()
+
+    return can_use
 
 
 # ---- the run ----
@@ -243,12 +362,16 @@ async def run_async(req: TurnRequest, *,
 
     LIVE.add_handle(keys, stop_from_any_thread)
     try:
+        hands: list[str] | None = None
+        can_use: Callable[..., Awaitable[Any]] | None = None
         if req.kind == "turn":
             if server_builder is None:
                 return RunResult(reply="", ok=False, error=NO_TOOLS)
             served = await server_builder(req, executor)
             server, world = served.config, served.world
-        options = options_for(req, server, _hooks(req))
+            hands = [t.name for t in served.tools]
+            can_use = permission_for(req, world)
+        options = options_for(req, server, _hooks(req), hands=hands, can_use=can_use)
         async with client_factory(options) as c:
             client = c
             await c.query(req.sentence)
@@ -261,6 +384,8 @@ async def run_async(req: TurnRequest, *,
                 except StopAsyncIteration:
                     break
                 except TimeoutError:
+                    if PENDING.waiting(loop):
+                        continue  # a yes is being waited for: alive, not silent
                     stalled = True
                     break
                 try:
@@ -274,6 +399,7 @@ async def run_async(req: TurnRequest, *,
         log.warning("the model run %s failed: %s", req.turn_id, e)
         failure = str(e)
     finally:
+        PENDING.drop(loop)
         first_text_at = (LIVE.progress_for(keys[0]) or {}).get("first_text_at")
         stopped = LIVE.remove_handle(keys)
         executor.shutdown(wait=False)

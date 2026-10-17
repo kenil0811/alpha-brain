@@ -43,6 +43,7 @@ import os
 import re
 import shutil
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -54,7 +55,7 @@ import yaml
 
 from alpha import config
 from alpha.context import prepack
-from alpha.runtime import acting, claude_cli, pipeline, route, turn
+from alpha.runtime import acting, claude_cli, engine, pipeline, route, turn
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
@@ -192,8 +193,16 @@ class Run:
     def step(self, spec: dict[str, Any]) -> dict[str, Any]:
         began = time.monotonic()
         if "say" in spec:
-            outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
-                               runner=self.runner)
+            # A hand that asks for the person's yes on a card (a row's removal, harness §8)
+            # gets it from the suite: on a scratch world, yes, journaled like any answer.
+            stop_answering = threading.Event()
+            threading.Thread(target=self._answer_permissions, args=(stop_answering,),
+                             daemon=True).start()
+            try:
+                outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
+                                   runner=self.runner)
+            finally:
+                stop_answering.set()
             self.last_turn, self.last_reply = outcome.said, outcome.reply
             self.exchanges.append((spec["say"], outcome.reply))
             if outcome.ok:
@@ -306,6 +315,17 @@ class Run:
             raise Problem(f"Unknown step: {spec}")
         record["seconds"] = round(time.monotonic() - began, 1)
         return record
+
+    def _answer_permissions(self, stop: threading.Event) -> None:
+        answered: set[str] = set()
+        while not stop.wait(0.2):
+            for a in self.world.journal.recent(5, kinds=["asked"]):
+                if a["data"].get("permission") and a["id"] not in answered:
+                    answered.add(a["id"])
+                    if engine.answer_permission(a["id"], "Yes"):
+                        self.world.journal.append("answered", "Yes (the journey suite)",
+                                                  actor="person", data={"ask": a["id"]},
+                                                  thread=a["thread"], module=a["module"])
 
     def _table(self, name: str) -> str:
         names = self.world.collections.names()

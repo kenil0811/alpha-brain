@@ -21,7 +21,7 @@ from alpha.api.views import (
     thread_views,
 )
 from alpha.connectors.calendar import Calendar
-from alpha.runtime import conversations
+from alpha.runtime import conversations, engine
 from alpha.runtime.agents import columbo, scout
 from alpha.world.store import Problem, local_midnight_utc
 
@@ -64,6 +64,9 @@ def routes(app: FastAPI, s: Served) -> None:
         asked = world.journal.read(ask_id)
         jid = world.journal.append("answered", body.text, actor="person", data={"ask": ask_id},
                                    module=asked["module"], thread=asked["thread"])
+        if asked["data"].get("permission") and engine.answer_permission(ask_id, body.text):
+            # A hand waiting for the person's yes (harness §8): the turn carries on with it.
+            return {"answered": jid, "turn": None, "permission": asked["data"]["permission"]}
         decided = columbo.decide(world, asked, body.text)
         if decided:
             # Columbo's question (two values, two sources): the pick binds, by code; no turn.

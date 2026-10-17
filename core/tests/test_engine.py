@@ -271,3 +271,72 @@ def test_a_turn_without_the_tools_wired_fails_in_words(tmp_path: Path,
     monkeypatch.setattr(engine, "server_builder", None)
     out = engine.run(request(tmp_path, kind="turn"), client_factory=factory([result()]))
     assert not out.ok and out.error == engine.NO_TOOLS
+
+
+def test_removing_a_row_waits_for_the_persons_yes_on_a_card(tmp_path: Path) -> None:
+    """Harness §8, slice 2b step 3: the one hand that asks today. The callback puts a card in
+    the journal and waits; the answer route resolves it from another thread; no answer and a
+    stop cancels the wait."""
+    import threading
+    import time
+
+    from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
+
+    world = World(tmp_path / "w.sqlite")
+    world.collections.create("food_log", "Food log", [{"name": "item", "kind": "text"}])
+    row = world.collections.add("food_log", {"item": "eggs"}, {"by": "person"})
+    req = request(tmp_path, kind="turn", turn_id="j_9", thread_id="t_9")
+    can_use = engine.permission_for(req, world)
+
+    seen: set[str] = set()
+
+    def answer_when_asked(text: str) -> None:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            asks = [a for a in world.journal.recent(5, kinds=["asked"])
+                    if a["data"].get("permission") and a["id"] not in seen]
+            if asks:
+                seen.add(asks[-1]["id"])
+                assert engine.answer_permission(asks[-1]["id"], text)
+                return
+            time.sleep(0.02)
+        raise AssertionError("no permission card appeared")
+
+    async def ask_to_remove() -> Any:
+        return await can_use("mcp__alpha__world_change",
+                             {"table": "food_log", "id": row["id"], "revision": 1, "remove": True},
+                             None)
+
+    threading.Thread(target=answer_when_asked, args=("Yes, remove it",), daemon=True).start()
+    out = asyncio.run(ask_to_remove())
+    assert isinstance(out, PermissionResultAllow)
+    card = world.journal.recent(3, kinds=["asked"])[-1]
+    assert card["text"].startswith('Remove "eggs" from Food log?') and card["thread"] == "t_9"
+    assert card["data"]["options"] == ["Yes, remove it", "No, keep it"]
+    threading.Thread(target=answer_when_asked, args=("No, keep it",), daemon=True).start()
+    out = asyncio.run(ask_to_remove())
+    assert isinstance(out, PermissionResultDeny) and out.message == engine.NO
+    # a change that is not a removal, and any other hand, run at once
+    async def decide(name: str, inputs: dict[str, Any]) -> Any:
+        return await can_use(name, inputs, None)
+
+    assert isinstance(asyncio.run(decide("mcp__alpha__world_change",
+                                         {"table": "food_log", "id": row["id"],
+                                          "values": {"item": "egg"}})), PermissionResultAllow)
+    assert isinstance(asyncio.run(decide("mcp__alpha__world_write", {})), PermissionResultAllow)
+    assert not engine.answer_permission("j_nothing", "yes")
+    world.close()
+
+
+def test_a_turns_options_gate_the_two_hands(tmp_path: Path) -> None:
+    async def allow(*a: Any) -> Any:
+        return None
+
+    opts = engine.options_for(request(tmp_path, kind="turn"),
+                              hands=["world_query", "world_change", "act_outward", "ask_person"],
+                              can_use=allow)
+    assert opts.permission_mode == "default" and opts.can_use_tool is allow
+    assert opts.allowed_tools == ["mcp__alpha__world_query", "mcp__alpha__ask_person",
+                                  "WebSearch", "WebFetch"]
+    judge = engine.options_for(request(tmp_path, kind="judge"))
+    assert judge.permission_mode == "dontAsk" and judge.can_use_tool is None
