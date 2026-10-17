@@ -285,25 +285,6 @@ CREATE TABLE IF NOT EXISTS commitments (
 CREATE INDEX IF NOT EXISTS commitments_who ON commitments(who, state);
 -- Every version of a skill before it was replaced (Q49, 16 Oct 2026): what a repair changed,
 -- and what "Undo this repair" restores. `by` is who saved the version that replaced it.
-CREATE TABLE IF NOT EXISTS skill_versions (
-    name TEXT NOT NULL,
-    version INTEGER NOT NULL,
-    kind TEXT NOT NULL,
-    site TEXT,
-    url TEXT,
-    description TEXT NOT NULL,
-    when_to_use TEXT,
-    script TEXT,
-    to_end INTEGER NOT NULL DEFAULT 0,
-    whole INTEGER NOT NULL DEFAULT 1,
-    effect TEXT,
-    steps TEXT,
-    verify TEXT,
-    fields TEXT,
-    saved_at TEXT NOT NULL,
-    replaced_by TEXT,
-    PRIMARY KEY (name, version)
-);
 
 
 -- a module as the person's own workflow (§12, Q39): one page in their words, structured, with
@@ -410,32 +391,6 @@ CREATE TABLE IF NOT EXISTS threads (
 -- script that returns rows), act (steps that do one task on one site) or run (a pipeline of
 -- steps the scheduler runs with no model). Readers and procedures were tables of their own
 -- until 3 Oct; a world made before then moves them here on open.
-CREATE TABLE IF NOT EXISTS skills (
-    name TEXT PRIMARY KEY,
-    kind TEXT NOT NULL,
-    site TEXT,
-    module TEXT,
-    url TEXT,
-    description TEXT NOT NULL,
-    when_to_use TEXT,
-    script TEXT,
-    to_end INTEGER NOT NULL DEFAULT 0,
-    whole INTEGER NOT NULL DEFAULT 1,
-    effect TEXT,
-    steps TEXT,
-    verify TEXT,
-    fields TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    health TEXT NOT NULL DEFAULT 'untried',
-    last_problem TEXT,
-    last_run_at TEXT,
-    last_count INTEGER,
-    last_ok_count INTEGER,
-    source TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
 
 -- What happened to a skill (17 Oct 2026, harness 2b): its health and its last run. The skill
 -- itself is a directory of files beside the world (world/skills.py); the `skills` and
@@ -546,6 +501,67 @@ def loads(text: str | None, default: Any = None) -> Any:
     return json.loads(text)
 
 
+# The skills as rows, until 17 Oct 2026 (the harness, 2b): a world older than 3 Oct 2026 still
+# moves its readers and procedures through these tables, and `Skills.migrate_from_tables`
+# writes them out as files and drops the tables.
+LEGACY_SKILLS = """
+CREATE TABLE IF NOT EXISTS skills (
+    name TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    site TEXT,
+    module TEXT,
+    url TEXT,
+    description TEXT NOT NULL,
+    when_to_use TEXT,
+    script TEXT,
+    to_end INTEGER NOT NULL DEFAULT 0,
+    whole INTEGER NOT NULL DEFAULT 1,
+    effect TEXT,
+    steps TEXT,
+    verify TEXT,
+    fields TEXT,
+    version INTEGER NOT NULL DEFAULT 1,
+    health TEXT NOT NULL DEFAULT 'untried',
+    last_problem TEXT,
+    last_run_at TEXT,
+    last_count INTEGER,
+    last_ok_count INTEGER,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS skills_kind ON skills(kind, site);
+
+CREATE TABLE IF NOT EXISTS skill_versions (
+    name TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    site TEXT,
+    url TEXT,
+    description TEXT NOT NULL,
+    when_to_use TEXT,
+    script TEXT,
+    to_end INTEGER NOT NULL DEFAULT 0,
+    whole INTEGER NOT NULL DEFAULT 1,
+    effect TEXT,
+    steps TEXT,
+    verify TEXT,
+    fields TEXT,
+    saved_at TEXT NOT NULL,
+    replaced_by TEXT,
+    PRIMARY KEY (name, version)
+);
+"""
+
+
+def _legacy_skills(db: sqlite3.Connection) -> None:
+    """The legacy skills tables, made inside the open transaction (an executescript would
+    commit it)."""
+    for statement in LEGACY_SKILLS.split(";"):
+        if statement.strip():
+            db.execute(statement)
+
+
 class Store:
     """A connection to one world file. Writes go through `tx()`, one transaction each."""
 
@@ -610,7 +626,9 @@ class Store:
             first = db.execute("SELECT MIN(at) AS at FROM journal").fetchone()
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('created_at', ?)",
                        ((first["at"] if first and first["at"] else None) or now(),))
-            self._name_run_skills(db)
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'skills'"
+                          ).fetchone():
+                self._name_run_skills(db)  # the legacy rows, before they become files
 
     @staticmethod
     def _drop_superseded(db: sqlite3.Connection) -> None:
@@ -636,6 +654,8 @@ class Store:
         kind read and act; the old tables are dropped once moved."""
         tables = {r["name"] for r in db.execute("SELECT name FROM sqlite_master"
                                                  " WHERE type = 'table'")}
+        if "readers" in tables or "procedures" in tables:
+            _legacy_skills(db)
         if "readers" in tables:
             have = {r["name"] for r in db.execute("PRAGMA table_info(readers)")}
             whole = "whole" if "whole" in have else "1"
@@ -669,6 +689,7 @@ class Store:
             for column in ("goal", "steps", "skill"):
                 if column not in have:
                     db.execute(f"ALTER TABLE automations ADD COLUMN {column} TEXT")
+            _legacy_skills(db)  # the run skills land as rows, then as files
             Store._steps_to_skills(db)
             stamp = now()
             for row in db.execute("SELECT * FROM automations").fetchall():

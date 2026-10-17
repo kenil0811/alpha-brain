@@ -12,8 +12,8 @@ from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
 from alpha.api.views import fold_failures
-from alpha.runtime import claude_cli
-from alpha.runtime.claude_cli import NO_ANSWER, RunResult, TurnRequest
+from alpha.runtime import running
+from alpha.runtime.running import NO_ANSWER, RunResult, TurnRequest
 from alpha.runtime.turn import ask
 from alpha.world.world import World
 
@@ -36,15 +36,15 @@ def events_of(c: TestClient, key: str) -> list[dict[str, Any]]:
 def test_a_turn_is_pushed_as_it_happens(world: World) -> None:
     def runner(req: TurnRequest) -> RunResult:
         keys = [req.turn_id or ""]
-        claude_cli.LIVE.note(keys, thought="Let me look at the Food Log first.")
+        running.LIVE.note(keys, thought="Let me look at the Food Log first.")
         time.sleep(0.15)
-        claude_cli.LIVE.note(keys, partial="", doing="Reading rows: food_log")
+        running.LIVE.note(keys, partial="", doing="Reading rows: food_log")
         world.journal.append("did", "Added a row to Food Log.", data={"turn": req.turn_id})
         time.sleep(0.6)
-        claude_cli.LIVE.note(keys, partial="")
-        claude_cli.LIVE.add_text(keys, "Logged ")
+        running.LIVE.note(keys, partial="")
+        running.LIVE.add_text(keys, "Logged ")
         time.sleep(0.15)
-        claude_cli.LIVE.add_text(keys, "**two eggs**, 140 kcal.")
+        running.LIVE.add_text(keys, "**two eggs**, 140 kcal.")
         time.sleep(0.15)
         return RunResult(reply="Logged **two eggs**, 140 kcal.", ok=True, duration_ms=1200)
 

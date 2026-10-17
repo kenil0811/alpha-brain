@@ -16,7 +16,7 @@ from alpha.connectors.base import Connections
 from alpha.connectors.files import Files, files_dir
 from alpha.mcp.tools import Tools
 from alpha.runtime import acting
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.actions import check_steps, file_fields
 from alpha.world.purge import remove_module
 from alpha.world.store import Problem

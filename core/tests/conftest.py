@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from alpha.mcp.tools import Tools
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 

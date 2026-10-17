@@ -11,7 +11,7 @@ from alpha.api.server import create_app
 from alpha.connectors.base import Connections, skills_text
 from alpha.mcp.tools import Tools
 from alpha.runtime.agents.runner import worth_telling
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.runtime.turn import ask
 from alpha.world.readers import health_problem
 from alpha.world.world import World

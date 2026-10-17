@@ -22,7 +22,7 @@ from typing import Any
 
 from alpha import config
 from alpha.runtime import route
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 
 
 @dataclass

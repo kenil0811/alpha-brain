@@ -34,7 +34,7 @@ from alpha.connectors.calendar import Calendar
 from alpha.context.summary import module_summary
 from alpha.runtime import connecting, route, turn
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
-from alpha.runtime.claude_cli import RunResult
+from alpha.runtime.running import RunResult
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents.scout")

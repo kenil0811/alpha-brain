@@ -469,7 +469,12 @@ class Skills:
         """Write every skill the world kept as rows (`skills`, `skill_versions`) out as files,
         its versions as commits in order, its state into `skill_state`; once, marked in `meta`.
         Returns how many skills were written."""
+        have = {str(r["name"]) for r in self.store.all(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if "skills" not in have:
+            return 0
         if self.store.one("SELECT value FROM meta WHERE key = 'skills_in_files'"):
+            self._drop_tables()
             return 0
         rows = self.store.all("SELECT * FROM skills ORDER BY created_at")
         written = 0
@@ -488,7 +493,14 @@ class Skills:
         with self.store.tx() as db:
             db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('skills_in_files', ?)",
                        (dumps({"at": now(), "skills": written}),))
+        self._drop_tables()
         return written
+
+    def _drop_tables(self) -> None:
+        """The rows are files now: the tables go (18 Oct 2026, 2b step 4)."""
+        with self.store.tx() as db:
+            db.execute("DROP TABLE IF EXISTS skill_versions")
+            db.execute("DROP TABLE IF EXISTS skills")
 
     def _write_version(self, r: dict[str, Any], *, module: str | None, state: bool) -> None:
         fields: dict[str, Any] = {"to_end": bool(r.get("to_end")), "whole": bool(r.get("whole", 1)),

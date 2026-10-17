@@ -27,7 +27,8 @@ from alpha.api.views import (
     troubles,
 )
 from alpha.connectors.files import Files
-from alpha.runtime import claude_cli, conversations
+from alpha.runtime import conversations
+from alpha.runtime.running import LIVE
 from alpha.world.purge import conversation_removal, remove_conversation
 from alpha.world.store import Problem
 
@@ -186,7 +187,7 @@ def routes(app: FastAPI, s: Served) -> None:
                     seen["steps"] = len(steps)
                     live = state.get("live")
                 else:
-                    live = claude_cli.LIVE.progress_for(state.get("said"))
+                    live = LIVE.progress_for(state.get("said"))
                 if live:
                     written = int(live.get("written") or 0)
                     partial = str(live.get("partial") or "")

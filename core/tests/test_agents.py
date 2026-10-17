@@ -14,7 +14,7 @@ from alpha.connectors.base import Connections
 from alpha.mcp.tools import Tools
 from alpha.runtime.agents import runner as agent_runner
 from alpha.runtime.agents import scheduler
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.runtime.turn import ask
 from alpha.world.agents import check_schedule, describe, next_run
 from alpha.world.store import Problem

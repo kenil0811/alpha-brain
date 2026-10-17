@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -17,10 +16,9 @@ from test_actions import PAYLOAD, Driver, gmail_connected, keep_procedure, resto
 from alpha import config
 from alpha.api.server import create_app
 from alpha.mcp.tools import Tools, provenance_of, provenance_words
-from alpha.runtime import claude_cli
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 FIELDS = [{"name": "item", "kind": "text"}, {"name": "kcal", "kind": "number", "unit": "kcal"},
@@ -121,23 +119,6 @@ def test_a_plain_log_with_no_home_is_journaled_with_its_source(world: World) -> 
 
 
 # ---- what is checked, and how the verdict is read ----
-
-
-def test_independent_and_judging_runs_never_see_alpha(world: World) -> None:
-    def req(kind: str = "turn") -> TurnRequest:
-        return TurnRequest(sentence="s", system="x", world_path=world.path, turn_id="j1", kind=kind)
-    independent = claude_cli.argv(req("independent"), Path("/tmp/mcp.json"))
-    # Strict with an empty config: neither Alpha's tools nor the person's own MCP servers.
-    assert "--strict-mcp-config" in independent and "mcp__alpha" not in independent
-    assert claude_cli.mcp_config(req("independent")) == {"mcpServers": {}}
-    assert independent[independent.index("--allowedTools") + 1:][:2] == ["WebSearch", "WebFetch"]
-    judge = claude_cli.argv(req("judge"), Path("/tmp/m.json"))
-    assert "--allowedTools" not in judge and "mcp__alpha" not in judge
-    assert claude_cli.mcp_config(req("judge")) == {"mcpServers": {}}
-    assert "WebSearch" in judge[judge.index("--disallowedTools") + 1:]
-    ordinary = claude_cli.argv(req(), Path("/tmp/m.json"))
-    assert "--mcp-config" in ordinary and "mcp__alpha" in ordinary
-    assert "alpha" in claude_cli.mcp_config(req())["mcpServers"]
 
 
 def test_what_columbo_checks_by_shape(world: World) -> None:

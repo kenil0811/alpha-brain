@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from alpha.runtime import asking, claude_cli, turn
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime import asking, turn
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 
@@ -112,29 +110,6 @@ def test_no_card_when_the_model_made_one_or_drafted_the_page_or_the_question_is_
     out = turn.ask(world, "x", runner=lambda r: RunResult(
         reply="Two things:\n\n1. Which folder?\n2. Daily or weekly?", ok=True))
     assert not [a for a in world.journal.open_asks() if a["data"].get("turn") == out.said]
-
-
-def test_the_reply_streams_as_it_is_written() -> None:
-    keys = ["t_stream"]
-    claude_cli.LIVE.progress.pop(keys[0], None)
-    delta: Any = {"type": "stream_event", "event": {"type": "content_block_delta",
-                                                     "delta": {"type": "text_delta",
-                                                               "text": "Logged "}}}
-    claude_cli._watch(keys, {"type": "stream_event",
-                             "event": {"type": "content_block_start",
-                                       "content_block": {"type": "text"}}})
-    claude_cli._watch(keys, delta)
-    claude_cli._watch(keys, {**delta, "event": {**delta["event"],
-                                                "delta": {"type": "text_delta",
-                                                          "text": "two eggs."}}})
-    live = claude_cli.LIVE.progress_for(keys[0])
-    assert live and live["partial"] == "Logged two eggs." and live["first_text_at"]
-    # A step after some text: that text was a thought, the reply starts over.
-    claude_cli._watch(keys, {"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "name": "mcp__alpha__records_add", "input": {"collection": "food"}}]}})
-    live = claude_cli.LIVE.progress_for(keys[0])
-    assert live and live["partial"] == "" and live["doing"] == "Adding a row: food"
-    claude_cli.LIVE.progress.pop(keys[0], None)
 
 
 def test_the_window_sees_which_card_the_core_made_and_from_which_turn(world: World) -> None:

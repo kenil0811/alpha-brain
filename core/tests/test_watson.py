@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from alpha.runtime.agents import builtin, look_and_run, watson
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 

@@ -4,7 +4,8 @@ Rewritten, not appended, at the end of every session. This page is what a new se
 first; the numbers come from `just stats`; the history is [`log/`](log/README.md); the intent is
 [`design/alpha-harness-design.md`](design/alpha-harness-design.md) (the 30 Sept design is history).
 
-**As of 17 October 2026, late night.** The direction changed on 17 Oct; two slices and three steps of a third are built:
+**As of 18 October 2026, small hours.** The direction changed on 17 Oct; slices 1, 2a and 2b are built:
+- **Harness slice 2b, step 4: the CLI route gone** ([`log/2026-10-18-harness-slice2b-removal.md`](log/2026-10-18-harness-slice2b-removal.md)): `claude_cli.py` and its tests removed; what every run shares lives in `runtime/running.py`; `[engine] route` and `ALPHA_ENGINE` gone; the `skills` and `skill_versions` tables are legacy only (made for a world older than 3 Oct, written out as files on open, dropped). `alpha mcp` (the stdio server) stays for the ChatGPT route.
 - **Harness slice 2b, step 3: the permission callback** ([`log/2026-10-17-harness-slice2b-permission.md`](log/2026-10-17-harness-slice2b-permission.md)): a turn runs in the SDK's default mode; the hands run outright except `world_change` and `act_outward`; removing a row asks on a card in the conversation and the turn waits for the window's answer (Stop ends the wait); the deferred yes across a restart is not built. 326 tests.
 - **Harness slice 2b, step 2: the hands** ([`log/2026-10-17-harness-slice2b-hands.md`](log/2026-10-17-harness-slice2b-hands.md)): the model's 72 tools became 17 generic hands plus the four workflow tools as plan mode (`mcp/tools/hands.py`); `world_query` reads the whole world in SQL over read-only views (`world/queries.py`); the operations underneath are unchanged and the prompts, connector skills and step words follow. 324 tests; the first-day journeys on the hands: see the log entry.
 - **Harness slice 2b, step 1: skills as directories** ([`log/2026-10-17-harness-slice2b-skills.md`](log/2026-10-17-harness-slice2b-skills.md)): a skill is `skills/<name>/SKILL.md` with `scripts/read.js` or `steps.yaml`, under its module's directory (its git repository) or `skills/` beside the world; every save a commit, versions and Undo from the history; its state in `skill_state`; the old rows written out once on open; the skill's page shows the file and takes an edit. The `Skills` API kept, so nothing above it changed. Proven by 313 tests and the migration on a copy of Kenil's world (five skills, files equal to their rows), then on his live world at the app's restart.
@@ -31,19 +32,19 @@ The last entries before the rethink:
 
 Everything before them is listed in [`log/README.md`](log/README.md).
 
-## Numbers (`just stats`, 17 Oct, late)
+## Numbers (`just stats`, 18 Oct, small hours)
 
 | | |
 |---|---|
-| Core tests | 313, in about 26 s; ruff and mypy strict clean |
+| Core tests | 311, in about 26 s; ruff and mypy strict clean |
 | Desktop tests | 218 passed, 1 skipped, in 50 files; typecheck clean; 1 host test (`cargo test --lib`) |
-| Tools the model sees | 21 (17 hands and the four workflow tools; 72 operations behind them) |
-| Journeys | 26 defined; `--fresh` runs on an empty world (17 Oct). On the fresh world: track_then_log and watch_from_words passed (`docs/journeys/2026-10-17-2031.md`, `-2033.md`); sync_from_words waits for Kenil's say; vague_tracker not yet run on its new rule. On the SDK engine on a copy: question_card and vague_tracker passed, branded_food broke on its precondition (`-1956.md`, `-1957.md`). Before: All were run on 14 Oct and 19 of 22 passed (`docs/journeys/2026-10-14-*`); since then: agent_verdict and automation_self_converts on the agents substrate (15 Oct), the memory journeys with Watson (memory_who_emailed still fails), doc_repairs_a_reader with the real model (16 Oct, `2026-10-16-1257.md`), and with Columbo: vague_tracker passed and branded_food passed once the judge's rules said a rounding apart is not a difference (16 Oct, `2026-10-16-1347.md`, `2026-10-16-1352.md`); sherlock_looks_into_it (16 Oct, `2026-10-16-1700.md`) and scout_picks_the_day (`2026-10-16-2006.md`) passed with the real model; memory_who_emailed still fails |
+| Tools the model sees | 21 (17 hands and the four workflow tools; 67 operations behind them; `just stats` counts the operations) |
+| Journeys | 27 defined (`remove_asks` 18 Oct); `--fresh` runs on an empty world (17 Oct). On the fresh world: track_then_log and watch_from_words passed (`docs/journeys/2026-10-17-2031.md`, `-2033.md`); sync_from_words waits for Kenil's say; vague_tracker not yet run on its new rule. On the SDK engine on a copy: question_card and vague_tracker passed, branded_food broke on its precondition (`-1956.md`, `-1957.md`). Before: All were run on 14 Oct and 19 of 22 passed (`docs/journeys/2026-10-14-*`); since then: agent_verdict and automation_self_converts on the agents substrate (15 Oct), the memory journeys with Watson (memory_who_emailed still fails), doc_repairs_a_reader with the real model (16 Oct, `2026-10-16-1257.md`), and with Columbo: vague_tracker passed and branded_food passed once the judge's rules said a rounding apart is not a difference (16 Oct, `2026-10-16-1347.md`, `2026-10-16-1352.md`); sherlock_looks_into_it (16 Oct, `2026-10-16-1700.md`) and scout_picks_the_day (`2026-10-16-2006.md`) passed with the real model; memory_who_emailed still fails |
 | Desktop check | `docs/checks/2026-10-16-2006.md`: 91 of 91 pages clean (the five agents' pages among them) at 1100×560 and 1240×820, light and dark, on a copy of Kenil's world. Every address the window has is visited |
 | Turns | `just turns`: a person's turn takes 25 s at the median (the model 23 s of it, Alpha's overhead 1.5 s). One step takes 4 s, four steps 14 s, twelve or more about 3 min. The first words of a reply come in 2.7–8.7 s when the reply comes first |
 | Window's requests | 4 a minute idle (the one poll), none while hidden |
-| Commits | 248 total; 248 since 1 Oct 2026 (before the slice 2a commit) |
-| Lines | core 20,218 Python; tests 7,968; desktop 18,904 TS/TSX |
+| Commits | 254 total; 254 since 1 Oct 2026 (before the 2b step 4 commit) |
+| Lines | core 21,068 Python; tests 7,884; desktop 18,943 TS/TSX |
 
 ## What is built, against the design's order of work
 
@@ -61,7 +62,7 @@ Everything before them is listed in [`log/README.md`](log/README.md).
 | Hands free of site vocabulary (Q17, Q23) | **Done.** |
 | No limits (Q18) | **Holds.** One floor: 30 minutes between an agent's runs (Q22). |
 
-**Two ways to think (Q32):** Claude runs everything, through the Agent SDK since 17 Oct (`claude -p` the transition's fallback). ChatGPT through the
+**Two ways to think (Q32):** Claude runs everything, through the Agent SDK since 17 Oct (the `claude -p` route went the same night). ChatGPT through the
 Codex CLI can be chosen in Settings, but from 3 to 8 Oct Codex's own approval gate refused every
 call to Alpha's tools, so it stays off until it passes a real tool call (pending).
 
@@ -85,7 +86,7 @@ call to Alpha's tools, so it stays off until it passes a real tool call (pending
 
 ## Pending, in order
 
-0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route: **built and accepted 17 Oct**; (2a) the end of the gate: **built and accepted 17 Oct night**; left: `sync_from_words` as a journey on his say, `vague_tracker` on its new rule; (2b) agreed 17 Oct ([`design/harness-slice-2b-proposal.md`](design/harness-slice-2b-proposal.md)): step 1 skills as directories **built**; step 2 the hands **built**; step 3 the permission callback **built**; next step 4 `claude_cli.py` and the `skills` tables removed; (2) the fifteen tools and the end of the gate; (3) conversations and work items; (4) triggers and the quieter agents; (5) modules as directories and kits; (6) the window's simplification. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
+0. **The harness** ([`design/alpha-harness-design.md`](design/alpha-harness-design.md), agreed 17 Oct): its slices in its §18, each proposed in writing first: (1) the engine in place of the route: **built and accepted 17 Oct**; (2a) the end of the gate: **built and accepted 17 Oct night**; left: `sync_from_words` as a journey on his say, `vague_tracker` on its new rule; (2b) agreed 17 Oct ([`design/harness-slice-2b-proposal.md`](design/harness-slice-2b-proposal.md)): step 1 skills as directories **built**; step 2 the hands **built**; step 3 the permission callback **built**; step 4 the CLI route and the skills tables removed **built**: 2b done; left in 2b's words: the SDK's own shell and files in a turn (with the granted folders, slice 6) and `defer` across restarts; (2) the fifteen tools and the end of the gate; (3) conversations and work items; (4) triggers and the quieter agents; (5) modules as directories and kits; (6) the window's simplification. The gate on shipping anything is the five first-day sentences of its §17, run for real in the app. Two questions to settle outside the code: Anthropic's written answer on a shipped copy using the user's subscription (else the user's own API key), and the bugs of 16 Oct that go with the slices (the gate's wrong refusal text, the stop reason cut at 600 characters, the module card counting settings rows, the chat not knowing its build stopped, "Say continue" with nothing to continue, the page body with a literal `\n\n`, the build session reading Alpha's source in the dev repo).
 
 Everything below is frozen until then (Q71) and resumes in this order afterwards, reworked to the harness where it touches the runtime:
 

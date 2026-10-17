@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from alpha.runtime import judge
-from alpha.runtime.claude_cli import RunResult, TurnRequest
 from alpha.runtime.judge import Question, Verdict
+from alpha.runtime.running import RunResult, TurnRequest
 
 
 def test_a_rule_answers_before_any_model_is_asked() -> None:

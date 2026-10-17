@@ -31,7 +31,7 @@ from alpha.connectors.files import Files
 from alpha.context.prepack import entities_named
 from alpha.runtime import route, turn
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
-from alpha.runtime.claude_cli import TurnRequest
+from alpha.runtime.running import TurnRequest
 from alpha.world.world import World
 
 log = logging.getLogger("alpha.agents.watson")

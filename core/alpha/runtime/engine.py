@@ -1,11 +1,11 @@
 """Run one model turn through the Claude Agent SDK on the person's subscription (the harness
 design §3; slice 1, 17 October 2026).
 
-The request and the result are the CLI route's (`claude_cli.TurnRequest`, `RunResult`), so
+The request and the result are the CLI route's (`running.TurnRequest`, `RunResult`), so
 everything above (`turn.ask`, the agents, the journeys) is unchanged. What differs underneath:
 the SDK's own bundled Claude Code runs the turn; the world's tools are served in this process
 (no second process, the same names); a live conversation resumes its own session; the stream
-is mapped onto what the window shows (`claude_cli.LIVE`); the person's stop interrupts the
+is mapped onto what the window shows (`running.LIVE`); the person's stop interrupts the
 session; a run that says nothing for `SILENCE_S` is ended as before.
 
 Found by the spikes (`docs/log/2026-10-17-harness-slice1-spikes.md`): `strict_mcp_config`
@@ -21,6 +21,7 @@ import logging
 import threading
 import time
 import uuid
+import warnings
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -42,10 +43,14 @@ from claude_agent_sdk import (
     ToolUseBlock,
     UserMessage,
 )
-from claude_agent_sdk.types import McpSdkServerConfig, SyncHookJSONOutput
+from claude_agent_sdk.types import (
+    CanUseToolShadowedWarning,
+    McpSdkServerConfig,
+    SyncHookJSONOutput,
+)
 
 from alpha import config
-from alpha.runtime.claude_cli import (
+from alpha.runtime.running import (
     DENIED,
     LIVE,
     NO_ANSWER,
@@ -63,6 +68,9 @@ from alpha.runtime.claude_cli import (
 from alpha.world.world import World
 
 log = logging.getLogger(__name__)
+# The hands in `allowed_tools` are meant to skip the callback: only the gated ones reach it
+# (§8). The SDK warns about exactly that on every session; the design says so instead.
+warnings.filterwarnings("ignore", category=CanUseToolShadowedWarning)
 
 COMPACTED = "Summarising the earlier steps to make room"
 # A client the tests swap for a scripted one: anything with the SDK client's `query`,

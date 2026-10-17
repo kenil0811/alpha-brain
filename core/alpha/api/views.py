@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from alpha.config import settings
-from alpha.runtime import claude_cli
+from alpha.runtime import running
 from alpha.runtime.agents import WORDS
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.actions import file_fields
@@ -168,7 +168,7 @@ def conversation_view(world: World, cid: str,
             "module": t.get("module"), "scope": scope, "question": question,
             "last": last[0]["text"][:160] if last else None,
             "last_at": last[0]["at"] if last else t["updated_at"],
-            "updated_at": t["updated_at"], "live": claude_cli.LIVE.progress_for(cid)}
+            "updated_at": t["updated_at"], "live": running.LIVE.progress_for(cid)}
 
 
 def thread_views(world: World, *, done: bool = False) -> list[dict[str, Any]]:
@@ -183,7 +183,7 @@ def thread_views(world: World, *, done: bool = False) -> list[dict[str, Any]]:
                                                                           "Continue the build"))]
         out.append({**t, "steps": steps[-6:], "step_count": len(steps),
                     "last_at": entries[-1]["at"] if entries else t["updated_at"],
-                    "live": claude_cli.LIVE.progress_for(t["id"])})
+                    "live": running.LIVE.progress_for(t["id"])})
     return out
 
 

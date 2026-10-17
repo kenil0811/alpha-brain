@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from alpha.api.server import create_app
 from alpha.runtime import conversations
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 

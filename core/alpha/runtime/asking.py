@@ -18,7 +18,7 @@ from typing import Any
 from alpha import config
 from alpha.config import settings
 from alpha.runtime import route
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 LIST_ITEM = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.*\S)\s*$")

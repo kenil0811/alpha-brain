@@ -20,8 +20,8 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from alpha.runtime import claude_cli, engine
-from alpha.runtime.claude_cli import LIVE, STALLED, STOPPED, TurnRequest
+from alpha.runtime import engine, running
+from alpha.runtime.running import LIVE, STALLED, STOPPED, TurnRequest
 from alpha.world.world import World
 
 
@@ -173,14 +173,14 @@ def test_every_tool_failing_is_no_answer(tmp_path: Path) -> None:
         result(result="I found nothing, so the plan is approved."),
     ]
     out = engine.run(request(tmp_path), client_factory=factory(script))
-    assert not out.ok and out.error and claude_cli.TOOLS_DOWN in out.error
+    assert not out.ok and out.error and running.TOOLS_DOWN in out.error
 
 
 def test_a_run_out_of_steps_is_cut_off_not_failed(tmp_path: Path) -> None:
     out = engine.run(request(tmp_path),
                      client_factory=factory([result(subtype="error_max_turns", is_error=True,
                                                     result="", num_turns=50)]))
-    assert not out.ok and out.cut_off and out.error == claude_cli.OUT_OF_STEPS
+    assert not out.ok and out.cut_off and out.error == running.OUT_OF_STEPS
     assert out.session_id == "s-1" and out.num_turns == 50
 
 
@@ -188,13 +188,13 @@ def test_signed_out_is_said_in_words(tmp_path: Path) -> None:
     out = engine.run(request(tmp_path),
                      client_factory=factory([result(is_error=True,
                                                     result="Not logged in · Please run /login")]))
-    assert not out.ok and out.error == claude_cli.SIGNED_OUT
+    assert not out.ok and out.error == running.SIGNED_OUT
     crashed = engine.run(request(tmp_path),
                          client_factory=factory([], raises=RuntimeError("Not logged in")))
-    assert not crashed.ok and crashed.error == claude_cli.SIGNED_OUT
+    assert not crashed.ok and crashed.error == running.SIGNED_OUT
     broke = engine.run(request(tmp_path),
                        client_factory=factory([], raises=RuntimeError("process exited 1")))
-    assert not broke.ok and broke.error == claude_cli.NO_ANSWER and broke.raw["failure"]
+    assert not broke.ok and broke.error == running.NO_ANSWER and broke.raw["failure"]
 
 
 def test_the_person_stops_a_run(tmp_path: Path) -> None:

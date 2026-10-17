@@ -9,7 +9,7 @@ from pathlib import Path
 
 from alpha.journeys import suite
 from alpha.mcp.tools import Tools
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 JOURNEY = """

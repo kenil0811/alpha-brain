@@ -11,7 +11,7 @@ from typing import Any
 
 from alpha.api.bodies import AskBody
 from alpha.api.views import conversation_view
-from alpha.runtime import claude_cli, conversations
+from alpha.runtime import conversations, running
 from alpha.runtime import turn as turns
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world.store import Problem
@@ -151,7 +151,7 @@ class Turns:
             for e in self.world.journal.recent(200)
             if said and e["data"].get("turn") == said and e["kind"] != "replied"
         ]
-        out["live"] = claude_cli.LIVE.progress_for(said)
+        out["live"] = running.LIVE.progress_for(said)
         return out
 
     def running(self) -> list[dict[str, Any]]:
@@ -166,5 +166,5 @@ class Turns:
                 raise Problem(f"There is no turn {key}.")
             said = self.state[key].get("said")
         if said:
-            claude_cli.LIVE.stop(said)
+            running.LIVE.stop(said)
         return self.get(key)

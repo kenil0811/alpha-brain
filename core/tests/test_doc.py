@@ -17,7 +17,7 @@ from test_agents import connections_table
 from alpha.api.server import create_app
 from alpha.runtime import acting, pipeline
 from alpha.runtime.agents import builtin, doc, look_and_run
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 

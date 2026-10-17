@@ -55,7 +55,7 @@ import yaml
 
 from alpha import config
 from alpha.context import prepack
-from alpha.runtime import acting, claude_cli, engine, pipeline, route, turn
+from alpha.runtime import acting, engine, pipeline, route, running, turn
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
@@ -552,7 +552,7 @@ class Run:
                       f" the sentence):\n{known}\n\n" if known else "")
         prompt = (f'{earlier}The person said: "{said["text"]}"\n\n{done}{remembered}The answer:\n'
                   f"{self.last_reply}\n\nThe rubric: {rubric}")
-        result = self.runner(claude_cli.TurnRequest(
+        result = self.runner(running.TurnRequest(
             sentence=prompt, system=system, world_path=self.world.path,
             turn_id=self.last_turn, kind="judge"))
         if not result.ok:

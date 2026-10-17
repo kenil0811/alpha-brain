@@ -260,17 +260,11 @@ TURN_CLASS = {"turn", "independent", "refile"}
 SMALL_CLASS = {"judge", "trial"}
 
 
-# How a turn is run: the Claude Agent SDK in the core's own process (the harness, slice 1), or
-# `claude -p` as before. For the transition; "cli" goes in slice 2.
-ENGINES = ("sdk", "cli")
-
-
 @dataclass(frozen=True)
 class Models:
     claude: dict[str, str]
     chatgpt_default: str
     chatgpt_effort: dict[str, str]
-    engine: str = "cli"
 
 
 def load_models(path: Path | None = None) -> Models:
@@ -287,14 +281,9 @@ def load_models(path: Path | None = None) -> Models:
             isinstance(k, str) and isinstance(v, str) for k, v in effort.items()):
         raise ConfigProblem("models.toml [chatgpt] needs `default` and the table"
                             " [chatgpt.effort].")
-    engine = data.get("engine") or {}
-    route = engine.get("route", "cli") if isinstance(engine, dict) else None
-    if route not in ENGINES:
-        raise ConfigProblem("models.toml [engine] needs `route`, one of sdk or cli.")
     return Models(claude={r: str(claude[r]) for r in ROLES},
                   chatgpt_default=str(chatgpt["default"]),
-                  chatgpt_effort={str(k): str(v) for k, v in effort.items()},
-                  engine=str(route))
+                  chatgpt_effort={str(k): str(v) for k, v in effort.items()})
 
 
 models: Models = load_models()
@@ -311,15 +300,6 @@ def model_for(role: str) -> str:
     if role in SMALL_CLASS and os.environ.get("ALPHA_SYSTEM_ONE_MODEL"):
         return os.environ["ALPHA_SYSTEM_ONE_MODEL"]
     return models.claude[role]
-
-
-def engine_route() -> str:
-    """Which engine runs a turn, after the environment's say (`ALPHA_ENGINE`, for a check or a
-    journey run against the other one)."""
-    forced = os.environ.get("ALPHA_ENGINE")
-    if forced in ENGINES:
-        return forced
-    return models.engine
 
 
 def chatgpt_effort(alias: str | None) -> tuple[str | None, str]:

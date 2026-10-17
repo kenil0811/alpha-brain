@@ -26,7 +26,7 @@ from alpha import config
 from alpha.config import settings
 from alpha.context.graph import world_graph
 from alpha.runtime import route, turn
-from alpha.runtime.claude_cli import TurnRequest
+from alpha.runtime.running import TurnRequest
 from alpha.world.store import Problem
 from alpha.world.world import World
 

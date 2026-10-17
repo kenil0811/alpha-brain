@@ -112,7 +112,7 @@ def test_the_map_of_the_brain_holds_what_the_world_holds(world: World) -> None:
 
 def test_connecting_keeps_grounded_links_as_suggestions_and_drops_the_rest(world: World) -> None:
     from alpha.runtime import connecting
-    from alpha.runtime.claude_cli import RunResult
+    from alpha.runtime.running import RunResult
 
     module, person = _brain(world)
     seen: dict[str, Any] = {}
@@ -164,7 +164,7 @@ def world_graph_of(world: World) -> dict[str, Any]:
 
 def test_connecting_with_a_bad_reply_proposes_nothing(world: World) -> None:
     from alpha.runtime import connecting
-    from alpha.runtime.claude_cli import RunResult
+    from alpha.runtime.running import RunResult
 
     _brain(world)
     out = connecting.connect(world, runner=lambda req: RunResult(ok=True, reply="I am not sure."))

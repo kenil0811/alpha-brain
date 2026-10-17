@@ -1,37 +1,23 @@
-"""Run one model turn through the Claude Code CLI on the person's subscription.
-
-`claude -p` gets the sentence, Alpha's rules and the pre-pack as an appended system prompt, and
-the world as an MCP server. Nothing else of the person's Claude Code setup applies (no user
-settings, CLAUDE.md or hooks; no other MCP servers), and only Alpha's tools plus web search and
-fetch are allowed: anything that would ask for permission is refused.
-
-Headless runs need the default config home (a private CLAUDE_CONFIG_DIR is not logged in) and
-USER in the environment.
+"""What every run of the model shares (since the harness, 17 October 2026): the request and
+the result, the runs in progress the window watches and the person can stop (`LIVE`), the
+counts of tool calls, the result's words, and the plain words the window shows for a step.
+The engine (`engine.py`, the Claude Agent SDK) and the ChatGPT route (`codex_cli.py`) both
+run a `TurnRequest` into a `RunResult`; `claude -p` as a route of its own went with 2b, step 4.
 """
 
 from __future__ import annotations
 
-import getpass
-import json
 import logging
-import os
-import signal
-import subprocess
-import sys
-import tempfile
 import threading
 import time
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from alpha import config
 from alpha.config import settings
-from alpha.runtime import claude_account
 
-ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]
+ALLOWED = ["mcp__alpha", "WebSearch", "WebFetch"]  # the engine lists the hands itself
 DENIED = ["Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"]
 
 
@@ -54,15 +40,13 @@ TOOLS_DOWN = "Alpha's tools didn't answer in this run"
 
 class Live:
     """Runs in progress, so the person can stop any of them: there is no limit on how long a run
-    or a build may take, and stopping is how work that isn't going anywhere ends. Each run is
-    known by its turn (the journal entry that started it) and its thread."""
+    may take, and stopping is how work that isn't going anywhere ends. Each run is known by its
+    turn (the journal entry that started it) and its thread; a handle per run stops it."""
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.procs: dict[str, subprocess.Popen[str]] = {}
-        self.stopped: set[int] = set()
-        # Runs that are not a process of ours to kill but a session to interrupt (the SDK
-        # engine, `runtime/engine.py`): a handle that stops it, and the keys the person stopped.
+        # A handle per run that stops it (the engine interrupts its session), and the keys the
+        # person stopped.
         self.handles: dict[str, Callable[[], None]] = {}
         self.stopped_keys: set[str] = set()
         # What each run is doing right now, in plain words, for the window.
@@ -118,63 +102,24 @@ class Live:
             found = self.progress.get(key)
             return dict(found) if found else None
 
-    def add(self, keys: list[str], proc: subprocess.Popen[str]) -> None:
-        with self.lock:
-            for key in keys:
-                self.procs[key] = proc
-
-    def remove(self, keys: list[str], proc: subprocess.Popen[str]) -> bool:
-        """Forget a finished run; True when the person stopped it."""
-        with self.lock:
-            for key in keys:
-                if self.procs.get(key) is proc:
-                    del self.procs[key]
-                self.progress.pop(key, None)
-            was = proc.pid in self.stopped
-            self.stopped.discard(proc.pid)
-            return was
-
     def running(self, key: str) -> bool:
         with self.lock:
-            return key in self.procs or key in self.handles
+            return key in self.handles
 
     def stop(self, key: str) -> bool:
         """Stop the run known by `key` (and everything it started); False when none is running."""
         with self.lock:
             handle = self.handles.get(key)
-            if handle is not None:
-                for k, h in self.handles.items():
-                    if h is handle:
-                        self.stopped_keys.add(k)
-            proc = self.procs.get(key)
-            if handle is None and proc is None:
+            if handle is None:
                 return False
-            if proc is not None:
-                self.stopped.add(proc.pid)
-        if handle is not None:
-            try:
-                handle()
-            except Exception:
-                log.exception("stopping a session run")
-            return True
-        assert proc is not None
+            for k, h in self.handles.items():
+                if h is handle:
+                    self.stopped_keys.add(k)
         try:
-            os.killpg(proc.pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            return True
-
-        def finish() -> None:
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    pass
-
-        threading.Thread(target=finish, daemon=True).start()
+            handle()
+        except Exception:
+            log.exception("stopping a session run")
         return True
-
 
 LIVE = Live()
 # The most of a reply kept while it is written (the whole reply lands in the journal after).
@@ -276,209 +221,6 @@ def tools_allowed(req: TurnRequest) -> list[str]:
     return ALLOWED
 
 
-def mcp_config(req: TurnRequest) -> dict[str, Any]:
-    if req.kind != "turn":
-        return {"mcpServers": {}}
-    env = {
-        "ALPHA_WORLD": str(req.world_path),
-        "ALPHA_TURN": req.turn_id,
-        "ALPHA_THREAD": req.thread_id or "",
-        "ALPHA_MODULE": req.module_id or "",
-        "ALPHA_ACTOR": req.actor or "alpha",
-    }
-    return {
-        "mcpServers": {
-            "alpha": {"command": sys.executable, "args": ["-m", "alpha.mcp.server"], "env": env}
-        }
-    }
-
-
-def argv(req: TurnRequest, config_path: Path, binary: str = "claude") -> list[str]:
-    allowed = tools_allowed(req)
-    denied = DENIED + ([] if allowed else ["WebSearch", "WebFetch"])
-    args = [
-        binary,
-        "-p",
-        req.sentence,
-        "--output-format",
-        "stream-json",  # events as they happen: the person watches, not waits
-        "--verbose",
-        "--include-partial-messages",  # the reply's text as it is written (9 Oct, Q35)
-        "--append-system-prompt",
-        req.system,
-    ]
-    # Alpha's world as an MCP server for a turn; an independent or judging run gets an empty
-    # config. Strict either way: nothing from the person's own MCP configuration loads.
-    args += ["--mcp-config", str(config_path), "--strict-mcp-config"]
-    if allowed:
-        args += ["--allowedTools", *allowed]
-    args += [
-        "--disallowedTools",
-        *denied,
-        # dontAsk: anything not in --allowedTools is refused rather than prompted for.
-        "--permission-mode",
-        "dontAsk",
-        "--permission-prompts",
-        "none",
-        "--setting-sources",
-        "",
-        "--model",
-        req.model or config.model_for("turn"),
-    ]
-    if req.resume:
-        args += ["--resume", req.resume]
-    if not req.persist:
-        # Stateless: the pre-pack carries the context, the journal the history. A remembered
-        # model session would bring back whatever it once believed. Live conversations are the
-        # one exception (design §3.7): their session is kept while they are live.
-        args += ["--no-session-persistence"]
-    return args
-
-
-def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
-    """Run one turn to its end, however long it takes; the person can stop it (LIVE.stop with
-    the turn or its thread)."""
-    env = dict(os.environ)
-    env.setdefault("USER", getpass.getuser())
-    env.pop("CLAUDE_CONFIG_DIR", None)
-    # Alpha's tools are the whole point of a run: put every schema in context up front rather
-    # than behind Claude Code's tool search, which cost a "find the tool" step on every turn.
-    env.setdefault("ENABLE_TOOL_SEARCH", "false")
-    if req.kind == "turn":
-        keys = [k for k in (req.turn_id, req.thread_id) if k]
-    else:
-        keys = [f"{req.kind}:{req.turn_id}:{uuid.uuid4().hex[:8]}"]
-    with tempfile.TemporaryDirectory(prefix="alpha-turn-") as tmp:
-        config_path = Path(tmp) / "mcp.json"
-        config_path.write_text(json.dumps(mcp_config(req)))
-        started_at = time.time()
-        try:
-            proc = subprocess.Popen(
-                argv(req, config_path, binary or claude_account.binary() or "claude"),
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
-                text=True, env=env, cwd=tmp, start_new_session=True,
-            )
-        except FileNotFoundError:
-            return RunResult(reply="", ok=False, error="Claude Code isn't on this Mac yet:"
-                             " connect Claude in Settings.")
-        LIVE.add(keys, proc)
-        errors: list[str] = []
-
-        def drain() -> None:
-            assert proc.stderr is not None
-            errors.append(proc.stderr.read())
-
-        reader = threading.Thread(target=drain, daemon=True)
-        reader.start()
-        final: dict[str, Any] = {}
-        tail: list[str] = []
-        tools: dict[str, Any] = {"called": 0, "failed": 0, "first": ""}
-        last_seen = [time.monotonic()]
-        done = threading.Event()
-        stalled = threading.Event()
-
-        def watch_silence() -> None:
-            while not done.wait(min(15.0, SILENCE_S / 4)):
-                if time.monotonic() - last_seen[0] > SILENCE_S:
-                    stalled.set()
-                    try:
-                        os.killpg(proc.pid, signal.SIGKILL)
-                    except (ProcessLookupError, PermissionError):
-                        pass
-                    return
-
-        threading.Thread(target=watch_silence, daemon=True, name="run-silence").start()
-        try:
-            assert proc.stdout is not None
-            for line in proc.stdout:
-                last_seen[0] = time.monotonic()
-                tail = (tail + [line])[-3:]
-                event = _event(line)
-                if event is None:
-                    continue
-                if event.get("type") == "result" or "result" in event and "is_error" in event:
-                    final = event
-                    continue
-                try:
-                    count_tools(event, tools)
-                    _watch(keys, event)
-                    steps = _steps(event)
-                except Exception:  # an event Alpha can't read is skipped, never the run's end
-                    log.exception("unreadable stream event: %s", line[:300])
-                    continue
-                if req.on_step is not None:
-                    for words in steps:
-                        try:
-                            req.on_step(words)
-                        except Exception:
-                            log.exception("on_step")
-            proc.wait()
-            first_text_at = (LIVE.progress_for(keys[0]) or {}).get("first_text_at")
-        finally:
-            done.set()
-            stopped = LIVE.remove(keys, proc)
-        reader.join(timeout=2)
-    if stopped:
-        return RunResult(reply="", ok=False, error=STOPPED, stopped=True)
-    if stalled.is_set() and not final:
-        log.warning("run %s went silent for %ss and was ended", req.turn_id, SILENCE_S)
-        return RunResult(reply="", ok=False, error=STALLED)
-    out = tools_verdict(parse_result(final, "".join(errors) or "".join(tail), proc.returncode),
-                        tools["called"], tools["failed"], tools["first"])
-    if first_text_at:
-        out.first_text_ms = int((first_text_at - started_at) * 1000)
-    return out
-
-
-def _event(line: str) -> dict[str, Any] | None:
-    line = line.strip()
-    if not line.startswith("{"):
-        return None
-    try:
-        data = json.loads(line)
-    except json.JSONDecodeError:
-        return None
-    return data if isinstance(data, dict) else None
-
-
-def _steps(event: dict[str, Any]) -> list[str]:
-    """The tool calls in an assistant event, in plain words."""
-    if event.get("type") != "assistant":
-        return []
-    return [plain_tool(str(b.get("name", "")), _inputs(b))
-            for b in _blocks(event) if b.get("type") == "tool_use"]
-
-
-def _watch(keys: list[str], event: dict[str, Any]) -> None:
-    """Turn a stream event into what the run is doing, in plain words, and the reply's text as
-    it is written (`stream_event` deltas, from `--include-partial-messages`)."""
-    kind = event.get("type")
-    if kind == "stream_event":
-        inner = event.get("event")
-        if not isinstance(inner, dict):
-            return
-        start = inner.get("content_block")
-        if inner.get("type") == "content_block_start" \
-                and isinstance(start, dict) and start.get("type") == "text":
-            LIVE.note(keys, partial="")
-        elif inner.get("type") == "content_block_delta":
-            delta = inner.get("delta")
-            if isinstance(delta, dict) and delta.get("type") == "text_delta" and delta.get("text"):
-                LIVE.add_text(keys, str(delta["text"]))
-        return
-    if kind != "assistant":
-        return
-    for block in _blocks(event):
-        if block.get("type") == "text" and str(block.get("text", "")).strip():
-            LIVE.note(keys, thought=str(block["text"]).strip()[:400])
-        elif block.get("type") == "tool_use":
-            # The text so far was a thought before a step, not the reply: it goes back to
-            # the headline and the reply starts afresh after the step.
-            LIVE.note(keys, partial="", doing=plain_tool(str(block.get("name", "")),
-                                                         _inputs(block)),
-                      tools=(LIVE.progress_for(keys[0]) or {}).get("tools", 0) + 1)
-
-
 TOOL_WORDS = {
     # the hands (harness 2b)
     "world_query": "Reading the tables", "world_write": "Writing rows",
@@ -538,18 +280,6 @@ def plain_tool(name: str, inputs: dict[str, Any]) -> str:
     if isinstance(target, str) and target and short not in ("ask_person",):
         return f"{words}: {target[:70]}"
     return words
-
-
-def parse(stdout: str, stderr: str, code: int) -> RunResult:
-    """The result of a finished run from its output: the `result` event of a stream, or the one
-    JSON object of a plain `json` run."""
-    data: dict[str, Any] = {}
-    for line in reversed(stdout.strip().splitlines()):
-        event = _event(line)
-        if event and (event.get("type") == "result" or "result" in event):
-            data = event
-            break
-    return parse_result(data, stderr, code)
 
 
 def parse_result(data: dict[str, Any], stderr: str, code: int) -> RunResult:

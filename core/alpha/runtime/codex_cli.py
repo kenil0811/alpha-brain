@@ -28,7 +28,7 @@ from typing import Any
 
 from alpha import config
 from alpha.runtime import codex_account
-from alpha.runtime.claude_cli import (
+from alpha.runtime.running import (
     LIVE,
     NO_ANSWER,
     SILENCE_S,
@@ -94,6 +94,25 @@ def argv(req: TurnRequest, cwd: Path, last: Path, binary: str = "codex") -> list
     return args
 
 
+def _end(proc: subprocess.Popen[str]) -> None:
+    """The person's Stop: the process group ends, gently then hard."""
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+
+    def finish() -> None:
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+
+    threading.Thread(target=finish, daemon=True).start()
+
+
 def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
     """Run one turn to its end, however long it takes; the person can stop it (LIVE.stop with
     the turn or its thread)."""
@@ -116,7 +135,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
         except FileNotFoundError:
             return RunResult(reply="", ok=False, error="The Codex CLI isn't on this Mac yet:"
                              " connect ChatGPT in Settings.")
-        LIVE.add(keys, proc)
+        LIVE.add_handle(keys, lambda: _end(proc))
         errors: list[str] = []
 
         def drain() -> None:
@@ -152,7 +171,7 @@ def run(req: TurnRequest, *, binary: str | None = None) -> RunResult:
             proc.wait()
         finally:
             done.set()
-            stopped = LIVE.remove(keys, proc)
+            stopped = LIVE.remove_handle(keys)
         reply_file = last.read_text() if last.exists() else ""
     if stopped:
         return RunResult(reply="", ok=False, error=STOPPED, stopped=True)

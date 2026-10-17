@@ -37,7 +37,7 @@ from alpha.config import settings
 from alpha.context.prepack import section_of
 from alpha.runtime import route, turn
 from alpha.runtime.agents import Outcome, Work, journal_rowid, register, since_cursor, starting
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.store import Problem, now
 from alpha.world.world import World
 

@@ -23,8 +23,8 @@ from claude_agent_sdk import SdkMcpTool, create_sdk_mcp_server
 from fastmcp import FastMCP
 
 from alpha.runtime import engine
-from alpha.runtime.claude_cli import TurnRequest
 from alpha.runtime.engine import Served
+from alpha.runtime.running import TurnRequest
 from alpha.world.world import World
 
 

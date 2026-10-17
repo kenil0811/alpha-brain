@@ -22,7 +22,7 @@ from alpha.connectors.base import Connections, manifests
 from alpha.connectors.files import unique_path
 from alpha.context.graph import work_graph, world_graph
 from alpha.context.memory_export import memory, to_markdown
-from alpha.runtime import claude_cli, connecting
+from alpha.runtime import connecting, running
 from alpha.runtime.agents import WORDS
 from alpha.world import purge
 from alpha.world.store import Problem, dumps, now
@@ -291,7 +291,7 @@ def routes(app: FastAPI, s: Served) -> None:
                                  actor="person", data={"agent": aid, key: what[key]},
                                  thread=what.get("conversation") if key == "conversation"
                                  else None)
-        stopped = bool(agent.get("thread")) and claude_cli.LIVE.stop(str(agent["thread"]))
+        stopped = bool(agent.get("thread")) and running.LIVE.stop(str(agent["thread"]))
         return {**next(a for a in agent_views(world, scheduler) if a["id"] == aid),
                 "stopped": stopped}
 

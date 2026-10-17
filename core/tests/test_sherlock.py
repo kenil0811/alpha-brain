@@ -15,7 +15,7 @@ from test_workflows import BODY
 from alpha.api.server import create_app
 from alpha.runtime.agents import builtin, look_and_run, sherlock
 from alpha.runtime.agents import runner as agent_runner
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 FULL = json.dumps({"look": "full", "kind_of_work": "site selection", "open": [],

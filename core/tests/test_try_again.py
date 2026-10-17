@@ -21,7 +21,7 @@ from test_actions import (
 from alpha.api.server import create_app
 from alpha.mcp.tools import Tools
 from alpha.runtime import acting
-from alpha.runtime.claude_cli import RunResult, TurnRequest
+from alpha.runtime.running import RunResult, TurnRequest
 from alpha.world.world import World
 
 
