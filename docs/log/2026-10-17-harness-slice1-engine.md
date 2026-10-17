@@ -81,8 +81,16 @@ journeys 25 defined; commits 245 before this slice's; lines core 21,850 Python, 
 desktop 18,991; lint and types clean. `alpha turns` has nothing to compare yet: the fresh world
 holds no person's turn with timings; the journeys' turn times above stand in.
 
-**Not yet:** Kenil's own "log two eggs" and one question in the app, after `just app-restart`
-(the app runs the core from the repository's `.venv`, so the restart is the whole deploy).
+**Accepted in the app** (Kenil, 17 Oct, 19:06–19:08 UTC, after `just app-restart`; the app
+runs the core from the repository's `.venv`, so the restart was the whole deploy): "i ate 250g
+of paneer just now, lightly air fried" made the module Food and the table Food log and logged
+it, 8.0 s (first text 8.6 s from the run's start, which counts the tools' set-up; the SDK's own
+`duration_ms` is the model's time); "whats my protien intake for the day? how much should i have
+each day" answered from the table in 4.7 s; then his age, activity and weight as facts (a wrong
+reading of "63" corrected on his next sentence) and a protein goal, 2.6–6.8 s each. All five
+turns carry the same `session_id`, so the conversation's session was resumed turn after turn
+through the engine, as designed. His word: "Both worked in the app: the eggs were logged and the
+question answered."
 
 ## Not done in this slice
 
