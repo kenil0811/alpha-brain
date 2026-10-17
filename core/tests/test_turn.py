@@ -77,12 +77,12 @@ def test_the_prepack_lists_each_tables_fields_and_keeps_every_section_within_its
             " calories number kcal, client relation->clients") in text
     assert f"- Module Nutrition ({module}) — eat well" in text
     # Twelve long turns overflow the conversation's budget: the newest stay, the count is said.
+    home = world.modules.home_thread()["id"]
     for i in range(12):
-        world.journal.append("said", f"turn {i} " + "words " * 80, actor="person")
-        world.journal.append("replied", f"reply {i} " + "words " * 80)
+        world.journal.append("said", f"turn {i} " + "words " * 80, actor="person", thread=home)
+        world.journal.append("replied", f"reply {i} " + "words " * 80, thread=home)
     text = prepack.build(world, "anything")
-    convo = text[text.index("THIS CONVERSATION"):text.index("MATCHES") if "MATCHES" in text
-                 else len(text)]
+    convo = text[text.index("THIS CONVERSATION"):text.index("\n\nWORK ITEMS")]
     assert "reply 11" in convo and "turn 0 " not in convo
     assert "earlier lines left out for room" in convo
     assert len(convo) <= prepack.BUDGET["THIS CONVERSATION"] + 80

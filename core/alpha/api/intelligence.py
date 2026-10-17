@@ -205,7 +205,10 @@ def routes(app: FastAPI, s: Served) -> None:
                                if e["data"].get(k) is not None}}
                      for e in entries if r["started_at"] <= e["at"] <= until
                      and e["kind"] in {"saw", "did", "made", "changed", "failed", "noticed",
-                                       "asked"} and not opens_run(e)]
+                                       "asked"} and not opens_run(e)
+                     # the agent's own lines, or loose ones in its window: its item also
+                     # holds the turn that made it (harness §7), whose steps are not the run's
+                     and (e["actor"] == aid or not e["data"].get("turn"))]
             runs.append({**r, "lines": lines[-40:]})
         skill = world.skills.get(auto["skill"]) if auto.get("skill") else None
         sources = sum(1 for s in (skill["steps"] if skill else []) if "read" in s)

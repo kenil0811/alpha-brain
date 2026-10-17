@@ -55,7 +55,7 @@ import yaml
 
 from alpha import config
 from alpha.context import prepack
-from alpha.runtime import acting, engine, pipeline, route, running, turn
+from alpha.runtime import acting, conversations, engine, pipeline, route, running, turn
 from alpha.runtime.agents import builtin, columbo, look_and_run
 from alpha.runtime.agents import runner as agent_runner
 from alpha.world import purge
@@ -198,9 +198,26 @@ class Run:
             stop_answering = threading.Event()
             threading.Thread(target=self._answer_permissions, args=(stop_answering,),
                              daemon=True).start()
+            routed: dict[str, Any] | None = None
             try:
-                outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
-                                   runner=self.runner)
+                if spec.get("home"):
+                    # Typed in Home (harness §7): routed first, by structure or the
+                    # judgement, then the turn in the thread it went to, as the app does.
+                    routed = conversations.route(self.world, spec["say"],
+                                                 module=spec.get("module"), runner=self.runner)
+                    if "ask" in routed:
+                        self.last_routing = routed
+                        raise Problem("Alpha asked which this is about instead of routing it:"
+                                      f" {routed['options']}")
+                    self.last_routing = routed
+                    outcome = turn.ask(self.world, spec["say"], thread=routed["thread"],
+                                       runner=self.runner, conversation=True)
+                    conversations.settle(self.world, routed["thread"], ok=outcome.ok,
+                                         stopped=outcome.result.stopped,
+                                         last_line=conversations.first_line(outcome.reply))
+                else:
+                    outcome = turn.ask(self.world, spec["say"], module=spec.get("module"),
+                                       runner=self.runner)
             finally:
                 stop_answering.set()
             self.last_turn, self.last_reply = outcome.said, outcome.reply
@@ -213,6 +230,10 @@ class Run:
                     log.warning("watson in journey: %s", e)
             record = {"say": spec["say"], "ok": outcome.ok, "reply": outcome.reply[:600],
                       "steps": outcome.result.num_turns}
+            if routed:
+                record["routed"] = ("a new item" if routed["opened"] else "Home" if routed["here"]
+                                    else self.world.modules.thread(routed["thread"])["title"])
+                record["routed_by"] = routed["by"]
         elif "reader" in spec:
             r = spec["reader"]
             out = pipeline.run_reader(self.world, r["name"], r["into"], r["key"],
@@ -267,6 +288,11 @@ class Run:
                 removed = {"already absent": True}
             record = {"remove_module": spec["remove_module"], "ok": True, "removed": removed}
             self.mark = mark(self.world)
+        elif "check" in spec:
+            # A check between steps (where a sentence went, what exists so far), recorded
+            # as a step so the report reads in order.
+            out = self.check(spec["check"])
+            record = {"check": out["check"], "ok": out["ok"], "detail": out["why"]}
         elif "approve_action" in spec:
             pending = [a for a in self.world.actions.all(("proposed",))
                        if a["created_at"] >= self.mark.at]
@@ -401,6 +427,36 @@ class Run:
         words = (f"{arg['field']} = {', '.join(str(v) for v in values)}"
                  f" (wanted {target} ±{within:.0%})")
         return bool(hit), words
+
+    def check_items(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """The work items the journey opened (harness §7): exactly `count`, or at most
+        `at_most`; one sentence of work is one item, never two."""
+        made = [t for t in self.world.modules.items(limit=200) if t["created_at"] >= self.mark.at
+                and not self._builtin_owned(t["id"])]
+        words = "; ".join(f"{t['title']} ({t['state']})" for t in made) or "none"
+        if "count" in arg and len(made) != int(arg["count"]):
+            return False, f"{len(made)} item(s) opened, wanted {arg['count']}: {words}."
+        if "at_most" in arg and len(made) > int(arg["at_most"]):
+            return False, f"{len(made)} item(s) opened, at most {arg['at_most']}: {words}."
+        return True, f"{len(made)} item(s): {words}."
+
+    def _builtin_owned(self, thread: str) -> bool:
+        """A built-in agent's own item (Watson's, Columbo's): on its page, never Home's."""
+        owner = self.world.agents.of_thread(thread)
+        return bool(owner and owner["kind"] != "custom")
+
+    def check_routed(self, arg: dict[str, Any]) -> tuple[bool, str]:
+        """Where the last Home sentence went (harness §7): `to` is "home", "new" (an item
+        opened for it) or "item" (an existing item continued)."""
+        routed = getattr(self, "last_routing", None)
+        if not routed:
+            return False, "The last sentence was not typed in Home (say with home: true)."
+        if "ask" in routed:
+            return False, f"Alpha asked instead of routing: {routed['options']}."
+        went = "new" if routed["opened"] else "home" if routed["here"] else "item"
+        title = self.world.modules.thread(routed["thread"])["title"]
+        words = f"went to {title} ({went}; {routed['by']})"
+        return went == arg.get("to", went), words
 
     def check_made_since(self, arg: dict[str, Any]) -> tuple[bool, str]:
         """What the journey made: at least `tables`, `readers`, `agents`, `modules` (counts),
@@ -714,7 +770,8 @@ def report(outcomes: list[Outcome], *, source: Path, home: Path, began: datetime
         if o.error:
             lines.append(f"Broke: {o.error}")
         for s in o.steps:
-            kind = next((k for k in ("say", "reader", "agent", "break_reader", "approve_action",
+            kind = next((k for k in ("say", "check", "reader", "agent", "break_reader",
+                                     "approve_action",
                                      "agree_workflow", "add_row", "seed") if k in s), "step")
             state = "ok" if s["ok"] else "not ok"
             head = f"- **{kind}** {s.get(kind, '')!s:.80} · {s.get('seconds', 0)} s · {state}"

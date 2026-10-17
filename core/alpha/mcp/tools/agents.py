@@ -37,8 +37,15 @@ class AgentTools(Base):
         if not clean and not brief.strip():
             raise Problem("Give the agent steps (or, for judgement work, a brief).")
         module_id = self.world.modules.get(module)["id"] if module else self.module
-        thread = self.world.modules.open_thread((name or title).strip(), "job", module_id)
-        self.world.modules.update_thread(thread["id"], state="done")
+        # The agent's work is the work item that made it (harness §7: "a watch with its runs"
+        # is one item): its runs go under it. Made from Home or from another agent's own
+        # item, it gets an item of its own.
+        here = self.world.modules.thread(self.thread) if self.thread else None
+        if (here and here["kind"] == "work" and self.world.agents.of_thread(here["id"]) is None):
+            thread = here
+        else:
+            thread = self.world.modules.open_thread((name or title).strip(), "work", module_id)
+            self.world.modules.update_thread(thread["id"], state="done")
         agent = self.world.agents.create(title, name=name, schedule=schedule, module=module_id,
                                          thread=thread["id"], steps=clean, goal=goal)
         if brief.strip():

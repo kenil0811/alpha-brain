@@ -14,7 +14,7 @@ from alpha.runtime.agents import WORDS
 from alpha.runtime.agents.scheduler import Scheduler
 from alpha.world.actions import file_fields
 from alpha.world.journal import entry
-from alpha.world.store import Problem, loads
+from alpha.world.store import Problem, loads, local_midnight_utc
 from alpha.world.world import World
 
 STEP_KINDS = {"did", "saw", "made", "changed", "failed", "noticed", "asked", "checked"}
@@ -145,8 +145,11 @@ def agent_views(world: World, scheduler: Scheduler,
         open_run = world.runs.open(a["id"]) if running else None
         if open_run and a["thread"]:
             entries = world.journal.recent(80, thread=a["thread"])
+            # the agent's own lines since the run began: its item may also hold the turn
+            # that made it (harness §7: a watch and its runs are one item)
             steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in entries
                      if e["at"] >= open_run["started_at"] and not opens_run(e)
+                     and e["actor"] == a["id"]
                      and e["kind"] in {"did", "saw", "made", "changed", "failed", "noticed"}]
         last = world.runs.last(a["id"])
         # a built-in kind says itself when it works (its frame looks at the journal, Q50)
@@ -166,7 +169,7 @@ def conversation_view(world: World, cid: str,
     last = world.journal.recent(1, thread=cid, kinds=["said", "replied", "failed"])
     return {"id": cid, "title": t["title"], "kind": t["kind"], "state": t["state"],
             "module": t.get("module"), "scope": scope, "question": question,
-            "last": last[0]["text"][:160] if last else None,
+            "last": last[0]["text"][:160] if last else None, "last_line": t.get("last_line"),
             "last_at": last[0]["at"] if last else t["updated_at"],
             "updated_at": t["updated_at"], "live": running.LIVE.progress_for(cid)}
 
@@ -177,6 +180,9 @@ def thread_views(world: World, *, done: bool = False) -> list[dict[str, Any]]:
     `done=True` adds the finished ones, for the Assistant page's history."""
     out = []
     for t in world.modules.threads(done=done):
+        owner = world.agents.of_thread(t["id"])
+        if owner and owner["kind"] != "custom":
+            continue  # a built-in agent's own work lives on its page (harness §10)
         entries = world.journal.recent(40, thread=t["id"])
         steps = [{"at": e["at"], "kind": e["kind"], "text": e["text"]} for e in entries
                  if e["kind"] in STEP_KINDS and not e["text"].startswith(("Build the approved",
@@ -185,6 +191,14 @@ def thread_views(world: World, *, done: bool = False) -> list[dict[str, Any]]:
                     "last_at": entries[-1]["at"] if entries else t["updated_at"],
                     "live": running.LIVE.progress_for(t["id"])})
     return out
+
+
+def items_today(world: World) -> list[dict[str, Any]]:
+    """The work items Home and the Assistant list show: the ones not over, and the ones done
+    or stopped today (the lanes are the window's)."""
+    since = local_midnight_utc()
+    return [t for t in thread_views(world, done=True)
+            if t["state"] not in ("done", "stopped") or t["updated_at"] >= since]
 
 
 def relation_titles(world: World, desc: dict[str, Any],

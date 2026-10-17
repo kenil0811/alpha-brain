@@ -122,7 +122,8 @@ def test_run_now_shows_progress_while_it_runs(world: World) -> None:
     gate = {"go": False}
 
     def runner(req: TurnRequest) -> RunResult:
-        Tools(world, turn=req.turn_id, thread=req.thread_id).journal_note("saw", "Read the page.")
+        Tools(world, turn=req.turn_id, thread=req.thread_id, actor=req.actor).journal_note(
+            "saw", "Read the page.")
         while not gate["go"]:
             time.sleep(0.02)
         return RunResult(reply="Synced.", ok=True)

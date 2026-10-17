@@ -149,8 +149,13 @@ def test_questions_asked_together_are_answered_together_or_one_by_one(world: Wor
     assert [a["id"] for a in world.journal.open_asks() if a["data"].get("turn") == said] == [
         asks[2]]
     # The last one answered on its card: its own answer, nothing else closed.
-    c.post(f"/api/asks/{asks[2]}/answer", json={"text": "No"})
+    last = c.post(f"/api/asks/{asks[2]}/answer", json={"text": "No"}).json()
     assert [a for a in world.journal.open_asks() if a["data"].get("turn") == said] == []
+    for _ in range(100):  # the answer's turn ends before the world closes
+        if c.get(f"/api/turns/{last['turn']['id']}").json()["state"] not in ("running",
+                                                                                "routing"):
+            break
+        time.sleep(0.05)
     assert c.post("/api/asks/answer", json={"answers": {asks[0]: ""}}).status_code == 400
 
 
@@ -297,14 +302,15 @@ def test_a_turn_that_worked_values_out_is_checked_by_columbo_after_it(
         if turns_.get(started["id"])["state"] == "done":
             break
         time.sleep(0.05)
-    assert kinds == ["turn"]  # nothing runs behind the turn itself any more
+    # the routing judgement, then the turn; nothing runs behind the turn itself any more
+    assert kinds == ["judge", "turn"]
     # What the app's kick does after the turn (Q50): the agents whose kinds look at what it
     # left in the journal. Columbo gathers for about an hour, then judges and checks (Q47, Q51).
     assert look_and_run(world, "columbo", runner=runner) is None
     monkeypatch.setattr(columbo, "_now", lambda: datetime.now(UTC) + timedelta(minutes=61))
     out = look_and_run(world, "columbo", runner=runner)
     assert out and out["last_result"] == "Looked at 1 answer: 1 checked; it agrees."
-    assert sorted(kinds[1:]) == ["independent", "judge", "judge", "judge"]
+    assert sorted(kinds[2:]) == ["independent", "judge", "judge", "judge"]
     checked = world.journal.recent(1, kinds=["checked"])[0]
     assert checked["text"] == "Checked against an independent answer and your world: both agree."
     row = world.collections.query("food_log")[0]
@@ -387,7 +393,7 @@ def test_changes_say_what_moved_since_a_stamp(world: World) -> None:
                                "status": "new"}, source="stated")
     priya = world.entities.find(name="Priya")[0]
     world.journal.append("noticed", "Priya moved teams", entity_ids=[priya["id"]])
-    world.modules.open_thread("A build", "build")
+    world.modules.open_thread("A build", "work")
     after = c.get("/api/changes", params={"since": since}).json()
     assert after["journal"] == 2 and after["tables"] == ["openings"]
     assert after["modules"] == [world.modules.get("Job Search")["id"]]
@@ -438,9 +444,14 @@ def test_the_conversations_list_adds_the_finished_ones_when_asked(world: World) 
     from alpha.runtime import conversations as convs
 
     c = client(world)
-    open_one = convs.open_conversation(world, "Open one", None)
-    done_one = convs.open_conversation(world, "Done one", None)
+    open_one = convs.open_item(world, "Open one", None)
+    done_one = convs.open_item(world, "Done one", None)
     world.modules.update_thread(done_one["id"], state="done")
+    live = [x["id"] for x in c.get("/api/conversations").json()]
+    assert open_one["id"] in live and done_one["id"] in live  # done today: still listed
+    with world.store.tx() as db:  # done before today: history
+        db.execute("UPDATE threads SET updated_at = '2026-01-01T00:00:00+00:00' WHERE id = ?",
+                   (done_one["id"],))
     live = [x["id"] for x in c.get("/api/conversations").json()]
     assert open_one["id"] in live and done_one["id"] not in live
     everything = [x["id"] for x in c.get("/api/conversations?done=true").json()]

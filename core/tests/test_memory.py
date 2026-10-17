@@ -84,7 +84,10 @@ def test_an_older_world_file_is_brought_up_to_date(tmp_path: Path) -> None:
     world = World(path)
     columns = {r["name"] for r in world.store.all("PRAGMA table_info(threads)")}
     assert "brief" in columns
-    assert world.modules.thread("t_1")["session_ref"] is None
+    old = world.modules.thread("t_1")
+    # an agent's old thread is a work item; its session, kept with no tools fingerprint, is
+    # never resumed (harness slice 3)
+    assert old["kind"] == "work" and old["session_ref"] == "sess-1" and old["session_tools"] is None
     began = world.store.one("SELECT value FROM meta WHERE key = 'created_at'")
     assert began is not None and began["value"] == "2026-09-30T08:00:00+00:00"
     first = world.store.one("SELECT value FROM meta WHERE key = 'world_id'")

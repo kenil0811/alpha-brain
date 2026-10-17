@@ -237,6 +237,8 @@ def test_turn_progress_steps_are_visible_while_it_runs(world: World) -> None:
     gate = {"go": False}
 
     def runner(req: TurnRequest) -> RunResult:
+        if req.kind == "judge":
+            return RunResult(ok=True, reply='{"answer": "answer here", "confidence": 0.9}')
         Tools(world, turn=req.turn_id).fact_record("person", "network", "LinkedIn")
         while not gate["go"]:
             time.sleep(0.02)
@@ -532,9 +534,11 @@ def test_an_agents_run_is_journaled_under_its_name_and_the_tools_know_it(world: 
     agent_runner.run(world, auto["id"], runner=runner)
     assert seen[0].actor == auto["id"] and "You are Sync, one of the person's agents" in \
         seen[0].system
-    entries = world.journal.recent(5, thread=auto["thread"])
-    assert {e["actor"] for e in entries} == {auto["id"]}
-    assert [e["kind"] for e in entries] == ["did", "saw", "replied"]
+    # the agent's item is the item that made it (harness §7), so the maker's lines are there
+    # too; the run's own lines are the agent's
+    entries = world.journal.recent(8, thread=auto["thread"])
+    assert "alpha" in {e["actor"] for e in entries}
+    assert [e["kind"] for e in entries if e["actor"] == auto["id"]] == ["did", "saw", "replied"]
     last = world.runs.last(auto["id"])
     assert last and last["trigger"] == "schedule"
 

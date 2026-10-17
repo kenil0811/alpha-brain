@@ -1,0 +1,135 @@
+[
+ {
+  "name": "track_then_log",
+  "title": "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've made a Food log in a new Nutrition module. It's empty for now. Each entry holds the food, when you ate it, the meal, the amount, calories, protein, carbs, fat and notes.\n\nTo log something, tell me what you ate, for example \"two boiled eggs and toast for breakfast\". I'll look up calories and macros from a source I can name when the food is a known product. For home-cooked portions I'll estimate, and I'll mark those as estimates.\n\nDo you want me to set a daily calorie or protein target to track against?",
+    "steps": 2,
+    "seconds": 12.3
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs: 144 kcal, 12.6 g protein, 0.8 g carbs and 9.6 g fat.\n\n- **Source:** The numbers are the standard values for a large egg (72 kcal each). I took them from memory of the USDA figures, not from a page I looked up just now.\n- **What I assumed:** large eggs, no oil or butter, and a snack at 23:24 since you gave no time or meal.\n\nIf they were cooked in fat, a different size, or a different meal, tell me and I'll fix the entry.",
+    "steps": 2,
+    "seconds": 8.2
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 5 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 rows in food_log (1)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "egg"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 20.6,
+  "error": null
+ },
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's back-end category. It runs every day at 09:00, or when your Mac next wakes, and tells you which roles are new or gone.\n\nThe first read found 2 roles, now in a \"We Work Remotely back-end jobs\" table in a new Job search module:\n- **Senior Java Developer** at Twikey, full-time, posted 17 Sep. The page lists European countries, while the site's feed says \"Anywhere in the World\".\n- **AI Experience Engineer (Conversational AI)** at Upgrade, full-time, posted 15 Oct, open to anywhere in the world.\n\nI read the category's RSS feed rather than the web page, since it's",
+    "steps": 8,
+    "routed": "a new item",
+    "routed_by": "judge: Watching We Work Remotely for back-end roles is an ongoing watch that stands on its own and isn't about the existing Watson item, so it needs a new item.",
+    "seconds": 34.6
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (new; judge: Watching We Work Remotely for back-end roles is an ongoing watch that stands on its own and isn't about the existing Watson item, so it needs a new item.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You've logged **2 eggs** this week. That's the one entry from tonight at 23:24, and nothing else in the food log mentions eggs.\n\nI counted from Monday 12 October. If you count weeks from Sunday, the answer is the same, because the log only started tonight.",
+    "steps": 2,
+    "routed": "Home",
+    "routed_by": "judge: Asking how many eggs were logged this week is a quick lookup unrelated to any open item's subject (Watson, We Work Remotely jobs), so it can be answered now and leaves nothing standing.",
+    "seconds": 10.8
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: Asking how many eggs were logged this week is a quick lookup unrelated to any open item's subject (Watson, We Work Remotely jobs), so it can be answered now and leaves nothing standing.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "The watch now checks every day at 07:00, or when your Mac next wakes. The first check under the new time is tomorrow, 18 October, at 07:00. The agent's title still says 09:00, but the schedule itself has changed.",
+    "steps": 2,
+    "routed": "Watch We Work Remotely for back-end roles",
+    "routed_by": "judge: The user calls it \"that watch\", and the watch item's own last message describes its daily 09:00 schedule, so the change belongs to that thread.",
+    "seconds": 11.4
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (item; judge: The user calls it \"that watch\", and the watch item's own last message describes its daily 09:00 schedule, so the change belongs to that thread.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": false,
+    "why": "2 item(s) opened, wanted 1: Watch We Work Remotely for back-end roles (done); Every day at 09:00, check We Work Remotely for new back-end roles and tell me what's new (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 1 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply confirms the existing watch's schedule was changed to daily at 07:00, matching the journal's edit of the existing agent rather than creating a new one.",
+    "seconds": 3.0
+   }
+  ],
+  "seconds": 59.7,
+  "error": null
+ }
+]

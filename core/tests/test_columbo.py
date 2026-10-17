@@ -207,7 +207,7 @@ def test_a_wrong_answer_is_caught_alpha_corrects_itself_and_the_row_is_marked(
     assert mark["agree"] and mark["source"] == "ocado.com" and mark["by"] == me["id"]
     assert mark["entry"] == result["entry"]
     # The correction is in the person's conversation, as Alpha's words.
-    stream = world.journal.recent(3, stream=True, kinds=["replied"])
+    stream = world.journal.recent(3, thread=world.modules.home_thread()["id"], kinds=["replied"])
     assert stream[-1]["text"].startswith("Checked the label: 215 kcal")
     assert result["repaired"] == stream[-1]["text"]
     notes = world.knowledge.find_note(f"agent:{me['id']}", "Notes")

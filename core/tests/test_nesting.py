@@ -69,7 +69,7 @@ def test_a_parents_page_summary_and_activity_reach_what_it_holds(world: World) -
     assert moved["path"] == ["Resume"]
     assert world.journal.recent(1, kinds=["changed"])[-1]["text"] == \
         "You moved Resume under the top."
-    chat = world.modules.open_thread("A chat", "chat", search)
+    chat = world.modules.open_thread("A chat", "work", search)
     convo = c.get("/api/conversation", params={"conversation": chat["id"]}).json()
     assert convo["conversation"]["scope"] == "Job › Search"
 

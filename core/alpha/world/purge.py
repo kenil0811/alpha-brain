@@ -280,9 +280,10 @@ def conversation_removal(world: World, cid: str) -> dict[str, Any]:
     questions closed, the actions proposed in it and not yet decided declined; what Alpha
     learned from it stays, and Activity keeps its turns."""
     thread = world.modules.thread(cid)
-    if thread["kind"] != "chat":
-        raise Problem("Only a conversation can be deleted here; a build or an agent's work keeps"
-                      " its thread with its module.")
+    if thread["kind"] != "work":
+        raise Problem("Home is the one conversation; it is never deleted.")
+    if world.agents.of_thread(cid):
+        raise Problem("An agent's own work goes with the agent; remove the agent instead.")
     if thread["state"] == "working":
         raise Problem("Alpha is working in this conversation; stop the turn first.")
     asks = [a["id"] for a in world.journal.open_asks() if a["thread"] == cid]

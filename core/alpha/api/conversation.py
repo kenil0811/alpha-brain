@@ -22,6 +22,7 @@ from alpha.api.views import (
     action_view,
     conversation_view,
     fold_failures,
+    items_today,
     needs_you,
     thread_views,
     troubles,
@@ -45,21 +46,24 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.get("/api/conversations", dependencies=[api])
     def list_conversations(module: str | None = None, done: bool = False) -> list[dict[str, Any]]:
-        """Live conversations and work items, newest first, for the strip and for Home;
-        `done=true` adds the finished ones (the Assistant page's history)."""
+        """Home first, then the work items, newest first (not over; `done=true` adds the
+        finished and stopped ones, the Assistant page's history)."""
         module_id = world.modules.get(module)["id"] if module else None
-        return [conversation_view(world, t["id"], t) for t in thread_views(world, done=done)
-                if module_id is None or t["module"] == module_id]
+        head = [conversation_view(world, conversations.home(world)["id"])] if not module_id \
+            else []
+        rows = thread_views(world, done=True) if done else items_today(world)
+        return head + [conversation_view(world, t["id"], t) for t in rows
+                       if module_id is None or t["module"] == module_id]
 
     @app.post("/api/conversations", dependencies=[api])
     def new_conversation(body: ConversationBody) -> dict[str, Any]:
-        chat = conversations.open_conversation(world, body.title or "New conversation",
-                                               body.module)
-        return conversation_view(world, chat["id"])
+        """A work item the person opens deliberately (+ New); its first sentence names it."""
+        item = conversations.open_item(world, body.title or conversations.UNNAMED, body.module)
+        return conversation_view(world, item["id"])
 
     @app.post("/api/conversations/{cid}/close", dependencies=[api])
     def close_conversation(cid: str) -> dict[str, Any]:
-        return conversation_view(world, conversations.close(world, cid)["id"])
+        return conversation_view(world, conversations.finish(world, cid)["id"])
 
     @app.post("/api/conversations/{cid}/focus", dependencies=[api])
     def focus_conversation(cid: str) -> dict[str, Any]:
@@ -70,8 +74,8 @@ def routes(app: FastAPI, s: Served) -> None:
     @app.get("/api/companion", dependencies=[api])
     def companion() -> dict[str, Any]:
         """What the companion shows: its focus, the live conversations, what needs the person."""
-        current = conversations.focus(world)
-        return {"focus": conversation_view(world, current) if current else None,
+        current = conversations.focus(world) or conversations.home(world)["id"]
+        return {"focus": conversation_view(world, current),
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
                 "needs_you": needs_you(world),
@@ -80,33 +84,26 @@ def routes(app: FastAPI, s: Served) -> None:
 
     @app.post("/api/turns/{key}/move", dependencies=[api])
     def move_turn(key: str, body: MoveBody) -> dict[str, Any]:
-        """A sentence that went to the wrong conversation: say so, and ask it again in the
-        right one."""
+        """A sentence that went to the wrong item: the correction is kept and counted
+        (§7), and the sentence is asked again in the right one."""
         state = running.get(key)
-        world.modules.thread(body.conversation)
-        world.journal.append("changed", f"Moved \"{state['text'][:80]}\" to another"
-                             " conversation.", actor="person",
-                             data={"turn": state.get("said"), "to": body.conversation})
+        conversations.correct(world, state["text"], said=state.get("said"),
+                              to=world.modules.thread(body.conversation)["id"])
         return running.start(AskBody(text=state["text"], conversation=body.conversation))
 
     @app.get("/api/conversation", dependencies=[api])
     def conversation(limit: int = 40, module: str | None = None,
                      conversation: str | None = None) -> dict[str, Any]:
-        """A conversation's turns: the one named, else the scope's live one, else (for
-        General) the old stream."""
-        module_id = world.modules.get(module)["id"] if module else None
-        chat = (world.modules.thread(conversation) if conversation
-                else world.modules.live_chat(module_id))
-        if chat:
-            turns_ = world.journal.recent(limit, thread=chat["id"],
-                                          kinds=["said", "replied", "failed", "asked"])
-        else:
-            turns_ = world.journal.recent(limit, stream=True,
-                                          kinds=["said", "replied", "failed", "asked"],
-                                          module=module_id)
+        """A thread's turns: the one named, else Home. In Home the routing lines are turns
+        too (the cards: a sentence that went to an item, with the item's id in `routed`)."""
+        del module  # a thread is its own scope now; the parameter stays for older windows
+        chat = world.modules.thread(conversation) if conversation else conversations.home(world)
+        turns_ = world.journal.recent(limit, thread=chat["id"],
+                                      kinds=["said", "replied", "failed", "asked", "did"])
+        turns_ = [e for e in turns_ if e["kind"] != "did"
+                  or (e["data"].get("routed") and e["data"]["routed"] != chat["id"])]
         return {"turns": fold_failures(turns_),
-                "conversation": conversation_view(world, chat["id"], chat)
-                if chat else None,
+                "conversation": conversation_view(world, chat["id"], chat),
                 "conversations": [conversation_view(world, t["id"], t)
                                   for t in thread_views(world)],
                 "threads": thread_views(world), "running": running.running(),

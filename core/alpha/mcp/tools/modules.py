@@ -57,7 +57,7 @@ class Modules(Base):
         The person sees it as a card; its conversation stays out of the main stream. (A build
         thread comes only with a workflow's build, an agent's with the agent.)"""
         module_id = self.world.modules.get(module)["id"] if module else None
-        thread = self.world.modules.open_thread(title, "topic", module_id)
+        thread = self.world.modules.open_thread(title, "work", module_id)
         self._did("made", f"Opened the thread {title}.", {"thread": thread["id"]}, module_id)
         return thread
 

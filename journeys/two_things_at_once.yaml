@@ -1,0 +1,22 @@
+name: two_things_at_once
+title: "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item"
+why: The harness design's §7 (slice 3, 18 Oct 2026). The person speaks in Home; work lives in
+  items. "watch We Work Remotely for back-end roles" opens one work item (a card); "how many
+  eggs have I logged this week" is answered in Home, no second item; "make that watch check
+  every day at 7" continues the watch's item. Before slice 3, three sentences were three
+  conversations, or one conversation that did everything in line.
+fresh: true
+steps:
+  - say: "watch We Work Remotely for back-end roles"
+    home: true
+  - check: {routed: {to: new}}
+  - say: "how many eggs have I logged this week"
+    home: true
+  - check: {routed: {to: home}}
+  - say: "make that watch check every day at 7"
+    home: true
+  - check: {routed: {to: item}}
+checks:
+  - items: {count: 1}
+  - made_since: {tables: 1, readers: 1, agents: 1}
+  - judge: "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?"

@@ -15,7 +15,7 @@ def building(world: World, *, turn: str | None = None, module: str | None = None
     """Tools bound to a thread of their own, to make what a test needs. (Until 17 Oct 2026 a
     gate let lasting things be made only in a build thread; the gate is gone with the harness's
     slice 2a, and any turn may make them. The name stays for the tests that call it.)"""
-    thread = world.modules.open_thread("Test build", "build", module)
+    thread = world.modules.open_thread("Test build", "work", module)
     world.modules.update_thread(thread["id"], state="done")
     return Tools(world, turn=turn, thread=thread["id"], module=module)
 

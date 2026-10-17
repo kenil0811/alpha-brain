@@ -57,7 +57,7 @@ def drafted(world: World, *, conversation: bool = True) -> dict[str, Any]:
     """A workflow page as the interview drafts it, in a conversation."""
     from alpha.runtime import conversations
 
-    cid = conversations.open_conversation(world, "car wash sites", None)["id"] if conversation \
+    cid = conversations.open_item(world, "car wash sites", None)["id"] if conversation \
         else None
     turn = world.journal.append("said", "I want help picking car wash sites to open",
                                 actor="person", thread=cid)
@@ -73,7 +73,7 @@ def interviewing(world: World, title: str = "car wash sites") -> str:
     since the harness's slice 2a; a drafted page no longer does)."""
     from alpha.runtime import conversations
 
-    cid = str(conversations.open_conversation(world, title, None)["id"])
+    cid = str(conversations.open_item(world, title, None)["id"])
     turn = world.journal.append("said", "I want help picking car wash sites to open",
                                 actor="person", thread=cid)
     world.journal.append("replied", "A few questions first.", data={"turn": turn}, thread=cid)
@@ -212,7 +212,7 @@ def test_at_sherlock_answers_a_question_onto_a_page(world: World,
 
     from alpha.runtime import conversations
 
-    cid = conversations.open_conversation(world, "site scoring", None)["id"]
+    cid = conversations.open_item(world, "site scoring", None)["id"]
     out = agent_runner.mention(world, me, "hi @Sherlock, what do site scoring tools do first?",
                                rest="hi what do site scoring tools do first?", thread=cid,
                                runner=runner)

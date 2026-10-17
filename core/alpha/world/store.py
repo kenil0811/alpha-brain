@@ -463,6 +463,10 @@ ADDED_COLUMNS = [
     ("runs", "called_by", "TEXT"),
     # Columbo's line on an outward card: its numbers checked before the yes (Q47)
     ("actions", "checked", "TEXT"),
+    # a work item's one plain line (its card), and the tools its kept session was made with
+    # (harness slice 3, 18 Oct 2026: a session resumed on other tools called a name it lacked)
+    ("threads", "last_line", "TEXT"),
+    ("threads", "session_tools", "TEXT"),
 ]
 
 
@@ -615,10 +619,12 @@ class Store:
                 if urls:
                     keys["url"] = urls
                 db.execute("UPDATE entities SET keys = ? WHERE id = ?", (dumps(keys), row["id"]))
-            # Threads are records, not remembered model sessions: nothing resumes one.
-            # Only a live conversation (a chat) keeps a session; builds and automations never do.
-            db.execute("UPDATE threads SET session_ref = NULL WHERE session_ref IS NOT NULL"
-                       " AND (kind != 'chat' OR state = 'done')")
+            # One shape for every thread (harness slice 3, 18 Oct 2026): Home, the one
+            # conversation, and work items; the conversations, builds, topics and agents'
+            # threads before it are all work items, and "waiting" is "needs you".
+            db.execute("UPDATE threads SET kind = 'work' WHERE kind IN"
+                       " ('chat', 'job', 'topic', 'build')")
+            db.execute("UPDATE threads SET state = 'needs_you' WHERE state = 'waiting'")
             # Each world is one person's; its id travels with the file.
             db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('world_id', ?)",
                        (new_id("w"),))

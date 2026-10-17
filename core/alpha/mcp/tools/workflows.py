@@ -32,8 +32,8 @@ class WorkflowTools(Base):
         shape}. words: the page as prose in their words, short sections, the steps as a
         numbered list, no tool names. Nothing is built until they say yes to the page; they
         change it by telling you in chat (workflow_revise), never by editing it."""
-        conversation = self.thread if self.thread and self.world.modules.thread(
-            self.thread)["kind"] == "chat" else None
+        conversation = self.thread if self.thread and self.world.agents.of_thread(
+            self.thread) is None else None
         made = self.world.workflows.draft(title, workflow, conversation=conversation,
                                          turn=self.turn, words=words)
         self._did("proposed", f"Your workflow: {title}",

@@ -12,9 +12,11 @@ list (the sidebar, Home, Alpha's context), its agents stop, nothing of it is cha
 can be restored or deleted for good from Settings. The modules removed together carry the id of the
 one the removal was asked of (`removed_with`), so a restore brings back exactly those.
 
-A thread is a piece of work with its own model context (a build, an agent's runs, a long
-job, or a topic the person opened deliberately). The person sees one stream; the to-and-fro of
-the work lives in its thread so it never crowds the stream's context.
+A thread is one of two things (harness design §7, slice 3, 18 Oct 2026): **Home**, the one
+conversation, whose session coordinates, and a **work item**, a piece of work with its own
+model session, a state, one plain line (its card) and its own box: a build, a watch with its
+runs, a long answer, an agent's work. The to-and-fro of the work lives in its item so it never
+crowds Home.
 """
 
 from __future__ import annotations
@@ -24,8 +26,11 @@ from typing import Any
 
 from alpha.world.store import Problem, Store, new_id, now
 
-THREAD_KINDS = {"build", "job", "topic", "chat"}
-THREAD_STATES = {"open", "working", "waiting", "done"}
+THREAD_KINDS = {"home", "work"}
+# open: nothing running (an item between turns, an agent's between runs); working; needs_you:
+# a question or a yes waits; done: its last turn ended well; stopped: it failed or was stopped.
+THREAD_STATES = {"open", "working", "needs_you", "done", "stopped"}
+HOME_TITLE = "Home"
 
 
 def _row(row: sqlite3.Row) -> dict[str, Any]:
@@ -179,7 +184,16 @@ class Modules:
 
     # ---- threads ----
 
-    def open_thread(self, title: str, kind: str, module: str | None = None) -> dict[str, Any]:
+    def home_thread(self) -> dict[str, Any]:
+        """Home, the one conversation (made the first time it is needed)."""
+        row = self.store.one(
+            "SELECT * FROM threads WHERE kind = 'home' ORDER BY created_at LIMIT 1")
+        if row is not None:
+            return _row(row)
+        return self.open_thread(HOME_TITLE, "home")
+
+    def open_thread(self, title: str, kind: str = "work",
+                    module: str | None = None) -> dict[str, Any]:
         if kind not in THREAD_KINDS:
             raise Problem(f"A thread is one of {sorted(THREAD_KINDS)}; got '{kind}'.")
         tid = new_id("t")
@@ -198,14 +212,17 @@ class Modules:
             raise Problem(f"There is no thread {tid}.")
         return _row(row)
 
-    def update_thread(self, tid: str, *, state: str | None = None) -> dict[str, Any]:
+    def update_thread(self, tid: str, *, state: str | None = None,
+                      last_line: str | None = None) -> dict[str, Any]:
+        """A thread's state and its one plain line (what its card shows)."""
         current = self.thread(tid)
         if state is not None and state not in THREAD_STATES:
             raise Problem(f"A thread's state is one of {sorted(THREAD_STATES)}; got '{state}'.")
+        line = " ".join(last_line.split())[:200] if last_line is not None else None
         with self.store.tx() as db:
             db.execute(
-                "UPDATE threads SET state = ?, updated_at = ? WHERE id = ?",
-                (state or current["state"], now(), tid),
+                "UPDATE threads SET state = ?, last_line = COALESCE(?, last_line), updated_at = ?"
+                " WHERE id = ?", (state or current["state"], line, now(), tid),
             )
         return self.thread(tid)
 
@@ -229,26 +246,20 @@ class Modules:
                        (brief.strip(), now(), tid))
         return self.thread(tid)
 
-    def set_session(self, tid: str, session_ref: str | None) -> None:
-        """A live conversation keeps its model session between turns; nothing else does."""
+    def set_session(self, tid: str, session_ref: str | None, *,
+                    tools: str | None = None) -> None:
+        """Home and every work item keep their model session between turns, with the
+        fingerprint of the tools it was made with: a session is resumed only on the same
+        tools (18 Oct 2026: one resumed across a change of the hands called a tool it did not
+        have)."""
         with self.store.tx() as db:
-            db.execute("UPDATE threads SET session_ref = ?, updated_at = ? WHERE id = ?",
-                       (session_ref, now(), tid))
+            db.execute("UPDATE threads SET session_ref = ?, session_tools = ? WHERE id = ?",
+                       (session_ref, tools if session_ref else None, tid))
 
-    def live_chat(self, module: str | None) -> dict[str, Any] | None:
-        """The live conversation in a scope (a module, or General when None): the most recent
-        chat thread there that is not done."""
-        row = self.store.one(
-            "SELECT * FROM threads WHERE kind = 'chat' AND state != 'done' AND module IS ?"
-            " ORDER BY updated_at DESC LIMIT 1", (module,))
-        return _row(row) if row else None
-
-    def chats(self, module: str | None = None, *, live: bool = True, limit: int = 20
-              ) -> list[dict[str, Any]]:
-        where = ["kind = 'chat'"]
+    def items(self, *, module: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """Work items, newest first; `module` narrows to one module's."""
+        where = ["kind = 'work'"]
         args: list[Any] = []
-        if live:
-            where.append("state != 'done'")
         if module is not None:
             where.append("module = ?")
             args.append(module)
@@ -259,16 +270,17 @@ class Modules:
 
     def threads(self, state: str | None = None, *, done: bool = False,
                 limit: int | None = None) -> list[dict[str, Any]]:
-        """Open threads, newest first; `done=True` adds the finished ones (the Assistant
-        page's history), the newest `limit` of all."""
+        """Work items that are not over (open, working, needs you), newest first; `done=True`
+        adds the finished and stopped ones (the Assistant page's history), the newest `limit`
+        of all. Home is never among them."""
         if state is None and done:
             rows = self.store.all(
-                "SELECT * FROM threads ORDER BY updated_at DESC LIMIT ?", (limit or 100,)
-            )
+                "SELECT * FROM threads WHERE kind = 'work' ORDER BY updated_at DESC LIMIT ?",
+                (limit or 100,))
         elif state is None:
             rows = self.store.all(
-                "SELECT * FROM threads WHERE state != 'done' ORDER BY updated_at DESC"
-            )
+                "SELECT * FROM threads WHERE kind = 'work' AND state NOT IN ('done', 'stopped')"
+                " ORDER BY updated_at DESC")
         else:
             rows = self.store.all(
                 "SELECT * FROM threads WHERE state = ? ORDER BY updated_at DESC", (state,)

@@ -391,7 +391,7 @@ def look(world: World, agent: dict[str, Any]) -> Work | None:
             if cid in conversations:
                 continue
             try:
-                if world.modules.thread(cid)["kind"] != "chat":
+                if world.agents.of_thread(cid) is not None:
                     continue
             except Problem:
                 continue
@@ -512,7 +512,7 @@ def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str |
     and closed after), its findings on a page the person keeps, the gist said there."""
     agent_row = world.agents.get(agent["id"])
     if not agent_row.get("thread"):
-        t = world.modules.open_thread(agent["name"], "job", agent.get("module"))["id"]
+        t = world.modules.open_thread(agent["name"], "work", agent.get("module"))["id"]
         world.agents.set_thread(agent["id"], t)
         agent_row = world.agents.get(agent["id"])
     question = (rest or "").strip(" ,:") or sentence

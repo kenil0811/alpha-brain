@@ -46,7 +46,6 @@ fields_line = 320                  # a table's fields in one line, at most
 "COMMITMENTS DUE" = 600
 
 [conversations]
-idle_close_s = 1800                # a conversation nobody has spoken in for half an hour is over
 confident = 0.6                    # the judge routes a sentence under this confidence by asking, never by guessing
 
 [asking]

@@ -365,18 +365,50 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if cards:
         sections.append(("WHO THE SENTENCE NAMES", cards))
 
-    chat = world.modules.thread(thread) if thread else None
-    chat = chat if chat and chat.get("kind") == "chat" else None
+    # Home or a work item is a conversation (its own turns); an agent's own item is a thread
+    # with a brief and a history (below). With no thread, Home's turns are the conversation.
+    row = world.modules.thread(thread) if thread else None
+    owned = bool(row and world.agents.of_thread(row["id"]))
+    chat = row if row and not owned else (None if row else world.modules.home_thread())
+    is_home = bool(chat and chat["kind"] == "home")
     recent = []
     if chat:
-        turns_ = world.journal.recent(RECENT_TURNS, thread=thread, kinds=["said", "replied"])
+        turns_ = world.journal.recent(RECENT_TURNS, thread=chat["id"],
+                                      kinds=["said", "replied", "did"])
+        turns_ = [e for e in turns_ if e["kind"] != "did"
+                  or (e["data"].get("routed") and e["data"]["routed"] != chat["id"])]
     else:
-        turns_ = world.journal.recent(RECENT_TURNS, stream=True, kinds=["said", "replied"])
+        turns_ = []
     for e in turns_:
+        if e["kind"] == "did":
+            recent.append(f"- {when(e['at'])} person: {_clip(e['data']['sentence'], 300)}"
+                          f" → {_clip(e['text'], 120)}")
+            continue
         who_said = "person" if e["kind"] == "said" else "alpha"
         recent.append(f"- {when(e['at'])} {who_said}: {_clip(e['text'], 400)}")
-    sections.append((f"THIS CONVERSATION{' (' + chat['title'] + ')' if chat else ''}"
-                     " (oldest first)", recent or ["- This is the first."]))
+    if chat:
+        title = ("THIS CONVERSATION (Home: the one conversation; work lives in its items,"
+                 " below) (oldest first)" if is_home else
+                 f"THIS CONVERSATION (the work item {chat['title']}) (oldest first)")
+        sections.append((title, recent or ["- This is the first."]))
+    if is_home or thread is None:
+        # The roster: what is in progress, one line each, never their transcripts (§7).
+        items = world.modules.items(limit=12)
+        lines = []
+        for t in items:
+            if t["state"] in ("done", "stopped") and t["updated_at"] < (
+                    datetime.now(UTC) - timedelta(hours=24)).isoformat():
+                continue
+            owner = world.agents.of_thread(t["id"])
+            if owner and owner["kind"] != "custom":
+                continue
+            lines.append(f"- {t['title']} ({t['id']}, {t['state'].replace('_', ' ')}"
+                         + (f", {owner['name']}'s" if owner else "") + ")"
+                         + (f": {_clip(t['last_line'], 160)}" if t.get("last_line") else ""))
+        sections.append(("WORK ITEMS (each has its own conversation and session; the person's"
+                         " sentence that opens or continues one is routed there before you see"
+                         " it; here, answer what can be answered now)",
+                         lines or ["- None open."]))
     if chat and chat.get("session_ref"):
         # The model's session carries this conversation; the world may have moved meanwhile.
         last_row = world.store.one("SELECT MAX(at) AS at FROM journal WHERE thread = ?"
@@ -396,7 +428,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
         matches.append(f"- record {hit['id']} in {hit['collection']}: {_clip(hit['snippet'], 160)}")
     for doc in Files(world).search(sentence, 3):
         matches.append(f"- document {doc['id']} {doc['title']}: {_clip(doc['snippet'], 160)}")
-    recent_ids = {e["id"] for e in world.journal.recent(RECENT_TURNS, stream=True)}
+    recent_ids = {e["id"] for e in turns_}
     # A sentence that names a day looks there first: matches within it, and that day's turns.
     window = day_named(sentence)
     if window:
@@ -424,7 +456,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if matches:
         sections.append(("MATCHES FOR THIS SENTENCE", matches))
 
-    if thread and not chat:
+    if thread and owned:
         t = world.modules.thread(thread)
         lines = [f"- {t['title']} ({t['id']}, {t['kind']})",
                  f"- Brief: {t['brief']}" if t.get("brief") else
@@ -434,9 +466,7 @@ def build(world: World, sentence: str, *, module: str | None = None,
         lines += [f"- {when(e['at'])} {e['kind']}: {_clip(e['text'], 300)}" for e in history]
         sections.append(("THIS THREAD (its brief and its own history, oldest first)", lines))
 
-    open_items = [f"- Thread {t['title']} ({t['id']}, {t['kind']}, {t['state']})"
-                  for t in world.modules.threads()]
-    open_items += [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
+    open_items = [f"- Asked the person ({a['id']}): {_clip(a['text'], 200)}"
                    for a in world.journal.open_asks()]
     if open_items:
         sections.append(("OPEN", open_items))

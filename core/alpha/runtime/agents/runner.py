@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime
 from typing import Any, cast
 
 from alpha import config
@@ -69,7 +70,7 @@ def run(world: World, agent_id: str, *, trigger: str = "schedule",
     agent = world.agents.get(agent_id)
     thread = agent["thread"]
     if not thread:
-        thread = world.modules.open_thread(agent["name"], "job", agent["module"])["id"]
+        thread = world.modules.open_thread(agent["name"], "work", agent["module"])["id"]
         world.agents.set_thread(agent_id, thread)
         agent = world.agents.get(agent_id)
     world.modules.update_thread(thread, state="working")
@@ -173,5 +174,11 @@ def _ended(world: World, agent: dict[str, Any], run_id: str, verdict: str, why: 
     world.runs.finish(run_id, verdict=verdict, why=why, line=line, model_ms=model_ms,
                       repairs=repairs, read=read, sources=sources)
     if agent["thread"]:
-        world.modules.update_thread(agent["thread"], state="done")
+        # The agent's item after a run (§7): its card changes only when the run had something
+        # to say; a quiet run leaves it open with "nothing new", a failed one stops it.
+        stamp = datetime.now().astimezone().strftime("%a %H:%M")
+        state = "stopped" if verdict == "failed" else "done" if line else "open"
+        words = (f"Run failed: {why}" if verdict == "failed" else
+                 line if line else f"Last checked {stamp}, nothing new")
+        world.modules.update_thread(agent["thread"], state=state, last_line=words)
     return world.agents.finished(agent["id"], result=line, error=why)

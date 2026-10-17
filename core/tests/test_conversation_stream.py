@@ -52,7 +52,8 @@ def test_a_turn_is_pushed_as_it_happens(world: World) -> None:
     started = c.post("/api/ask", json={"text": "log two eggs"}).json()
     events = events_of(c, started["id"])
     kinds = [e["type"] for e in events]
-    assert kinds[0] == "state" and events[0]["state"] == "running"
+    assert kinds[0] == "state" and events[0]["state"] == "routing"  # judged first (§7)
+    assert [e["state"] for e in events if e["type"] == "state"] == ["routing", "running", "done"]
     assert kinds[-1] == "done" and events[-1]["turn"]["state"] == "done"
     words = "".join(e.get("delta", "") for e in events if e["type"] == "text")
     assert words == "Logged **two eggs**, 140 kcal."

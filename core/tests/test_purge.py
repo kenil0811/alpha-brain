@@ -119,18 +119,19 @@ def test_a_plans_old_build_thread_becomes_a_topic_and_alpha_opens_only_topics(
     lasting things to any turn in it, and Alpha's own thread_open could open new ones."""
     path = tmp_path / "w.sqlite"
     w = World(path)
-    old = w.modules.open_thread("Build: Car Wash Site Screener", "build", None)
+    old = w.modules.open_thread("Build: Car Wash Site Screener", "work", None)
     wf = w.workflows.draft("Car wash", {"purpose": "Score sites.", "steps": [
         {"title": "A site arrives", "what": "You type it.", "who": "you", "gives": "a site",
          "when": "when one arrives"}], "keeps": [{"thing": "Site", "fields": ["address"]}]})
-    built = w.modules.open_thread("Build: Car wash", "build", None)
+    built = w.modules.open_thread("Build: Car wash", "work", None)
     with w.store.tx() as db:
         db.execute("UPDATE workflows SET thread = ? WHERE id = ?", (built["id"], wf["id"]))
     w.close()
     w = World(path)  # the migration runs as a world opens
-    assert w.modules.thread(old["id"])["kind"] == "topic"
-    assert w.modules.thread(built["id"])["kind"] == "build"  # a workflow's build keeps its own
-    assert Tools(w).thread_open("Next steps")["kind"] == "topic"
+    # every thread is a work item since harness slice 3 (18 Oct 2026)
+    assert w.modules.thread(old["id"])["kind"] == "work"
+    assert w.modules.thread(built["id"])["kind"] == "work"
+    assert Tools(w).thread_open("Next steps")["kind"] == "work"
     w.close()
 
 

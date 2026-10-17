@@ -80,7 +80,6 @@ class Prepack:
 
 @dataclass(frozen=True)
 class Conversations:
-    idle_close_s: int
     confident: float
 
 

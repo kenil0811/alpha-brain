@@ -82,7 +82,7 @@ def test_a_failed_turn_is_asked_again_and_one_that_replied_never_is(world: World
         return next(replies)
 
     c = TestClient(create_app(world, live=False, runner=runner))
-    chat = world.modules.open_thread("Food", "chat", None)
+    chat = world.modules.open_thread("Food", "work", None)
     started = c.post("/api/ask", json={"text": "log two eggs", "conversation": chat["id"]}).json()
     deadline = time.time() + 5
     while c.get(f"/api/turns/{started['id']}").json()["state"] == "running":
@@ -140,7 +140,7 @@ def test_a_day_of_activity_and_the_page_before(world: World) -> None:
 
 def test_an_entry_s_page_shows_what_it_touched_and_its_turn(world: World) -> None:
     m = world.modules.create("Food")
-    chat = world.modules.open_thread("Breakfast", "chat", m["id"])
+    chat = world.modules.open_thread("Breakfast", "work", m["id"])
     turn = world.journal.append("said", "log two eggs", actor="person", module=m["id"],
                                 thread=chat["id"])
     step = world.journal.append("did", "Logged two eggs.", module=m["id"], thread=chat["id"],

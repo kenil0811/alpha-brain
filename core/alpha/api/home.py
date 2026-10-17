@@ -16,9 +16,9 @@ from alpha.api.bodies import (
 )
 from alpha.api.served import Served
 from alpha.api.views import (
+    items_today,
     module_card,
     needs_you,
-    thread_views,
 )
 from alpha.connectors.calendar import Calendar
 from alpha.runtime import conversations, engine
@@ -55,7 +55,7 @@ def routes(app: FastAPI, s: Served) -> None:
             "modules": [module_card(world, m) for m in world.modules.all()],
             "loose_tables": [t for t in world.collections.overview() if t["module"] is None],
             "coming_up": events[:6],
-            "threads": thread_views(world),
+            "threads": items_today(world),
             "picks": [p for p in scout.picks_of_day(world) if not p["decided"]],
         }
 
@@ -74,8 +74,7 @@ def routes(app: FastAPI, s: Served) -> None:
         routed = conversations.routed_answer(world, asked, body.text)
         if routed:
             # "Which is this about?": the pick sends the original sentence there.
-            started = running.start(AskBody(text=routed["text"],
-                                            conversation=routed["conversation"]))
+            started = running.start(AskBody(text=routed["text"], conversation=routed["thread"]))
             return {"answered": jid, "turn": started}
         # The answer is also the person's next message: Alpha carries on with it, in the
         # conversation that asked.

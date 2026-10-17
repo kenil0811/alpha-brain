@@ -1,0 +1,84 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching the We Work Remotely back-end category, and it will check every day at 08:00. It starts tomorrow, and if your Mac is asleep it runs when the Mac next wakes. It reads the category's RSS feed and tells you what's new or gone since the last check.\n\nThere are two roles listed right now, both saved in a \"Back-end jobs\" table under a \"Job watch\" module:\n\n| Role | Company | Type | Posted |\n|---|---|---|---|\n| Senior Java Developer | Twikey | Full-time | 17 Sep |\n| AI Experience Engineer (Conversational AI) | Upgrade | Full-time | 15 Oct |\n\nI didn't filter by keyword, region or senior",
+    "steps": 8,
+    "routed": "a new item",
+    "routed_by": "judge: Watching We Work Remotely for back-end roles is a standing watch that will keep running over time, and no open work item covers it.",
+    "seconds": 35.1
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (new; judge: Watching We Work Remotely for back-end roles is a standing watch that will keep running over time, and no open work item covers it.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You haven't logged any eggs. Alpha has no food log yet. The only thing it keeps is the We Work Remotely job list, and nothing in its history mentions eggs.\n\nIf you want to start now, tell me what you ate, for example \"log two boiled eggs\". I'll set up a food log and add them, and then I can count them for you each week.",
+    "steps": 3,
+    "routed": "Home",
+    "routed_by": "judge: The question about how many eggs were logged this week is a quick lookup unrelated to the We Work Remotely back-end watch, so it can be answered in this turn without leaving anything standing.",
+    "seconds": 10.7
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: The question about how many eggs were logged this week is a quick lookup unrelated to the We Work Remotely back-end watch, so it can be answered in this turn without leaving anything standing.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "The watch now runs every day at 07:00, starting tomorrow morning. If your Mac is asleep then, it runs when the Mac next wakes. The agent's saved title still says 08:00, but the schedule itself is 07:00.",
+    "steps": 2,
+    "routed": "Watch We Work Remotely for back-end roles",
+    "routed_by": "judge: The sentence changes the schedule of the existing 'that watch' item, which is the open We Work Remotely back-end watch, so it belongs to that item's thread.",
+    "seconds": 11.6
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (item; judge: The sentence changes the schedule of the existing 'that watch' item, which is the open We Work Remotely back-end watch, so it belongs to that item's thread.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": true,
+    "why": "1 item(s): Watch We Work Remotely for back-end roles (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply confirms the existing watch's schedule was changed to run daily at 07:00 rather than creating a new watch, matching the journal's 'Changed the agent' entry.",
+    "seconds": 2.9
+   }
+  ],
+  "seconds": 60.3,
+  "error": null
+ }
+]

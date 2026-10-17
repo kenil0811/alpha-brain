@@ -30,7 +30,7 @@ def _touched(world: World, e: dict[str, Any]) -> list[dict[str, Any]]:
     if e["thread"] and owner is None:
         add(lambda: {"kind": "conversation", "id": e["thread"],
                      "name": world.modules.thread(e["thread"])["title"],
-                     "chat": world.modules.thread(e["thread"])["kind"] == "chat"})
+                     "chat": world.modules.thread(e["thread"])["kind"] in ("home", "work")})
     agent = d.get("agent") or d.get("automation") or (owner["id"] if owner else None)
     if agent:
         add(lambda: {"kind": "agent", "id": agent,

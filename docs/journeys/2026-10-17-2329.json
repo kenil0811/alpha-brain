@@ -1,0 +1,84 @@
+[
+ {
+  "name": "two_things_at_once",
+  "title": "Home · two things at once: a watch opens an item, a question is answered in Home, a follow-up continues the item",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's Back-End Programming category. It checks every day at 08:00 (or when your Mac next wakes), and the first run is already done. The next check is tomorrow morning, and it will tell you what's new, changed or gone.\n\nThe page has 2 roles right now, both full-time:\n\n| Role | Company | HQ | Open to |\n|---|---|---|---|\n| Senior Java Developer (new) | Twikey | Ghent, Belgium | Europe only (about 30 countries, including the UK) |\n| AI Experience Engineer (Conversational AI) | Upgrade | Canada (remote) | Anywhere in the world |\n\n- **Promoted ad:** I left out the \"Remo",
+    "steps": 9,
+    "routed": "a new item",
+    "routed_by": "judge: Watching a job board for back-end roles is a standing watch that will keep running, and no open work item covers it.",
+    "seconds": 53.5
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (new; judge: Watching a job board for back-end roles is a standing watch that will keep running, and no open work item covers it.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "how many eggs have I logged this week",
+    "ok": true,
+    "reply": "You haven't logged any eggs. The only table Alpha holds is the We Work Remotely job listings, and nothing about eggs or food appears anywhere in your records.\n\nIf you've been eating eggs, tell me and I'll start a food log. For example, \"log two boiled eggs\" would create it and add the first entry. I can't recover earlier ones unless you tell me what they were.",
+    "steps": 3,
+    "routed": "Home",
+    "routed_by": "judge: It's a quick factual question about logged eggs, unrelated to the open back-end job watch, so it can be answered in this turn; the state shows no egg data, so confidence is moderate.",
+    "seconds": 11.6
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Home (home; judge: It's a quick factual question about logged eggs, unrelated to the open back-end job watch, so it can be answered in this turn; the state shows no egg data, so confidence is moderate.)",
+    "seconds": 0.0
+   },
+   {
+    "say": "make that watch check every day at 7",
+    "ok": true,
+    "reply": "The watch now checks every day at 07:00 (or when your Mac next wakes). The next check is tomorrow, Sunday 18 October, at 07:00.",
+    "steps": 2,
+    "routed": "Watch We Work Remotely for back-end roles",
+    "routed_by": "judge: The sentence asks to change the schedule of the open watch item, which is about the same subject and changes what it made.",
+    "seconds": 10.5
+   },
+   {
+    "check": "routed",
+    "ok": true,
+    "detail": "went to Watch We Work Remotely for back-end roles (item; judge: The sentence asks to change the schedule of the open watch item, which is about the same subject and changes what it made.)",
+    "seconds": 0.0
+   }
+  ],
+  "checks": [
+   {
+    "check": "items",
+    "arg": {
+     "count": 1
+    },
+    "ok": false,
+    "why": "2 item(s) opened, wanted 1: Watson (done); Watch We Work Remotely for back-end roles (done).",
+    "seconds": 0.0
+   },
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 6 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "judge",
+    "arg": "Does the last reply say the watch now runs daily at 7 (or confirm the schedule change), rather than starting something new?",
+    "ok": true,
+    "why": "The reply confirms the existing watch was changed to run daily at 07:00 and gives the next run time, which matches the journal's edit of the existing agent rather than creating a new one.",
+    "seconds": 3.1
+   }
+  ],
+  "seconds": 78.8,
+  "error": null
+ }
+]

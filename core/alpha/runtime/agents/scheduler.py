@@ -30,7 +30,7 @@ import time
 from typing import Any
 
 from alpha.config import settings
-from alpha.runtime import acting, conversations
+from alpha.runtime import acting
 from alpha.runtime.agents import LOOKS, Work
 from alpha.runtime.agents import runner as agent_runner
 from alpha.runtime.route import run as model_run
@@ -181,10 +181,6 @@ class Scheduler:
 
     def tick(self) -> None:
         settled = self.settled()
-        try:
-            conversations.close_idle(self.world)
-        except Exception:
-            log.exception("closing quiet conversations")
         if not settled:
             # Just woke, or only in a maintenance wake: nothing starts yet.
             return

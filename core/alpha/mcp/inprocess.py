@@ -14,6 +14,8 @@ does.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import inspect
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -69,5 +71,10 @@ async def alpha_server(tools_cls: type[Any], req: TurnRequest,
 
 
 def install(tools_cls: type[Any]) -> None:
-    """Make the engine serve `tools_cls` (the world's `Tools`) to every turn it runs."""
+    """Make the engine serve `tools_cls` (the world's `Tools`) to every turn it runs, and
+    tell it the fingerprint of those hands (their names and signatures)."""
     engine.server_builder = partial(alpha_server, tools_cls)
+    served = sorted(name for name in dir(tools_cls)
+                    if getattr(getattr(tools_cls, name, None), "served", False))
+    signed = "\n".join(f"{n}{inspect.signature(getattr(tools_cls, n))}" for n in served)
+    engine.tools_fingerprint = hashlib.sha256(signed.encode()).hexdigest()[:12]

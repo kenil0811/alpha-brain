@@ -216,7 +216,7 @@ def test_a_conversations_checkpoint_keeps_what_it_decided_and_what_is_open(world
     from alpha.runtime import conversations
 
     mod = world.modules.create("Deals", goal="find a firm")
-    chat = conversations.open_conversation(world, "which list first?", mod["id"])
+    chat = conversations.open_item(world, "which list first?", mod["id"])
     world.journal.append("said", "which list first, Austin or Dallas?", actor="person",
                          thread=chat["id"], module=mod["id"])
     world.journal.append("replied", "Austin has better data.", thread=chat["id"], module=mod["id"])

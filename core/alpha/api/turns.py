@@ -33,25 +33,21 @@ class Turns:
         self.after = after
         self.state: dict[str, dict[str, Any]] = {}
         self.lock = threading.Lock()
+        self.locks: dict[str, threading.Lock] = {}
 
     def start(self, body: AskBody, *, actor: str = "person",
               journal_as: str | None = None) -> dict[str, Any]:
-        # Where this turn lives. A build or agent thread stays as given; a person's turn
-        # with no conversation goes to the scope's live conversation (the panel on a page) or
-        # is routed (the companion), which may come back as a question instead of a turn.
+        # Where this turn lives (harness §7). A thread given is that thread: an item's own box,
+        # Home's, an agent's. "@Name …" from the person goes to that agent's own item. Anything
+        # else from the person is routed in the worker (the judge is a model run, and a
+        # request never waits on one), so the turn comes back at once as "routing".
         conversation: str | None = None
-        routing = False
-        if body.conversation:
-            conversation = self.world.modules.thread(body.conversation)["id"]
-        elif body.thread:
-            kind = self.world.modules.thread(body.thread)["kind"]
-            conversation = body.thread if kind == "chat" else None
-        elif actor == "person" and body.module:
-            conversation = conversations.ensure(self.world, body.text, body.module)["id"]
-        elif actor == "person":
-            # The companion's sentence: routed in the worker (the judge is a model run, and a
-            # request never waits on one), so the turn comes back at once as "routing".
-            routing = True
+        addressed = self.world.agents.by_mention(body.text) if actor == "person" else None
+        if body.conversation or body.thread:
+            conversation = self.world.modules.thread(str(body.conversation or body.thread))["id"]
+        elif addressed:
+            conversation = self._agents_item(addressed[0])
+        routing = conversation is None and actor == "person"
         key = secrets.token_hex(6)
         self._evict()
         with self.lock:
@@ -69,58 +65,55 @@ class Turns:
             nonlocal conversation
             try:
                 if routing:
-                    routed = conversations.route(self.world, body.text,
+                    routed = conversations.route(self.world, body.text, module=body.module,
                                                  runner=self.runner if self.runner else None)
                     if "ask" in routed:
                         with self.lock:
                             self.state[key].update({"state": "asked", "ask": routed["ask"],
                                                     "options": routed["options"]})
                         return
-                    conversation = routed["conversation"]
+                    conversation = routed["thread"]
                     with self.lock:
                         self.state[key].update({
                             "state": "running",
                             "conversation": conversation_view(self.world, conversation)})
-                thread = conversation or body.thread
+                thread = conversation
                 kwargs: dict[str, Any] = {"module": body.module, "thread": thread,
                                           "on_said": said, "actor": actor,
-                                          "journal_as": journal_as,
-                                          "conversation": bool(conversation)}
-                if conversation:
-                    self.world.modules.update_thread(conversation, state="working")
+                                          "journal_as": journal_as, "conversation": True}
                 if self.runner is not None:
                     kwargs["runner"] = self.runner
-                # "@Name …" from the person: that agent answers, as itself, in this
-                # conversation (Q44; by structure, the name exactly, never a guess).
-                addressed = (self.world.agents.by_mention(body.text)
-                             if actor == "person" else None)
-                if addressed:
-                    agent, rest = addressed
-                    out = agent_runner.mention(
-                        self.world, agent, body.text, rest=rest, thread=thread,
-                        module=body.module, on_said=said,
-                        **({"runner": self.runner} if self.runner else {}))
-                else:
-                    out = turns.ask(self.world, body.text, **kwargs)
+                assert thread is not None
+                # One turn at a time in a thread: a sentence typed into a busy item waits for
+                # the running turn and is read after it (an addition, never a cut; §7).
+                with self._lock_of(thread):
+                    self.world.modules.update_thread(thread, state="working")
+                    if addressed and not body.conversation and not body.thread:
+                        # the agent answers in its own item, as itself (Q44)
+                        agent, rest = addressed
+                        out = agent_runner.mention(
+                            self.world, agent, body.text, rest=rest, thread=thread,
+                            module=body.module, on_said=said,
+                            **({"runner": self.runner} if self.runner else {}))
+                    else:
+                        out = turns.ask(self.world, body.text, **kwargs)
+                    conversations.settle(self.world, thread, ok=out.ok,
+                                         stopped=out.result.stopped,
+                                         last_line=conversations.first_line(out.reply)
+                                         or out.reply[:200])
                 result = {"state": "done" if out.ok else "failed", "reply": out.reply,
                           "said": out.said, "replied": out.replied,
                           "duration_ms": out.result.duration_ms}
             except Problem as e:
                 result = {"state": "failed", "reply": str(e)}
+                self._open_again(conversation)
             except Exception:
                 log.exception("turn failed")
                 result = {"state": "failed", "reply": "Alpha hit a problem it couldn't recover"
                           " from; the details are in its log."}
+                self._open_again(conversation)
             with self.lock:
                 self.state[key].update(result)
-            if conversation:
-                try:
-                    waiting = any(a["thread"] == conversation
-                                  for a in self.world.journal.open_asks())
-                    self.world.modules.update_thread(conversation,
-                                                     state="waiting" if waiting else "open")
-                except Exception:
-                    log.exception("conversation state")
             if self.after is not None:
                 # A workflow page agreed in this turn starts building now, not at the next tick.
                 try:
@@ -130,6 +123,26 @@ class Turns:
 
         threading.Thread(target=work, daemon=True, name=f"turn-{key}").start()
         return self.state[key]
+
+    def _agents_item(self, agent: dict[str, Any]) -> str:
+        """An agent's own work item (opened when it has none yet)."""
+        if agent.get("thread"):
+            return str(agent["thread"])
+        thread = self.world.modules.open_thread(agent["name"], "work", agent.get("module"))
+        self.world.agents.set_thread(agent["id"], thread["id"])
+        return str(thread["id"])
+
+    def _lock_of(self, thread: str) -> threading.Lock:
+        with self.lock:
+            return self.locks.setdefault(thread, threading.Lock())
+
+    def _open_again(self, thread: str | None) -> None:
+        if not thread:
+            return
+        try:
+            self.world.modules.update_thread(thread, state="open")
+        except Exception:
+            log.exception("thread state")
 
     def _evict(self, keep_s: int = 3600) -> None:
         """Finished turns older than an hour leave the table; it never grows without end."""

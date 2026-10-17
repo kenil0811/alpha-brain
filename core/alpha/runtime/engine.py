@@ -158,6 +158,15 @@ class Served:
 ServerBuilder = Callable[[TurnRequest, ThreadPoolExecutor], Awaitable[Served]]
 server_builder: ServerBuilder | None = None
 NO_TOOLS = "Alpha's tools are not wired into this process, so the turn did not run."
+# The fingerprint of the hands this process serves (their names and signatures), set with the
+# server builder: a kept session is resumed only when it was made with the same tools (18 Oct
+# 2026: a conversation's session made on the 72 old names, resumed on the 17 hands, called a
+# tool the run did not have).
+tools_fingerprint: str = ""
+
+
+def fingerprint() -> str:
+    return tools_fingerprint
 
 
 # ---- the person's yes (harness design §8; slice 2b, step 3) ----

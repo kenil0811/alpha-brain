@@ -86,7 +86,7 @@ def test_the_page_is_checked_and_normalized() -> None:
 
 def test_the_page_is_drafted_revised_with_the_version_kept_and_agreed_in_words(
         world: World) -> None:
-    chat = world.modules.open_thread("New conversation", "chat", None)
+    chat = world.modules.open_thread("New conversation", "work", None)
     t = Tools(world, turn=said(world, "help me pick car wash sites"), thread=chat["id"])
     out = t.workflow_draft("Picking car wash sites", BODY, "# Your workflow\n1. A site arrives…")
     wf = world.workflows.get(out["workflow"])
@@ -151,7 +151,7 @@ def test_the_page_is_drafted_revised_with_the_version_kept_and_agreed_in_words(
 
 def test_the_page_is_on_home_and_in_the_conversation_and_agreed_in_the_app(
         world: World) -> None:
-    chat = world.modules.open_thread("New conversation", "chat", None)
+    chat = world.modules.open_thread("New conversation", "work", None)
     t = Tools(world, turn=said(world, "help me pick sites"), thread=chat["id"])
     wid = t.workflow_draft("Picking sites", BODY, "The page.")["workflow"]
     c = TestClient(create_app(world, live=False))

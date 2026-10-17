@@ -456,7 +456,7 @@ def mention(world: World, agent: dict[str, Any], sentence: str, *, thread: str |
     """"@Scout …": today's picks made now and said in the conversation."""
     agent_row = world.agents.get(agent["id"])
     if not agent_row.get("thread"):
-        t = world.modules.open_thread(agent["name"], "job", agent.get("module"))["id"]
+        t = world.modules.open_thread(agent["name"], "work", agent.get("module"))["id"]
         world.agents.set_thread(agent["id"], t)
         agent_row = world.agents.get(agent["id"])
     said = world.journal.append("said", sentence, actor="person", module=module, thread=thread)
