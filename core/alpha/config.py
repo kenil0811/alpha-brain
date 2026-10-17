@@ -127,6 +127,8 @@ class Views:
     trouble_window_h: int
     changes_most: int
     most_rows: int
+    query_rows: int
+    query_steps: int
 
 
 @dataclass(frozen=True)

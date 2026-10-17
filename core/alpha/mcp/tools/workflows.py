@@ -5,11 +5,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from alpha.mcp.tools.base import Base, tool
+from alpha.mcp.tools.base import Base, hand
 
 
 class WorkflowTools(Base):
-    @tool(writes="workflows")
+    @hand(writes="workflows")
     def workflow_draft(self, title: str, workflow: dict[str, Any], words: str) -> dict[str, Any]:
         """Write "Your workflow", the page that says what Alpha will build for the person,
         from the interview and their documents; only once the job is known (who it is for,
@@ -41,7 +41,7 @@ class WorkflowTools(Base):
         return {"workflow": made["id"], "version": made["version"], "state": made["state"],
                 "note": "The page is on its card; the person says yes there or in words."}
 
-    @tool(writes="workflows")
+    @hand(writes="workflows")
     def workflow_revise(self, workflow: str, change: str, new_workflow: dict[str, Any],
                         words: str | None = None) -> dict[str, Any]:
         """The person said what is different ("add a lot-size check", "the memo should open
@@ -60,7 +60,7 @@ class WorkflowTools(Base):
                 **({"removed": dropped, "note": "Say so to the person if that was not what"
                     " they asked; revise again to put them back."} if dropped else {})}
 
-    @tool(writes="workflows")
+    @hand(writes="workflows")
     def workflow_agree(self, workflow: str, quote: str,
                        suggestions: dict[str, str] | None = None,
                        answers: str | None = None) -> dict[str, Any]:
@@ -104,7 +104,7 @@ class WorkflowTools(Base):
                 "note": "Agreed. Do the work now, in this turn: make what the page says, run it"
                         " once, and report what it holds."}
 
-    @tool(writes="workflows")
+    @hand(writes="workflows")
     def workflow_decline(self, workflow: str) -> dict[str, Any]:
         """The person doesn't want this workflow built."""
         declined = self.world.workflows.decline(workflow)

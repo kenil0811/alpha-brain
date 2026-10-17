@@ -81,6 +81,8 @@ activity_window_days = 30          # and a module's activity
 trouble_window_h = 24              # the companion speaks of runs that went wrong in the last day
 changes_most = 500                 # the window's one poll carries at most this many changes
 most_rows = 5000                   # a workflow table's rows shown in a module's view, at most
+query_rows = 200                   # world_query hands the model at most this many rows and says when it cut (more is context the model cannot use; it aggregates or narrows)
+query_steps = 2000                 # a world_query is stopped after this many 10,000-step slices of SQLite work (about seconds): a read that long is a wrong query, not a slow one
 
 
 [accounts]

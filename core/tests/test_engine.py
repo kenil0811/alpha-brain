@@ -251,19 +251,19 @@ def test_the_worlds_tools_are_served_in_process(tmp_path: Path) -> None:
         try:
             assert served.config["type"] == "sdk" and served.config["name"] == "alpha"
             tools = {t.name: t for t in served.tools}
-            listed = await tools["collections_list"].handler({})
-            bad = await tools["records_add"].handler({"collection": 3})
+            listed = await tools["world_query"].handler({"sql": "SELECT name FROM tables"})
+            bad = await tools["world_write"].handler({"table": 3})
             return {"names": sorted(tools), "listed": listed, "bad": bad}
         finally:
             executor.shutdown(wait=False)
             bound.close()
 
     out = asyncio.run(go())
-    assert "collections_list" in out["names"] and "ask_person" in out["names"]
-    assert len(out["names"]) >= 70
+    assert "world_query" in out["names"] and "ask_person" in out["names"]
+    assert len(out["names"]) >= 20
     text = out["listed"]["content"][0]["text"]
     assert "food_log" in text and not out["listed"].get("is_error")
-    assert out["bad"].get("is_error") and "collection" in out["bad"]["content"][0]["text"]
+    assert out["bad"].get("is_error") and "table" in out["bad"]["content"][0]["text"]
 
 
 def test_a_turn_without_the_tools_wired_fails_in_words(tmp_path: Path,

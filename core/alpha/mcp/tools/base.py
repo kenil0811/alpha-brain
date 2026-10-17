@@ -93,11 +93,15 @@ class _Decorator(Protocol):
 @overload
 def tool[F: Callable[..., Any]](fn: F, /) -> F: ...
 @overload
-def tool(*, writes: str) -> _Decorator: ...
-def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None) -> Any:
-    """Turn a method into a tool the model may call. `writes` names what it changes (one of
-    WRITES); an agent whose write list lacks it is refused in plain words. Problems come back
-    as plain words; a bug of ours says so and keeps the details in the log."""
+def tool(*, writes: str | None = None, served: bool = False) -> _Decorator: ...
+def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None,
+         served: bool = False) -> Any:
+    """Turn a method into an operation of the world with a tool's manners: `writes` names what
+    it changes (one of WRITES); an agent whose write list lacks it is refused in plain words;
+    problems come back as plain words; a bug of ours says so and keeps the details in the log.
+    Since the harness (slice 2b, 17 Oct 2026) the model sees only the `served` ones, the hands
+    of `mcp/hands.py` (`@hand`); the rest are the operations they call, kept with the same
+    manners so the tests and the hands read their results alike."""
     if writes is not None and writes not in WRITES:
         raise ValueError(f"a tool writes one of {WRITES}, not {writes!r}")
 
@@ -118,9 +122,21 @@ def tool(fn: Callable[..., Any] | None = None, *, writes: str | None = None) -> 
 
         wrapper.is_tool = True  # type: ignore[attr-defined]
         wrapper.writes = writes  # type: ignore[attr-defined]
+        wrapper.served = served  # type: ignore[attr-defined]
         return cast(F, wrapper)
 
     return decorate(fn) if fn is not None else decorate
+
+
+@overload
+def hand[F: Callable[..., Any]](fn: F, /) -> F: ...
+@overload
+def hand(*, writes: str | None = None) -> _Decorator: ...
+def hand(fn: Callable[..., Any] | None = None, *, writes: str | None = None) -> Any:
+    """A tool the model sees (the harness design §4): one of the hands."""
+    if fn is not None:
+        return tool(served=True)(fn)
+    return tool(writes=writes, served=True)
 
 
 
@@ -144,6 +160,15 @@ class Base:
         self._agent_row: dict[str, Any] | None = None
 
     def all(self) -> list[Callable[..., Any]]:
+        """The tools the model sees, in name order: the hands."""
+        return [
+            getattr(self, name)
+            for name in dir(self)
+            if not name.startswith("_") and getattr(getattr(self, name), "served", False)
+        ]
+
+    def operations(self) -> list[Callable[..., Any]]:
+        """Every operation with a tool's manners, served or not."""
         return [
             getattr(self, name)
             for name in dir(self)

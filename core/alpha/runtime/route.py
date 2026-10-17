@@ -18,7 +18,7 @@ from alpha.world.store import loads
 ROUTES = ("claude", "codex")
 PREFERENCE = "thinks_with"
 WORDS = {"claude": "Claude", "codex": "ChatGPT"}
-TRIAL_SENTENCE = "Call collections_list once and reply ok."
+TRIAL_SENTENCE = "Call world_query once with SELECT name FROM tables and reply ok."
 
 
 def chosen(world_path: Path | str | None) -> str:

@@ -115,7 +115,7 @@ def test_the_model_gets_the_connector_skills(world: World) -> None:
         return RunResult(reply="ok", ok=True)
 
     ask(world, "hello", runner=runner)
-    assert "HOW TO USE WHAT ALPHA CAN REACH" in seen[0].system and "reader_save" in seen[0].system
+    assert "HOW TO USE WHAT ALPHA CAN REACH" in seen[0].system and "skill_keep" in seen[0].system
 
 
 def test_run_now_shows_progress_while_it_runs(world: World) -> None:

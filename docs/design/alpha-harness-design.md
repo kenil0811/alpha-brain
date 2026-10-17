@@ -202,9 +202,9 @@ repair is editing the file. Versions are git in the directory.
 
 | Status (17 Oct 2026; detail in `../log/2026-10-17-harness-slice2a.md`) | |
 |---|---|
-| Built | Slice 2a: no tool is closed by the kind of thread the turn runs in. `Tools._gate` and `_building` are gone; `module_create`, `collection_create`, `reader_save`, `agent_create` and `source_add` work in any turn and journal what they made. |
-| Differs | The 73 tools keep their names and shapes until slice 2b (`world_*`, `browser_*`, `skill_keep`, `agent_keep`, `schedule_keep`, `act_outward`). |
-| Not built | The fifteen tools; the SDK's shell, files and subagents in a turn; `act_outward` through the permission callback (acting outward keeps its card, Q24). |
+| Built | Slice 2a: no tool is closed by the kind of thread the turn runs in; `Tools._gate` and `_building` are gone. **Slice 2b, step 2 (17 Oct, late):** the model sees 17 hands (`mcp/tools/hands.py`: `world_query` over read-only SQL views of every table and of the world's own things, `world_write`, `world_change`, `world_shape`, `world_file`, `world_remember`, `world_search`, `ask_person`, `tell_person`, `skill_keep`, `skill_run`, `skill_find`, `agent_keep`, `act_outward`, `browser_read`, `browser_script`, `connect`) plus the four workflow tools as plan mode; each hand calls the operations the code kept (`@tool`, now unserved); the prompts, the connector skills and the window's step words follow. |
+| Differs | The SDK's own shell, files, web fetch and subagents are not yet among a turn's tools (`allowed_tools` is the hands, WebSearch and WebFetch); `act_outward` still goes through the action card, not the permission callback (step 3); `schedule_keep` is `agent_keep`'s schedule. |
+| Not built | The SDK's shell, files and subagents in a turn; `act_outward` through the permission callback (step 3); `world_query` over the skills' files (they are in the pre-pack and `skill_find`). |
 
 ## 5. The world
 

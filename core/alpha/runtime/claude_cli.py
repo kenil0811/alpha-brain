@@ -480,6 +480,16 @@ def _watch(keys: list[str], event: dict[str, Any]) -> None:
 
 
 TOOL_WORDS = {
+    # the hands (harness 2b)
+    "world_query": "Reading the tables", "world_write": "Writing rows",
+    "world_change": "Changing a row", "world_shape": "Shaping a table",
+    "world_file": "Reading a document", "world_remember": "Remembering something",
+    "world_search": "Searching what Alpha holds", "tell_person": "Noting it for you",
+    "skill_keep": "Keeping a skill", "skill_run": "Running a skill",
+    "skill_find": "Looking at the skills", "agent_keep": "Setting up the agent",
+    "act_outward": "Preparing it for your yes", "browser_read": "Reading a page",
+    "browser_script": "Looking closely at a page", "connect": "Connecting",
+    # the operations behind them
     "search": "Searching what Alpha holds", "journal_recent": "Looking back at what happened",
     "journal_read": "Reading an earlier entry", "collections_list": "Looking at the tables",
     "collection_describe": "Looking at a table", "collection_create": "Making a table",
@@ -519,8 +529,12 @@ def plain_tool(name: str, inputs: dict[str, Any]) -> str:
     if short == "WebFetch":
         return f"Reading {str(inputs.get('url', ''))[:70]}".rstrip()
     words = TOOL_WORDS.get(short, short.replace("_", " ").capitalize())
-    target = inputs.get("url") or inputs.get("collection") or inputs.get("name") \
-        or inputs.get("title") or inputs.get("question")
+    target = inputs.get("url") or inputs.get("collection") or inputs.get("table") \
+        or inputs.get("name") or inputs.get("title") or inputs.get("question") \
+        or inputs.get("target")
+    if short == "world_query":
+        sql = " ".join(str(inputs.get("sql", "")).split())
+        return f"Reading the tables: {sql[:70]}".rstrip(": ") if sql else words
     if isinstance(target, str) and target and short not in ("ask_person",):
         return f"{words}: {target[:70]}"
     return words

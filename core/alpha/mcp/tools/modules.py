@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from alpha.mcp.tools.base import Base, tool
+from alpha.mcp.tools.base import Base, hand, tool
 from alpha.world.store import Problem
 
 
@@ -83,7 +83,7 @@ class Modules(Base):
         self._did("changed", f"Updated the brief of {thread['title']}.", {"thread": tid})
         return thread
 
-    @tool(writes="asks")
+    @hand(writes="asks")
     def ask_person(self, question: str, options: list[str] | None = None,
                    kind: str = "one", hint: str | None = None) -> dict[str, Any]:
         """Record a question for the person that must be answered before something can be

@@ -1,0 +1,97 @@
+[
+ {
+  "name": "track_then_log",
+  "title": "First day · \"track what I eat\" gets a table at once, and \"log two eggs\" a row",
+  "steps": [
+   {
+    "say": "track what I eat",
+    "ok": true,
+    "reply": "I've made a Food log, in a new Food module. It's empty so far.\n\nEach entry holds:\n- the food\n- when you ate it\n- the meal (breakfast, lunch, dinner, snack or drink)\n- the quantity\n- calories, protein, carbs and fat\n- where the numbers came from\n\nTo log something, just tell me, for example \"two boiled eggs and toast for breakfast\". I'll look up the nutrition from a label or a site where I can. If I have to estimate a home-cooked portion, I'll mark it as an estimate and say what I assumed.\n\nWhat have you eaten today?",
+    "steps": 2,
+    "seconds": 10.4
+   },
+   {
+    "say": "log two eggs",
+    "ok": true,
+    "reply": "I logged two eggs as a snack at 21:50: 143 kcal, 12.6 g protein, 0.7 g carbs and 9.5 g fat. The numbers are USDA values for a large whole egg (72 kcal each), doubled. I recalled them from memory rather than checking the USDA site just now.\n\nI assumed large eggs, cooked with no added oil or butter, and eaten as a snack. If they were fried in butter, a different size or a different meal, tell me and I'll fix the entry.",
+    "steps": 2,
+    "seconds": 7.9
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 0 readers, 5 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "1 rows in food_log (1)",
+    "seconds": 0.0
+   },
+   {
+    "check": "reply",
+    "arg": {
+     "matches": "egg"
+    },
+    "ok": true,
+    "why": "The reply reads as expected.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 18.3,
+  "error": null
+ },
+ {
+  "name": "watch_from_words",
+  "title": "First day · \"watch We Work Remotely for back-end roles\" becomes a reader, a schedule and rows",
+  "steps": [
+   {
+    "say": "watch We Work Remotely for back-end roles",
+    "ok": true,
+    "reply": "I'm now watching We Work Remotely's Back-End Programming category. It has two listings today, and both are in a new Back-end jobs table in a new Jobs module:\n\n- **Senior Java Developer** at Twikey (HQ Ghent, Belgium). It's full-time and open to roughly 30 European countries.\n- **AI Experience Engineer (Conversational AI)** at Upgrade (HQ Canada). It's full-time and open anywhere in the world.\n\nEach row has the title, company, link, HQ, type, regions and how long ago it was posted. I left out the promoted customer-support ad because it isn't a back-end role.\n\nEvery day at 09:00, or when your Ma",
+    "steps": 9,
+    "seconds": 57.8
+   }
+  ],
+  "checks": [
+   {
+    "check": "made_since",
+    "arg": {
+     "tables": 1,
+     "readers": 1,
+     "agents": 1
+    },
+    "ok": true,
+    "why": "Made 1 tables, 1 readers, 1 agents, 1 modules",
+    "seconds": 0.0
+   },
+   {
+    "check": "rows_since",
+    "arg": {
+     "at_least": 1
+    },
+    "ok": true,
+    "why": "2 rows in backend_jobs (2)",
+    "seconds": 0.0
+   },
+   {
+    "check": "agent_is_pipeline",
+    "arg": {},
+    "ok": true,
+    "why": "Steps: wwr_backend_jobs then tell.",
+    "seconds": 0.0
+   }
+  ],
+  "seconds": 57.8,
+  "error": null
+ }
+]

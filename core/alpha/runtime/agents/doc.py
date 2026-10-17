@@ -251,7 +251,7 @@ def repair_procedure(world: World, action: dict[str, Any], why: str,
         else:
             prompt = (f"The action \"{action['title']}\" (procedure {name}) ran to its end, so it"
                       f" happened, but {why}. Repair only the procedure's verify steps (look at"
-                      " the page as it is after the commit) and save it with procedure_save."
+                      " the page as it is after the commit) and save it with skill_keep (kind act)."
                       " Do NOT propose the action again: it has been done once and must not be"
                       " repeated. Tell the person in one line that it went out and that the"
                       " check is fixed for next time.")

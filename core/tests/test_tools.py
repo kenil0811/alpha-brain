@@ -72,9 +72,9 @@ def test_server_exposes_every_tool(world: World) -> None:
     tools = asyncio.run(server.list_tools())
     names = {x.name for x in tools}
     assert {f.__name__ for f in Tools(world).all()} == names
-    assert len(names) >= 30
-    q: Any = next(x for x in tools if x.name == "records_query")
-    assert set(q.parameters["properties"]) == {"collection", "where", "order", "limit"}
+    assert len(names) >= 20  # the hands (harness 2b): few and generic
+    q: Any = next(x for x in tools if x.name == "world_query")
+    assert set(q.parameters["properties"]) == {"sql", "limit"}
     assert "self" not in q.parameters["properties"]
 
 

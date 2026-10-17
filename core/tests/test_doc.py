@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import threading
 import time
+from datetime import datetime
 from typing import Any
 
 from conftest import building
@@ -82,8 +83,12 @@ def test_doc_repairs_a_reader_the_run_met_broken_and_the_fix_can_be_undone(world
     fixed = world.journal.recent(5, kinds=["changed"])[-1]
     assert fixed["actor"] == me["id"] and fixed["thread"] == agent["thread"]
     assert (fixed["data"]["skill"], fixed["data"]["from"], fixed["data"]["to"]) == ("brokers", 1, 2)
-    assert world.skills.versions("brokers") == [{"version": 1, "saved_at": fixed["at"],
-                                                  "replaced_by": me["id"], "description": "d"}]
+    [v] = world.skills.versions("brokers")
+    assert (v["version"], v["replaced_by"], v["description"]) == (1, me["id"], "d")
+    # the version's stamp is the save's, the journal line's a moment later: the same second
+    # under no load, the next one under the suite's
+    assert abs(datetime.fromisoformat(v["saved_at"]) - datetime.fromisoformat(fixed["at"])
+               ).total_seconds() <= 2
     notes = world.knowledge.find_note(f"agent:{me['id']}", "Notes")
     assert notes and "## brokers" in notes["body"] and "fixed (The list moved" in notes["body"]
     # the next real run reads it fine without a repair: the fix held, said once

@@ -289,11 +289,11 @@ def build(world: World, sentence: str, *, module: str | None = None,
         for c in Connections(world.store).all() if c["status"] != "off"
     ]
     sections.append(("WHAT ALPHA CAN REACH", reach or [
-        "- Nothing connected yet. Public web pages can always be read (page_read); folders,"
+        "- Nothing connected yet. Public web pages can always be read (browser_read); folders,"
         " sites to sign into and the calendar are connected when the person asks."]))
 
     # Know-how: every skill, always, but compact (design §3.7 point 7): act and run skills one
-    # line each, read skills as a list by site; bodies by skill_read, search by skills_find.
+    # line each, read skills as a list by site; bodies and search by skill_find.
     # Found 3 Oct: a line per skill with its description ate a third of the pack and cut the
     # matches off; the cap is 12,000 characters for everything.
     can_do = []
@@ -312,8 +312,9 @@ def build(world: World, sentence: str, *, module: str | None = None,
     if reads:
         can_do.append("- [read] " + "; ".join(reads))
     if can_do:
-        sections.append(("WHAT ALPHA CAN DO (skills it wrote; skill_read for one, skills_find"
-                         " to search; use one before writing another)", can_do))
+        sections.append(("WHAT ALPHA CAN DO (skills it wrote; skill_find with a name for one,"
+                         " with words or a site to search; use one before writing another)",
+                         can_do))
 
     local = datetime.now().astimezone()
     day_start = datetime.combine(local.date(), time(0), tzinfo=local.tzinfo).astimezone(UTC)
